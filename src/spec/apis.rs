@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: MIT
 
 #[allow(unused_imports)]
-use builtin_macros::*;
-#[allow(unused_imports)]
-use builtin::*;
-#[allow(unused_imports)]
-use crate::pervasive::{*, option::Option, map::Map};
-#[allow(unused_imports)]
 use crate::common::*;
+#[allow(unused_imports)]
+use crate::custom_controller_var::*;
 #[allow(unused_imports)]
 use crate::dict::*;
 #[allow(unused_imports)]
-use crate::custom_controller_var::*;
+use crate::pervasive::{map::Map, option::Option, *};
+#[allow(unused_imports)]
+use builtin::*;
+#[allow(unused_imports)]
+use builtin_macros::*;
 
 verus! {
 
@@ -216,7 +216,7 @@ impl MessageOps {
         match self.recv {
             Option::None => true,
             Option::Some(message) => message.well_formed(),
-        }        
+        }
     }
 
     #[spec] #[verifier(publish)]
@@ -224,7 +224,7 @@ impl MessageOps {
         match self.send {
             Option::None => true,
             Option::Some(message) => message.well_formed(),
-        }        
+        }
     }
 
     #[spec] #[verifier(publish)]
