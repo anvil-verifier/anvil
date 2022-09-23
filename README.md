@@ -2,21 +2,27 @@
 
 ## Overview
 
+This is an experimental framework to build practical, formally verified, cluster management controllers. The goal is to be able to write a controller in Rust, and have it be formally verified for correctness using the [Verus](https://github.com/secure-foundations/verus/) toolkit.
+
 ## Try it out
+
+You cannot compile the verifiable-controllers codebase with a standard rust compiler. You need to use the rust compiler supplied by the Verus project. Follow their [installation instructions](https://github.com/secure-foundations/verus/) to do so.
 
 ### Prerequisites
 
-* Prereq 1
-* Prereq 2
-* Prereq 3
+* A Verus installation
 
 ### Build & Run
 
-1. Step 1
-2. Step 2
-3. Step 3
+Next, from the root of the verifiable-controllers project:
+
+```
+$: <path-to-verus-source>/source/tools/rust-verify.sh src/spec/main.rs
+```
 
 ## Documentation
+
+Our verification approach is described [here](docs/framework_design.md).
 
 ## Contributing
 
