@@ -145,7 +145,14 @@ proof fn inv_preserves_i2(c: DSConstants, v: DSVariables, v_prime: DSVariables)
         inv(c, v) && next(c, v, v_prime)
     ensures
         object_exists_implies_creation_sent_i2(v_prime) {
-    network_monotonicity(c, v, v_prime);
+    assert
+        forall |any_object_key: ObjectKey|
+            (#[trigger] v_prime.kubernetes_variables.cluster_state.contains(any_object_key) && !is_cr_type(any_object_key.object_type))
+            ==> exists |message: Message|
+                #[trigger] is_sent(v_prime, message) && is_create_request_with_key(message, any_object_key)
+    by {
+        network_monotonicity(c, v, v_prime);
+    }
 }
 
 // This is a statement about the controller cache's monotonicity

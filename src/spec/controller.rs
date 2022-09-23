@@ -178,8 +178,8 @@ pub open spec fn continue_reconcile(c: ControllerConstants, v: ControllerVariabl
     all_well_formed(c, v, v_prime, message_ops)
     && v.reconcile_step !== ReconcileStep::Done
     && v.reconcile_step !== ReconcileStep::Retry
-    && message_ops.recv === Option::None
-    && v.pending_api_op_request === Option::None
+    && message_ops.recv.is_None()
+    && v.pending_api_op_request.is_None()
     && v.in_reconcile
     && v.controller_clock > 0
     && !v.before_receiving_response
