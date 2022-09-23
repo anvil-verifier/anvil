@@ -22,7 +22,7 @@ $: <path-to-verus-source>/source/tools/rust-verify.sh src/spec/main.rs
 
 ## Documentation
 
-Our verification approach is described [here](docs/framework_design.md).
+Our verification approach is described [here](doc/framework_design.md).
 
 ## Contributing
 
