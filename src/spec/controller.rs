@@ -197,7 +197,7 @@ pub open spec fn continue_reconcile(c: ControllerConstants, v: ControllerVariabl
                   }
             // We have no pending request since the controller_logic does not issue anything
             && v_prime.pending_api_op_request.is_None()
-            && controller_logic_spec(v.reconcile_step, v.triggering_key.get_Some_0(), v.state_cache, v.last_api_op_response.get_Some_0(), v_prime.reconcile_step, APIOpRequest{api_op: APIOp::Noop}),
+            && controller_logic_spec(v.reconcile_step, v.triggering_key.get_Some_0(), v.state_cache, v.last_api_op_response.get_Some_0(), v_prime.reconcile_step, v_prime.pending_api_op_request),
         Option::Some(message) => {
             match message {
                 Message::APIOpRequest(api_op_request) =>
@@ -208,11 +208,10 @@ pub open spec fn continue_reconcile(c: ControllerConstants, v: ControllerVariabl
                             before_receiving_response: v.before_receiving_response,
                             ..v_prime
                          }
-                    && api_op_request !== APIOpRequest{api_op:APIOp::Noop}
                     // We get a new pending request here
                     && v_prime.pending_api_op_request === Option::Some(api_op_request)
                     // We need to wait for new response for the new request from now
-                    && controller_logic_spec(v.reconcile_step, v.triggering_key.get_Some_0(), v.state_cache, v.last_api_op_response.get_Some_0(), v_prime.reconcile_step, api_op_request),
+                    && controller_logic_spec(v.reconcile_step, v.triggering_key.get_Some_0(), v.state_cache, v.last_api_op_response.get_Some_0(), v_prime.reconcile_step, v_prime.pending_api_op_request),
                 _ => false,
             }
         }
