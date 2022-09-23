@@ -105,8 +105,7 @@ pub open spec fn init(c: ControllerConstants, v: ControllerVariables) -> bool {
     && v.triggering_key.is_None()
     && v.reconcile_step === ReconcileStep::Init
     && v.state_cache.empty()
-    && v.last_api_op_response === Option::Some(APIOpResponse{success:true, api_op:APIOp::Noop,
-                                                            object:KubernetesObject::None})
+    && v.last_api_op_response.is_None()
     && v.pending_api_op_request.is_None()
     && v.controller_clock === c.controller_clock_upper_bound
     && !v.before_receiving_response
@@ -142,6 +141,7 @@ pub open spec fn receive_api_watch_notification(c: ControllerConstants, v: Contr
     && !v.before_receiving_response
     && v.triggering_key.is_None()
     && v.pending_api_op_request.is_None()
+    && v.last_api_op_response.is_None()
     && message_ops.send.is_None()
     && match message_ops.recv {
         Option::Some(Message::APIWatchNotification(api_watch_notification)) =>
@@ -178,8 +178,8 @@ pub open spec fn continue_reconcile(c: ControllerConstants, v: ControllerVariabl
     all_well_formed(c, v, v_prime, message_ops)
     && v.reconcile_step !== ReconcileStep::Done
     && v.reconcile_step !== ReconcileStep::Retry
-    && message_ops.recv ===  Option::None
-    && v.pending_api_op_request ===  Option::None
+    && message_ops.recv === Option::None
+    && v.pending_api_op_request === Option::None
     && v.in_reconcile
     && v.controller_clock > 0
     && !v.before_receiving_response
@@ -275,7 +275,7 @@ pub open spec fn end_reconcile(c: ControllerConstants, v: ControllerVariables, v
     && v_prime.triggering_key.is_None()
     && v.pending_api_op_request.is_None()
     && !v_prime.in_reconcile
-    && v_prime.last_api_op_response === Option::Some(APIOpResponse{success:true, api_op:APIOp::Noop, object:KubernetesObject::None})
+    && v_prime.last_api_op_response.is_None()
     && ((v.reconcile_step === ReconcileStep::Done) || (v.reconcile_step === ReconcileStep::Retry))
     && v_prime.reconcile_step === ReconcileStep::Init
     && v_prime.state_cache.empty()
