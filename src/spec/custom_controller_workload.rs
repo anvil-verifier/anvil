@@ -14,10 +14,10 @@ use crate::apis::*;
 #[allow(unused_imports)]
 use crate::custom_controller_var::*;
 
+verus! {
+
 pub struct WorkloadConstants {
 }
-
-verus! {
 
 impl WorkloadConstants {
     pub open spec fn well_formed(&self) -> bool {
@@ -56,22 +56,18 @@ pub open spec fn create_configmap_generator(c: WorkloadConstants, v: WorkloadVar
     all_well_formed(c, v, v_prime, message_ops)
     && !v.submitted
     && v_prime.submitted
-    && equal(message_ops.recv, Option::None)
     && equal(configmap_generator.name, StringL::MyConfigMapGenerator)
     && equal(configmap_generator.namespace, StringL::Default)
-    && match message_ops.send {
-        Option::None => false,
-        Option::Some(message) => {
-            match message {
-                Message::WorkloadSubmission(api_op_request) => equal(api_op_request.api_op, APIOp::Create{
-                    object_key: configmap_generator.key(),
-                    object: KubernetesObject::CustomResourceObject(
-                        CustomResourceObject::ConfigMapGenerator(configmap_generator)
-                    ),
-                }),
-                _ => false,
-            }
-        },
+    && message_ops.recv.is_None()
+    && message_ops.send.is_Some()
+    && match message_ops.send.get_Some_0() {
+        Message::WorkloadSubmission(api_op_request) => equal(api_op_request.api_op, APIOp::Create{
+            object_key: configmap_generator.key(),
+            object: KubernetesObject::CustomResourceObject(
+                CustomResourceObject::ConfigMapGenerator(configmap_generator)
+            ),
+        }),
+        _ => false,
     }
 }
 
