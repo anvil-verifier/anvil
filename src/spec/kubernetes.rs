@@ -160,90 +160,49 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
     && network_ops.recv.get_Some_0().dst === HostId::KubernetesAPI
     && match network_ops.recv.get_Some_0().message {
         Message::APIOpRequest(api_op_request) => {
-            // We should also validate whether this transition is allowed
-            let success = kubernetes_api_op_result(v.cluster_state, v_prime.cluster_state, api_op_request.api_op);
-            if success {
-                match api_op_request.api_op {
-                    APIOp::Get{object_key} =>
+            network_ops.send.is_Some()
+            && network_ops.send.get_Some_0().src === HostId::KubernetesAPI
+            && network_ops.send.get_Some_0().dst === HostId::CustomController
+            && match network_ops.send.get_Some_0().message {
+                Message::APIOpResponse(api_op_response) => {
+                    let success = kubernetes_api_op_result(v.cluster_state, v_prime.cluster_state, api_op_request.api_op);
+                    api_op_response.success === success
+                    && api_op_response.api_op_request === api_op_request
+                    && if success {
+                        match api_op_request.api_op {
+                            APIOp::Get{object_key} =>
+                                equal(v_prime.pending_api_watch_notification, Option::None)
+                                && equal(v.cluster_state, v_prime.cluster_state)
+                                && api_op_response.object === v.cluster_state.get(object_key),
+                            APIOp::Create{object_key, object} =>
+                                equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
+                                    object: object,
+                                    delta_type: WatchDeltaType::Create,
+                                }))
+                                && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
+                                && api_op_response.object === object,
+                            APIOp::Update{object_key, object} =>
+                                equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
+                                    object: object,
+                                    delta_type: WatchDeltaType::Update,
+                                }))
+                                && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
+                                && api_op_response.object === object,
+                            APIOp::Delete{object_key} =>
+                                equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
+                                    object: v.cluster_state.get(object_key),
+                                    delta_type: WatchDeltaType::Delete,
+                                }))
+                                && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
+                                && api_op_response.object === v.cluster_state.get(object_key),
+                        }
+                    } else {
                         equal(v_prime.pending_api_watch_notification, Option::None)
                         && equal(v.cluster_state, v_prime.cluster_state)
-                        // && equal(network_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
-                        //     success:success,
-                        //     api_op_request:api_op_request,
-                        //     object:v.cluster_state.get(object_key),
-                        // }))),
-                        && equal(network_ops.send, Option::Some(Packet{
-                            src: HostId::KubernetesAPI,
-                            dst: HostId::CustomController,
-                            message: Message::APIOpResponse(APIOpResponse{
-                                success:success,
-                                api_op_request:api_op_request,
-                                object:v.cluster_state.get(object_key),
-                            }),
-                        })),
-                    APIOp::Create{object_key, object} =>
-                        equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
-                            object: object,
-                            delta_type: WatchDeltaType::Create,
-                        }))
-                        && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                        && equal(network_ops.send, Option::Some(Packet{
-                            src: HostId::KubernetesAPI,
-                            dst: HostId::CustomController,
-                            message: Message::APIOpResponse(APIOpResponse{
-                                success:success,
-                                api_op_request:api_op_request,
-                                object:object,
-                            }),
-                        })),
-                    APIOp::Update{object_key, object} =>
-                        equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
-                            object: object,
-                            delta_type: WatchDeltaType::Update,
-                        }))
-                        && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                        && equal(network_ops.send, Option::Some(Packet{
-                            src: HostId::KubernetesAPI,
-                            dst: HostId::CustomController,
-                            message: Message::APIOpResponse(APIOpResponse{
-                                success:success,
-                                api_op_request:api_op_request,
-                                object:object,
-                            }),
-                        })),
-                    APIOp::Delete{object_key} =>
-                        equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
-                            object: v.cluster_state.get(object_key),
-                            delta_type: WatchDeltaType::Delete,
-                        }))
-                        && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                        && equal(network_ops.send, Option::Some(Packet{
-                            src: HostId::KubernetesAPI,
-                            dst: HostId::CustomController,
-                            message: Message::APIOpResponse(APIOpResponse{
-                                success:success,
-                                api_op_request:api_op_request,
-                                object:v.cluster_state.get(object_key),
-                            }),
-                        })),
-                }
-            } else {
-                equal(v_prime.pending_api_watch_notification, Option::None)
-                && equal(v.cluster_state, v_prime.cluster_state)
-                // && equal(network_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
-                //     success:success,
-                //     api_op_request:api_op_request,
-                //     object:KubernetesObject::None,
-                // })))
-                && equal(network_ops.send, Option::Some(Packet{
-                    src: HostId::KubernetesAPI,
-                    dst: HostId::CustomController,
-                    message: Message::APIOpResponse(APIOpResponse{
-                        success:success,
-                        api_op_request:api_op_request,
-                        object:KubernetesObject::None,
-                    }),
-                }))
+                        && api_op_response.object === KubernetesObject::None
+                    }        
+                },
+                _ => false,
             }
         },
         _ => false,
