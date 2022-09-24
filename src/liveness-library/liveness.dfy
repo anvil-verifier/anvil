@@ -110,7 +110,7 @@ module Behavior {
     Implies(tempA, Eventually(tempB))
   }
 
-  // TODO rename to IsTautology or Valid
+  // AKA Valid
   predicate IsTautology(temp: TemporalPred)
   {
     forall ex :: temp(ex)
@@ -193,7 +193,7 @@ module Behavior {
   // If a makes b happen in the next step, then prove LeadsTo(a, b).
   lemma OneStep(next: ActionPred, before: StatePred, after: StatePred)
     requires forall v, v' | before(v) && next(v, v') :: after(v')
-    ensures IsTautology(Implies(Always(LiftAction(next)), LeadsTo(LiftState(before), LiftState(after))))
+    ensures IsTautology(Implies(Always(LiftAction(next)), Always(LeadsTo(LiftState(before), LiftState(after)))))
   {
     assume false;
   }
@@ -201,7 +201,31 @@ module Behavior {
   ///////////////////////////////////////////////////////////////////////////
   // Deduction rules
 
-  lemma ModusPonens(a: TemporalPred, b: TemporalPred, c: TemporalPred)
+  lemma AutoModusPonens()
+    ensures forall a, b :: IsTautology(Implies(a, b)) <==> (IsTautology(a) ==> IsTautology(b))
+  {
+    forall a:TemporalPred, b:TemporalPred | IsTautology(Implies(a, b)) ensures (IsTautology(a) ==> IsTautology(b)) {
+      forall ex | a(ex) ensures b(ex) {
+        assert Not(And(Not(Not(a)), Not(b)))(ex);  // trigger
+      }
+    }
+    forall a:TemporalPred, b:TemporalPred | (IsTautology(a) ==> IsTautology(b)) ensures IsTautology(Implies(a, b)) {
+      forall ex | a(ex) ensures b(ex) {
+        assert Not(And(Not(Not(a)), Not(b)))(ex);  // trigger
+      }
+    }
+
+  }
+
+//  lemma ModusPonens(a: TemporalPred, b: TemporalPred)
+//    requires IsTautology(Implies(a, b))
+//    requires IsTautology(a)
+//    ensures IsTautology(b)
+//  {
+//    assume false;
+//  }
+
+  lemma ImplicationTransitive(a: TemporalPred, b: TemporalPred, c: TemporalPred)
     requires IsTautology(Implies(a, b))
     requires IsTautology(Implies(b, c))
     ensures IsTautology(Implies(a, c))
@@ -258,7 +282,8 @@ module LivenessProof {
     OneStep(Next, IsA(), IsB());
     assert IsTautology(Implies(Always(LiftAction(Next)), LeadsTo(LiftState(IsA()), LiftState(IsB()))));
     assert IsTautology(Implies(Spec(), Always(LiftAction(Next))));
-    ModusPonens(Spec() ,Always(LiftAction(Next)), LeadsTo(LiftState(IsA()), LiftState(IsB())));
+    // Whoah, not getting a lot of automation on this temporal logic!
+    ImplicationTransitive(Spec() ,Always(LiftAction(Next)), LeadsTo(LiftState(IsA()), LiftState(IsB())));
     assert IsTautology(Implies(Spec(), LeadsTo(LiftState(IsA()), LiftState(IsB()))));
 
     // Why doesn't this need proof!?
@@ -266,7 +291,18 @@ module LivenessProof {
     assert IsTautology(Implies(Spec(), LeadsTo(LiftState(IsB()), LiftState(IsC()))));
 
     assert IsTautology(Implies(Spec(), LeadsTo(LiftState(IsA()), LiftState(IsC())))) by {
+      AutoModusPonens();
+      if IsTautology(Spec()) {  // this doesn't really work, does it, since this is basically false?
+      //  ModusPonens(Spec(), LeadsTo(LiftState(IsA()), LiftState(IsB())));
+        assert IsTautology(LeadsTo(LiftState(IsA()), LiftState(IsB())));
+        assert IsTautology(LeadsTo(LiftState(IsB()), LiftState(IsC())));
         LeadsToTransitive(LiftState(IsA()), LiftState(IsB()), LiftState(IsC()));
+      }
+      //Spec(), LeadsTo(LiftState(IsA()), LiftState(IsC())));
+      assert IsTautology(Spec()) ==> IsTautology(LeadsTo(LiftState(IsA()), LiftState(IsC())));
     }
   }
+
+  /*
+  */
 }
