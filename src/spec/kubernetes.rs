@@ -97,7 +97,6 @@ pub fn kubernetes_api_op_result(cluster_state: ClusterState, cluster_state_prime
         APIOp::Create{object_key, object} => !cluster_state.contains(object_key),
         APIOp::Update{object_key, object} => cluster_state.contains(object_key),
         APIOp::Delete{object_key} => cluster_state.contains(object_key),
-        _ => false,
     }
 }
 
@@ -210,7 +209,6 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
                                     api_op_request:api_op_request,
                                     object:v.cluster_state.get(object_key),
                                 }))),
-                            _ => false,
                         }
                     } else {
                         equal(v_prime.pending_api_watch_notification, Option::None)

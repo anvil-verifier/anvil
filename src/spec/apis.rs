@@ -116,7 +116,6 @@ impl ClusterState {
 
 #[derive(PartialEq, Eq)]
 pub enum APIOp {
-    Noop,
     Get{object_key: ObjectKey},
     Create{object_key: ObjectKey, object:KubernetesObject},
     Update{object_key: ObjectKey, object:KubernetesObject},
@@ -163,7 +162,6 @@ impl APIOpResponse {
             APIOp::Create{object_key, ..} => self.object.matches(object_key),
             APIOp::Update{object_key, ..} => self.object.matches(object_key),
             APIOp::Delete{object_key} => self.object.matches(object_key),
-            _ => true,
         })
     }
 }
@@ -242,7 +240,6 @@ pub fn state_transition_by_api_op(cluster_state: ClusterState, cluster_state_pri
         APIOp::Create{object_key, object} => !cluster_state.contains(object_key) && equal(cluster_state.state.insert(object_key, object), cluster_state_prime.state),
         APIOp::Update{object_key, object} => cluster_state.contains(object_key) && equal(cluster_state.state.insert(object_key, object), cluster_state_prime.state),
         APIOp::Delete{object_key} => cluster_state.contains(object_key) && equal(cluster_state.state.remove(object_key), cluster_state_prime.state),
-        _ => false,
     }
 }
 

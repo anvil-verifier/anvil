@@ -64,7 +64,7 @@ pub open spec fn configmap_2_key() -> ObjectKey {
 }
 
 // TODO: it would be nicer if this spec was simpler than controller_logic, but that seems unlikely
-pub open spec fn controller_logic_spec(controller_step: ReconcileStep, triggering_key: ObjectKey, cluster_state: ClusterState, api_result: APIOpResponse, next_step: ReconcileStep, api_op_request: Option<APIOpRequest>) -> bool {
+pub open spec fn controller_logic_spec(controller_step: ReconcileStep, triggering_key: ObjectKey, cluster_state: ClusterState, api_result: Option<APIOpResponse>, next_step: ReconcileStep, api_op_request: Option<APIOpRequest>) -> bool {
     let configmap_1 = StringL::ConfigMap1;
     let configmap_2 = StringL::ConfigMap2;
     let default = StringL::Default;
@@ -158,7 +158,7 @@ pub open spec fn controller_logic_spec(controller_step: ReconcileStep, triggerin
 // One common practice to handle object deletion is that the cr object should have a finalizer
 // And the controller will delete the core objects if the controller has a deletion timestamp
 // and then removes the finalizer from the cr object
-pub fn controller_logic(controller_step: ReconcileStep, triggering_key: ObjectKey, cluster_state: ClusterStateImpl, api_result: APIOpResponse) -> (ReconcileStep, Option<APIOpRequest>) {
+pub fn controller_logic(controller_step: ReconcileStep, triggering_key: ObjectKey, cluster_state: ClusterStateImpl, api_result: Option<APIOpResponse>) -> (ReconcileStep, Option<APIOpRequest>) {
     ensures(|ret: (ReconcileStep, Option<APIOpRequest>)| controller_logic_spec(controller_step, triggering_key, ClusterState{state: cluster_state.state.view()}, api_result, ret.0, ret.1));
     // These would normally be global consts but verus does not support that yet
     let configmap_1 = StringL::ConfigMap1;
