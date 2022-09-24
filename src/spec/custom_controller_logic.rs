@@ -70,82 +70,77 @@ pub open spec fn controller_logic_spec(controller_step: ReconcileStep, triggerin
     let default = StringL::Default;
     let configmap = StringL::ConfigMap;
 
-    if !api_result.success && !equal(controller_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CheckIfCMExists)) {
-        equal(next_step, ReconcileStep::Retry)
-        && api_op_request.is_None()
-    } else {
-        match controller_step {
-            ReconcileStep::Init =>
-                equal(next_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CheckIfCMGExists))
-                && api_op_request.is_Some()
-                && equal(api_op_request.get_Some_0(), APIOpRequest{api_op:APIOp::Get{
-                    object_key: triggering_key
-                }}),
-            ReconcileStep::CustomReconcileStep(step) =>
-                match step {
-                    CustomReconcileStep::CheckIfCMGExists => 
-                        if !cluster_state.contains(triggering_key) {
-                            equal(next_step, ReconcileStep::Done)
-                            && api_op_request.is_None()
-                        } else {
-                            equal(next_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CheckIfCMExists))
-                            && api_op_request.is_Some()
-                            && equal(api_op_request.get_Some_0(), APIOpRequest{api_op:APIOp::Get{
-                                object_key: configmap_1_key()
-                            }})
-                        },
-                    CustomReconcileStep::CheckIfCMExists =>
-                        if !cluster_state.contains(configmap_1_key()) {
-                            equal(next_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CreateCM1))
-                            && api_op_request.is_Some()
-                            && equal(api_op_request.get_Some_0(), APIOpRequest{
-                                api_op:APIOp::Create{
-                                    object_key:configmap_1_key(),
-                                    object:KubernetesObject::ConfigMap(ConfigMapL{
-                                        name: configmap_1,
-                                        namespace: default,
-                                        owner_key: triggering_key,
-                                    }),
-                                }
-                            })
-                        } else {
-                            equal(next_step, ReconcileStep::Done)
-                            && api_op_request.is_None()
-                        },
-                    CustomReconcileStep::CreateCM1 =>
-                        if cluster_state.contains(configmap_1_key()) {
-                            equal(next_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CreateCM2))
-                            && api_op_request.is_Some()
-                            && equal(api_op_request.get_Some_0(), APIOpRequest{
-                                api_op:APIOp::Create{
-                                    object_key:configmap_2_key(),
-                                    object:KubernetesObject::ConfigMap(ConfigMapL{
-                                        name: configmap_2,
-                                        namespace: default,
-                                        owner_key: triggering_key,
-                                    }),
-                                }
-                            })
-                        } else {
-                            equal(next_step, ReconcileStep::Retry)
-                            && api_op_request.is_None()
-                        },
-                    CustomReconcileStep::CreateCM2 =>
-                        if cluster_state.contains(configmap_2_key()) {
-                            equal(next_step, ReconcileStep::Done)
-                            && api_op_request.is_None()
-                        } else {
-                            equal(next_step, ReconcileStep::Retry)
-                            && api_op_request.is_None()
-                        }
-                },
-            ReconcileStep::Retry =>
-                equal(next_step, ReconcileStep::Retry)
-                && api_op_request.is_None(),
-            ReconcileStep::Done =>
-                equal(next_step, ReconcileStep::Done)
-                && api_op_request.is_None(),
-        }
+    match controller_step {
+        ReconcileStep::Init =>
+            equal(next_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CheckIfCMGExists))
+            && api_op_request.is_Some()
+            && equal(api_op_request.get_Some_0(), APIOpRequest{api_op:APIOp::Get{
+                object_key: triggering_key
+            }}),
+        ReconcileStep::CustomReconcileStep(step) =>
+            match step {
+                CustomReconcileStep::CheckIfCMGExists =>
+                    if !cluster_state.contains(triggering_key) {
+                        equal(next_step, ReconcileStep::Done)
+                        && api_op_request.is_None()
+                    } else {
+                        equal(next_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CheckIfCMExists))
+                        && api_op_request.is_Some()
+                        && equal(api_op_request.get_Some_0(), APIOpRequest{api_op:APIOp::Get{
+                            object_key: configmap_1_key()
+                        }})
+                    },
+                CustomReconcileStep::CheckIfCMExists =>
+                    if !cluster_state.contains(configmap_1_key()) {
+                        equal(next_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CreateCM1))
+                        && api_op_request.is_Some()
+                        && equal(api_op_request.get_Some_0(), APIOpRequest{
+                            api_op:APIOp::Create{
+                                object_key:configmap_1_key(),
+                                object:KubernetesObject::ConfigMap(ConfigMapL{
+                                    name: configmap_1,
+                                    namespace: default,
+                                    owner_key: triggering_key,
+                                }),
+                            }
+                        })
+                    } else {
+                        equal(next_step, ReconcileStep::Done)
+                        && api_op_request.is_None()
+                    },
+                CustomReconcileStep::CreateCM1 =>
+                    if cluster_state.contains(configmap_1_key()) {
+                        equal(next_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CreateCM2))
+                        && api_op_request.is_Some()
+                        && equal(api_op_request.get_Some_0(), APIOpRequest{
+                            api_op:APIOp::Create{
+                                object_key:configmap_2_key(),
+                                object:KubernetesObject::ConfigMap(ConfigMapL{
+                                    name: configmap_2,
+                                    namespace: default,
+                                    owner_key: triggering_key,
+                                }),
+                            }
+                        })
+                    } else {
+                        equal(next_step, ReconcileStep::Retry)
+                        && api_op_request.is_None()
+                    },
+                CustomReconcileStep::CreateCM2 =>
+                    if cluster_state.contains(configmap_2_key()) {
+                        equal(next_step, ReconcileStep::Done)
+                        && api_op_request.is_None()
+                    } else {
+                        equal(next_step, ReconcileStep::Retry)
+                        && api_op_request.is_None()
+                    }
+            },
+        ReconcileStep::Retry =>
+            equal(next_step, ReconcileStep::Retry)
+            && api_op_request.is_None(),
+        ReconcileStep::Done =>
+            equal(next_step, ReconcileStep::Done)
+            && api_op_request.is_None(),
     }
 }
 
@@ -174,9 +169,6 @@ pub fn controller_logic(controller_step: ReconcileStep, triggering_key: ObjectKe
     let configmap_1_key = ObjectKey{ object_type: configmap, namespace: default, name: configmap_1 };
     let configmap_2_key = ObjectKey{ object_type: configmap, namespace: default, name: configmap_2 };
 
-    if !api_result.success && controller_step != ReconcileStep::CustomReconcileStep(CustomReconcileStep::CheckIfCMExists) {
-        return (ReconcileStep::Retry, Option::None);
-    }
     match controller_step {
         ReconcileStep::Init => {
             (ReconcileStep::CustomReconcileStep(CustomReconcileStep::CheckIfCMGExists),
