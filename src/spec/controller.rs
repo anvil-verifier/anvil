@@ -219,35 +219,32 @@ pub open spec fn continue_reconcile(c: ControllerConstants, v: ControllerVariabl
 /// - Receive response of the API Op request sent by continue_reconcile
 /// - Update the local cache of the cluster state based on the response
 pub open spec fn receive_api_op_response(c: ControllerConstants, v: ControllerVariables, v_prime: ControllerVariables, message_ops: MessageOps) -> bool {
-    message_ops.recv.is_Some()
+    all_well_formed(c, v, v_prime, message_ops)
+    && message_ops.recv.is_Some()
     && match message_ops.recv.get_Some_0() {
         Message::APIOpResponse(api_op_response) => {
-            match v.pending_api_op_request {
-                Option::Some(api_op_request) => 
-                    all_well_formed(c, v, v_prime, message_ops)
-                    && v === ControllerVariables{
-                                last_api_op_response: v.last_api_op_response,
-                                pending_api_op_request: v.pending_api_op_request,
-                                state_cache: v.state_cache,
-                                before_receiving_response: v.before_receiving_response,
-                                ..v_prime
-                             }
-                    && v.in_reconcile
-                    && v.before_receiving_response
-                    && !v_prime.before_receiving_response
-                    && v.triggering_key.is_Some()
-                    && v_prime.last_api_op_response === Option::Some(api_op_response)
-                    && v_prime.pending_api_op_request.is_None()
-                    && message_ops.send.is_None()
-                    // response and request need to match
-                    && api_op_response.api_op_request === api_op_request
-                    // if success, update the cache; otherwise do nothing
-                    && if api_op_response.success {
-                        state_transition_by_api_op(v.state_cache, v_prime.state_cache, api_op_response.api_op_request.api_op)
-                    } else {
-                        v.state_cache === v_prime.state_cache
-                    },
-                Option::None => false,
+            v.pending_api_op_request.is_Some()
+            && v === ControllerVariables{
+                        last_api_op_response: v.last_api_op_response,
+                        pending_api_op_request: v.pending_api_op_request,
+                        state_cache: v.state_cache,
+                        before_receiving_response: v.before_receiving_response,
+                        ..v_prime
+                     }
+            && v.in_reconcile
+            && v.before_receiving_response
+            && !v_prime.before_receiving_response
+            && v.triggering_key.is_Some()
+            && v_prime.last_api_op_response === Option::Some(api_op_response)
+            && v_prime.pending_api_op_request.is_None()
+            && message_ops.send.is_None()
+            // response and request need to match
+            && api_op_response.api_op_request === v.pending_api_op_request.get_Some_0()
+            // if success, update the cache; otherwise do nothing
+            && if api_op_response.success {
+                state_transition_by_api_op(v.state_cache, v_prime.state_cache, api_op_response.api_op_request.api_op)
+            } else {
+                v.state_cache === v_prime.state_cache
             }
         }
         _ => false,
