@@ -147,7 +147,7 @@ impl APIOpRequest {
 
 pub struct APIOpResponse {
     pub success: bool,
-    pub api_op: APIOp,
+    pub api_op_request: APIOpRequest,
     pub object: KubernetesObject,
     // should also return the error type if any
 }
@@ -155,9 +155,10 @@ pub struct APIOpResponse {
 impl APIOpResponse {
     #[spec] #[verifier(publish)]
     pub fn well_formed(&self) -> bool {
-        self.api_op.well_formed()
+        self.api_op_request.well_formed()
+        // TODO: revisit this branch
         && (!self.success ==> equal(self.object, KubernetesObject::None))
-        && (self.success ==> match self.api_op {
+        && (self.success ==> match self.api_op_request.api_op {
             APIOp::Get{object_key} => self.object.matches(object_key),
             APIOp::Create{object_key, ..} => self.object.matches(object_key),
             APIOp::Update{object_key, ..} => self.object.matches(object_key),

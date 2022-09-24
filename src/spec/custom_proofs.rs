@@ -50,7 +50,7 @@ spec fn no_deletion_i1(v: DSVariables) -> bool {
 spec fn matches_valid_gcu_response(m: Message, key: ObjectKey) -> bool {
     match m {
         Message::APIOpResponse(api_op_response) =>
-            match api_op_response.api_op {
+            match api_op_response.api_op_request.api_op {
                 APIOp::Get{object_key} => equal(object_key, key) && api_op_response.success,
                 APIOp::Create{object_key, ..} => equal(object_key, key) && api_op_response.success,
                 APIOp::Update{object_key, ..} => equal(object_key, key) && api_op_response.success,
@@ -152,6 +152,7 @@ proof fn inv_preserves_i2(c: DSConstants, v: DSVariables, v_prime: DSVariables)
                 #[trigger] is_sent(v_prime, message) && is_create_request_with_key(message, any_object_key)
     by {
         network_monotonicity(c, v, v_prime);
+        let bool = v.kubernetes_variables.cluster_state.contains(any_object_key);
     }
 }
 

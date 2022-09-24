@@ -166,7 +166,7 @@ pub open spec fn start_reconcile(c: ControllerConstants, v: ControllerVariables,
     && v.pending_api_op_request.is_None()
     && v.reconcile_step === ReconcileStep::Init
     && v.last_api_op_response.is_None()
-    && v_prime.last_api_op_response === Option::Some(APIOpResponse{success:true, api_op:APIOp::Noop, object:KubernetesObject::None})
+    && v_prime.last_api_op_response === Option::Some(APIOpResponse{success:true, api_op_request:APIOpRequest{api_op: APIOp::Noop}, object:KubernetesObject::None})
     && message_ops.recv.is_None()
     && message_ops.send.is_None()
 }
@@ -243,10 +243,10 @@ pub open spec fn receive_api_op_response(c: ControllerConstants, v: ControllerVa
                     && v_prime.pending_api_op_request.is_None()
                     && message_ops.send.is_None()
                     // response and request need to match
-                    && api_op_response.api_op === api_op_request.api_op
+                    && api_op_response.api_op_request === api_op_request
                     // if success, update the cache; otherwise do nothing
                     && if api_op_response.success {
-                        state_transition_by_api_op(v.state_cache, v_prime.state_cache, api_op_response.api_op)
+                        state_transition_by_api_op(v.state_cache, v_prime.state_cache, api_op_response.api_op_request.api_op)
                     } else {
                         v.state_cache === v_prime.state_cache
                     },

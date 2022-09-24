@@ -174,7 +174,7 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
                                 && equal(v.cluster_state, v_prime.cluster_state)
                                 && equal(message_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
                                     success:success,
-                                    api_op:api_op_request.api_op,
+                                    api_op_request:api_op_request,
                                     object:v.cluster_state.get(object_key),
                                 }))),
                             APIOp::Create{object_key, object} =>
@@ -185,7 +185,7 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
                                 && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
                                 && equal(message_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
                                     success:success,
-                                    api_op:api_op_request.api_op,
+                                    api_op_request:api_op_request,
                                     object:object,
                                 }))),
                             APIOp::Update{object_key, object} =>
@@ -196,7 +196,7 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
                                 && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
                                 && equal(message_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
                                     success:success,
-                                    api_op:api_op_request.api_op,
+                                    api_op_request:api_op_request,
                                     object:object,
                                 }))),
                             APIOp::Delete{object_key} =>
@@ -207,7 +207,7 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
                                 && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
                                 && equal(message_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
                                     success:success,
-                                    api_op:api_op_request.api_op,
+                                    api_op_request:api_op_request,
                                     object:v.cluster_state.get(object_key),
                                 }))),
                             _ => false,
@@ -217,7 +217,7 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
                         && equal(v.cluster_state, v_prime.cluster_state)
                         && equal(message_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
                             success:success,
-                            api_op:api_op_request.api_op,
+                            api_op_request:api_op_request,
                             object:KubernetesObject::None,
                         })))
                     }
