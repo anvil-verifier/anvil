@@ -37,6 +37,7 @@ impl WorkloadVariables {
 
 pub enum WorkloadStep {
     CreateConfigMapGenerator(ConfigMapGeneratorL),
+    ReceiveAPIOpResponseStep,
 }
 
 pub open spec fn init(c: WorkloadConstants, v: WorkloadVariables) -> bool {
@@ -63,7 +64,7 @@ pub open spec fn create_configmap_generator(c: WorkloadConstants, v: WorkloadVar
     && network_ops.send.get_Some_0().src === HostId::CustomClient
     && network_ops.send.get_Some_0().dst === HostId::KubernetesAPI
     && match network_ops.send.get_Some_0().message {
-        Message::WorkloadSubmission(api_op_request) => equal(api_op_request.api_op, APIOp::Create{
+        Message::APIOpRequest(api_op_request) => equal(api_op_request.api_op, APIOp::Create{
             object_key: configmap_generator.key(),
             object: KubernetesObject::CustomResourceObject(
                 CustomResourceObject::ConfigMapGenerator(configmap_generator)
@@ -73,9 +74,24 @@ pub open spec fn create_configmap_generator(c: WorkloadConstants, v: WorkloadVar
     }
 }
 
+pub open spec fn receive_api_op_response(c: WorkloadConstants, v: WorkloadVariables, v_prime: WorkloadVariables, network_ops: NetworkOps) -> bool {
+    all_well_formed(c, v, v_prime, network_ops)
+    && v.submitted
+    && v_prime.submitted
+    && network_ops.send.is_None()
+    && network_ops.recv.is_Some()
+    && network_ops.recv.get_Some_0().src === HostId::KubernetesAPI
+    && network_ops.recv.get_Some_0().dst === HostId::CustomClient
+    && match network_ops.recv.get_Some_0().message {
+        Message::APIOpResponse(api_op_response) => true,
+        _ => false,
+    }
+}
+
 pub open spec fn next_step(c: WorkloadConstants, v: WorkloadVariables, v_prime: WorkloadVariables, network_ops: NetworkOps, step: WorkloadStep) -> bool {
     match step {
         WorkloadStep::CreateConfigMapGenerator(configmap_generator) => create_configmap_generator(c, v, v_prime, configmap_generator, network_ops),
+        WorkloadStep::ReceiveAPIOpResponseStep => receive_api_op_response(c, v, v_prime, network_ops),
     }
 }
 

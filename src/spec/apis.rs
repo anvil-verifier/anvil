@@ -188,7 +188,6 @@ pub enum Message {
     APIOpRequest(APIOpRequest),
     APIOpResponse(APIOpResponse),
     APIWatchNotification(APIWatchNotification),
-    WorkloadSubmission(APIOpRequest),
     // need more message types
 }
 
@@ -199,7 +198,6 @@ impl Message {
             Message::APIOpRequest(api_op_request) => api_op_request.well_formed(),
             Message::APIOpResponse(api_op_response) => api_op_response.well_formed(),
             Message::APIWatchNotification(api_watch_notification) => api_watch_notification.well_formed(),
-            Message::WorkloadSubmission(api_op_request) => api_op_request.well_formed(),
         }
     }
 }

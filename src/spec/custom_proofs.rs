@@ -41,7 +41,6 @@ spec fn no_deletion_i1(v: DSVariables) -> bool {
     forall |packet: Packet| is_sent(v, packet) ==>
         match packet.message {
             Message::APIOpRequest(api_op_request) => !apiop_is_deletion(api_op_request.api_op),
-            Message::WorkloadSubmission(api_op_request) => !apiop_is_deletion(api_op_request.api_op),
             _ => true,
         }
 }
@@ -70,7 +69,7 @@ spec fn is_create_request_with_key(packet: Packet, key: ObjectKey) -> bool {
 // XXX: Not sure why we preclude the need for Create messages when it comes to CR types
 spec fn object_exists_implies_creation_sent_i2(v: DSVariables) -> bool {
     forall |key :ObjectKey|
-        (#[trigger] v.kubernetes_variables.cluster_state.contains(key) && !is_cr_type(key.object_type))
+        (#[trigger] v.kubernetes_variables.cluster_state.contains(key))
         ==> exists |packet: Packet| #[trigger] is_sent(v, packet) && is_create_request_with_key(packet, key)
 }
 
@@ -147,7 +146,7 @@ proof fn inv_preserves_i2(c: DSConstants, v: DSVariables, v_prime: DSVariables)
         object_exists_implies_creation_sent_i2(v_prime) {
     assert
         forall |any_object_key: ObjectKey|
-            (#[trigger] v_prime.kubernetes_variables.cluster_state.contains(any_object_key) && !is_cr_type(any_object_key.object_type))
+            (#[trigger] v_prime.kubernetes_variables.cluster_state.contains(any_object_key))
             ==> exists |packet: Packet|
                 #[trigger] is_sent(v_prime, packet) && is_create_request_with_key(packet, any_object_key)
     by {

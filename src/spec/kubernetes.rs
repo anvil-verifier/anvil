@@ -68,7 +68,7 @@ impl KubernetesVariables {
 }
 
 pub enum KubernetesStep {
-    HandleWorkloadSubmissionStep,
+    // HandleWorkloadSubmissionStep,
     HandleAPIOpRequestStep,
     SendAPIWatchNotificationStep,
 }
@@ -100,51 +100,6 @@ pub fn kubernetes_api_op_result(cluster_state: ClusterState, cluster_state_prime
 }
 
 #[spec] #[verifier(publish)]
-pub fn handle_workload_submission(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
-    all_well_formed(c, v, v_prime, network_ops)
-    && equal(v.pending_api_watch_notification, Option::None)
-    && network_ops.send.is_None()
-    && network_ops.recv.is_Some()
-    && network_ops.recv.get_Some_0().src === HostId::CustomClient
-    && network_ops.recv.get_Some_0().dst === HostId::KubernetesAPI
-    && match network_ops.recv.get_Some_0().message {
-        Message::WorkloadSubmission(api_op_request) => {
-            let success = kubernetes_api_op_result(v.cluster_state, v_prime.cluster_state, api_op_request.api_op);
-            if success {
-                match api_op_request.api_op {
-                    APIOp::Create{object_key, object} =>
-                        is_cr_type(object_key.object_type)
-                        && equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
-                            object: object,
-                            delta_type: WatchDeltaType::Create,
-                        }))
-                        && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op),
-                    APIOp::Update{object_key, object} =>
-                        is_cr_type(object_key.object_type)
-                        && equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
-                            object: object,
-                            delta_type: WatchDeltaType::Update,
-                        }))
-                        && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op),
-                    APIOp::Delete{object_key} =>
-                        is_cr_type(object_key.object_type)
-                        && equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
-                            object: v.cluster_state.get(object_key),
-                            delta_type: WatchDeltaType::Delete,
-                        }))
-                        && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op),
-                    _ => false,
-                }
-            } else {
-                equal(v_prime.pending_api_watch_notification, Option::None)
-                && equal(v.cluster_state, v_prime.cluster_state)
-            }
-        },
-        _ => false,
-    }
-}
-
-#[spec] #[verifier(publish)]
 pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
     // TODO: we should consider the chain reaction
     // For example, creating a statefulset will lead to mulitple pod creation
@@ -156,13 +111,13 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
     all_well_formed(c, v, v_prime, network_ops)
     && equal(v.pending_api_watch_notification, Option::None)
     && network_ops.recv.is_Some()
-    && network_ops.recv.get_Some_0().src === HostId::CustomController
+    && (network_ops.recv.get_Some_0().src === HostId::CustomController || network_ops.recv.get_Some_0().src === HostId::CustomClient)
     && network_ops.recv.get_Some_0().dst === HostId::KubernetesAPI
     && match network_ops.recv.get_Some_0().message {
         Message::APIOpRequest(api_op_request) => {
             network_ops.send.is_Some()
             && network_ops.send.get_Some_0().src === HostId::KubernetesAPI
-            && network_ops.send.get_Some_0().dst === HostId::CustomController
+            && network_ops.send.get_Some_0().dst === network_ops.recv.get_Some_0().src
             && match network_ops.send.get_Some_0().message {
                 Message::APIOpResponse(api_op_response) => {
                     let success = kubernetes_api_op_result(v.cluster_state, v_prime.cluster_state, api_op_request.api_op);
@@ -231,7 +186,7 @@ pub fn send_api_watch_notification(c: KubernetesConstants, v: KubernetesVariable
 #[spec] #[verifier(publish)]
 pub fn next_step(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps, step: KubernetesStep) -> bool {
     match step {
-        KubernetesStep::HandleWorkloadSubmissionStep => handle_workload_submission(c, v, v_prime, network_ops),
+        // KubernetesStep::HandleWorkloadSubmissionStep => handle_workload_submission(c, v, v_prime, network_ops),
         KubernetesStep::HandleAPIOpRequestStep => handle_api_op_request(c, v, v_prime, network_ops),
         KubernetesStep::SendAPIWatchNotificationStep => send_api_watch_notification(c, v, v_prime, network_ops),
     }
