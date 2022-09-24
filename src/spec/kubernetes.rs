@@ -82,11 +82,11 @@ pub fn init(c: KubernetesConstants, v: KubernetesVariables) -> bool {
 }
 
 #[spec] #[verifier(publish)]
-pub fn all_well_formed(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, message_ops: MessageOps) -> bool {
+pub fn all_well_formed(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
     c.well_formed()
     && v.well_formed(c)
     && v_prime.well_formed(c)
-    && message_ops.well_formed()
+    && network_ops.well_formed()
 }
 
 #[spec] #[verifier(publish)]
@@ -100,14 +100,14 @@ pub fn kubernetes_api_op_result(cluster_state: ClusterState, cluster_state_prime
 }
 
 #[spec] #[verifier(publish)]
-pub fn handle_workload_submission(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, message_ops: MessageOps) -> bool {
-    all_well_formed(c, v, v_prime, message_ops)
+pub fn handle_workload_submission(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
+    all_well_formed(c, v, v_prime, network_ops)
     && equal(v.pending_api_watch_notification, Option::None)
-    && message_ops.send.is_None()
-    && message_ops.recv.is_Some()
-    && message_ops.recv.get_Some_0().src === HostId::CustomClient
-    && message_ops.recv.get_Some_0().dst === HostId::KubernetesAPI
-    && match message_ops.recv.get_Some_0().message {
+    && network_ops.send.is_None()
+    && network_ops.recv.is_Some()
+    && network_ops.recv.get_Some_0().src === HostId::CustomClient
+    && network_ops.recv.get_Some_0().dst === HostId::KubernetesAPI
+    && match network_ops.recv.get_Some_0().message {
         Message::WorkloadSubmission(api_op_request) => {
             let success = kubernetes_api_op_result(v.cluster_state, v_prime.cluster_state, api_op_request.api_op);
             if success {
@@ -145,7 +145,7 @@ pub fn handle_workload_submission(c: KubernetesConstants, v: KubernetesVariables
 }
 
 #[spec] #[verifier(publish)]
-pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, message_ops: MessageOps) -> bool {
+pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
     // TODO: we should consider the chain reaction
     // For example, creating a statefulset will lead to mulitple pod creation
     // There could be many such chain reactions caused by the Kubernetes core controllers
@@ -153,12 +153,12 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
     // to discover every possible interleaving between these controllers
     
     // TODO: we should allow processing api op while there are pending responses
-    all_well_formed(c, v, v_prime, message_ops)
+    all_well_formed(c, v, v_prime, network_ops)
     && equal(v.pending_api_watch_notification, Option::None)
-    && message_ops.recv.is_Some()
-    && message_ops.recv.get_Some_0().src === HostId::CustomController
-    && message_ops.recv.get_Some_0().dst === HostId::KubernetesAPI
-    && match message_ops.recv.get_Some_0().message {
+    && network_ops.recv.is_Some()
+    && network_ops.recv.get_Some_0().src === HostId::CustomController
+    && network_ops.recv.get_Some_0().dst === HostId::KubernetesAPI
+    && match network_ops.recv.get_Some_0().message {
         Message::APIOpRequest(api_op_request) => {
             // We should also validate whether this transition is allowed
             let success = kubernetes_api_op_result(v.cluster_state, v_prime.cluster_state, api_op_request.api_op);
@@ -167,12 +167,12 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
                     APIOp::Get{object_key} =>
                         equal(v_prime.pending_api_watch_notification, Option::None)
                         && equal(v.cluster_state, v_prime.cluster_state)
-                        // && equal(message_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
+                        // && equal(network_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
                         //     success:success,
                         //     api_op_request:api_op_request,
                         //     object:v.cluster_state.get(object_key),
                         // }))),
-                        && equal(message_ops.send, Option::Some(Packet{
+                        && equal(network_ops.send, Option::Some(Packet{
                             src: HostId::KubernetesAPI,
                             dst: HostId::CustomController,
                             message: Message::APIOpResponse(APIOpResponse{
@@ -187,7 +187,7 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
                             delta_type: WatchDeltaType::Create,
                         }))
                         && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                        && equal(message_ops.send, Option::Some(Packet{
+                        && equal(network_ops.send, Option::Some(Packet{
                             src: HostId::KubernetesAPI,
                             dst: HostId::CustomController,
                             message: Message::APIOpResponse(APIOpResponse{
@@ -202,7 +202,7 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
                             delta_type: WatchDeltaType::Update,
                         }))
                         && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                        && equal(message_ops.send, Option::Some(Packet{
+                        && equal(network_ops.send, Option::Some(Packet{
                             src: HostId::KubernetesAPI,
                             dst: HostId::CustomController,
                             message: Message::APIOpResponse(APIOpResponse{
@@ -217,7 +217,7 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
                             delta_type: WatchDeltaType::Delete,
                         }))
                         && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                        && equal(message_ops.send, Option::Some(Packet{
+                        && equal(network_ops.send, Option::Some(Packet{
                             src: HostId::KubernetesAPI,
                             dst: HostId::CustomController,
                             message: Message::APIOpResponse(APIOpResponse{
@@ -230,12 +230,12 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
             } else {
                 equal(v_prime.pending_api_watch_notification, Option::None)
                 && equal(v.cluster_state, v_prime.cluster_state)
-                // && equal(message_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
+                // && equal(network_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
                 //     success:success,
                 //     api_op_request:api_op_request,
                 //     object:KubernetesObject::None,
                 // })))
-                && equal(message_ops.send, Option::Some(Packet{
+                && equal(network_ops.send, Option::Some(Packet{
                     src: HostId::KubernetesAPI,
                     dst: HostId::CustomController,
                     message: Message::APIOpResponse(APIOpResponse{
@@ -251,36 +251,36 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
 }
 
 #[spec] #[verifier(publish)]
-pub fn send_api_watch_notification(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, message_ops: MessageOps) -> bool {
-    all_well_formed(c, v, v_prime, message_ops)
+pub fn send_api_watch_notification(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
+    all_well_formed(c, v, v_prime, network_ops)
     && v === KubernetesVariables{
         pending_api_watch_notification: v.pending_api_watch_notification,
         ..v_prime
     }
     && v.pending_api_watch_notification !== Option::None
     && v_prime.pending_api_watch_notification === Option::None
-    && message_ops.recv.is_None()
-    && message_ops.send.is_Some()
-    && message_ops.send.get_Some_0().src === HostId::KubernetesAPI
-    && message_ops.send.get_Some_0().dst === HostId::CustomController
-    && match message_ops.send.get_Some_0().message {
+    && network_ops.recv.is_None()
+    && network_ops.send.is_Some()
+    && network_ops.send.get_Some_0().src === HostId::KubernetesAPI
+    && network_ops.send.get_Some_0().dst === HostId::CustomController
+    && match network_ops.send.get_Some_0().message {
         Message::APIWatchNotification(api_watch_notification) => Option::Some(api_watch_notification) === v.pending_api_watch_notification,
         _ => false,
     }
 }
 
 #[spec] #[verifier(publish)]
-pub fn next_step(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, message_ops: MessageOps, step: KubernetesStep) -> bool {
+pub fn next_step(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps, step: KubernetesStep) -> bool {
     match step {
-        KubernetesStep::HandleWorkloadSubmissionStep => handle_workload_submission(c, v, v_prime, message_ops),
-        KubernetesStep::HandleAPIOpRequestStep => handle_api_op_request(c, v, v_prime, message_ops),
-        KubernetesStep::SendAPIWatchNotificationStep => send_api_watch_notification(c, v, v_prime, message_ops),
+        KubernetesStep::HandleWorkloadSubmissionStep => handle_workload_submission(c, v, v_prime, network_ops),
+        KubernetesStep::HandleAPIOpRequestStep => handle_api_op_request(c, v, v_prime, network_ops),
+        KubernetesStep::SendAPIWatchNotificationStep => send_api_watch_notification(c, v, v_prime, network_ops),
     }
 }
 
 #[spec] #[verifier(publish)]
-pub fn next(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, message_ops: MessageOps) -> bool {
-    exists(|step: KubernetesStep| next_step(c, v, v_prime, message_ops, step))
+pub fn next(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
+    exists(|step: KubernetesStep| next_step(c, v, v_prime, network_ops, step))
 }
 
 }

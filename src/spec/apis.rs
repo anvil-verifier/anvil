@@ -223,12 +223,12 @@ impl Packet {
     }
 }
 
-pub struct MessageOps {
+pub struct NetworkOps {
     pub recv: Option<Packet>,
     pub send: Option<Packet>,
 }
 
-impl MessageOps {
+impl NetworkOps {
     #[spec] #[verifier(publish)]
     pub fn recv_well_formed(&self) -> bool {
         match self.recv {

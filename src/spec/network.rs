@@ -25,13 +25,13 @@ pub open spec fn init(c: NetworkConstants, v: NetworkVariables) -> bool {
     equal(v.sent_messages, Set::empty())
 }
 
-pub open spec fn next(c: NetworkConstants, v: NetworkVariables, v_prime: NetworkVariables, message_ops: MessageOps) -> bool {
+pub open spec fn next(c: NetworkConstants, v: NetworkVariables, v_prime: NetworkVariables, network_ops: NetworkOps) -> bool {
     true
-    && match message_ops.recv {
+    && match network_ops.recv {
         Option::Some(message_to_recv) => v.sent_messages.contains(message_to_recv),
         Option::None => true,
     }
-    && match message_ops.send {
+    && match network_ops.send {
         Option::Some(message_to_send) => (v.sent_messages.insert(message_to_send) === v_prime.sent_messages),
         Option::None => (v.sent_messages === v_prime.sent_messages),
     }

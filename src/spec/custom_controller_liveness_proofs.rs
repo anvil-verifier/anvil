@@ -222,8 +222,8 @@ proof fn inv_preserves_i3(c: DSConstants, v: DSVariables, v_prime: DSVariables)
 {
     let step = choose|step: DSStep| next_step(c, v, v_prime, step);
     match step {
-        DSStep::ControllerActionStep(message_ops) => {
-            let controller_step = choose|controller_step: controller::ControllerStep| controller::next_step(c.controller_constants, v.controller_variables, v_prime.controller_variables, message_ops, controller_step);
+        DSStep::ControllerActionStep(network_ops) => {
+            let controller_step = choose|controller_step: controller::ControllerStep| controller::next_step(c.controller_constants, v.controller_variables, v_prime.controller_variables, network_ops, controller_step);
             match controller_step {
                 controller::ControllerStep::ContinueReconcileStep => {
                     if v.controller_variables.controller_clock == 9 {
@@ -256,8 +256,8 @@ proof fn inv_preserves_i4(c: DSConstants, v: DSVariables, v_prime: DSVariables)
 {
     let step = choose|step: DSStep| next_step(c, v, v_prime, step);
     match step {
-        DSStep::ControllerActionStep(message_ops) => {
-            let controller_step = choose|controller_step: controller::ControllerStep| controller::next_step(c.controller_constants, v.controller_variables, v_prime.controller_variables, message_ops, controller_step);
+        DSStep::ControllerActionStep(network_ops) => {
+            let controller_step = choose|controller_step: controller::ControllerStep| controller::next_step(c.controller_constants, v.controller_variables, v_prime.controller_variables, network_ops, controller_step);
             match controller_step {
                 controller::ControllerStep::ContinueReconcileStep => {
                     if v.controller_variables.controller_clock == 8 {
@@ -290,8 +290,8 @@ proof fn inv_preserves_i5(c: DSConstants, v: DSVariables, v_prime: DSVariables)
 {
     let step = choose|step: DSStep| next_step(c, v, v_prime, step);
     match step {
-        DSStep::ControllerActionStep(message_ops) => {
-            let controller_step = choose|controller_step: controller::ControllerStep| controller::next_step(c.controller_constants, v.controller_variables, v_prime.controller_variables, message_ops, controller_step);
+        DSStep::ControllerActionStep(network_ops) => {
+            let controller_step = choose|controller_step: controller::ControllerStep| controller::next_step(c.controller_constants, v.controller_variables, v_prime.controller_variables, network_ops, controller_step);
             match controller_step {
                 controller::ControllerStep::ContinueReconcileStep => {
                     if v.controller_variables.controller_clock == 7 {
