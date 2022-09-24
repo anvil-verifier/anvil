@@ -204,9 +204,28 @@ impl Message {
     }
 }
 
+pub enum HostId {
+    KubernetesAPI,
+    CustomController,
+    CustomClient,
+}
+
+pub struct Packet {
+    pub src: HostId,
+    pub dst: HostId,
+    pub message: Message,
+}
+
+impl Packet {
+    #[spec] #[verifier(publish)]
+    pub fn well_formed(&self) -> bool {
+        self.message.well_formed()
+    }
+}
+
 pub struct MessageOps {
-    pub recv: Option<Message>,
-    pub send: Option<Message>,
+    pub recv: Option<Packet>,
+    pub send: Option<Packet>,
 }
 
 impl MessageOps {
@@ -214,7 +233,7 @@ impl MessageOps {
     pub fn recv_well_formed(&self) -> bool {
         match self.recv {
             Option::None => true,
-            Option::Some(message) => message.well_formed(),
+            Option::Some(packet) => packet.well_formed(),
         }
     }
 
@@ -222,7 +241,7 @@ impl MessageOps {
     pub fn send_well_formed(&self) -> bool {
         match self.send {
             Option::None => true,
-            Option::Some(message) => message.well_formed(),
+            Option::Some(packet) => packet.well_formed(),
         }
     }
 

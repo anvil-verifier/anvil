@@ -60,7 +60,9 @@ pub open spec fn create_configmap_generator(c: WorkloadConstants, v: WorkloadVar
     && equal(configmap_generator.namespace, StringL::Default)
     && message_ops.recv.is_None()
     && message_ops.send.is_Some()
-    && match message_ops.send.get_Some_0() {
+    && message_ops.send.get_Some_0().src === HostId::CustomClient
+    && message_ops.send.get_Some_0().dst === HostId::KubernetesAPI
+    && match message_ops.send.get_Some_0().message {
         Message::WorkloadSubmission(api_op_request) => equal(api_op_request.api_op, APIOp::Create{
             object_key: configmap_generator.key(),
             object: KubernetesObject::CustomResourceObject(

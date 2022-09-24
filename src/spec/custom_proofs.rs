@@ -38,8 +38,8 @@ spec fn apiop_is_deletion(api_op: APIOp) -> bool {
 
 // XXX: Strong assumption
 spec fn no_deletion_i1(v: DSVariables) -> bool {
-    forall |m: Message| is_sent(v, m) ==>
-        match m {
+    forall |packet: Packet| is_sent(v, packet) ==>
+        match packet.message {
             Message::APIOpRequest(api_op_request) => !apiop_is_deletion(api_op_request.api_op),
             Message::WorkloadSubmission(api_op_request) => !apiop_is_deletion(api_op_request.api_op),
             _ => true,
@@ -47,8 +47,8 @@ spec fn no_deletion_i1(v: DSVariables) -> bool {
 }
 
 // GCU = get/create/update message. That is, anything that isn't a delete
-spec fn matches_valid_gcu_response(m: Message, key: ObjectKey) -> bool {
-    match m {
+spec fn matches_valid_gcu_response(packet: Packet, key: ObjectKey) -> bool {
+    match packet.message {
         Message::APIOpResponse(api_op_response) =>
             match api_op_response.api_op_request.api_op {
                 APIOp::Get{object_key} => equal(object_key, key) && api_op_response.success,
@@ -62,8 +62,8 @@ spec fn matches_valid_gcu_response(m: Message, key: ObjectKey) -> bool {
 
 // XXX: Not yet clear why this needs to be inline for the proof to go through.
 #[verifier(inline)]
-spec fn is_create_request_with_key(m: Message, key: ObjectKey) -> bool {
-    matches!(m,
+spec fn is_create_request_with_key(packet: Packet, key: ObjectKey) -> bool {
+    matches!(packet.message,
         Message::APIOpRequest(APIOpRequest{api_op: APIOp::Create{object_key, ..}}) if equal(object_key, key))
 }
 
@@ -71,23 +71,23 @@ spec fn is_create_request_with_key(m: Message, key: ObjectKey) -> bool {
 spec fn object_exists_implies_creation_sent_i2(v: DSVariables) -> bool {
     forall |key :ObjectKey|
         (#[trigger] v.kubernetes_variables.cluster_state.contains(key) && !is_cr_type(key.object_type))
-        ==> exists |m: Message| #[trigger] is_sent(v, m) && is_create_request_with_key(m, key)
+        ==> exists |packet: Packet| #[trigger] is_sent(v, packet) && is_create_request_with_key(packet, key)
 }
 
 spec fn object_in_cache_implies_corresponding_response_received_i3(v: DSVariables) -> bool {
     forall |key: ObjectKey| v.controller_variables.state_cache.contains(key)
-        ==> exists |m: Message| #[trigger] is_sent(v, m) && matches_valid_gcu_response(m, key)
+        ==> exists |packet: Packet| #[trigger] is_sent(v, packet) && matches_valid_gcu_response(packet, key)
 }
 
 spec fn gcu_response_implies_object_in_cluster_state_i4(v: DSVariables) -> bool {
     forall |key: ObjectKey|
-        (exists |m: Message| #[trigger] is_sent(v, m) && matches_valid_gcu_response(m, key))
+        (exists |packet: Packet| #[trigger] is_sent(v, packet) && matches_valid_gcu_response(packet, key))
         ==> v.kubernetes_variables.cluster_state.contains(key)
 }
 
 spec fn cm2_creation_implies_cm1_existence_i5(v: DSVariables) -> bool {
-    (exists |message: Message|
-        is_sent(v, message) && is_create_request_with_key(message, configmap_2_key()))
+    (exists |packet: Packet|
+        is_sent(v, packet) && is_create_request_with_key(packet, configmap_2_key()))
     ==> v.kubernetes_variables.cluster_state.contains(configmap_1_key())
 }
 
@@ -103,7 +103,7 @@ proof fn network_monotonicity(c: DSConstants, v: DSVariables, v_prime: DSVariabl
     requires
         next(c, v, v_prime)
     ensures
-        forall |m: Message| is_sent(v, m) ==> is_sent(v_prime, m) {
+        forall |packet: Packet| is_sent(v, packet) ==> is_sent(v_prime, packet) {
 }
 
 proof fn controller_cache_monotonicity(c: DSConstants, v: DSVariables, v_prime: DSVariables)
@@ -148,8 +148,8 @@ proof fn inv_preserves_i2(c: DSConstants, v: DSVariables, v_prime: DSVariables)
     assert
         forall |any_object_key: ObjectKey|
             (#[trigger] v_prime.kubernetes_variables.cluster_state.contains(any_object_key) && !is_cr_type(any_object_key.object_type))
-            ==> exists |message: Message|
-                #[trigger] is_sent(v_prime, message) && is_create_request_with_key(message, any_object_key)
+            ==> exists |packet: Packet|
+                #[trigger] is_sent(v_prime, packet) && is_create_request_with_key(packet, any_object_key)
     by {
         network_monotonicity(c, v, v_prime);
         let bool = v.kubernetes_variables.cluster_state.contains(any_object_key);
@@ -165,8 +165,8 @@ proof fn inv_preserves_i3(c: DSConstants, v: DSVariables, v_prime: DSVariables)
     assert
         // XXX: this is the body of object_in_cache_implies_corresponding_response_received_i3
         forall |any_object_key: ObjectKey| v_prime.controller_variables.state_cache.contains(any_object_key)
-            ==> exists |message:Message|
-                #[trigger] is_sent(v_prime, message) && matches_valid_gcu_response(message, any_object_key)
+            ==> exists |packet: Packet|
+                #[trigger] is_sent(v_prime, packet) && matches_valid_gcu_response(packet, any_object_key)
     by {
         network_monotonicity(c, v, v_prime);
         // XXX: not sure why adding the below statement makes the proof go through

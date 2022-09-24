@@ -101,12 +101,13 @@ pub fn kubernetes_api_op_result(cluster_state: ClusterState, cluster_state_prime
 
 #[spec] #[verifier(publish)]
 pub fn handle_workload_submission(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, message_ops: MessageOps) -> bool {
-
     all_well_formed(c, v, v_prime, message_ops)
     && equal(v.pending_api_watch_notification, Option::None)
     && message_ops.send.is_None()
     && message_ops.recv.is_Some()
-    && match message_ops.recv.get_Some_0() {
+    && message_ops.recv.get_Some_0().src === HostId::CustomClient
+    && message_ops.recv.get_Some_0().dst === HostId::KubernetesAPI
+    && match message_ops.recv.get_Some_0().message {
         Message::WorkloadSubmission(api_op_request) => {
             let success = kubernetes_api_op_result(v.cluster_state, v_prime.cluster_state, api_op_request.api_op);
             if success {
@@ -155,7 +156,9 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
     all_well_formed(c, v, v_prime, message_ops)
     && equal(v.pending_api_watch_notification, Option::None)
     && message_ops.recv.is_Some()
-    && match message_ops.recv.get_Some_0() {
+    && message_ops.recv.get_Some_0().src === HostId::CustomController
+    && message_ops.recv.get_Some_0().dst === HostId::KubernetesAPI
+    && match message_ops.recv.get_Some_0().message {
         Message::APIOpRequest(api_op_request) => {
             // We should also validate whether this transition is allowed
             let success = kubernetes_api_op_result(v.cluster_state, v_prime.cluster_state, api_op_request.api_op);
@@ -164,53 +167,83 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
                     APIOp::Get{object_key} =>
                         equal(v_prime.pending_api_watch_notification, Option::None)
                         && equal(v.cluster_state, v_prime.cluster_state)
-                        && equal(message_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
-                            success:success,
-                            api_op_request:api_op_request,
-                            object:v.cluster_state.get(object_key),
-                        }))),
+                        // && equal(message_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
+                        //     success:success,
+                        //     api_op_request:api_op_request,
+                        //     object:v.cluster_state.get(object_key),
+                        // }))),
+                        && equal(message_ops.send, Option::Some(Packet{
+                            src: HostId::KubernetesAPI,
+                            dst: HostId::CustomController,
+                            message: Message::APIOpResponse(APIOpResponse{
+                                success:success,
+                                api_op_request:api_op_request,
+                                object:v.cluster_state.get(object_key),
+                            }),
+                        })),
                     APIOp::Create{object_key, object} =>
                         equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
                             object: object,
                             delta_type: WatchDeltaType::Create,
                         }))
                         && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                        && equal(message_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
-                            success:success,
-                            api_op_request:api_op_request,
-                            object:object,
-                        }))),
+                        && equal(message_ops.send, Option::Some(Packet{
+                            src: HostId::KubernetesAPI,
+                            dst: HostId::CustomController,
+                            message: Message::APIOpResponse(APIOpResponse{
+                                success:success,
+                                api_op_request:api_op_request,
+                                object:object,
+                            }),
+                        })),
                     APIOp::Update{object_key, object} =>
                         equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
                             object: object,
                             delta_type: WatchDeltaType::Update,
                         }))
                         && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                        && equal(message_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
-                            success:success,
-                            api_op_request:api_op_request,
-                            object:object,
-                        }))),
+                        && equal(message_ops.send, Option::Some(Packet{
+                            src: HostId::KubernetesAPI,
+                            dst: HostId::CustomController,
+                            message: Message::APIOpResponse(APIOpResponse{
+                                success:success,
+                                api_op_request:api_op_request,
+                                object:object,
+                            }),
+                        })),
                     APIOp::Delete{object_key} =>
                         equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
                             object: v.cluster_state.get(object_key),
                             delta_type: WatchDeltaType::Delete,
                         }))
                         && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                        && equal(message_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
-                            success:success,
-                            api_op_request:api_op_request,
-                            object:v.cluster_state.get(object_key),
-                        }))),
+                        && equal(message_ops.send, Option::Some(Packet{
+                            src: HostId::KubernetesAPI,
+                            dst: HostId::CustomController,
+                            message: Message::APIOpResponse(APIOpResponse{
+                                success:success,
+                                api_op_request:api_op_request,
+                                object:v.cluster_state.get(object_key),
+                            }),
+                        })),
                 }
             } else {
                 equal(v_prime.pending_api_watch_notification, Option::None)
                 && equal(v.cluster_state, v_prime.cluster_state)
-                && equal(message_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
-                    success:success,
-                    api_op_request:api_op_request,
-                    object:KubernetesObject::None,
-                })))
+                // && equal(message_ops.send, Option::Some(Message::APIOpResponse(APIOpResponse{
+                //     success:success,
+                //     api_op_request:api_op_request,
+                //     object:KubernetesObject::None,
+                // })))
+                && equal(message_ops.send, Option::Some(Packet{
+                    src: HostId::KubernetesAPI,
+                    dst: HostId::CustomController,
+                    message: Message::APIOpResponse(APIOpResponse{
+                        success:success,
+                        api_op_request:api_op_request,
+                        object:KubernetesObject::None,
+                    }),
+                }))
             }
         },
         _ => false,
@@ -228,7 +261,9 @@ pub fn send_api_watch_notification(c: KubernetesConstants, v: KubernetesVariable
     && v_prime.pending_api_watch_notification === Option::None
     && message_ops.recv.is_None()
     && message_ops.send.is_Some()
-    && match message_ops.send.get_Some_0() {
+    && message_ops.send.get_Some_0().src === HostId::KubernetesAPI
+    && message_ops.send.get_Some_0().dst === HostId::CustomController
+    && match message_ops.send.get_Some_0().message {
         Message::APIWatchNotification(api_watch_notification) => Option::Some(api_watch_notification) === v.pending_api_watch_notification,
         _ => false,
     }

@@ -165,7 +165,7 @@ pub fn next(c: DSConstants, v: DSVariables, v_prime: DSVariables) -> bool {
 }
 
 #[verifier(inline)] // XXX: without the inlining, this file won't verify. Likely a bug.
-pub open spec fn is_sent(v: DSVariables, m: Message) -> bool {
+pub open spec fn is_sent(v: DSVariables, m: Packet) -> bool {
     v.network_variables.sent_messages.contains(m)
 }
 

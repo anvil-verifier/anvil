@@ -143,8 +143,11 @@ pub open spec fn receive_api_watch_notification(c: ControllerConstants, v: Contr
     && v.pending_api_op_request.is_None()
     && v.last_api_op_response.is_None()
     && message_ops.send.is_None()
-    && match message_ops.recv {
-        Option::Some(Message::APIWatchNotification(api_watch_notification)) =>
+    && message_ops.recv.is_Some()
+    && message_ops.recv.get_Some_0().src === HostId::KubernetesAPI
+    && message_ops.recv.get_Some_0().dst === HostId::CustomController
+    && match message_ops.recv.get_Some_0().message {
+        Message::APIWatchNotification(api_watch_notification) =>
             v_prime.triggering_key === map_to_triggering_key(api_watch_notification.object),
         _ => false
     }
@@ -195,8 +198,8 @@ pub open spec fn continue_reconcile(c: ControllerConstants, v: ControllerVariabl
             // We have no pending request since the controller_logic does not issue anything
             && v_prime.pending_api_op_request.is_None()
             && controller_logic_spec(v.reconcile_step, v.triggering_key.get_Some_0(), v.state_cache, v.last_api_op_response, v_prime.reconcile_step, v_prime.pending_api_op_request),
-        Option::Some(message) => {
-            match message {
+        Option::Some(packet) => {
+            match packet.message {
                 Message::APIOpRequest(api_op_request) =>
                     v === ControllerVariables{
                             reconcile_step: v.reconcile_step,
@@ -205,6 +208,8 @@ pub open spec fn continue_reconcile(c: ControllerConstants, v: ControllerVariabl
                             before_receiving_response: v.before_receiving_response,
                             ..v_prime
                          }
+                    && packet.src === HostId::CustomController
+                    && packet.dst === HostId::KubernetesAPI
                     // We get a new pending request here
                     && v_prime.pending_api_op_request === Option::Some(api_op_request)
                     // We need to wait for new response for the new request from now
@@ -221,7 +226,9 @@ pub open spec fn continue_reconcile(c: ControllerConstants, v: ControllerVariabl
 pub open spec fn receive_api_op_response(c: ControllerConstants, v: ControllerVariables, v_prime: ControllerVariables, message_ops: MessageOps) -> bool {
     all_well_formed(c, v, v_prime, message_ops)
     && message_ops.recv.is_Some()
-    && match message_ops.recv.get_Some_0() {
+    && message_ops.recv.get_Some_0().src === HostId::KubernetesAPI
+    && message_ops.recv.get_Some_0().dst === HostId::CustomController
+    && match message_ops.recv.get_Some_0().message {
         Message::APIOpResponse(api_op_response) => {
             v.pending_api_op_request.is_Some()
             && v === ControllerVariables{

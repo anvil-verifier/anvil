@@ -18,7 +18,7 @@ pub struct NetworkConstants {
 }
 
 pub struct NetworkVariables {
-    pub sent_messages: Set<Message>,
+    pub sent_messages: Set<Packet>,
 }
 
 pub open spec fn init(c: NetworkConstants, v: NetworkVariables) -> bool {
