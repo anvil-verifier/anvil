@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: MIT
 
 #[allow(unused_imports)]
-use builtin_macros::*;
-#[allow(unused_imports)]
-use builtin::*;
+use crate::apis::*;
 #[allow(unused_imports)]
 use crate::common::*;
-#[allow(unused_imports)]
-use crate::pervasive::{*, option::Option};
 #[allow(unused_imports)]
 use crate::custom_controller_logic::*;
 #[allow(unused_imports)]
 use crate::dict::*;
 #[allow(unused_imports)]
-use crate::apis::*;
+use crate::pervasive::{option::Option, *};
+#[allow(unused_imports)]
+use builtin::*;
+#[allow(unused_imports)]
+use builtin_macros::*;
 
 verus! {
 
@@ -147,8 +147,8 @@ pub open spec fn receive_api_watch_notification(c: ControllerConstants, v: Contr
     && network_ops.recv.get_Some_0().src === HostId::KubernetesAPI
     && network_ops.recv.get_Some_0().dst === HostId::CustomController
     && match network_ops.recv.get_Some_0().message {
-        Message::APIWatchNotification(api_watch_notification) =>
-            v_prime.triggering_key === map_to_triggering_key(api_watch_notification.object),
+        Message::APIEventNotification(api_watch_notification) =>
+            v_prime.triggering_key === map_to_triggering_key(api_watch_notification.object()),
         _ => false
     }
 }

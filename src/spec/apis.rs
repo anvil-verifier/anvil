@@ -181,29 +181,42 @@ impl APIOpResponse {
     }
 }
 
-pub enum WatchDeltaType {
-    Create,
-    Update,
-    Delete,
+pub enum APIEvent {
+    Added{object_key: ObjectKey, object:KubernetesObject},
+    Modified{object_key: ObjectKey, object:KubernetesObject},
+    Deleted{object_key: ObjectKey, object:KubernetesObject},
 }
 
-pub struct APIWatchNotification {
-    pub object: KubernetesObject,
-    pub delta_type: WatchDeltaType
+pub struct APIEventNotification {
+    pub api_event: APIEvent,
 }
 
-impl APIWatchNotification {
+impl APIEventNotification {
     pub open spec fn well_formed(&self) -> bool {
         true
     }
 
-    // TODO: implement a key function
+    pub open spec fn key(&self) -> ObjectKey {
+        match self.api_event {
+            APIEvent::Added{object_key, ..} => object_key,
+            APIEvent::Modified{object_key, ..} => object_key,
+            APIEvent::Deleted{object_key, ..} => object_key,
+        }
+    }
+
+    pub open spec fn object(&self) -> KubernetesObject {
+        match self.api_event {
+            APIEvent::Added{object_key, object} => object,
+            APIEvent::Modified{object_key, object} => object,
+            APIEvent::Deleted{object_key, object} => object,
+        }
+    }
 }
 
 pub enum Message {
     APIOpRequest(APIOpRequest),
     APIOpResponse(APIOpResponse),
-    APIWatchNotification(APIWatchNotification),
+    APIEventNotification(APIEventNotification),
 }
 
 impl Message {
@@ -211,7 +224,7 @@ impl Message {
         match *self {
             Message::APIOpRequest(api_op_request) => api_op_request.well_formed(),
             Message::APIOpResponse(api_op_response) => api_op_response.well_formed(),
-            Message::APIWatchNotification(api_watch_notification) => api_watch_notification.well_formed(),
+            Message::APIEventNotification(api_event_notification) => api_event_notification.well_formed(),
         }
     }
 }

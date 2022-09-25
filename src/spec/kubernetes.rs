@@ -55,7 +55,7 @@ pub struct KubernetesVariables {
     /// There is no watch notification if the controller's request does not change any state
     /// (e.g., deleting a non-existing object)
     /// Kubernetes has to send out this watch notification before handling the next request
-    pub pending_api_watch_notification: Option<APIWatchNotification>,
+    pub pending_api_watch_notification: Option<APIEventNotification>,
 }
 
 impl KubernetesVariables {
@@ -132,25 +132,31 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
                                 && api_op_response.optional_object === v.cluster_state.get(object_key),
                             APIOp::Create{object_key, object} =>
                                 v.cluster_state.get(object_key).is_None()
-                                && equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
-                                    object: object,
-                                    delta_type: WatchDeltaType::Create,
+                                && equal(v_prime.pending_api_watch_notification, Option::Some(APIEventNotification{
+                                    api_event: APIEvent::Added{
+                                        object_key: object_key,
+                                        object: object,
+                                    }
                                 }))
                                 && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
                                 && api_op_response.optional_object === Option::Some(object),
                             APIOp::Update{object_key, object} =>
                                 v.cluster_state.get(object_key).is_Some()
-                                && equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
-                                    object: object,
-                                    delta_type: WatchDeltaType::Update,
+                                && equal(v_prime.pending_api_watch_notification, Option::Some(APIEventNotification{
+                                    api_event: APIEvent::Modified{
+                                        object_key: object_key,
+                                        object: object,
+                                    }
                                 }))
                                 && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
                                 && api_op_response.optional_object === Option::Some(object),
                             APIOp::Delete{object_key} =>
                                 v.cluster_state.get(object_key).is_Some()
-                                && equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
-                                    object: v.cluster_state.get(object_key).get_Some_0(),
-                                    delta_type: WatchDeltaType::Delete,
+                                && equal(v_prime.pending_api_watch_notification, Option::Some(APIEventNotification{
+                                    api_event: APIEvent::Deleted{
+                                        object_key: object_key,
+                                        object: v.cluster_state.get(object_key).get_Some_0(),
+                                    }
                                 }))
                                 && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
                                 && api_op_response.optional_object === v.cluster_state.get(object_key),
@@ -182,7 +188,7 @@ pub fn send_api_watch_notification(c: KubernetesConstants, v: KubernetesVariable
     && network_ops.send.get_Some_0().src === HostId::KubernetesAPI
     && network_ops.send.get_Some_0().dst === HostId::CustomController
     && match network_ops.send.get_Some_0().message {
-        Message::APIWatchNotification(api_watch_notification) => Option::Some(api_watch_notification) === v.pending_api_watch_notification,
+        Message::APIEventNotification(api_watch_notification) => Option::Some(api_watch_notification) === v.pending_api_watch_notification,
         _ => false,
     }
 }

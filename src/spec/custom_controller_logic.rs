@@ -40,8 +40,8 @@ pub open spec fn is_cr_type(object_type: StringL) -> bool {
     equal(object_type, StringL::ConfigMapGenerator)
 }
 
-pub open spec fn trigger_reconcile(api_watch_notification: APIWatchNotification) -> bool {
-    match map_to_triggering_key(api_watch_notification.object) {
+pub open spec fn trigger_reconcile(api_watch_notification: APIEventNotification) -> bool {
+    match map_to_triggering_key(api_watch_notification.object()) {
         Option::Some(_) => true,
         Option::None => false,
     }
