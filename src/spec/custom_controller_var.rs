@@ -33,10 +33,6 @@ impl ConfigMapGeneratorL {
             name: self.metadata.name,
         }
     }
-
-    pub open spec fn matches(&self, key:ObjectKey) -> bool {
-        equal(self.key(), key)
-    }
 }
 
 #[derive(PartialEq, Eq)]
@@ -45,9 +41,9 @@ pub enum CustomResourceObject {
 }
 
 impl CustomResourceObject {
-    pub open spec fn matches(&self, key:ObjectKey) -> bool {
+    pub open spec fn key(&self) -> ObjectKey {
         match *self {
-            CustomResourceObject::ConfigMapGenerator(cmg) => cmg.matches(key),
+            CustomResourceObject::ConfigMapGenerator(cmg) => cmg.key(),
         }
     }
 }

@@ -44,12 +44,6 @@ impl PodL {
             name: self.metadata.name,
         }
     }
-
-    pub open spec fn matches(&self, key:ObjectKey) -> bool {
-        equal(key.object_type, StringL::Pod)
-        && equal(key.name, self.metadata.name)
-        && equal(key.namespace, self.metadata.namespace)
-    }
 }
 
 #[derive(PartialEq, Eq)]
@@ -65,12 +59,6 @@ impl ConfigMapL {
             name: self.metadata.name,
         }
     }
-
-    pub open spec fn matches(&self, key:ObjectKey) -> bool {
-        equal(key.object_type, StringL::ConfigMap)
-        && equal(key.name, self.metadata.name)
-        && equal(key.namespace, self.metadata.namespace)
-    }
 }
 
 #[derive(PartialEq, Eq)]
@@ -84,9 +72,9 @@ pub enum KubernetesObject {
 impl KubernetesObject {
     pub open spec fn matches(&self, key:ObjectKey) -> bool {
         match *self {
-            KubernetesObject::Pod(p) => p.matches(key),
-            KubernetesObject::ConfigMap(cm) => cm.matches(key),
-            KubernetesObject::CustomResourceObject(cro) => cro.matches(key),
+            KubernetesObject::Pod(p) => key === p.key(),
+            KubernetesObject::ConfigMap(cm) => key === cm.key(),
+            KubernetesObject::CustomResourceObject(cro) => key === cro.key(),
             KubernetesObject::None => false,
         }
     }
