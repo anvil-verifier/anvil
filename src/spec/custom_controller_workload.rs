@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: MIT
 
 #[allow(unused_imports)]
-use builtin_macros::*;
-#[allow(unused_imports)]
-use builtin::{exists, requires, ensures, equal};
-#[allow(unused_imports)]
-use crate::pervasive::{*, option::Option};
+use crate::apis::*;
 #[allow(unused_imports)]
 use crate::common::*;
 #[allow(unused_imports)]
-use crate::apis::*;
-#[allow(unused_imports)]
 use crate::custom_controller_var::*;
+#[allow(unused_imports)]
+use crate::pervasive::{option::Option, *};
+#[allow(unused_imports)]
+use builtin::{ensures, equal, exists, requires};
+#[allow(unused_imports)]
+use builtin_macros::*;
 
 verus! {
 
@@ -57,8 +57,8 @@ pub open spec fn create_configmap_generator(c: WorkloadConstants, v: WorkloadVar
     all_well_formed(c, v, v_prime, network_ops)
     && !v.submitted
     && v_prime.submitted
-    && equal(configmap_generator.name, StringL::MyConfigMapGenerator)
-    && equal(configmap_generator.namespace, StringL::Default)
+    && equal(configmap_generator.metadata.name, StringL::MyConfigMapGenerator)
+    && equal(configmap_generator.metadata.namespace, StringL::Default)
     && network_ops.recv.is_None()
     && network_ops.send.is_Some()
     && network_ops.send.get_Some_0().src === HostId::CustomClient

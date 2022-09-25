@@ -25,31 +25,51 @@ pub enum ReconcileStep {
 }
 
 #[derive(PartialEq, Eq)]
-pub struct PodL {
-    pub name: StringL,
-    pub namespace: StringL,
-}
-
-impl PodL {
-    pub open spec fn matches(&self, key:ObjectKey) -> bool {
-        equal(key.object_type, StringL::Pod)
-        && equal(key.name, self.name)
-        && equal(key.namespace, self.namespace)
-    }
-}
-
-#[derive(PartialEq, Eq)]
-pub struct ConfigMapL {
+pub struct MetadataL {
     pub name: StringL,
     pub namespace: StringL,
     pub owner_key: ObjectKey, // TODO: replace this with owner_references
 }
 
+#[derive(PartialEq, Eq)]
+pub struct PodL {
+    pub metadata: MetadataL,
+}
+
+impl PodL {
+    pub open spec fn key(&self) -> ObjectKey {
+        ObjectKey{
+            object_type: StringL::Pod,
+            namespace: self.metadata.namespace,
+            name: self.metadata.name,
+        }
+    }
+
+    pub open spec fn matches(&self, key:ObjectKey) -> bool {
+        equal(key.object_type, StringL::Pod)
+        && equal(key.name, self.metadata.name)
+        && equal(key.namespace, self.metadata.namespace)
+    }
+}
+
+#[derive(PartialEq, Eq)]
+pub struct ConfigMapL {
+    pub metadata: MetadataL,
+}
+
 impl ConfigMapL {
+    pub open spec fn key(&self) -> ObjectKey {
+        ObjectKey{
+            object_type: StringL::ConfigMap,
+            namespace: self.metadata.namespace,
+            name: self.metadata.name,
+        }
+    }
+
     pub open spec fn matches(&self, key:ObjectKey) -> bool {
         equal(key.object_type, StringL::ConfigMap)
-        && equal(key.name, self.name)
-        && equal(key.namespace, self.namespace)
+        && equal(key.name, self.metadata.name)
+        && equal(key.namespace, self.metadata.namespace)
     }
 }
 

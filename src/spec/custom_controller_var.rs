@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: MIT
 
 #[allow(unused_imports)]
-use builtin_macros::*;
-#[allow(unused_imports)]
-use builtin::{equal};
+use crate::apis::*;
 #[allow(unused_imports)]
 use crate::common::*;
+#[allow(unused_imports)]
+use builtin::equal;
+#[allow(unused_imports)]
+use builtin_macros::*;
 
 #[derive(Structural, PartialEq, Eq)]
 pub enum CustomReconcileStep {
@@ -18,8 +20,7 @@ pub enum CustomReconcileStep {
 
 #[derive(PartialEq, Eq)]
 pub struct ConfigMapGeneratorL {
-    pub name: StringL,
-    pub namespace: StringL,
+    pub metadata: MetadataL,
 }
 
 verus! {
@@ -28,8 +29,8 @@ impl ConfigMapGeneratorL {
     pub open spec fn key(&self) -> ObjectKey {
         ObjectKey{
             object_type: StringL::ConfigMapGenerator,
-            namespace: self.namespace,
-            name: self.name,
+            namespace: self.metadata.namespace,
+            name: self.metadata.name,
         }
     }
 

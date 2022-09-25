@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: MIT
 
 #[allow(unused_imports)]
-use builtin_macros::*;
-#[allow(unused_imports)]
-use builtin::*;
-#[allow(unused_imports)]
-use crate::pervasive::{*, option::Option, map::*};
+use crate::apis::*;
 #[allow(unused_imports)]
 use crate::common::*;
 #[allow(unused_imports)]
-use crate::apis::*;
-#[allow(unused_imports)]
 use crate::custom_controller_var::*;
+#[allow(unused_imports)]
+use crate::pervasive::{map::*, option::Option, *};
+#[allow(unused_imports)]
+use builtin::*;
+#[allow(unused_imports)]
+use builtin_macros::*;
 
 verus! {
 
@@ -31,7 +31,7 @@ pub fn map_to_triggering_key(object: KubernetesObject) -> Option<ObjectKey> {
                 CustomResourceObject::ConfigMapGenerator(cmg) => Option::Some(cmg.key()),
             }
         },
-        KubernetesObject::ConfigMap(cm) => Option::Some(cm.owner_key),
+        KubernetesObject::ConfigMap(cm) => Option::Some(cm.metadata.owner_key),
         _ => Option::None,
     }
 }
@@ -98,9 +98,11 @@ pub open spec fn controller_logic_spec(controller_step: ReconcileStep, triggerin
                             api_op:APIOp::Create{
                                 object_key:configmap_1_key(),
                                 object:KubernetesObject::ConfigMap(ConfigMapL{
-                                    name: configmap_1,
-                                    namespace: default,
-                                    owner_key: triggering_key,
+                                    metadata: MetadataL{
+                                        name: configmap_1,
+                                        namespace: default,
+                                        owner_key: triggering_key,
+                                    },
                                 }),
                             }
                         })
@@ -116,9 +118,11 @@ pub open spec fn controller_logic_spec(controller_step: ReconcileStep, triggerin
                             api_op:APIOp::Create{
                                 object_key:configmap_2_key(),
                                 object:KubernetesObject::ConfigMap(ConfigMapL{
-                                    name: configmap_2,
-                                    namespace: default,
-                                    owner_key: triggering_key,
+                                    metadata: MetadataL{
+                                        name: configmap_2,
+                                        namespace: default,
+                                        owner_key: triggering_key,
+                                    },
                                 }),
                             }
                         })
@@ -145,16 +149,16 @@ pub open spec fn controller_logic_spec(controller_step: ReconcileStep, triggerin
 }
 
 // controller_logic is not supposed to modify any heap variables or issue any side effects
-// 
+//
 // TODO: would the monitored object(s) show up as an argument here?
 // UPDATE (Jul. 6): We pass the ObjectKey of the triggering object (the custom resource object) to contorller_logic
-// 
+//
 // We can change to passing the triggering object itself later if that is better
 // The current controller_logic is trivialized as it does not even look into the triggering object
 // Typically the controller will get the object with the key either from cache or from etcd,
 // if the object does not exist, the reconcile will return
 // otherwise the reconcile often name the core objects after the triggering cr object
-// 
+//
 // One common practice to handle object deletion is that the cr object should have a finalizer
 // And the controller will delete the core objects if the controller has a deletion timestamp
 // and then removes the finalizer from the cr object
@@ -191,9 +195,11 @@ pub fn controller_logic(controller_step: ReconcileStep, triggering_key: ObjectKe
                             api_op:APIOp::Create{
                                 object_key:configmap_1_key,
                                 object:KubernetesObject::ConfigMap(ConfigMapL{
-                                    name: configmap_1,
-                                    namespace: default,
-                                    owner_key: triggering_key,
+                                    metadata: MetadataL{
+                                        name: configmap_1,
+                                        namespace: default,
+                                        owner_key: triggering_key,
+                                    },
                                 }),
                             }
                         }))
@@ -209,9 +215,11 @@ pub fn controller_logic(controller_step: ReconcileStep, triggering_key: ObjectKe
                             api_op:APIOp::Create{
                                 object_key:configmap_2_key,
                                 object:KubernetesObject::ConfigMap(ConfigMapL{
-                                    name: configmap_2,
-                                    namespace: default,
-                                    owner_key: triggering_key,
+                                    metadata: MetadataL{
+                                        name: configmap_2,
+                                        namespace: default,
+                                        owner_key: triggering_key,
+                                    },
                                 }),
                             }
                         }))
