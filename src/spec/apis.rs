@@ -31,8 +31,7 @@ pub struct PodL {
 }
 
 impl PodL {
-    #[spec] #[verifier(publish)]
-    pub fn matches(&self, key:ObjectKey) -> bool {
+    pub open spec fn matches(&self, key:ObjectKey) -> bool {
         equal(key.object_type, StringL::Pod)
         && equal(key.name, self.name)
         && equal(key.namespace, self.namespace)
@@ -47,8 +46,7 @@ pub struct ConfigMapL {
 }
 
 impl ConfigMapL {
-    #[spec] #[verifier(publish)]
-    pub fn matches(&self, key:ObjectKey) -> bool {
+    pub open spec fn matches(&self, key:ObjectKey) -> bool {
         equal(key.object_type, StringL::ConfigMap)
         && equal(key.name, self.name)
         && equal(key.namespace, self.namespace)
@@ -64,8 +62,7 @@ pub enum KubernetesObject {
 }
 
 impl KubernetesObject {
-    #[spec] #[verifier(publish)]
-    pub fn matches(&self, key:ObjectKey) -> bool {
+    pub open spec fn matches(&self, key:ObjectKey) -> bool {
         match *self {
             KubernetesObject::Pod(p) => p.matches(key),
             KubernetesObject::ConfigMap(cm) => cm.matches(key),
@@ -84,13 +81,11 @@ pub struct ClusterState {
 }
 
 impl ClusterState {
-    #[spec] #[verifier(publish)]
-    pub fn empty(&self) -> bool {
+    pub open spec fn empty(&self) -> bool {
         equal(self.state, Map::empty())
     }
 
-    #[spec] #[verifier(publish)]
-    pub fn get(&self, object_key:ObjectKey) -> KubernetesObject {
+    pub open spec fn get(&self, object_key:ObjectKey) -> KubernetesObject {
         if self.state.dom().contains(object_key) {
             self.state.index(object_key)
         } else {
@@ -98,18 +93,15 @@ impl ClusterState {
         }
     }
 
-    #[spec] #[verifier(publish)]
-    pub fn contains(&self, object_key:ObjectKey) -> bool {
+    pub open spec fn contains(&self, object_key:ObjectKey) -> bool {
         self.state.dom().contains(object_key)
     }
 
-    #[spec] #[verifier(publish)]
-    pub fn len(&self) -> nat {
+    pub open spec fn len(&self) -> nat {
         self.state.dom().len()
     }
 
-    #[spec] #[verifier(publish)]
-    pub fn well_formed(&self) -> bool {
+    pub open spec fn well_formed(&self) -> bool {
         forall |key:ObjectKey| #[trigger] self.state.dom().contains(key) ==> self.state.index(key).matches(key)
     }
 }
@@ -123,8 +115,7 @@ pub enum APIOp {
 }
 
 impl APIOp {
-    #[spec] #[verifier(publish)]
-    pub fn well_formed(&self) -> bool {
+    pub open spec fn well_formed(&self) -> bool {
         match *self {
             APIOp::Create{object_key, object} => object.matches(object_key),
             APIOp::Update{object_key, object} => object.matches(object_key),
@@ -138,9 +129,17 @@ pub struct APIOpRequest {
 }
 
 impl APIOpRequest {
-    #[spec] #[verifier(publish)]
-    pub fn well_formed(&self) -> bool {
+    pub open spec fn well_formed(&self) -> bool {
         self.api_op.well_formed()
+    }
+
+    pub open spec fn key(&self) -> ObjectKey {
+        match self.api_op {
+            APIOp::Get{object_key} => object_key,
+            APIOp::Create{object_key, ..} => object_key,
+            APIOp::Update{object_key, ..} => object_key,
+            APIOp::Delete{object_key} => object_key,
+        }
     }
 }
 
@@ -152,8 +151,7 @@ pub struct APIOpResponse {
 }
 
 impl APIOpResponse {
-    #[spec] #[verifier(publish)]
-    pub fn well_formed(&self) -> bool {
+    pub open spec fn well_formed(&self) -> bool {
         self.api_op_request.well_formed()
         // TODO: revisit this branch
         && (!self.success ==> equal(self.object, KubernetesObject::None))
@@ -163,6 +161,15 @@ impl APIOpResponse {
             APIOp::Update{object_key, ..} => self.object.matches(object_key),
             APIOp::Delete{object_key} => self.object.matches(object_key),
         })
+    }
+
+    pub open spec fn key(&self) -> ObjectKey {
+        match self.api_op_request.api_op {
+            APIOp::Get{object_key} => object_key,
+            APIOp::Create{object_key, ..} => object_key,
+            APIOp::Update{object_key, ..} => object_key,
+            APIOp::Delete{object_key} => object_key,
+        }
     }
 }
 
@@ -178,22 +185,21 @@ pub struct APIWatchNotification {
 }
 
 impl APIWatchNotification {
-    #[spec] #[verifier(publish)]
-    pub fn well_formed(&self) -> bool {
+    pub open spec fn well_formed(&self) -> bool {
         true
     }
+
+    // TODO: implement a key function
 }
 
 pub enum Message {
     APIOpRequest(APIOpRequest),
     APIOpResponse(APIOpResponse),
     APIWatchNotification(APIWatchNotification),
-    // need more message types
 }
 
 impl Message {
-    #[spec] #[verifier(publish)]
-    pub fn well_formed(&self) -> bool {
+    pub open spec fn well_formed(&self) -> bool {
         match *self {
             Message::APIOpRequest(api_op_request) => api_op_request.well_formed(),
             Message::APIOpResponse(api_op_response) => api_op_response.well_formed(),
@@ -215,8 +221,7 @@ pub struct Packet {
 }
 
 impl Packet {
-    #[spec] #[verifier(publish)]
-    pub fn well_formed(&self) -> bool {
+    pub open spec fn well_formed(&self) -> bool {
         self.message.well_formed()
     }
 }
@@ -227,31 +232,27 @@ pub struct NetworkOps {
 }
 
 impl NetworkOps {
-    #[spec] #[verifier(publish)]
-    pub fn recv_well_formed(&self) -> bool {
+    pub open spec fn recv_well_formed(&self) -> bool {
         match self.recv {
             Option::None => true,
             Option::Some(packet) => packet.well_formed(),
         }
     }
 
-    #[spec] #[verifier(publish)]
-    pub fn send_well_formed(&self) -> bool {
+    pub open spec fn send_well_formed(&self) -> bool {
         match self.send {
             Option::None => true,
             Option::Some(packet) => packet.well_formed(),
         }
     }
 
-    #[spec] #[verifier(publish)]
-    pub fn well_formed(&self) -> bool {
+    pub open spec fn well_formed(&self) -> bool {
         self.recv_well_formed()
         && self.send_well_formed()
     }
 }
 
-#[spec] #[verifier(publish)]
-pub fn state_transition_by_api_op(cluster_state: ClusterState, cluster_state_prime: ClusterState, api_op: APIOp) -> bool {
+pub open spec fn state_transition_by_api_op(cluster_state: ClusterState, cluster_state_prime: ClusterState, api_op: APIOp) -> bool {
     match api_op {
         APIOp::Get{object_key} => cluster_state.contains(object_key) && equal(cluster_state, cluster_state_prime),
         APIOp::Create{object_key, object} => !cluster_state.contains(object_key) && equal(cluster_state.state.insert(object_key, object), cluster_state_prime.state),
