@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: MIT
 
 #[allow(unused_imports)]
-use builtin_macros::*;
-#[allow(unused_imports)]
-use builtin::*;
-#[allow(unused_imports)]
 use crate::apis::*;
 #[allow(unused_imports)]
 use crate::common::*;
 #[allow(unused_imports)]
-use crate::pervasive::{*, option::Option, set::*};
-#[allow(unused_imports)]
 use crate::custom_controller_logic::*;
+#[allow(unused_imports)]
+use crate::pervasive::{option::Option, set::*, *};
+#[allow(unused_imports)]
+use builtin::*;
+#[allow(unused_imports)]
+use builtin_macros::*;
 
 verus! {
 
@@ -33,9 +33,9 @@ impl KubernetesConstants {
 /// replies to the controller with one response
 /// and notifies the controller of the new update (if any) made by the request
 /// After that, Kubernetes can handle the next request
-/// 
+///
 /// It does NOT support concurrent request handling for now
-/// 
+///
 /// There are many other complexity we need to consider later, including:
 /// - Concurrent request handling, i.e., using a queue for storing pending response
 /// - The cache layer at the API server
@@ -106,7 +106,7 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
     // There could be many such chain reactions caused by the Kubernetes core controllers
     // We might need to consider to implement a host for each core controller
     // to discover every possible interleaving between these controllers
-    
+
     // TODO: we should allow processing api op while there are pending responses
     all_well_formed(c, v, v_prime, network_ops)
     && equal(v.pending_api_watch_notification, Option::None)
@@ -126,36 +126,40 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
                     && if success {
                         match api_op_request.api_op {
                             APIOp::Get{object_key} =>
-                                equal(v_prime.pending_api_watch_notification, Option::None)
+                                v.cluster_state.get(object_key).is_Some()
+                                && equal(v_prime.pending_api_watch_notification, Option::None)
                                 && equal(v.cluster_state, v_prime.cluster_state)
-                                && api_op_response.optional_object === Option::Some(v.cluster_state.get(object_key)),
+                                && api_op_response.optional_object === v.cluster_state.get(object_key),
                             APIOp::Create{object_key, object} =>
-                                equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
+                                v.cluster_state.get(object_key).is_None()
+                                && equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
                                     object: object,
                                     delta_type: WatchDeltaType::Create,
                                 }))
                                 && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
                                 && api_op_response.optional_object === Option::Some(object),
                             APIOp::Update{object_key, object} =>
-                                equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
+                                v.cluster_state.get(object_key).is_Some()
+                                && equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
                                     object: object,
                                     delta_type: WatchDeltaType::Update,
                                 }))
                                 && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
                                 && api_op_response.optional_object === Option::Some(object),
                             APIOp::Delete{object_key} =>
-                                equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
-                                    object: v.cluster_state.get(object_key),
+                                v.cluster_state.get(object_key).is_Some()
+                                && equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
+                                    object: v.cluster_state.get(object_key).get_Some_0(),
                                     delta_type: WatchDeltaType::Delete,
                                 }))
                                 && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                                && api_op_response.optional_object === Option::Some(v.cluster_state.get(object_key)),
+                                && api_op_response.optional_object === v.cluster_state.get(object_key),
                         }
                     } else {
                         equal(v_prime.pending_api_watch_notification, Option::None)
                         && equal(v.cluster_state, v_prime.cluster_state)
                         && api_op_response.optional_object.is_None()
-                    }        
+                    }
                 },
                 _ => false,
             }

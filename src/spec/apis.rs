@@ -63,7 +63,6 @@ impl ConfigMapL {
 
 #[derive(PartialEq, Eq)]
 pub enum KubernetesObject {
-    None,
     Pod(PodL),
     ConfigMap(ConfigMapL),
     CustomResourceObject(CustomResourceObject),
@@ -75,7 +74,6 @@ impl KubernetesObject {
             KubernetesObject::Pod(p) => key === p.key(),
             KubernetesObject::ConfigMap(cm) => key === cm.key(),
             KubernetesObject::CustomResourceObject(cro) => key === cro.key(),
-            KubernetesObject::None => false,
         }
     }
 }
@@ -93,11 +91,11 @@ impl ClusterState {
         equal(self.state, Map::empty())
     }
 
-    pub open spec fn get(&self, object_key:ObjectKey) -> KubernetesObject {
+    pub open spec fn get(&self, object_key:ObjectKey) -> Option<KubernetesObject> {
         if self.state.dom().contains(object_key) {
-            self.state.index(object_key)
+            Option::Some(self.state.index(object_key))
         } else {
-            KubernetesObject::None
+            Option::None
         }
     }
 
