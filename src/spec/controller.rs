@@ -62,7 +62,7 @@ pub struct ControllerVariables {
 
     /// triggering_key points to the object that triggers the reconcile
     /// it is usually the cr object created/modified/deleted by the user
-    /// It is set in receive_api_watch_notification (if triggered)
+    /// It is set in receive_api_event_notification (if triggered)
     /// and unset in end_reconcile
     /// It is better to be a list if we want to support concurrent reconciles later
     pub triggering_key: Option<ObjectKey>,
@@ -91,7 +91,7 @@ impl ControllerVariables {
 }
 
 pub enum ControllerStep {
-    ReceiveInformerUpdateStep,
+    ReceiveAPIEventNotificationStep,
     StartReconcileStep,
     ContinueReconcileStep,
     EndReconcileStep,
@@ -118,7 +118,7 @@ pub open spec fn all_well_formed(c: ControllerConstants, v: ControllerVariables,
     && network_ops.well_formed()
 }
 
-/// receive_api_watch_notification does the following:
+/// receive_api_event_notification does the following:
 /// - receive the watch notification from the API server
 /// - trigger reconcile if the event object is watched by the controller
 ///
@@ -131,7 +131,7 @@ pub open spec fn all_well_formed(c: ControllerConstants, v: ControllerVariables,
 /// will update the local indexer (in the informer) but the controller never reads the indexer
 /// Note that this is very different from controller-runtime where the controller often
 /// reads the local indexer (local cache)
-pub open spec fn receive_api_watch_notification(c: ControllerConstants, v: ControllerVariables, v_prime: ControllerVariables, network_ops: NetworkOps) -> bool {
+pub open spec fn receive_api_event_notification(c: ControllerConstants, v: ControllerVariables, v_prime: ControllerVariables, network_ops: NetworkOps) -> bool {
     all_well_formed(c, v, v_prime, network_ops)
     && equal(v, ControllerVariables{
         triggering_key: v.triggering_key,
@@ -147,8 +147,8 @@ pub open spec fn receive_api_watch_notification(c: ControllerConstants, v: Contr
     && network_ops.recv.get_Some_0().src === HostId::KubernetesAPI
     && network_ops.recv.get_Some_0().dst === HostId::CustomController
     && match network_ops.recv.get_Some_0().message {
-        Message::APIEventNotification(api_watch_notification) =>
-            v_prime.triggering_key === map_to_triggering_key(api_watch_notification.object()),
+        Message::APIEventNotification(api_event_notification) =>
+            v_prime.triggering_key === map_to_triggering_key(api_event_notification.object()),
         _ => false
     }
 }
@@ -287,7 +287,7 @@ pub open spec fn end_reconcile(c: ControllerConstants, v: ControllerVariables, v
 
 pub open spec fn next_step(c: ControllerConstants, v: ControllerVariables, v_prime: ControllerVariables, network_ops: NetworkOps, step: ControllerStep) -> bool {
     match step {
-        ControllerStep::ReceiveInformerUpdateStep => receive_api_watch_notification(c, v, v_prime, network_ops),
+        ControllerStep::ReceiveAPIEventNotificationStep => receive_api_event_notification(c, v, v_prime, network_ops),
         ControllerStep::StartReconcileStep => start_reconcile(c, v, v_prime, network_ops),
         ControllerStep::ContinueReconcileStep => continue_reconcile(c, v, v_prime, network_ops),
         ControllerStep::ReceiveAPIOpResponseStep => receive_api_op_response(c, v, v_prime, network_ops),
