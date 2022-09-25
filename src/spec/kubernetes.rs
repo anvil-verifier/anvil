@@ -128,33 +128,33 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
                             APIOp::Get{object_key} =>
                                 equal(v_prime.pending_api_watch_notification, Option::None)
                                 && equal(v.cluster_state, v_prime.cluster_state)
-                                && api_op_response.object === v.cluster_state.get(object_key),
+                                && api_op_response.optional_object === Option::Some(v.cluster_state.get(object_key)),
                             APIOp::Create{object_key, object} =>
                                 equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
                                     object: object,
                                     delta_type: WatchDeltaType::Create,
                                 }))
                                 && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                                && api_op_response.object === object,
+                                && api_op_response.optional_object === Option::Some(object),
                             APIOp::Update{object_key, object} =>
                                 equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
                                     object: object,
                                     delta_type: WatchDeltaType::Update,
                                 }))
                                 && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                                && api_op_response.object === object,
+                                && api_op_response.optional_object === Option::Some(object),
                             APIOp::Delete{object_key} =>
                                 equal(v_prime.pending_api_watch_notification, Option::Some(APIWatchNotification{
                                     object: v.cluster_state.get(object_key),
                                     delta_type: WatchDeltaType::Delete,
                                 }))
                                 && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                                && api_op_response.object === v.cluster_state.get(object_key),
+                                && api_op_response.optional_object === Option::Some(v.cluster_state.get(object_key)),
                         }
                     } else {
                         equal(v_prime.pending_api_watch_notification, Option::None)
                         && equal(v.cluster_state, v_prime.cluster_state)
-                        && api_op_response.object === KubernetesObject::None
+                        && api_op_response.optional_object.is_None()
                     }        
                 },
                 _ => false,

@@ -35,9 +35,6 @@ impl ConfigMapGeneratorL {
 
     pub open spec fn matches(&self, key:ObjectKey) -> bool {
         equal(self.key(), key)
-        // equal(key.object_type, StringL::ConfigMapGenerator)
-        // && equal(key.name, self.name)
-        // && equal(key.namespace, self.namespace)
     }
 }
 

@@ -146,7 +146,7 @@ impl APIOpRequest {
 pub struct APIOpResponse {
     pub success: bool,
     pub api_op_request: APIOpRequest,
-    pub object: KubernetesObject,
+    pub optional_object: Option<KubernetesObject>,
     // should also return the error type if any
 }
 
@@ -154,13 +154,15 @@ impl APIOpResponse {
     pub open spec fn well_formed(&self) -> bool {
         self.api_op_request.well_formed()
         // TODO: revisit this branch
-        && (!self.success ==> equal(self.object, KubernetesObject::None))
-        && (self.success ==> match self.api_op_request.api_op {
-            APIOp::Get{object_key} => self.object.matches(object_key),
-            APIOp::Create{object_key, ..} => self.object.matches(object_key),
-            APIOp::Update{object_key, ..} => self.object.matches(object_key),
-            APIOp::Delete{object_key} => self.object.matches(object_key),
-        })
+        && (!self.success ==> self.optional_object.is_None())
+        && (self.success ==> self.optional_object.is_Some()
+            && match self.api_op_request.api_op {
+                APIOp::Get{object_key} => self.optional_object.get_Some_0().matches(object_key),
+                APIOp::Create{object_key, ..} => self.optional_object.get_Some_0().matches(object_key),
+                APIOp::Update{object_key, ..} => self.optional_object.get_Some_0().matches(object_key),
+                APIOp::Delete{object_key} => self.optional_object.get_Some_0().matches(object_key),
+            }
+        )
     }
 
     pub open spec fn key(&self) -> ObjectKey {
