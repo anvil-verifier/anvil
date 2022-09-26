@@ -88,7 +88,7 @@ pub struct ClusterState {
 
 impl ClusterState {
     pub open spec fn empty(&self) -> bool {
-        equal(self.state, Map::empty())
+        self.state === Map::empty()
     }
 
     pub open spec fn get(&self, object_key:ObjectKey) -> Option<KubernetesObject> {
