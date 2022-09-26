@@ -2,29 +2,29 @@
 // SPDX-License-Identifier: MIT
 
 #[allow(unused_imports)]
-use builtin_macros::*;
-#[allow(unused_imports)]
 use builtin::*;
+#[allow(unused_imports)]
+use builtin_macros::*;
 
-#[allow(unused_imports)]
-use crate::common::*;
-#[allow(unused_imports)]
-use crate::pervasive::{*, option::Option};
-#[allow(unused_imports)]
-use crate::common::*;
 #[allow(unused_imports)]
 use crate::apis::*;
 #[allow(unused_imports)]
-use crate::distributed_system::*;
+use crate::common::*;
+#[allow(unused_imports)]
+use crate::common::*;
 #[allow(unused_imports)]
 use crate::custom_controller_logic::*;
-
 #[allow(unused_imports)]
-use crate::kubernetes;
+use crate::distributed_system::*;
+#[allow(unused_imports)]
+use crate::pervasive::{option::Option, *};
+
 #[allow(unused_imports)]
 use crate::controller;
 #[allow(unused_imports)]
 use crate::custom_controller_workload;
+#[allow(unused_imports)]
+use crate::kubernetes;
 
 verus! {
 
@@ -144,6 +144,8 @@ proof fn inv_preserves_i2(c: DSConstants, v: DSVariables, v_prime: DSVariables)
         inv(c, v) && next(c, v, v_prime)
     ensures
         object_exists_implies_creation_sent_i2(v_prime) {
+    // The assert is a duplicate of object_exists_implies_creation_sent_i2
+    // TODO: revisit the assertion and simplify it
     assert
         forall |any_object_key: ObjectKey|
             (#[trigger] v_prime.kubernetes_variables.cluster_state.contains(any_object_key))
@@ -161,6 +163,8 @@ proof fn inv_preserves_i3(c: DSConstants, v: DSVariables, v_prime: DSVariables)
         inv(c, v) && next(c, v, v_prime)
     ensures
         object_in_cache_implies_corresponding_response_received_i3(v_prime) {
+    // The assert is a duplicate of object_in_cache_implies_corresponding_response_received_i3
+    // TODO: revisit the assertion and simplify it
     assert
         // XXX: this is the body of object_in_cache_implies_corresponding_response_received_i3
         forall |any_object_key: ObjectKey| v_prime.controller_variables.state_cache.contains(any_object_key)
