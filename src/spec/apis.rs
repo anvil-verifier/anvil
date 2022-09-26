@@ -17,6 +17,7 @@ use builtin_macros::*;
 verus! {
 
 #[derive(Structural, PartialEq, Eq)]
+#[is_variant]
 pub enum ReconcileStep {
     Init,
     CustomReconcileStep(CustomReconcileStep), // The argument is defined by the controller developer
@@ -62,6 +63,7 @@ impl ConfigMapL {
 }
 
 #[derive(PartialEq, Eq)]
+#[is_variant]
 pub enum KubernetesObject {
     Pod(PodL),
     ConfigMap(ConfigMapL),
@@ -113,6 +115,7 @@ impl ClusterState {
 }
 
 #[derive(PartialEq, Eq)]
+#[is_variant]
 pub enum APIOp {
     Get{object_key: ObjectKey},
     Create{object_key: ObjectKey, object:KubernetesObject},
@@ -181,6 +184,7 @@ impl APIOpResponse {
     }
 }
 
+#[is_variant]
 pub enum APIEvent {
     Added{object_key: ObjectKey, object:KubernetesObject},
     Modified{object_key: ObjectKey, object:KubernetesObject},
@@ -213,6 +217,7 @@ impl APIEventNotification {
     }
 }
 
+#[is_variant]
 pub enum Message {
     APIOpRequest(APIOpRequest),
     APIOpResponse(APIOpResponse),
@@ -229,6 +234,7 @@ impl Message {
     }
 }
 
+#[is_variant]
 pub enum HostId {
     KubernetesAPI,
     CustomController,
