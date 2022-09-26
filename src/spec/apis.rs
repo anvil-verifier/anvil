@@ -131,6 +131,15 @@ impl APIOp {
             _ => true,
         }
     }
+
+    pub open spec fn key(&self) -> ObjectKey {
+        match *self {
+            APIOp::Get{object_key} => object_key,
+            APIOp::Create{object_key, ..} => object_key,
+            APIOp::Update{object_key, ..} => object_key,
+            APIOp::Delete{object_key} => object_key,
+        }
+    }
 }
 
 pub struct APIOpRequest {
@@ -143,12 +152,7 @@ impl APIOpRequest {
     }
 
     pub open spec fn key(&self) -> ObjectKey {
-        match self.api_op {
-            APIOp::Get{object_key} => object_key,
-            APIOp::Create{object_key, ..} => object_key,
-            APIOp::Update{object_key, ..} => object_key,
-            APIOp::Delete{object_key} => object_key,
-        }
+        self.api_op.key()
     }
 }
 
@@ -175,12 +179,7 @@ impl APIOpResponse {
     }
 
     pub open spec fn key(&self) -> ObjectKey {
-        match self.api_op_request.api_op {
-            APIOp::Get{object_key} => object_key,
-            APIOp::Create{object_key, ..} => object_key,
-            APIOp::Update{object_key, ..} => object_key,
-            APIOp::Delete{object_key} => object_key,
-        }
+        self.api_op_request.api_op.key()
     }
 }
 
