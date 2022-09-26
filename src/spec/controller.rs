@@ -146,8 +146,8 @@ pub open spec fn receive_api_event_notification(c: ControllerConstants, v: Contr
     && network_ops.recv.is_Some()
     && network_ops.recv.get_Some_0().src === HostId::KubernetesAPI
     && network_ops.recv.get_Some_0().dst === HostId::CustomController
-    && match network_ops.recv.get_Some_0().message {
-        Message::APIEventNotification(api_event_notification) =>
+    && match network_ops.recv.get_Some_0().payload {
+        Payload::APIEventNotification(api_event_notification) =>
             v_prime.triggering_key === map_to_triggering_key(api_event_notification.object()),
         _ => false
     }
@@ -199,8 +199,8 @@ pub open spec fn continue_reconcile(c: ControllerConstants, v: ControllerVariabl
             && v_prime.pending_api_op_request.is_None()
             && controller_logic_spec(v.reconcile_step, v.triggering_key.get_Some_0(), v.state_cache, v.last_api_op_response, v_prime.reconcile_step, v_prime.pending_api_op_request),
         Option::Some(packet) => {
-            match packet.message {
-                Message::APIOpRequest(api_op_request) =>
+            match packet.payload {
+                Payload::APIOpRequest(api_op_request) =>
                     v === ControllerVariables{
                             reconcile_step: v.reconcile_step,
                             pending_api_op_request: v.pending_api_op_request,
@@ -228,8 +228,8 @@ pub open spec fn receive_api_op_response(c: ControllerConstants, v: ControllerVa
     && network_ops.recv.is_Some()
     && network_ops.recv.get_Some_0().src === HostId::KubernetesAPI
     && network_ops.recv.get_Some_0().dst === HostId::CustomController
-    && match network_ops.recv.get_Some_0().message {
-        Message::APIOpResponse(api_op_response) => {
+    && match network_ops.recv.get_Some_0().payload {
+        Payload::APIOpResponse(api_op_response) => {
             v.pending_api_op_request.is_Some()
             && v === ControllerVariables{
                         last_api_op_response: v.last_api_op_response,

@@ -113,13 +113,13 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
     && network_ops.recv.is_Some()
     && (network_ops.recv.get_Some_0().src === HostId::CustomController || network_ops.recv.get_Some_0().src === HostId::CustomClient)
     && network_ops.recv.get_Some_0().dst === HostId::KubernetesAPI
-    && match network_ops.recv.get_Some_0().message {
-        Message::APIOpRequest(api_op_request) => {
+    && match network_ops.recv.get_Some_0().payload {
+        Payload::APIOpRequest(api_op_request) => {
             network_ops.send.is_Some()
             && network_ops.send.get_Some_0().src === HostId::KubernetesAPI
             && network_ops.send.get_Some_0().dst === network_ops.recv.get_Some_0().src
-            && match network_ops.send.get_Some_0().message {
-                Message::APIOpResponse(api_op_response) => {
+            && match network_ops.send.get_Some_0().payload {
+                Payload::APIOpResponse(api_op_response) => {
                     let success = kubernetes_api_op_result(v.cluster_state, v_prime.cluster_state, api_op_request.api_op);
                     api_op_response.success === success
                     && api_op_response.api_op_request === api_op_request
@@ -187,8 +187,8 @@ pub fn send_api_event_notification(c: KubernetesConstants, v: KubernetesVariable
     && network_ops.send.is_Some()
     && network_ops.send.get_Some_0().src === HostId::KubernetesAPI
     && network_ops.send.get_Some_0().dst === HostId::CustomController
-    && match network_ops.send.get_Some_0().message {
-        Message::APIEventNotification(api_event_notification) => Option::Some(api_event_notification) === v.pending_api_event_notification,
+    && match network_ops.send.get_Some_0().payload {
+        Payload::APIEventNotification(api_event_notification) => Option::Some(api_event_notification) === v.pending_api_event_notification,
         _ => false,
     }
 }

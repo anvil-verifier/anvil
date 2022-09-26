@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: MIT
 
 #[allow(unused_imports)]
-use builtin_macros::*;
-#[allow(unused_imports)]
 use builtin::*;
+#[allow(unused_imports)]
+use builtin_macros::*;
 
-#[allow(unused_imports)]
-use crate::common::*;
-#[allow(unused_imports)]
-use crate::pervasive::{*, seq::Seq};
-#[allow(unused_imports)]
-use crate::common::*;
 #[allow(unused_imports)]
 use crate::apis::*;
 #[allow(unused_imports)]
+use crate::common::*;
+#[allow(unused_imports)]
+use crate::common::*;
+#[allow(unused_imports)]
 use crate::custom_controller_logic::*;
+#[allow(unused_imports)]
+use crate::pervasive::{seq::Seq, *};
 
 // #[allow(unused_imports)]
 // use crate::group;
@@ -23,13 +23,13 @@ use crate::custom_controller_logic::*;
 // use crate::host;
 
 #[allow(unused_imports)]
-use crate::network;
-#[allow(unused_imports)]
-use crate::kubernetes;
-#[allow(unused_imports)]
 use crate::controller;
 #[allow(unused_imports)]
 use crate::custom_controller_workload;
+#[allow(unused_imports)]
+use crate::kubernetes;
+#[allow(unused_imports)]
+use crate::network;
 
 verus! {
 
@@ -144,7 +144,7 @@ pub enum DSStep {
 #[spec] #[verifier(publish)]
 pub fn next_step(c: DSConstants, v: DSVariables, v_prime: DSVariables, step: DSStep) -> bool {
     match step {
-        // DSStep::HostActionStep(hostid, network_ops) => 
+        // DSStep::HostActionStep(hostid, network_ops) =>
         //     host_action(c, v, v_prime, hostid, network_ops)
         //     && network::next(c.network_constants, v.network_variables, v_prime.network_variables, network_ops),
         DSStep::KubernetesActionStep(network_ops) =>
@@ -165,7 +165,7 @@ pub fn next(c: DSConstants, v: DSVariables, v_prime: DSVariables) -> bool {
 }
 
 #[verifier(inline)] // XXX: without the inlining, this file won't verify. Likely a bug.
-pub open spec fn is_sent(v: DSVariables, m: Packet) -> bool {
+pub open spec fn is_sent(v: DSVariables, m: Message) -> bool {
     v.network_variables.sent_messages.contains(m)
 }
 

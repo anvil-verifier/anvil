@@ -217,18 +217,18 @@ impl APIEventNotification {
 }
 
 #[is_variant]
-pub enum Message {
+pub enum Payload {
     APIOpRequest(APIOpRequest),
     APIOpResponse(APIOpResponse),
     APIEventNotification(APIEventNotification),
 }
 
-impl Message {
+impl Payload {
     pub open spec fn well_formed(&self) -> bool {
         match *self {
-            Message::APIOpRequest(api_op_request) => api_op_request.well_formed(),
-            Message::APIOpResponse(api_op_response) => api_op_response.well_formed(),
-            Message::APIEventNotification(api_event_notification) => api_event_notification.well_formed(),
+            Payload::APIOpRequest(api_op_request) => api_op_request.well_formed(),
+            Payload::APIOpResponse(api_op_response) => api_op_response.well_formed(),
+            Payload::APIEventNotification(api_event_notification) => api_event_notification.well_formed(),
         }
     }
 }
@@ -240,22 +240,22 @@ pub enum HostId {
     CustomClient,
 }
 
-pub struct Packet {
+pub struct Message {
     pub src: HostId,
     pub dst: HostId,
-    pub message: Message,
+    pub payload: Payload,
 }
 
-impl Packet {
+impl Message {
     pub open spec fn well_formed(&self) -> bool {
-        self.message.well_formed()
+        self.payload.well_formed()
         && self.src !== self.dst
     }
 }
 
 pub struct NetworkOps {
-    pub recv: Option<Packet>,
-    pub send: Option<Packet>,
+    pub recv: Option<Message>,
+    pub send: Option<Message>,
 }
 
 impl NetworkOps {

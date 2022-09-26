@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: MIT
 
 #[allow(unused_imports)]
-use builtin_macros::*;
-#[allow(unused_imports)]
-use builtin::{exists, requires, ensures, equal};
+use crate::apis::*;
 #[allow(unused_imports)]
 use crate::common::*;
 #[allow(unused_imports)]
-use crate::pervasive::{*, option::Option, set::*};
+use crate::pervasive::{option::Option, set::*, *};
 #[allow(unused_imports)]
-use crate::apis::*;
+use builtin::{ensures, equal, exists, requires};
+#[allow(unused_imports)]
+use builtin_macros::*;
 
 verus! {
 pub struct NetworkConstants {
@@ -18,7 +18,7 @@ pub struct NetworkConstants {
 }
 
 pub struct NetworkVariables {
-    pub sent_messages: Set<Packet>,
+    pub sent_messages: Set<Message>,
 }
 
 pub open spec fn init(c: NetworkConstants, v: NetworkVariables) -> bool {

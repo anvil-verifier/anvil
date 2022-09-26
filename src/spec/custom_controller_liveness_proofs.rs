@@ -2,30 +2,29 @@
 // SPDX-License-Identifier: MIT
 
 #[allow(unused_imports)]
-use builtin_macros::*;
-#[allow(unused_imports)]
 use builtin::*;
+#[allow(unused_imports)]
+use builtin_macros::*;
 
-#[allow(unused_imports)]
-use crate::pervasive::{*, option::Option};
-#[allow(unused_imports)]
-use crate::common::*;
 #[allow(unused_imports)]
 use crate::apis::*;
 #[allow(unused_imports)]
-use crate::distributed_system::*;
+use crate::common::*;
 #[allow(unused_imports)]
 use crate::custom_controller_logic::*;
 #[allow(unused_imports)]
 use crate::custom_controller_var::*;
-
-
 #[allow(unused_imports)]
-use crate::kubernetes;
+use crate::distributed_system::*;
+#[allow(unused_imports)]
+use crate::pervasive::{option::Option, *};
+
 #[allow(unused_imports)]
 use crate::controller;
 #[allow(unused_imports)]
 use crate::custom_controller_workload;
+#[allow(unused_imports)]
+use crate::kubernetes;
 
 verus! {
 spec fn controller_clock_never_larger_than_10(c: DSConstants, v: DSVariables) -> bool {
@@ -36,8 +35,8 @@ spec fn controller_initialized_at_c10(c: DSConstants, v: DSVariables) -> bool {
     v.controller_variables.controller_clock == 10 ==> {
         &&& v.controller_variables.state_cache.empty()
         &&& equal(v.controller_variables.reconcile_step, ReconcileStep::Init)
-        &&& (forall|message:Message| is_sent(v, message) ==> !matches!(message, Message::APIOpRequest(_)))
-        &&& (forall|message:Message| is_sent(v, message) ==> !matches!(message, Message::APIOpResponse(_)))
+        &&& (forall|message:Payload| is_sent(v, message) ==> !matches!(message, Payload::APIOpRequest(_)))
+        &&& (forall|message:Payload| is_sent(v, message) ==> !matches!(message, Payload::APIOpResponse(_)))
         &&& equal(v.controller_variables.last_api_op_response, Option::Some(APIOpResponse{success:true, api_op:APIOp::Noop, object:KubernetesObject::None}))
     }
 }
@@ -46,7 +45,7 @@ spec fn controller_sends_get_cr_at_c9(c: DSConstants, v: DSVariables) -> bool {
     v.controller_variables.controller_clock == 9 ==> {
         &&& equal(v.controller_variables.reconcile_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CheckIfCMGExists))
         &&& v.controller_variables.triggering_key.is_Some()
-        &&& is_sent(v, Message::APIOpRequest(APIOpRequest{
+        &&& is_sent(v, Payload::APIOpRequest(APIOpRequest{
             api_op: APIOp::Get{
                 object_key: v.controller_variables.triggering_key.get_Some_0()
             }
@@ -71,7 +70,7 @@ proof fn assume_controller_gets_cr(c: DSConstants, v: DSVariables, v_prime: DSVa
 spec fn controller_sends_get_cm1_at_c8(c: DSConstants, v: DSVariables) -> bool {
     v.controller_variables.controller_clock == 8 ==> {
         &&& equal(v.controller_variables.reconcile_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CheckIfCMExists))
-        &&& is_sent(v, Message::APIOpRequest(APIOpRequest{
+        &&& is_sent(v, Payload::APIOpRequest(APIOpRequest{
             api_op: APIOp::Get{
                 object_key: configmap_1_key()
             }
@@ -98,7 +97,7 @@ spec fn controller_sends_create_cm1_at_c7(c: DSConstants, v: DSVariables) -> boo
     v.controller_variables.controller_clock == 7 ==> {
         &&& equal(v.controller_variables.reconcile_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CreateCM1))
         &&& v.controller_variables.triggering_key.is_Some()
-        &&& is_sent(v, Message::APIOpRequest(APIOpRequest{
+        &&& is_sent(v, Payload::APIOpRequest(APIOpRequest{
             api_op: APIOp::Create{
                 object_key: configmap_1_key(),
                 object:KubernetesObject::ConfigMap(ConfigMapL{
@@ -130,7 +129,7 @@ spec fn controller_sends_create_cm2_at_c6(c: DSConstants, v: DSVariables) -> boo
     v.controller_variables.controller_clock == 6 ==> {
         &&& equal(v.controller_variables.reconcile_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CreateCM2))
         &&& v.controller_variables.triggering_key.is_Some()
-        &&& is_sent(v, Message::APIOpRequest(APIOpRequest{
+        &&& is_sent(v, Payload::APIOpRequest(APIOpRequest{
             api_op: APIOp::Create{
                 object_key: configmap_2_key(),
                 object:KubernetesObject::ConfigMap(ConfigMapL{

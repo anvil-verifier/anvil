@@ -63,8 +63,8 @@ pub open spec fn create_configmap_generator(c: WorkloadConstants, v: WorkloadVar
     && network_ops.send.is_Some()
     && network_ops.send.get_Some_0().src === HostId::CustomClient
     && network_ops.send.get_Some_0().dst === HostId::KubernetesAPI
-    && match network_ops.send.get_Some_0().message {
-        Message::APIOpRequest(api_op_request) => equal(api_op_request.api_op, APIOp::Create{
+    && match network_ops.send.get_Some_0().payload {
+        Payload::APIOpRequest(api_op_request) => equal(api_op_request.api_op, APIOp::Create{
             object_key: configmap_generator.key(),
             object: KubernetesObject::CustomResourceObject(
                 CustomResourceObject::ConfigMapGenerator(configmap_generator)
@@ -82,8 +82,8 @@ pub open spec fn receive_api_op_response(c: WorkloadConstants, v: WorkloadVariab
     && network_ops.recv.is_Some()
     && network_ops.recv.get_Some_0().src === HostId::KubernetesAPI
     && network_ops.recv.get_Some_0().dst === HostId::CustomClient
-    && match network_ops.recv.get_Some_0().message {
-        Message::APIOpResponse(api_op_response) => true,
+    && match network_ops.recv.get_Some_0().payload {
+        Payload::APIOpResponse(api_op_response) => true,
         _ => false,
     }
 }
