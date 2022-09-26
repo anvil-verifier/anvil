@@ -266,14 +266,14 @@ impl NetworkOps {
     pub open spec fn recv_well_formed(&self) -> bool {
         match self.recv {
             Option::None => true,
-            Option::Some(packet) => packet.well_formed(),
+            Option::Some(message) => message.well_formed(),
         }
     }
 
     pub open spec fn send_well_formed(&self) -> bool {
         match self.send {
             Option::None => true,
-            Option::Some(packet) => packet.well_formed(),
+            Option::Some(message) => message.well_formed(),
         }
     }
 

@@ -198,8 +198,8 @@ pub open spec fn continue_reconcile(c: ControllerConstants, v: ControllerVariabl
             // We have no pending request since the controller_logic does not issue anything
             && v_prime.pending_api_op_request.is_None()
             && controller_logic_spec(v.reconcile_step, v.triggering_key.get_Some_0(), v.state_cache, v.last_api_op_response, v_prime.reconcile_step, v_prime.pending_api_op_request),
-        Option::Some(packet) => {
-            match packet.payload {
+        Option::Some(message) => {
+            match message.payload {
                 Payload::APIOpRequest(api_op_request) =>
                     v === ControllerVariables{
                             reconcile_step: v.reconcile_step,
@@ -208,8 +208,8 @@ pub open spec fn continue_reconcile(c: ControllerConstants, v: ControllerVariabl
                             before_receiving_response: v.before_receiving_response,
                             ..v_prime
                          }
-                    && packet.src === HostId::CustomController
-                    && packet.dst === HostId::KubernetesAPI
+                    && message.src === HostId::CustomController
+                    && message.dst === HostId::KubernetesAPI
                     // We get a new pending request here
                     && v_prime.pending_api_op_request === Option::Some(api_op_request)
                     // We need to wait for new response for the new request from now
