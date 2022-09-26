@@ -69,11 +69,11 @@ pub enum KubernetesObject {
 }
 
 impl KubernetesObject {
-    pub open spec fn matches(&self, key:ObjectKey) -> bool {
+    pub open spec fn key(&self) -> ObjectKey {
         match *self {
-            KubernetesObject::Pod(p) => key === p.key(),
-            KubernetesObject::ConfigMap(cm) => key === cm.key(),
-            KubernetesObject::CustomResourceObject(cro) => key === cro.key(),
+            KubernetesObject::Pod(p) => p.key(),
+            KubernetesObject::ConfigMap(cm) => cm.key(),
+            KubernetesObject::CustomResourceObject(cro) => cro.key(),
         }
     }
 }
@@ -108,7 +108,7 @@ impl ClusterState {
     }
 
     pub open spec fn well_formed(&self) -> bool {
-        forall |key:ObjectKey| #[trigger] self.state.dom().contains(key) ==> self.state.index(key).matches(key)
+        forall |key:ObjectKey| #[trigger] self.state.dom().contains(key) ==> self.state.index(key).key() === key
     }
 }
 
@@ -123,8 +123,8 @@ pub enum APIOp {
 impl APIOp {
     pub open spec fn well_formed(&self) -> bool {
         match *self {
-            APIOp::Create{object_key, object} => object.matches(object_key),
-            APIOp::Update{object_key, object} => object.matches(object_key),
+            APIOp::Create{object_key, object} => object.key() === object_key,
+            APIOp::Update{object_key, object} => object.key() === object_key,
             _ => true,
         }
     }
@@ -163,10 +163,10 @@ impl APIOpResponse {
         && (!self.success ==> self.optional_object.is_None())
         && (self.success ==> self.optional_object.is_Some()
             && match self.api_op_request.api_op {
-                APIOp::Get{object_key} => self.optional_object.get_Some_0().matches(object_key),
-                APIOp::Create{object_key, ..} => self.optional_object.get_Some_0().matches(object_key),
-                APIOp::Update{object_key, ..} => self.optional_object.get_Some_0().matches(object_key),
-                APIOp::Delete{object_key} => self.optional_object.get_Some_0().matches(object_key),
+                APIOp::Get{object_key} => self.optional_object.get_Some_0().key() === object_key,
+                APIOp::Create{object_key, ..} => self.optional_object.get_Some_0().key() === object_key,
+                APIOp::Update{object_key, ..} => self.optional_object.get_Some_0().key() === object_key,
+                APIOp::Delete{object_key} => self.optional_object.get_Some_0().key() === object_key,
             }
         )
     }
