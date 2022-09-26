@@ -97,7 +97,7 @@ pub open spec fn next_step(c: WorkloadConstants, v: WorkloadVariables, v_prime: 
 
 // Maybe we can start from hardcoding a CR to make it simple
 pub open spec fn next(c: WorkloadConstants, v: WorkloadVariables, v_prime: WorkloadVariables, network_ops: NetworkOps) -> bool {
-    exists(|step: WorkloadStep| next_step(c, v, v_prime, network_ops, step))
+    exists |step: WorkloadStep| next_step(c, v, v_prime, network_ops, step)
 }
 
 }
