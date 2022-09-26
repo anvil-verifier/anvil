@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: MIT
 
 #[allow(unused_imports)]
-use builtin_macros::*;
-#[allow(unused_imports)]
 use builtin::*;
+#[allow(unused_imports)]
+use builtin_macros::*;
 
-#[allow(unused_imports)]
-use crate::common::*;
-#[allow(unused_imports)]
-use crate::pervasive::{*, seq::Seq};
-#[allow(unused_imports)]
-use crate::common::*;
 #[allow(unused_imports)]
 use crate::apis::*;
 #[allow(unused_imports)]
+use crate::common::*;
+#[allow(unused_imports)]
+use crate::common::*;
+#[allow(unused_imports)]
 use crate::custom_controller_logic::*;
+#[allow(unused_imports)]
+use crate::pervasive::{seq::Seq, *};
 
 // #[allow(unused_imports)]
 // use crate::group;
@@ -23,13 +23,13 @@ use crate::custom_controller_logic::*;
 // use crate::host;
 
 #[allow(unused_imports)]
-use crate::network;
-#[allow(unused_imports)]
-use crate::kubernetes;
-#[allow(unused_imports)]
 use crate::controller;
 #[allow(unused_imports)]
 use crate::custom_controller_workload;
+#[allow(unused_imports)]
+use crate::kubernetes;
+#[allow(unused_imports)]
+use crate::network;
 
 verus! {
 
@@ -89,73 +89,73 @@ pub fn init(c: DSConstants, v: DSVariables) -> bool {
 }
 
 #[spec] #[verifier(publish)]
-pub fn all_well_formed(c: DSConstants, v: DSVariables, v_prime: DSVariables, message_ops: MessageOps) -> bool {
+pub fn all_well_formed(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops: NetworkOps) -> bool {
     c.well_formed()
     && v.well_formed(c)
     && v_prime.well_formed(c)
-    && message_ops.well_formed()
+    && network_ops.well_formed()
 }
 
 // #[spec] #[verifier(publish)]
-// pub fn host_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, hostid: nat, message_ops:MessageOps) -> bool {
-//     all_well_formed(c, v, v_prime, message_ops)
+// pub fn host_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, hostid: nat, network_ops:NetworkOps) -> bool {
+//     all_well_formed(c, v, v_prime, network_ops)
 //     && c.valid_host_id(hostid)
-//     && host::next(c.group_constants.hosts.index(hostid), v.group_variables.hosts.index(hostid), v_prime.group_variables.hosts.index(hostid), message_ops)
+//     && host::next(c.group_constants.hosts.index(hostid), v.group_variables.hosts.index(hostid), v_prime.group_variables.hosts.index(hostid), network_ops)
 //     && forall(|other_hostid:nat| #[trigger] c.valid_host_id(other_hostid) && !equal(other_hostid, hostid) >>= equal(v.group_variables.hosts.index(other_hostid), v_prime.group_variables.hosts.index(other_hostid)))
 // }
 
 #[spec] #[verifier(publish)]
-pub fn kubernetes_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, message_ops:MessageOps) -> bool {
-    all_well_formed(c, v, v_prime, message_ops)
+pub fn kubernetes_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops:NetworkOps) -> bool {
+    all_well_formed(c, v, v_prime, network_ops)
     && v.clock > 0
     && equal(v_prime.clock, v.clock - 1)
     && equal(v.controller_variables, v_prime.controller_variables)
     && equal(v.workload_variables, v_prime.workload_variables)
-    && kubernetes::next(c.kubernetes_constants, v.kubernetes_variables, v_prime.kubernetes_variables, message_ops)
+    && kubernetes::next(c.kubernetes_constants, v.kubernetes_variables, v_prime.kubernetes_variables, network_ops)
 }
 
 #[spec] #[verifier(publish)]
-pub fn controller_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, message_ops:MessageOps) -> bool {
-    all_well_formed(c, v, v_prime, message_ops)
+pub fn controller_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops:NetworkOps) -> bool {
+    all_well_formed(c, v, v_prime, network_ops)
     && v.clock > 0
     && equal(v_prime.clock, v.clock - 1)
     && equal(v.kubernetes_variables, v_prime.kubernetes_variables)
     && equal(v.workload_variables, v_prime.workload_variables)
-    && controller::next(c.controller_constants, v.controller_variables, v_prime.controller_variables, message_ops)
+    && controller::next(c.controller_constants, v.controller_variables, v_prime.controller_variables, network_ops)
 }
 
 #[spec] #[verifier(publish)]
-pub fn workload_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, message_ops:MessageOps) -> bool {
-    all_well_formed(c, v, v_prime, message_ops)
+pub fn workload_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops:NetworkOps) -> bool {
+    all_well_formed(c, v, v_prime, network_ops)
     && v.clock > 0
     && equal(v_prime.clock, v.clock - 1)
     && equal(v.kubernetes_variables, v_prime.kubernetes_variables)
     && equal(v.controller_variables, v_prime.controller_variables)
-    && custom_controller_workload::next(c.workload_constants, v.workload_variables, v_prime.workload_variables, message_ops)
+    && custom_controller_workload::next(c.workload_constants, v.workload_variables, v_prime.workload_variables, network_ops)
 }
 
 pub enum DSStep {
-    // HostActionStep(nat, MessageOps),
-    KubernetesActionStep(MessageOps),
-    ControllerActionStep(MessageOps),
-    WorkloadActionStep(MessageOps),
+    // HostActionStep(nat, NetworkOps),
+    KubernetesActionStep(NetworkOps),
+    ControllerActionStep(NetworkOps),
+    WorkloadActionStep(NetworkOps),
 }
 
 #[spec] #[verifier(publish)]
 pub fn next_step(c: DSConstants, v: DSVariables, v_prime: DSVariables, step: DSStep) -> bool {
     match step {
-        // DSStep::HostActionStep(hostid, message_ops) => 
-        //     host_action(c, v, v_prime, hostid, message_ops)
-        //     && network::next(c.network_constants, v.network_variables, v_prime.network_variables, message_ops),
-        DSStep::KubernetesActionStep(message_ops) =>
-            kubernetes_action(c, v, v_prime, message_ops)
-            && network::next(c.network_constants, v.network_variables, v_prime.network_variables, message_ops),
-        DSStep::ControllerActionStep(message_ops) =>
-            controller_action(c, v, v_prime, message_ops)
-            && network::next(c.network_constants, v.network_variables, v_prime.network_variables, message_ops),
-        DSStep::WorkloadActionStep(message_ops) =>
-            workload_action(c, v, v_prime, message_ops)
-            && network::next(c.network_constants, v.network_variables, v_prime.network_variables, message_ops),
+        // DSStep::HostActionStep(hostid, network_ops) =>
+        //     host_action(c, v, v_prime, hostid, network_ops)
+        //     && network::next(c.network_constants, v.network_variables, v_prime.network_variables, network_ops),
+        DSStep::KubernetesActionStep(network_ops) =>
+            kubernetes_action(c, v, v_prime, network_ops)
+            && network::next(c.network_constants, v.network_variables, v_prime.network_variables, network_ops),
+        DSStep::ControllerActionStep(network_ops) =>
+            controller_action(c, v, v_prime, network_ops)
+            && network::next(c.network_constants, v.network_variables, v_prime.network_variables, network_ops),
+        DSStep::WorkloadActionStep(network_ops) =>
+            workload_action(c, v, v_prime, network_ops)
+            && network::next(c.network_constants, v.network_variables, v_prime.network_variables, network_ops),
     }
 }
 
