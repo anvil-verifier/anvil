@@ -20,7 +20,7 @@ pub enum CustomReconcileStep {
 
 #[derive(PartialEq, Eq)]
 pub struct ConfigMapGeneratorL {
-    pub metadata: MetadataL,
+    pub metadata: ObjectMetaL,
 }
 
 verus! {

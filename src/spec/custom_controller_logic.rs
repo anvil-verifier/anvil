@@ -98,7 +98,7 @@ pub open spec fn controller_logic_spec(controller_step: ReconcileStep, triggerin
                             api_op:APIOp::Create{
                                 object_key:configmap_1_key(),
                                 object:KubernetesObject::ConfigMap(ConfigMapL{
-                                    metadata: MetadataL{
+                                    metadata: ObjectMetaL{
                                         name: configmap_1,
                                         namespace: default,
                                         owner_key: triggering_key,
@@ -118,7 +118,7 @@ pub open spec fn controller_logic_spec(controller_step: ReconcileStep, triggerin
                             api_op:APIOp::Create{
                                 object_key:configmap_2_key(),
                                 object:KubernetesObject::ConfigMap(ConfigMapL{
-                                    metadata: MetadataL{
+                                    metadata: ObjectMetaL{
                                         name: configmap_2,
                                         namespace: default,
                                         owner_key: triggering_key,
@@ -195,7 +195,7 @@ pub fn controller_logic(controller_step: ReconcileStep, triggering_key: ObjectKe
                             api_op:APIOp::Create{
                                 object_key:configmap_1_key,
                                 object:KubernetesObject::ConfigMap(ConfigMapL{
-                                    metadata: MetadataL{
+                                    metadata: ObjectMetaL{
                                         name: configmap_1,
                                         namespace: default,
                                         owner_key: triggering_key,
@@ -215,7 +215,7 @@ pub fn controller_logic(controller_step: ReconcileStep, triggering_key: ObjectKe
                             api_op:APIOp::Create{
                                 object_key:configmap_2_key,
                                 object:KubernetesObject::ConfigMap(ConfigMapL{
-                                    metadata: MetadataL{
+                                    metadata: ObjectMetaL{
                                         name: configmap_2,
                                         namespace: default,
                                         owner_key: triggering_key,

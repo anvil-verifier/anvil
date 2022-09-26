@@ -25,16 +25,20 @@ pub enum ReconcileStep {
     Done,
 }
 
+// TODO: we should strictly follow the object layout in
+// https://github.com/kubernetes/kubernetes/blob/release-1.25/staging/src/k8s.io/apimachinery/pkg/apis/meta/v1/types.go
+
 #[derive(PartialEq, Eq)]
-pub struct MetadataL {
+pub struct ObjectMetaL {
     pub name: StringL,
     pub namespace: StringL,
-    pub owner_key: ObjectKey, // TODO: replace this with owner_references
+    // TODO: use OwnerReferences instead of owner_key
+    pub owner_key: ObjectKey,
 }
 
 #[derive(PartialEq, Eq)]
 pub struct PodL {
-    pub metadata: MetadataL,
+    pub metadata: ObjectMetaL,
 }
 
 impl PodL {
@@ -49,7 +53,7 @@ impl PodL {
 
 #[derive(PartialEq, Eq)]
 pub struct ConfigMapL {
-    pub metadata: MetadataL,
+    pub metadata: ObjectMetaL,
 }
 
 impl ConfigMapL {
