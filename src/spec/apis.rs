@@ -244,6 +244,7 @@ pub struct Packet {
 impl Packet {
     pub open spec fn well_formed(&self) -> bool {
         self.message.well_formed()
+        && self.src !== self.dst
     }
 }
 
