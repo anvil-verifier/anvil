@@ -28,7 +28,7 @@ pub open spec fn b_c(s: SimpleState, s_prime: SimpleState) -> bool {
 }
 
 pub open spec fn stutter(s: SimpleState, s_prime: SimpleState) -> bool {
-    &&& s === s_prime
+    s === s_prime
 }
 
 pub open spec fn next(s: SimpleState, s_prime: SimpleState) -> bool {
