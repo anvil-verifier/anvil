@@ -77,6 +77,10 @@ pub open spec fn weak_fairness(action: impl Fn(SimpleState, SimpleState) -> bool
     // temp_always(temp_implies(temp_always(enabled(action)), temp_eventually(lift_action(action))))
 }
 
+pub open spec fn valid(temp_pred: TempPred) -> bool {
+    forall |ex:Execution| temp_pred.contains(ex)
+}
+
 
 // pub open spec fn enabled2(action: impl Fn(SimpleState, SimpleState) -> bool, state: SimpleState) -> bool {
 //     exists |s_prime: SimpleState| action(s, s_prime)
