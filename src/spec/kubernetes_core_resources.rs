@@ -13,6 +13,12 @@ verus! {
 // TODO: we should strictly follow the object layout in
 // https://github.com/kubernetes/kubernetes/blob/release-1.25/staging/src/k8s.io/apimachinery/pkg/apis/meta/v1/types.go
 
+pub trait KubernetesResource {
+    open spec fn get_kind(&self) -> StringL;
+    open spec fn get_object_meta(&self) -> ObjectMetaL;
+    open spec fn get_key(&self) -> ObjectKey;
+}
+
 #[derive(PartialEq, Eq)]
 pub struct ObjectMetaL {
     pub name: StringL,
@@ -24,6 +30,24 @@ pub struct ObjectMetaL {
 #[derive(PartialEq, Eq)]
 pub struct PodL {
     pub metadata: ObjectMetaL,
+}
+
+impl KubernetesResource for PodL {
+    open spec fn get_kind(&self) -> StringL {
+        StringL::Pod
+    }
+
+    open spec fn get_object_meta(&self) -> ObjectMetaL {
+        self.metadata
+    }
+
+    open spec fn get_key(&self) -> ObjectKey {
+        ObjectKey{
+            object_type: self.get_kind(),
+            namespace: self.get_object_meta().namespace,
+            name: self.get_object_meta().name,
+        }
+    }
 }
 
 impl PodL {
@@ -39,6 +63,24 @@ impl PodL {
 #[derive(PartialEq, Eq)]
 pub struct ConfigMapL {
     pub metadata: ObjectMetaL,
+}
+
+impl KubernetesResource for ConfigMapL {
+    open spec fn get_kind(&self) -> StringL {
+        StringL::ConfigMap
+    }
+
+    open spec fn get_object_meta(&self) -> ObjectMetaL {
+        self.metadata
+    }
+
+    open spec fn get_key(&self) -> ObjectKey {
+        ObjectKey{
+            object_type: self.get_kind(),
+            namespace: self.get_object_meta().namespace,
+            name: self.get_object_meta().name,
+        }
+    }
 }
 
 impl ConfigMapL {
