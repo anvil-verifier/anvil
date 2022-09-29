@@ -26,7 +26,7 @@ pub open spec fn safety() -> bool {
                 lift_state(|s: SimpleState| init(s)),
                 always(lift_action(|s: SimpleState, s_prime: SimpleState| next(s, s_prime)))
             ),
-            lift_state(|s: SimpleState| happy(s))
+            always(lift_state(|s: SimpleState| happy(s)))
         )
     )
 }
