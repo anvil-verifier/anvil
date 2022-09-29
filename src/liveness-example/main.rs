@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 pub mod pervasive;
+pub mod safety_property;
 pub mod simple_state_machine;
 pub mod state;
 pub mod temporal_logic;
