@@ -85,6 +85,7 @@ pub open spec fn temp_leads_to(temp_pred_a: TempPred, temp_pred_b: TempPred) -> 
     temp_always(temp_implies(temp_pred_a, temp_eventually(temp_pred_b)))
 }
 
+// Without `&& #[trigger] next(constants, variables, new_variables)`
 // Verus will report the following error for the exists in enabled
 // error: Could not automatically infer triggers for this quantifer.  Use #[trigger] annotations to manually mark trigger terms instead.
 // And if we set action as trigger, it reports another error
@@ -92,6 +93,7 @@ pub open spec fn temp_leads_to(temp_pred_a: TempPred, temp_pred_b: TempPred) -> 
 spec fn enabled(action: impl Fn(DSConstants, DSVariables, DSVariables) -> bool) -> TempPred {
     lift_state(|constants: DSConstants, variables: DSVariables|
         exists |new_variables: DSVariables| action(constants, variables, new_variables)
+            && #[trigger] next(constants, variables, new_variables)
     )
 }
 
@@ -104,6 +106,7 @@ spec fn weak_fairness(action: impl Fn(DSConstants, DSVariables, DSVariables) -> 
 // Same error as enabled
 spec fn enabled2(action: impl Fn(DSConstants, DSVariables, DSVariables) -> bool, constants: DSConstants, variables: DSVariables) -> bool {
     exists |new_variables: DSVariables| action(constants, variables, new_variables)
+        && #[trigger] next(constants, variables, new_variables)
 }
 
 spec fn weak_fairness2(action: impl Fn(DSConstants, DSVariables, DSVariables) -> bool) -> TempPred {
