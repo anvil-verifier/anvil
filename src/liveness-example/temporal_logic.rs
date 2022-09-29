@@ -36,33 +36,33 @@ pub open spec fn drop(ex: Execution, idx: nat) -> Execution {
     }
 }
 
-pub open spec fn temp_always(temp_pred: TempPred) -> TempPred {
+pub open spec fn always(temp_pred: TempPred) -> TempPred {
     Set::new(|ex:Execution| forall |i:nat| i<ex.states.len() && #[trigger] temp_pred.contains(drop(ex, i)))
 }
 
-pub open spec fn temp_not(temp_pred: TempPred) -> TempPred {
+pub open spec fn not(temp_pred: TempPred) -> TempPred {
     temp_pred.complement()
 }
 
-pub open spec fn temp_and(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
+pub open spec fn and(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
     temp_pred_a.intersect(temp_pred_b)
 }
 
-pub open spec fn temp_or(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
+pub open spec fn or(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
     temp_pred_a.union(temp_pred_b)
 }
 
-pub open spec fn temp_eventually(temp_pred: TempPred) -> TempPred {
-    temp_not(temp_always(temp_not(temp_pred)))
+pub open spec fn eventually(temp_pred: TempPred) -> TempPred {
+    not(always(not(temp_pred)))
     // Set::new(|ex:Execution| exists |i:nat| i<ex.states.len() && #[trigger] temp_pred.contains(drop(ex, i)))
 }
 
-pub open spec fn temp_implies(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
-    temp_or(temp_not(temp_pred_a), temp_pred_b)
+pub open spec fn implies(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
+    or(not(temp_pred_a), temp_pred_b)
 }
 
-pub open spec fn temp_leads_to(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
-    temp_always(temp_implies(temp_pred_a, temp_eventually(temp_pred_b)))
+pub open spec fn leads_to(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
+    always(implies(temp_pred_a, eventually(temp_pred_b)))
 }
 
 pub open spec fn enabled(action: impl Fn(SimpleState, SimpleState) -> bool) -> TempPred {
@@ -73,8 +73,8 @@ pub open spec fn enabled(action: impl Fn(SimpleState, SimpleState) -> bool) -> T
 }
 
 pub open spec fn weak_fairness(action: impl Fn(SimpleState, SimpleState) -> bool) -> TempPred {
-    temp_leads_to(temp_always(enabled(action)), lift_action(action))
-    // temp_always(temp_implies(temp_always(enabled(action)), temp_eventually(lift_action(action))))
+    leads_to(always(enabled(action)), lift_action(action))
+    // always(implies(always(enabled(action)), eventually(lift_action(action))))
 }
 
 pub open spec fn valid(temp_pred: TempPred) -> bool {
@@ -88,7 +88,7 @@ pub open spec fn valid(temp_pred: TempPred) -> bool {
 // }
 
 // pub open spec fn weak_fairness2(action: impl Fn(SimpleState, SimpleState) -> bool) -> TempPred {
-//     temp_leads_to(temp_always(lift_state(|s: SimpleState| enabled2(action, s))),
+//     leads_to(always(lift_state(|s: SimpleState| enabled2(action, s))),
 //         lift_action(action))
 // }
 
