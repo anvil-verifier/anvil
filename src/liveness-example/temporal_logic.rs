@@ -92,4 +92,40 @@ pub open spec fn valid(temp_pred: TempPred) -> bool {
 //         lift_action(action))
 // }
 
+/*
+Here is the reason why we need to use Set, instead of closure for state predicate and action predicate
+If we want to write this tautology for proving safety properties:
+
+#[verifier(external_body)]
+pub proof fn init_invariant(
+    init: impl Fn(SimpleState) -> bool,
+    next: impl Fn(SimpleState, SimpleState) -> bool,
+    inv: impl Fn(SimpleState) -> bool)
+requires
+    (forall |s: SimpleState| init(s) ==> inv(s))
+    && (forall |s, s_prime: SimpleState| inv(s) && next(s, s_prime) ==> inv(s_prime))
+ensures
+    valid(implies(and(lift_state(init), always(lift_action(next))), always(lift_state(inv))))
+{
+}
+
+Verus will report the following error:
+
+error: Could not automatically infer triggers for this quantifer.  Use #[trigger] annotations to manually mark trigger terms instead.
+   --> src/liveness-example/temporal_logic.rs:101:5
+    |
+101 |     (forall |s: SimpleState| init(s) ==> inv(s))
+    |
+
+And if we mark either init or inv as trigger, Verus will report the following error:
+
+error: trigger must be a function call, a field access, or a bitwise operator
+--> src/liveness-example/temporal_logic.rs:101:41
+|
+101 |     (forall |s: SimpleState| #[trigger] init(s) ==> inv(s))
+|                                         ^^^^^^^
+
+error: aborting due to 2 previous errors
+*/
+
 }
