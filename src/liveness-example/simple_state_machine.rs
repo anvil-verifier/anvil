@@ -1,4 +1,6 @@
 #[allow(unused_imports)]
+use crate::pervasive::set::*;
+#[allow(unused_imports)]
 use crate::state::*;
 #[allow(unused_imports)]
 use builtin::*;
@@ -35,6 +37,14 @@ pub open spec fn next(s: SimpleState, s_prime: SimpleState) -> bool {
     ||| a_b(s, s_prime)
     ||| b_c(s, s_prime)
     ||| stutter(s, s_prime)
+}
+
+pub open spec fn init_as_set() -> Set<SimpleState> {
+    Set::new(|state: SimpleState| init(state))
+}
+
+pub open spec fn next_as_set() -> Set<StatePair> {
+    Set::new(|pair: StatePair| next(pair.state_0, pair.state_1))
 }
 
 }

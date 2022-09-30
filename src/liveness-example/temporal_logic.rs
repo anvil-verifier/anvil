@@ -16,16 +16,22 @@ use builtin_macros::*;
 
 verus! {
 
+pub type Action = StatePair;
 pub type Execution = Seq<SimpleState>;
 
+pub type StatePred = Set<SimpleState>;
+pub type ActionPred = Set<Action>;
 pub type TempPred = Set<Execution>;
 
-pub open spec fn lift_state(state_pred: impl Fn(SimpleState) -> bool) -> TempPred {
-    Set::new(|ex: Execution| state_pred(ex[0]))
+pub open spec fn lift_state(state_pred: StatePred) -> TempPred {
+    Set::new(|ex: Execution| state_pred.contains(ex[0]))
 }
 
-pub open spec fn lift_action(action_pred: impl Fn(SimpleState, SimpleState) -> bool) -> TempPred {
-    Set::new(|ex: Execution| action_pred(ex[0], ex[1]))
+pub open spec fn lift_action(action_pred: ActionPred) -> TempPred {
+    Set::new(|ex: Execution|
+        exists |a: Action|
+            #[trigger] action_pred.contains(a) && a.state_0 === ex[0] && a.state_1 === ex[1]
+    )
 }
 
 pub open spec fn drop(ex: Execution, idx: nat) -> Execution {
@@ -65,16 +71,18 @@ pub open spec fn leads_to(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempP
     always(implies(temp_pred_a, eventually(temp_pred_b)))
 }
 
-pub open spec fn enabled(action: impl Fn(SimpleState, SimpleState) -> bool) -> TempPred {
-    lift_state(|s: SimpleState|
-        exists |s_prime: SimpleState| action(s, s_prime)
-            && #[trigger] next(s, s_prime)
+pub open spec fn enabled(action_pred: ActionPred) -> TempPred {
+    lift_state(
+        Set::new(|s: SimpleState|
+            exists |a: Action|
+                #[trigger] action_pred.contains(a)
+                && a.state_0 === s
+            )
     )
 }
 
-pub open spec fn weak_fairness(action: impl Fn(SimpleState, SimpleState) -> bool) -> TempPred {
-    leads_to(always(enabled(action)), lift_action(action))
-    // always(implies(always(enabled(action)), eventually(lift_action(action))))
+pub open spec fn weak_fairness(action_pred: ActionPred) -> TempPred {
+    leads_to(always(enabled(action_pred)), lift_action(action_pred))
 }
 
 pub open spec fn valid(temp_pred: TempPred) -> bool {
@@ -91,5 +99,41 @@ pub open spec fn valid(temp_pred: TempPred) -> bool {
 //     leads_to(always(lift_state(|s: SimpleState| enabled2(action, s))),
 //         lift_action(action))
 // }
+
+/*
+Here is the reason why we need to use Set, instead of closure for state predicate and action predicate
+If we want to write this tautology for proving safety properties:
+
+#[verifier(external_body)]
+pub proof fn init_invariant(
+    init: impl Fn(SimpleState) -> bool,
+    next: impl Fn(SimpleState, SimpleState) -> bool,
+    inv: impl Fn(SimpleState) -> bool)
+requires
+    (forall |s: SimpleState| init(s) ==> inv(s))
+    && (forall |s, s_prime: SimpleState| inv(s) && next(s, s_prime) ==> inv(s_prime))
+ensures
+    valid(implies(and(lift_state(init), always(lift_action(next))), always(lift_state(inv))))
+{
+}
+
+Verus will report the following error:
+
+error: Could not automatically infer triggers for this quantifer.  Use #[trigger] annotations to manually mark trigger terms instead.
+   --> src/liveness-example/temporal_logic.rs:101:5
+    |
+101 |     (forall |s: SimpleState| init(s) ==> inv(s))
+    |
+
+And if we mark either init or inv as trigger, Verus will report the following error:
+
+error: trigger must be a function call, a field access, or a bitwise operator
+--> src/liveness-example/temporal_logic.rs:101:41
+|
+101 |     (forall |s: SimpleState| #[trigger] init(s) ==> inv(s))
+|                                         ^^^^^^^
+
+error: aborting due to 2 previous errors
+*/
 
 }
