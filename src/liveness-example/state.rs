@@ -1,6 +1,7 @@
-#[allow(unused_imports)]
+// Copyright 2022 VMware, Inc.
+// SPDX-License-Identifier: MIT
+#![allow(unused_imports)]
 use builtin::*;
-#[allow(unused_imports)]
 use builtin_macros::*;
 
 verus! {
