@@ -16,9 +16,9 @@ use builtin_macros::*;
 
 verus! {
 
-type Execution = Seq<SimpleState>;
+pub type Execution = Seq<SimpleState>;
 
-type TempPred = Set<Execution>;
+pub type TempPred = Set<Execution>;
 
 pub open spec fn lift_state(state_pred: impl Fn(SimpleState) -> bool) -> TempPred {
     Set::new(|ex: Execution| state_pred(ex[0]))
