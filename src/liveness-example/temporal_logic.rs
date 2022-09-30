@@ -89,9 +89,27 @@ requires
     && (forall |a: Action| #[trigger] inv.contains(a.state_0) && next.contains(a) ==> inv.contains(a.state_1))
 ensures
     valid(implies(and(lift_state(init), always(lift_action(next))), always(lift_state(inv))))
-{
-}
+{}
 
+#[verifier(external_body)]
+pub proof fn wf1(next: ActionPred, forward: ActionPred, src: StatePred, dst: StatePred)
+requires
+    (forall |ex: Execution| ex.len() >= 2 ==> (#[trigger] lift_state(src).contains(ex) && lift_action(next).contains(ex) ==> lift_state(src).contains(later(ex)) || lift_state(dst).contains(later(ex)))),
+    (forall |ex: Execution| ex.len() >= 2 ==> (#[trigger] lift_state(src).contains(ex) && lift_action(next).contains(ex) && lift_action(forward).contains(ex) ==> lift_state(dst).contains(later(ex)))),
+    (forall |ex: Execution| ex.len() >= 2 ==> (lift_state(src).contains(ex) ==> #[trigger] enabled(forward).contains(ex)))
+ensures
+    valid(implies(and(always(lift_action(next)), weak_fairness(forward)), leads_to(lift_state(src), lift_state(dst))))
+{}
+
+// #[verifier(external_body)]
+// pub proof fn wf1(next: ActionPred, forward: ActionPred, src: StatePred, dst: StatePred)
+// requires
+//     (forall |a: Action| #[trigger] src.contains(a.state_0) && next.contains(a) ==> src.contains(a.state_1) || dst.contains(a.state_1)),
+//     (forall |a: Action| #[trigger] src.contains(a.state_0) && next.contains(a) && forward.contains(a) ==> dst.contains(a.state_1)),
+//     (forall |ex: Execution| src.contains(ex[0]) ==> #[trigger] enabled(forward).contains(ex))
+// ensures
+//     valid(implies(and(always(lift_action(next)), weak_fairness(forward)), leads_to(lift_state(src), lift_state(dst))))
+// {}
 
 // pub open spec fn enabled2(action: impl Fn(SimpleState, SimpleState) -> bool, state: SimpleState) -> bool {
 //     exists |s_prime: SimpleState| action(s, s_prime)
