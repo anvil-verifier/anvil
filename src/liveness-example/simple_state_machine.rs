@@ -16,16 +16,14 @@ pub open spec fn init(s: SimpleState) -> bool {
 pub open spec fn a_b(s: SimpleState, s_prime: SimpleState) -> bool {
     &&& s.x === ABC::A
     &&& s_prime.x === ABC::B
-    &&& s.happy
-    &&& s_prime.happy
+    &&& s.happy === s_prime.happy
 }
 
 
 pub open spec fn b_c(s: SimpleState, s_prime: SimpleState) -> bool {
     &&& s.x === ABC::B
     &&& s_prime.x === ABC::C
-    &&& s.happy
-    &&& s_prime.happy
+    &&& s.happy === s_prime.happy
 }
 
 pub open spec fn stutter(s: SimpleState, s_prime: SimpleState) -> bool {
