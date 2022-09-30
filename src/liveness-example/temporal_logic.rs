@@ -10,7 +10,6 @@ use builtin_macros::*;
 
 verus! {
 
-pub type Action = StatePair;
 pub type Execution = Seq<SimpleState>;
 
 pub type StatePred = Set<SimpleState>;

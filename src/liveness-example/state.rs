@@ -17,7 +17,7 @@ pub struct SimpleState {
     pub happy: bool,
 }
 
-pub struct StatePair {
+pub struct Action {
     pub state_0: SimpleState,
     pub state_1: SimpleState,
 }

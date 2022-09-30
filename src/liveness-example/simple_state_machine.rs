@@ -40,8 +40,20 @@ pub open spec fn init_as_set() -> Set<SimpleState> {
     Set::new(|state: SimpleState| init(state))
 }
 
-pub open spec fn next_as_set() -> Set<StatePair> {
-    Set::new(|pair: StatePair| next(pair.state_0, pair.state_1))
+pub open spec fn a_b_as_set() -> Set<Action> {
+    Set::new(|action: Action| a_b(action.state_0, action.state_1))
+}
+
+pub open spec fn b_c_as_set() -> Set<Action> {
+    Set::new(|action: Action| b_c(action.state_0, action.state_1))
+}
+
+pub open spec fn stutter_as_set() -> Set<Action> {
+    Set::new(|action: Action| stutter(action.state_0, action.state_1))
+}
+
+pub open spec fn next_as_set() -> Set<Action> {
+    Set::new(|action: Action| next(action.state_0, action.state_1))
 }
 
 }
