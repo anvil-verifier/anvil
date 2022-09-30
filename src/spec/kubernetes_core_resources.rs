@@ -14,9 +14,9 @@ verus! {
 // https://github.com/kubernetes/kubernetes/blob/release-1.25/staging/src/k8s.io/apimachinery/pkg/apis/meta/v1/types.go
 
 pub trait KubernetesResource {
-    open spec fn get_kind(&self) -> StringL;
-    open spec fn get_object_meta(&self) -> ObjectMetaL;
-    open spec fn get_key(&self) -> ObjectKey;
+    open spec fn kind(&self) -> StringL;
+    open spec fn object_meta(&self) -> ObjectMetaL;
+    open spec fn key(&self) -> ObjectKey;
 }
 
 #[derive(PartialEq, Eq)]
@@ -33,19 +33,19 @@ pub struct PodL {
 }
 
 impl KubernetesResource for PodL {
-    open spec fn get_kind(&self) -> StringL {
+    open spec fn kind(&self) -> StringL {
         StringL::Pod
     }
 
-    open spec fn get_object_meta(&self) -> ObjectMetaL {
+    open spec fn object_meta(&self) -> ObjectMetaL {
         self.metadata
     }
 
-    open spec fn get_key(&self) -> ObjectKey {
+    open spec fn key(&self) -> ObjectKey {
         ObjectKey{
-            object_type: self.get_kind(),
-            namespace: self.get_object_meta().namespace,
-            name: self.get_object_meta().name,
+            object_type: self.kind(),
+            namespace: self.object_meta().namespace,
+            name: self.object_meta().name,
         }
     }
 }
@@ -66,19 +66,19 @@ pub struct ConfigMapL {
 }
 
 impl KubernetesResource for ConfigMapL {
-    open spec fn get_kind(&self) -> StringL {
+    open spec fn kind(&self) -> StringL {
         StringL::ConfigMap
     }
 
-    open spec fn get_object_meta(&self) -> ObjectMetaL {
+    open spec fn object_meta(&self) -> ObjectMetaL {
         self.metadata
     }
 
-    open spec fn get_key(&self) -> ObjectKey {
+    open spec fn key(&self) -> ObjectKey {
         ObjectKey{
-            object_type: self.get_kind(),
-            namespace: self.get_object_meta().namespace,
-            name: self.get_object_meta().name,
+            object_type: self.kind(),
+            namespace: self.object_meta().namespace,
+            name: self.object_meta().name,
         }
     }
 }
