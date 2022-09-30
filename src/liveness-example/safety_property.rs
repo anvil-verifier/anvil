@@ -19,21 +19,26 @@ pub open spec fn happy(s: SimpleState) -> bool {
     s.happy
 }
 
-pub open spec fn safety() -> bool {
+pub open spec fn happy_as_set() -> Set<SimpleState> {
+    Set::new(|state: SimpleState| happy(state))
+}
+
+
+pub open spec fn always_happy() -> bool {
     valid(
         implies(
             and(
-                lift_state(|s: SimpleState| init(s)),
-                always(lift_action(|s: SimpleState, s_prime: SimpleState| next(s, s_prime)))
+                lift_state(init_as_set()),
+                always(lift_action(next_as_set()))
             ),
-            always(lift_state(|s: SimpleState| happy(s)))
+            always(lift_state(happy_as_set()))
         )
     )
 }
 
-proof fn prove_safety()
+proof fn prove_always_happy()
     ensures
-        safety()
+        always_happy()
 {
 }
 
