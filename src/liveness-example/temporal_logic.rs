@@ -32,6 +32,10 @@ pub open spec fn drop(ex: Execution, idx: nat) -> Execution {
     ex.subrange(idx as int, ex.len() as int)
 }
 
+pub open spec fn later(ex: Execution) -> Execution {
+    drop(ex, 1)
+}
+
 pub open spec fn always(temp_pred: TempPred) -> TempPred {
     Set::new(|ex:Execution| forall |i:nat| i<ex.len() && #[trigger] temp_pred.contains(drop(ex, i)))
 }
