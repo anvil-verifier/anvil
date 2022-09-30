@@ -10,14 +10,12 @@ use builtin_macros::*;
 
 verus! {
 
-pub type Execution = Seq<SimpleState>;
-
-pub type StatePred = Set<SimpleState>;
-pub type ActionPred = Set<Action>;
-pub type TempPred = Set<Execution>;
-
 pub open spec fn lift_state(state_pred: StatePred) -> TempPred {
     Set::new(|ex: Execution| state_pred.contains(ex[0]))
+}
+
+pub open spec fn lift_state_prime(state_pred: StatePred) -> TempPred {
+    Set::new(|ex: Execution| state_pred.contains(ex[1]))
 }
 
 pub open spec fn lift_action(action_pred: ActionPred) -> TempPred {
@@ -65,13 +63,7 @@ pub open spec fn leads_to(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempP
 }
 
 pub open spec fn enabled(action_pred: ActionPred) -> TempPred {
-    lift_state(
-        Set::new(|s: SimpleState|
-            exists |a: Action|
-                #[trigger] action_pred.contains(a)
-                && a.state_0 === s
-            )
-    )
+    lift_state(Set::new(|s: SimpleState| exists |a: Action| #[trigger] action_pred.contains(a) && a.state_0 === s))
 }
 
 pub open spec fn weak_fairness(action_pred: ActionPred) -> TempPred {
@@ -79,32 +71,42 @@ pub open spec fn weak_fairness(action_pred: ActionPred) -> TempPred {
 }
 
 pub open spec fn valid(temp_pred: TempPred) -> bool {
-    forall |ex:Execution| temp_pred.contains(ex)
+    forall |ex:Execution| ex.len() >= 2 ==> #[trigger] temp_pred.contains(ex)
 }
 
 #[verifier(external_body)]
 pub proof fn init_invariant(init: StatePred, next: ActionPred, inv: StatePred)
-requires
-    (forall |s: SimpleState| init.contains(s) ==> inv.contains(s))
-    && (forall |a: Action| #[trigger] inv.contains(a.state_0) && next.contains(a) ==> inv.contains(a.state_1))
-ensures
-    valid(implies(and(lift_state(init), always(lift_action(next))), always(lift_state(inv))))
-{
-}
+    requires
+        forall |s: SimpleState| init.contains(s) ==> inv.contains(s),
+        forall |a: Action| #[trigger] inv.contains(a.state_0) && next.contains(a) ==> inv.contains(a.state_1),
+    ensures
+        valid(implies(and(lift_state(init), always(lift_action(next))), always(lift_state(inv))))
+{}
 
+#[verifier(external_body)]
+pub proof fn wf1(next: ActionPred, forward: ActionPred, p: StatePred, q: StatePred)
+    requires
+        valid(implies(and(lift_state(p), lift_action(next)), or(lift_state_prime(p), lift_state_prime(q)))),
+        valid(implies(and(and(lift_state(p), lift_action(next)), lift_action(forward)), lift_state_prime(q))),
+        valid(implies(lift_state(p), enabled(forward))),
+    ensures
+        valid(implies(and(always(lift_action(next)), weak_fairness(forward)), leads_to(lift_state(p), lift_state(q))))
+{}
 
-// pub open spec fn enabled2(action: impl Fn(SimpleState, SimpleState) -> bool, state: SimpleState) -> bool {
-//     exists |s_prime: SimpleState| action(s, s_prime)
-//         && #[trigger] next(s, s_prime)
-// }
+#[verifier(external_body)]
+pub proof fn leads_to_apply(p: StatePred, q: StatePred)
+    ensures
+        valid(implies(and(lift_state(p), leads_to(lift_state(p), lift_state(q))), eventually(lift_state(q))))
+{}
 
-// pub open spec fn weak_fairness2(action: impl Fn(SimpleState, SimpleState) -> bool) -> TempPred {
-//     leads_to(always(lift_state(|s: SimpleState| enabled2(action, s))),
-//         lift_action(action))
-// }
+#[verifier(external_body)]
+pub proof fn leads_to_trans(p: StatePred, q: StatePred, r: StatePred)
+    ensures
+        valid(implies(and(leads_to(lift_state(p), lift_state(q)), leads_to(lift_state(q), lift_state(r))), leads_to(lift_state(p), lift_state(r))))
+{}
 
 /*
-Here is the reason why we need to use Set, instead of closure for state predicate and action predicate
+Here is the reason why we need to use Set, instead of closure, for state predicate and action predicate
 If we want to write this tautology for proving safety properties:
 
 #[verifier(external_body)]
