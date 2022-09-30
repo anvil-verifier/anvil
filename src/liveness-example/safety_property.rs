@@ -40,6 +40,7 @@ proof fn prove_always_happy()
     ensures
         always_happy()
 {
+    init_invariant(init_as_set(), next_as_set(), happy_as_set());
 }
 
 }

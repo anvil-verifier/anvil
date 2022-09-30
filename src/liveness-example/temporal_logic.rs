@@ -89,6 +89,16 @@ pub open spec fn valid(temp_pred: TempPred) -> bool {
     forall |ex:Execution| temp_pred.contains(ex)
 }
 
+#[verifier(external_body)]
+pub proof fn init_invariant(init: StatePred, next: ActionPred, inv: StatePred)
+requires
+    (forall |s: SimpleState| init.contains(s) ==> inv.contains(s))
+    && (forall |a: Action| #[trigger] inv.contains(a.state_0) && next.contains(a) ==> inv.contains(a.state_1))
+ensures
+    valid(implies(and(lift_state(init), always(lift_action(next))), always(lift_state(inv))))
+{
+}
+
 
 // pub open spec fn enabled2(action: impl Fn(SimpleState, SimpleState) -> bool, state: SimpleState) -> bool {
 //     exists |s_prime: SimpleState| action(s, s_prime)
