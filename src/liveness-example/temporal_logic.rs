@@ -20,6 +20,10 @@ pub open spec fn lift_state(state_pred: StatePred) -> TempPred {
     Set::new(|ex: Execution| state_pred.contains(ex[0]))
 }
 
+pub open spec fn lift_state_prime(state_pred: StatePred) -> TempPred {
+    Set::new(|ex: Execution| state_pred.contains(ex[1]))
+}
+
 pub open spec fn lift_action(action_pred: ActionPred) -> TempPred {
     Set::new(|ex: Execution|
         exists |a: Action|
@@ -79,7 +83,7 @@ pub open spec fn weak_fairness(action_pred: ActionPred) -> TempPred {
 }
 
 pub open spec fn valid(temp_pred: TempPred) -> bool {
-    forall |ex:Execution| temp_pred.contains(ex)
+    forall |ex:Execution| ex.len() >= 2 ==> #[trigger] temp_pred.contains(ex)
 }
 
 #[verifier(external_body)]
@@ -94,9 +98,9 @@ ensures
 #[verifier(external_body)]
 pub proof fn wf1(next: ActionPred, forward: ActionPred, src: StatePred, dst: StatePred)
 requires
-    (forall |ex: Execution| ex.len() >= 2 ==> (#[trigger] lift_state(src).contains(ex) && lift_action(next).contains(ex) ==> lift_state(src).contains(later(ex)) || lift_state(dst).contains(later(ex)))),
-    (forall |ex: Execution| ex.len() >= 2 ==> (#[trigger] lift_state(src).contains(ex) && lift_action(next).contains(ex) && lift_action(forward).contains(ex) ==> lift_state(dst).contains(later(ex)))),
-    (forall |ex: Execution| ex.len() >= 2 ==> (lift_state(src).contains(ex) ==> #[trigger] enabled(forward).contains(ex)))
+    valid(implies(and(lift_state(src), lift_action(next)), or(lift_state_prime(src), lift_state_prime(dst)))),
+    valid(implies(and(and(lift_state(src), lift_action(next)), lift_action(forward)), lift_state_prime(dst))),
+    valid(implies(lift_state(src), enabled(forward))),
 ensures
     valid(implies(and(always(lift_action(next)), weak_fairness(forward)), leads_to(lift_state(src), lift_state(dst))))
 {}
