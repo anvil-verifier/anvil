@@ -34,15 +34,13 @@ proof fn prove_a_leads_to_b()
     assert forall |any_ex: Execution| any_ex.len() >= 2 implies #[trigger] implies(lift_state(x_is_a_as_set()), enabled(a_b_as_set())).contains(any_ex)
     by {
         if any_ex.len() >= 2 && lift_state(x_is_a_as_set()).contains(any_ex) {
-            let witness_s_prime = SimpleState {
-                x: ABC::B,
-                happy: any_ex[0].happy,
-            };
-            assert(witness_s_prime.x === ABC::B && witness_s_prime.happy === any_ex[0].happy);
-            let s_prime: SimpleState = choose|s_prime: SimpleState| s_prime.x === ABC::B && s_prime.happy === any_ex[0].happy;
-            let witness_action: Action = Action {
+            // We need a witness to coax Verus that there exists a a_b() action that is enabled when x_is_a()
+            let witness_action = Action {
                 state_0: any_ex[0],
-                state_1: s_prime,
+                state_1: SimpleState {
+                    x: ABC::B,
+                    happy: any_ex[0].happy,
+                }
             };
             assert(a_b_as_set().contains(witness_action) && witness_action.state_0 === any_ex[0]);
         }
@@ -72,14 +70,14 @@ proof fn prove_eventually_b()
         if any_ex.len() >= 2 && and(lift_state(init_as_set()), and(always(lift_action(next_as_set())), weak_fairness(a_b_as_set()))).contains(any_ex) {
             prove_a_leads_to_b();
             assert(implies(and(always(lift_action(next_as_set())), weak_fairness(a_b_as_set())), leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_b_as_set()))).contains(any_ex));
-            assert(leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_b_as_set())).contains(any_ex));
+            // assert(leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_b_as_set())).contains(any_ex));
 
             prove_init_a();
-            assert(lift_state(x_is_a_as_set()).contains(any_ex));
+            // assert(lift_state(x_is_a_as_set()).contains(any_ex));
 
             leads_to_apply(x_is_a_as_set(), x_is_b_as_set());
             assert(implies(and(lift_state(x_is_a_as_set()), leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_b_as_set()))), eventually(lift_state(x_is_b_as_set()))).contains(any_ex));
-            assert(eventually(lift_state(x_is_b_as_set())).contains(any_ex));
+            // assert(eventually(lift_state(x_is_b_as_set())).contains(any_ex));
         }
     };
 }
@@ -94,15 +92,13 @@ proof fn prove_b_leads_to_c()
 {
     assert forall |any_ex: Execution| any_ex.len() >= 2 implies #[trigger] implies(lift_state(x_is_b_as_set()), enabled(b_c_as_set())).contains(any_ex) by {
         if lift_state(x_is_b_as_set()).contains(any_ex) {
-            let witness_s_prime = SimpleState {
-                x: ABC::C,
-                happy: any_ex[0].happy,
-            };
-            assert(witness_s_prime.x === ABC::C && witness_s_prime.happy === any_ex[0].happy);
-            let s_prime: SimpleState = choose|s_prime: SimpleState| s_prime.x === ABC::C && s_prime.happy === any_ex[0].happy;
-            let witness_action: Action = Action {
+            // We need a witness to coax Verus that there exists a b_c() action that is enabled when x_is_b()
+            let witness_action = Action {
                 state_0: any_ex[0],
-                state_1: s_prime,
+                state_1: SimpleState {
+                    x: ABC::C,
+                    happy: any_ex[0].happy,
+                }
             };
             assert(b_c_as_set().contains(witness_action) && witness_action.state_0 === any_ex[0]);
         }
@@ -122,15 +118,15 @@ proof fn prove_a_leads_to_c()
         if and(and(always(lift_action(next_as_set())), weak_fairness(a_b_as_set())), weak_fairness(b_c_as_set())).contains(any_ex) {
             prove_a_leads_to_b();
             assert(implies(and(always(lift_action(next_as_set())), weak_fairness(a_b_as_set())), leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_b_as_set()))).contains(any_ex));
-            assert(leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_b_as_set())).contains(any_ex));
+            // assert(leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_b_as_set())).contains(any_ex));
 
             prove_b_leads_to_c();
             assert(implies(and(always(lift_action(next_as_set())), weak_fairness(b_c_as_set())), leads_to(lift_state(x_is_b_as_set()), lift_state(x_is_c_as_set()))).contains(any_ex));
-            assert(leads_to(lift_state(x_is_b_as_set()), lift_state(x_is_c_as_set())).contains(any_ex));
+            // assert(leads_to(lift_state(x_is_b_as_set()), lift_state(x_is_c_as_set())).contains(any_ex));
 
             leads_to_trans(x_is_a_as_set(), x_is_b_as_set(), x_is_c_as_set());
             assert(implies(and(leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_b_as_set())), leads_to(lift_state(x_is_b_as_set()), lift_state(x_is_c_as_set()))), leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_c_as_set()))).contains(any_ex));
-            assert(leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_c_as_set())).contains(any_ex));
+            // assert(leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_c_as_set())).contains(any_ex));
         }
     };
 }
@@ -148,14 +144,14 @@ proof fn prove_eventually_c()
         if and(lift_state(init_as_set()), and(always(lift_action(next_as_set())), and(weak_fairness(a_b_as_set()), weak_fairness(b_c_as_set())))).contains(any_ex) {
             prove_a_leads_to_c();
             assert(implies(and(always(lift_action(next_as_set())), and(weak_fairness(a_b_as_set()), weak_fairness(b_c_as_set()))), leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_c_as_set()))).contains(any_ex));
-            assert(leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_c_as_set())).contains(any_ex));
+            // assert(leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_c_as_set())).contains(any_ex));
 
             prove_init_a();
-            assert(lift_state(x_is_a_as_set()).contains(any_ex));
+            // assert(lift_state(x_is_a_as_set()).contains(any_ex));
 
             leads_to_apply(x_is_a_as_set(), x_is_c_as_set());
             assert(implies(and(lift_state(x_is_a_as_set()), leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_c_as_set()))), eventually(lift_state(x_is_c_as_set()))).contains(any_ex));
-            assert(eventually(lift_state(x_is_c_as_set())).contains(any_ex));
+            // assert(eventually(lift_state(x_is_c_as_set())).contains(any_ex));
         }
     };
 }
