@@ -74,20 +74,25 @@ proof fn prove_b_leads_to_c()
     ensures
         b_leads_to_c()
 {
-    assert forall |any_ex: Execution| lift_state(x_is_b_as_set()).contains(any_ex) ==> #[trigger] enabled(b_c_as_set()).contains(any_ex)
+    assert forall |any_ex: Execution|
+        any_ex.len() >= 2 ==> (
+            lift_state(x_is_b_as_set()).contains(any_ex) ==> #[trigger] enabled(b_c_as_set()).contains(any_ex)
+        )
     by {
-        if lift_state(x_is_b_as_set()).contains(any_ex) {
-            let witness_s_prime = SimpleState {
-                x: ABC::C,
-                happy: any_ex[0].happy,
-            };
-            assert(witness_s_prime.x === ABC::C && witness_s_prime.happy === any_ex[0].happy);
-            let s_prime: SimpleState = choose|s_prime: SimpleState| s_prime.x === ABC::C && s_prime.happy === any_ex[0].happy;
-            let witness_action: Action = Action {
-                state_0: any_ex[0],
-                state_1: s_prime,
-            };
-            assert(b_c_as_set().contains(witness_action) && witness_action.state_0 === any_ex[0]);
+        if any_ex.len() >= 2 {
+            if lift_state(x_is_b_as_set()).contains(any_ex) {
+                let witness_s_prime = SimpleState {
+                    x: ABC::C,
+                    happy: any_ex[0].happy,
+                };
+                assert(witness_s_prime.x === ABC::C && witness_s_prime.happy === any_ex[0].happy);
+                let s_prime: SimpleState = choose|s_prime: SimpleState| s_prime.x === ABC::C && s_prime.happy === any_ex[0].happy;
+                let witness_action: Action = Action {
+                    state_0: any_ex[0],
+                    state_1: s_prime,
+                };
+                assert(b_c_as_set().contains(witness_action) && witness_action.state_0 === any_ex[0]);
+            }
         }
     };
     wf1(next_as_set(), b_c_as_set(), x_is_b_as_set(), x_is_c_as_set());
