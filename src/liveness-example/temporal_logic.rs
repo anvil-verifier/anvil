@@ -111,6 +111,12 @@ ensures
     valid(implies(and(lift_state(src), leads_to(lift_state(src), lift_state(dst))), eventually(lift_state(dst))))
 {}
 
+#[verifier(external_body)]
+pub proof fn leads_to_trans(p: StatePred, q: StatePred, r: StatePred)
+ensures
+    valid(implies(and(leads_to(lift_state(p), lift_state(q)), leads_to(lift_state(q), lift_state(r))), leads_to(lift_state(p), lift_state(r))))
+{}
+
 // #[verifier(external_body)]
 // pub proof fn wf1(next: ActionPred, forward: ActionPred, src: StatePred, dst: StatePred)
 // requires
