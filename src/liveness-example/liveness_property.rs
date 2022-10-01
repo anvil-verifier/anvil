@@ -58,6 +58,62 @@ proof fn prove_a_leads_to_b()
     wf1(next_as_set(), a_b_as_set(), x_is_a_as_set(), x_is_b_as_set());
 }
 
+pub open spec fn init_a() -> bool {
+    valid(
+        implies(
+            lift_state(init_as_set()),
+            lift_state(x_is_a_as_set())
+        )
+    )
+}
+
+proof fn prove_init_a()
+    ensures
+        init_a()
+{}
+
+pub open spec fn eventually_b() -> bool {
+    valid(
+        implies(
+            and(
+                lift_state(init_as_set()),
+                and(
+                    always(lift_action(next_as_set())),
+                    weak_fairness(a_b_as_set())
+                )
+            ),
+            eventually(lift_state(x_is_b_as_set()))
+        )
+    )
+}
+
+proof fn prove_eventually_b()
+    ensures
+        eventually_b()
+{
+    assert forall |any_ex: Execution|
+        any_ex.len() >= 2 ==> (
+            #[trigger] lift_state(init_as_set()).contains(any_ex) && always(lift_action(next_as_set())).contains(any_ex) && weak_fairness(a_b_as_set()).contains(any_ex) ==>
+                eventually(lift_state(x_is_b_as_set())).contains(any_ex)
+        )
+    by {
+        if any_ex.len() >= 2 {
+            if lift_state(init_as_set()).contains(any_ex) && always(lift_action(next_as_set())).contains(any_ex) && weak_fairness(a_b_as_set()).contains(any_ex) {
+                prove_a_leads_to_b();
+                assert(implies(and(always(lift_action(next_as_set())), weak_fairness(a_b_as_set())), leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_b_as_set()))).contains(any_ex));
+                assert(leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_b_as_set())).contains(any_ex));
+
+                prove_init_a();
+                assert(lift_state(x_is_a_as_set()).contains(any_ex));
+
+                leads_to_apply(x_is_a_as_set(), x_is_b_as_set());
+                assert(implies(and(lift_state(x_is_a_as_set()), leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_b_as_set()))), eventually(lift_state(x_is_b_as_set()))).contains(any_ex));
+                assert(eventually(lift_state(x_is_b_as_set())).contains(any_ex));
+            }
+        }
+    }
+}
+
 pub open spec fn b_leads_to_c() -> bool {
     valid(
         implies(

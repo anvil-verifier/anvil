@@ -105,6 +105,12 @@ ensures
     valid(implies(and(always(lift_action(next)), weak_fairness(forward)), leads_to(lift_state(src), lift_state(dst))))
 {}
 
+#[verifier(external_body)]
+pub proof fn leads_to_apply(src: StatePred, dst: StatePred)
+ensures
+    valid(implies(and(lift_state(src), leads_to(lift_state(src), lift_state(dst))), eventually(lift_state(dst))))
+{}
+
 // #[verifier(external_body)]
 // pub proof fn wf1(next: ActionPred, forward: ActionPred, src: StatePred, dst: StatePred)
 // requires
