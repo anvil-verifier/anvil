@@ -31,7 +31,7 @@ proof fn prove_a_leads_to_b()
     ensures
         valid(a_leads_to_b())
 {
-    assert forall |any_ex: Execution| any_ex.len() >= 2 ==> #[trigger] implies(lift_state(x_is_a_as_set()), enabled(a_b_as_set())).contains(any_ex)
+    assert forall |any_ex: Execution| any_ex.len() >= 2 implies #[trigger] implies(lift_state(x_is_a_as_set()), enabled(a_b_as_set())).contains(any_ex)
     by {
         if any_ex.len() >= 2 && lift_state(x_is_a_as_set()).contains(any_ex) {
             let witness_s_prime = SimpleState {
@@ -68,7 +68,7 @@ proof fn prove_eventually_b()
     ensures
         valid(eventually_b())
 {
-    assert forall |any_ex: Execution| any_ex.len() >= 2 ==> #[trigger] eventually_b().contains(any_ex) by {
+    assert forall |any_ex: Execution| any_ex.len() >= 2 implies #[trigger] eventually_b().contains(any_ex) by {
         if any_ex.len() >= 2 && and(lift_state(init_as_set()), and(always(lift_action(next_as_set())), weak_fairness(a_b_as_set()))).contains(any_ex) {
             prove_a_leads_to_b();
             assert(implies(and(always(lift_action(next_as_set())), weak_fairness(a_b_as_set())), leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_b_as_set()))).contains(any_ex));
@@ -92,8 +92,8 @@ proof fn prove_b_leads_to_c()
     ensures
         valid(b_leads_to_c())
 {
-    assert forall |any_ex: Execution| any_ex.len() >= 2 ==> #[trigger] implies(lift_state(x_is_b_as_set()), enabled(b_c_as_set())).contains(any_ex) by {
-        if any_ex.len() >= 2 && lift_state(x_is_b_as_set()).contains(any_ex) {
+    assert forall |any_ex: Execution| any_ex.len() >= 2 implies #[trigger] implies(lift_state(x_is_b_as_set()), enabled(b_c_as_set())).contains(any_ex) by {
+        if lift_state(x_is_b_as_set()).contains(any_ex) {
             let witness_s_prime = SimpleState {
                 x: ABC::C,
                 happy: any_ex[0].happy,
@@ -111,24 +111,15 @@ proof fn prove_b_leads_to_c()
 }
 
 pub open spec fn a_leads_to_c() -> TempPred {
-    implies(
-        and(
-            always(lift_action(next_as_set())),
-            and(
-                weak_fairness(a_b_as_set()),
-                weak_fairness(b_c_as_set())
-            )
-        ),
-        leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_c_as_set()))
-    )
+    implies(and(always(lift_action(next_as_set())), and(weak_fairness(a_b_as_set()), weak_fairness(b_c_as_set()))), leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_c_as_set())))
 }
 
 proof fn prove_a_leads_to_c()
     ensures
         valid(a_leads_to_c())
 {
-    assert forall |any_ex: Execution| any_ex.len() >= 2 ==> #[trigger] a_leads_to_c().contains(any_ex) by {
-        if any_ex.len() >= 2 && and(and(always(lift_action(next_as_set())), weak_fairness(a_b_as_set())), weak_fairness(b_c_as_set())).contains(any_ex) {
+    assert forall |any_ex: Execution| any_ex.len() >= 2 implies #[trigger] a_leads_to_c().contains(any_ex) by {
+        if and(and(always(lift_action(next_as_set())), weak_fairness(a_b_as_set())), weak_fairness(b_c_as_set())).contains(any_ex) {
             prove_a_leads_to_b();
             assert(implies(and(always(lift_action(next_as_set())), weak_fairness(a_b_as_set())), leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_b_as_set()))).contains(any_ex));
             assert(leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_b_as_set())).contains(any_ex));
@@ -153,8 +144,8 @@ proof fn prove_eventually_c()
     ensures
         valid(eventually_c())
 {
-    assert forall |any_ex: Execution| any_ex.len() >= 2 ==> #[trigger] eventually_c().contains(any_ex) by {
-        if any_ex.len() >= 2 && and(lift_state(init_as_set()), and(always(lift_action(next_as_set())), and(weak_fairness(a_b_as_set()), weak_fairness(b_c_as_set())))).contains(any_ex) {
+    assert forall |any_ex: Execution| any_ex.len() >= 2 implies #[trigger] eventually_c().contains(any_ex) by {
+        if and(lift_state(init_as_set()), and(always(lift_action(next_as_set())), and(weak_fairness(a_b_as_set()), weak_fairness(b_c_as_set())))).contains(any_ex) {
             prove_a_leads_to_c();
             assert(implies(and(always(lift_action(next_as_set())), and(weak_fairness(a_b_as_set()), weak_fairness(b_c_as_set()))), leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_c_as_set()))).contains(any_ex));
             assert(leads_to(lift_state(x_is_a_as_set()), lift_state(x_is_c_as_set())).contains(any_ex));

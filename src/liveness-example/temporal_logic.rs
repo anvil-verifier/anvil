@@ -63,13 +63,7 @@ pub open spec fn leads_to(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempP
 }
 
 pub open spec fn enabled(action_pred: ActionPred) -> TempPred {
-    lift_state(
-        Set::new(|s: SimpleState|
-            exists |a: Action|
-                #[trigger] action_pred.contains(a)
-                && a.state_0 === s
-            )
-    )
+    lift_state(Set::new(|s: SimpleState| exists |a: Action| #[trigger] action_pred.contains(a) && a.state_0 === s))
 }
 
 pub open spec fn weak_fairness(action_pred: ActionPred) -> TempPred {
@@ -90,19 +84,19 @@ pub proof fn init_invariant(init: StatePred, next: ActionPred, inv: StatePred)
 {}
 
 #[verifier(external_body)]
-pub proof fn wf1(next: ActionPred, forward: ActionPred, src: StatePred, dst: StatePred)
+pub proof fn wf1(next: ActionPred, forward: ActionPred, p: StatePred, q: StatePred)
     requires
-        valid(implies(and(lift_state(src), lift_action(next)), or(lift_state_prime(src), lift_state_prime(dst)))),
-        valid(implies(and(and(lift_state(src), lift_action(next)), lift_action(forward)), lift_state_prime(dst))),
-        valid(implies(lift_state(src), enabled(forward))),
+        valid(implies(and(lift_state(p), lift_action(next)), or(lift_state_prime(p), lift_state_prime(q)))),
+        valid(implies(and(and(lift_state(p), lift_action(next)), lift_action(forward)), lift_state_prime(q))),
+        valid(implies(lift_state(p), enabled(forward))),
     ensures
-        valid(implies(and(always(lift_action(next)), weak_fairness(forward)), leads_to(lift_state(src), lift_state(dst))))
+        valid(implies(and(always(lift_action(next)), weak_fairness(forward)), leads_to(lift_state(p), lift_state(q))))
 {}
 
 #[verifier(external_body)]
-pub proof fn leads_to_apply(src: StatePred, dst: StatePred)
+pub proof fn leads_to_apply(p: StatePred, q: StatePred)
     ensures
-        valid(implies(and(lift_state(src), leads_to(lift_state(src), lift_state(dst))), eventually(lift_state(dst))))
+        valid(implies(and(lift_state(p), leads_to(lift_state(p), lift_state(q))), eventually(lift_state(q))))
 {}
 
 #[verifier(external_body)]
