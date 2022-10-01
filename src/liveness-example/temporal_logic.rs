@@ -10,12 +10,6 @@ use builtin_macros::*;
 
 verus! {
 
-pub type Execution = Seq<SimpleState>;
-
-pub type StatePred = Set<SimpleState>;
-pub type ActionPred = Set<Action>;
-pub type TempPred = Set<Execution>;
-
 pub open spec fn lift_state(state_pred: StatePred) -> TempPred {
     Set::new(|ex: Execution| state_pred.contains(ex[0]))
 }
