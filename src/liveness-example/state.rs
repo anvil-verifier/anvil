@@ -20,8 +20,8 @@ pub struct SimpleState {
 }
 
 pub struct Action {
-    pub state_0: SimpleState,
-    pub state_1: SimpleState,
+    pub state: SimpleState,
+    pub state_prime: SimpleState,
 }
 
 pub type Execution = Seq<SimpleState>;

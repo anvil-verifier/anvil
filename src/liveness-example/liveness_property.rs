@@ -36,13 +36,13 @@ proof fn prove_a_leads_to_b()
         if lift_state(x_is_a_as_set()).contains(any_ex) {
             // We need a witness to coax Verus that there exists a a_b() action that is enabled when x_is_a()
             let witness_action = Action {
-                state_0: any_ex[0],
-                state_1: SimpleState {
+                state: any_ex[0],
+                state_prime: SimpleState {
                     x: ABC::B,
                     happy: any_ex[0].happy,
                 }
             };
-            assert(a_b_as_set().contains(witness_action) && witness_action.state_0 === any_ex[0]);
+            assert(a_b_as_set().contains(witness_action) && witness_action.state === any_ex[0]);
         }
     };
     wf1(next_as_set(), a_b_as_set(), x_is_a_as_set(), x_is_b_as_set());
@@ -94,13 +94,13 @@ proof fn prove_b_leads_to_c()
         if lift_state(x_is_b_as_set()).contains(any_ex) {
             // We need a witness to coax Verus that there exists a b_c() action that is enabled when x_is_b()
             let witness_action = Action {
-                state_0: any_ex[0],
-                state_1: SimpleState {
+                state: any_ex[0],
+                state_prime: SimpleState {
                     x: ABC::C,
                     happy: any_ex[0].happy,
                 }
             };
-            assert(b_c_as_set().contains(witness_action) && witness_action.state_0 === any_ex[0]);
+            assert(b_c_as_set().contains(witness_action) && witness_action.state === any_ex[0]);
         }
     };
     wf1(next_as_set(), b_c_as_set(), x_is_b_as_set(), x_is_c_as_set());
