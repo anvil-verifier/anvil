@@ -71,7 +71,7 @@ pub open spec fn weak_fairness(action_pred: ActionPred) -> TempPred {
 }
 
 pub open spec fn valid(temp_pred: TempPred) -> bool {
-    forall |ex:Execution| ex.len() >= 2 ==> #[trigger] temp_pred.contains(ex)
+    forall |ex:Execution| temp_pred.contains(ex)
 }
 
 #[verifier(external_body)]
