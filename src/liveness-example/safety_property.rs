@@ -20,21 +20,13 @@ pub open spec fn happy_as_set() -> Set<SimpleState> {
 }
 
 
-pub open spec fn always_happy() -> bool {
-    valid(
-        implies(
-            and(
-                lift_state(init_as_set()),
-                always(lift_action(next_as_set()))
-            ),
-            always(lift_state(happy_as_set()))
-        )
-    )
+pub open spec fn always_happy() -> TempPred {
+    implies(and(lift_state(init_as_set()), always(lift_action(next_as_set()))), always(lift_state(happy_as_set())))
 }
 
 proof fn prove_always_happy()
     ensures
-        always_happy()
+        valid(always_happy())
 {
     init_invariant(init_as_set(), next_as_set(), happy_as_set());
 }
