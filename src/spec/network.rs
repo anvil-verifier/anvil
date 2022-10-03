@@ -18,7 +18,7 @@ pub struct NetworkVariables {
 }
 
 pub open spec fn init(c: NetworkConstants, v: NetworkVariables) -> bool {
-    equal(v.sent_messages, Set::empty())
+    v.sent_messages === Set::empty()
 }
 
 pub open spec fn next(c: NetworkConstants, v: NetworkVariables, v_prime: NetworkVariables, network_ops: NetworkOps) -> bool {

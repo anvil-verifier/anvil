@@ -30,7 +30,7 @@ impl DSConstants {
         self.kubernetes_constants.well_formed()
         && self.controller_constants.well_formed()
         && self.workload_constants.well_formed()
-        && equal(self.clock_upper_bound, distributed_system_step_limit_spec())
+        && self.clock_upper_bound === distributed_system_step_limit_spec()
     }
 
     // #[spec] #[verifier(publish)]
@@ -67,7 +67,7 @@ pub fn init(c: DSConstants, v: DSVariables) -> bool {
     && controller::init(c.controller_constants, v.controller_variables)
     && custom_controller_workload::init(c.workload_constants, v.workload_variables)
     && network::init(c.network_constants, v.network_variables)
-    && equal(v.clock, distributed_system_step_limit_spec())
+    && v.clock === distributed_system_step_limit_spec()
 }
 
 #[spec] #[verifier(publish)]
@@ -90,9 +90,9 @@ pub fn all_well_formed(c: DSConstants, v: DSVariables, v_prime: DSVariables, net
 pub fn kubernetes_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops:NetworkOps) -> bool {
     all_well_formed(c, v, v_prime, network_ops)
     && v.clock > 0
-    && equal(v_prime.clock, v.clock - 1)
-    && equal(v.controller_variables, v_prime.controller_variables)
-    && equal(v.workload_variables, v_prime.workload_variables)
+    && v_prime.clock === v.clock - 1
+    && v.controller_variables === v_prime.controller_variables
+    && v.workload_variables === v_prime.workload_variables
     && kubernetes::next(c.kubernetes_constants, v.kubernetes_variables, v_prime.kubernetes_variables, network_ops)
 }
 
@@ -100,9 +100,9 @@ pub fn kubernetes_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, n
 pub fn controller_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops:NetworkOps) -> bool {
     all_well_formed(c, v, v_prime, network_ops)
     && v.clock > 0
-    && equal(v_prime.clock, v.clock - 1)
-    && equal(v.kubernetes_variables, v_prime.kubernetes_variables)
-    && equal(v.workload_variables, v_prime.workload_variables)
+    && v_prime.clock === v.clock - 1
+    && v.kubernetes_variables === v_prime.kubernetes_variables
+    && v.workload_variables === v_prime.workload_variables
     && controller::next(c.controller_constants, v.controller_variables, v_prime.controller_variables, network_ops)
 }
 
@@ -110,9 +110,9 @@ pub fn controller_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, n
 pub fn workload_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops:NetworkOps) -> bool {
     all_well_formed(c, v, v_prime, network_ops)
     && v.clock > 0
-    && equal(v_prime.clock, v.clock - 1)
-    && equal(v.kubernetes_variables, v_prime.kubernetes_variables)
-    && equal(v.controller_variables, v_prime.controller_variables)
+    && v_prime.clock === v.clock - 1
+    && v.kubernetes_variables === v_prime.kubernetes_variables
+    && v.controller_variables === v_prime.controller_variables
     && custom_controller_workload::next(c.workload_constants, v.workload_variables, v_prime.workload_variables, network_ops)
 }
 

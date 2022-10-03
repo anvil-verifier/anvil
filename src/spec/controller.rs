@@ -17,8 +17,8 @@ pub struct ControllerConstants {
 }
 
 impl ControllerConstants {
-    pub open spec fn well_formed(&self) -> bool {
-        equal(self.controller_clock_upper_bound, controller_step_limit_spec())
+    pub closed spec fn well_formed(&self) -> bool {
+        self.controller_clock_upper_bound === controller_step_limit_spec()
     }
 }
 
@@ -119,7 +119,7 @@ pub open spec fn all_well_formed(c: ControllerConstants, v: ControllerVariables,
 /// We currently do not allow receiving api watch responses inside a reconcile
 /// so we pose the constraints including:
 /// * !v.in_reconcile
-/// * equal(v.triggering_key, Option::None)
+/// * v.triggering_key.is_None()
 /// We do NOT update the state_cache here
 /// The reason is that in kube-rs every watch event from the API server
 /// will update the local indexer (in the informer) but the controller never reads the indexer
@@ -127,10 +127,10 @@ pub open spec fn all_well_formed(c: ControllerConstants, v: ControllerVariables,
 /// reads the local indexer (local cache)
 pub open spec fn receive_api_event_notification(c: ControllerConstants, v: ControllerVariables, v_prime: ControllerVariables, network_ops: NetworkOps) -> bool {
     all_well_formed(c, v, v_prime, network_ops)
-    && equal(v, ControllerVariables{
+    && v === ControllerVariables{
         triggering_key: v.triggering_key,
         ..v_prime
-    })
+    }
     && !v.in_reconcile
     && !v.before_receiving_response
     && v.triggering_key.is_None()

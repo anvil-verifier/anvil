@@ -52,19 +52,19 @@ pub open spec fn create_configmap_generator(c: WorkloadConstants, v: WorkloadVar
     all_well_formed(c, v, v_prime, network_ops)
     && !v.submitted
     && v_prime.submitted
-    && equal(configmap_generator.metadata.name, StringL::MyConfigMapGenerator)
-    && equal(configmap_generator.metadata.namespace, StringL::Default)
+    && configmap_generator.metadata.name === StringL::MyConfigMapGenerator
+    && configmap_generator.metadata.namespace === StringL::Default
     && network_ops.recv.is_None()
     && network_ops.send.is_Some()
     && network_ops.send.get_Some_0().src === HostId::CustomClient
     && network_ops.send.get_Some_0().dst === HostId::KubernetesAPI
     && match network_ops.send.get_Some_0().payload {
-        Payload::APIOpRequest(api_op_request) => equal(api_op_request.api_op, APIOp::Create{
+        Payload::APIOpRequest(api_op_request) => api_op_request.api_op === APIOp::Create{
             object_key: configmap_generator.key(),
             object: KubernetesObject::CustomResourceObject(
                 CustomResourceObject::ConfigMapGenerator(configmap_generator)
             ),
-        }),
+        },
         _ => false,
     }
 }

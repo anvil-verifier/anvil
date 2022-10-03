@@ -280,10 +280,10 @@ impl NetworkOps {
 
 pub open spec fn state_transition_by_api_op(cluster_state: ClusterState, cluster_state_prime: ClusterState, api_op: APIOp) -> bool {
     match api_op {
-        APIOp::Get{object_key} => cluster_state.contains(object_key) && equal(cluster_state, cluster_state_prime),
-        APIOp::Create{object_key, object} => !cluster_state.contains(object_key) && equal(cluster_state.state.insert(object_key, object), cluster_state_prime.state),
-        APIOp::Update{object_key, object} => cluster_state.contains(object_key) && equal(cluster_state.state.insert(object_key, object), cluster_state_prime.state),
-        APIOp::Delete{object_key} => cluster_state.contains(object_key) && equal(cluster_state.state.remove(object_key), cluster_state_prime.state),
+        APIOp::Get{object_key} => cluster_state.contains(object_key) && cluster_state === cluster_state_prime,
+        APIOp::Create{object_key, object} => !cluster_state.contains(object_key) && cluster_state.state.insert(object_key, object) === cluster_state_prime.state,
+        APIOp::Update{object_key, object} => cluster_state.contains(object_key) && cluster_state.state.insert(object_key, object) === cluster_state_prime.state,
+        APIOp::Delete{object_key} => cluster_state.contains(object_key) && cluster_state.state.remove(object_key) === cluster_state_prime.state,
     }
 }
 

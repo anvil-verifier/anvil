@@ -38,9 +38,9 @@ spec fn matches_valid_gcu_response(message: Message, key: ObjectKey) -> bool {
     match message.payload {
         Payload::APIOpResponse(api_op_response) =>
             match api_op_response.api_op_request.api_op {
-                APIOp::Get{object_key} => equal(object_key, key) && api_op_response.success,
-                APIOp::Create{object_key, ..} => equal(object_key, key) && api_op_response.success,
-                APIOp::Update{object_key, ..} => equal(object_key, key) && api_op_response.success,
+                APIOp::Get{object_key} => object_key === key && api_op_response.success,
+                APIOp::Create{object_key, ..} => object_key === key && api_op_response.success,
+                APIOp::Update{object_key, ..} => object_key === key && api_op_response.success,
                 _ => false,
             },
         _ => false,
