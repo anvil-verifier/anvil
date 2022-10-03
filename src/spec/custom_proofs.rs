@@ -77,26 +77,28 @@ spec fn cm2_creation_implies_cm1_existence_i5(v: DSVariables) -> bool {
 
 proof fn kubernetes_state_monotonicity(c: DSConstants, v: DSVariables, v_prime: DSVariables)
     requires
-        next(c, v, v_prime) && no_deletion_i1(v)
+        next(c, v, v_prime),
+        no_deletion_i1(v),
     ensures
         forall |key: ObjectKey| v.kubernetes_variables.cluster_state.contains(key)
-            ==> v_prime.kubernetes_variables.cluster_state.contains(key) {
-}
+            ==> v_prime.kubernetes_variables.cluster_state.contains(key),
+{}
 
 proof fn network_monotonicity(c: DSConstants, v: DSVariables, v_prime: DSVariables)
     requires
-        next(c, v, v_prime)
+        next(c, v, v_prime),
     ensures
-        forall |message: Message| is_sent(v, message) ==> is_sent(v_prime, message) {
-}
+        forall |message: Message| is_sent(v, message) ==> is_sent(v_prime, message),
+{}
 
 proof fn controller_cache_monotonicity(c: DSConstants, v: DSVariables, v_prime: DSVariables)
     requires
-        next(c, v, v_prime) && no_deletion_i1(v)
+        next(c, v, v_prime),
+        no_deletion_i1(v),
     ensures
         forall |key: ObjectKey| v.kubernetes_variables.cluster_state.contains(key)
-            ==> v_prime.kubernetes_variables.cluster_state.contains(key) {
-}
+            ==> v_prime.kubernetes_variables.cluster_state.contains(key),
+{}
 
 spec fn inv(c: DSConstants, v: DSVariables) -> bool {
     &&& c.well_formed()
@@ -111,24 +113,27 @@ spec fn inv(c: DSConstants, v: DSVariables) -> bool {
 
 proof fn init_implies_inv(c: DSConstants, v: DSVariables)
     requires
-        init(c, v)
+        init(c, v),
     ensures
-        inv(c, v) {
-}
+        inv(c, v),
+{}
 
 // XXX: This is actually a proof assumption that there are no deletes being issued ever
 proof fn inv_preserves_i1(c: DSConstants, v: DSVariables, v_prime: DSVariables)
     requires
-        inv(c, v) && next(c, v, v_prime)
+        inv(c, v),
+        next(c, v, v_prime),
     ensures
-        no_deletion_i1(v_prime) {
-}
+        no_deletion_i1(v_prime),
+{}
 
 proof fn inv_preserves_i2(c: DSConstants, v: DSVariables, v_prime: DSVariables)
     requires
-        inv(c, v) && next(c, v, v_prime)
+        inv(c, v),
+        next(c, v, v_prime),
     ensures
-        object_exists_implies_creation_sent_i2(v_prime) {
+        object_exists_implies_creation_sent_i2(v_prime),
+{
     // The assert is a duplicate of object_exists_implies_creation_sent_i2
     // TODO: revisit the assertion and simplify it
     assert
@@ -143,9 +148,11 @@ proof fn inv_preserves_i2(c: DSConstants, v: DSVariables, v_prime: DSVariables)
 // This is a statement about the controller cache's monotonicity
 proof fn inv_preserves_i3(c: DSConstants, v: DSVariables, v_prime: DSVariables)
     requires
-        inv(c, v) && next(c, v, v_prime)
+        inv(c, v),
+        next(c, v, v_prime)
     ensures
-        object_in_cache_implies_corresponding_response_received_i3(v_prime) {
+        object_in_cache_implies_corresponding_response_received_i3(v_prime),
+{
     // The assert is a duplicate of object_in_cache_implies_corresponding_response_received_i3
     // TODO: revisit the assertion and simplify it
     assert
@@ -162,42 +169,50 @@ proof fn inv_preserves_i3(c: DSConstants, v: DSVariables, v_prime: DSVariables)
 // gcu = get/create/update
 proof fn inv_preserves_i4(c: DSConstants, v: DSVariables, v_prime: DSVariables)
     requires
-        inv(c, v) && next(c, v, v_prime)
+        inv(c, v),
+        next(c, v, v_prime),
     ensures
-        gcu_response_implies_object_in_cluster_state_i4(v_prime) {
+        gcu_response_implies_object_in_cluster_state_i4(v_prime),
+{
     kubernetes_state_monotonicity(c, v, v_prime);
 }
 
 proof fn inv_preserves_i5(c: DSConstants, v: DSVariables, v_prime: DSVariables)
     requires
-        inv(c, v) && next(c, v, v_prime)
+        inv(c, v),
+        next(c, v, v_prime),
     ensures
-        cm2_creation_implies_cm1_existence_i5(v_prime) {
-}
+        cm2_creation_implies_cm1_existence_i5(v_prime),
+{}
 
 proof fn inv_preserves_safety(c: DSConstants, v: DSVariables, v_prime: DSVariables)
     requires
-        inv(c, v) && next(c, v, v_prime)
+        inv(c, v),
+        next(c, v, v_prime),
     ensures
-        safety(v_prime) {
-}
+        safety(v_prime),
+{}
 
-proof fn inv_inductive(c: DSConstants, v: DSVariables, v_prime: DSVariables) {
-    requires(inv(c, v) && next(c, v, v_prime));
-    ensures(inv(c, v_prime));
-    inv_preserves_i1(c, v, v_prime);
-    inv_preserves_i2(c, v, v_prime);
-    inv_preserves_i3(c, v, v_prime);
-    inv_preserves_i4(c, v, v_prime);
-    inv_preserves_i5(c, v, v_prime);
-    inv_preserves_safety(c, v, v_prime);
+proof fn inv_inductive(c: DSConstants, v: DSVariables, v_prime: DSVariables)
+    requires
+        inv(c, v),
+        next(c, v, v_prime),
+    ensures
+        inv(c, v_prime),
+{
+        inv_preserves_i1(c, v, v_prime);
+        inv_preserves_i2(c, v, v_prime);
+        inv_preserves_i3(c, v, v_prime);
+        inv_preserves_i4(c, v, v_prime);
+        inv_preserves_i5(c, v, v_prime);
+        inv_preserves_safety(c, v, v_prime);
 }
 
 proof fn inv_implies_safety(c: DSConstants, v: DSVariables)
     requires
-        inv(c, v)
+        inv(c, v),
     ensures
-        safety(v) {
-}
+        safety(v),
+{}
 
 }
