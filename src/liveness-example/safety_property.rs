@@ -20,7 +20,13 @@ pub open spec fn happy_state_pred() -> StatePred {
 }
 
 pub open spec fn always_happy() -> TempPred {
-    implies(and(lift_state(init_state_pred()), always(lift_action(next_action_pred()))), always(lift_state(happy_state_pred())))
+    implies(
+        and(
+            lift_state(init_state_pred()),
+            always(lift_action(next_action_pred()))
+        ),
+        always(lift_state(happy_state_pred()))
+    )
 }
 
 proof fn prove_always_happy()
