@@ -16,7 +16,6 @@ use builtin_macros::*;
 verus! {
 
 pub struct DSConstants {
-    // pub group_constants: group::GroupConstants,
     pub kubernetes_constants: kubernetes::KubernetesConstants,
     pub controller_constants: controller::ControllerConstants,
     pub workload_constants: custom_controller_workload::WorkloadConstants,
@@ -32,15 +31,9 @@ impl DSConstants {
         && self.workload_constants.well_formed()
         && self.clock_upper_bound === distributed_system_step_limit_spec()
     }
-
-    // #[spec] #[verifier(publish)]
-    // pub fn valid_host_id(&self, hostid: nat) -> bool {
-    //     hostid < self.group_constants.hosts.len()
-    // }
 }
 
 pub struct DSVariables {
-    // pub group_variables: group::GroupVariables,
     pub kubernetes_variables: kubernetes::KubernetesVariables,
     pub controller_variables: controller::ControllerVariables,
     pub workload_variables: custom_controller_workload::WorkloadVariables,
@@ -76,14 +69,6 @@ pub open spec fn all_well_formed(c: DSConstants, v: DSVariables, v_prime: DSVari
     && network_ops.well_formed()
 }
 
-// #[spec] #[verifier(publish)]
-// pub fn host_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, hostid: nat, network_ops:NetworkOps) -> bool {
-//     all_well_formed(c, v, v_prime, network_ops)
-//     && c.valid_host_id(hostid)
-//     && host::next(c.group_constants.hosts.index(hostid), v.group_variables.hosts.index(hostid), v_prime.group_variables.hosts.index(hostid), network_ops)
-//     && forall(|other_hostid:nat| #[trigger] c.valid_host_id(other_hostid) && !equal(other_hostid, hostid) >>= equal(v.group_variables.hosts.index(other_hostid), v_prime.group_variables.hosts.index(other_hostid)))
-// }
-
 pub open spec fn kubernetes_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops:NetworkOps) -> bool {
     all_well_formed(c, v, v_prime, network_ops)
     && v.clock > 0
@@ -112,7 +97,6 @@ pub open spec fn workload_action(c: DSConstants, v: DSVariables, v_prime: DSVari
 }
 
 pub enum DSStep {
-    // HostActionStep(nat, NetworkOps),
     KubernetesActionStep(NetworkOps),
     ControllerActionStep(NetworkOps),
     WorkloadActionStep(NetworkOps),
@@ -120,9 +104,6 @@ pub enum DSStep {
 
 pub open spec fn next_step(c: DSConstants, v: DSVariables, v_prime: DSVariables, step: DSStep) -> bool {
     match step {
-        // DSStep::HostActionStep(hostid, network_ops) =>
-        //     host_action(c, v, v_prime, hostid, network_ops)
-        //     && network::next(c.network_constants, v.network_variables, v_prime.network_variables, network_ops),
         DSStep::KubernetesActionStep(network_ops) =>
             kubernetes_action(c, v, v_prime, network_ops)
             && network::next(c.network_constants, v.network_variables, v_prime.network_variables, network_ops),
