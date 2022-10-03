@@ -56,8 +56,7 @@ spec fn is_create_request_with_key(message: Message, key: ObjectKey) -> bool {
 
 // XXX: Not sure why we preclude the need for Create messages when it comes to CR types
 spec fn object_exists_implies_creation_sent_i2(v: DSVariables) -> bool {
-    forall |key :ObjectKey|
-        (#[trigger] v.kubernetes_variables.cluster_state.contains(key))
+    forall |key :ObjectKey| v.kubernetes_variables.cluster_state.contains(key)
         ==> exists |message: Message| #[trigger] is_sent(v, message) && is_create_request_with_key(message, key)
 }
 
@@ -67,14 +66,12 @@ spec fn object_in_cache_implies_corresponding_response_received_i3(v: DSVariable
 }
 
 spec fn gcu_response_implies_object_in_cluster_state_i4(v: DSVariables) -> bool {
-    forall |key: ObjectKey|
-        (exists |message: Message| #[trigger] is_sent(v, message) && matches_valid_gcu_response(message, key))
+    forall |key: ObjectKey| (exists |message: Message| #[trigger] is_sent(v, message) && matches_valid_gcu_response(message, key))
         ==> v.kubernetes_variables.cluster_state.contains(key)
 }
 
 spec fn cm2_creation_implies_cm1_existence_i5(v: DSVariables) -> bool {
-    (exists |message: Message|
-        is_sent(v, message) && is_create_request_with_key(message, configmap_2_key()))
+    (exists |message: Message| is_sent(v, message) && is_create_request_with_key(message, configmap_2_key()))
     ==> v.kubernetes_variables.cluster_state.contains(configmap_1_key())
 }
 
@@ -82,8 +79,8 @@ proof fn kubernetes_state_monotonicity(c: DSConstants, v: DSVariables, v_prime: 
     requires
         next(c, v, v_prime) && no_deletion_i1(v)
     ensures
-       forall |key: ObjectKey| v.kubernetes_variables.cluster_state.contains(key)
-        ==> v_prime.kubernetes_variables.cluster_state.contains(key) {
+        forall |key: ObjectKey| v.kubernetes_variables.cluster_state.contains(key)
+            ==> v_prime.kubernetes_variables.cluster_state.contains(key) {
 }
 
 proof fn network_monotonicity(c: DSConstants, v: DSVariables, v_prime: DSVariables)
@@ -135,10 +132,8 @@ proof fn inv_preserves_i2(c: DSConstants, v: DSVariables, v_prime: DSVariables)
     // The assert is a duplicate of object_exists_implies_creation_sent_i2
     // TODO: revisit the assertion and simplify it
     assert
-        forall |any_object_key: ObjectKey|
-            (#[trigger] v_prime.kubernetes_variables.cluster_state.contains(any_object_key))
-            ==> exists |message: Message|
-                #[trigger] is_sent(v_prime, message) && is_create_request_with_key(message, any_object_key)
+        forall |any_object_key: ObjectKey| v_prime.kubernetes_variables.cluster_state.contains(any_object_key)
+            ==> exists |message: Message| #[trigger] is_sent(v_prime, message) && is_create_request_with_key(message, any_object_key)
     by {
         network_monotonicity(c, v, v_prime);
         let bool = v.kubernetes_variables.cluster_state.contains(any_object_key);
@@ -156,8 +151,7 @@ proof fn inv_preserves_i3(c: DSConstants, v: DSVariables, v_prime: DSVariables)
     assert
         // XXX: this is the body of object_in_cache_implies_corresponding_response_received_i3
         forall |any_object_key: ObjectKey| v_prime.controller_variables.state_cache.contains(any_object_key)
-            ==> exists |message: Message|
-                #[trigger] is_sent(v_prime, message) && matches_valid_gcu_response(message, any_object_key)
+            ==> exists |message: Message| #[trigger] is_sent(v_prime, message) && matches_valid_gcu_response(message, any_object_key)
     by {
         network_monotonicity(c, v, v_prime);
         // XXX: not sure why adding the below statement makes the proof go through
