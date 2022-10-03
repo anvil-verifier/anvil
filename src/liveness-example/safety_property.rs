@@ -15,7 +15,7 @@ pub open spec fn happy(s: SimpleState) -> bool {
     s.happy
 }
 
-pub open spec fn happy_state_pred() -> Set<SimpleState> {
+pub open spec fn happy_state_pred() -> StatePred {
     Set::new(|state: SimpleState| happy(state))
 }
 
