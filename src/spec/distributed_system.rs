@@ -58,8 +58,7 @@ impl DSVariables {
     }
 }
 
-#[spec] #[verifier(publish)]
-pub fn init(c: DSConstants, v: DSVariables) -> bool {
+pub open spec fn init(c: DSConstants, v: DSVariables) -> bool {
     c.well_formed()
     && v.well_formed(c)
     // && group::init(c.group_constants, v.group_variables)
@@ -70,8 +69,7 @@ pub fn init(c: DSConstants, v: DSVariables) -> bool {
     && v.clock === distributed_system_step_limit_spec()
 }
 
-#[spec] #[verifier(publish)]
-pub fn all_well_formed(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops: NetworkOps) -> bool {
+pub open spec fn all_well_formed(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops: NetworkOps) -> bool {
     c.well_formed()
     && v.well_formed(c)
     && v_prime.well_formed(c)
@@ -86,8 +84,7 @@ pub fn all_well_formed(c: DSConstants, v: DSVariables, v_prime: DSVariables, net
 //     && forall(|other_hostid:nat| #[trigger] c.valid_host_id(other_hostid) && !equal(other_hostid, hostid) >>= equal(v.group_variables.hosts.index(other_hostid), v_prime.group_variables.hosts.index(other_hostid)))
 // }
 
-#[spec] #[verifier(publish)]
-pub fn kubernetes_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops:NetworkOps) -> bool {
+pub open spec fn kubernetes_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops:NetworkOps) -> bool {
     all_well_formed(c, v, v_prime, network_ops)
     && v.clock > 0
     && v_prime.clock === v.clock - 1
@@ -96,8 +93,7 @@ pub fn kubernetes_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, n
     && kubernetes::next(c.kubernetes_constants, v.kubernetes_variables, v_prime.kubernetes_variables, network_ops)
 }
 
-#[spec] #[verifier(publish)]
-pub fn controller_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops:NetworkOps) -> bool {
+pub open spec fn controller_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops:NetworkOps) -> bool {
     all_well_formed(c, v, v_prime, network_ops)
     && v.clock > 0
     && v_prime.clock === v.clock - 1
@@ -106,8 +102,7 @@ pub fn controller_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, n
     && controller::next(c.controller_constants, v.controller_variables, v_prime.controller_variables, network_ops)
 }
 
-#[spec] #[verifier(publish)]
-pub fn workload_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops:NetworkOps) -> bool {
+pub open spec fn workload_action(c: DSConstants, v: DSVariables, v_prime: DSVariables, network_ops:NetworkOps) -> bool {
     all_well_formed(c, v, v_prime, network_ops)
     && v.clock > 0
     && v_prime.clock === v.clock - 1
@@ -123,8 +118,7 @@ pub enum DSStep {
     WorkloadActionStep(NetworkOps),
 }
 
-#[spec] #[verifier(publish)]
-pub fn next_step(c: DSConstants, v: DSVariables, v_prime: DSVariables, step: DSStep) -> bool {
+pub open spec fn next_step(c: DSConstants, v: DSVariables, v_prime: DSVariables, step: DSStep) -> bool {
     match step {
         // DSStep::HostActionStep(hostid, network_ops) =>
         //     host_action(c, v, v_prime, hostid, network_ops)
@@ -141,8 +135,7 @@ pub fn next_step(c: DSConstants, v: DSVariables, v_prime: DSVariables, step: DSS
     }
 }
 
-#[spec] #[verifier(publish)]
-pub fn next(c: DSConstants, v: DSVariables, v_prime: DSVariables) -> bool {
+pub open spec fn next(c: DSConstants, v: DSVariables, v_prime: DSVariables) -> bool {
     exists(|step: DSStep| next_step(c, v, v_prime, step))
 }
 

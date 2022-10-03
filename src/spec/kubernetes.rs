@@ -16,8 +16,7 @@ pub struct KubernetesConstants {
 }
 
 impl KubernetesConstants {
-    #[spec] #[verifier(publish)]
-    pub fn well_formed(&self) -> bool {
+    pub closed spec fn well_formed(&self) -> bool {
         true
     }
 }
@@ -54,8 +53,7 @@ pub struct KubernetesVariables {
 }
 
 impl KubernetesVariables {
-    #[spec] #[verifier(publish)]
-    pub fn well_formed(&self, c:KubernetesConstants) -> bool {
+    pub closed spec fn well_formed(&self, c:KubernetesConstants) -> bool {
         self.cluster_state.well_formed()
         && (self.pending_api_event_notification.is_None()
             || (self.pending_api_event_notification.is_Some() && self.pending_api_event_notification.get_Some_0().well_formed()))
@@ -68,24 +66,21 @@ pub enum KubernetesStep {
     SendAPIWatchNotificationStep,
 }
 
-#[spec] #[verifier(publish)]
-pub fn init(c: KubernetesConstants, v: KubernetesVariables) -> bool {
+pub open spec fn init(c: KubernetesConstants, v: KubernetesVariables) -> bool {
     c.well_formed()
     && v.well_formed(c)
     && v.cluster_state.empty()
     && v.pending_api_event_notification.is_None()
 }
 
-#[spec] #[verifier(publish)]
-pub fn all_well_formed(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
+pub open spec fn all_well_formed(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
     c.well_formed()
     && v.well_formed(c)
     && v_prime.well_formed(c)
     && network_ops.well_formed()
 }
 
-#[spec] #[verifier(publish)]
-pub fn kubernetes_api_op_result(cluster_state: ClusterState, cluster_state_prime: ClusterState, api_op: APIOp) -> bool {
+pub open spec fn kubernetes_api_op_result(cluster_state: ClusterState, cluster_state_prime: ClusterState, api_op: APIOp) -> bool {
     match api_op {
         APIOp::Get{object_key} => cluster_state.contains(object_key),
         APIOp::Create{object_key, object} => !cluster_state.contains(object_key),
@@ -94,8 +89,7 @@ pub fn kubernetes_api_op_result(cluster_state: ClusterState, cluster_state_prime
     }
 }
 
-#[spec] #[verifier(publish)]
-pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
+pub open spec fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
     // TODO: we should consider the chain reaction
     // For example, creating a statefulset will lead to mulitple pod creation
     // There could be many such chain reactions caused by the Kubernetes core controllers
@@ -169,8 +163,7 @@ pub fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVariables, v_p
     }
 }
 
-#[spec] #[verifier(publish)]
-pub fn send_api_event_notification(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
+pub open spec fn send_api_event_notification(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
     all_well_formed(c, v, v_prime, network_ops)
     && v === KubernetesVariables{
         pending_api_event_notification: v.pending_api_event_notification,
@@ -188,8 +181,7 @@ pub fn send_api_event_notification(c: KubernetesConstants, v: KubernetesVariable
     }
 }
 
-#[spec] #[verifier(publish)]
-pub fn next_step(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps, step: KubernetesStep) -> bool {
+pub open spec fn next_step(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps, step: KubernetesStep) -> bool {
     match step {
         // KubernetesStep::HandleWorkloadSubmissionStep => handle_workload_submission(c, v, v_prime, network_ops),
         KubernetesStep::HandleAPIOpRequestStep => handle_api_op_request(c, v, v_prime, network_ops),
@@ -197,8 +189,7 @@ pub fn next_step(c: KubernetesConstants, v: KubernetesVariables, v_prime: Kubern
     }
 }
 
-#[spec] #[verifier(publish)]
-pub fn next(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
+pub open spec fn next(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
     exists(|step: KubernetesStep| next_step(c, v, v_prime, network_ops, step))
 }
 

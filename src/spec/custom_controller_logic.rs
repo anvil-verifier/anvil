@@ -18,8 +18,7 @@ verus! {
 // 2. Watch on an object owned by the CR, see https://github.com/kube-rs/kube-rs/blob/0b2f7b88d58a076808b09afb640191eab2fbc84e/kube-runtime/src/controller/mod.rs#L485
 // 3. Watch on an object that has some custom relation to the CR, see https://github.com/kube-rs/kube-rs/blob/0b2f7b88d58a076808b09afb640191eab2fbc84e/kube-runtime/src/controller/mod.rs#L524
 // The developers are required to implement the same mappings here
-#[spec] #[verifier(publish)]
-pub fn map_to_triggering_key(object: KubernetesObject) -> Option<ObjectKey> {
+pub open spec fn map_to_triggering_key(object: KubernetesObject) -> Option<ObjectKey> {
     match object {
         KubernetesObject::CustomResourceObject(cro) => {
             match cro {
