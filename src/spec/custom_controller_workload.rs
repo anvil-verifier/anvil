@@ -36,16 +36,16 @@ pub enum WorkloadStep {
 }
 
 pub open spec fn init(c: WorkloadConstants, v: WorkloadVariables) -> bool {
-    c.well_formed()
-    && v.well_formed(c)
-    && !v.submitted
+    &&& c.well_formed()
+    &&& v.well_formed(c)
+    &&& !v.submitted
 }
 
 pub open spec fn all_well_formed(c: WorkloadConstants, v: WorkloadVariables, v_prime: WorkloadVariables, network_ops: NetworkOps) -> bool {
-    c.well_formed()
-    && v.well_formed(c)
-    && v_prime.well_formed(c)
-    && network_ops.well_formed()
+    &&& c.well_formed()
+    &&& v.well_formed(c)
+    &&& v_prime.well_formed(c)
+    &&& network_ops.well_formed()
 }
 
 pub open spec fn create_configmap_generator(c: WorkloadConstants, v: WorkloadVariables, v_prime: WorkloadVariables, configmap_generator: ConfigMapGeneratorL, network_ops: NetworkOps) -> bool {
@@ -70,14 +70,14 @@ pub open spec fn create_configmap_generator(c: WorkloadConstants, v: WorkloadVar
 }
 
 pub open spec fn receive_api_op_response(c: WorkloadConstants, v: WorkloadVariables, v_prime: WorkloadVariables, network_ops: NetworkOps) -> bool {
-    all_well_formed(c, v, v_prime, network_ops)
-    && v.submitted
-    && v_prime.submitted
-    && network_ops.send.is_None()
-    && network_ops.recv.is_Some()
-    && network_ops.recv.get_Some_0().src === HostId::KubernetesAPI
-    && network_ops.recv.get_Some_0().dst === HostId::CustomClient
-    && match network_ops.recv.get_Some_0().payload {
+    &&& all_well_formed(c, v, v_prime, network_ops)
+    &&& v.submitted
+    &&& v_prime.submitted
+    &&& network_ops.send.is_None()
+    &&& network_ops.recv.is_Some()
+    &&& network_ops.recv.get_Some_0().src === HostId::KubernetesAPI
+    &&& network_ops.recv.get_Some_0().dst === HostId::CustomClient
+    &&& match network_ops.recv.get_Some_0().payload {
         Payload::APIOpResponse(api_op_response) => true,
         _ => false,
     }

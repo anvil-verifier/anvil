@@ -54,8 +54,8 @@ pub struct KubernetesVariables {
 
 impl KubernetesVariables {
     pub closed spec fn well_formed(&self, c:KubernetesConstants) -> bool {
-        self.cluster_state.well_formed()
-        && (self.pending_api_event_notification.is_None()
+        &&& self.cluster_state.well_formed()
+        &&& (self.pending_api_event_notification.is_None()
             || (self.pending_api_event_notification.is_Some() && self.pending_api_event_notification.get_Some_0().well_formed()))
     }
 }
@@ -66,17 +66,17 @@ pub enum KubernetesStep {
 }
 
 pub open spec fn init(c: KubernetesConstants, v: KubernetesVariables) -> bool {
-    c.well_formed()
-    && v.well_formed(c)
-    && v.cluster_state.empty()
-    && v.pending_api_event_notification.is_None()
+    &&& c.well_formed()
+    &&& v.well_formed(c)
+    &&& v.cluster_state.empty()
+    &&& v.pending_api_event_notification.is_None()
 }
 
 pub open spec fn all_well_formed(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
-    c.well_formed()
-    && v.well_formed(c)
-    && v_prime.well_formed(c)
-    && network_ops.well_formed()
+    &&& c.well_formed()
+    &&& v.well_formed(c)
+    &&& v_prime.well_formed(c)
+    &&& network_ops.well_formed()
 }
 
 pub open spec fn kubernetes_api_op_result(cluster_state: ClusterState, cluster_state_prime: ClusterState, api_op: APIOp) -> bool {
@@ -96,63 +96,67 @@ pub open spec fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVari
     // to discover every possible interleaving between these controllers
 
     // TODO: we should allow processing api op while there are pending responses
-    all_well_formed(c, v, v_prime, network_ops)
-    && v.pending_api_event_notification.is_None()
-    && network_ops.recv.is_Some()
-    && (network_ops.recv.get_Some_0().src === HostId::CustomController || network_ops.recv.get_Some_0().src === HostId::CustomClient)
-    && network_ops.recv.get_Some_0().dst === HostId::KubernetesAPI
-    && match network_ops.recv.get_Some_0().payload {
+    &&& all_well_formed(c, v, v_prime, network_ops)
+    &&& v.pending_api_event_notification.is_None()
+    &&& network_ops.recv.is_Some()
+    &&& (network_ops.recv.get_Some_0().src === HostId::CustomController || network_ops.recv.get_Some_0().src === HostId::CustomClient)
+    &&& network_ops.recv.get_Some_0().dst === HostId::KubernetesAPI
+    &&& match network_ops.recv.get_Some_0().payload {
         Payload::APIOpRequest(api_op_request) => {
-            network_ops.send.is_Some()
-            && network_ops.send.get_Some_0().src === HostId::KubernetesAPI
-            && network_ops.send.get_Some_0().dst === network_ops.recv.get_Some_0().src
-            && match network_ops.send.get_Some_0().payload {
+            &&& network_ops.send.is_Some()
+            &&& network_ops.send.get_Some_0().src === HostId::KubernetesAPI
+            &&& network_ops.send.get_Some_0().dst === network_ops.recv.get_Some_0().src
+            &&& match network_ops.send.get_Some_0().payload {
                 Payload::APIOpResponse(api_op_response) => {
                     let success = kubernetes_api_op_result(v.cluster_state, v_prime.cluster_state, api_op_request.api_op);
-                    api_op_response.success === success
-                    && api_op_response.api_op_request === api_op_request
-                    && if success {
+                    &&& api_op_response.success === success
+                    &&& api_op_response.api_op_request === api_op_request
+                    &&& if success {
                         match api_op_request.api_op {
-                            APIOp::Get{object_key} =>
-                                v.cluster_state.get(object_key).is_Some()
-                                && v_prime.pending_api_event_notification.is_None()
-                                && v.cluster_state === v_prime.cluster_state
-                                && api_op_response.optional_object === v.cluster_state.get(object_key),
-                            APIOp::Create{object_key, object} =>
-                                v.cluster_state.get(object_key).is_None()
-                                && v_prime.pending_api_event_notification === Option::Some(APIEventNotification{
+                            APIOp::Get{object_key} => {
+                                &&& v.cluster_state.get(object_key).is_Some()
+                                &&& v_prime.pending_api_event_notification.is_None()
+                                &&& v.cluster_state === v_prime.cluster_state
+                                &&& api_op_response.optional_object === v.cluster_state.get(object_key)
+                            },
+                            APIOp::Create{object_key, object} => {
+                                &&& v.cluster_state.get(object_key).is_None()
+                                &&& v_prime.pending_api_event_notification === Option::Some(APIEventNotification{
                                     api_event: APIEvent::Added{
                                         object_key: object_key,
                                         object: object,
                                     }
                                 })
-                                && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                                && api_op_response.optional_object === Option::Some(object),
-                            APIOp::Update{object_key, object} =>
-                                v.cluster_state.get(object_key).is_Some()
-                                && v_prime.pending_api_event_notification === Option::Some(APIEventNotification{
+                                &&& state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
+                                &&& api_op_response.optional_object === Option::Some(object)
+                            },
+                            APIOp::Update{object_key, object} => {
+                                &&& v.cluster_state.get(object_key).is_Some()
+                                &&& v_prime.pending_api_event_notification === Option::Some(APIEventNotification{
                                     api_event: APIEvent::Modified{
                                         object_key: object_key,
                                         object: object,
                                     }
                                 })
-                                && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                                && api_op_response.optional_object === Option::Some(object),
-                            APIOp::Delete{object_key} =>
-                                v.cluster_state.get(object_key).is_Some()
-                                && v_prime.pending_api_event_notification === Option::Some(APIEventNotification{
+                                &&& state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
+                                &&& api_op_response.optional_object === Option::Some(object)
+                            },
+                            APIOp::Delete{object_key} => {
+                                &&& v.cluster_state.get(object_key).is_Some()
+                                &&& v_prime.pending_api_event_notification === Option::Some(APIEventNotification{
                                     api_event: APIEvent::Deleted{
                                         object_key: object_key,
                                         object: v.cluster_state.get(object_key).get_Some_0(),
                                     }
                                 })
-                                && state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
-                                && api_op_response.optional_object === v.cluster_state.get(object_key),
+                                &&& state_transition_by_api_op(v.cluster_state, v_prime.cluster_state, api_op_request.api_op)
+                                &&& api_op_response.optional_object === v.cluster_state.get(object_key)
+                            },
                         }
                     } else {
-                        v_prime.pending_api_event_notification.is_None()
-                        && v.cluster_state === v_prime.cluster_state
-                        && api_op_response.optional_object.is_None()
+                        &&& v_prime.pending_api_event_notification.is_None()
+                        &&& v.cluster_state === v_prime.cluster_state
+                        &&& api_op_response.optional_object.is_None()
                     }
                 },
                 _ => false,
@@ -163,18 +167,18 @@ pub open spec fn handle_api_op_request(c: KubernetesConstants, v: KubernetesVari
 }
 
 pub open spec fn send_api_event_notification(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps) -> bool {
-    all_well_formed(c, v, v_prime, network_ops)
-    && v === KubernetesVariables{
+    &&& all_well_formed(c, v, v_prime, network_ops)
+    &&& v === KubernetesVariables{
         pending_api_event_notification: v.pending_api_event_notification,
         ..v_prime
     }
-    && v.pending_api_event_notification !== Option::None
-    && v_prime.pending_api_event_notification === Option::None
-    && network_ops.recv.is_None()
-    && network_ops.send.is_Some()
-    && network_ops.send.get_Some_0().src === HostId::KubernetesAPI
-    && network_ops.send.get_Some_0().dst === HostId::CustomController
-    && match network_ops.send.get_Some_0().payload {
+    &&& v.pending_api_event_notification !== Option::None
+    &&& v_prime.pending_api_event_notification === Option::None
+    &&& network_ops.recv.is_None()
+    &&& network_ops.send.is_Some()
+    &&& network_ops.send.get_Some_0().src === HostId::KubernetesAPI
+    &&& network_ops.send.get_Some_0().dst === HostId::CustomController
+    &&& match network_ops.send.get_Some_0().payload {
         Payload::APIEventNotification(api_event_notification) => Option::Some(api_event_notification) === v.pending_api_event_notification,
         _ => false,
     }

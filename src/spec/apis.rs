@@ -164,10 +164,10 @@ pub struct APIOpResponse {
 
 impl APIOpResponse {
     pub open spec fn well_formed(&self) -> bool {
-        self.api_op_request.well_formed()
+        &&& self.api_op_request.well_formed()
         // TODO: revisit this branch
-        && (!self.success ==> self.optional_object.is_None())
-        && (self.success ==> self.optional_object.is_Some()
+        &&& (!self.success ==> self.optional_object.is_None())
+        &&& (self.success ==> self.optional_object.is_Some()
             && match self.api_op_request.api_op {
                 APIOp::Get{object_key} => self.optional_object.get_Some_0().key() === object_key,
                 APIOp::Create{object_key, ..} => self.optional_object.get_Some_0().key() === object_key,
@@ -247,8 +247,8 @@ pub struct Message {
 
 impl Message {
     pub open spec fn well_formed(&self) -> bool {
-        self.payload.well_formed()
-        && self.src !== self.dst
+        &&& self.payload.well_formed()
+        &&& self.src !== self.dst
     }
 }
 
@@ -273,8 +273,8 @@ impl NetworkOps {
     }
 
     pub open spec fn well_formed(&self) -> bool {
-        self.recv_well_formed()
-        && self.send_well_formed()
+        &&& self.recv_well_formed()
+        &&& self.send_well_formed()
     }
 }
 
