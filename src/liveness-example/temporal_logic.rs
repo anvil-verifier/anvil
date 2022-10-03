@@ -25,16 +25,16 @@ pub open spec fn lift_action(action_pred: ActionPred) -> TempPred {
     )
 }
 
-pub open spec fn drop(ex: Execution, idx: nat) -> Execution {
+pub open spec fn suffix(ex: Execution, idx: nat) -> Execution {
     ex.subrange(idx as int, ex.len() as int)
 }
 
 pub open spec fn later(ex: Execution) -> Execution {
-    drop(ex, 1)
+    suffix(ex, 1)
 }
 
 pub open spec fn always(temp_pred: TempPred) -> TempPred {
-    Set::new(|ex:Execution| forall |i:nat| i<ex.len() && #[trigger] temp_pred.contains(drop(ex, i)))
+    Set::new(|ex:Execution| forall |i:nat| i<ex.len() && #[trigger] temp_pred.contains(suffix(ex, i)))
 }
 
 pub open spec fn not(temp_pred: TempPred) -> TempPred {
@@ -51,7 +51,7 @@ pub open spec fn or(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
 
 pub open spec fn eventually(temp_pred: TempPred) -> TempPred {
     not(always(not(temp_pred)))
-    // Set::new(|ex:Execution| exists |i:nat| i<ex.len() && #[trigger] temp_pred.contains(drop(ex, i)))
+    // Set::new(|ex:Execution| exists |i:nat| i<ex.len() && #[trigger] temp_pred.contains(suffix(ex, i)))
 }
 
 pub open spec fn implies(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
