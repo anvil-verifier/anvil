@@ -46,7 +46,7 @@ pub open spec fn controller_step_limit_spec() -> int {
     10
 }
 
-pub open spec fn distributed_system_step_limit_spec() -> i32 {
+pub open spec fn distributed_system_step_limit_spec() -> int {
     20
 }
 

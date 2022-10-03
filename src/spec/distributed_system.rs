@@ -21,7 +21,7 @@ pub struct DSConstants {
     pub controller_constants: controller::ControllerConstants,
     pub workload_constants: custom_controller_workload::WorkloadConstants,
     pub network_constants: network::NetworkConstants,
-    pub clock_upper_bound: i32,
+    pub clock_upper_bound: int,
 }
 
 impl DSConstants {
@@ -45,7 +45,7 @@ pub struct DSVariables {
     pub controller_variables: controller::ControllerVariables,
     pub workload_variables: custom_controller_workload::WorkloadVariables,
     pub network_variables: network::NetworkVariables,
-    pub clock: i32,
+    pub clock: int,
 }
 
 impl DSVariables {
