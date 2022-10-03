@@ -16,7 +16,7 @@ pub struct KubernetesConstants {
 }
 
 impl KubernetesConstants {
-    pub closed spec fn well_formed(&self) -> bool {
+    pub open spec fn well_formed(&self) -> bool {
         true
     }
 }
@@ -53,7 +53,7 @@ pub struct KubernetesVariables {
 }
 
 impl KubernetesVariables {
-    pub closed spec fn well_formed(&self, c:KubernetesConstants) -> bool {
+    pub open spec fn well_formed(&self, c:KubernetesConstants) -> bool {
         &&& self.cluster_state.well_formed()
         &&& (self.pending_api_event_notification.is_None()
             || (self.pending_api_event_notification.is_Some() && self.pending_api_event_notification.get_Some_0().well_formed()))

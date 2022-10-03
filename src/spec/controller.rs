@@ -17,7 +17,7 @@ pub struct ControllerConstants {
 }
 
 impl ControllerConstants {
-    pub closed spec fn well_formed(&self) -> bool {
+    pub open spec fn well_formed(&self) -> bool {
         self.controller_clock_upper_bound === controller_step_limit_spec()
     }
 }

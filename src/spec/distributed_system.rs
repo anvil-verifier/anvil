@@ -24,7 +24,7 @@ pub struct DSConstants {
 }
 
 impl DSConstants {
-    pub closed spec fn well_formed(&self) -> bool {
+    pub open spec fn well_formed(&self) -> bool {
         &&& self.kubernetes_constants.well_formed()
         &&& self.controller_constants.well_formed()
         &&& self.workload_constants.well_formed()
@@ -41,7 +41,7 @@ pub struct DSVariables {
 }
 
 impl DSVariables {
-    pub closed spec fn well_formed(&self, c: DSConstants) -> bool {
+    pub open spec fn well_formed(&self, c: DSConstants) -> bool {
         &&& self.kubernetes_variables.well_formed(c.kubernetes_constants)
         &&& self.controller_variables.well_formed(c.controller_constants)
         &&& self.workload_variables.well_formed(c.workload_constants)
