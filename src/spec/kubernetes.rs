@@ -61,7 +61,6 @@ impl KubernetesVariables {
 }
 
 pub enum KubernetesStep {
-    // HandleWorkloadSubmissionStep,
     HandleAPIOpRequestStep,
     SendAPIWatchNotificationStep,
 }
@@ -183,7 +182,6 @@ pub open spec fn send_api_event_notification(c: KubernetesConstants, v: Kubernet
 
 pub open spec fn next_step(c: KubernetesConstants, v: KubernetesVariables, v_prime: KubernetesVariables, network_ops: NetworkOps, step: KubernetesStep) -> bool {
     match step {
-        // KubernetesStep::HandleWorkloadSubmissionStep => handle_workload_submission(c, v, v_prime, network_ops),
         KubernetesStep::HandleAPIOpRequestStep => handle_api_op_request(c, v, v_prime, network_ops),
         KubernetesStep::SendAPIWatchNotificationStep => send_api_event_notification(c, v, v_prime, network_ops),
     }
