@@ -1,35 +1,17 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 
-#[allow(unused_imports)]
-use builtin::*;
-#[allow(unused_imports)]
-use builtin_macros::*;
-
-#[allow(unused_imports)]
+#![allow(unused_imports)]
 use crate::apis::*;
-#[allow(unused_imports)]
 use crate::common::*;
-#[allow(unused_imports)]
-use crate::common::*;
-#[allow(unused_imports)]
-use crate::custom_controller_logic::*;
-#[allow(unused_imports)]
-use crate::pervasive::{seq::Seq, *};
-
-// #[allow(unused_imports)]
-// use crate::group;
-// #[allow(unused_imports)]
-// use crate::host;
-
-#[allow(unused_imports)]
 use crate::controller;
-#[allow(unused_imports)]
+use crate::custom_controller_logic::*;
 use crate::custom_controller_workload;
-#[allow(unused_imports)]
 use crate::kubernetes;
-#[allow(unused_imports)]
 use crate::network;
+use crate::pervasive::seq::*;
+use builtin::*;
+use builtin_macros::*;
 
 verus! {
 

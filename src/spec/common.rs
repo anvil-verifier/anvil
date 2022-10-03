@@ -1,12 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 
-#[allow(unused_imports)]
+#![allow(unused_imports)]
+use crate::pervasive::option::*;
+use builtin::*;
 use builtin_macros::*;
-#[allow(unused_imports)]
-use builtin::{ensures, equal, forall};
-#[allow(unused_imports)]
-use crate::pervasive::{*, option::Option};
+
+verus! {
 
 impl std::cmp::PartialEq for Option<StringL> {
     #[verifier(external)]
@@ -79,4 +79,6 @@ impl std::hash::Hash for ObjectKey {
         self.namespace.hash(state);
         self.name.hash(state);
     }
+}
+
 }

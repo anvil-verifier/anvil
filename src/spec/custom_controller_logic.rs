@@ -1,17 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 
-#[allow(unused_imports)]
+#![allow(unused_imports)]
 use crate::apis::*;
-#[allow(unused_imports)]
 use crate::common::*;
-#[allow(unused_imports)]
 use crate::custom_controller_var::*;
-#[allow(unused_imports)]
-use crate::pervasive::{map::*, option::Option, *};
-#[allow(unused_imports)]
+use crate::pervasive::{map::*, option::*};
 use builtin::*;
-#[allow(unused_imports)]
 use builtin_macros::*;
 
 verus! {
