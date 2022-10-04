@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 use crate::pervasive::set::*;
 use crate::state::*;
+use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
 
@@ -54,6 +55,14 @@ pub open spec fn stutter_action_pred() -> ActionPred {
 
 pub open spec fn next_action_pred() -> ActionPred {
     Set::new(|action: Action| next(action.state, action.state_prime))
+}
+
+// TODO(tej&jonh): generalize temporal_logic to simple_state_machine
+pub open spec fn smspec() -> TempPred {
+    and(
+        lift_state(init_state_pred()),
+        and(always(lift_action(next_action_pred())),
+            weak_fairness(a_b_action_pred())))
 }
 
 }

@@ -20,7 +20,7 @@ pub struct SimpleState {
 }
 
 pub struct Action {
-    pub state: SimpleState,
+    pub state: SimpleState, // TODO rename s1, s2 --> thinner boilerplate
     pub state_prime: SimpleState,
 }
 

@@ -3,7 +3,6 @@
 #![allow(unused_imports)]
 use crate::pervasive::seq::*;
 use crate::pervasive::set::*;
-use crate::simple_state_machine::*;
 use crate::state::*;
 use builtin::*;
 use builtin_macros::*;
@@ -55,23 +54,52 @@ pub open spec fn eventually(temp_pred: TempPred) -> TempPred {
 }
 
 pub open spec fn implies(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
-    or(not(temp_pred_a), temp_pred_b)
+//    or(not(temp_pred_a), temp_pred_b)
+//    TODO: switched this to a first-order declaration in hope of better automation.
+    Set::new(|ex: Execution| temp_pred_a.contains(ex) ==> temp_pred_b.contains(ex))
 }
 
-pub open spec fn leads_to(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
+pub open spec fn leads_to(state_pred_a: StatePred, state_pred_b: StatePred) -> TempPred {
+    always(implies(lift_state(state_pred_a), eventually(lift_state(state_pred_b))))
+}
+
+pub open spec fn tla_leads_to(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
     always(implies(temp_pred_a, eventually(temp_pred_b)))
 }
 
-pub open spec fn enabled(action_pred: ActionPred) -> TempPred {
-    lift_state(Set::new(|s: SimpleState| exists |a: Action| #[trigger] action_pred.contains(a) && a.state === s))
+pub open spec fn enabled(action_pred: ActionPred) -> StatePred {
+    Set::new(|s: SimpleState| exists |a: Action| #[trigger] action_pred.contains(a) && a.state === s)
+}
+
+pub open spec fn tla_enabled(action_pred: ActionPred) -> TempPred {
+    lift_state(enabled(action_pred))
 }
 
 pub open spec fn weak_fairness(action_pred: ActionPred) -> TempPred {
-    leads_to(always(enabled(action_pred)), lift_action(action_pred))
+    tla_leads_to(always(tla_enabled(action_pred)), lift_action(action_pred))
 }
 
 pub open spec fn valid(temp_pred: TempPred) -> bool {
     forall |ex:Execution| temp_pred.contains(ex)
+}
+
+pub proof fn apply_implies_once(ex: Execution, p: TempPred, q: TempPred)
+    requires
+        valid(implies(p, q)),
+        p.contains(ex)
+    ensures q.contains(ex)
+{
+    assert(implies(p, q).contains(ex)); // trigger valid by mentioning the contains.
+}
+
+//TODO(chris): with_triggers can't use ==> syntax? Ew.
+pub proof fn apply_implies_auto()
+    ensures forall |ex, p, q| with_triggers!([valid(implies(p, q)), q.contains(ex)] =>
+        !(valid(implies(p, q)) && p.contains(ex)) || q.contains(ex))
+{
+    assert forall |ex, p, q| #[auto_trigger] valid(implies(p, q)) && p.contains(ex) implies q.contains(ex) by {
+        assert(implies(p, q).contains(ex));
+    }
 }
 
 #[verifier(external_body)]
@@ -88,21 +116,35 @@ pub proof fn wf1(next: ActionPred, forward: ActionPred, p: StatePred, q: StatePr
     requires
         valid(implies(and(lift_state(p), lift_action(next)), or(lift_state_prime(p), lift_state_prime(q)))),
         valid(implies(and(and(lift_state(p), lift_action(next)), lift_action(forward)), lift_state_prime(q))),
-        valid(implies(lift_state(p), enabled(forward))),
+        valid(implies(lift_state(p), tla_enabled(forward))),
     ensures
-        valid(implies(and(always(lift_action(next)), weak_fairness(forward)), leads_to(lift_state(p), lift_state(q))))
+        valid(implies(and(always(lift_action(next)), weak_fairness(forward)), leads_to(p, q)))
 {}
+
+// prove p ~~> q
+// next is the next transition of the state machine
+// forward is the key action that gets the leadsto to happen
+pub proof fn make_leadsto_from_wf(forward: ActionPred, next: ActionPred, p: StatePred, q: StatePred)
+    requires
+        forall |act: Action| p.contains(act.state) && #[trigger] next.contains(act) ==> p.contains(act.state_prime) || q.contains(act.state_prime),
+        forall |act: Action| p.contains(act.state) && #[trigger] forward.contains(act) ==> q.contains(act.state_prime),
+        forall |st| #[trigger] p.contains(st) ==> enabled(forward).contains(st)
+    ensures
+        valid(implies(and(always(lift_action(next)), weak_fairness(forward)), leads_to(p, q)))
+{
+    wf1(next, forward, p, q);
+}
 
 #[verifier(external_body)]
 pub proof fn leads_to_apply(p: StatePred, q: StatePred)
     ensures
-        valid(implies(and(lift_state(p), leads_to(lift_state(p), lift_state(q))), eventually(lift_state(q))))
+        valid(implies(and(lift_state(p), leads_to(p, q)), eventually(lift_state(q))))
 {}
 
 #[verifier(external_body)]
 pub proof fn leads_to_trans(p: StatePred, q: StatePred, r: StatePred)
     ensures
-        valid(implies(and(leads_to(lift_state(p), lift_state(q)), leads_to(lift_state(q), lift_state(r))), leads_to(lift_state(p), lift_state(r))))
+        valid(implies(and(leads_to(p, q), leads_to(q, r)), leads_to(p, r)))
 {}
 
 /*
