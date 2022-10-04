@@ -26,6 +26,8 @@ pub struct Action {
 
 pub type Execution = Seq<SimpleState>;
 
+/// TODO: Make StatePred, ActionPred and TempPred generic and take any form of state/action/execution
+
 pub struct StatePred {
     // It is better to keep pred private,
     // but Verus does not allow open method to access private field
