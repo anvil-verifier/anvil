@@ -155,10 +155,10 @@ pub open spec fn enabled(action_pred: ActionPred) -> TempPred {
 /// Defined in 5.3 in a different form.
 /// We can prove the two forms are the same:
 ///     []E(A) ~~> A
-/// === []([]E(A) -> A)
-/// === [](![]E(A) \/ A)
-/// === [](!!<>!E(A) \/ A)    <--- apply always_to_eventually
-/// === [](<>!E(A) \/ A)
+/// === []([]E(A) -> <>A)
+/// === [](![]E(A) \/ <>A)
+/// === [](!!<>!E(A) \/ <>A)    <--- apply always_to_eventually
+/// === [](<>!E(A) \/ <>A)
 /// === []<>(!E(A) \/ A)      <--- apply eventually_or
 /// === []<>!E(A) \/ []<>A    <--- apply always_eventually_distrib
 /// === []<>A \/ []<>!E(A)
