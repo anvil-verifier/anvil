@@ -153,13 +153,17 @@ proof fn prove_a_leads_to_c()
     };
 }
 
+spec fn weak_fairness_assumption() -> TempPred {
+    and(weak_fairness(a_b_action_pred()), weak_fairness(b_c_action_pred()))
+}
+
 spec fn eventually_c() -> TempPred {
     implies(
         and(
             lift_state(init_state_pred()),
             and(
                 always(lift_action(next_action_pred())),
-                and(weak_fairness(a_b_action_pred()), weak_fairness(b_c_action_pred()))
+                weak_fairness_assumption()
             )
         ),
         eventually(lift_state(c_state_pred()))
@@ -173,13 +177,10 @@ proof fn prove_eventually_c()
     assert forall |any_ex: Execution| eventually_c().satisfied_by(any_ex) by {
         if and(
             lift_state(init_state_pred()),
-            and(
-                always(lift_action(next_action_pred())),
-                and(weak_fairness(a_b_action_pred()), weak_fairness(b_c_action_pred()))
-            )
+            and(always(lift_action(next_action_pred())), weak_fairness_assumption())
         ).satisfied_by(any_ex) {
             prove_a_leads_to_c();
-            assert(implies(and(always(lift_action(next_action_pred())), and(weak_fairness(a_b_action_pred()), weak_fairness(b_c_action_pred()))), leads_to(lift_state(a_state_pred()), lift_state(c_state_pred()))).satisfied_by(any_ex));
+            assert(implies(and(always(lift_action(next_action_pred())), weak_fairness_assumption()), leads_to(lift_state(a_state_pred()), lift_state(c_state_pred()))).satisfied_by(any_ex));
             // assert(leads_to(lift_state(a_state_pred()), lift_state(c_state_pred())).satisfied_by(any_ex));
 
             prove_init_a();
