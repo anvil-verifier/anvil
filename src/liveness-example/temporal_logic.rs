@@ -10,13 +10,38 @@ use builtin_macros::*;
 
 verus! {
 
+/// Implement the temporal logic described in the paper "The Temporal Logic of Actions."
+///
+/// Note:
+/// The paper uses [A]_f as an abbreviation of A || (f' = f)
+/// and <A>_f as an abbreviation of A && (f' != f)
+/// where f' = f represents a stuttering step.
+/// But here we assume the caller ensures whether the action allows a stuttering step when passing the arguments.
+///
+/// TODO: Explicitly allow or disallow stuttering step.
+
+
+/// Transforms a state predicate to a temporal predicate
+/// by applying the state predicate to the first state of the execution (behavior).
+///
+/// See P, Q, I in Fig 5.
+
 pub open spec fn lift_state(state_pred: StatePred) -> TempPred {
     TempPred::new(|ex: Execution| state_pred.satisfied_by(ex[0]))
 }
 
+/// Similar to lift_state except that it applies the state predicate to the second state.
+///
+/// See P', Q' in Fig 5.
+
 pub open spec fn lift_state_prime(state_pred: StatePred) -> TempPred {
     TempPred::new(|ex: Execution| state_pred.satisfied_by(ex[1]))
 }
+
+/// Transforms an action predicate to a temporal predicate
+/// by applying the action predicate to the first two states of the execution.
+///
+/// See A, B, N, M in Fig 5.
 
 pub open spec fn lift_action(action_pred: ActionPred) -> TempPred {
     TempPred::new(|ex: Execution|
@@ -25,58 +50,122 @@ pub open spec fn lift_action(action_pred: ActionPred) -> TempPred {
     )
 }
 
+/// Takes an execution `ex` and returns its suffix starting from `idx`.
+
 pub open spec fn suffix(ex: Execution, idx: nat) -> Execution {
     ex.subrange(idx as int, ex.len() as int)
 }
+
+/// Returns the suffix by removing the first state in `ex`.
 
 pub open spec fn later(ex: Execution) -> Execution {
     suffix(ex, 1)
 }
 
-pub open spec fn always(temp_pred: TempPred) -> TempPred {
-    TempPred::new(|ex:Execution| forall |i:nat| i<ex.len() && #[trigger] temp_pred.satisfied_by(suffix(ex, i)))
-}
+/// `!` for temporal predicates.
+///
+/// There is an alternative implementation below but it will significantly slow down SMT solver:
+/// ```rust
+/// TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
+/// ```
 
 pub open spec fn not(temp_pred: TempPred) -> TempPred {
-    // This solution is a bit hacky
     temp_pred.not()
-    // But the following will significantly slow down SMT solver
-    // TempPred::new(|ex:Execution| !temp_pred.satisfied_by(ex))
 }
+
+/// `&&` for temporal predicates.
+///
+/// There is an alternative implementation below but it will significantly slow down SMT solver:
+/// ```rust
+/// TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
+/// ```
 
 pub open spec fn and(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
-    // This solution is a bit hacky
     temp_pred_a.and(temp_pred_b)
-    // But the following will significantly slow down SMT solver
-    // TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
 }
+
+/// `||` for temporal predicates.
+///
+/// There is an alternative implementation below but it will significantly slow down SMT solver:
+/// ```rust
+/// TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
+/// ```
 
 pub open spec fn or(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
-    // This solution is a bit hacky
     temp_pred_a.or(temp_pred_b)
-    // But the following will significantly slow down SMT solver
-    // TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) || temp_pred_b.satisfied_by(ex))
 }
 
-pub open spec fn eventually(temp_pred: TempPred) -> TempPred {
-    not(always(not(temp_pred)))
-}
+/// `==>` for temporal predicates.
 
 pub open spec fn implies(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
     or(not(temp_pred_a), temp_pred_b)
 }
 
+/// Returns a temporal predicate that is satisfied iff `temp_pred` is satisfied on every suffix of the execution.
+///
+/// Defined in 3.1.
+/// See [] (box) in Fig 5.
+
+pub open spec fn always(temp_pred: TempPred) -> TempPred {
+    TempPred::new(|ex:Execution| forall |i:nat| i<ex.len() && #[trigger] temp_pred.satisfied_by(suffix(ex, i)))
+}
+
+/// Returns a temporal predicate that is satisfied iff `temp_pred` is satisfied on at least one suffix of the execution.
+///
+/// Defined in 3.2.1.
+/// See <> (diamond) in Fig 5.
+
+pub open spec fn eventually(temp_pred: TempPred) -> TempPred {
+    not(always(not(temp_pred)))
+}
+
+/// Returns a temporal predicate that is satisfied
+/// iff it is always the case that `temp_pred_a` getting satisfied implies `temp_pred_b` eventually getting satisfied.
+///
+/// Defined in 3.2.3.
+/// See ~~> (squiggly arrow) in Fig 5.
+
 pub open spec fn leads_to(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
     always(implies(temp_pred_a, eventually(temp_pred_b)))
 }
+
+/// Returns a temporal predicate that is satisfied
+/// iff `action_pred` can be satisfied by any possible execution starting with the current state.
+///
+/// Defined in 2.7.
+/// See Enabled in Fig 5.
+///
+/// Note: it says whether the action *can possibly* happen, rather than whether the action *actually does* happen!
 
 pub open spec fn enabled(action_pred: ActionPred) -> TempPred {
     lift_state(StatePred::new(|s: SimpleState| exists |a: Action| #[trigger] action_pred.satisfied_by(a) && a.state === s))
 }
 
+/// Returns a temporal predicate that is satisfied
+/// iff `always(enabled(action_pred))` getting satisfied leads to `lift_action(action_pred)` getting satisfied.
+///
+/// It says whether it is *always* the case that if the action is *always* enabled, the action *eventually* happens.
+///
+/// Defined in 5.3 in a different form.
+/// We can prove the two forms are the same:
+///     []E(A) ~~> A
+/// === []([]E(A) -> A)
+/// === [](![]E(A) || A)
+/// === [](!!<>!E(A) || A)    <--- apply always_to_eventually
+/// === [](<>!E(A) || A)
+/// === []<>(!E(A) || A)      <--- apply eventually_or
+/// === []<>!E(A) || []<>A    <--- apply always_eventually_distrib
+/// === []<>A || []<>!E(A)
+///
+/// See WF in Fig 5.
+
 pub open spec fn weak_fairness(action_pred: ActionPred) -> TempPred {
     leads_to(always(enabled(action_pred)), lift_action(action_pred))
 }
+
+/// Returns true iff `temp_pred` is satisfied by all possible executions (behaviors).
+/// Defined in 3.3.
+/// See |= in Fig 5.
 
 pub open spec fn valid(temp_pred: TempPred) -> bool {
     forall |ex:Execution| temp_pred.satisfied_by(ex)
@@ -93,6 +182,8 @@ pub proof fn init_invariant(init: StatePred, next: ActionPred, inv: StatePred)
             always(lift_state(inv))
         ))
 {}
+
+/// See WF1 in Fig 5.
 
 #[verifier(external_body)]
 pub proof fn wf1(next: ActionPred, forward: ActionPred, p: StatePred, q: StatePred)
