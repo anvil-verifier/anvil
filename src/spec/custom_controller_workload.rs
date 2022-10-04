@@ -1,17 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 
-#[allow(unused_imports)]
+#![allow(unused_imports)]
 use crate::apis::*;
-#[allow(unused_imports)]
 use crate::common::*;
-#[allow(unused_imports)]
 use crate::custom_controller_var::*;
-#[allow(unused_imports)]
-use crate::pervasive::{option::Option, *};
-#[allow(unused_imports)]
-use builtin::{ensures, equal, exists, requires};
-#[allow(unused_imports)]
+use crate::pervasive::option::*;
+use builtin::*;
 use builtin_macros::*;
 
 verus! {
@@ -41,48 +36,48 @@ pub enum WorkloadStep {
 }
 
 pub open spec fn init(c: WorkloadConstants, v: WorkloadVariables) -> bool {
-    c.well_formed()
-    && v.well_formed(c)
-    && !v.submitted
+    &&& c.well_formed()
+    &&& v.well_formed(c)
+    &&& !v.submitted
 }
 
 pub open spec fn all_well_formed(c: WorkloadConstants, v: WorkloadVariables, v_prime: WorkloadVariables, network_ops: NetworkOps) -> bool {
-    c.well_formed()
-    && v.well_formed(c)
-    && v_prime.well_formed(c)
-    && network_ops.well_formed()
+    &&& c.well_formed()
+    &&& v.well_formed(c)
+    &&& v_prime.well_formed(c)
+    &&& network_ops.well_formed()
 }
 
 pub open spec fn create_configmap_generator(c: WorkloadConstants, v: WorkloadVariables, v_prime: WorkloadVariables, configmap_generator: ConfigMapGeneratorL, network_ops: NetworkOps) -> bool {
     all_well_formed(c, v, v_prime, network_ops)
     && !v.submitted
     && v_prime.submitted
-    && equal(configmap_generator.metadata.name, StringL::MyConfigMapGenerator)
-    && equal(configmap_generator.metadata.namespace, StringL::Default)
+    && configmap_generator.metadata.name === StringL::MyConfigMapGenerator
+    && configmap_generator.metadata.namespace === StringL::Default
     && network_ops.recv.is_None()
     && network_ops.send.is_Some()
     && network_ops.send.get_Some_0().src === HostId::CustomClient
     && network_ops.send.get_Some_0().dst === HostId::KubernetesAPI
     && match network_ops.send.get_Some_0().payload {
-        Payload::APIOpRequest(api_op_request) => equal(api_op_request.api_op, APIOp::Create{
+        Payload::APIOpRequest(api_op_request) => api_op_request.api_op === APIOp::Create{
             object_key: configmap_generator.key(),
             object: KubernetesObject::CustomResourceObject(
                 CustomResourceObject::ConfigMapGenerator(configmap_generator)
             ),
-        }),
+        },
         _ => false,
     }
 }
 
 pub open spec fn receive_api_op_response(c: WorkloadConstants, v: WorkloadVariables, v_prime: WorkloadVariables, network_ops: NetworkOps) -> bool {
-    all_well_formed(c, v, v_prime, network_ops)
-    && v.submitted
-    && v_prime.submitted
-    && network_ops.send.is_None()
-    && network_ops.recv.is_Some()
-    && network_ops.recv.get_Some_0().src === HostId::KubernetesAPI
-    && network_ops.recv.get_Some_0().dst === HostId::CustomClient
-    && match network_ops.recv.get_Some_0().payload {
+    &&& all_well_formed(c, v, v_prime, network_ops)
+    &&& v.submitted
+    &&& v_prime.submitted
+    &&& network_ops.send.is_None()
+    &&& network_ops.recv.is_Some()
+    &&& network_ops.recv.get_Some_0().src === HostId::KubernetesAPI
+    &&& network_ops.recv.get_Some_0().dst === HostId::CustomClient
+    &&& match network_ops.recv.get_Some_0().payload {
         Payload::APIOpResponse(api_op_response) => true,
         _ => false,
     }

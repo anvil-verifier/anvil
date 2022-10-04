@@ -1,14 +1,13 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 
-#[allow(unused_imports)]
+#![allow(unused_imports)]
 use crate::apis::*;
-#[allow(unused_imports)]
 use crate::common::*;
-#[allow(unused_imports)]
-use builtin::equal;
-#[allow(unused_imports)]
+use builtin::*;
 use builtin_macros::*;
+
+verus! {
 
 #[derive(Structural, PartialEq, Eq)]
 pub enum CustomReconcileStep {
@@ -22,8 +21,6 @@ pub enum CustomReconcileStep {
 pub struct ConfigMapGeneratorL {
     pub metadata: ObjectMetaL,
 }
-
-verus! {
 
 impl ConfigMapGeneratorL {
     pub open spec fn key(&self) -> ObjectKey {

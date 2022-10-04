@@ -1,15 +1,11 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 
-#[allow(unused_imports)]
+#![allow(unused_imports)]
 use crate::apis::*;
-#[allow(unused_imports)]
 use crate::common::*;
-#[allow(unused_imports)]
-use crate::pervasive::{option::Option, set::*, *};
-#[allow(unused_imports)]
-use builtin::{ensures, equal, exists, requires};
-#[allow(unused_imports)]
+use crate::pervasive::{option::*, set::*};
+use builtin::*;
 use builtin_macros::*;
 
 verus! {
@@ -22,7 +18,7 @@ pub struct NetworkVariables {
 }
 
 pub open spec fn init(c: NetworkConstants, v: NetworkVariables) -> bool {
-    equal(v.sent_messages, Set::empty())
+    v.sent_messages === Set::empty()
 }
 
 pub open spec fn next(c: NetworkConstants, v: NetworkVariables, v_prime: NetworkVariables, network_ops: NetworkOps) -> bool {

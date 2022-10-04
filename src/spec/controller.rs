@@ -1,19 +1,13 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 
-#[allow(unused_imports)]
+#![allow(unused_imports)]
 use crate::apis::*;
-#[allow(unused_imports)]
 use crate::common::*;
-#[allow(unused_imports)]
 use crate::custom_controller_logic::*;
-#[allow(unused_imports)]
 use crate::dict::*;
-#[allow(unused_imports)]
-use crate::pervasive::{option::Option, *};
-#[allow(unused_imports)]
+use crate::pervasive::option::*;
 use builtin::*;
-#[allow(unused_imports)]
 use builtin_macros::*;
 
 verus! {
@@ -24,7 +18,7 @@ pub struct ControllerConstants {
 
 impl ControllerConstants {
     pub open spec fn well_formed(&self) -> bool {
-        equal(self.controller_clock_upper_bound, controller_step_limit_spec())
+        self.controller_clock_upper_bound === controller_step_limit_spec()
     }
 }
 
@@ -82,10 +76,10 @@ pub struct ControllerVariables {
 
 impl ControllerVariables {
     pub open spec fn well_formed(&self, c:ControllerConstants) -> bool {
-        self.state_cache.well_formed()
-        && (self.last_api_op_response.is_None()
+        &&& self.state_cache.well_formed()
+        &&& (self.last_api_op_response.is_None()
             || (self.last_api_op_response.is_Some() && self.last_api_op_response.get_Some_0().well_formed()))
-        && (self.pending_api_op_request.is_None()
+        &&& (self.pending_api_op_request.is_None()
             || (self.pending_api_op_request.is_Some() && self.pending_api_op_request.get_Some_0().well_formed()))
     }
 }
@@ -99,23 +93,23 @@ pub enum ControllerStep {
 }
 
 pub open spec fn init(c: ControllerConstants, v: ControllerVariables) -> bool {
-    c.well_formed()
-    && v.well_formed(c)
-    && !v.in_reconcile
-    && v.triggering_key.is_None()
-    && v.reconcile_step === ReconcileStep::Init
-    && v.state_cache.empty()
-    && v.last_api_op_response.is_None()
-    && v.pending_api_op_request.is_None()
-    && v.controller_clock === c.controller_clock_upper_bound
-    && !v.before_receiving_response
+    &&& c.well_formed()
+    &&& v.well_formed(c)
+    &&& !v.in_reconcile
+    &&& v.triggering_key.is_None()
+    &&& v.reconcile_step === ReconcileStep::Init
+    &&& v.state_cache.empty()
+    &&& v.last_api_op_response.is_None()
+    &&& v.pending_api_op_request.is_None()
+    &&& v.controller_clock === c.controller_clock_upper_bound
+    &&& !v.before_receiving_response
 }
 
 pub open spec fn all_well_formed(c: ControllerConstants, v: ControllerVariables, v_prime: ControllerVariables, network_ops: NetworkOps) -> bool {
-    c.well_formed()
-    && v.well_formed(c)
-    && v_prime.well_formed(c)
-    && network_ops.well_formed()
+    &&& c.well_formed()
+    &&& v.well_formed(c)
+    &&& v_prime.well_formed(c)
+    &&& network_ops.well_formed()
 }
 
 /// receive_api_event_notification does the following:
@@ -125,28 +119,28 @@ pub open spec fn all_well_formed(c: ControllerConstants, v: ControllerVariables,
 /// We currently do not allow receiving api watch responses inside a reconcile
 /// so we pose the constraints including:
 /// * !v.in_reconcile
-/// * equal(v.triggering_key, Option::None)
+/// * v.triggering_key.is_None()
 /// We do NOT update the state_cache here
 /// The reason is that in kube-rs every watch event from the API server
 /// will update the local indexer (in the informer) but the controller never reads the indexer
 /// Note that this is very different from controller-runtime where the controller often
 /// reads the local indexer (local cache)
 pub open spec fn receive_api_event_notification(c: ControllerConstants, v: ControllerVariables, v_prime: ControllerVariables, network_ops: NetworkOps) -> bool {
-    all_well_formed(c, v, v_prime, network_ops)
-    && equal(v, ControllerVariables{
+    &&& all_well_formed(c, v, v_prime, network_ops)
+    &&& v === ControllerVariables{
         triggering_key: v.triggering_key,
         ..v_prime
-    })
-    && !v.in_reconcile
-    && !v.before_receiving_response
-    && v.triggering_key.is_None()
-    && v.pending_api_op_request.is_None()
-    && v.last_api_op_response.is_None()
-    && network_ops.send.is_None()
-    && network_ops.recv.is_Some()
-    && network_ops.recv.get_Some_0().src === HostId::KubernetesAPI
-    && network_ops.recv.get_Some_0().dst === HostId::CustomController
-    && match network_ops.recv.get_Some_0().payload {
+    }
+    &&& !v.in_reconcile
+    &&& !v.before_receiving_response
+    &&& v.triggering_key.is_None()
+    &&& v.pending_api_op_request.is_None()
+    &&& v.last_api_op_response.is_None()
+    &&& network_ops.send.is_None()
+    &&& network_ops.recv.is_Some()
+    &&& network_ops.recv.get_Some_0().src === HostId::KubernetesAPI
+    &&& network_ops.recv.get_Some_0().dst === HostId::CustomController
+    &&& match network_ops.recv.get_Some_0().payload {
         Payload::APIEventNotification(api_event_notification) =>
             v_prime.triggering_key === map_to_triggering_key(api_event_notification.object()),
         _ => false
@@ -156,64 +150,66 @@ pub open spec fn receive_api_event_notification(c: ControllerConstants, v: Contr
 /// start_reconcile does the following:
 /// - Set in_reconcile to true and reconcile_step to Init to start reconcile
 pub open spec fn start_reconcile(c: ControllerConstants, v: ControllerVariables, v_prime: ControllerVariables, network_ops: NetworkOps) -> bool {
-    all_well_formed(c, v, v_prime, network_ops)
-    && v === ControllerVariables{
+    &&& all_well_formed(c, v, v_prime, network_ops)
+    &&& v === ControllerVariables{
         in_reconcile: v.in_reconcile,
         ..v_prime
     }
-    && !v.in_reconcile
-    && v_prime.in_reconcile
-    && !v.before_receiving_response
-    && v.triggering_key.is_Some()
-    && v.pending_api_op_request.is_None()
-    && v.reconcile_step === ReconcileStep::Init
-    && v.last_api_op_response.is_None()
-    && network_ops.recv.is_None()
-    && network_ops.send.is_None()
+    &&& !v.in_reconcile
+    &&& v_prime.in_reconcile
+    &&& !v.before_receiving_response
+    &&& v.triggering_key.is_Some()
+    &&& v.pending_api_op_request.is_None()
+    &&& v.reconcile_step === ReconcileStep::Init
+    &&& v.last_api_op_response.is_None()
+    &&& network_ops.recv.is_None()
+    &&& network_ops.send.is_None()
 }
 
 /// continue_reconcile does the following:
 /// - Run one reconcile step (controller_logic_spec)
 /// - Send the API Op request (if any) to Kubernetes
 pub open spec fn continue_reconcile(c: ControllerConstants, v: ControllerVariables, v_prime: ControllerVariables, network_ops: NetworkOps) -> bool {
-    all_well_formed(c, v, v_prime, network_ops)
-    && v.reconcile_step !== ReconcileStep::Done
-    && v.reconcile_step !== ReconcileStep::Retry
-    && network_ops.recv.is_None()
-    && v.pending_api_op_request.is_None()
-    && v.in_reconcile
-    && v.controller_clock > 0
-    && !v.before_receiving_response
-    && v_prime.before_receiving_response
-    && (v.controller_clock - 1) === v_prime.controller_clock
-    && v.triggering_key.is_Some()
-    && match network_ops.send {
-        Option::None =>
-            v === ControllerVariables{
+    &&& all_well_formed(c, v, v_prime, network_ops)
+    &&& v.reconcile_step !== ReconcileStep::Done
+    &&& v.reconcile_step !== ReconcileStep::Retry
+    &&& network_ops.recv.is_None()
+    &&& v.pending_api_op_request.is_None()
+    &&& v.in_reconcile
+    &&& v.controller_clock > 0
+    &&& !v.before_receiving_response
+    &&& v_prime.before_receiving_response
+    &&& (v.controller_clock - 1) === v_prime.controller_clock
+    &&& v.triggering_key.is_Some()
+    &&& match network_ops.send {
+        Option::None => {
+            &&& v === ControllerVariables{
                     reconcile_step: v.reconcile_step,
                     controller_clock: v.controller_clock,
                     before_receiving_response: v.before_receiving_response,
                     ..v_prime
                   }
             // We have no pending request since the controller_logic does not issue anything
-            && v_prime.pending_api_op_request.is_None()
-            && controller_logic_spec(v.reconcile_step, v.triggering_key.get_Some_0(), v.state_cache, v.last_api_op_response, v_prime.reconcile_step, v_prime.pending_api_op_request),
+            &&& v_prime.pending_api_op_request.is_None()
+            &&& controller_logic_spec(v.reconcile_step, v.triggering_key.get_Some_0(), v.state_cache, v.last_api_op_response, v_prime.reconcile_step, v_prime.pending_api_op_request)
+        },
         Option::Some(message) => {
             match message.payload {
-                Payload::APIOpRequest(api_op_request) =>
-                    v === ControllerVariables{
+                Payload::APIOpRequest(api_op_request) => {
+                    &&& v === ControllerVariables{
                             reconcile_step: v.reconcile_step,
                             pending_api_op_request: v.pending_api_op_request,
                             controller_clock: v.controller_clock,
                             before_receiving_response: v.before_receiving_response,
                             ..v_prime
                          }
-                    && message.src === HostId::CustomController
-                    && message.dst === HostId::KubernetesAPI
+                    &&& message.src === HostId::CustomController
+                    &&& message.dst === HostId::KubernetesAPI
                     // We get a new pending request here
-                    && v_prime.pending_api_op_request === Option::Some(api_op_request)
+                    &&& v_prime.pending_api_op_request === Option::Some(api_op_request)
                     // We need to wait for new response for the new request from now
-                    && controller_logic_spec(v.reconcile_step, v.triggering_key.get_Some_0(), v.state_cache, v.last_api_op_response, v_prime.reconcile_step, v_prime.pending_api_op_request),
+                    &&& controller_logic_spec(v.reconcile_step, v.triggering_key.get_Some_0(), v.state_cache, v.last_api_op_response, v_prime.reconcile_step, v_prime.pending_api_op_request)
+                },
                 _ => false,
             }
         }
@@ -224,31 +220,31 @@ pub open spec fn continue_reconcile(c: ControllerConstants, v: ControllerVariabl
 /// - Receive response of the API Op request sent by continue_reconcile
 /// - Update the local cache of the cluster state based on the response
 pub open spec fn receive_api_op_response(c: ControllerConstants, v: ControllerVariables, v_prime: ControllerVariables, network_ops: NetworkOps) -> bool {
-    all_well_formed(c, v, v_prime, network_ops)
-    && network_ops.recv.is_Some()
-    && network_ops.recv.get_Some_0().src === HostId::KubernetesAPI
-    && network_ops.recv.get_Some_0().dst === HostId::CustomController
-    && match network_ops.recv.get_Some_0().payload {
+    &&& all_well_formed(c, v, v_prime, network_ops)
+    &&& network_ops.recv.is_Some()
+    &&& network_ops.recv.get_Some_0().src === HostId::KubernetesAPI
+    &&& network_ops.recv.get_Some_0().dst === HostId::CustomController
+    &&& match network_ops.recv.get_Some_0().payload {
         Payload::APIOpResponse(api_op_response) => {
-            v.pending_api_op_request.is_Some()
-            && v === ControllerVariables{
+            &&& v.pending_api_op_request.is_Some()
+            &&& v === ControllerVariables{
                         last_api_op_response: v.last_api_op_response,
                         pending_api_op_request: v.pending_api_op_request,
                         state_cache: v.state_cache,
                         before_receiving_response: v.before_receiving_response,
                         ..v_prime
                      }
-            && v.in_reconcile
-            && v.before_receiving_response
-            && !v_prime.before_receiving_response
-            && v.triggering_key.is_Some()
-            && v_prime.last_api_op_response === Option::Some(api_op_response)
-            && v_prime.pending_api_op_request.is_None()
-            && network_ops.send.is_None()
+            &&& v.in_reconcile
+            &&& v.before_receiving_response
+            &&& !v_prime.before_receiving_response
+            &&& v.triggering_key.is_Some()
+            &&& v_prime.last_api_op_response === Option::Some(api_op_response)
+            &&& v_prime.pending_api_op_request.is_None()
+            &&& network_ops.send.is_None()
             // response and request need to match
-            && api_op_response.api_op_request === v.pending_api_op_request.get_Some_0()
+            &&& api_op_response.api_op_request === v.pending_api_op_request.get_Some_0()
             // if success, update the cache; otherwise do nothing
-            && if api_op_response.success {
+            &&& if api_op_response.success {
                 state_transition_by_api_op(v.state_cache, v_prime.state_cache, api_op_response.api_op_request.api_op)
             } else {
                 v.state_cache === v_prime.state_cache
@@ -261,8 +257,8 @@ pub open spec fn receive_api_op_response(c: ControllerConstants, v: ControllerVa
 /// end_reconcile does the following
 /// - Set in_reconcile to false, which means reconcile is finished and the controller can receive notifications now
 pub open spec fn end_reconcile(c: ControllerConstants, v: ControllerVariables, v_prime: ControllerVariables, network_ops: NetworkOps) -> bool {
-    all_well_formed(c, v, v_prime, network_ops)
-    && v === ControllerVariables{
+    &&& all_well_formed(c, v, v_prime, network_ops)
+    &&& v === ControllerVariables{
                 triggering_key: v.triggering_key,
                 in_reconcile: v.in_reconcile,
                 reconcile_step: v.reconcile_step,
@@ -270,18 +266,18 @@ pub open spec fn end_reconcile(c: ControllerConstants, v: ControllerVariables, v
                 state_cache: v.state_cache,
                 ..v_prime
              }
-    && v.in_reconcile
-    && !v.before_receiving_response
-    && v.triggering_key.is_Some()
-    && v_prime.triggering_key.is_None()
-    && v.pending_api_op_request.is_None()
-    && !v_prime.in_reconcile
-    && v_prime.last_api_op_response.is_None()
-    && ((v.reconcile_step === ReconcileStep::Done) || (v.reconcile_step === ReconcileStep::Retry))
-    && v_prime.reconcile_step === ReconcileStep::Init
-    && v_prime.state_cache.empty()
-    && network_ops.recv.is_None()
-    && network_ops.send.is_None()
+    &&& v.in_reconcile
+    &&& !v.before_receiving_response
+    &&& v.triggering_key.is_Some()
+    &&& v_prime.triggering_key.is_None()
+    &&& v.pending_api_op_request.is_None()
+    &&& !v_prime.in_reconcile
+    &&& v_prime.last_api_op_response.is_None()
+    &&& ((v.reconcile_step === ReconcileStep::Done) || (v.reconcile_step === ReconcileStep::Retry))
+    &&& v_prime.reconcile_step === ReconcileStep::Init
+    &&& v_prime.state_cache.empty()
+    &&& network_ops.recv.is_None()
+    &&& network_ops.send.is_None()
     // TODO: end_reconcile should differentiate Done and Retry
 }
 

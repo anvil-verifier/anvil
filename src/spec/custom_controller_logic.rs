@@ -1,17 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 
-#[allow(unused_imports)]
+#![allow(unused_imports)]
 use crate::apis::*;
-#[allow(unused_imports)]
 use crate::common::*;
-#[allow(unused_imports)]
 use crate::custom_controller_var::*;
-#[allow(unused_imports)]
-use crate::pervasive::{map::*, option::Option, *};
-#[allow(unused_imports)]
+use crate::pervasive::{map::*, option::*};
 use builtin::*;
-#[allow(unused_imports)]
 use builtin_macros::*;
 
 verus! {
@@ -23,8 +18,7 @@ verus! {
 // 2. Watch on an object owned by the CR, see https://github.com/kube-rs/kube-rs/blob/0b2f7b88d58a076808b09afb640191eab2fbc84e/kube-runtime/src/controller/mod.rs#L485
 // 3. Watch on an object that has some custom relation to the CR, see https://github.com/kube-rs/kube-rs/blob/0b2f7b88d58a076808b09afb640191eab2fbc84e/kube-runtime/src/controller/mod.rs#L524
 // The developers are required to implement the same mappings here
-#[spec] #[verifier(publish)]
-pub fn map_to_triggering_key(object: KubernetesObject) -> Option<ObjectKey> {
+pub open spec fn map_to_triggering_key(object: KubernetesObject) -> Option<ObjectKey> {
     match object {
         KubernetesObject::CustomResourceObject(cro) => {
             match cro {
@@ -37,7 +31,7 @@ pub fn map_to_triggering_key(object: KubernetesObject) -> Option<ObjectKey> {
 }
 
 pub open spec fn is_cr_type(object_type: StringL) -> bool {
-    equal(object_type, StringL::ConfigMapGenerator)
+    object_type === StringL::ConfigMapGenerator
 }
 
 pub open spec fn trigger_reconcile(api_event_notification: APIEventNotification) -> bool {
@@ -51,7 +45,7 @@ pub open spec fn controller_step_limit_spec() -> int {
     10
 }
 
-pub open spec fn distributed_system_step_limit_spec() -> i32 {
+pub open spec fn distributed_system_step_limit_spec() -> int {
     20
 }
 
@@ -71,30 +65,31 @@ pub open spec fn controller_logic_spec(controller_step: ReconcileStep, triggerin
     let configmap = StringL::ConfigMap;
 
     match controller_step {
-        ReconcileStep::Init =>
-            equal(next_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CheckIfCMGExists))
-            && api_op_request.is_Some()
-            && equal(api_op_request.get_Some_0(), APIOpRequest{api_op:APIOp::Get{
+        ReconcileStep::Init => {
+            &&& next_step === ReconcileStep::CustomReconcileStep(CustomReconcileStep::CheckIfCMGExists)
+            &&& api_op_request.is_Some()
+            &&& api_op_request.get_Some_0() === APIOpRequest{api_op:APIOp::Get{
                 object_key: triggering_key
-            }}),
+            }}
+        },
         ReconcileStep::CustomReconcileStep(step) =>
             match step {
                 CustomReconcileStep::CheckIfCMGExists =>
                     if !cluster_state.contains(triggering_key) {
-                        equal(next_step, ReconcileStep::Done)
-                        && api_op_request.is_None()
+                        &&& next_step === ReconcileStep::Done
+                        &&& api_op_request.is_None()
                     } else {
-                        equal(next_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CheckIfCMExists))
-                        && api_op_request.is_Some()
-                        && equal(api_op_request.get_Some_0(), APIOpRequest{api_op:APIOp::Get{
+                        &&& next_step === ReconcileStep::CustomReconcileStep(CustomReconcileStep::CheckIfCMExists)
+                        &&& api_op_request.is_Some()
+                        &&& api_op_request.get_Some_0() === APIOpRequest{api_op:APIOp::Get{
                             object_key: configmap_1_key()
-                        }})
+                        }}
                     },
                 CustomReconcileStep::CheckIfCMExists =>
                     if !cluster_state.contains(configmap_1_key()) {
-                        equal(next_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CreateCM1))
-                        && api_op_request.is_Some()
-                        && equal(api_op_request.get_Some_0(), APIOpRequest{
+                        &&& next_step === ReconcileStep::CustomReconcileStep(CustomReconcileStep::CreateCM1)
+                        &&& api_op_request.is_Some()
+                        &&& api_op_request.get_Some_0() === APIOpRequest{
                             api_op:APIOp::Create{
                                 object_key:configmap_1_key(),
                                 object:KubernetesObject::ConfigMap(ConfigMapL{
@@ -105,16 +100,16 @@ pub open spec fn controller_logic_spec(controller_step: ReconcileStep, triggerin
                                     },
                                 }),
                             }
-                        })
+                        }
                     } else {
-                        equal(next_step, ReconcileStep::Done)
-                        && api_op_request.is_None()
+                        &&& next_step === ReconcileStep::Done
+                        &&& api_op_request.is_None()
                     },
                 CustomReconcileStep::CreateCM1 =>
                     if cluster_state.contains(configmap_1_key()) {
-                        equal(next_step, ReconcileStep::CustomReconcileStep(CustomReconcileStep::CreateCM2))
-                        && api_op_request.is_Some()
-                        && equal(api_op_request.get_Some_0(), APIOpRequest{
+                        &&& next_step === ReconcileStep::CustomReconcileStep(CustomReconcileStep::CreateCM2)
+                        &&& api_op_request.is_Some()
+                        &&& api_op_request.get_Some_0() === APIOpRequest{
                             api_op:APIOp::Create{
                                 object_key:configmap_2_key(),
                                 object:KubernetesObject::ConfigMap(ConfigMapL{
@@ -125,26 +120,28 @@ pub open spec fn controller_logic_spec(controller_step: ReconcileStep, triggerin
                                     },
                                 }),
                             }
-                        })
+                        }
                     } else {
-                        equal(next_step, ReconcileStep::Retry)
-                        && api_op_request.is_None()
+                        &&& next_step === ReconcileStep::Retry
+                        &&& api_op_request.is_None()
                     },
                 CustomReconcileStep::CreateCM2 =>
                     if cluster_state.contains(configmap_2_key()) {
-                        equal(next_step, ReconcileStep::Done)
-                        && api_op_request.is_None()
+                        &&& next_step === ReconcileStep::Done
+                        &&& api_op_request.is_None()
                     } else {
-                        equal(next_step, ReconcileStep::Retry)
-                        && api_op_request.is_None()
+                        &&& next_step === ReconcileStep::Retry
+                        &&& api_op_request.is_None()
                     }
             },
-        ReconcileStep::Retry =>
-            equal(next_step, ReconcileStep::Retry)
-            && api_op_request.is_None(),
-        ReconcileStep::Done =>
-            equal(next_step, ReconcileStep::Done)
-            && api_op_request.is_None(),
+        ReconcileStep::Retry => {
+            &&& next_step === ReconcileStep::Retry
+            &&& api_op_request.is_None()
+        },
+        ReconcileStep::Done => {
+            &&& next_step === ReconcileStep::Done
+            &&& api_op_request.is_None()
+        },
     }
 }
 
