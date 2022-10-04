@@ -11,17 +11,17 @@ use builtin_macros::*;
 verus! {
 
 pub open spec fn lift_state(state_pred: StatePred) -> TempPred {
-    Set::new(|ex: Execution| state_pred.contains(ex[0]))
+    TempPred::new(|ex: Execution| state_pred.satisfies(ex[0]))
 }
 
 pub open spec fn lift_state_prime(state_pred: StatePred) -> TempPred {
-    Set::new(|ex: Execution| state_pred.contains(ex[1]))
+    TempPred::new(|ex: Execution| state_pred.satisfies(ex[1]))
 }
 
 pub open spec fn lift_action(action_pred: ActionPred) -> TempPred {
-    Set::new(|ex: Execution|
+    TempPred::new(|ex: Execution|
         exists |a: Action|
-            #[trigger] action_pred.contains(a) && a.state === ex[0] && a.state_prime === ex[1]
+            #[trigger] action_pred.satisfies(a) && a.state === ex[0] && a.state_prime === ex[1]
     )
 }
 
@@ -34,24 +34,32 @@ pub open spec fn later(ex: Execution) -> Execution {
 }
 
 pub open spec fn always(temp_pred: TempPred) -> TempPred {
-    Set::new(|ex:Execution| forall |i:nat| i<ex.len() && #[trigger] temp_pred.contains(suffix(ex, i)))
+    TempPred::new(|ex:Execution| forall |i:nat| i<ex.len() && #[trigger] temp_pred.satisfies(suffix(ex, i)))
 }
 
 pub open spec fn not(temp_pred: TempPred) -> TempPred {
-    temp_pred.complement()
+    // This solution is a bit hacky
+    temp_pred.not()
+    // But the following will significantly slow down SMT solver
+    // TempPred::new(|ex:Execution| !temp_pred.satisfies(ex))
 }
 
 pub open spec fn and(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
-    temp_pred_a.intersect(temp_pred_b)
+    // This solution is a bit hacky
+    temp_pred_a.and(temp_pred_b)
+    // But the following will significantly slow down SMT solver
+    // TempPred::new(|ex:Execution| temp_pred_a.satisfies(ex) && temp_pred_b.satisfies(ex))
 }
 
 pub open spec fn or(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
-    temp_pred_a.union(temp_pred_b)
+    // This solution is a bit hacky
+    temp_pred_a.or(temp_pred_b)
+    // But the following will significantly slow down SMT solver
+    // TempPred::new(|ex:Execution| temp_pred_a.satisfies(ex) || temp_pred_b.satisfies(ex))
 }
 
 pub open spec fn eventually(temp_pred: TempPred) -> TempPred {
     not(always(not(temp_pred)))
-    // Set::new(|ex:Execution| exists |i:nat| i<ex.len() && #[trigger] temp_pred.contains(suffix(ex, i)))
 }
 
 pub open spec fn implies(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
@@ -63,7 +71,7 @@ pub open spec fn leads_to(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempP
 }
 
 pub open spec fn enabled(action_pred: ActionPred) -> TempPred {
-    lift_state(Set::new(|s: SimpleState| exists |a: Action| #[trigger] action_pred.contains(a) && a.state === s))
+    lift_state(StatePred::new(|s: SimpleState| exists |a: Action| #[trigger] action_pred.satisfies(a) && a.state === s))
 }
 
 pub open spec fn weak_fairness(action_pred: ActionPred) -> TempPred {
@@ -71,14 +79,14 @@ pub open spec fn weak_fairness(action_pred: ActionPred) -> TempPred {
 }
 
 pub open spec fn valid(temp_pred: TempPred) -> bool {
-    forall |ex:Execution| temp_pred.contains(ex)
+    forall |ex:Execution| temp_pred.satisfies(ex)
 }
 
 #[verifier(external_body)]
 pub proof fn init_invariant(init: StatePred, next: ActionPred, inv: StatePred)
     requires
-        forall |s: SimpleState| init.contains(s) ==> inv.contains(s),
-        forall |a: Action| #[trigger] inv.contains(a.state) && next.contains(a) ==> inv.contains(a.state_prime),
+        forall |s: SimpleState| init.satisfies(s) ==> inv.satisfies(s),
+        forall |a: Action| #[trigger] inv.satisfies(a.state) && next.satisfies(a) ==> inv.satisfies(a.state_prime),
     ensures
         valid(
             implies(

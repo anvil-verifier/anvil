@@ -16,7 +16,7 @@ pub open spec fn happy(s: SimpleState) -> bool {
 }
 
 pub open spec fn happy_state_pred() -> StatePred {
-    Set::new(|state: SimpleState| happy(state))
+    StatePred::new(|state: SimpleState| happy(state))
 }
 
 pub open spec fn always_happy() -> TempPred {

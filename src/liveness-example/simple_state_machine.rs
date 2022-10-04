@@ -37,23 +37,23 @@ pub open spec fn next(s: SimpleState, s_prime: SimpleState) -> bool {
 }
 
 pub open spec fn init_state_pred() -> StatePred {
-    Set::new(|state: SimpleState| init(state))
+    StatePred::new(|state: SimpleState| init(state))
 }
 
 pub open spec fn a_b_action_pred() -> ActionPred {
-    Set::new(|action: Action| a_b(action.state, action.state_prime))
+    ActionPred::new(|action: Action| a_b(action.state, action.state_prime))
 }
 
 pub open spec fn b_c_action_pred() -> ActionPred {
-    Set::new(|action: Action| b_c(action.state, action.state_prime))
+    ActionPred::new(|action: Action| b_c(action.state, action.state_prime))
 }
 
 pub open spec fn stutter_action_pred() -> ActionPred {
-    Set::new(|action: Action| stutter(action.state, action.state_prime))
+    ActionPred::new(|action: Action| stutter(action.state, action.state_prime))
 }
 
 pub open spec fn next_action_pred() -> ActionPred {
-    Set::new(|action: Action| next(action.state, action.state_prime))
+    ActionPred::new(|action: Action| next(action.state, action.state_prime))
 }
 
 }
