@@ -4,6 +4,7 @@
 #![allow(unused_imports)]
 use crate::common::*;
 use crate::custom_controller_var::*;
+use crate::kubernetes_core_resources::*;
 use crate::dict::*;
 use crate::pervasive::{map::*, option::*};
 use builtin::*;
@@ -108,14 +109,8 @@ impl APIOpResponse {
         &&& self.api_op_request.well_formed()
         // TODO: revisit this branch
         &&& (!self.success ==> self.optional_object.is_None())
-        &&& (self.success ==> self.optional_object.is_Some()
-            && match self.api_op_request.api_op {
-                APIOp::Get{object_key} => self.optional_object.get_Some_0().key() === object_key,
-                APIOp::Create{object_key, ..} => self.optional_object.get_Some_0().key() === object_key,
-                APIOp::Update{object_key, ..} => self.optional_object.get_Some_0().key() === object_key,
-                APIOp::Delete{object_key} => self.optional_object.get_Some_0().key() === object_key,
-            }
-        )
+        &&& self.success ==> self.optional_object.is_Some()
+        &&& self.api_op_request.api_op.key() === self.optional_object.get_Some_0().key()
     }
 
     pub open spec fn key(&self) -> ObjectKey {
