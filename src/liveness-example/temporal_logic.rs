@@ -79,7 +79,7 @@ pub open spec fn not(temp_pred: TempPred) -> TempPred {
     temp_pred.not()
 }
 
-/// `&&` for temporal predicates.
+/// `/\` (or `&&`) for temporal predicates.
 ///
 /// There is an alternative implementation below but it will significantly slow down SMT solver:
 /// ```rust
@@ -90,7 +90,7 @@ pub open spec fn and(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
     temp_pred_a.and(temp_pred_b)
 }
 
-/// `||` for temporal predicates.
+/// `\/` (or `||`) for temporal predicates.
 ///
 /// There is an alternative implementation below but it will significantly slow down SMT solver:
 /// ```rust
@@ -156,12 +156,12 @@ pub open spec fn enabled(action_pred: ActionPred) -> TempPred {
 /// We can prove the two forms are the same:
 ///     []E(A) ~~> A
 /// === []([]E(A) -> A)
-/// === [](![]E(A) || A)
-/// === [](!!<>!E(A) || A)    <--- apply always_to_eventually
-/// === [](<>!E(A) || A)
-/// === []<>(!E(A) || A)      <--- apply eventually_or
-/// === []<>!E(A) || []<>A    <--- apply always_eventually_distrib
-/// === []<>A || []<>!E(A)
+/// === [](![]E(A) \/ A)
+/// === [](!!<>!E(A) \/ A)    <--- apply always_to_eventually
+/// === [](<>!E(A) \/ A)
+/// === []<>(!E(A) \/ A)      <--- apply eventually_or
+/// === []<>!E(A) \/ []<>A    <--- apply always_eventually_distrib
+/// === []<>A \/ []<>!E(A)
 ///
 /// See WF in Fig 5.
 

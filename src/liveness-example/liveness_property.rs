@@ -30,6 +30,8 @@ spec fn a_leads_to_b() -> TempPred {
     )
 }
 
+/// Proves |= []next /\ WF(a_b) ==> (a ~~> b)
+
 proof fn prove_a_leads_to_b()
     ensures
         valid(a_leads_to_b())
@@ -54,6 +56,8 @@ spec fn init_a() -> TempPred {
     implies(lift_state(init_state_pred()), lift_state(a_state_pred()))
 }
 
+/// Proves |= init ==> a
+
 proof fn prove_init_a()
     ensures
         valid(init_a())
@@ -68,6 +72,8 @@ spec fn eventually_b() -> TempPred {
         eventually(lift_state(b_state_pred()))
     )
 }
+
+/// Proves |= init /\ []next /\ WF(a_b) ==> <> b
 
 proof fn prove_eventually_b()
     ensures
@@ -99,6 +105,8 @@ spec fn b_leads_to_c() -> TempPred {
     )
 }
 
+/// Proves |= []next /\ WF(b_c) ==> (b ~~> c)
+
 proof fn prove_b_leads_to_c()
     ensures
         valid(b_leads_to_c())
@@ -119,15 +127,18 @@ proof fn prove_b_leads_to_c()
     wf1(next_action_pred(), b_c_action_pred(), b_state_pred(), c_state_pred());
 }
 
+spec fn weak_fairness_assumption() -> TempPred {
+    and(weak_fairness(a_b_action_pred()), weak_fairness(b_c_action_pred()))
+}
+
 spec fn a_leads_to_c() -> TempPred {
     implies(
-        and(
-            always(lift_action(next_action_pred())),
-            and(weak_fairness(a_b_action_pred()), weak_fairness(b_c_action_pred()))
-        ),
+        and(always(lift_action(next_action_pred())), weak_fairness_assumption()),
         leads_to(lift_state(a_state_pred()), lift_state(c_state_pred()))
     )
 }
+
+/// Proves |= []next /\ WF(a_b) /\ WF(b_c) ==> (a ~~> c)
 
 proof fn prove_a_leads_to_c()
     ensures
@@ -153,22 +164,17 @@ proof fn prove_a_leads_to_c()
     };
 }
 
-spec fn weak_fairness_assumption() -> TempPred {
-    and(weak_fairness(a_b_action_pred()), weak_fairness(b_c_action_pred()))
-}
-
 spec fn eventually_c() -> TempPred {
     implies(
         and(
             lift_state(init_state_pred()),
-            and(
-                always(lift_action(next_action_pred())),
-                weak_fairness_assumption()
-            )
+            and(always(lift_action(next_action_pred())), weak_fairness_assumption())
         ),
         eventually(lift_state(c_state_pred()))
     )
 }
+
+/// Proves |= init /\ []next /\ WF(a_b) /\ WF(b_c) ==> <>c
 
 proof fn prove_eventually_c()
     ensures
