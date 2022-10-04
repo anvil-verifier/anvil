@@ -85,14 +85,23 @@ proof fn prove_eventually_b()
             and(always(lift_action(next_action_pred())), weak_fairness(a_b_action_pred()))
         ).satisfied_by(any_ex) {
             prove_a_leads_to_b();
-            assert(implies(and(always(lift_action(next_action_pred())), weak_fairness(a_b_action_pred())), leads_to(lift_state(a_state_pred()), lift_state(b_state_pred()))).satisfied_by(any_ex));
+            assert(implies(
+                and(always(lift_action(next_action_pred())), weak_fairness(a_b_action_pred())),
+                leads_to(lift_state(a_state_pred()), lift_state(b_state_pred()))
+            ).satisfied_by(any_ex));
             // assert(leads_to(lift_state(a_state_pred()), lift_state(b_state_pred())).satisfied_by(any_ex));
 
             prove_init_a();
             // assert(lift_state(a_state_pred()).satisfied_by(any_ex));
 
             leads_to_apply(a_state_pred(), b_state_pred());
-            assert(implies(and(lift_state(a_state_pred()), leads_to(lift_state(a_state_pred()), lift_state(b_state_pred()))), eventually(lift_state(b_state_pred()))).satisfied_by(any_ex));
+            assert(implies(
+                and(
+                    lift_state(a_state_pred()),
+                    leads_to(lift_state(a_state_pred()), lift_state(b_state_pred()))
+                ),
+                eventually(lift_state(b_state_pred()))
+            ).satisfied_by(any_ex));
             // assert(eventually(lift_state(b_state_pred())).satisfied_by(any_ex));
         }
     };
@@ -150,15 +159,27 @@ proof fn prove_a_leads_to_c()
             weak_fairness(b_c_action_pred())
         ).satisfied_by(any_ex) {
             prove_a_leads_to_b();
-            assert(implies(and(always(lift_action(next_action_pred())), weak_fairness(a_b_action_pred())), leads_to(lift_state(a_state_pred()), lift_state(b_state_pred()))).satisfied_by(any_ex));
+            assert(implies(
+                and(always(lift_action(next_action_pred())), weak_fairness(a_b_action_pred())),
+                leads_to(lift_state(a_state_pred()), lift_state(b_state_pred()))
+            ).satisfied_by(any_ex));
             // assert(leads_to(lift_state(a_state_pred()), lift_state(b_state_pred())).satisfied_by(any_ex));
 
             prove_b_leads_to_c();
-            assert(implies(and(always(lift_action(next_action_pred())), weak_fairness(b_c_action_pred())), leads_to(lift_state(b_state_pred()), lift_state(c_state_pred()))).satisfied_by(any_ex));
+            assert(implies(
+                and(always(lift_action(next_action_pred())), weak_fairness(b_c_action_pred())),
+                leads_to(lift_state(b_state_pred()), lift_state(c_state_pred()))
+            ).satisfied_by(any_ex));
             // assert(leads_to(lift_state(b_state_pred()), lift_state(c_state_pred())).satisfied_by(any_ex));
 
             leads_to_trans(a_state_pred(), b_state_pred(), c_state_pred());
-            assert(implies(and(leads_to(lift_state(a_state_pred()), lift_state(b_state_pred())), leads_to(lift_state(b_state_pred()), lift_state(c_state_pred()))), leads_to(lift_state(a_state_pred()), lift_state(c_state_pred()))).satisfied_by(any_ex));
+            assert(implies(
+                and(
+                    leads_to(lift_state(a_state_pred()), lift_state(b_state_pred())),
+                    leads_to(lift_state(b_state_pred()), lift_state(c_state_pred()))
+                ),
+                leads_to(lift_state(a_state_pred()), lift_state(c_state_pred()))
+            ).satisfied_by(any_ex));
             // assert(leads_to(lift_state(a_state_pred()), lift_state(c_state_pred())).satisfied_by(any_ex));
         }
     };
@@ -186,14 +207,23 @@ proof fn prove_eventually_c()
             and(always(lift_action(next_action_pred())), weak_fairness_assumption())
         ).satisfied_by(any_ex) {
             prove_a_leads_to_c();
-            assert(implies(and(always(lift_action(next_action_pred())), weak_fairness_assumption()), leads_to(lift_state(a_state_pred()), lift_state(c_state_pred()))).satisfied_by(any_ex));
+            assert(implies(
+                and(always(lift_action(next_action_pred())), weak_fairness_assumption()),
+                leads_to(lift_state(a_state_pred()), lift_state(c_state_pred()))
+            ).satisfied_by(any_ex));
             // assert(leads_to(lift_state(a_state_pred()), lift_state(c_state_pred())).satisfied_by(any_ex));
 
             prove_init_a();
             // assert(lift_state(a_state_pred()).satisfied_by(any_ex));
 
             leads_to_apply(a_state_pred(), c_state_pred());
-            assert(implies(and(lift_state(a_state_pred()), leads_to(lift_state(a_state_pred()), lift_state(c_state_pred()))), eventually(lift_state(c_state_pred()))).satisfied_by(any_ex));
+            assert(implies(
+                and(
+                    lift_state(a_state_pred()),
+                    leads_to(lift_state(a_state_pred()), lift_state(c_state_pred()))
+                ),
+                eventually(lift_state(c_state_pred()))
+            ).satisfied_by(any_ex));
             // assert(eventually(lift_state(c_state_pred())).satisfied_by(any_ex));
         }
     };
