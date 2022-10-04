@@ -88,103 +88,56 @@ pub proof fn init_invariant(init: StatePred, next: ActionPred, inv: StatePred)
         forall |s: SimpleState| init.satisfies(s) ==> inv.satisfies(s),
         forall |a: Action| #[trigger] inv.satisfies(a.state) && next.satisfies(a) ==> inv.satisfies(a.state_prime),
     ensures
-        valid(
-            implies(
-                and(
-                    lift_state(init),
-                    always(lift_action(next))
-                ),
-                always(lift_state(inv))
-            )
-        )
+        valid(implies(
+            and(lift_state(init), always(lift_action(next))),
+            always(lift_state(inv))
+        ))
 {}
 
 #[verifier(external_body)]
 pub proof fn wf1(next: ActionPred, forward: ActionPred, p: StatePred, q: StatePred)
     requires
-        valid(
-            implies(
-                and(
-                    lift_state(p),
-                    lift_action(next)
-                ),
-                or(
-                    lift_state_prime(p),
-                    lift_state_prime(q)
-                )
-            )
-        ),
-        valid(
-            implies(
-                and(
-                    lift_state(p),
-                    and(
-                        lift_action(next),
-                        lift_action(forward)
-                    )
-                ),
-                lift_state_prime(q)
-            )
-        ),
-        valid(
-            implies(
+        valid(implies(
+            and(lift_state(p), lift_action(next)),
+            or(lift_state_prime(p), lift_state_prime(q))
+        )),
+        valid(implies(
+            and(
                 lift_state(p),
-                enabled(forward)
-            )
-        ),
+                and(lift_action(next), lift_action(forward))
+            ),
+            lift_state_prime(q)
+        )),
+        valid(implies(lift_state(p), enabled(forward))),
     ensures
-        valid(
-            implies(
-                and(
-                    always(lift_action(next)),
-                    weak_fairness(forward)
-                ),
-                leads_to(
-                    lift_state(p),
-                    lift_state(q)
-                )
-            )
-        ),
+        valid(implies(
+            and(always(lift_action(next)), weak_fairness(forward)),
+            leads_to(lift_state(p), lift_state(q))
+        )),
 {}
 
 #[verifier(external_body)]
 pub proof fn leads_to_apply(p: StatePred, q: StatePred)
     ensures
-        valid(
-            implies(
-                and(
-                    lift_state(p),
-                    leads_to(
-                        lift_state(p),
-                        lift_state(q)
-                    )
-                ),
-                eventually(lift_state(q))
-            )
-        ),
+        valid(implies(
+            and(
+                lift_state(p),
+                leads_to(lift_state(p), lift_state(q))
+            ),
+            eventually(lift_state(q))
+        )),
 {}
 
 #[verifier(external_body)]
 pub proof fn leads_to_trans(p: StatePred, q: StatePred, r: StatePred)
     ensures
-        valid(
-            implies(
-                and(
-                    leads_to(
-                        lift_state(p),
-                        lift_state(q)
-                    ),
-                    leads_to(
-                        lift_state(q),
-                        lift_state(r)
-                    )
-                ),
-                leads_to(
-                    lift_state(p),
-                    lift_state(r)
-                )
-            )
-        ),
+        valid(implies(
+            and(
+                leads_to(lift_state(p), lift_state(q)),
+                leads_to(lift_state(q),lift_state(r))
+            ),
+            leads_to(lift_state(p), lift_state(r))
+        )),
 {}
 
 /*

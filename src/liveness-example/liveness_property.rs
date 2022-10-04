@@ -25,14 +25,8 @@ pub open spec fn c_state_pred() -> StatePred {
 
 pub open spec fn a_leads_to_b() -> TempPred {
     implies(
-        and(
-            always(lift_action(next_action_pred())),
-            weak_fairness(a_b_action_pred())
-        ),
-        leads_to(
-            lift_state(a_state_pred()),
-            lift_state(b_state_pred())
-        )
+        and(always(lift_action(next_action_pred())), weak_fairness(a_b_action_pred())),
+        leads_to(lift_state(a_state_pred()), lift_state(b_state_pred()))
     )
 }
 
@@ -40,8 +34,7 @@ proof fn prove_a_leads_to_b()
     ensures
         valid(a_leads_to_b())
 {
-    assert forall |any_ex: Execution| implies(lift_state(a_state_pred()), enabled(a_b_action_pred())).satisfies(any_ex)
-    by {
+    assert forall |any_ex: Execution| implies(lift_state(a_state_pred()), enabled(a_b_action_pred())).satisfies(any_ex) by {
         if lift_state(a_state_pred()).satisfies(any_ex) {
             // We need a witness to coax Verus that there exists a a_b() action that is enabled when x_is_a()
             let witness_action = Action {
@@ -58,10 +51,7 @@ proof fn prove_a_leads_to_b()
 }
 
 pub open spec fn init_a() -> TempPred {
-    implies(
-        lift_state(init_state_pred()),
-        lift_state(a_state_pred())
-    )
+    implies(lift_state(init_state_pred()), lift_state(a_state_pred()))
 }
 
 proof fn prove_init_a()
@@ -73,10 +63,7 @@ pub open spec fn eventually_b() -> TempPred {
     implies(
         and(
             lift_state(init_state_pred()),
-            and(
-                always(lift_action(next_action_pred())),
-                weak_fairness(a_b_action_pred())
-            )
+            and(always(lift_action(next_action_pred())), weak_fairness(a_b_action_pred()))
         ),
         eventually(lift_state(b_state_pred()))
     )
@@ -87,7 +74,10 @@ proof fn prove_eventually_b()
         valid(eventually_b())
 {
     assert forall |any_ex: Execution| eventually_b().satisfies(any_ex) by {
-        if and(lift_state(init_state_pred()), and(always(lift_action(next_action_pred())), weak_fairness(a_b_action_pred()))).satisfies(any_ex) {
+        if and(
+            lift_state(init_state_pred()),
+            and(always(lift_action(next_action_pred())), weak_fairness(a_b_action_pred()))
+        ).satisfies(any_ex) {
             prove_a_leads_to_b();
             assert(implies(and(always(lift_action(next_action_pred())), weak_fairness(a_b_action_pred())), leads_to(lift_state(a_state_pred()), lift_state(b_state_pred()))).satisfies(any_ex));
             // assert(leads_to(lift_state(a_state_pred()), lift_state(b_state_pred())).satisfies(any_ex));
@@ -104,14 +94,8 @@ proof fn prove_eventually_b()
 
 pub open spec fn b_leads_to_c() -> TempPred {
     implies(
-        and(
-            always(lift_action(next_action_pred())),
-            weak_fairness(b_c_action_pred())
-        ),
-        leads_to(
-            lift_state(b_state_pred()),
-            lift_state(c_state_pred())
-        )
+        and(always(lift_action(next_action_pred())), weak_fairness(b_c_action_pred())),
+        leads_to(lift_state(b_state_pred()), lift_state(c_state_pred()))
     )
 }
 
@@ -139,15 +123,9 @@ pub open spec fn a_leads_to_c() -> TempPred {
     implies(
         and(
             always(lift_action(next_action_pred())),
-            and(
-                weak_fairness(a_b_action_pred()),
-                weak_fairness(b_c_action_pred())
-            )
+            and(weak_fairness(a_b_action_pred()), weak_fairness(b_c_action_pred()))
         ),
-        leads_to(
-            lift_state(a_state_pred()),
-            lift_state(c_state_pred())
-        )
+        leads_to(lift_state(a_state_pred()), lift_state(c_state_pred()))
     )
 }
 
@@ -156,7 +134,10 @@ proof fn prove_a_leads_to_c()
         valid(a_leads_to_c())
 {
     assert forall |any_ex: Execution| a_leads_to_c().satisfies(any_ex) by {
-        if and(and(always(lift_action(next_action_pred())), weak_fairness(a_b_action_pred())), weak_fairness(b_c_action_pred())).satisfies(any_ex) {
+        if and(
+            and(always(lift_action(next_action_pred())), weak_fairness(a_b_action_pred())),
+            weak_fairness(b_c_action_pred())
+        ).satisfies(any_ex) {
             prove_a_leads_to_b();
             assert(implies(and(always(lift_action(next_action_pred())), weak_fairness(a_b_action_pred())), leads_to(lift_state(a_state_pred()), lift_state(b_state_pred()))).satisfies(any_ex));
             // assert(leads_to(lift_state(a_state_pred()), lift_state(b_state_pred())).satisfies(any_ex));
@@ -178,10 +159,7 @@ pub open spec fn eventually_c() -> TempPred {
             lift_state(init_state_pred()),
             and(
                 always(lift_action(next_action_pred())),
-                and(
-                    weak_fairness(a_b_action_pred()),
-                    weak_fairness(b_c_action_pred())
-                )
+                and(weak_fairness(a_b_action_pred()), weak_fairness(b_c_action_pred()))
             )
         ),
         eventually(lift_state(c_state_pred()))
@@ -193,7 +171,13 @@ proof fn prove_eventually_c()
         valid(eventually_c())
 {
     assert forall |any_ex: Execution| eventually_c().satisfies(any_ex) by {
-        if and(lift_state(init_state_pred()), and(always(lift_action(next_action_pred())), and(weak_fairness(a_b_action_pred()), weak_fairness(b_c_action_pred())))).satisfies(any_ex) {
+        if and(
+            lift_state(init_state_pred()),
+            and(
+                always(lift_action(next_action_pred())),
+                and(weak_fairness(a_b_action_pred()), weak_fairness(b_c_action_pred()))
+            )
+        ).satisfies(any_ex) {
             prove_a_leads_to_c();
             assert(implies(and(always(lift_action(next_action_pred())), and(weak_fairness(a_b_action_pred()), weak_fairness(b_c_action_pred()))), leads_to(lift_state(a_state_pred()), lift_state(c_state_pred()))).satisfies(any_ex));
             // assert(leads_to(lift_state(a_state_pred()), lift_state(c_state_pred())).satisfies(any_ex));
