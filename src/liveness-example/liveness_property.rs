@@ -11,19 +11,19 @@ use builtin_macros::*;
 
 verus! {
 
-pub open spec fn a_state_pred() -> StatePred {
+spec fn a_state_pred() -> StatePred {
     StatePred::new(|state: SimpleState| state.x === ABC::A)
 }
 
-pub open spec fn b_state_pred() -> StatePred {
+spec fn b_state_pred() -> StatePred {
     StatePred::new(|state: SimpleState| state.x === ABC::B)
 }
 
-pub open spec fn c_state_pred() -> StatePred {
+spec fn c_state_pred() -> StatePred {
     StatePred::new(|state: SimpleState| state.x === ABC::C)
 }
 
-pub open spec fn a_leads_to_b() -> TempPred {
+spec fn a_leads_to_b() -> TempPred {
     implies(
         and(always(lift_action(next_action_pred())), weak_fairness(a_b_action_pred())),
         leads_to(lift_state(a_state_pred()), lift_state(b_state_pred()))
@@ -50,7 +50,7 @@ proof fn prove_a_leads_to_b()
     wf1(next_action_pred(), a_b_action_pred(), a_state_pred(), b_state_pred());
 }
 
-pub open spec fn init_a() -> TempPred {
+spec fn init_a() -> TempPred {
     implies(lift_state(init_state_pred()), lift_state(a_state_pred()))
 }
 
@@ -59,7 +59,7 @@ proof fn prove_init_a()
         valid(init_a())
 {}
 
-pub open spec fn eventually_b() -> TempPred {
+spec fn eventually_b() -> TempPred {
     implies(
         and(
             lift_state(init_state_pred()),
@@ -92,7 +92,7 @@ proof fn prove_eventually_b()
     };
 }
 
-pub open spec fn b_leads_to_c() -> TempPred {
+spec fn b_leads_to_c() -> TempPred {
     implies(
         and(always(lift_action(next_action_pred())), weak_fairness(b_c_action_pred())),
         leads_to(lift_state(b_state_pred()), lift_state(c_state_pred()))
@@ -119,7 +119,7 @@ proof fn prove_b_leads_to_c()
     wf1(next_action_pred(), b_c_action_pred(), b_state_pred(), c_state_pred());
 }
 
-pub open spec fn a_leads_to_c() -> TempPred {
+spec fn a_leads_to_c() -> TempPred {
     implies(
         and(
             always(lift_action(next_action_pred())),
@@ -153,7 +153,7 @@ proof fn prove_a_leads_to_c()
     };
 }
 
-pub open spec fn eventually_c() -> TempPred {
+spec fn eventually_c() -> TempPred {
     implies(
         and(
             lift_state(init_state_pred()),
