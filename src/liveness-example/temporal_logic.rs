@@ -11,17 +11,17 @@ use builtin_macros::*;
 verus! {
 
 pub open spec fn lift_state(state_pred: StatePred) -> TempPred {
-    TempPred::new(|ex: Execution| state_pred.satisfies(ex[0]))
+    TempPred::new(|ex: Execution| state_pred.satisfied_by(ex[0]))
 }
 
 pub open spec fn lift_state_prime(state_pred: StatePred) -> TempPred {
-    TempPred::new(|ex: Execution| state_pred.satisfies(ex[1]))
+    TempPred::new(|ex: Execution| state_pred.satisfied_by(ex[1]))
 }
 
 pub open spec fn lift_action(action_pred: ActionPred) -> TempPred {
     TempPred::new(|ex: Execution|
         exists |a: Action|
-            #[trigger] action_pred.satisfies(a) && a.state === ex[0] && a.state_prime === ex[1]
+            #[trigger] action_pred.satisfied_by(a) && a.state === ex[0] && a.state_prime === ex[1]
     )
 }
 
@@ -34,28 +34,28 @@ pub open spec fn later(ex: Execution) -> Execution {
 }
 
 pub open spec fn always(temp_pred: TempPred) -> TempPred {
-    TempPred::new(|ex:Execution| forall |i:nat| i<ex.len() && #[trigger] temp_pred.satisfies(suffix(ex, i)))
+    TempPred::new(|ex:Execution| forall |i:nat| i<ex.len() && #[trigger] temp_pred.satisfied_by(suffix(ex, i)))
 }
 
 pub open spec fn not(temp_pred: TempPred) -> TempPred {
     // This solution is a bit hacky
     temp_pred.not()
     // But the following will significantly slow down SMT solver
-    // TempPred::new(|ex:Execution| !temp_pred.satisfies(ex))
+    // TempPred::new(|ex:Execution| !temp_pred.satisfied_by(ex))
 }
 
 pub open spec fn and(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
     // This solution is a bit hacky
     temp_pred_a.and(temp_pred_b)
     // But the following will significantly slow down SMT solver
-    // TempPred::new(|ex:Execution| temp_pred_a.satisfies(ex) && temp_pred_b.satisfies(ex))
+    // TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
 }
 
 pub open spec fn or(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
     // This solution is a bit hacky
     temp_pred_a.or(temp_pred_b)
     // But the following will significantly slow down SMT solver
-    // TempPred::new(|ex:Execution| temp_pred_a.satisfies(ex) || temp_pred_b.satisfies(ex))
+    // TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) || temp_pred_b.satisfied_by(ex))
 }
 
 pub open spec fn eventually(temp_pred: TempPred) -> TempPred {
@@ -71,7 +71,7 @@ pub open spec fn leads_to(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempP
 }
 
 pub open spec fn enabled(action_pred: ActionPred) -> TempPred {
-    lift_state(StatePred::new(|s: SimpleState| exists |a: Action| #[trigger] action_pred.satisfies(a) && a.state === s))
+    lift_state(StatePred::new(|s: SimpleState| exists |a: Action| #[trigger] action_pred.satisfied_by(a) && a.state === s))
 }
 
 pub open spec fn weak_fairness(action_pred: ActionPred) -> TempPred {
@@ -79,14 +79,14 @@ pub open spec fn weak_fairness(action_pred: ActionPred) -> TempPred {
 }
 
 pub open spec fn valid(temp_pred: TempPred) -> bool {
-    forall |ex:Execution| temp_pred.satisfies(ex)
+    forall |ex:Execution| temp_pred.satisfied_by(ex)
 }
 
 #[verifier(external_body)]
 pub proof fn init_invariant(init: StatePred, next: ActionPred, inv: StatePred)
     requires
-        forall |s: SimpleState| init.satisfies(s) ==> inv.satisfies(s),
-        forall |a: Action| #[trigger] inv.satisfies(a.state) && next.satisfies(a) ==> inv.satisfies(a.state_prime),
+        forall |s: SimpleState| init.satisfied_by(s) ==> inv.satisfied_by(s),
+        forall |a: Action| #[trigger] inv.satisfied_by(a.state) && next.satisfied_by(a) ==> inv.satisfied_by(a.state_prime),
     ensures
         valid(implies(
             and(lift_state(init), always(lift_action(next))),

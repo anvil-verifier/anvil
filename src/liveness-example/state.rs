@@ -39,7 +39,7 @@ impl StatePred {
         }
     }
 
-    pub open spec fn satisfies(self, state: SimpleState) -> bool {
+    pub open spec fn satisfied_by(self, state: SimpleState) -> bool {
         self.pred.contains(state)
     }
 }
@@ -55,7 +55,7 @@ impl ActionPred {
         }
     }
 
-    pub open spec fn satisfies(self, action: Action) -> bool {
+    pub open spec fn satisfied_by(self, action: Action) -> bool {
         self.pred.contains(action)
     }
 }
@@ -71,7 +71,7 @@ impl TempPred {
         }
     }
 
-    pub open spec fn satisfies(self, execution: Execution) -> bool {
+    pub open spec fn satisfied_by(self, execution: Execution) -> bool {
         self.pred.contains(execution)
     }
 
