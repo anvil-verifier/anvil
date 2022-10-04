@@ -25,6 +25,12 @@ verus! {
 /// by applying the state predicate to the first state of the execution (behavior).
 ///
 /// See P, Q, I in Fig 5.
+///
+/// Note:
+/// lift_state, as well as lift_state_prime and lift_action, does not belong to the original temporal logic
+/// because temporal logic always talks about execution/behavior from the very beginning so there is no need to lift anything.
+/// Since Verus does not have native support for temporal logic,
+/// lift_xxx allows us to implement temporal predicates on top of state/action predicates.
 
 pub open spec fn lift_state(state_pred: StatePred) -> TempPred {
     TempPred::new(|ex: Execution| state_pred.satisfied_by(ex[0]))
