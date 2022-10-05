@@ -12,15 +12,15 @@ use builtin_macros::*;
 verus! {
 
 spec fn a_state_pred() -> StatePred {
-    StatePred::new(|state: SimpleState| state.x === ABC::A)
+    StatePred::new(|state: State| state.x === ABC::A)
 }
 
 spec fn b_state_pred() -> StatePred {
-    StatePred::new(|state: SimpleState| state.x === ABC::B)
+    StatePred::new(|state: State| state.x === ABC::B)
 }
 
 spec fn c_state_pred() -> StatePred {
-    StatePred::new(|state: SimpleState| state.x === ABC::C)
+    StatePred::new(|state: State| state.x === ABC::C)
 }
 
 spec fn a_leads_to_b() -> TempPred {
@@ -41,7 +41,7 @@ proof fn prove_a_leads_to_b()
             // We need a witness to coax Verus that there exists a a_b() action that is enabled when x_is_a()
             let witness_action = Action {
                 state: any_ex[0],
-                state_prime: SimpleState {
+                state_prime: State {
                     x: ABC::B,
                     happy: any_ex[0].happy,
                 }
@@ -125,7 +125,7 @@ proof fn prove_b_leads_to_c()
             // We need a witness to coax Verus that there exists a b_c() action that is enabled when x_is_b()
             let witness_action = Action {
                 state: any_ex[0],
-                state_prime: SimpleState {
+                state_prime: State {
                     x: ABC::C,
                     happy: any_ex[0].happy,
                 }
