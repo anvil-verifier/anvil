@@ -286,7 +286,7 @@ pub proof fn wf1<State>(next: ActionPred<State>, forward: ActionPred<State>, p: 
         valid(p.lift().implies(enabled(forward))),
     ensures
         valid(always(next.lift()).and(weak_fairness(forward)).implies(
-            p.lift().leads_to(q.lift())
+            p.leads_to(q)
         )),
 {}
 
@@ -294,7 +294,7 @@ pub proof fn wf1<State>(next: ActionPred<State>, forward: ActionPred<State>, p: 
 pub proof fn leads_to_apply<State>(p: StatePred<State>, q: StatePred<State>)
     ensures
         valid(
-            p.lift().and(p.lift().leads_to(q.lift())).implies(
+            p.lift().and(p.leads_to(q)).implies(
                 eventually(q.lift())
             )
         ),
@@ -304,11 +304,7 @@ pub proof fn leads_to_apply<State>(p: StatePred<State>, q: StatePred<State>)
 pub proof fn leads_to_trans<State>(p: StatePred<State>, q: StatePred<State>, r: StatePred<State>)
     ensures
         valid(
-            p.lift().leads_to(q.lift()).and(
-                q.lift().leads_to(r.lift())
-            ).implies(
-                p.lift().leads_to(r.lift())
-            )
+            p.leads_to(q).and(q.leads_to(r)).implies(p.leads_to(r))
         ),
 {}
 
