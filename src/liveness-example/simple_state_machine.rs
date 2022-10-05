@@ -8,6 +8,17 @@ use builtin_macros::*;
 
 verus! {
 
+pub enum ABC {
+    A,
+    B,
+    C,
+}
+
+pub struct SimpleState {
+    pub x: ABC,
+    pub happy: bool,
+}
+
 pub open spec fn init(s: SimpleState) -> bool {
     &&& s.x === ABC::A
     &&& s.happy

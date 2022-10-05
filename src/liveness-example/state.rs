@@ -8,17 +8,6 @@ use builtin_macros::*;
 
 verus! {
 
-pub enum ABC {
-    A,
-    B,
-    C,
-}
-
-pub struct SimpleState {
-    pub x: ABC,
-    pub happy: bool,
-}
-
 pub struct Action<T> {
     pub state: T,
     pub state_prime: T,
