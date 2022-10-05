@@ -32,16 +32,16 @@ verus! {
 /// Since Verus does not have native support for temporal logic,
 /// lift_xxx allows us to implement temporal predicates on top of state/action predicates.
 
-pub open spec fn lift_state(state_pred: StatePred) -> TempPred {
-    TempPred::new(|ex: Execution| state_pred.satisfied_by(ex[0]))
+pub open spec fn lift_state<T>(state_pred: StatePred<T>) -> TempPred<T> {
+    TempPred::new(|ex: Execution<T>| state_pred.satisfied_by(ex[0]))
 }
 
 /// Similar to lift_state except that it applies the state predicate to the second state.
 ///
 /// See P', Q' in Fig 5.
 
-pub open spec fn lift_state_prime(state_pred: StatePred) -> TempPred {
-    TempPred::new(|ex: Execution| state_pred.satisfied_by(ex[1]))
+pub open spec fn lift_state_prime<T>(state_pred: StatePred<T>) -> TempPred<T> {
+    TempPred::new(|ex: Execution<T>| state_pred.satisfied_by(ex[1]))
 }
 
 /// Transforms an action predicate to a temporal predicate
@@ -49,22 +49,22 @@ pub open spec fn lift_state_prime(state_pred: StatePred) -> TempPred {
 ///
 /// See A, B, N, M in Fig 5.
 
-pub open spec fn lift_action(action_pred: ActionPred) -> TempPred {
-    TempPred::new(|ex: Execution|
-        exists |a: Action|
+pub open spec fn lift_action<T>(action_pred: ActionPred<T>) -> TempPred<T> {
+    TempPred::new(|ex: Execution<T>|
+        exists |a: Action<T>|
             #[trigger] action_pred.satisfied_by(a) && a.state === ex[0] && a.state_prime === ex[1]
     )
 }
 
 /// Takes an execution `ex` and returns its suffix starting from `idx`.
 
-pub open spec fn suffix(ex: Execution, idx: nat) -> Execution {
+pub open spec fn suffix<T>(ex: Execution<T>, idx: nat) -> Execution<T> {
     ex.subrange(idx as int, ex.len() as int)
 }
 
 /// Returns the suffix by removing the first state in `ex`.
 
-pub open spec fn later(ex: Execution) -> Execution {
+pub open spec fn later<T>(ex: Execution<T>) -> Execution<T> {
     suffix(ex, 1)
 }
 
@@ -75,7 +75,7 @@ pub open spec fn later(ex: Execution) -> Execution {
 /// TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
 /// ```
 
-pub open spec fn not(temp_pred: TempPred) -> TempPred {
+pub open spec fn not<T>(temp_pred: TempPred<T>) -> TempPred<T> {
     temp_pred.not()
 }
 
@@ -86,7 +86,7 @@ pub open spec fn not(temp_pred: TempPred) -> TempPred {
 /// TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
 /// ```
 
-pub open spec fn and(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
+pub open spec fn and<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
     temp_pred_a.and(temp_pred_b)
 }
 
@@ -97,13 +97,13 @@ pub open spec fn and(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
 /// TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
 /// ```
 
-pub open spec fn or(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
+pub open spec fn or<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
     temp_pred_a.or(temp_pred_b)
 }
 
 /// `==>` for temporal predicates.
 
-pub open spec fn implies(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
+pub open spec fn implies<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
     or(not(temp_pred_a), temp_pred_b)
 }
 
@@ -112,8 +112,8 @@ pub open spec fn implies(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPr
 /// Defined in 3.1.
 /// See [] (box) in Fig 5.
 
-pub open spec fn always(temp_pred: TempPred) -> TempPred {
-    TempPred::new(|ex:Execution| forall |i:nat| i<ex.len() && #[trigger] temp_pred.satisfied_by(suffix(ex, i)))
+pub open spec fn always<T>(temp_pred: TempPred<T>) -> TempPred<T> {
+    TempPred::new(|ex:Execution<T>| forall |i:nat| i<ex.len() && #[trigger] temp_pred.satisfied_by(suffix(ex, i)))
 }
 
 /// Returns a temporal predicate that is satisfied iff `temp_pred` is satisfied on at least one suffix of the execution.
@@ -121,7 +121,7 @@ pub open spec fn always(temp_pred: TempPred) -> TempPred {
 /// Defined in 3.2.1.
 /// See <> (diamond) in Fig 5.
 
-pub open spec fn eventually(temp_pred: TempPred) -> TempPred {
+pub open spec fn eventually<T>(temp_pred: TempPred<T>) -> TempPred<T> {
     not(always(not(temp_pred)))
 }
 
@@ -131,7 +131,7 @@ pub open spec fn eventually(temp_pred: TempPred) -> TempPred {
 /// Defined in 3.2.3.
 /// See ~~> (squiggly arrow) in Fig 5.
 
-pub open spec fn leads_to(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempPred {
+pub open spec fn leads_to<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
     always(implies(temp_pred_a, eventually(temp_pred_b)))
 }
 
@@ -143,8 +143,8 @@ pub open spec fn leads_to(temp_pred_a: TempPred, temp_pred_b: TempPred) -> TempP
 ///
 /// Note: it says whether the action *can possibly* happen, rather than whether the action *actually does* happen!
 
-pub open spec fn enabled(action_pred: ActionPred) -> TempPred {
-    lift_state(StatePred::new(|s: SimpleState| exists |a: Action| #[trigger] action_pred.satisfied_by(a) && a.state === s))
+pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> TempPred<T> {
+    lift_state(StatePred::new(|s: T| exists |a: Action<T>| #[trigger] action_pred.satisfied_by(a) && a.state === s))
 }
 
 /// Returns a temporal predicate that is satisfied
@@ -165,7 +165,7 @@ pub open spec fn enabled(action_pred: ActionPred) -> TempPred {
 ///
 /// See WF in Fig 5.
 
-pub open spec fn weak_fairness(action_pred: ActionPred) -> TempPred {
+pub open spec fn weak_fairness<T>(action_pred: ActionPred<T>) -> TempPred<T> {
     leads_to(always(enabled(action_pred)), lift_action(action_pred))
 }
 
@@ -173,15 +173,15 @@ pub open spec fn weak_fairness(action_pred: ActionPred) -> TempPred {
 /// Defined in 3.3.
 /// See |= in Fig 5.
 
-pub open spec fn valid(temp_pred: TempPred) -> bool {
-    forall |ex:Execution| temp_pred.satisfied_by(ex)
+pub open spec fn valid<T>(temp_pred: TempPred<T>) -> bool {
+    forall |ex: Execution<T>| temp_pred.satisfied_by(ex)
 }
 
 #[verifier(external_body)]
-pub proof fn init_invariant(init: StatePred, next: ActionPred, inv: StatePred)
+pub proof fn init_invariant<T>(init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>)
     requires
-        forall |s: SimpleState| init.satisfied_by(s) ==> inv.satisfied_by(s),
-        forall |a: Action| #[trigger] inv.satisfied_by(a.state) && next.satisfied_by(a) ==> inv.satisfied_by(a.state_prime),
+        forall |s: T| init.satisfied_by(s) ==> inv.satisfied_by(s),
+        forall |a: Action<T>| #[trigger] inv.satisfied_by(a.state) && next.satisfied_by(a) ==> inv.satisfied_by(a.state_prime),
     ensures
         valid(implies(
             and(lift_state(init), always(lift_action(next))),
@@ -192,7 +192,7 @@ pub proof fn init_invariant(init: StatePred, next: ActionPred, inv: StatePred)
 /// See WF1 in Fig 5.
 
 #[verifier(external_body)]
-pub proof fn wf1(next: ActionPred, forward: ActionPred, p: StatePred, q: StatePred)
+pub proof fn wf1<T>(next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
         valid(implies(
             and(lift_state(p), lift_action(next)),
@@ -214,7 +214,7 @@ pub proof fn wf1(next: ActionPred, forward: ActionPred, p: StatePred, q: StatePr
 {}
 
 #[verifier(external_body)]
-pub proof fn leads_to_apply(p: StatePred, q: StatePred)
+pub proof fn leads_to_apply<T>(p: StatePred<T>, q: StatePred<T>)
     ensures
         valid(implies(
             and(
@@ -226,7 +226,7 @@ pub proof fn leads_to_apply(p: StatePred, q: StatePred)
 {}
 
 #[verifier(external_body)]
-pub proof fn leads_to_trans(p: StatePred, q: StatePred, r: StatePred)
+pub proof fn leads_to_trans<T>(p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     ensures
         valid(implies(
             and(
