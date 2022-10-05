@@ -4,6 +4,7 @@
 #![allow(unused_imports)]
 use crate::apis::*;
 use crate::common::*;
+use crate::kubernetes_core_resources::*;
 use builtin::*;
 use builtin_macros::*;
 

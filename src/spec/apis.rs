@@ -4,6 +4,7 @@
 #![allow(unused_imports)]
 use crate::common::*;
 use crate::custom_controller_var::*;
+use crate::kubernetes_core_resources::*;
 use crate::dict::*;
 use crate::pervasive::{map::*, option::*};
 use builtin::*;
@@ -18,65 +19,6 @@ pub enum ReconcileStep {
     CustomReconcileStep(CustomReconcileStep), // The argument is defined by the controller developer
     Retry,
     Done,
-}
-
-// TODO: we should strictly follow the object layout in
-// https://github.com/kubernetes/kubernetes/blob/release-1.25/staging/src/k8s.io/apimachinery/pkg/apis/meta/v1/types.go
-
-#[derive(PartialEq, Eq)]
-pub struct ObjectMetaL {
-    pub name: StringL,
-    pub namespace: StringL,
-    // TODO: use OwnerReferences instead of owner_key
-    pub owner_key: ObjectKey,
-}
-
-#[derive(PartialEq, Eq)]
-pub struct PodL {
-    pub metadata: ObjectMetaL,
-}
-
-impl PodL {
-    pub open spec fn key(&self) -> ObjectKey {
-        ObjectKey{
-            object_type: StringL::Pod,
-            namespace: self.metadata.namespace,
-            name: self.metadata.name,
-        }
-    }
-}
-
-#[derive(PartialEq, Eq)]
-pub struct ConfigMapL {
-    pub metadata: ObjectMetaL,
-}
-
-impl ConfigMapL {
-    pub open spec fn key(&self) -> ObjectKey {
-        ObjectKey{
-            object_type: StringL::ConfigMap,
-            namespace: self.metadata.namespace,
-            name: self.metadata.name,
-        }
-    }
-}
-
-#[derive(PartialEq, Eq)]
-#[is_variant]
-pub enum KubernetesObject {
-    Pod(PodL),
-    ConfigMap(ConfigMapL),
-    CustomResourceObject(CustomResourceObject),
-}
-
-impl KubernetesObject {
-    pub open spec fn key(&self) -> ObjectKey {
-        match *self {
-            KubernetesObject::Pod(p) => p.key(),
-            KubernetesObject::ConfigMap(cm) => cm.key(),
-            KubernetesObject::CustomResourceObject(cro) => cro.key(),
-        }
-    }
 }
 
 pub struct ClusterStateImpl {
@@ -167,14 +109,8 @@ impl APIOpResponse {
         &&& self.api_op_request.well_formed()
         // TODO: revisit this branch
         &&& (!self.success ==> self.optional_object.is_None())
-        &&& (self.success ==> self.optional_object.is_Some()
-            && match self.api_op_request.api_op {
-                APIOp::Get{object_key} => self.optional_object.get_Some_0().key() === object_key,
-                APIOp::Create{object_key, ..} => self.optional_object.get_Some_0().key() === object_key,
-                APIOp::Update{object_key, ..} => self.optional_object.get_Some_0().key() === object_key,
-                APIOp::Delete{object_key} => self.optional_object.get_Some_0().key() === object_key,
-            }
-        )
+        &&& self.success ==> self.optional_object.is_Some()
+        &&& self.api_op_request.api_op.key() === self.optional_object.get_Some_0().key()
     }
 
     pub open spec fn key(&self) -> ObjectKey {

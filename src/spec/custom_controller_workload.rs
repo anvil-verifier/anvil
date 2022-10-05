@@ -4,6 +4,7 @@
 #![allow(unused_imports)]
 use crate::apis::*;
 use crate::common::*;
+use crate::kubernetes_core_resources::*;
 use crate::custom_controller_var::*;
 use crate::pervasive::option::*;
 use builtin::*;
