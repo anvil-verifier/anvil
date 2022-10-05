@@ -246,7 +246,7 @@ pub open spec fn enabled<State>(action_pred: ActionPred<State>) -> TempPred<Stat
 /// See WF in Fig 5.
 
 pub open spec fn weak_fairness<State>(action_pred: ActionPred<State>) -> TempPred<State> {
-    leads_to(always(enabled(action_pred)), action_pred.lift())
+    always(enabled(action_pred)).leads_to(action_pred.lift())
 }
 
 // TODO move these proofs to a _v file
@@ -256,19 +256,19 @@ pub open spec fn weak_fairness<State>(action_pred: ActionPred<State>) -> TempPre
 /// See |= in Fig 5.
 
 pub open spec fn valid<State>(temp_pred: TempPred<State>) -> bool {
-    forall |ex:Execution| temp_pred.satisfied_by(ex)
+    forall |ex:Execution<State>| temp_pred.satisfied_by(ex)
 }
 
 #[verifier(external_body)]
 pub proof fn init_invariant<State>(init: StatePred<State>, next: ActionPred<State>, inv: StatePred<State>)
     requires
         forall |s: State| init.satisfied_by(s) ==> inv.satisfied_by(s),
-        forall |a: Action| #[trigger] inv.satisfied_by(a.state) && next.satisfied_by(a) ==> inv.satisfied_by(a.state_prime),
+        forall |a: Action<State>| #[trigger] inv.satisfied_by(a.s1) && next.satisfied_by(a) ==> inv.satisfied_by(a.s2),
     ensures
-        valid(implies(
-            and(lift_state(init), always(lift_action(next))),
-            always(lift_state(inv))
-        ))
+        valid(
+            init.lift().and(always(next.lift())).implies(
+                always(inv.lift()))
+        )
 {}
 
 /// See WF1 in Fig 5.
@@ -276,49 +276,40 @@ pub proof fn init_invariant<State>(init: StatePred<State>, next: ActionPred<Stat
 #[verifier(external_body)]
 pub proof fn wf1<State>(next: ActionPred<State>, forward: ActionPred<State>, p: StatePred<State>, q: StatePred<State>)
     requires
-        valid(implies(
-            and(lift_state(p), lift_action(next)),
-            or(lift_state_prime(p), lift_state_prime(q))
+        valid(p.lift().and(next.lift()).implies(
+                p.lift_primed().or(q.lift_primed())
         )),
-        valid(implies(
-            and(
-                lift_state(p),
-                and(lift_action(next), lift_action(forward))
-            ),
-            lift_state_prime(q)
-        )),
-        valid(implies(lift_state(p), enabled(forward))),
+        valid(p.lift().and(
+              next.lift().and(forward.lift())).implies(
+                q.lift_primed()),
+        ),
+        valid(p.lift().implies(enabled(forward))),
     ensures
-        valid(implies(
-            and(always(lift_action(next)), weak_fairness(forward)),
-            leads_to(lift_state(p), lift_state(q))
-        )),
-{}
-
-/*
-#[verifier(external_body)]
-pub proof fn leads_to_apply(p: StatePred, q: StatePred)
-    ensures
-        valid(implies(
-            and(
-                lift_state(p),
-                leads_to(lift_state(p), lift_state(q))
-            ),
-            eventually(lift_state(q))
+        valid(always(next.lift()).and(weak_fairness(forward)).implies(
+            p.lift().leads_to(q.lift())
         )),
 {}
 
 #[verifier(external_body)]
-pub proof fn leads_to_trans(p: StatePred, q: StatePred, r: StatePred)
+pub proof fn leads_to_apply<State>(p: StatePred<State>, q: StatePred<State>)
     ensures
-        valid(implies(
-            and(
-                leads_to(lift_state(p), lift_state(q)),
-                leads_to(lift_state(q),lift_state(r))
-            ),
-            leads_to(lift_state(p), lift_state(r))
-        )),
+        valid(
+            p.lift().and(p.lift().leads_to(q.lift())).implies(
+                eventually(q.lift())
+            )
+        ),
 {}
-*/
+
+#[verifier(external_body)]
+pub proof fn leads_to_trans<State>(p: StatePred<State>, q: StatePred<State>, r: StatePred<State>)
+    ensures
+        valid(
+            p.lift().leads_to(q.lift()).and(
+                q.lift().leads_to(r.lift())
+            ).implies(
+                p.lift().leads_to(r.lift())
+            )
+        ),
+{}
 
 }
