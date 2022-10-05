@@ -24,7 +24,7 @@ pub struct StatePred<#[verifier(maybe_negative)] T> {
 }
 
 impl<T> StatePred<T> {
-    pub open spec fn new<F: Fn(T) -> bool>(pred: F) -> StatePred<T> {
+    pub open spec fn new<F: Fn(T) -> bool>(pred: F) -> Self {
         StatePred {
             pred: Set::new(|state: T| pred(state)),
         }
@@ -40,7 +40,7 @@ pub struct ActionPred<T> {
 }
 
 impl<T> ActionPred<T> {
-    pub open spec fn new<F: Fn(Action<T>) -> bool>(pred: F) -> ActionPred<T> {
+    pub open spec fn new<F: Fn(Action<T>) -> bool>(pred: F) -> Self {
         ActionPred {
             pred: Set::new(|action: Action<T>| pred(action)),
         }
@@ -56,7 +56,7 @@ pub struct TempPred<T> {
 }
 
 impl<T> TempPred<T> {
-    pub open spec fn new<F: Fn(Execution<T>) -> bool>(pred: F) -> TempPred<T> {
+    pub open spec fn new<F: Fn(Execution<T>) -> bool>(pred: F) -> Self {
         TempPred {
             pred: Set::new(|execution: Execution<T>| pred(execution)),
         }
@@ -67,19 +67,19 @@ impl<T> TempPred<T> {
     }
 
     // This is a bit hacky as we do not want to expose pred to outside
-    pub open spec fn not(self) -> TempPred<T> {
+    pub open spec fn not(self) -> Self {
         TempPred {
             pred: self.pred.complement()
         }
     }
 
-    pub open spec fn and(self, temp_pred: TempPred<T>) -> TempPred<T> {
+    pub open spec fn and(self, temp_pred: Self) -> Self {
         TempPred {
             pred: self.pred.intersect(temp_pred.pred)
         }
     }
 
-    pub open spec fn or(self, temp_pred: TempPred<T>) -> TempPred<T> {
+    pub open spec fn or(self, temp_pred: Self) -> Self {
         TempPred {
             pred: self.pred.union(temp_pred.pred)
         }
