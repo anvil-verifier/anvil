@@ -68,7 +68,7 @@ pub open spec fn later<T>(ex: Execution<T>) -> Execution<T> {
     suffix(ex, 1)
 }
 
-/// `!` for temporal predicates.
+/// `~` for temporal predicates in TLA+ (i.e., `!` in Verus).
 ///
 /// There is an alternative implementation below but it will significantly slow down SMT solver:
 /// ```rust
@@ -79,7 +79,7 @@ pub open spec fn not<T>(temp_pred: TempPred<T>) -> TempPred<T> {
     temp_pred.not()
 }
 
-/// `/\` (or `&&`) for temporal predicates.
+/// `/\` for temporal predicates in TLA+ (i.e., `&&` in Verus).
 ///
 /// There is an alternative implementation below but it will significantly slow down SMT solver:
 /// ```rust
@@ -90,7 +90,7 @@ pub open spec fn and<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> T
     temp_pred_a.and(temp_pred_b)
 }
 
-/// `\/` (or `||`) for temporal predicates.
+/// `\/` for temporal predicates in TLA+ (i.e., `||` in Verus).
 ///
 /// There is an alternative implementation below but it will significantly slow down SMT solver:
 /// ```rust
@@ -101,35 +101,35 @@ pub open spec fn or<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> Te
     temp_pred_a.or(temp_pred_b)
 }
 
-/// `==>` for temporal predicates.
+/// `=>` for temporal predicates in TLA+ (i.e., `==>` in Verus).
 
 pub open spec fn implies<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
     or(not(temp_pred_a), temp_pred_b)
 }
 
+/// `[]` for temporal predicates in TLA+.
 /// Returns a temporal predicate that is satisfied iff `temp_pred` is satisfied on every suffix of the execution.
 ///
 /// Defined in 3.1.
-/// See [] (box) in Fig 5.
 
 pub open spec fn always<T>(temp_pred: TempPred<T>) -> TempPred<T> {
     TempPred::new(|ex:Execution<T>| forall |i:nat| i<ex.len() && #[trigger] temp_pred.satisfied_by(suffix(ex, i)))
 }
 
+/// `<>` for temporal predicates in TLA+.
 /// Returns a temporal predicate that is satisfied iff `temp_pred` is satisfied on at least one suffix of the execution.
 ///
 /// Defined in 3.2.1.
-/// See <> (diamond) in Fig 5.
 
 pub open spec fn eventually<T>(temp_pred: TempPred<T>) -> TempPred<T> {
     not(always(not(temp_pred)))
 }
 
+/// `~>` for temporal predicates in TLA+.
 /// Returns a temporal predicate that is satisfied
 /// iff it is always the case that `temp_pred_a` getting satisfied implies `temp_pred_b` eventually getting satisfied.
 ///
 /// Defined in 3.2.3.
-/// See ~~> (squiggly arrow) in Fig 5.
 
 pub open spec fn leads_to<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
     always(implies(temp_pred_a, eventually(temp_pred_b)))
@@ -139,7 +139,6 @@ pub open spec fn leads_to<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>)
 /// iff `action_pred` can be satisfied by any possible execution starting with the current state.
 ///
 /// Defined in 2.7.
-/// See Enabled in Fig 5.
 ///
 /// Note: it says whether the action *can possibly* happen, rather than whether the action *actually does* happen!
 
@@ -154,24 +153,23 @@ pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> TempPred<T> {
 ///
 /// Defined in 5.3 in a different form.
 /// We can prove the two forms are the same:
-///     []E(A) ~~> A
-/// === []([]E(A) -> <>A)
-/// === [](![]E(A) \/ <>A)
-/// === [](!!<>!E(A) \/ <>A)    <--- apply always_to_eventually
-/// === [](<>!E(A) \/ <>A)
-/// === []<>(!E(A) \/ A)      <--- apply eventually_or
-/// === []<>!E(A) \/ []<>A    <--- apply always_eventually_distrib
-/// === []<>A \/ []<>!E(A)
-///
-/// See WF in Fig 5.
+///    []E(A) ~> A
+/// == []([]E(A) => <>A)
+/// == [](~[]E(A) \/ <>A)
+/// == [](~~<>~E(A) \/ <>A)  <--- apply always_to_eventually
+/// == [](<>~E(A) \/ <>A)
+/// == []<>(~E(A) \/ A)      <--- apply eventually_or
+/// == []<>~E(A) \/ []<>A    <--- apply always_eventually_distrib
+/// == []<>A \/ []<>~E(A)
 
 pub open spec fn weak_fairness<T>(action_pred: ActionPred<T>) -> TempPred<T> {
     leads_to(always(enabled(action_pred)), lift_action(action_pred))
 }
 
+/// `|=` for temporal predicates in TLA+.
 /// Returns true iff `temp_pred` is satisfied by all possible executions (behaviors).
+///
 /// Defined in 3.3.
-/// See |= in Fig 5.
 
 pub open spec fn valid<T>(temp_pred: TempPred<T>) -> bool {
     forall |ex: Execution<T>| temp_pred.satisfied_by(ex)
