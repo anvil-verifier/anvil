@@ -30,7 +30,7 @@ spec fn a_leads_to_b() -> TempPred<SimpleState> {
     )
 }
 
-/// Proves |= []next /\ WF(a_b) ==> (a ~~> b)
+/// Proves `|= []next /\ WF(a_b) => (a ~> b)`
 
 proof fn prove_a_leads_to_b()
     ensures
@@ -56,7 +56,7 @@ spec fn init_a() -> TempPred<SimpleState> {
     implies(lift_state(init_state_pred()), lift_state(a_state_pred()))
 }
 
-/// Proves |= init ==> a
+/// Proves `|= init => a`
 
 proof fn prove_init_a()
     ensures
@@ -73,7 +73,7 @@ spec fn eventually_b() -> TempPred<SimpleState> {
     )
 }
 
-/// Proves |= init /\ []next /\ WF(a_b) ==> <> b
+/// Proves `|= init /\ []next /\ WF(a_b) => <> b`
 
 proof fn prove_eventually_b()
     ensures
@@ -114,7 +114,7 @@ spec fn b_leads_to_c() -> TempPred<SimpleState> {
     )
 }
 
-/// Proves |= []next /\ WF(b_c) ==> (b ~~> c)
+/// Proves `|= []next /\ WF(b_c) => (b ~> c)`
 
 proof fn prove_b_leads_to_c()
     ensures
@@ -147,7 +147,7 @@ spec fn a_leads_to_c() -> TempPred<SimpleState> {
     )
 }
 
-/// Proves |= []next /\ WF(a_b) /\ WF(b_c) ==> (a ~~> c)
+/// Proves `|= []next /\ WF(a_b) /\ WF(b_c) => (a ~> c)`
 
 proof fn prove_a_leads_to_c()
     ensures
@@ -195,7 +195,7 @@ spec fn eventually_c() -> TempPred<SimpleState> {
     )
 }
 
-/// Proves |= init /\ []next /\ WF(a_b) /\ WF(b_c) ==> <>c
+/// Proves `|= init /\ []next /\ WF(a_b) /\ WF(b_c) => <>c`
 
 proof fn prove_eventually_c()
     ensures
