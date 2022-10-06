@@ -58,7 +58,6 @@ pub open spec fn lift_action<T>(action_pred: ActionPred<T>) -> TempPred<T> {
 /// Takes an execution `ex` and returns its suffix starting from `pos`.
 
 pub open spec fn suffix<T>(ex: Execution<T>, pos: nat) -> Execution<T> {
-    // ex.subrange(idx as int, ex.len() as int)
     |i: nat| ex(i + pos)
 }
 
