@@ -56,6 +56,13 @@ pub open spec fn lift_action<T>(action_pred: ActionPred<T>) -> TempPred<T> {
     )
 }
 
+/// Takes an action predicate and returns a state predicate
+/// which is satisfied iff the action can be taken starting from this state
+
+pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> StatePred<T> {
+    StatePred::new(|s: T| exists |a: Action<T>| #[trigger] action_pred.satisfied_by(a) && a.state === s)
+}
+
 /// Takes an execution `ex` and returns its suffix starting from `idx`.
 
 pub open spec fn suffix<T>(ex: Execution<T>, idx: nat) -> Execution<T> {
@@ -145,7 +152,6 @@ pub open spec fn leads_to<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>)
 
 pub open spec fn tla_enabled<T>(action_pred: ActionPred<T>) -> TempPred<T> {
     lift_state(enabled(action_pred))
-    // lift_state(StatePred::new(|s: T| exists |a: Action<T>| #[trigger] action_pred.satisfied_by(a) && a.state === s))
 }
 
 /// Returns a temporal predicate that is satisfied
