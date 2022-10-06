@@ -113,7 +113,7 @@ pub open spec fn implies<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) 
 /// Defined in 3.1.
 
 pub open spec fn always<T>(temp_pred: TempPred<T>) -> TempPred<T> {
-    TempPred::new(|ex:Execution<T>| forall |i:nat| i<ex.len() && #[trigger] temp_pred.satisfied_by(suffix(ex, i)))
+    TempPred::new(|ex:Execution<T>| forall |i:nat| i<ex.len() ==> #[trigger] temp_pred.satisfied_by(suffix(ex, i)))
 }
 
 /// `<>` for temporal predicates in TLA+.
