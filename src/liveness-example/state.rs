@@ -14,8 +14,6 @@ pub struct Action<T> {
 
 pub type Execution<T> = FnSpec(nat) -> T;
 
-/// TODO: Make StatePred, ActionPred and TempPred generic and take any form of state/action/execution
-
 pub struct StatePred<#[verifier(maybe_negative)] T> {
     // It is better to keep pred private,
     // but Verus does not allow open method to access private field
