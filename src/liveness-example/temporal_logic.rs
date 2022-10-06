@@ -56,13 +56,6 @@ pub open spec fn lift_action<T>(action_pred: ActionPred<T>) -> TempPred<T> {
     )
 }
 
-/// Takes an action predicate and returns a state predicate
-/// which is satisfied iff the action can be taken starting from this state
-
-pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> StatePred<T> {
-    StatePred::new(|s: T| exists |a: Action<T>| #[trigger] action_pred.satisfied_by(a) && a.state === s)
-}
-
 /// Takes an execution `ex` and returns its suffix starting from `idx`.
 
 pub open spec fn suffix<T>(ex: Execution<T>, idx: nat) -> Execution<T> {
@@ -142,8 +135,21 @@ pub open spec fn leads_to<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>)
     always(implies(temp_pred_a, eventually(temp_pred_b)))
 }
 
+/// Returns a state predicate that is satisfied
+/// iff `action_pred` can be satisfied by any possible following state and the current state
+///
+/// enabled() is used for checking whether a particular action is enabled at this **state**
+///
+/// Note: it says whether the action *can possibly* happen, rather than whether the action *actually does* happen!
+
+pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> StatePred<T> {
+    StatePred::new(|s: T| exists |a: Action<T>| #[trigger] action_pred.satisfied_by(a) && a.state === s)
+}
+
 /// Returns a temporal predicate that is satisfied
 /// iff `action_pred` can be satisfied by any possible execution starting with the current state.
+///
+/// Different from enabled(), tla_enabled() is used for checking whether the action is enabled at (the first state) of this **execution**
 ///
 /// Defined in 2.7.
 /// See Enabled in Fig 5.
