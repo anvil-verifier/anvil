@@ -135,19 +135,32 @@ pub open spec fn leads_to<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>)
     always(implies(temp_pred_a, eventually(temp_pred_b)))
 }
 
+/// Returns a state predicate that is satisfied
+/// iff `action_pred` can be satisfied by any possible following state and the current state
+///
+/// enabled() is used for checking whether a particular action is enabled at this **state**
+///
+/// Note: it says whether the action *can possibly* happen, rather than whether the action *actually does* happen!
+
+pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> StatePred<T> {
+    StatePred::new(|s: T| exists |a: Action<T>| #[trigger] action_pred.satisfied_by(a) && a.state === s)
+}
+
 /// Returns a temporal predicate that is satisfied
 /// iff `action_pred` can be satisfied by any possible execution starting with the current state.
+///
+/// Different from enabled(), tla_enabled() is used for checking whether the action is enabled at (the first state) of this **execution**
 ///
 /// Defined in 2.7.
 ///
 /// Note: it says whether the action *can possibly* happen, rather than whether the action *actually does* happen!
 
-pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> TempPred<T> {
-    lift_state(StatePred::new(|s: T| exists |a: Action<T>| #[trigger] action_pred.satisfied_by(a) && a.state === s))
+pub open spec fn tla_enabled<T>(action_pred: ActionPred<T>) -> TempPred<T> {
+    lift_state(enabled(action_pred))
 }
 
 /// Returns a temporal predicate that is satisfied
-/// iff `always(enabled(action_pred))` getting satisfied leads to `lift_action(action_pred)` getting satisfied.
+/// iff `always(tla_enabled(action_pred))` getting satisfied leads to `lift_action(action_pred)` getting satisfied.
 ///
 /// It says whether it is *always* the case that if the action is *always* enabled, the action *eventually* happens.
 ///
@@ -163,7 +176,7 @@ pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> TempPred<T> {
 /// == []<>A \/ []<>~E(A)
 
 pub open spec fn weak_fairness<T>(action_pred: ActionPred<T>) -> TempPred<T> {
-    leads_to(always(enabled(action_pred)), lift_action(action_pred))
+    leads_to(always(tla_enabled(action_pred)), lift_action(action_pred))
 }
 
 /// `|=` for temporal predicates in TLA+.
@@ -203,7 +216,7 @@ pub proof fn wf1<T>(next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>
             ),
             lift_state_prime(q)
         )),
-        valid(implies(lift_state(p), enabled(forward))),
+        valid(implies(lift_state(p), tla_enabled(forward))),
     ensures
         valid(implies(
             and(always(lift_action(next)), weak_fairness(forward)),

@@ -36,7 +36,7 @@ proof fn prove_a_leads_to_b()
     ensures
         valid(a_leads_to_b())
 {
-    assert forall |any_ex: Execution<SimpleState>| implies(lift_state(a_state_pred()), enabled(a_b_action_pred())).satisfied_by(any_ex) by {
+    assert forall |any_ex: Execution<SimpleState>| implies(lift_state(a_state_pred()), tla_enabled(a_b_action_pred())).satisfied_by(any_ex) by {
         if lift_state(a_state_pred()).satisfied_by(any_ex) {
             // We need a witness to coax Verus that there exists a a_b() action that is enabled when x_is_a()
             let witness_action = Action {
@@ -120,7 +120,7 @@ proof fn prove_b_leads_to_c()
     ensures
         valid(b_leads_to_c())
 {
-    assert forall |any_ex: Execution<SimpleState>| implies(lift_state(b_state_pred()), enabled(b_c_action_pred())).satisfied_by(any_ex) by {
+    assert forall |any_ex: Execution<SimpleState>| implies(lift_state(b_state_pred()), tla_enabled(b_c_action_pred())).satisfied_by(any_ex) by {
         if lift_state(b_state_pred()).satisfied_by(any_ex) {
             // We need a witness to coax Verus that there exists a b_c() action that is enabled when x_is_b()
             let witness_action = Action {
