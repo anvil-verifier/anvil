@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::pervasive::seq::*;
 use crate::pervasive::set::*;
 use builtin::*;
 use builtin_macros::*;
@@ -13,7 +12,7 @@ pub struct Action<T> {
     pub state_prime: T,
 }
 
-pub type Execution<T> = Seq<T>;
+pub type Execution<T> = FnSpec(nat) -> T;
 
 /// TODO: Make StatePred, ActionPred and TempPred generic and take any form of state/action/execution
 
@@ -24,7 +23,7 @@ pub struct StatePred<#[verifier(maybe_negative)] T> {
 }
 
 impl<T> StatePred<T> {
-    pub open spec fn new<F: Fn(T) -> bool>(pred: F) -> Self {
+    pub open spec fn new(pred: FnSpec(T) -> bool) -> Self {
         StatePred {
             pred: Set::new(|state: T| pred(state)),
         }
@@ -40,7 +39,7 @@ pub struct ActionPred<T> {
 }
 
 impl<T> ActionPred<T> {
-    pub open spec fn new<F: Fn(Action<T>) -> bool>(pred: F) -> Self {
+    pub open spec fn new(pred: FnSpec(Action<T>) -> bool) -> Self {
         ActionPred {
             pred: Set::new(|action: Action<T>| pred(action)),
         }
@@ -51,12 +50,12 @@ impl<T> ActionPred<T> {
     }
 }
 
-pub struct TempPred<T> {
+pub struct TempPred<#[verifier(maybe_negative)] T> {
     pub pred: Set<Execution<T>>,
 }
 
 impl<T> TempPred<T> {
-    pub open spec fn new<F: Fn(Execution<T>) -> bool>(pred: F) -> Self {
+    pub open spec fn new(pred: FnSpec(Execution<T>) -> bool) -> Self {
         TempPred {
             pred: Set::new(|execution: Execution<T>| pred(execution)),
         }
