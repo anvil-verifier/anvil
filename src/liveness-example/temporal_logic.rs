@@ -158,6 +158,16 @@ pub open spec fn valid<T>(temp_pred: TempPred<T>) -> bool {
     forall |ex: Execution<T>| temp_pred.satisfied_by(ex)
 }
 
+pub proof fn apply_implies_auto<T>()
+    ensures forall |ex: Execution<T>, p, q: TempPred<T>|
+        #[trigger] valid(implies(p, q)) && p.satisfied_by(ex) ==> #[trigger] q.satisfied_by(ex),
+{
+    assert forall |ex: Execution<T>, p, q: TempPred<T>|
+        #[trigger] valid(implies(p, q)) && p.satisfied_by(ex) implies #[trigger] q.satisfied_by(ex) by {
+        assert(implies(p, q).satisfied_by(ex));
+    };
+}
+
 #[verifier(external_body)]
 pub proof fn init_invariant<T>(init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>)
     requires
