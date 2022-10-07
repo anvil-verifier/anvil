@@ -62,7 +62,7 @@ pub open spec fn lift_action<T>(action_pred: ActionPred<T>) -> TempPred<T> {
 /// ```
 
 pub open spec fn not<T>(temp_pred: TempPred<T>) -> TempPred<T> {
-    temp_pred.not()
+    TempPred::not(temp_pred)
 }
 
 /// `/\` for temporal predicates in TLA+ (i.e., `&&` in Verus).
@@ -73,7 +73,7 @@ pub open spec fn not<T>(temp_pred: TempPred<T>) -> TempPred<T> {
 /// ```
 
 pub open spec fn and<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
-    temp_pred_a.and(temp_pred_b)
+    TempPred::and(temp_pred_a, temp_pred_b)
 }
 
 /// `\/` for temporal predicates in TLA+ (i.e., `||` in Verus).
@@ -84,7 +84,7 @@ pub open spec fn and<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> T
 /// ```
 
 pub open spec fn or<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
-    temp_pred_a.or(temp_pred_b)
+    TempPred::or(temp_pred_a, temp_pred_b)
 }
 
 /// `=>` for temporal predicates in TLA+ (i.e., `==>` in Verus).
