@@ -56,6 +56,10 @@ impl<T> StatePred<T> {
     pub open spec fn lift(self) -> TempPred<T> {
         TempPred::new(|ex: Execution<T>| self.satisfied_by(ex.head()))
     }
+
+    pub open spec fn lift_prime(self) -> TempPred<T> {
+        TempPred::new(|ex: Execution<T>| self.satisfied_by(ex.head_next()))
+    }
 }
 
 pub struct ActionPred<T> {
@@ -87,10 +91,6 @@ impl<T> TempPred<T> {
         TempPred {
             pred: pred,
         }
-    }
-
-    pub open spec fn prime(self) -> Self {
-        TempPred::new(|ex: Execution<T>| self.satisfied_by(ex.suffix(1)))
     }
 
     pub open spec fn satisfied_by(self, execution: Execution<T>) -> bool {

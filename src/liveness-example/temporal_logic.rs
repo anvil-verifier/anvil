@@ -152,14 +152,14 @@ pub proof fn wf1<T>(next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>
     requires
         valid(implies(
             and(p.lift(), next.lift()),
-            or(p.lift().prime(), q.lift().prime())
+            or(p.lift_prime(), q.lift_prime())
         )),
         valid(implies(
             and(
                 p.lift(),
                 and(next.lift(), forward.lift())
             ),
-            q.lift().prime()
+            q.lift_prime()
         )),
         valid(implies(p.lift(), tla_enabled(forward))),
     ensures
