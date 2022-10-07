@@ -83,6 +83,8 @@ proof fn prove_eventually_c()
     // Now we have:
     // assert(valid(implies(sm_spec(), leads_to(lift_state(a_state_pred()), lift_state(c_state_pred())))));
 
+    // leads_to_apply gives us eventually from leads_to
+    // Note that init_state_pred(), as part of sm_spec(), implies a_state_pred()
     leads_to_apply::<SimpleState>(a_state_pred(), c_state_pred());
     // Now we have:
     // assert(valid(implies(sm_spec(), eventually(lift_state(c_state_pred())))));

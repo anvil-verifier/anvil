@@ -204,6 +204,9 @@ pub proof fn wf1<T>(next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>
         )),
 {}
 
+/// Proves eventually q if we have p and p leads_to q.
+/// `|= p /\ (p ~> q) -> <>q`
+
 #[verifier(external_body)]
 pub proof fn leads_to_apply<T>(p: StatePred<T>, q: StatePred<T>)
     ensures
@@ -215,6 +218,9 @@ pub proof fn leads_to_apply<T>(p: StatePred<T>, q: StatePred<T>)
             eventually(lift_state(q))
         )),
 {}
+
+/// Proves transitivity of leads_to.
+/// `|= (p ~> q) /\ (q ~> r) -> (p ~> r)`
 
 #[verifier(external_body)]
 pub proof fn leads_to_trans<T>(p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
