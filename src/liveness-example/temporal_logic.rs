@@ -208,14 +208,14 @@ pub proof fn wf1<T>(next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>
 /// `|= p /\ (p ~> q) -> <>q`
 
 #[verifier(external_body)]
-pub proof fn leads_to_apply<T>(p: StatePred<T>, q: StatePred<T>)
+pub proof fn leads_to_apply<T>(p: TempPred<T>, q: TempPred<T>)
     ensures
         valid(implies(
             and(
-                lift_state(p),
-                leads_to(lift_state(p), lift_state(q))
+                p,
+                leads_to(p, q)
             ),
-            eventually(lift_state(q))
+            eventually(q)
         )),
 {}
 
@@ -223,14 +223,14 @@ pub proof fn leads_to_apply<T>(p: StatePred<T>, q: StatePred<T>)
 /// `|= (p ~> q) /\ (q ~> r) -> (p ~> r)`
 
 #[verifier(external_body)]
-pub proof fn leads_to_trans<T>(p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
+pub proof fn leads_to_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     ensures
         valid(implies(
             and(
-                leads_to(lift_state(p), lift_state(q)),
-                leads_to(lift_state(q),lift_state(r))
+                leads_to(p, q),
+                leads_to(q, r)
             ),
-            leads_to(lift_state(p), lift_state(r))
+            leads_to(p, r)
         )),
 {}
 
