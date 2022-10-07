@@ -12,7 +12,25 @@ pub struct Action<T> {
     pub state_prime: T,
 }
 
-pub type Execution<T> = FnSpec(nat) -> T;
+pub struct Execution<T> {
+    pub nat_to_state: FnSpec(nat) -> T,
+}
+
+impl<T> Execution<T> {
+    pub open spec fn head(self) -> T {
+        (self.nat_to_state)(0)
+    }
+
+    pub open spec fn head_next(self) -> T {
+        (self.nat_to_state)(1)
+    }
+
+    pub open spec fn suffix(self, pos: nat) -> Self {
+        Execution {
+            nat_to_state: |i: nat| (self.nat_to_state)(i + pos),
+        }
+    }
+}
 
 pub struct StatePred<#[verifier(maybe_negative)] T> {
     // It is better to keep pred private,
