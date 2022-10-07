@@ -129,7 +129,7 @@ pub open spec fn leads_to<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>)
 /// Note: it says whether the action *can possibly* happen, rather than whether the action *actually does* happen!
 
 pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> StatePred<T> {
-    StatePred::new(|s: T| exists |a: Action<T>| #[trigger] action_pred.satisfied_by(a) && a.state === s)
+    StatePred::new(|s: T| exists |s_prime: T| #[trigger] action_pred.satisfied_by(Action{state: s, state_prime: s_prime}))
 }
 
 /// Returns a temporal predicate that is satisfied
