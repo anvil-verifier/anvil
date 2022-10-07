@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::pervasive::set::*;
-use crate::simple_state_machine::*;
 use crate::state::*;
 use builtin::*;
 use builtin_macros::*;
@@ -55,42 +54,27 @@ pub open spec fn lift_action<T>(action_pred: ActionPred<T>) -> TempPred<T> {
 }
 
 /// `~` for temporal predicates in TLA+ (i.e., `!` in Verus).
-///
-/// There is an alternative implementation below but it will significantly slow down SMT solver:
-/// ```rust
-/// TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
-/// ```
 
 pub open spec fn not<T>(temp_pred: TempPred<T>) -> TempPred<T> {
-    TempPred::not(temp_pred)
+    TempPred::new(|ex: Execution<T>| !temp_pred.satisfied_by(ex))
 }
 
 /// `/\` for temporal predicates in TLA+ (i.e., `&&` in Verus).
-///
-/// There is an alternative implementation below but it will significantly slow down SMT solver:
-/// ```rust
-/// TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
-/// ```
 
 pub open spec fn and<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
-    TempPred::and(temp_pred_a, temp_pred_b)
+    TempPred::new(|ex: Execution<T>| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
 }
 
 /// `\/` for temporal predicates in TLA+ (i.e., `||` in Verus).
-///
-/// There is an alternative implementation below but it will significantly slow down SMT solver:
-/// ```rust
-/// TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
-/// ```
 
 pub open spec fn or<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
-    TempPred::or(temp_pred_a, temp_pred_b)
+    TempPred::new(|ex: Execution<T>| temp_pred_a.satisfied_by(ex) || temp_pred_b.satisfied_by(ex))
 }
 
 /// `=>` for temporal predicates in TLA+ (i.e., `==>` in Verus).
 
 pub open spec fn implies<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
-    or(not(temp_pred_a), temp_pred_b)
+    TempPred::new(|ex: Execution<T>| temp_pred_a.satisfied_by(ex) ==> temp_pred_b.satisfied_by(ex))
 }
 
 /// `[]` for temporal predicates in TLA+.

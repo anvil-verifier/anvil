@@ -76,7 +76,12 @@ impl<T> TempPred<T> {
         }
     }
 
-    // This is a bit hacky as we do not want to expose pred to outside
+    pub open spec fn satisfied_by(self, execution: Execution<T>) -> bool {
+        (self.pred)(execution)
+    }
+
+/* deprecated
+
     pub open spec fn not(temp_pred: Self) -> Self {
         TempPred {
             pred: |ex: Execution<T>| !(temp_pred.pred)(ex),
@@ -94,10 +99,8 @@ impl<T> TempPred<T> {
             pred: |ex: Execution<T>| (temp_pred_a.pred)(ex) || (temp_pred_b.pred)(ex),
         }
     }
+*/
 
-    pub open spec fn satisfied_by(self, execution: Execution<T>) -> bool {
-        (self.pred)(execution)
-    }
 }
 
 }
