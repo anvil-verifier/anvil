@@ -52,7 +52,7 @@ impl<T> StatePred<T> {
     /// Temporal logic always talks about execution/behavior from the very beginning
     /// so there is no need to lift anything.
     /// Since Verus does not have native support for temporal logic,
-    /// lift_xxx allows us to implement temporal predicates on top of state/action predicates.
+    /// lift allows us to implement temporal predicates on top of state/action predicates.
     pub open spec fn lift(self) -> TempPred<T> {
         TempPred::new(|ex: Execution<T>| self.satisfied_by(ex.head()))
     }
