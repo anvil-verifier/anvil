@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::pervasive::set::*;
 use builtin::*;
 use builtin_macros::*;
 
@@ -35,70 +34,73 @@ impl<T> Execution<T> {
 pub struct StatePred<#[verifier(maybe_negative)] T> {
     // It is better to keep pred private,
     // but Verus does not allow open method to access private field
-    pub pred: Set<T>,
+    pub pred: FnSpec(T) -> bool,
 }
 
 impl<T> StatePred<T> {
     pub open spec fn new(pred: FnSpec(T) -> bool) -> Self {
         StatePred {
-            pred: Set::new(|state: T| pred(state)),
+            pred: pred,
         }
     }
 
     pub open spec fn satisfied_by(self, state: T) -> bool {
-        self.pred.contains(state)
+        (self.pred)(state)
     }
 }
 
 pub struct ActionPred<T> {
-    pub pred: Set<Action<T>>,
+    pub pred: FnSpec(Action<T>) -> bool,
 }
 
 impl<T> ActionPred<T> {
     pub open spec fn new(pred: FnSpec(Action<T>) -> bool) -> Self {
         ActionPred {
-            pred: Set::new(|action: Action<T>| pred(action)),
+            pred: pred,
         }
     }
 
     pub open spec fn satisfied_by(self, action: Action<T>) -> bool {
-        self.pred.contains(action)
+        (self.pred)(action)
     }
 }
 
 pub struct TempPred<#[verifier(maybe_negative)] T> {
-    pub pred: Set<Execution<T>>,
+    pub pred: FnSpec(Execution<T>) -> bool,
 }
 
 impl<T> TempPred<T> {
     pub open spec fn new(pred: FnSpec(Execution<T>) -> bool) -> Self {
         TempPred {
-            pred: Set::new(|execution: Execution<T>| pred(execution)),
+            pred: pred,
         }
     }
 
     pub open spec fn satisfied_by(self, execution: Execution<T>) -> bool {
-        self.pred.contains(execution)
+        (self.pred)(execution)
     }
 
-    // This is a bit hacky as we do not want to expose pred to outside
-    pub open spec fn not(self) -> Self {
+/* deprecated
+
+    pub open spec fn not(temp_pred: Self) -> Self {
         TempPred {
-            pred: self.pred.complement()
+            pred: |ex: Execution<T>| !(temp_pred.pred)(ex),
         }
     }
 
-    pub open spec fn and(self, temp_pred: Self) -> Self {
+    pub open spec fn and(temp_pred_a: Self, temp_pred_b: Self) -> Self {
         TempPred {
-            pred: self.pred.intersect(temp_pred.pred)
+            pred: |ex: Execution<T>| (temp_pred_a.pred)(ex) && (temp_pred_b.pred)(ex),
         }
     }
 
-    pub open spec fn or(self, temp_pred: Self) -> Self {
+    pub open spec fn or(temp_pred_a: Self, temp_pred_b: Self) -> Self {
         TempPred {
-            pred: self.pred.union(temp_pred.pred)
+            pred: |ex: Execution<T>| (temp_pred_a.pred)(ex) || (temp_pred_b.pred)(ex),
         }
     }
+*/
+
 }
 
 }

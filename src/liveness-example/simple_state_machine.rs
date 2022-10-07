@@ -1,8 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::pervasive::set::*;
 use crate::state::*;
+use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
 
@@ -65,6 +65,16 @@ pub open spec fn stutter_action_pred() -> ActionPred<SimpleState> {
 
 pub open spec fn next_action_pred() -> ActionPred<SimpleState> {
     ActionPred::new(|action: Action<SimpleState>| next(action.state, action.state_prime))
+}
+
+pub open spec fn sm_spec() -> TempPred<SimpleState> {
+    and(
+        lift_state(init_state_pred()),
+        and(
+            always(lift_action(next_action_pred())),
+            and(weak_fairness(a_b_action_pred()), weak_fairness(b_c_action_pred()))
+        )
+    )
 }
 
 }

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::pervasive::set::*;
-use crate::simple_state_machine::*;
 use crate::state::*;
 use builtin::*;
 use builtin_macros::*;
@@ -55,42 +54,27 @@ pub open spec fn lift_action<T>(action_pred: ActionPred<T>) -> TempPred<T> {
 }
 
 /// `~` for temporal predicates in TLA+ (i.e., `!` in Verus).
-///
-/// There is an alternative implementation below but it will significantly slow down SMT solver:
-/// ```rust
-/// TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
-/// ```
 
 pub open spec fn not<T>(temp_pred: TempPred<T>) -> TempPred<T> {
-    temp_pred.not()
+    TempPred::new(|ex: Execution<T>| !temp_pred.satisfied_by(ex))
 }
 
 /// `/\` for temporal predicates in TLA+ (i.e., `&&` in Verus).
-///
-/// There is an alternative implementation below but it will significantly slow down SMT solver:
-/// ```rust
-/// TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
-/// ```
 
 pub open spec fn and<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
-    temp_pred_a.and(temp_pred_b)
+    TempPred::new(|ex: Execution<T>| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
 }
 
 /// `\/` for temporal predicates in TLA+ (i.e., `||` in Verus).
-///
-/// There is an alternative implementation below but it will significantly slow down SMT solver:
-/// ```rust
-/// TempPred::new(|ex:Execution| temp_pred_a.satisfied_by(ex) && temp_pred_b.satisfied_by(ex))
-/// ```
 
 pub open spec fn or<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
-    temp_pred_a.or(temp_pred_b)
+    TempPred::new(|ex: Execution<T>| temp_pred_a.satisfied_by(ex) || temp_pred_b.satisfied_by(ex))
 }
 
 /// `=>` for temporal predicates in TLA+ (i.e., `==>` in Verus).
 
 pub open spec fn implies<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
-    or(not(temp_pred_a), temp_pred_b)
+    TempPred::new(|ex: Execution<T>| temp_pred_a.satisfied_by(ex) ==> temp_pred_b.satisfied_by(ex))
 }
 
 /// `[]` for temporal predicates in TLA+.
@@ -129,7 +113,7 @@ pub open spec fn leads_to<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>)
 /// Note: it says whether the action *can possibly* happen, rather than whether the action *actually does* happen!
 
 pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> StatePred<T> {
-    StatePred::new(|s: T| exists |a: Action<T>| #[trigger] action_pred.satisfied_by(a) && a.state === s)
+    StatePred::new(|s: T| exists |s_prime: T| #[trigger] action_pred.satisfied_by(Action{state: s, state_prime: s_prime}))
 }
 
 /// Returns a temporal predicate that is satisfied
@@ -174,6 +158,16 @@ pub open spec fn valid<T>(temp_pred: TempPred<T>) -> bool {
     forall |ex: Execution<T>| temp_pred.satisfied_by(ex)
 }
 
+pub proof fn apply_implies_auto<T>()
+    ensures forall |ex: Execution<T>, p, q: TempPred<T>|
+        #[trigger] valid(implies(p, q)) && p.satisfied_by(ex) ==> #[trigger] q.satisfied_by(ex),
+{
+    assert forall |ex: Execution<T>, p, q: TempPred<T>|
+        #[trigger] valid(implies(p, q)) && p.satisfied_by(ex) implies #[trigger] q.satisfied_by(ex) by {
+        assert(implies(p, q).satisfied_by(ex));
+    };
+}
+
 #[verifier(external_body)]
 pub proof fn init_invariant<T>(init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>)
     requires
@@ -210,6 +204,9 @@ pub proof fn wf1<T>(next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>
         )),
 {}
 
+/// Proves eventually q if we have p and p leads_to q.
+/// `|= p /\ (p ~> q) -> <>q`
+
 #[verifier(external_body)]
 pub proof fn leads_to_apply<T>(p: StatePred<T>, q: StatePred<T>)
     ensures
@@ -221,6 +218,9 @@ pub proof fn leads_to_apply<T>(p: StatePred<T>, q: StatePred<T>)
             eventually(lift_state(q))
         )),
 {}
+
+/// Proves transitivity of leads_to.
+/// `|= (p ~> q) /\ (q ~> r) -> (p ~> r)`
 
 #[verifier(external_body)]
 pub proof fn leads_to_trans<T>(p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
