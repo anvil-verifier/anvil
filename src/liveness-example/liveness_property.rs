@@ -81,19 +81,19 @@ proof fn prove_eventually_c()
     // wf1 gives us a leads_to
     wf1::<SimpleState>(next_action_pred(), a_b_action_pred(), a_state_pred(), b_state_pred());
     // Now we have:
-    // assert(valid(implies(sm_spec(), leads_to(a_temp_pred(), b_temp_pred()))));
+    // assert(valid(implies(sm_spec(), tla_leads_to(a_temp_pred(), b_temp_pred()))));
 
     // a_b_enabled() gives a witness to convince Verus that x === b enables b_c()
     b_c_enabled();
     // wf1 gives us another leads_to
     wf1::<SimpleState>(next_action_pred(), b_c_action_pred(), b_state_pred(), c_state_pred());
     // Now we have:
-    // assert(valid(implies(sm_spec(), leads_to(b_temp_pred(), c_temp_pred()))));
+    // assert(valid(implies(sm_spec(), tla_leads_to(b_temp_pred(), c_temp_pred()))));
 
     // leads_to_trans connects the two leads_to together
     leads_to_trans::<SimpleState>(a_state_pred(), b_state_pred(), c_state_pred());
     // Now we have:
-    // assert(valid(implies(sm_spec(), leads_to(a_temp_pred(), c_temp_pred()))));
+    // assert(valid(implies(sm_spec(), tla_leads_to(a_temp_pred(), c_temp_pred()))));
 
     // leads_to_apply gives us eventually from leads_to
     // Note that init_state_pred(), as part of sm_spec(), implies a_temp_pred()
