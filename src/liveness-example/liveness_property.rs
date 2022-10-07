@@ -40,13 +40,13 @@ proof fn prove_a_leads_to_b()
         if lift_state(a_state_pred()).satisfied_by(any_ex) {
             // We need a witness to coax Verus that there exists a a_b() action that is enabled when x_is_a()
             let witness_action = Action {
-                state: any_ex[0],
+                state: any_ex.head(),
                 state_prime: SimpleState {
                     x: ABC::B,
-                    happy: any_ex[0].happy,
+                    happy: any_ex.head().happy,
                 }
             };
-            assert(a_b_action_pred().satisfied_by(witness_action) && witness_action.state === any_ex[0]);
+            assert(a_b_action_pred().satisfied_by(witness_action) && witness_action.state === any_ex.head());
         }
     };
     wf1::<SimpleState>(next_action_pred(), a_b_action_pred(), a_state_pred(), b_state_pred());
@@ -124,13 +124,13 @@ proof fn prove_b_leads_to_c()
         if lift_state(b_state_pred()).satisfied_by(any_ex) {
             // We need a witness to coax Verus that there exists a b_c() action that is enabled when x_is_b()
             let witness_action = Action {
-                state: any_ex[0],
+                state: any_ex.head(),
                 state_prime: SimpleState {
                     x: ABC::C,
-                    happy: any_ex[0].happy,
+                    happy: any_ex.head().happy,
                 }
             };
-            assert(b_c_action_pred().satisfied_by(witness_action) && witness_action.state === any_ex[0]);
+            assert(b_c_action_pred().satisfied_by(witness_action) && witness_action.state === any_ex.head());
         }
     };
     wf1::<SimpleState>(next_action_pred(), b_c_action_pred(), b_state_pred(), c_state_pred());

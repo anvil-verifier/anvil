@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::pervasive::seq::*;
 use crate::pervasive::set::*;
 use crate::simple_state_machine::*;
 use crate::state::*;
@@ -33,7 +32,7 @@ verus! {
 /// lift_xxx allows us to implement temporal predicates on top of state/action predicates.
 
 pub open spec fn lift_state<T>(state_pred: StatePred<T>) -> TempPred<T> {
-    TempPred::new(|ex: Execution<T>| state_pred.satisfied_by(ex[0]))
+    TempPred::new(|ex: Execution<T>| state_pred.satisfied_by(ex.head()))
 }
 
 /// Similar to lift_state except that it applies the state predicate to the second state.
@@ -41,7 +40,7 @@ pub open spec fn lift_state<T>(state_pred: StatePred<T>) -> TempPred<T> {
 /// See P', Q' in Fig 5.
 
 pub open spec fn lift_state_prime<T>(state_pred: StatePred<T>) -> TempPred<T> {
-    TempPred::new(|ex: Execution<T>| state_pred.satisfied_by(ex[1]))
+    TempPred::new(|ex: Execution<T>| state_pred.satisfied_by(ex.head_next()))
 }
 
 /// Transforms an action predicate to a temporal predicate
@@ -51,21 +50,8 @@ pub open spec fn lift_state_prime<T>(state_pred: StatePred<T>) -> TempPred<T> {
 
 pub open spec fn lift_action<T>(action_pred: ActionPred<T>) -> TempPred<T> {
     TempPred::new(|ex: Execution<T>|
-        exists |a: Action<T>|
-            #[trigger] action_pred.satisfied_by(a) && a.state === ex[0] && a.state_prime === ex[1]
+        exists |a: Action<T>| #[trigger] action_pred.satisfied_by(a) && a.state === ex.head() && a.state_prime === ex.head_next()
     )
-}
-
-/// Takes an execution `ex` and returns its suffix starting from `idx`.
-
-pub open spec fn suffix<T>(ex: Execution<T>, idx: nat) -> Execution<T> {
-    ex.subrange(idx as int, ex.len() as int)
-}
-
-/// Returns the suffix by removing the first state in `ex`.
-
-pub open spec fn later<T>(ex: Execution<T>) -> Execution<T> {
-    suffix(ex, 1)
 }
 
 /// `~` for temporal predicates in TLA+ (i.e., `!` in Verus).
@@ -113,7 +99,7 @@ pub open spec fn implies<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) 
 /// Defined in 3.1.
 
 pub open spec fn always<T>(temp_pred: TempPred<T>) -> TempPred<T> {
-    TempPred::new(|ex:Execution<T>| forall |i:nat| i<ex.len() ==> #[trigger] temp_pred.satisfied_by(suffix(ex, i)))
+    TempPred::new(|ex: Execution<T>| forall |i: nat| #[trigger] temp_pred.satisfied_by(ex.suffix(i)))
 }
 
 /// `<>` for temporal predicates in TLA+.
