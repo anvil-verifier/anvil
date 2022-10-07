@@ -67,7 +67,7 @@ pub open spec fn next_action_pred() -> ActionPred<SimpleState> {
     ActionPred::new(|action: Action<SimpleState>| next(action.state, action.state_prime))
 }
 
-pub open spec fn smspec() -> TempPred<SimpleState> {
+pub open spec fn sm_spec() -> TempPred<SimpleState> {
     and(
         lift_state(init_state_pred()),
         and(

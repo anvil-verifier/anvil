@@ -52,7 +52,7 @@ proof fn b_c_enabled()
 }
 
 spec fn eventually_c() -> TempPred<SimpleState> {
-    implies(smspec(), eventually(lift_state(c_state_pred())))
+    implies(sm_spec(), eventually(lift_state(c_state_pred())))
 }
 
 proof fn prove_eventually_c()
@@ -69,23 +69,23 @@ proof fn prove_eventually_c()
     // wf1 gives us a leads_to
     wf1::<SimpleState>(next_action_pred(), a_b_action_pred(), a_state_pred(), b_state_pred());
     // Now we have:
-    // assert(valid(implies(smspec(), leads_to(lift_state(a_state_pred()), lift_state(b_state_pred())))));
+    // assert(valid(implies(sm_spec(), leads_to(lift_state(a_state_pred()), lift_state(b_state_pred())))));
 
     // a_b_enabled() gives a witness to convince Verus that x === b enables b_c()
     b_c_enabled();
     // wf1 gives us another leads_to
     wf1::<SimpleState>(next_action_pred(), b_c_action_pred(), b_state_pred(), c_state_pred());
     // Now we have:
-    // assert(valid(implies(smspec(), leads_to(lift_state(b_state_pred()), lift_state(c_state_pred())))));
+    // assert(valid(implies(sm_spec(), leads_to(lift_state(b_state_pred()), lift_state(c_state_pred())))));
 
     // leads_to_trans connects the two leads_to together
     leads_to_trans::<SimpleState>(a_state_pred(), b_state_pred(), c_state_pred());
     // Now we have:
-    // assert(valid(implies(smspec(), leads_to(lift_state(a_state_pred()), lift_state(c_state_pred())))));
+    // assert(valid(implies(sm_spec(), leads_to(lift_state(a_state_pred()), lift_state(c_state_pred())))));
 
     leads_to_apply::<SimpleState>(a_state_pred(), c_state_pred());
     // Now we have:
-    // assert(valid(implies(smspec(), eventually(lift_state(c_state_pred())))));
+    // assert(valid(implies(sm_spec(), eventually(lift_state(c_state_pred())))));
 }
 
 }
