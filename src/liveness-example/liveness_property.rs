@@ -22,15 +22,15 @@ spec fn c_state_pred() -> StatePred<SimpleState> {
 }
 
 spec fn a_temp_pred() -> TempPred<SimpleState> {
-    lift_state(a_state_pred())
+    a_state_pred().lift()
 }
 
 spec fn b_temp_pred() -> TempPred<SimpleState> {
-    lift_state(b_state_pred())
+    b_state_pred().lift()
 }
 
 spec fn c_temp_pred() -> TempPred<SimpleState> {
-    lift_state(c_state_pred())
+    c_state_pred().lift()
 }
 
 proof fn a_b_enabled()

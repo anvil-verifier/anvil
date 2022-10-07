@@ -69,9 +69,9 @@ pub open spec fn next_action_pred() -> ActionPred<SimpleState> {
 
 pub open spec fn sm_spec() -> TempPred<SimpleState> {
     and(
-        lift_state(init_state_pred()),
+        init_state_pred().lift(),
         and(
-            always(lift_action(next_action_pred())),
+            always(next_action_pred().lift()),
             and(weak_fairness(a_b_action_pred()), weak_fairness(b_c_action_pred()))
         )
     )
