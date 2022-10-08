@@ -62,25 +62,11 @@ pub open spec fn eventually<T>(temp_pred: TempPred<T>) -> TempPred<T> {
 
 /// `~>` for temporal predicates in TLA+.
 /// Returns a temporal predicate that is satisfied
-/// iff it is always the case that `state_pred_a.lift()` getting satisfied implies `state_pred_b.lift()` eventually getting satisfied.
-///
-/// This version is implemented for directly taking state predicates and lift them inside the function.
-///
-/// Defined in 3.2.3.
-
-pub open spec fn leads_to<T>(state_pred_a: StatePred<T>, state_pred_b: StatePred<T>) -> TempPred<T> {
-    always(implies(state_pred_a.lift(), eventually(state_pred_b.lift())))
-}
-
-/// `~>` for temporal predicates in TLA+.
-/// Returns a temporal predicate that is satisfied
 /// iff it is always the case that `temp_pred_a` getting satisfied implies `temp_pred_b` eventually getting satisfied.
 ///
-/// This version is implemented for taking (lifted) temporal predicates.
-///
 /// Defined in 3.2.3.
 
-pub open spec fn tla_leads_to<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
+pub open spec fn leads_to<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
     always(implies(temp_pred_a, eventually(temp_pred_b)))
 }
 
@@ -125,7 +111,7 @@ pub open spec fn tla_enabled<T>(action_pred: ActionPred<T>) -> TempPred<T> {
 /// == []<>A \/ []<>~E(A)
 
 pub open spec fn weak_fairness<T>(action_pred: ActionPred<T>) -> TempPred<T> {
-    tla_leads_to(always(tla_enabled(action_pred)), action_pred.lift())
+    leads_to(always(tla_enabled(action_pred)), action_pred.lift())
 }
 
 /// `|=` for temporal predicates in TLA+.
@@ -179,7 +165,7 @@ pub proof fn wf1<T>(next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>
     ensures
         valid(implies(
             and(always(next.lift()), weak_fairness(forward)),
-            tla_leads_to(p.lift(), q.lift())
+            leads_to(p.lift(), q.lift())
         )),
 {}
 
@@ -192,7 +178,7 @@ pub proof fn leads_to_apply<T>(p: StatePred<T>, q: StatePred<T>)
         valid(implies(
             and(
                 p.lift(),
-                tla_leads_to(p.lift(), q.lift())
+                leads_to(p.lift(), q.lift())
             ),
             eventually(q.lift())
         )),
@@ -206,10 +192,10 @@ pub proof fn leads_to_trans<T>(p: StatePred<T>, q: StatePred<T>, r: StatePred<T>
     ensures
         valid(implies(
             and(
-                tla_leads_to(p.lift(), q.lift()),
-                tla_leads_to(q.lift(), r.lift())
+                leads_to(p.lift(), q.lift()),
+                leads_to(q.lift(), r.lift())
             ),
-            tla_leads_to(p.lift(), r.lift())
+            leads_to(p.lift(), r.lift())
         )),
 {}
 
