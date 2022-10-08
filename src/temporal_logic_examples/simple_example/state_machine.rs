@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::state::*;
+use crate::pred::*;
 use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
