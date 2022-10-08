@@ -17,10 +17,14 @@ spec fn happy_state_pred() -> StatePred<SimpleState> {
     StatePred::new(|state: SimpleState| happy(state))
 }
 
+spec fn happy_temp_pred() -> TempPred<SimpleState> {
+    happy_state_pred().lift()
+}
+
 spec fn always_happy() -> TempPred<SimpleState> {
     implies(
-        and(lift_state(init_state_pred()), always(lift_action(next_action_pred()))),
-        always(lift_state(happy_state_pred()))
+        and(init_state_pred().lift(), always(next_action_pred().lift())),
+        always(happy_temp_pred())
     )
 }
 

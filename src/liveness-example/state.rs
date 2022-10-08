@@ -47,6 +47,19 @@ impl<T> StatePred<T> {
     pub open spec fn satisfied_by(self, state: T) -> bool {
         (self.pred)(state)
     }
+
+    /// lift does not belong to the original temporal logic.
+    /// Temporal logic always talks about execution/behavior from the very beginning
+    /// so there is no need to lift anything.
+    /// Since Verus does not have native support for temporal logic,
+    /// lift allows us to implement temporal predicates on top of state/action predicates.
+    pub open spec fn lift(self) -> TempPred<T> {
+        TempPred::new(|ex: Execution<T>| self.satisfied_by(ex.head()))
+    }
+
+    pub open spec fn lift_prime(self) -> TempPred<T> {
+        TempPred::new(|ex: Execution<T>| self.satisfied_by(ex.head_next()))
+    }
 }
 
 pub struct ActionPred<T> {
@@ -62,6 +75,10 @@ impl<T> ActionPred<T> {
 
     pub open spec fn satisfied_by(self, action: Action<T>) -> bool {
         (self.pred)(action)
+    }
+
+    pub open spec fn lift(self) -> TempPred<T> {
+        TempPred::new(|ex: Execution<T>| self.satisfied_by(Action{state: ex.head(), state_prime: ex.head_next()}))
     }
 }
 

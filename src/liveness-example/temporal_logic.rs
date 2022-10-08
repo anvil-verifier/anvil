@@ -18,41 +18,6 @@ verus! {
 ///
 /// TODO: Explicitly allow or disallow stuttering step.
 
-
-/// Transforms a state predicate to a temporal predicate
-/// by applying the state predicate to the first state of the execution (behavior).
-///
-/// See P, Q, I in Fig 5.
-///
-/// Note:
-/// lift_state, as well as lift_state_prime and lift_action, does not belong to the original temporal logic
-/// because temporal logic always talks about execution/behavior from the very beginning so there is no need to lift anything.
-/// Since Verus does not have native support for temporal logic,
-/// lift_xxx allows us to implement temporal predicates on top of state/action predicates.
-
-pub open spec fn lift_state<T>(state_pred: StatePred<T>) -> TempPred<T> {
-    TempPred::new(|ex: Execution<T>| state_pred.satisfied_by(ex.head()))
-}
-
-/// Similar to lift_state except that it applies the state predicate to the second state.
-///
-/// See P', Q' in Fig 5.
-
-pub open spec fn lift_state_prime<T>(state_pred: StatePred<T>) -> TempPred<T> {
-    TempPred::new(|ex: Execution<T>| state_pred.satisfied_by(ex.head_next()))
-}
-
-/// Transforms an action predicate to a temporal predicate
-/// by applying the action predicate to the first two states of the execution.
-///
-/// See A, B, N, M in Fig 5.
-
-pub open spec fn lift_action<T>(action_pred: ActionPred<T>) -> TempPred<T> {
-    TempPred::new(|ex: Execution<T>|
-        exists |a: Action<T>| #[trigger] action_pred.satisfied_by(a) && a.state === ex.head() && a.state_prime === ex.head_next()
-    )
-}
-
 /// `~` for temporal predicates in TLA+ (i.e., `!` in Verus).
 
 pub open spec fn not<T>(temp_pred: TempPred<T>) -> TempPred<T> {
@@ -126,11 +91,11 @@ pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> StatePred<T> {
 /// Note: it says whether the action *can possibly* happen, rather than whether the action *actually does* happen!
 
 pub open spec fn tla_enabled<T>(action_pred: ActionPred<T>) -> TempPred<T> {
-    lift_state(enabled(action_pred))
+    enabled(action_pred).lift()
 }
 
 /// Returns a temporal predicate that is satisfied
-/// iff `always(tla_enabled(action_pred))` getting satisfied leads to `lift_action(action_pred)` getting satisfied.
+/// iff `always(tla_enabled(action_pred))` getting satisfied leads to `action_pred.lift()` getting satisfied.
 ///
 /// It says whether it is *always* the case that if the action is *always* enabled, the action *eventually* happens.
 ///
@@ -146,7 +111,7 @@ pub open spec fn tla_enabled<T>(action_pred: ActionPred<T>) -> TempPred<T> {
 /// == []<>A \/ []<>~E(A)
 
 pub open spec fn weak_fairness<T>(action_pred: ActionPred<T>) -> TempPred<T> {
-    leads_to(always(tla_enabled(action_pred)), lift_action(action_pred))
+    leads_to(always(tla_enabled(action_pred)), action_pred.lift())
 }
 
 /// `|=` for temporal predicates in TLA+.
@@ -175,8 +140,8 @@ pub proof fn init_invariant<T>(init: StatePred<T>, next: ActionPred<T>, inv: Sta
         forall |a: Action<T>| #[trigger] inv.satisfied_by(a.state) && next.satisfied_by(a) ==> inv.satisfied_by(a.state_prime),
     ensures
         valid(implies(
-            and(lift_state(init), always(lift_action(next))),
-            always(lift_state(inv))
+            and(init.lift(), always(next.lift())),
+            always(inv.lift())
         ))
 {}
 
@@ -186,21 +151,21 @@ pub proof fn init_invariant<T>(init: StatePred<T>, next: ActionPred<T>, inv: Sta
 pub proof fn wf1<T>(next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
         valid(implies(
-            and(lift_state(p), lift_action(next)),
-            or(lift_state_prime(p), lift_state_prime(q))
+            and(p.lift(), next.lift()),
+            or(p.lift_prime(), q.lift_prime())
         )),
         valid(implies(
             and(
-                lift_state(p),
-                and(lift_action(next), lift_action(forward))
+                p.lift(),
+                and(next.lift(), forward.lift())
             ),
-            lift_state_prime(q)
+            q.lift_prime()
         )),
-        valid(implies(lift_state(p), tla_enabled(forward))),
+        valid(implies(p.lift(), tla_enabled(forward))),
     ensures
         valid(implies(
-            and(always(lift_action(next)), weak_fairness(forward)),
-            leads_to(lift_state(p), lift_state(q))
+            and(always(next.lift()), weak_fairness(forward)),
+            leads_to(p.lift(), q.lift())
         )),
 {}
 
@@ -212,10 +177,10 @@ pub proof fn leads_to_apply<T>(p: StatePred<T>, q: StatePred<T>)
     ensures
         valid(implies(
             and(
-                lift_state(p),
-                leads_to(lift_state(p), lift_state(q))
+                p.lift(),
+                leads_to(p.lift(), q.lift())
             ),
-            eventually(lift_state(q))
+            eventually(q.lift())
         )),
 {}
 
@@ -227,10 +192,10 @@ pub proof fn leads_to_trans<T>(p: StatePred<T>, q: StatePred<T>, r: StatePred<T>
     ensures
         valid(implies(
             and(
-                leads_to(lift_state(p), lift_state(q)),
-                leads_to(lift_state(q),lift_state(r))
+                leads_to(p.lift(), q.lift()),
+                leads_to(q.lift(), r.lift())
             ),
-            leads_to(lift_state(p), lift_state(r))
+            leads_to(p.lift(), r.lift())
         )),
 {}
 
