@@ -122,16 +122,6 @@ pub open spec fn valid<T>(temp_pred: TempPred<T>) -> bool {
     forall |ex: Execution<T>| temp_pred.satisfied_by(ex)
 }
 
-pub proof fn apply_implies_auto<T>()
-    ensures forall |ex: Execution<T>, p, q: TempPred<T>|
-        #[trigger] valid(implies(p, q)) && p.satisfied_by(ex) ==> #[trigger] q.satisfied_by(ex),
-{
-    assert forall |ex: Execution<T>, p, q: TempPred<T>|
-        #[trigger] valid(implies(p, q)) && p.satisfied_by(ex) implies #[trigger] q.satisfied_by(ex) by {
-        assert(implies(p, q).satisfied_by(ex));
-    };
-}
-
 #[verifier(external_body)]
 pub proof fn init_invariant<T>(init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>)
     requires
@@ -168,6 +158,23 @@ pub proof fn wf1<T>(next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>
         )),
 {}
 
+pub proof fn apply_implies_auto<T>()
+    ensures forall |ex: Execution<T>, p, q: TempPred<T>|
+        #[trigger] valid(implies(p, q)) && p.satisfied_by(ex) ==> #[trigger] q.satisfied_by(ex),
+{
+    assert forall |ex: Execution<T>, p, q: TempPred<T>|
+        #[trigger] valid(implies(p, q)) && p.satisfied_by(ex) implies #[trigger] q.satisfied_by(ex) by {
+        assert(implies(p, q).satisfied_by(ex));
+    };
+}
+
+#[verifier(external_body)]
+pub proof fn implies_generalize_auto<T>()
+    ensures
+        forall |p1: TempPred<T>, p2: TempPred<T>|
+            valid(implies(#[trigger] implies(p1, p2), implies(always(p1), always(p2)))),
+{}
+
 /// Proves eventually q if we have p and p leads_to q.
 /// `|= p /\ (p ~> q) -> <>q`
 
@@ -196,6 +203,47 @@ pub proof fn leads_to_trans<T>(p: StatePred<T>, q: StatePred<T>, r: StatePred<T>
             ),
             leads_to(p.lift(), r.lift())
         )),
+{}
+
+#[verifier(external_body)]
+pub proof fn leads_to_weaken<T>(p1: TempPred<T>, p2: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
+    requires
+        valid(implies(p2, p1)),
+        valid(implies(q1, q2)),
+    ensures
+        valid(implies(leads_to(p1, q1), leads_to(p2, q2))),
+{}
+
+pub proof fn leads_to_weaken_auto<T>()
+    ensures
+        forall |p1: TempPred<T>, p2: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>|
+            valid(implies(p2, p1)) && valid(implies(q1, q2)) ==> valid(implies(#[trigger] leads_to(p1, q1), #[trigger] leads_to(p2, q2)))
+{
+    assert forall |p1: TempPred<T>, p2: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>| valid(implies(p2, p1)) && valid(implies(q1, q2))
+    implies valid(implies(#[trigger] leads_to(p1, q1), #[trigger] leads_to(p2, q2))) by {
+        leads_to_weaken(p1, p2, q1, q2);
+    };
+}
+
+#[verifier(external_body)]
+pub proof fn leads_to_or_split<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    ensures
+        valid(implies(and(#[trigger] leads_to(p, r), #[trigger] leads_to(q, r)), leads_to(or(p, q), r))),
+        valid(implies(leads_to(or(p, q), r), and(#[trigger] leads_to(p, r), #[trigger] leads_to(q, r)))),
+{}
+
+#[verifier(external_body)]
+pub proof fn leads_to_assume<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    ensures
+        valid(implies(and(#[trigger] always(r), #[trigger] leads_to(p, q)), leads_to(and(p, r), q))),
+        valid(implies(and(#[trigger] always(r), #[trigger] leads_to(and(p, r), q)), leads_to(p, q))),
+{}
+
+#[verifier(external_body)]
+pub proof fn leads_to_assume_not<T>(p: TempPred<T>, q: TempPred<T>)
+    ensures
+        valid(implies(#[trigger] leads_to(p, q), leads_to(and(p, not(q)), q))),
+        valid(implies(#[trigger] leads_to(and(p, not(q)), q), leads_to(p, q))),
 {}
 
 }
