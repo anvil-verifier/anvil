@@ -126,7 +126,7 @@ pub open spec fn valid<T>(temp_pred: TempPred<T>) -> bool {
 pub proof fn init_invariant<T>(init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>)
     requires
         forall |s: T| init.satisfied_by(s) ==> inv.satisfied_by(s),
-        forall |a: Action<T>| #[trigger] inv.satisfied_by(a.state) && next.satisfied_by(a) ==> inv.satisfied_by(a.state_prime),
+        forall |a: Action<T>| inv.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) ==> inv.satisfied_by(a.state_prime),
     ensures
         valid(implies(
             and(init.lift(), always(next.lift())),
@@ -169,11 +169,19 @@ pub proof fn apply_implies_auto<T>()
 }
 
 #[verifier(external_body)]
+pub proof fn implies_generalize<T>(p1: TempPred<T>, p2: TempPred<T>)
+    ensures
+        valid(implies(p1, p2)) ==> valid(implies(always(p1), always(p2))),
+{}
+
 pub proof fn implies_generalize_auto<T>()
     ensures
-        forall |p1: TempPred<T>, p2: TempPred<T>|
-            valid(implies(#[trigger] implies(p1, p2), implies(always(p1), always(p2)))),
-{}
+        forall |p1: TempPred<T>, p2: TempPred<T>| #[trigger] valid(implies(p1, p2)) ==> valid(implies(always(p1), always(p2))),
+{
+    assert forall |p1: TempPred<T>, p2: TempPred<T>| valid(implies(p1, p2)) implies #[trigger] valid(implies(always(p1), always(p2))) by {
+        implies_generalize::<T>(p1, p2);
+    }
+}
 
 /// Proves eventually q if we have p and p leads_to q.
 /// `|= p /\ (p ~> q) -> <>q`
