@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::pred::*;
 use crate::simple_example::state_machine::*;
 use crate::temporal_logic::*;
 use builtin::*;
@@ -64,7 +63,7 @@ proof fn b_c_enabled()
 }
 
 spec fn eventually_c() -> TempPred<SimpleState> {
-    implies(sm_spec(), eventually(c_temp_pred()))
+    sm_spec().implies(eventually(c_temp_pred()))
 }
 
 proof fn prove_eventually_c()
