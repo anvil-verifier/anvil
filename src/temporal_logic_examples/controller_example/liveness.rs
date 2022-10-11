@@ -314,4 +314,30 @@ proof fn prove_eventually_obj2()
     leads_to_apply::<CState>(init_state_pred(), obj2_state_pred());
 }
 
+spec fn eventually_obj1_and_obj2() -> TempPred<CState> {
+    implies(
+        sm_spec(),
+        eventually(and(obj1_state_pred().lift(), obj2_state_pred().lift()))
+    )
+}
+
+proof fn prove_eventually_obj1_and_obj2()
+    ensures
+        valid(eventually_obj1_and_obj2())
+{
+    apply_implies_auto::<CState>();
+
+    prove_eventually_obj2();
+    // assert(valid(implies(sm_spec(), eventually(obj2_state_pred().lift()))));
+
+    prove_safety();
+    // assert(valid(implies(sm_spec(), always(safety_state_pred().lift()))));
+
+    always_and_eventually::<CState>(safety_state_pred().lift(), obj2_state_pred().lift());
+    // assert(valid(implies(sm_spec(), eventually(and(safety_state_pred().lift(), obj2_state_pred().lift())))));
+
+    eventually_weaken::<CState>(and(safety_state_pred().lift(), obj2_state_pred().lift()), and(obj1_state_pred().lift(), obj2_state_pred().lift()));
+
+}
+
 }
