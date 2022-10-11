@@ -29,6 +29,11 @@ spec fn obj2_state_pred() -> StatePred<CState> {
 proof fn reconcile_enabled()
     ensures forall |s: CState| send1_pre_state_pred().satisfied_by(s) || send2_pre_state_pred().satisfied_by(s) <==> #[trigger] enabled(reconcile_action_pred()).satisfied_by(s)
 {
+    /*
+     * This is just a witness to show that reconcile is enabled
+     * by send1_pre_state_pred() or send2_pre_state_pred()
+     */
+
     assert forall |s: CState| send1_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(reconcile_action_pred()).satisfied_by(s) by {
         if send1_pre_state_pred().satisfied_by(s) {
             let witness_action = Action {
@@ -60,6 +65,11 @@ proof fn reconcile_enabled()
 proof fn create1_enabled()
     ensures forall |s: CState| create1_pre_state_pred().satisfied_by(s) <==> #[trigger] enabled(create1_action_pred()).satisfied_by(s)
 {
+    /*
+     * This is just a witness to show that create1 is enabled
+     * by create1_pre_state_pred()
+     */
+
     assert forall |s: CState| create1_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(create1_action_pred()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
@@ -75,6 +85,11 @@ proof fn create1_enabled()
 proof fn create2_enabled()
     ensures forall |s: CState| create2_pre_state_pred().satisfied_by(s) <==> #[trigger] enabled(create2_action_pred()).satisfied_by(s)
 {
+    /*
+     * This is just a witness to show that create2 is enabled
+     * by create2_pre_state_pred()
+     */
+
     assert forall |s: CState| create2_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(create2_action_pred()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
@@ -98,6 +113,12 @@ proof fn prove_init_leads_to_obj1()
     ensures
         valid(init_leads_to_obj1())
 {
+    /*
+     * This proof is straightforward:
+     * We get each individual leads_to from wf1 by providing the witness
+     * and connect the leads_to together using leads_to_trans rule.
+     */
+
     apply_implies_auto::<CState>();
 
     leads_to_weaken_auto::<CState>();
@@ -129,6 +150,11 @@ proof fn prove_obj1_leads_to_obj2()
     ensures
         valid(obj1_leads_to_obj2())
 {
+    /*
+     * This proof is interesting and quite complex.
+     * Fasten your seat belt.
+     */
+
     /*
      * apply_implies_auto is used to automatically apply the following rule:
      * valid(implies(p, q)) && p.satisfied_by(ex) ==> q.satisfied_by(ex)
@@ -285,6 +311,11 @@ proof fn prove_eventually_obj1()
     ensures
         valid(eventually_obj1())
 {
+    /*
+     * This proof is simple: just take the leads_to from prove_init_leads_to_obj1()
+     * and use leads_to_apply rule to get eventually from leads_to.
+     */
+
     apply_implies_auto::<CState>();
 
     prove_init_leads_to_obj1();
@@ -303,6 +334,13 @@ proof fn prove_eventually_obj2()
     ensures
         valid(eventually_obj2())
 {
+    /*
+     * This proof is also simple: just take the two leads_to
+     * from prove_init_leads_to_obj1() and prove_obj1_leads_to_obj2(),
+     * connect them together with leads_to_trans rule
+     * and use leads_to_apply rule to get eventually from leads_to.
+     */
+
     apply_implies_auto::<CState>();
 
     prove_init_leads_to_obj1();
@@ -325,6 +363,17 @@ proof fn prove_eventually_obj1_and_obj2()
     ensures
         valid(eventually_obj1_and_obj2())
 {
+    /*
+     * This proof needs the safety property we proved in safety.rs.
+     * We use always_and_eventually rule to combine
+     * the eventually from prove_eventually_obj2()
+     * and the always from prove_safety()
+     * to one eventually.
+     *
+     * Note that safety_state_pred() and obj2_state_pred() together
+     * imply obj1_state_pred().
+     */
+
     apply_implies_auto::<CState>();
 
     prove_eventually_obj2();
@@ -334,7 +383,10 @@ proof fn prove_eventually_obj1_and_obj2()
     // assert(valid(implies(sm_spec(), always(safety_state_pred().lift()))));
 
     always_and_eventually::<CState>(safety_state_pred().lift(), obj2_state_pred().lift());
-    // assert(valid(implies(sm_spec(), eventually(and(safety_state_pred().lift(), obj2_state_pred().lift())))));
+    // assert(valid(implies(
+    //     sm_spec(),
+    //     eventually(and(safety_state_pred().lift(), obj2_state_pred().lift()))
+    // )));
 
     eventually_weaken::<CState>(and(safety_state_pred().lift(), obj2_state_pred().lift()), and(obj1_state_pred().lift(), obj2_state_pred().lift()));
 
