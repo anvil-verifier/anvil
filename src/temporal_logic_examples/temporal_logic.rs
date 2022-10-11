@@ -168,11 +168,17 @@ pub proof fn apply_implies_auto<T>()
     };
 }
 
+
+/// Generalizes implies.
+/// If we have `|= p1 -> p2`, then we have `|= []p1 -> []p2`
+
 #[verifier(external_body)]
 pub proof fn implies_generalize<T>(p1: TempPred<T>, p2: TempPred<T>)
     ensures
         valid(implies(p1, p2)) ==> valid(implies(always(p1), always(p2))),
 {}
+
+/// Auto version of implies_generalize.
 
 pub proof fn implies_generalize_auto<T>()
     ensures
@@ -183,6 +189,9 @@ pub proof fn implies_generalize_auto<T>()
     }
 }
 
+/// Gets eventually p and q from always p and eventually q.
+/// `|= ([]p /\ <>q) -> <>(p /\ p)`
+
 #[verifier(external_body)]
 pub proof fn always_and_eventually<T>(p: TempPred<T>, q: TempPred<T>)
     ensures
@@ -191,6 +200,9 @@ pub proof fn always_and_eventually<T>(p: TempPred<T>, q: TempPred<T>)
             eventually(and(p, q))
         ))
 {}
+
+/// Gets eventually q from eventually p and p implies q.
+/// `|= (<>p /\ (p -> q)) -> <>q`
 
 #[verifier(external_body)]
 pub proof fn eventually_weaken<T>(p: TempPred<T>, q: TempPred<T>)
@@ -201,8 +213,8 @@ pub proof fn eventually_weaken<T>(p: TempPred<T>, q: TempPred<T>)
         )),
 {}
 
-/// Proves eventually q if we have p and p leads_to q.
-/// `|= p /\ (p ~> q) -> <>q`
+/// Gets eventually from leads_to.
+/// `|= (p /\ (p ~> q)) -> <>q`
 
 #[verifier(external_body)]
 pub proof fn leads_to_apply<T>(p: StatePred<T>, q: StatePred<T>)
@@ -216,8 +228,8 @@ pub proof fn leads_to_apply<T>(p: StatePred<T>, q: StatePred<T>)
         )),
 {}
 
-/// Proves transitivity of leads_to.
-/// `|= (p ~> q) /\ (q ~> r) -> (p ~> r)`
+/// Connects two leads_to with the transitivity of leads_to.
+/// `|= ((p ~> q) /\ (q ~> r)) -> (p ~> r)`
 
 #[verifier(external_body)]
 pub proof fn leads_to_trans<T>(p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
@@ -231,14 +243,18 @@ pub proof fn leads_to_trans<T>(p: StatePred<T>, q: StatePred<T>, r: StatePred<T>
         )),
 {}
 
+/// Gets (p1 leads_to q1) implies (p2 leads_to q2) if:
+/// (1) p2 implies p1 and (2) q1 implies q2.
+/// if we have |= p2 -> p1 and |= q1 -> q2
+/// then we have |= (p1 ~> q1) -> (p2 ~> q2)
+
 #[verifier(external_body)]
 pub proof fn leads_to_weaken<T>(p1: TempPred<T>, p2: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
-    requires
-        valid(implies(p2, p1)),
-        valid(implies(q1, q2)),
     ensures
-        valid(implies(leads_to(p1, q1), leads_to(p2, q2))),
+        valid(implies(p2, p1)) && valid(implies(q1, q2)) ==> valid(implies(leads_to(p1, q1), leads_to(p2, q2))),
 {}
+
+/// Auto version of leads_to_weaken.
 
 pub proof fn leads_to_weaken_auto<T>()
     ensures
@@ -251,6 +267,9 @@ pub proof fn leads_to_weaken_auto<T>()
     };
 }
 
+/// Combines/splits leads_to using or.
+/// `|= ((p ~> r) /\ (q ~> r)) == (p \/ q ~> r)`
+
 #[verifier(external_body)]
 pub proof fn leads_to_or_split<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     ensures
@@ -258,12 +277,20 @@ pub proof fn leads_to_or_split<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>
         valid(implies(leads_to(or(p, q), r), and(#[trigger] leads_to(p, r), #[trigger] leads_to(q, r)))),
 {}
 
+/// Adds r to the premise if we have always r.
+/// `|= ([]r /\ (p ~> q)) -> ((p /\ r) ~> q)`
+/// Or removes r from the premise if we have always r.
+/// `|= ([]r /\ ((p /\ r) ~> q)) -> (p ~> q)`
+
 #[verifier(external_body)]
 pub proof fn leads_to_assume<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     ensures
         valid(implies(and(#[trigger] always(r), #[trigger] leads_to(p, q)), leads_to(and(p, r), q))),
         valid(implies(and(#[trigger] always(r), #[trigger] leads_to(and(p, r), q)), leads_to(p, q))),
 {}
+
+/// Adds not q to the premise or removes not q from the premise.
+/// `|= (p ~> q) == ((p /\ ~q) ~> q)`
 
 #[verifier(external_body)]
 pub proof fn leads_to_assume_not<T>(p: TempPred<T>, q: TempPred<T>)
