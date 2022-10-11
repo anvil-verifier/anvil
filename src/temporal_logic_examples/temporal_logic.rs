@@ -183,6 +183,24 @@ pub proof fn implies_generalize_auto<T>()
     }
 }
 
+#[verifier(external_body)]
+pub proof fn always_and_eventually<T>(p: TempPred<T>, q: TempPred<T>)
+    ensures
+        valid(implies(
+            and(always(p), eventually(q)),
+            eventually(and(p, q))
+        ))
+{}
+
+#[verifier(external_body)]
+pub proof fn eventually_weaken<T>(p: TempPred<T>, q: TempPred<T>)
+    ensures
+        valid(implies(
+            and(eventually(p), implies(p, q)),
+            eventually(q)
+        )),
+{}
+
 /// Proves eventually q if we have p and p leads_to q.
 /// `|= p /\ (p ~> q) -> <>q`
 
