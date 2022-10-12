@@ -102,7 +102,7 @@ proof fn create2_enabled()
     };
 }
 
-proof fn prove_init_leads_to_obj1()
+proof fn lemma_init_leads_to_obj1()
     ensures
         valid(implies(
             sm_spec(),
@@ -135,7 +135,7 @@ proof fn prove_init_leads_to_obj1()
  * `valid(implies(sm_spec(), leads_to(obj1_state_pred().lift(), obj2_state_pred().lift())))`.
  */
 
-proof fn prove_obj1_leads_to_obj2()
+proof fn lemma_obj1_leads_to_obj2()
     ensures
         valid(implies(
             sm_spec(),
@@ -201,7 +201,7 @@ proof fn prove_obj1_leads_to_obj2()
      * `valid(implies(sm_spec(), leads_to(send2_pre_state_pred().lift(), obj2_state_pred().lift())))`
      *
      * Now we have a problem: we cannot connect this leads_to with
-     * the previous leads_to from prove_init_leads_to_obj1()
+     * the previous leads_to from lemma_init_leads_to_obj1()
      * because that one ends at:
      * `s.obj_1_exists`
      * but the one we just proved starts from:
@@ -248,11 +248,11 @@ proof fn prove_obj1_leads_to_obj2()
     // ))));
 
     /*
-     * By calling prove_msg_inv, we have `always(msg_inv_state_pred().lift())`
+     * By calling lemma_msg_inv, we have `always(msg_inv_state_pred().lift())`
      * and now we can use the leads_to_assume rule to eliminate
      * `msg_inv_state_pred().lift()` from the premise.
      */
-    prove_msg_inv();
+    lemma_msg_inv();
     leads_to_assume::<CState>(premise2, obj2_state_pred().lift(), msg_inv_state_pred().lift());
 
     // assert(valid(implies(sm_spec(), leads_to(
@@ -292,45 +292,45 @@ proof fn prove_obj1_leads_to_obj2()
     leads_to_assume_not::<CState>(obj1_state_pred().lift(), obj2_state_pred().lift());
 }
 
-proof fn prove_eventually_obj1()
+proof fn lemma_eventually_obj1()
     ensures
         valid(implies(sm_spec(), eventually(obj1_state_pred().lift())))
 {
     /*
-     * This proof is simple: just take the leads_to from prove_init_leads_to_obj1()
+     * This proof is simple: just take the leads_to from lemma_init_leads_to_obj1()
      * and use leads_to_apply rule to get eventually from leads_to.
      */
 
     apply_implies_auto::<CState>();
 
-    prove_init_leads_to_obj1();
+    lemma_init_leads_to_obj1();
 
     leads_to_apply::<CState>(init_state_pred(), obj1_state_pred());
 }
 
-proof fn prove_eventually_obj2()
+proof fn lemma_eventually_obj2()
     ensures
         valid(implies(sm_spec(), eventually(obj2_state_pred().lift())))
 {
     /*
      * This proof is also simple: just take the two leads_to
-     * from prove_init_leads_to_obj1() and prove_obj1_leads_to_obj2(),
+     * from lemma_init_leads_to_obj1() and lemma_obj1_leads_to_obj2(),
      * connect them together with leads_to_trans rule
      * and use leads_to_apply rule to get eventually from leads_to.
      */
 
     apply_implies_auto::<CState>();
 
-    prove_init_leads_to_obj1();
+    lemma_init_leads_to_obj1();
 
-    prove_obj1_leads_to_obj2();
+    lemma_obj1_leads_to_obj2();
 
     leads_to_trans::<CState>(init_state_pred(), obj1_state_pred(), obj2_state_pred());
 
     leads_to_apply::<CState>(init_state_pred(), obj2_state_pred());
 }
 
-proof fn prove_liveness()
+proof fn liveness()
     ensures
         valid(implies(
             sm_spec(),
@@ -340,29 +340,29 @@ proof fn prove_liveness()
     /*
      * This proof needs the safety property we proved in safety.rs.
      * We use always_and_eventually rule to combine
-     * the eventually from prove_eventually_obj2()
-     * and the always from prove_safety()
+     * the eventually from lemma_eventually_obj2()
+     * and the always from safety()
      * to one eventually.
      *
-     * Note that safety_state_pred() and obj2_state_pred() together
+     * Note that order_inv_state_pred() and obj2_state_pred() together
      * imply obj1_state_pred().
      */
 
     apply_implies_auto::<CState>();
 
-    prove_eventually_obj2();
+    lemma_eventually_obj2();
     // assert(valid(implies(sm_spec(), eventually(obj2_state_pred().lift()))));
 
-    prove_safety();
-    // assert(valid(implies(sm_spec(), always(safety_state_pred().lift()))));
+    safety();
+    // assert(valid(implies(sm_spec(), always(order_inv_state_pred().lift()))));
 
-    always_and_eventually::<CState>(safety_state_pred().lift(), obj2_state_pred().lift());
+    always_and_eventually::<CState>(order_inv_state_pred().lift(), obj2_state_pred().lift());
     // assert(valid(implies(
     //     sm_spec(),
-    //     eventually(and(safety_state_pred().lift(), obj2_state_pred().lift()))
+    //     eventually(and(order_inv_state_pred().lift(), obj2_state_pred().lift()))
     // )));
 
-    eventually_weaken::<CState>(and(safety_state_pred().lift(), obj2_state_pred().lift()), and(obj1_state_pred().lift(), obj2_state_pred().lift()));
+    eventually_weaken::<CState>(and(order_inv_state_pred().lift(), obj2_state_pred().lift()), and(obj1_state_pred().lift(), obj2_state_pred().lift()));
 
 }
 
