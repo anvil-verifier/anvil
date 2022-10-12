@@ -134,9 +134,9 @@ proof fn lemma_init_leads_to_obj1()
      */
 
     /*
-     * `apply_implies_auto` is our old friend that helps us avoid writing `assert forall |ex| ... by {...}`
+     * `implies_apply_auto` is our old friend that helps us avoid writing `assert forall |ex| ... by {...}`
      */
-    apply_implies_auto::<CState>();
+    implies_apply_auto::<CState>();
 
     /*
      * `leads_to_weaken_auto` allows us to prove the desired leads_to
@@ -169,7 +169,7 @@ proof fn lemma_premise1_leads_to_obj2()
      * and connect the leads_to together using `leads_to_trans` rule.
      */
 
-    apply_implies_auto::<CState>();
+    implies_apply_auto::<CState>();
 
     leads_to_weaken_auto::<CState>();
 
@@ -225,7 +225,7 @@ proof fn lemma_premise2_leads_to_obj2()
      * It is interesting and quite complex, so fasten your seat belt.
      */
 
-    apply_implies_auto::<CState>();
+    implies_apply_auto::<CState>();
 
     leads_to_weaken_auto::<CState>();
 
@@ -315,7 +315,7 @@ proof fn lemma_obj1_leads_to_obj2()
         ))
 {
 
-    apply_implies_auto::<CState>();
+    implies_apply_auto::<CState>();
 
     leads_to_weaken_auto::<CState>();
 
@@ -365,7 +365,7 @@ proof fn lemma_eventually_obj1()
      * and use `leads_to_apply` rule to get eventually from leads_to.
      */
 
-    apply_implies_auto::<CState>();
+    implies_apply_auto::<CState>();
 
     lemma_init_leads_to_obj1();
 
@@ -383,7 +383,7 @@ proof fn lemma_eventually_obj2()
      * and use `leads_to_apply` rule to get eventually from leads_to.
      */
 
-    apply_implies_auto::<CState>();
+    implies_apply_auto::<CState>();
 
     lemma_init_leads_to_obj1();
 
@@ -415,7 +415,7 @@ proof fn liveness()
      * to one eventually.
      */
 
-    apply_implies_auto::<CState>();
+    implies_apply_auto::<CState>();
 
     lemma_eventually_obj2();
     // assert(valid(implies(sm_spec(), eventually(obj2_state_pred().lift()))));

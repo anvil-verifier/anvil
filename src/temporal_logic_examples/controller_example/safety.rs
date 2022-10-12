@@ -50,7 +50,7 @@ pub proof fn lemma_msg_inv()
     ensures
         valid(implies(sm_spec(), always(msg_inv_state_pred().lift())))
 {
-    apply_implies_auto::<CState>();
+    implies_apply_auto::<CState>();
     init_invariant::<CState>(init_state_pred(), next_action_pred(), msg_inv_state_pred());
 }
 
@@ -58,7 +58,7 @@ proof fn lemma_inductive_inv()
     ensures
         valid(implies(sm_spec(), always(inductive_inv_state_pred().lift())))
 {
-    apply_implies_auto::<CState>();
+    implies_apply_auto::<CState>();
     init_invariant::<CState>(init_state_pred(), next_action_pred(), inductive_inv_state_pred());
 }
 
@@ -66,7 +66,7 @@ pub proof fn safety()
     ensures
         valid(implies(sm_spec(), always(order_inv_state_pred().lift())))
 {
-    apply_implies_auto::<CState>();
+    implies_apply_auto::<CState>();
     lemma_inductive_inv();
     implies_generalize::<CState>(inductive_inv_state_pred().lift(), order_inv_state_pred().lift());
 }

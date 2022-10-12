@@ -164,7 +164,7 @@ pub proof fn wf1<T>(next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>
         )),
 {}
 
-pub proof fn apply_implies_auto<T>()
+pub proof fn implies_apply_auto<T>()
     ensures forall |ex: Execution<T>, p, q: TempPred<T>|
         #[trigger] valid(implies(p, q)) && p.satisfied_by(ex) ==> #[trigger] q.satisfied_by(ex),
 {

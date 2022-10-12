@@ -71,10 +71,10 @@ proof fn prove_eventually_c()
     ensures
         valid(eventually_c())
 {
-    // apply_implies_auto is used to automatically apply the following rule:
+    // implies_apply_auto is used to automatically apply the following rule:
     // valid(implies(p, q)) && p.satisfied_by(ex) ==> q.satisfied_by(ex)
     // without requiring the developer to write `assert forall |ex| ... implies ... by {...}` in the proof
-    apply_implies_auto::<SimpleState>();
+    implies_apply_auto::<SimpleState>();
 
     // a_b_enabled() gives a witness to convince Verus that x === a enables a_b()
     a_b_enabled();
