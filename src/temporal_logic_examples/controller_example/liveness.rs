@@ -44,12 +44,11 @@ spec fn premise2() -> TempPred<CState> {
     )
 }
 
-proof fn reconcile_enabled()
-    ensures forall |s: CState| send1_pre_state_pred().satisfied_by(s) || send2_pre_state_pred().satisfied_by(s) <==> #[trigger] enabled(reconcile_action_pred()).satisfied_by(s)
+proof fn send1_enabled()
+    ensures forall |s: CState| send1_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(reconcile_action_pred()).satisfied_by(s)
 {
     /*
-     * This is just a witness to show that reconcile is enabled
-     * by send1_pre_state_pred() or send2_pre_state_pred()
+     * This is just a witness to show that reconcile is enabled by send1_pre_state_pred()
      */
 
     assert forall |s: CState| send1_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(reconcile_action_pred()).satisfied_by(s) by {
@@ -65,6 +64,15 @@ proof fn reconcile_enabled()
             assert(reconcile_action_pred().satisfied_by(witness_action));
         }
     };
+}
+
+proof fn send2_enabled()
+    ensures forall |s: CState| send2_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(reconcile_action_pred()).satisfied_by(s)
+{
+    /*
+     * This is just a witness to show that reconcile is enabled by send2_pre_state_pred()
+     */
+
     assert forall |s: CState| send2_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(reconcile_action_pred()).satisfied_by(s) by {
         if send2_pre_state_pred().satisfied_by(s) {
             let witness_action = Action {
@@ -81,11 +89,10 @@ proof fn reconcile_enabled()
 }
 
 proof fn create1_enabled()
-    ensures forall |s: CState| create1_pre_state_pred().satisfied_by(s) <==> #[trigger] enabled(create1_action_pred()).satisfied_by(s)
+    ensures forall |s: CState| create1_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(create1_action_pred()).satisfied_by(s)
 {
     /*
-     * This is just a witness to show that create1 is enabled
-     * by create1_pre_state_pred()
+     * This is just a witness to show that create1 is enabled by create1_pre_state_pred()
      */
 
     assert forall |s: CState| create1_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(create1_action_pred()).satisfied_by(s) by {
@@ -101,11 +108,10 @@ proof fn create1_enabled()
 }
 
 proof fn create2_enabled()
-    ensures forall |s: CState| create2_pre_state_pred().satisfied_by(s) <==> #[trigger] enabled(create2_action_pred()).satisfied_by(s)
+    ensures forall |s: CState| create2_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(create2_action_pred()).satisfied_by(s)
 {
     /*
-     * This is just a witness to show that create2 is enabled
-     * by create2_pre_state_pred()
+     * This is just a witness to show that create2 is enabled by create2_pre_state_pred()
      */
 
     assert forall |s: CState| create2_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(create2_action_pred()).satisfied_by(s) by {
@@ -147,7 +153,7 @@ proof fn lemma_init_leads_to_obj1()
      */
     leads_to_weaken_auto::<CState>();
 
-    reconcile_enabled();
+    send1_enabled();
     wf1::<CState>(next_action_pred(), reconcile_action_pred(), send1_pre_state_pred(), create1_pre_state_pred());
 
     create1_enabled();
@@ -173,7 +179,7 @@ proof fn lemma_premise1_leads_to_obj2()
 
     leads_to_weaken_auto::<CState>();
 
-    reconcile_enabled();
+    send2_enabled();
     wf1::<CState>(next_action_pred(), reconcile_action_pred(), send2_pre_state_pred(), create2_pre_state_pred());
 
     create2_enabled();
