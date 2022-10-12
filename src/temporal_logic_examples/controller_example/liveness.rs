@@ -44,13 +44,12 @@ spec fn premise2() -> TempPred<CState> {
     )
 }
 
+/*
+ * This is just a witness to show that reconcile is enabled by send1_pre_state_pred()
+ */
 proof fn send1_enabled()
     ensures forall |s: CState| send1_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(reconcile_action_pred()).satisfied_by(s)
 {
-    /*
-     * This is just a witness to show that reconcile is enabled by send1_pre_state_pred()
-     */
-
     assert forall |s: CState| send1_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(reconcile_action_pred()).satisfied_by(s) by {
         if send1_pre_state_pred().satisfied_by(s) {
             let witness_action = Action {
@@ -66,13 +65,12 @@ proof fn send1_enabled()
     };
 }
 
+/*
+ * This is just a witness to show that reconcile is enabled by send2_pre_state_pred()
+ */
 proof fn send2_enabled()
     ensures forall |s: CState| send2_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(reconcile_action_pred()).satisfied_by(s)
 {
-    /*
-     * This is just a witness to show that reconcile is enabled by send2_pre_state_pred()
-     */
-
     assert forall |s: CState| send2_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(reconcile_action_pred()).satisfied_by(s) by {
         if send2_pre_state_pred().satisfied_by(s) {
             let witness_action = Action {
@@ -88,13 +86,12 @@ proof fn send2_enabled()
     };
 }
 
+/*
+ * This is just a witness to show that create1 is enabled by create1_pre_state_pred()
+ */
 proof fn create1_enabled()
     ensures forall |s: CState| create1_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(create1_action_pred()).satisfied_by(s)
 {
-    /*
-     * This is just a witness to show that create1 is enabled by create1_pre_state_pred()
-     */
-
     assert forall |s: CState| create1_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(create1_action_pred()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
@@ -107,13 +104,12 @@ proof fn create1_enabled()
     };
 }
 
+/*
+ * This is just a witness to show that create2 is enabled by create2_pre_state_pred()
+ */
 proof fn create2_enabled()
     ensures forall |s: CState| create2_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(create2_action_pred()).satisfied_by(s)
 {
-    /*
-     * This is just a witness to show that create2 is enabled by create2_pre_state_pred()
-     */
-
     assert forall |s: CState| create2_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(create2_action_pred()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
@@ -219,6 +215,18 @@ proof fn lemma_premise1_leads_to_obj2()
      */
 }
 
+/*
+ * This invariant itself is straightforward.
+ * We will use it in the next proof.
+ */
+proof fn lemma_msg_inv()
+    ensures
+        valid(implies(sm_spec(), always(msg_inv_state_pred().lift())))
+{
+    implies_apply_auto::<CState>();
+    init_invariant::<CState>(init_state_pred(), next_action_pred(), msg_inv_state_pred());
+}
+
 proof fn lemma_premise2_leads_to_obj2()
     ensures
         valid(implies(
@@ -270,7 +278,7 @@ proof fn lemma_premise2_leads_to_obj2()
      * `s.sent_2_create <==> s.messages.contains(Message::CreateReq{id: 2})}`,
      * then everything goes through now.
      * The safety property, once you know it, is very straightforward.
-     * We proved this safety property `msg_inv` in safety.rs.
+     * We proved this safety property `msg_inv` in the previous proof.
      *
      * With this safety property, we can weaken the above leads_to to the following one.
      *

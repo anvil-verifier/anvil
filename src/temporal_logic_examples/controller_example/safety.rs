@@ -46,14 +46,6 @@ spec fn inductive_inv_state_pred() -> StatePred<CState> {
     StatePred::new(|state: CState| inductive_inv(state))
 }
 
-pub proof fn lemma_msg_inv()
-    ensures
-        valid(implies(sm_spec(), always(msg_inv_state_pred().lift())))
-{
-    implies_apply_auto::<CState>();
-    init_invariant::<CState>(init_state_pred(), next_action_pred(), msg_inv_state_pred());
-}
-
 proof fn lemma_inductive_inv()
     ensures
         valid(implies(sm_spec(), always(inductive_inv_state_pred().lift())))
