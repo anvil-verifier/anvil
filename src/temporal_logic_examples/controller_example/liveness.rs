@@ -263,7 +263,7 @@ proof fn lemma_obj1_leads_to_obj2()
      * Now we use leads_to_or_split rule to combine
      * premise1 and premise2 together.
      */
-    leads_to_or_split::<CState>(premise2, premise1, obj2_state_pred().lift());
+    leads_to_or_split::<CState>(premise1, premise2, obj2_state_pred().lift());
 
     // assert(valid(implies(sm_spec(), leads_to(
     //     or(premise1, premise2),
