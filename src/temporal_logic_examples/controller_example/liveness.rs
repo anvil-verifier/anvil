@@ -27,7 +27,9 @@ spec fn obj2_state_pred() -> StatePred<CState> {
 }
 
 proof fn reconcile_enabled()
-    ensures forall |s: CState| send1_pre_state_pred().satisfied_by(s) || send2_pre_state_pred().satisfied_by(s) <==> #[trigger] enabled(reconcile_action_pred()).satisfied_by(s)
+    ensures forall |s: CState| send1_pre_state_pred().satisfied_by(s)
+                            || send2_pre_state_pred().satisfied_by(s)
+                         ==> #[trigger] enabled(reconcile_action_pred()).satisfied_by(s)
 {
     /*
      * This is just a witness to show that reconcile is enabled
@@ -63,7 +65,8 @@ proof fn reconcile_enabled()
 }
 
 proof fn create1_enabled()
-    ensures forall |s: CState| create1_pre_state_pred().satisfied_by(s) <==> #[trigger] enabled(create1_action_pred()).satisfied_by(s)
+    ensures forall |s: CState| create1_pre_state_pred().satisfied_by(s)
+                               ==> #[trigger] enabled(create1_action_pred()).satisfied_by(s)
 {
     /*
      * This is just a witness to show that create1 is enabled
@@ -102,16 +105,13 @@ proof fn create2_enabled()
     };
 }
 
-spec fn init_leads_to_obj1() -> TempPred<CState> {
-    implies(
-        sm_spec(),
-        leads_to(init_state_pred().lift(), obj1_state_pred().lift())
-    )
-}
-
 proof fn prove_init_leads_to_obj1()
     ensures
-        valid(init_leads_to_obj1())
+        valid(
+            implies(
+                sm_spec(),
+                leads_to(init_state_pred().lift(), obj1_state_pred().lift())
+        ))
 {
     /*
      * This proof is straightforward:
@@ -174,6 +174,7 @@ proof fn prove_obj1_leads_to_obj2()
     /*
      * premise1 and premise2 are just two temporal predicates we will frequently use later.
      */
+
     let premise1 = and(
         obj1_state_pred().lift(),
         and(not(obj2_state_pred().lift()), not(sent2_state_pred().lift()))
@@ -300,16 +301,14 @@ proof fn prove_obj1_leads_to_obj2()
     leads_to_assume_not::<CState>(obj1_state_pred().lift(), obj2_state_pred().lift());
 }
 
-spec fn eventually_obj1() -> TempPred<CState> {
-    implies(
-        sm_spec(),
-        eventually(obj1_state_pred().lift())
-    )
-}
-
 proof fn prove_eventually_obj1()
     ensures
-        valid(eventually_obj1())
+        valid(
+            implies(
+                    sm_spec(),
+                    eventually(obj1_state_pred().lift())
+            )
+    )
 {
     /*
      * This proof is simple: just take the leads_to from prove_init_leads_to_obj1()
@@ -323,16 +322,15 @@ proof fn prove_eventually_obj1()
     leads_to_apply::<CState>(init_state_pred(), obj1_state_pred());
 }
 
-spec fn eventually_obj2() -> TempPred<CState> {
-    implies(
-        sm_spec(),
-        eventually(obj2_state_pred().lift())
-    )
-}
 
 proof fn prove_eventually_obj2()
     ensures
-        valid(eventually_obj2())
+        valid(
+            implies(
+                sm_spec(),
+                eventually(obj2_state_pred().lift())
+            )
+        )
 {
     /*
      * This proof is also simple: just take the two leads_to
@@ -390,6 +388,15 @@ proof fn prove_eventually_obj1_and_obj2()
 
     eventually_weaken::<CState>(and(safety_state_pred().lift(), obj2_state_pred().lift()), and(obj1_state_pred().lift(), obj2_state_pred().lift()));
 
+}
+
+
+pub proof fn prove_msg_inv()
+    ensures
+        valid(implies(sm_spec(), always(msg_inv_state_pred().lift())))
+{
+    apply_implies_auto::<CState>();
+    init_invariant::<CState>(init_state_pred(), next_action_pred(), msg_inv_state_pred());
 }
 
 }
