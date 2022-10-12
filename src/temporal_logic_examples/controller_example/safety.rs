@@ -19,10 +19,6 @@ spec fn obj1_inv(s: CState) -> bool {
     &&& s.obj_1_exists ==> s.sent_1_create
 }
 
-spec fn create_inv(s: CState) -> bool {
-    s.obj_2_exists ==> s.sent_2_create && s.sent_1_create && s.obj_1_exists
-}
-
 pub open spec fn order_inv(s: CState) -> bool {
     s.obj_2_exists ==> s.obj_1_exists
 }
@@ -30,7 +26,6 @@ pub open spec fn order_inv(s: CState) -> bool {
 spec fn inductive_inv(s: CState) -> bool {
     &&& msg_inv(s)
     &&& obj1_inv(s)
-    &&& create_inv(s)
     &&& order_inv(s)
 }
 
