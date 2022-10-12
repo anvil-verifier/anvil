@@ -26,23 +26,6 @@ spec fn obj2_state_pred() -> StatePred<CState> {
 }
 
 /*
- * premise1 and premise2 are just two temporal predicates we will frequently use later.
- */
-
-spec fn premise1() -> TempPred<CState> {
-    obj1_state_pred().lift().and(
-        not(obj2_state_pred().lift()).and(not(sent2_state_pred().lift()))
-    )
-}
-
-spec fn premise2() -> TempPred<CState> {
-    obj1_state_pred().lift().and(
-        not(obj2_state_pred().lift()).and(
-                sent2_state_pred().lift())
-    )
-}
-
-/*
  * This is just a witness to show that reconcile is enabled by send1_pre_state_pred()
  */
 
@@ -159,10 +142,18 @@ proof fn lemma_init_leads_to_obj1()
     leads_to_trans::<CState>(send1_pre_state_pred(), create1_pre_state_pred(), obj1_state_pred());
 }
 
-proof fn lemma_premise1_leads_to_obj2()
+proof fn lemma_obj1_and_not_obj2_and_not_sent2_leads_to_obj2()
     ensures
-        valid(sm_spec()
-              .implies(premise1().leads_to(obj2_state_pred().lift()))
+        valid(
+            sm_spec().implies(
+                obj1_state_pred().lift().and(
+                    not(obj2_state_pred().lift()).and(
+                        not(sent2_state_pred().lift())
+                    )
+                ).leads_to(
+                    obj2_state_pred().lift()
+                )
+            )
         )
 {
     /*
@@ -184,12 +175,18 @@ proof fn lemma_premise1_leads_to_obj2()
     leads_to_trans::<CState>(send2_pre_state_pred(), create2_pre_state_pred(), obj2_state_pred());
 
     /*
-     * Now we have `(s.obj_1_exists && !s.obj_2_exists && !s.sent_2_create) ~> s.obj_2_exists`
-     * (Note that `send2_pre_state_pred()` and `premise1()` are the same).
+     * Now we have `(s.obj_1_exists && !s.obj_2_exists && !s.sent_2_create) ~> s.obj_2_exists`.
      */
-    // assert(valid(implies(sm_spec(), leads_to(
-    //     premise1(), obj2_state_pred().lift()
-    // ))));
+    // assert(valid(implies(
+    //     sm_spec(),
+    //     leads_to(
+    //         and(
+    //             obj1_state_pred().lift(),
+    //             and(not(obj2_state_pred().lift()), not(sent2_state_pred().lift()))
+    //         ),
+    //         obj2_state_pred().lift()
+    //     )
+    // )));
 
     /*
      * Should we just continue connecting the leads_to and reach our final goal?
@@ -228,11 +225,19 @@ proof fn lemma_msg_inv()
     init_invariant::<CState>(init_state_pred(), next_action_pred(), msg_inv_state_pred());
 }
 
-proof fn lemma_premise2_leads_to_obj2()
+proof fn lemma_obj1_and_not_obj2_and_sent2_leads_to_obj2()
     ensures
-        valid(sm_spec().implies(
-                premise2().leads_to(obj2_state_pred().lift())
-        ))
+        valid(
+            sm_spec().implies(
+                obj1_state_pred().lift().and(
+                    not(obj2_state_pred().lift()).and(
+                        sent2_state_pred().lift()
+                    )
+                ).leads_to(
+                    obj2_state_pred().lift()
+                )
+            )
+        )
 {
     /*
      * This proof shows you `(s.obj_1_exists && !s.obj_2_exists && s.sent_2_create) ~> s.obj_2_exists`
@@ -308,9 +313,16 @@ proof fn lemma_premise2_leads_to_obj2()
     //     obj2_state_pred().lift()
     // ))));
 
-    // assert(valid(implies(sm_spec(), leads_to(
-    //     premise2(), obj2_state_pred().lift()
-    // ))));
+    // assert(valid(implies(
+    //     sm_spec(),
+    //     leads_to(
+    //         and(
+    //             obj1_state_pred().lift(),
+    //             and(not(obj2_state_pred().lift()), sent2_state_pred().lift())
+    //         ),
+    //         obj2_state_pred().lift()
+    //     )
+    // )));
 }
 
 
@@ -336,13 +348,25 @@ proof fn lemma_obj1_leads_to_obj2()
      * With `lemma_premise1_leads_to_obj2` and `lemma_premise2_leads_to_obj2`,
      * things become much easier here.
      */
-    lemma_premise1_leads_to_obj2();
-    lemma_premise2_leads_to_obj2();
+    lemma_obj1_and_not_obj2_and_not_sent2_leads_to_obj2();
+    lemma_obj1_and_not_obj2_and_sent2_leads_to_obj2();
 
     /*
      * We will combine the two premises together with or using `leads_to_or_split`.
      */
-    leads_to_or_split::<CState>(premise1(), premise2(), obj2_state_pred().lift());
+    leads_to_or_split::<CState>(
+        obj1_state_pred().lift().and(
+            not(obj2_state_pred().lift()).and(
+                not(sent2_state_pred().lift())
+            )
+        ),
+        obj1_state_pred().lift().and(
+            not(obj2_state_pred().lift()).and(
+                sent2_state_pred().lift()
+            )
+        ),
+        obj2_state_pred().lift()
+    );
     // assert(valid(implies(sm_spec(), leads_to(
     //     or(premise1, premise2),
     //     obj2_state_pred().lift()
