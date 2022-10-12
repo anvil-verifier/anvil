@@ -102,16 +102,12 @@ proof fn create2_enabled()
     };
 }
 
-spec fn init_leads_to_obj1() -> TempPred<CState> {
-    implies(
-        sm_spec(),
-        leads_to(init_state_pred().lift(), obj1_state_pred().lift())
-    )
-}
-
 proof fn prove_init_leads_to_obj1()
     ensures
-        valid(init_leads_to_obj1())
+        valid(implies(
+            sm_spec(),
+            leads_to(init_state_pred().lift(), obj1_state_pred().lift())
+        ))
 {
     /*
      * This proof is straightforward:
@@ -139,16 +135,12 @@ proof fn prove_init_leads_to_obj1()
  * `valid(implies(sm_spec(), leads_to(obj1_state_pred().lift(), obj2_state_pred().lift())))`.
  */
 
-spec fn obj1_leads_to_obj2() -> TempPred<CState> {
-    implies(
-        sm_spec(),
-        leads_to(obj1_state_pred().lift(), obj2_state_pred().lift())
-    )
-}
-
 proof fn prove_obj1_leads_to_obj2()
     ensures
-        valid(obj1_leads_to_obj2())
+        valid(implies(
+            sm_spec(),
+            leads_to(obj1_state_pred().lift(), obj2_state_pred().lift())
+        ))
 {
     /*
      * This proof is interesting and quite complex.
@@ -300,16 +292,9 @@ proof fn prove_obj1_leads_to_obj2()
     leads_to_assume_not::<CState>(obj1_state_pred().lift(), obj2_state_pred().lift());
 }
 
-spec fn eventually_obj1() -> TempPred<CState> {
-    implies(
-        sm_spec(),
-        eventually(obj1_state_pred().lift())
-    )
-}
-
 proof fn prove_eventually_obj1()
     ensures
-        valid(eventually_obj1())
+        valid(implies(sm_spec(), eventually(obj1_state_pred().lift())))
 {
     /*
      * This proof is simple: just take the leads_to from prove_init_leads_to_obj1()
@@ -323,16 +308,9 @@ proof fn prove_eventually_obj1()
     leads_to_apply::<CState>(init_state_pred(), obj1_state_pred());
 }
 
-spec fn eventually_obj2() -> TempPred<CState> {
-    implies(
-        sm_spec(),
-        eventually(obj2_state_pred().lift())
-    )
-}
-
 proof fn prove_eventually_obj2()
     ensures
-        valid(eventually_obj2())
+        valid(implies(sm_spec(), eventually(obj2_state_pred().lift())))
 {
     /*
      * This proof is also simple: just take the two leads_to
@@ -352,16 +330,12 @@ proof fn prove_eventually_obj2()
     leads_to_apply::<CState>(init_state_pred(), obj2_state_pred());
 }
 
-spec fn eventually_obj1_and_obj2() -> TempPred<CState> {
-    implies(
-        sm_spec(),
-        eventually(and(obj1_state_pred().lift(), obj2_state_pred().lift()))
-    )
-}
-
-proof fn prove_eventually_obj1_and_obj2()
+proof fn prove_liveness()
     ensures
-        valid(eventually_obj1_and_obj2())
+        valid(implies(
+            sm_spec(),
+            eventually(and(obj1_state_pred().lift(), obj2_state_pred().lift()))
+        )),
 {
     /*
      * This proof needs the safety property we proved in safety.rs.
