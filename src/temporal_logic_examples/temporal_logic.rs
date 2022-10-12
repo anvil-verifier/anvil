@@ -277,26 +277,28 @@ pub proof fn leads_to_or_split<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>
         valid(implies(leads_to(or(p, q), r), and(#[trigger] leads_to(p, r), #[trigger] leads_to(q, r)))),
 {}
 
-/// Adds r to the premise if we have always r.
-/// `|= ([]r /\ (p ~> q)) -> ((p /\ r) ~> q)`
-/// Or removes r from the premise if we have always r.
+/// Removes r from the premise if we have always r.
 /// `|= ([]r /\ ((p /\ r) ~> q)) -> (p ~> q)`
+/// Note that the other direction also holds.
+/// TODO: prove the equivalence.
 
 #[verifier(external_body)]
 pub proof fn leads_to_assume<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     ensures
-        valid(implies(and(#[trigger] always(r), #[trigger] leads_to(p, q)), leads_to(and(p, r), q))),
         valid(implies(and(#[trigger] always(r), #[trigger] leads_to(and(p, r), q)), leads_to(p, q))),
+        // valid(implies(and(#[trigger] always(r), #[trigger] leads_to(p, q)), leads_to(and(p, r), q))),
 {}
 
-/// Adds not q to the premise or removes not q from the premise.
-/// `|= (p ~> q) == ((p /\ ~q) ~> q)`
+/// Removes not q from the premise.
+/// `|= ((p /\ ~q) ~> q) -> (p ~> q)`
+/// Note that the other direction also holds.
+/// TODO: prove the equivalence.
 
 #[verifier(external_body)]
 pub proof fn leads_to_assume_not<T>(p: TempPred<T>, q: TempPred<T>)
     ensures
-        valid(implies(#[trigger] leads_to(p, q), leads_to(and(p, not(q)), q))),
         valid(implies(#[trigger] leads_to(and(p, not(q)), q), leads_to(p, q))),
+        // valid(implies(#[trigger] leads_to(p, q), leads_to(and(p, not(q)), q))),
 {}
 
 }
