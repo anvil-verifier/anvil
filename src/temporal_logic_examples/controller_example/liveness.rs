@@ -230,7 +230,7 @@ proof fn lemma_premise2_leads_to_obj2()
     leads_to_weaken_auto::<CState>();
 
     /*
-     * It is hard to even start the first step because wf1 does not directly give you
+     * It is hard to even start the first step because `wf1` does not directly give you
      * `(s.obj_1_exists && !s.obj_2_exists && s.sent_2_create) ~> s.obj_2_exists`.
      *
      * But thinking in this way:
