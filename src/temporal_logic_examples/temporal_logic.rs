@@ -249,7 +249,7 @@ pub proof fn leads_to_trans<T>(p: StatePred<T>, q: StatePred<T>, r: StatePred<T>
 /// then we have |= (p1 ~> q1) -> (p2 ~> q2)
 
 #[verifier(external_body)]
-pub proof fn leads_to_weaken<T>(p1: TempPred<T>, p2: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
+pub proof fn leads_to_weaken<T>(p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
     ensures
         valid(implies(p2, p1)) && valid(implies(q1, q2)) ==> valid(implies(leads_to(p1, q1), leads_to(p2, q2))),
 {}
@@ -258,12 +258,12 @@ pub proof fn leads_to_weaken<T>(p1: TempPred<T>, p2: TempPred<T>, q1: TempPred<T
 
 pub proof fn leads_to_weaken_auto<T>()
     ensures
-        forall |p1: TempPred<T>, p2: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>|
+        forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
             valid(implies(p2, p1)) && valid(implies(q1, q2)) ==> valid(implies(#[trigger] leads_to(p1, q1), #[trigger] leads_to(p2, q2)))
 {
-    assert forall |p1: TempPred<T>, p2: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>| valid(implies(p2, p1)) && valid(implies(q1, q2))
+    assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>| valid(implies(p2, p1)) && valid(implies(q1, q2))
     implies valid(implies(#[trigger] leads_to(p1, q1), #[trigger] leads_to(p2, q2))) by {
-        leads_to_weaken(p1, p2, q1, q2);
+        leads_to_weaken(p1, q1, p2, q2);
     };
 }
 
