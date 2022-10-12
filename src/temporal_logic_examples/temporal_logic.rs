@@ -247,9 +247,10 @@ pub proof fn leads_to_trans<T>(p: StatePred<T>, q: StatePred<T>, r: StatePred<T>
 /// (1) p2 implies p1 and (2) q1 implies q2.
 /// if we have |= p2 -> p1 and |= q1 -> q2
 /// then we have |= (p1 ~> q1) -> (p2 ~> q2)
+/// TODO: have a generalized version: valid(implies(and(implies(p2, p1), implies(q1, q2)), implies(leads_to(p1, q1), leads_to(p2, q2))))
 
 #[verifier(external_body)]
-pub proof fn leads_to_weaken<T>(p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
+proof fn leads_to_weaken<T>(p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
     ensures
         valid(implies(p2, p1)) && valid(implies(q1, q2)) ==> valid(implies(leads_to(p1, q1), leads_to(p2, q2))),
 {}
