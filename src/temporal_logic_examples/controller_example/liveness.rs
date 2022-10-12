@@ -133,8 +133,18 @@ proof fn lemma_init_leads_to_obj1()
      * and connect the leads_to together using `leads_to_trans` rule.
      */
 
+    /*
+     * `apply_implies_auto` is our old friend that helps us avoid writing `assert forall |ex| ... by {...}`
+     */
     apply_implies_auto::<CState>();
 
+    /*
+     * `leads_to_weaken_auto` allows us to prove the desired leads_to
+     * by proving a equally "strong" leads_to or a "stronger" leads_to
+     * that is easier to be proved.
+     * It seems that we are abusing this rule in this proof.
+     * Hope there is a more efficient way to do this.
+     */
     leads_to_weaken_auto::<CState>();
 
     reconcile_enabled();
@@ -159,23 +169,10 @@ proof fn lemma_premise1_leads_to_obj2()
      * and connect the leads_to together using `leads_to_trans` rule.
      */
 
-    /*
-     * `apply_implies_auto` is our old friend that helps us avoid writing `assert forall |ex| ... by {...}`
-     */
     apply_implies_auto::<CState>();
 
-    /*
-     * `leads_to_weaken_auto` allows us to prove the desired leads_to
-     * by proving a equally "strong" leads_to or a "stronger" leads_to
-     * that is easier to be proved.
-     * It seems that we are abusing this rule in this proof.
-     * Hope there is a more efficient way to do this.
-     */
     leads_to_weaken_auto::<CState>();
 
-    /*
-     * Let's start from simple by connecting the leads_to from `wf1` and see what we get.
-     */
     reconcile_enabled();
     wf1::<CState>(next_action_pred(), reconcile_action_pred(), send2_pre_state_pred(), create2_pre_state_pred());
 
