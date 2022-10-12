@@ -245,10 +245,10 @@ pub proof fn wf1<T>(next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>
 {}
 
 pub proof fn implies_apply_auto<T>()
-    ensures forall |ex: Execution<T>, p, q: TempPred<T>|
+    ensures forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>|
         #[trigger] valid(p.implies(q)) && p.satisfied_by(ex) ==> #[trigger] q.satisfied_by(ex),
 {
-    assert forall |ex: Execution<T>, p, q: TempPred<T>|
+    assert forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>|
         #[trigger] valid(p.implies(q)) && p.satisfied_by(ex) implies #[trigger] q.satisfied_by(ex) by {
         assert(p.implies(q).satisfied_by(ex));
     };
@@ -344,8 +344,8 @@ pub proof fn leads_to_weaken_auto<T>()
             valid(p2.implies(p1)) && valid(q1.implies(q2)) ==>
             valid((#[trigger] p1.leads_to(q1)).implies(#[trigger] p2.leads_to(q2)))
 {
-    assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>| valid(implies(p2, p1)) && valid(implies(q1, q2))
-    implies valid(implies(#[trigger] leads_to(p1, q1), #[trigger] leads_to(p2, q2))) by {
+    assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>| valid(p2.implies(p1)) && valid(q1.implies(q2))
+    implies valid((#[trigger] p1. leads_to(q1)).implies(#[trigger] p2.leads_to(q2))) by {
         leads_to_weaken(p1, q1, p2, q2);
     };
 }
@@ -376,7 +376,7 @@ pub proof fn leads_to_or_split<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>
     ensures
         valid(p.leads_to(r).and(q.leads_to(r))
                .implies(p.or(q).leads_to(r))),
-        valid(leads_to(p.or(q), r)
+        valid(p.or(q).leads_to(r)
               .implies(p.leads_to(r).and(q.leads_to(r)))),
 {}
 

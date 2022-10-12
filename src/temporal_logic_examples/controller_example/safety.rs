@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::controller_example::state_machine::*;
-use crate::pred::*;
 use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
@@ -43,7 +42,7 @@ spec fn inductive_inv_state_pred() -> StatePred<CState> {
 
 proof fn lemma_inductive_inv()
     ensures
-        valid(implies(sm_spec(), always(inductive_inv_state_pred().lift())))
+        valid(sm_spec().implies(always(inductive_inv_state_pred().lift())))
 {
     implies_apply_auto::<CState>();
     init_invariant::<CState>(init_state_pred(), next_action_pred(), inductive_inv_state_pred());
@@ -51,7 +50,7 @@ proof fn lemma_inductive_inv()
 
 pub proof fn safety()
     ensures
-        valid(implies(sm_spec(), always(order_inv_state_pred().lift())))
+        valid(sm_spec().implies(always(order_inv_state_pred().lift())))
 {
     implies_apply_auto::<CState>();
     lemma_inductive_inv();
