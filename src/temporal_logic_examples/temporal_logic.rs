@@ -41,6 +41,12 @@ pub open spec fn implies<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) 
     TempPred::new(|ex: Execution<T>| temp_pred_a.satisfied_by(ex) ==> temp_pred_b.satisfied_by(ex))
 }
 
+/// `<=>` for temporal predicates in TLA+ (i.e., `<==>` in Verus).
+
+pub open spec fn equivalent<T>(temp_pred_a: TempPred<T>, temp_pred_b: TempPred<T>) -> TempPred<T> {
+    TempPred::new(|ex: Execution<T>| temp_pred_a.satisfied_by(ex) <==> temp_pred_b.satisfied_by(ex))
+}
+
 /// `[]` for temporal predicates in TLA+.
 /// Returns a temporal predicate that is satisfied iff `temp_pred` is satisfied on every suffix of the execution.
 ///
@@ -265,6 +271,23 @@ pub proof fn leads_to_weaken_auto<T>()
     assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>| valid(implies(p2, p1)) && valid(implies(q1, q2))
     implies valid(implies(#[trigger] leads_to(p1, q1), #[trigger] leads_to(p2, q2))) by {
         leads_to_weaken(p1, q1, p2, q2);
+    };
+}
+
+#[verifier(external_body)]
+proof fn leads_to_eq<T>(p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
+    ensures
+        valid(equivalent(p2, p1)) && valid(equivalent(q1, q2)) ==> valid(implies(leads_to(p1, q1), leads_to(p2, q2))),
+{}
+
+pub proof fn leads_to_eq_auto<T>()
+    ensures
+        forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
+            valid(equivalent(p2, p1)) && valid(equivalent(q1, q2)) ==> valid(implies(#[trigger] leads_to(p1, q1), #[trigger] leads_to(p2, q2)))
+{
+    assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>| valid(equivalent(p2, p1)) && valid(equivalent(q1, q2))
+    implies valid(implies(#[trigger] leads_to(p1, q1), #[trigger] leads_to(p2, q2))) by {
+        leads_to_eq(p1, q1, p2, q2);
     };
 }
 
