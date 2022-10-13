@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::pervasive::set::*;
-use crate::pred::*;
 use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
@@ -147,14 +146,11 @@ pub open spec fn next_action_pred() -> ActionPred<CState> {
 }
 
 pub open spec fn sm_spec() -> TempPred<CState> {
-    and(
-        init_state_pred().lift(),
-        and(
-            always(next_action_pred().lift()),
-            and(
-                weak_fairness(reconcile_action_pred()),
-                // weak_fairness(cluster_action_pred()),
-                and(weak_fairness(create1_action_pred()), weak_fairness(create2_action_pred()))
+        init_state_pred().lift().and(
+            always(next_action_pred().lift()).and(
+                weak_fairness(reconcile_action_pred()).and(
+                    weak_fairness(create1_action_pred()).and(
+                        weak_fairness(create2_action_pred()))
             ),
         )
     )

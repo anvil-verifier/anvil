@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::pred::*;
 use crate::simple_example::state_machine::*;
 use crate::temporal_logic::*;
 use builtin::*;
@@ -22,8 +21,8 @@ spec fn happy_temp_pred() -> TempPred<SimpleState> {
 }
 
 spec fn always_happy() -> TempPred<SimpleState> {
-    implies(
-        and(init_state_pred().lift(), always(next_action_pred().lift())),
+    init_state_pred().lift().and(always(next_action_pred().lift()))
+    .implies(
         always(happy_temp_pred())
     )
 }

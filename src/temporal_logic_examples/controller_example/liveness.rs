@@ -3,7 +3,6 @@
 #![allow(unused_imports)]
 use crate::controller_example::safety::*;
 use crate::controller_example::state_machine::*;
-use crate::pred::*;
 use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
@@ -31,16 +30,15 @@ spec fn obj2_state_pred() -> StatePred<CState> {
  */
 
 spec fn premise1() -> TempPred<CState> {
-    and(
-        obj1_state_pred().lift(),
-        and(not(obj2_state_pred().lift()), not(sent2_state_pred().lift()))
+    obj1_state_pred().lift().and(
+        not(obj2_state_pred().lift()).and(not(sent2_state_pred().lift()))
     )
 }
 
 spec fn premise2() -> TempPred<CState> {
-    and(
-        obj1_state_pred().lift(),
-        and(not(obj2_state_pred().lift()), sent2_state_pred().lift())
+    obj1_state_pred().lift().and(
+        not(obj2_state_pred().lift()).and(
+                sent2_state_pred().lift())
     )
 }
 
@@ -128,9 +126,8 @@ proof fn create2_enabled()
 
 proof fn lemma_init_leads_to_obj1()
     ensures
-        valid(implies(
-            sm_spec(),
-            leads_to(init_state_pred().lift(), obj1_state_pred().lift())
+        valid(sm_spec().implies(
+              init_state_pred().lift().leads_to(obj1_state_pred().lift())
         ))
 {
     /*
@@ -164,10 +161,9 @@ proof fn lemma_init_leads_to_obj1()
 
 proof fn lemma_premise1_leads_to_obj2()
     ensures
-        valid(implies(
-            sm_spec(),
-            leads_to(premise1(), obj2_state_pred().lift())
-        ))
+        valid(sm_spec()
+              .implies(premise1().leads_to(obj2_state_pred().lift()))
+        )
 {
     /*
      * This proof is also straightforward:
@@ -226,7 +222,7 @@ proof fn lemma_premise1_leads_to_obj2()
 
 proof fn lemma_msg_inv()
     ensures
-        valid(implies(sm_spec(), always(msg_inv_state_pred().lift())))
+        valid(sm_spec().implies(always(msg_inv_state_pred().lift())))
 {
     implies_apply_auto::<CState>();
     init_invariant::<CState>(init_state_pred(), next_action_pred(), msg_inv_state_pred());
@@ -234,9 +230,8 @@ proof fn lemma_msg_inv()
 
 proof fn lemma_premise2_leads_to_obj2()
     ensures
-        valid(implies(
-            sm_spec(),
-            leads_to(premise2(), obj2_state_pred().lift())
+        valid(sm_spec().implies(
+                premise2().leads_to(obj2_state_pred().lift())
         ))
 {
     /*
@@ -328,9 +323,8 @@ proof fn lemma_premise2_leads_to_obj2()
 
 proof fn lemma_obj1_leads_to_obj2()
     ensures
-        valid(implies(
-            sm_spec(),
-            leads_to(obj1_state_pred().lift(), obj2_state_pred().lift())
+        valid(sm_spec().implies(
+                obj1_state_pred().lift().leads_to(obj2_state_pred().lift())
         ))
 {
 
@@ -377,7 +371,7 @@ proof fn lemma_obj1_leads_to_obj2()
 
 proof fn lemma_eventually_obj1()
     ensures
-        valid(implies(sm_spec(), eventually(obj1_state_pred().lift())))
+        valid(sm_spec().implies(eventually(obj1_state_pred().lift())))
 {
     /*
      * This proof is simple: just take the leads_to from `lemma_init_leads_to_obj1`
@@ -393,7 +387,7 @@ proof fn lemma_eventually_obj1()
 
 proof fn lemma_eventually_obj2()
     ensures
-        valid(implies(sm_spec(), eventually(obj2_state_pred().lift())))
+        valid(sm_spec().implies(eventually(obj2_state_pred().lift())))
 {
     /*
      * This proof is also simple: just take the two leads_to
@@ -415,9 +409,8 @@ proof fn lemma_eventually_obj2()
 
 proof fn liveness()
     ensures
-        valid(implies(
-            sm_spec(),
-            eventually(and(obj1_state_pred().lift(), obj2_state_pred().lift()))
+        valid(sm_spec().implies(
+                eventually(obj1_state_pred().lift().and(obj2_state_pred().lift()))
         )),
 {
     /*
@@ -451,7 +444,7 @@ proof fn liveness()
     /*
      * We get a weaker eventually, which is our goal, from `eventually_weaken`.
      */
-    eventually_weaken::<CState>(and(order_inv_state_pred().lift(), obj2_state_pred().lift()), and(obj1_state_pred().lift(), obj2_state_pred().lift()));
+    eventually_weaken::<CState>(order_inv_state_pred().lift().and(obj2_state_pred().lift()), obj1_state_pred().lift().and(obj2_state_pred().lift()));
 }
 
 }

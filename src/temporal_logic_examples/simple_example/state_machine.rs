@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::pred::*;
 use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
@@ -68,11 +67,11 @@ pub open spec fn next_action_pred() -> ActionPred<SimpleState> {
 }
 
 pub open spec fn sm_spec() -> TempPred<SimpleState> {
-    and(
-        init_state_pred().lift(),
-        and(
-            always(next_action_pred().lift()),
-            and(weak_fairness(a_b_action_pred()), weak_fairness(b_c_action_pred()))
+    init_state_pred().lift().and(
+        always(next_action_pred().lift()).and(
+            weak_fairness(a_b_action_pred()).and(
+                    weak_fairness(b_c_action_pred())
+            )
         )
     )
 }
