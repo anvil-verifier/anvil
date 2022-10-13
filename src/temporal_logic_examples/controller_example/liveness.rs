@@ -136,7 +136,7 @@ proof fn lemma_init_leads_to_obj1()
     create1_enabled();
     wf1::<CState>(next_action_pred(), create1_action_pred(), create1_pre_state_pred(), obj1_state_pred());
 
-    leads_to_trans::<CState>(send1_pre_state_pred(), create1_pre_state_pred(), obj1_state_pred());
+    leads_to_trans::<CState>(sm_spec(), send1_pre_state_pred().lift(), create1_pre_state_pred().lift(), obj1_state_pred().lift());
 }
 
 proof fn lemma_obj1_and_not_sent2_leads_to_obj2()
@@ -162,7 +162,7 @@ proof fn lemma_obj1_and_not_sent2_leads_to_obj2()
     create2_enabled();
     wf1::<CState>(next_action_pred(), create2_action_pred(), create2_pre_state_pred(), obj2_state_pred());
 
-    leads_to_trans::<CState>(send2_pre_state_pred(), create2_pre_state_pred(), obj2_state_pred());
+    leads_to_trans::<CState>(sm_spec(), send2_pre_state_pred().lift(), create2_pre_state_pred().lift(), obj2_state_pred().lift());
 
     /*
      * Now we have `(s.obj_1_exists /\ ~s.obj_2_exists /\ ~s.sent_2_create) ~> s.obj_2_exists`.
@@ -334,7 +334,7 @@ proof fn lemma_eventually_obj1()
 
     lemma_init_leads_to_obj1();
 
-    leads_to_apply::<CState>(init_state_pred(), obj1_state_pred());
+    leads_to_apply::<CState>(sm_spec(), init_state_pred().lift(), obj1_state_pred().lift());
 }
 
 proof fn lemma_eventually_obj2()
@@ -354,9 +354,9 @@ proof fn lemma_eventually_obj2()
 
     lemma_obj1_leads_to_obj2();
 
-    leads_to_trans::<CState>(init_state_pred(), obj1_state_pred(), obj2_state_pred());
+    leads_to_trans::<CState>(sm_spec(), init_state_pred().lift(), obj1_state_pred().lift(), obj2_state_pred().lift());
 
-    leads_to_apply::<CState>(init_state_pred(), obj2_state_pred());
+    leads_to_apply::<CState>(sm_spec(), init_state_pred().lift(), obj2_state_pred().lift());
 }
 
 proof fn liveness()

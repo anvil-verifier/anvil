@@ -90,13 +90,13 @@ proof fn prove_eventually_c()
     // assert(valid(implies(sm_spec(), leads_to(b_temp_pred(), c_temp_pred()))));
 
     // leads_to_trans connects the two leads_to together
-    leads_to_trans::<SimpleState>(a_state_pred(), b_state_pred(), c_state_pred());
+    leads_to_trans::<SimpleState>(sm_spec(), a_state_pred().lift(), b_state_pred().lift(), c_state_pred().lift());
     // Now we have:
     // assert(valid(implies(sm_spec(), leads_to(a_temp_pred(), c_temp_pred()))));
 
     // leads_to_apply gives us eventually from leads_to
     // Note that init_state_pred(), as part of sm_spec(), implies a_temp_pred()
-    leads_to_apply::<SimpleState>(a_state_pred(), c_state_pred());
+    leads_to_apply::<SimpleState>(sm_spec(), a_state_pred().lift(), c_state_pred().lift());
     // Now we have:
     // assert(valid(implies(sm_spec(), eventually(c_temp_pred()))));
 }

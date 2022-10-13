@@ -306,23 +306,23 @@ pub proof fn eventually_weaken<T>(p: TempPred<T>, q: TempPred<T>)
 /// Proves eventually q if we have p and p leads_to q.
 /// `|= p /\ (p ~> q) -> <>q`
 #[verifier(external_body)]
-pub proof fn leads_to_apply<T>(p: StatePred<T>, q: StatePred<T>)
+pub proof fn leads_to_apply<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        valid(spec.implies(p)),
+        valid(spec.implies(p.leads_to(q))),
     ensures
-        valid(
-            p.lift().and(
-                p.lift().leads_to(q.lift()))
-            .implies(eventually(q.lift()))),
+        valid(spec.implies(eventually(q))),
 {}
 
 /// Connects two leads_to with the transitivity of leads_to.
 /// `|= ((p ~> q) /\ (q ~> r)) => (p ~> r)`
 #[verifier(external_body)]
-pub proof fn leads_to_trans<T>(p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
+pub proof fn leads_to_trans<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    requires
+        valid(spec.implies(p.leads_to(q))),
+        valid(spec.implies(q.leads_to(r))),
     ensures
-        valid(
-            p.lift().leads_to(q.lift()).and(
-                q.lift().leads_to(r.lift()))
-            .implies(p.lift().leads_to(r.lift()))),
+        valid(spec.implies(p.leads_to(r))),
 {}
 
 /// Gets (p1 leads_to q1) implies (p2 leads_to q2) if:
