@@ -410,10 +410,11 @@ pub proof fn leads_to_assume<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
 /// TODO: prove the equivalence.
 
 #[verifier(external_body)]
-pub proof fn leads_to_assume_not<T>(p: TempPred<T>, q: TempPred<T>)
+pub proof fn leads_to_assume_not<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        valid(spec.implies(p.and(not(q)).leads_to(q))),
     ensures
-        valid(p.and(not(q)).leads_to(q)
-                .implies(p.leads_to(q))),
+        valid(spec.implies(p.leads_to(q))),
         // valid(implies(#[trigger] leads_to(p, q), leads_to(and(p, not(q)), q))),
 {}
 

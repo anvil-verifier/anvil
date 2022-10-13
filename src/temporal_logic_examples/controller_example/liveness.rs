@@ -328,10 +328,10 @@ proof fn lemma_obj1_leads_to_obj2()
      * With `leads_to_assume_not` we can kick out `not(obj2_state_pred().lift())`.
      */
     lemma_obj1_and_not_obj2_and_not_sent2_leads_to_obj2();
-    leads_to_assume_not::<CState>(obj1_state_pred().lift().and(not(sent2_state_pred().lift())), obj2_state_pred().lift());
+    leads_to_assume_not::<CState>(sm_spec(), obj1_state_pred().lift().and(not(sent2_state_pred().lift())), obj2_state_pred().lift());
 
     lemma_obj1_and_not_obj2_and_sent2_leads_to_obj2();
-    leads_to_assume_not::<CState>(obj1_state_pred().lift().and(sent2_state_pred().lift()), obj2_state_pred().lift());
+    leads_to_assume_not::<CState>(sm_spec(), obj1_state_pred().lift().and(sent2_state_pred().lift()), obj2_state_pred().lift());
 
     /*
      * We will combine the two premises together with or using `leads_to_split`.
