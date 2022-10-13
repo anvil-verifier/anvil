@@ -165,7 +165,7 @@ proof fn lemma_obj1_and_not_sent2_leads_to_obj2()
     leads_to_trans::<CState>(send2_pre_state_pred(), create2_pre_state_pred(), obj2_state_pred());
 
     /*
-     * Now we have `(s.obj_1_exists && !s.obj_2_exists && !s.sent_2_create) ~> s.obj_2_exists`.
+     * Now we have `(s.obj_1_exists /\ ~s.obj_2_exists /\ ~s.sent_2_create) ~> s.obj_2_exists`.
      */
     // assert(valid(sm_spec()
     //     .implies(obj1_state_pred().lift()
@@ -174,21 +174,21 @@ proof fn lemma_obj1_and_not_sent2_leads_to_obj2()
     //                 .leads_to(obj2_state_pred().lift()))));
 
     /*
-     * With `leads_to_assume_not` we can kick out `!s.obj_2_exists`.
+     * With `leads_to_assume_not` we can kick out `~s.obj_2_exists`.
      */
     leads_to_assume_not::<CState>(sm_spec(), obj1_state_pred().lift().and(not(sent2_state_pred().lift())), obj2_state_pred().lift());
 
     /*
      * Should we just continue connecting the leads_to and reach our final goal?
      * Wait... there is a problem:
-     * This proof gives us a leads_to starting at `s.obj_1_exists && !s.sent_2_create`,
+     * This proof gives us a leads_to starting at `s.obj_1_exists /\ ~s.sent_2_create`,
      * and the previous proof gives us a leads_to ending at `s.obj_1_exists`.
      * Help! Our old friend `leads_to_trans` cannot connect them together!
      *
      * To continue the liveness proof, we need to prove `s.obj_1_exists ~> s.obj_2_exists`.
-     * Since we already have `s.obj_1_exists && !s.sent_2_create`,
+     * Since we already have `s.obj_1_exists /\ ~s.sent_2_create`,
      * all we need to do is to prove another case:
-     * `(s.obj_1_exists && s.sent_2_create) ~> s.obj_2_exists`.
+     * `(s.obj_1_exists /\ s.sent_2_create) ~> s.obj_2_exists`.
      */
 }
 
@@ -212,7 +212,7 @@ proof fn lemma_obj1_and_sent2_leads_to_obj2()
                     .leads_to(obj2_state_pred().lift()))),
 {
     /*
-     * This proof shows you `(s.obj_1_exists && !s.obj_2_exists && s.sent_2_create) ~> s.obj_2_exists`
+     * This proof shows you `(s.obj_1_exists /\ ~s.obj_2_exists /\ s.sent_2_create) ~> s.obj_2_exists`
      * It is interesting and quite complex, so fasten your seat belt.
      */
 
@@ -222,10 +222,10 @@ proof fn lemma_obj1_and_sent2_leads_to_obj2()
 
     /*
      * It is hard to even start the first step because `wf1` does not directly give you
-     * `(s.obj_1_exists && s.sent_2_create) ~> s.obj_2_exists`.
+     * `(s.obj_1_exists /\ s.sent_2_create) ~> s.obj_2_exists`.
      *
      * But thinking in this way:
-     * why does `s.obj_1_exists && s.sent_2_create` happen
+     * why does `s.obj_1_exists /\ s.sent_2_create` happen
      * and why does it lead to `s.obj_2_exists`?
      *
      * We have `s.sent_2_create` only after `send2` happens.
