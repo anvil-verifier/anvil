@@ -380,6 +380,17 @@ pub proof fn leads_to_or_split<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>
               .implies(p.leads_to(r).and(q.leads_to(r)))),
 {}
 
+/// `|= (((p /\ q) ~> r) /\ ((p /\ ~q) ~> r)) -> (p ~> r)`
+
+#[verifier(external_body)]
+pub proof fn leads_to_split<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    requires
+        valid(spec.implies(p.and(r).leads_to(q))),
+        valid(spec.implies(p.and(not(r)).leads_to(q))),
+    ensures
+        valid(spec.implies(p.leads_to(q)))
+{}
+
 /// Removes r from the premise if we have always r.
 /// `|= ([]r /\ ((p /\ r) ~> q)) => (p ~> q)`
 /// Note that the other direction also holds.
