@@ -171,12 +171,11 @@ proof fn lemma_obj1_and_not_obj2_and_not_sent2_leads_to_obj2()
     /*
      * Now we have `(s.obj_1_exists && !s.obj_2_exists && !s.sent_2_create) ~> s.obj_2_exists`.
      */
-    // assert(valid(
-    //     sm_spec()
-    //         .implies(obj1_state_pred().lift()
-    //             .and(not(obj2_state_pred().lift())
-    //                 .and(not(sent2_state_pred().lift())))
-    //                     .leads_to(obj2_state_pred().lift()))));
+    // assert(valid(sm_spec()
+    //     .implies(obj1_state_pred().lift()
+    //         .and(not(obj2_state_pred().lift())
+    //             .and(not(sent2_state_pred().lift())))
+    //                 .leads_to(obj2_state_pred().lift()))));
 
     /*
      * Should we just continue connecting the leads_to and reach our final goal?
@@ -325,46 +324,19 @@ proof fn lemma_obj1_leads_to_obj2()
     /*
      * With `lemma_premise1_leads_to_obj2` and `lemma_premise2_leads_to_obj2`,
      * things become much easier here.
+     *
+     * With `leads_to_assume_not` we can kick out `not(obj2_state_pred().lift())`.
      */
     lemma_obj1_and_not_obj2_and_not_sent2_leads_to_obj2();
+    leads_to_assume_not::<CState>(obj1_state_pred().lift().and(not(sent2_state_pred().lift())), obj2_state_pred().lift());
+
     lemma_obj1_and_not_obj2_and_sent2_leads_to_obj2();
+    leads_to_assume_not::<CState>(obj1_state_pred().lift().and(sent2_state_pred().lift()), obj2_state_pred().lift());
 
     /*
-     * We will combine the two premises together with or using `leads_to_or_split`.
+     * We will combine the two premises together with or using `leads_to_split`.
      */
-    leads_to_or_split::<CState>(
-        obj1_state_pred().lift()
-            .and(not(obj2_state_pred().lift())
-                .and(not(sent2_state_pred().lift()))),
-        obj1_state_pred().lift()
-            .and(not(obj2_state_pred().lift())
-                .and(sent2_state_pred().lift())),
-        obj2_state_pred().lift()
-    );
-    // assert(valid(implies(sm_spec(), leads_to(
-    //     or(premise1, premise2),
-    //     obj2_state_pred().lift()
-    // ))));
-
-    /*
-     * The following leads_to and the above one are equally strong.
-     */
-    // assert(valid(implies(sm_spec(), leads_to(
-    //     and(
-    //         obj1_state_pred().lift(),
-    //         not(obj2_state_pred().lift()),
-    //     ),
-    //     obj2_state_pred().lift()
-    // ))));
-
-    /*
-     * We are almost there!
-     * Now we have `(s.obj_1_exists && !s.obj_2_exists) ~> s.obj_2_exists`,
-     * and it is obvious that we can just drop `!s.obj_2_exists`
-     * because `s.obj_2_exists ~> s.obj_2_exists` is trivial.
-     * We use `leads_to_assume_not` to do the elimination.
-     */
-    leads_to_assume_not::<CState>(obj1_state_pred().lift(), obj2_state_pred().lift());
+    leads_to_split::<CState>(sm_spec(), obj1_state_pred().lift(), obj2_state_pred().lift(), sent2_state_pred().lift());
 }
 
 proof fn lemma_eventually_obj1()
