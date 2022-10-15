@@ -306,23 +306,23 @@ pub proof fn eventually_weaken<T>(p: TempPred<T>, q: TempPred<T>)
 /// Proves eventually q if we have p and p leads_to q.
 /// `|= p /\ (p ~> q) -> <>q`
 #[verifier(external_body)]
-pub proof fn leads_to_apply<T>(p: StatePred<T>, q: StatePred<T>)
+pub proof fn leads_to_apply<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        valid(spec.implies(p)),
+        valid(spec.implies(p.leads_to(q))),
     ensures
-        valid(
-            p.lift().and(
-                p.lift().leads_to(q.lift()))
-            .implies(eventually(q.lift()))),
+        valid(spec.implies(eventually(q))),
 {}
 
 /// Connects two leads_to with the transitivity of leads_to.
 /// `|= ((p ~> q) /\ (q ~> r)) => (p ~> r)`
 #[verifier(external_body)]
-pub proof fn leads_to_trans<T>(p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
+pub proof fn leads_to_trans<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    requires
+        valid(spec.implies(p.leads_to(q))),
+        valid(spec.implies(q.leads_to(r))),
     ensures
-        valid(
-            p.lift().leads_to(q.lift()).and(
-                q.lift().leads_to(r.lift()))
-            .implies(p.lift().leads_to(r.lift()))),
+        valid(spec.implies(p.leads_to(r))),
 {}
 
 /// Gets (p1 leads_to q1) implies (p2 leads_to q2) if:
@@ -380,6 +380,17 @@ pub proof fn leads_to_or_split<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>
               .implies(p.leads_to(r).and(q.leads_to(r)))),
 {}
 
+/// `|= (((p /\ q) ~> r) /\ ((p /\ ~q) ~> r)) -> (p ~> r)`
+
+#[verifier(external_body)]
+pub proof fn leads_to_split<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    requires
+        valid(spec.implies(p.and(r).leads_to(q))),
+        valid(spec.implies(p.and(not(r)).leads_to(q))),
+    ensures
+        valid(spec.implies(p.leads_to(q)))
+{}
+
 /// Removes r from the premise if we have always r.
 /// `|= ([]r /\ ((p /\ r) ~> q)) => (p ~> q)`
 /// Note that the other direction also holds.
@@ -399,10 +410,11 @@ pub proof fn leads_to_assume<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
 /// TODO: prove the equivalence.
 
 #[verifier(external_body)]
-pub proof fn leads_to_assume_not<T>(p: TempPred<T>, q: TempPred<T>)
+pub proof fn leads_to_assume_not<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        valid(spec.implies(p.and(not(q)).leads_to(q))),
     ensures
-        valid(p.and(not(q)).leads_to(q)
-                .implies(p.leads_to(q))),
+        valid(spec.implies(p.leads_to(q))),
         // valid(implies(#[trigger] leads_to(p, q), leads_to(and(p, not(q)), q))),
 {}
 
