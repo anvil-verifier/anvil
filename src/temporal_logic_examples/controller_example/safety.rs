@@ -44,17 +44,15 @@ proof fn lemma_inductive_inv()
     ensures
         valid(sm_spec().implies(always(inductive_inv_state_pred().lift())))
 {
-    implies_apply_auto::<CState>();
-    init_invariant::<CState>(init_state_pred(), next_action_pred(), inductive_inv_state_pred());
+    init_invariant::<CState>(sm_spec(), init_state_pred(), next_action_pred(), inductive_inv_state_pred());
 }
 
 pub proof fn safety()
     ensures
         valid(sm_spec().implies(always(order_inv_state_pred().lift())))
 {
-    implies_apply_auto::<CState>();
     lemma_inductive_inv();
-    implies_generalize::<CState>(inductive_inv_state_pred().lift(), order_inv_state_pred().lift());
+    always_weaken::<CState>(sm_spec(), inductive_inv_state_pred().lift(), order_inv_state_pred().lift());
 }
 
 }

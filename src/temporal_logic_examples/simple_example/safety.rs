@@ -20,18 +20,11 @@ spec fn happy_temp_pred() -> TempPred<SimpleState> {
     happy_state_pred().lift()
 }
 
-spec fn always_happy() -> TempPred<SimpleState> {
-    init_state_pred().lift().and(always(next_action_pred().lift()))
-    .implies(
-        always(happy_temp_pred())
-    )
-}
-
 proof fn prove_always_happy()
     ensures
-        valid(always_happy())
+        valid(sm_spec().implies(always(happy_temp_pred())))
 {
-    init_invariant::<SimpleState>(init_state_pred(), next_action_pred(), happy_state_pred());
+    init_invariant::<SimpleState>(sm_spec(), init_state_pred(), next_action_pred(), happy_state_pred());
 }
 
 }

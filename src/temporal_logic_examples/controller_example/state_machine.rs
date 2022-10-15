@@ -151,7 +151,7 @@ pub open spec fn sm_spec() -> TempPred<CState> {
                 weak_fairness(reconcile_action_pred()).and(
                     weak_fairness(create1_action_pred()).and(
                         weak_fairness(create2_action_pred()))
-            ),
+            )
         )
     )
 }
