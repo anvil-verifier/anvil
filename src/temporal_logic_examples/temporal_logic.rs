@@ -394,22 +394,22 @@ pub proof fn leads_to_eq_auto<T>(spec: TempPred<T>)
     };
 }
 
-/// Combines/splits leads_to using or.
+/// Combines leads_to using or.
 /// `|= ((p ~> r) /\ (q ~> r)) == (p \/ q ~> r)`
 
 #[verifier(external_body)]
-pub proof fn leads_to_or_split<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+pub proof fn leads_to_or_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    requires
+        valid(spec.implies(p.leads_to(r))),
+        valid(spec.implies(q.leads_to(r))),
     ensures
-        valid(p.leads_to(r).and(q.leads_to(r))
-               .implies(p.or(q).leads_to(r))),
-        valid(p.or(q).leads_to(r)
-              .implies(p.leads_to(r).and(q.leads_to(r)))),
+        valid(spec.implies(p.or(q).leads_to(r))),
 {}
 
 /// `|= (((p /\ q) ~> r) /\ ((p /\ ~q) ~> r)) -> (p ~> r)`
 
 #[verifier(external_body)]
-pub proof fn leads_to_split<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+pub proof fn leads_to_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     requires
         valid(spec.implies(p.and(r).leads_to(q))),
         valid(spec.implies(p.and(not(r)).leads_to(q))),

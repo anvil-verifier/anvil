@@ -303,9 +303,9 @@ proof fn lemma_obj1_leads_to_obj2()
     lemma_obj1_and_sent2_leads_to_obj2();
 
     /*
-     * We will combine the two premises together with or using `leads_to_split`.
+     * We will combine the two premises together with or using `leads_to_combine`.
      */
-    leads_to_split::<CState>(sm_spec(), obj1_state_pred().lift(), obj2_state_pred().lift(), sent2_state_pred().lift());
+    leads_to_combine::<CState>(sm_spec(), obj1_state_pred().lift(), obj2_state_pred().lift(), sent2_state_pred().lift());
 }
 
 proof fn lemma_eventually_obj1()
