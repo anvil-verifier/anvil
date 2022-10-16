@@ -71,7 +71,9 @@ pub open spec fn send_create_cr(s: CState, s_prime: CState) -> bool {
 }
 
 pub open spec fn send_create_sts_pre(s: CState) -> bool {
-    s.resources.dom().contains(new_strlit("my_cr")@)
+    &&& s.resources.dom().contains(new_strlit("my_cr")@)
+    &&& !s.resources.dom().contains(new_strlit("my_statefulset")@)
+    &&& !s.messages.contains(Message::CreateStatefulSet{replica: 1})
 }
 
 pub open spec fn send_create_sts(s: CState, s_prime: CState) -> bool {
@@ -83,7 +85,9 @@ pub open spec fn send_create_sts(s: CState, s_prime: CState) -> bool {
 }
 
 pub open spec fn send_create_vol_pre(s: CState) -> bool {
-    s.resources.dom().contains(new_strlit("my_cr")@)
+    &&& s.resources.dom().contains(new_strlit("my_cr")@)
+    &&& !s.resources.dom().contains(new_strlit("my_volume1")@)
+    &&& !s.messages.contains(Message::CreateVolume{id: 1})
 }
 
 pub open spec fn send_create_vol(s: CState, s_prime: CState) -> bool {
@@ -155,21 +159,20 @@ pub open spec fn k8s_attach_vol_to_pod(s: CState, s_prime: CState) -> bool {
     }
 }
 
-pub open spec fn reconcile(s: CState, s_prime: CState) -> bool {
-    ||| send_create_cr(s, s_prime)
-    ||| send_create_sts(s, s_prime)
-    ||| send_create_vol(s, s_prime)
-}
+// pub open spec fn reconcile(s: CState, s_prime: CState) -> bool {
+//     ||| send_create_cr(s, s_prime)
+//     ||| send_create_sts(s, s_prime)
+//     ||| send_create_vol(s, s_prime)
+// }
 
 pub open spec fn stutter(s: CState, s_prime: CState) -> bool {
     s === s_prime
 }
 
 pub open spec fn next(s: CState, s_prime: CState) -> bool {
-    // ||| send_create_cr(s, s_prime)
-    // ||| send_create_sts(s, s_prime)
-    // ||| send_create_vol(s, s_prime)
-    ||| reconcile(s, s_prime)
+    ||| send_create_cr(s, s_prime)
+    ||| send_create_sts(s, s_prime)
+    ||| send_create_vol(s, s_prime)
     ||| k8s_create_cr(s, s_prime)
     ||| k8s_create_sts(s, s_prime)
     ||| k8s_create_vol(s, s_prime)
@@ -246,9 +249,9 @@ pub open spec fn init_state_pred() -> StatePred<CState> {
     StatePred::new(|state: CState| init(state))
 }
 
-pub open spec fn reconcile_action_pred() -> ActionPred<CState> {
-    ActionPred::new(|action: Action<CState>| reconcile(action.state, action.state_prime))
-}
+// pub open spec fn reconcile_action_pred() -> ActionPred<CState> {
+//     ActionPred::new(|action: Action<CState>| reconcile(action.state, action.state_prime))
+// }
 
 pub open spec fn next_action_pred() -> ActionPred<CState> {
     ActionPred::new(|action: Action<CState>| next(action.state, action.state_prime))
@@ -280,8 +283,27 @@ pub proof fn send_create_cr_enabled()
     };
 }
 
+/// Typically there is not need to prove the following lemma,
+/// but Verus does not really know whether two strlit are the same or not.
+/// Unfortunately we have to reveal the strlit to convince Verus that they do not equal each other.
+/// Is there a better way to do so?
+pub proof fn send_create_sts_pre_and_next_implies_pre_or_post()
+    ensures
+        forall |a: Action<CState>| send_create_sts_pre_state_pred().satisfied_by(a.state) && #[trigger] next_action_pred().satisfied_by(a)
+            ==> send_create_sts_pre_state_pred().satisfied_by(a.state_prime) || k8s_create_sts_pre_state_pred().satisfied_by(a.state_prime),
+{
+    assert forall |a: Action<CState>| send_create_sts_pre_state_pred().satisfied_by(a.state) && #[trigger] next_action_pred().satisfied_by(a)
+    implies send_create_sts_pre_state_pred().satisfied_by(a.state_prime) || k8s_create_sts_pre_state_pred().satisfied_by(a.state_prime) by {
+        reveal_strlit("my_volume1");
+        reveal_strlit("my_statefulset");
+        assert(!new_strlit("my_statefulset")@.ext_equal(new_strlit("my_volume1")@));
+        assert(new_strlit("my_statefulset")@ !== new_strlit("my_volume1")@);
+    };
+}
+
 pub proof fn send_create_sts_enabled()
-    ensures forall |s: CState| send_create_sts_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(send_create_sts_action_pred()).satisfied_by(s)
+    ensures
+        forall |s: CState| send_create_sts_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(send_create_sts_action_pred()).satisfied_by(s),
 {
     assert forall |s: CState| send_create_sts_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(send_create_sts_action_pred()).satisfied_by(s) by {
         if send_create_sts_pre_state_pred().satisfied_by(s) {
@@ -297,11 +319,28 @@ pub proof fn send_create_sts_enabled()
     };
 }
 
+pub proof fn send_create_vol_pre_and_next_implies_pre_or_post()
+    ensures
+        forall |a: Action<CState>| send_create_vol_pre_state_pred().satisfied_by(a.state) && #[trigger] next_action_pred().satisfied_by(a)
+            ==> send_create_vol_pre_state_pred().satisfied_by(a.state_prime) || k8s_create_vol_pre_state_pred().satisfied_by(a.state_prime),
+{
+    assert forall |a: Action<CState>| send_create_vol_pre_state_pred().satisfied_by(a.state) && #[trigger] next_action_pred().satisfied_by(a)
+    implies send_create_vol_pre_state_pred().satisfied_by(a.state_prime) || k8s_create_vol_pre_state_pred().satisfied_by(a.state_prime) by {
+        reveal_strlit("my_volume1");
+        reveal_strlit("my_statefulset");
+        reveal_strlit("my_pod1");
+        assert(!new_strlit("my_volume1")@.ext_equal(new_strlit("my_statefulset")@));
+        assert(!new_strlit("my_volume1")@.ext_equal(new_strlit("my_pod1")@));
+        assert(new_strlit("my_volume1")@ !== new_strlit("my_statefulset")@);
+        assert(new_strlit("my_volume1")@ !== new_strlit("my_pod1")@);
+    };
+}
+
 pub proof fn send_create_vol_enabled()
     ensures forall |s: CState| send_create_vol_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(send_create_vol_action_pred()).satisfied_by(s)
 {
     assert forall |s: CState| send_create_vol_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(send_create_vol_action_pred()).satisfied_by(s) by {
-        if send_create_sts_pre_state_pred().satisfied_by(s) {
+        if send_create_vol_pre_state_pred().satisfied_by(s) {
             let witness_action = Action {
                 state: s,
                 state_prime: CState {
