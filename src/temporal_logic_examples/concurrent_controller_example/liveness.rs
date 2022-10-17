@@ -10,38 +10,6 @@ use builtin_macros::*;
 
 verus! {
 
-spec fn cr_exists_state_pred() -> StatePred<CState> {
-    StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_cr")@))
-}
-
-spec fn sts_exists_state_pred() -> StatePred<CState> {
-    StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_statefulset")@))
-}
-
-spec fn pod1_exists_state_pred() -> StatePred<CState> {
-    StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_pod1")@))
-}
-
-spec fn vol1_exists_state_pred() -> StatePred<CState> {
-    StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_volume1")@))
-}
-
-spec fn create_cr_sent_state_pred() -> StatePred<CState> {
-    StatePred::new(|state: CState| state.messages.contains(Message::CreateCR))
-}
-
-spec fn create_sts_sent_state_pred() -> StatePred<CState> {
-    StatePred::new(|state: CState| state.messages.contains(Message::CreateStatefulSet{replica: 1}))
-}
-
-spec fn create_vol_sent_state_pred() -> StatePred<CState> {
-    StatePred::new(|state: CState| state.messages.contains(Message::CreateVolume{id: 1}))
-}
-
-spec fn vol_attached_state_pred() -> StatePred<CState> {
-    StatePred::new(|state: CState| state.vol_attached)
-}
-
 proof fn lemma_init_leads_to_pod1_exists()
     ensures
         valid(sm_spec()
@@ -68,8 +36,14 @@ proof fn lemma_init_leads_to_pod1_exists()
     //         .and(not(create_sts_sent_state_pred().lift()))
     leads_to_assume_not::<CState>(sm_spec(), cr_exists_state_pred().lift().and(not(sts_exists_state_pred().lift())), create_sts_sent_state_pred().lift());
 
+    k8s_create_sts_pre_and_next_implies_pre_or_post();
     k8s_create_sts_enabled();
-    wf1::<CState>(sm_spec(), next_action_pred(), k8s_create_sts_action_pred(), create_sts_sent_state_pred(), sts_exists_state_pred());
+    wf1::<CState>(sm_spec(), next_action_pred(), k8s_create_sts_action_pred(), k8s_create_sts_pre_state_pred(), sts_exists_state_pred());
+
+    create_sts_sent_implies_k8s_create_sts_pre();
+    // This leads_to_weaken_left is not necessary since create_sts_sent and k8s_create_sts_pre are actually equivalent.
+    // If we weaken k8s_create_sts_pre (which makes it more general), we will need leads_to_weaken_left here.
+    // leads_to_weaken_left::<CState>(sm_spec(), k8s_create_sts_pre_state_pred().lift(), create_sts_sent_state_pred().lift(), sts_exists_state_pred().lift());
 
     leads_to_trans::<CState>(sm_spec(), cr_exists_state_pred().lift().and(not(sts_exists_state_pred().lift())), create_sts_sent_state_pred().lift(), sts_exists_state_pred().lift());
 
