@@ -142,7 +142,7 @@ pub open spec fn always<T>(temp_pred: TempPred<T>) -> TempPred<T> {
 ///
 /// Defined in 3.2.1.
 pub open spec fn eventually<T>(temp_pred: TempPred<T>) -> TempPred<T> {
-    not(always(not(temp_pred)))
+    TempPred::new(|ex: Execution<T>| exists |i: nat| #[trigger] temp_pred.satisfied_by(ex.suffix(i)))
 }
 
 /// Implement the temporal logic described in the paper "The Temporal Logic of Actions."
