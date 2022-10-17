@@ -111,10 +111,10 @@ pub open spec fn k8s_create_cr(s: CState, s_prime: CState) -> bool {
     }
 }
 
-/// This predicate does not have to have a parameter m since it basically
-/// expects one particular m.
-/// I make it parameterized on m just to evaluate how we prove the properties when
-/// there is existential quantifier in the actions.
+// Xudong: This predicate does not have to have a parameter m since it basically
+// expects one particular m.
+// I make it parameterized on m just to evaluate how we prove the properties when
+// there is existential quantifier in the actions.
 pub open spec fn k8s_create_sts_pre(s: CState, m: Message) -> bool {
     &&& s.messages.contains(m)
     &&& m === Message::CreateStatefulSet{replica: 1}
@@ -169,18 +169,6 @@ pub open spec fn stutter(s: CState, s_prime: CState) -> bool {
     s === s_prime
 }
 
-pub open spec fn next(s: CState, s_prime: CState) -> bool {
-    ||| send_create_cr(s, s_prime)
-    ||| send_create_sts(s, s_prime)
-    ||| send_create_vol(s, s_prime)
-    ||| k8s_create_cr(s, s_prime)
-    ||| exists |m: Message| k8s_create_sts(s, s_prime, m)
-    ||| k8s_create_vol(s, s_prime)
-    ||| k8s_create_pod(s, s_prime)
-    ||| k8s_attach_vol_to_pod(s, s_prime)
-    ||| stutter(s, s_prime)
-}
-
 pub open spec fn cr_exists_state_pred() -> StatePred<CState> {
     StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_cr")@))
 }
@@ -213,9 +201,10 @@ pub open spec fn vol_attached_state_pred() -> StatePred<CState> {
     StatePred::new(|state: CState| state.vol_attached)
 }
 
-pub open spec fn send_create_cr_pre_state_pred() -> StatePred<CState> {
-    StatePred::new(|state: CState| send_create_cr_pre(state))
-}
+// Xudong: I would like to replace the following xxx_pre_state_pred with the above StatePred.
+// But this requires us to implement and, or, not and maybe other operators for StatePred.
+// I think we should discuss whether we want to keep everything at the TempPred level or not.
+// The current way of mixing all three kinds of predicates makes things difficult.
 
 pub open spec fn send_create_sts_pre_state_pred() -> StatePred<CState> {
     StatePred::new(|state: CState| send_create_sts_pre(state))
@@ -225,20 +214,8 @@ pub open spec fn send_create_vol_pre_state_pred() -> StatePred<CState> {
     StatePred::new(|state: CState| send_create_vol_pre(state))
 }
 
-pub open spec fn k8s_create_cr_pre_state_pred() -> StatePred<CState> {
-    StatePred::new(|state: CState| k8s_create_cr_pre(state))
-}
-
 pub open spec fn k8s_create_sts_pre_state_pred() -> StatePred<CState> {
     UnquantifiedStatePred::new(|state: CState, message: Message| k8s_create_sts_pre(state, message)).existentially_quantified()
-}
-
-pub open spec fn k8s_create_vol_pre_state_pred() -> StatePred<CState> {
-    StatePred::new(|state: CState| k8s_create_vol_pre(state))
-}
-
-pub open spec fn k8s_create_pod_pre_state_pred() -> StatePred<CState> {
-    StatePred::new(|state: CState| k8s_create_pod_pre(state))
 }
 
 pub open spec fn k8s_attach_vol_to_pod_pre_state_pred() -> StatePred<CState> {
@@ -285,13 +262,30 @@ pub open spec fn init_state_pred() -> StatePred<CState> {
     StatePred::new(|state: CState| init(state))
 }
 
+pub open spec fn next(s: CState, s_prime: CState) -> bool {
+    ||| send_create_cr(s, s_prime)
+    ||| send_create_sts(s, s_prime)
+    ||| send_create_vol(s, s_prime)
+    ||| k8s_create_cr(s, s_prime)
+    ||| exists |m: Message| k8s_create_sts(s, s_prime, m)
+    ||| k8s_create_vol(s, s_prime)
+    ||| k8s_create_pod(s, s_prime)
+    ||| k8s_attach_vol_to_pod(s, s_prime)
+    ||| stutter(s, s_prime)
+}
+
+// Xudong: It might be better to write next_action_pred() as
+//
+// send_create_cr_action_pred().or(send_create_sts_action_pred())
+// .or(send_create_vol_action_pred()).or(k8s_create_cr_action_pred())
+// .or(k8s_create_sts_action_pred()).or(k8s_create_vol_action_pred())
+// .or(k8s_create_pod_action_pred()).or(k8s_attach_vol_to_pod_action_pred())
+// .or(stutter_action_pred())
+//
+// But this requires us to implement or for ActionPred, and slows down the verification.
+
 pub open spec fn next_action_pred() -> ActionPred<CState> {
     ActionPred::new(|action: Action<CState>| next(action.state, action.state_prime))
-    // send_create_cr_action_pred().or(send_create_sts_action_pred())
-    // .or(send_create_vol_action_pred()).or(k8s_create_cr_action_pred())
-    // .or(k8s_create_sts_action_pred()).or(k8s_create_vol_action_pred())
-    // .or(k8s_create_pod_action_pred()).or(k8s_attach_vol_to_pod_action_pred())
-    // .or(stutter_action_pred())
 }
 
 pub open spec fn sm_spec() -> TempPred<CState> {
@@ -304,9 +298,9 @@ pub open spec fn sm_spec() -> TempPred<CState> {
 }
 
 pub proof fn send_create_cr_enabled()
-    ensures forall |s: CState| send_create_cr_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(send_create_cr_action_pred()).satisfied_by(s)
+    ensures forall |s: CState| init_state_pred().satisfied_by(s) ==> #[trigger] enabled(send_create_cr_action_pred()).satisfied_by(s)
 {
-    assert forall |s: CState| send_create_cr_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(send_create_cr_action_pred()).satisfied_by(s) by {
+    assert forall |s: CState| init_state_pred().satisfied_by(s) implies #[trigger] enabled(send_create_cr_action_pred()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
             state_prime: CState {
@@ -355,10 +349,10 @@ pub proof fn send_create_sts_enabled()
 pub proof fn send_create_vol_pre_and_next_implies_pre_or_post()
     ensures
         forall |a: Action<CState>| send_create_vol_pre_state_pred().satisfied_by(a.state) && #[trigger] next_action_pred().satisfied_by(a)
-            ==> send_create_vol_pre_state_pred().satisfied_by(a.state_prime) || k8s_create_vol_pre_state_pred().satisfied_by(a.state_prime),
+            ==> send_create_vol_pre_state_pred().satisfied_by(a.state_prime) || create_vol_sent_state_pred().satisfied_by(a.state_prime),
 {
     assert forall |a: Action<CState>| send_create_vol_pre_state_pred().satisfied_by(a.state) && #[trigger] next_action_pred().satisfied_by(a)
-    implies send_create_vol_pre_state_pred().satisfied_by(a.state_prime) || k8s_create_vol_pre_state_pred().satisfied_by(a.state_prime) by {
+    implies send_create_vol_pre_state_pred().satisfied_by(a.state_prime) || create_vol_sent_state_pred().satisfied_by(a.state_prime) by {
         reveal_strlit("my_volume1");
         reveal_strlit("my_statefulset");
         reveal_strlit("my_pod1");
@@ -385,9 +379,9 @@ pub proof fn send_create_vol_enabled()
 }
 
 pub proof fn k8s_create_cr_enabled()
-    ensures forall |s: CState| k8s_create_cr_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(k8s_create_cr_action_pred()).satisfied_by(s)
+    ensures forall |s: CState| create_cr_sent_state_pred().satisfied_by(s) ==> #[trigger] enabled(k8s_create_cr_action_pred()).satisfied_by(s)
 {
-    assert forall |s: CState| k8s_create_cr_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(k8s_create_cr_action_pred()).satisfied_by(s) by {
+    assert forall |s: CState| create_cr_sent_state_pred().satisfied_by(s) implies #[trigger] enabled(k8s_create_cr_action_pred()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
             state_prime: CState {
@@ -410,10 +404,10 @@ pub proof fn create_sts_sent_implies_k8s_create_sts_pre()
 pub proof fn k8s_create_sts_pre_and_next_implies_pre_or_post()
     ensures
         forall |a: Action<CState>| k8s_create_sts_pre_state_pred().satisfied_by(a.state) && #[trigger] next_action_pred().satisfied_by(a)
-        ==> k8s_create_sts_pre_state_pred().satisfied_by(a.state_prime) || k8s_create_pod_pre_state_pred().satisfied_by(a.state_prime),
+        ==> k8s_create_sts_pre_state_pred().satisfied_by(a.state_prime) || sts_exists_state_pred().satisfied_by(a.state_prime),
 {
     assert forall |a: Action<CState>| k8s_create_sts_pre_state_pred().satisfied_by(a.state) && #[trigger] next_action_pred().satisfied_by(a)
-    implies k8s_create_sts_pre_state_pred().satisfied_by(a.state_prime) || k8s_create_pod_pre_state_pred().satisfied_by(a.state_prime) by {
+    implies k8s_create_sts_pre_state_pred().satisfied_by(a.state_prime) || sts_exists_state_pred().satisfied_by(a.state_prime) by {
         let m = choose(|m: Message| k8s_create_sts_pre(a.state, m));
         assert(k8s_create_sts_pre(a.state, m));
         assert(k8s_create_sts_pre(a.state_prime, m));
@@ -440,9 +434,9 @@ pub proof fn k8s_create_sts_enabled()
 }
 
 pub proof fn k8s_create_vol_enabled()
-    ensures forall |s: CState| k8s_create_vol_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(k8s_create_vol_action_pred()).satisfied_by(s)
+    ensures forall |s: CState| create_vol_sent_state_pred().satisfied_by(s) ==> #[trigger] enabled(k8s_create_vol_action_pred()).satisfied_by(s)
 {
-    assert forall |s: CState| k8s_create_vol_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(k8s_create_vol_action_pred()).satisfied_by(s) by {
+    assert forall |s: CState| create_vol_sent_state_pred().satisfied_by(s) implies #[trigger] enabled(k8s_create_vol_action_pred()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
             state_prime: CState {
@@ -455,9 +449,9 @@ pub proof fn k8s_create_vol_enabled()
 }
 
 pub proof fn k8s_create_pod_enabled()
-    ensures forall |s: CState| k8s_create_pod_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(k8s_create_pod_action_pred()).satisfied_by(s)
+    ensures forall |s: CState| sts_exists_state_pred().satisfied_by(s) ==> #[trigger] enabled(k8s_create_pod_action_pred()).satisfied_by(s)
 {
-    assert forall |s: CState| k8s_create_pod_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(k8s_create_pod_action_pred()).satisfied_by(s) by {
+    assert forall |s: CState| sts_exists_state_pred().satisfied_by(s) implies #[trigger] enabled(k8s_create_pod_action_pred()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
             state_prime: CState {

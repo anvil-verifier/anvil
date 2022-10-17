@@ -26,6 +26,10 @@ proof fn lemma_init_leads_to_pod1_exists()
 
     leads_to_trans::<CState>(sm_spec(), init_state_pred().lift(), create_cr_sent_state_pred().lift(), cr_exists_state_pred().lift());
 
+    // assert(valid(sm_spec()
+    //     .implies(init_state_pred().lift()
+    //         .leads_to(cr_exists_state_pred().lift()))));
+
     send_create_sts_pre_and_next_implies_pre_or_post();
     send_create_sts_enabled();
     wf1::<CState>(sm_spec(), next_action_pred(), send_create_sts_action_pred(), send_create_sts_pre_state_pred(), create_sts_sent_state_pred());
@@ -35,6 +39,9 @@ proof fn lemma_init_leads_to_pod1_exists()
     //     .and(not(sts_exists_state_pred().lift()))
     //         .and(not(create_sts_sent_state_pred().lift()))
     leads_to_assume_not::<CState>(sm_spec(), cr_exists_state_pred().lift().and(not(sts_exists_state_pred().lift())), create_sts_sent_state_pred().lift());
+    // assert(valid(sm_spec()
+    //     .implies(cr_exists_state_pred().lift().and(not(sts_exists_state_pred().lift()))
+    //         .leads_to(create_sts_sent_state_pred().lift()))));
 
     k8s_create_sts_pre_and_next_implies_pre_or_post();
     k8s_create_sts_enabled();
@@ -46,12 +53,21 @@ proof fn lemma_init_leads_to_pod1_exists()
     // leads_to_weaken_left::<CState>(sm_spec(), k8s_create_sts_pre_state_pred().lift(), create_sts_sent_state_pred().lift(), sts_exists_state_pred().lift());
 
     leads_to_trans::<CState>(sm_spec(), cr_exists_state_pred().lift().and(not(sts_exists_state_pred().lift())), create_sts_sent_state_pred().lift(), sts_exists_state_pred().lift());
+    // assert(valid(sm_spec()
+    //     .implies(cr_exists_state_pred().lift().and(not(sts_exists_state_pred().lift()))
+    //         .leads_to(sts_exists_state_pred().lift()))));
 
     leads_to_assume_not::<CState>(sm_spec(), cr_exists_state_pred().lift(), sts_exists_state_pred().lift());
+    // assert(valid(sm_spec()
+    //     .implies(cr_exists_state_pred().lift()
+    //         .leads_to(sts_exists_state_pred().lift()))));
 
     k8s_create_pod_enabled();
     wf1::<CState>(sm_spec(), next_action_pred(), k8s_create_pod_action_pred(), sts_exists_state_pred(), pod1_exists_state_pred());
     leads_to_trans::<CState>(sm_spec(), cr_exists_state_pred().lift(), sts_exists_state_pred().lift(), pod1_exists_state_pred().lift());
+    // assert(valid(sm_spec()
+    //     .implies(cr_exists_state_pred().lift()
+    //         .leads_to(pod1_exists_state_pred().lift()))));
 
     leads_to_trans::<CState>(sm_spec(), init_state_pred().lift(), cr_exists_state_pred().lift(), pod1_exists_state_pred().lift());
 }
@@ -106,13 +122,26 @@ proof fn lemma_eventually_vol_attached()
 
     lemma_init_leads_to_pod1_exists();
     leads_to_stable::<CState>(sm_spec(), next_action_pred(), init_state_pred().lift(), pod1_exists_state_pred());
+    // assert(valid(sm_spec()
+    //     .implies(init_state_pred().lift()
+    //         .leads_to(always(pod1_exists_state_pred().lift())))));
 
     lemma_init_leads_to_vol1_exists();
     leads_to_stable::<CState>(sm_spec(), next_action_pred(), init_state_pred().lift(), vol1_exists_state_pred());
+    // assert(valid(sm_spec()
+    //     .implies(init_state_pred().lift()
+    //         .leads_to(always(vol1_exists_state_pred().lift())))));
 
     leads_to_always_combine::<CState>(sm_spec(), init_state_pred().lift(), pod1_exists_state_pred().lift(), vol1_exists_state_pred().lift());
+    // assert(valid(sm_spec()
+    //     .implies(init_state_pred().lift()
+    //         .leads_to(always(pod1_exists_state_pred().lift().and(vol1_exists_state_pred().lift()))))));
+
 
     leads_to_always_weaken::<CState>(sm_spec(), init_state_pred().lift(), pod1_exists_state_pred().lift().and(vol1_exists_state_pred().lift()));
+    // assert(valid(sm_spec()
+    //     .implies(init_state_pred().lift()
+    //         .leads_to(pod1_exists_state_pred().lift().and(vol1_exists_state_pred().lift())))));
 
     k8s_attach_vol_to_pod_enabled();
     wf1::<CState>(sm_spec(), next_action_pred(), k8s_attach_vol_to_pod_action_pred(), k8s_attach_vol_to_pod_pre_state_pred(), vol_attached_state_pred());
