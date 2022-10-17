@@ -62,6 +62,26 @@ impl<T> StatePred<T> {
     }
 }
 
+pub struct UnquantifiedStatePred<#[verifier(maybe_negative)] T, #[verifier(maybe_negative)] A> {
+    pub pred: FnSpec(T, A) -> bool,
+}
+
+impl<T, A> UnquantifiedStatePred<T, A> {
+    pub open spec fn new(pred: FnSpec(T, A) -> bool) -> Self {
+        UnquantifiedStatePred {
+            pred: pred,
+        }
+    }
+
+    pub open spec fn satisfied_by(self, state: T, additional: A) -> bool {
+        (self.pred)(state, additional)
+    }
+
+    pub open spec fn existentially_quantified(self) -> StatePred<T> {
+        StatePred::new(|state: T| exists |additional: A| self.satisfied_by(state, additional))
+    }
+}
+
 pub struct ActionPred<T> {
     pub pred: FnSpec(Action<T>) -> bool,
 }
@@ -79,6 +99,26 @@ impl<T> ActionPred<T> {
 
     pub open spec fn lift(self) -> TempPred<T> {
         TempPred::new(|ex: Execution<T>| self.satisfied_by(Action{state: ex.head(), state_prime: ex.head_next()}))
+    }
+}
+
+pub struct UnquantifiedActionPred<T, #[verifier(maybe_negative)] A> {
+    pub pred: FnSpec(Action<T>, A) -> bool,
+}
+
+impl<T, A> UnquantifiedActionPred<T, A> {
+    pub open spec fn new(pred: FnSpec(Action<T>, A) -> bool) -> Self {
+        UnquantifiedActionPred {
+            pred: pred,
+        }
+    }
+
+    pub open spec fn satisfied_by(self, action: Action<T>, additional: A) -> bool {
+        (self.pred)(action, additional)
+    }
+
+    pub open spec fn existentially_quantified(self) -> ActionPred<T> {
+        ActionPred::new(|action: Action<T>| exists |additional: A| self.satisfied_by(action, additional))
     }
 }
 
