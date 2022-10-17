@@ -270,16 +270,14 @@ pub proof fn send_create_cr_enabled()
     ensures forall |s: CState| send_create_cr_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(send_create_cr_action_pred()).satisfied_by(s)
 {
     assert forall |s: CState| send_create_cr_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(send_create_cr_action_pred()).satisfied_by(s) by {
-        if send_create_cr_pre_state_pred().satisfied_by(s) {
-            let witness_action = Action {
-                state: s,
-                state_prime: CState {
-                    messages: s.messages.insert(Message::CreateCR),
-                    ..s
-                }
-            };
-            assert(send_create_cr_action_pred().satisfied_by(witness_action));
-        }
+        let witness_action = Action {
+            state: s,
+            state_prime: CState {
+                messages: s.messages.insert(Message::CreateCR),
+                ..s
+            }
+        };
+        assert(send_create_cr_action_pred().satisfied_by(witness_action));
     };
 }
 
@@ -306,16 +304,14 @@ pub proof fn send_create_sts_enabled()
         forall |s: CState| send_create_sts_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(send_create_sts_action_pred()).satisfied_by(s),
 {
     assert forall |s: CState| send_create_sts_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(send_create_sts_action_pred()).satisfied_by(s) by {
-        if send_create_sts_pre_state_pred().satisfied_by(s) {
-            let witness_action = Action {
-                state: s,
-                state_prime: CState {
-                    messages: s.messages.insert(Message::CreateStatefulSet{replica: 1}),
-                    ..s
-                }
-            };
-            assert(send_create_sts_action_pred().satisfied_by(witness_action));
-        }
+        let witness_action = Action {
+            state: s,
+            state_prime: CState {
+                messages: s.messages.insert(Message::CreateStatefulSet{replica: 1}),
+                ..s
+            }
+        };
+        assert(send_create_sts_action_pred().satisfied_by(witness_action));
     };
 }
 
@@ -340,16 +336,14 @@ pub proof fn send_create_vol_enabled()
     ensures forall |s: CState| send_create_vol_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(send_create_vol_action_pred()).satisfied_by(s)
 {
     assert forall |s: CState| send_create_vol_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(send_create_vol_action_pred()).satisfied_by(s) by {
-        if send_create_vol_pre_state_pred().satisfied_by(s) {
-            let witness_action = Action {
-                state: s,
-                state_prime: CState {
-                    messages: s.messages.insert(Message::CreateVolume{id: 1}),
-                    ..s
-                }
-            };
-            assert(send_create_vol_action_pred().satisfied_by(witness_action));
-        }
+        let witness_action = Action {
+            state: s,
+            state_prime: CState {
+                messages: s.messages.insert(Message::CreateVolume{id: 1}),
+                ..s
+            }
+        };
+        assert(send_create_vol_action_pred().satisfied_by(witness_action));
     };
 }
 
@@ -357,16 +351,14 @@ pub proof fn k8s_create_cr_enabled()
     ensures forall |s: CState| k8s_create_cr_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(k8s_create_cr_action_pred()).satisfied_by(s)
 {
     assert forall |s: CState| k8s_create_cr_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(k8s_create_cr_action_pred()).satisfied_by(s) by {
-        if k8s_create_cr_pre_state_pred().satisfied_by(s) {
-            let witness_action = Action {
-                state: s,
-                state_prime: CState {
-                    resources: s.resources.insert(new_strlit("my_cr")@, Resource{}),
-                    ..s
-                }
-            };
-            assert(k8s_create_cr_action_pred().satisfied_by(witness_action));
-        }
+        let witness_action = Action {
+            state: s,
+            state_prime: CState {
+                resources: s.resources.insert(new_strlit("my_cr")@, Resource{}),
+                ..s
+            }
+        };
+        assert(k8s_create_cr_action_pred().satisfied_by(witness_action));
     };
 }
 
@@ -374,16 +366,14 @@ pub proof fn k8s_create_sts_enabled()
     ensures forall |s: CState| k8s_create_sts_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(k8s_create_sts_action_pred()).satisfied_by(s)
 {
     assert forall |s: CState| k8s_create_sts_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(k8s_create_sts_action_pred()).satisfied_by(s) by {
-        if k8s_create_sts_pre_state_pred().satisfied_by(s) {
-            let witness_action = Action {
-                state: s,
-                state_prime: CState {
-                    resources: s.resources.insert(new_strlit("my_statefulset")@, Resource{}),
-                    ..s
-                }
-            };
-            assert(k8s_create_sts_action_pred().satisfied_by(witness_action));
-        }
+        let witness_action = Action {
+            state: s,
+            state_prime: CState {
+                resources: s.resources.insert(new_strlit("my_statefulset")@, Resource{}),
+                ..s
+            }
+        };
+        assert(k8s_create_sts_action_pred().satisfied_by(witness_action));
     };
 }
 
@@ -391,16 +381,14 @@ pub proof fn k8s_create_vol_enabled()
     ensures forall |s: CState| k8s_create_vol_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(k8s_create_vol_action_pred()).satisfied_by(s)
 {
     assert forall |s: CState| k8s_create_vol_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(k8s_create_vol_action_pred()).satisfied_by(s) by {
-        if k8s_create_vol_pre_state_pred().satisfied_by(s) {
-            let witness_action = Action {
-                state: s,
-                state_prime: CState {
-                    resources: s.resources.insert(new_strlit("my_volume1")@, Resource{}),
-                    ..s
-                }
-            };
-            assert(k8s_create_vol_action_pred().satisfied_by(witness_action));
-        }
+        let witness_action = Action {
+            state: s,
+            state_prime: CState {
+                resources: s.resources.insert(new_strlit("my_volume1")@, Resource{}),
+                ..s
+            }
+        };
+        assert(k8s_create_vol_action_pred().satisfied_by(witness_action));
     };
 }
 
@@ -408,16 +396,14 @@ pub proof fn k8s_create_pod_enabled()
     ensures forall |s: CState| k8s_create_pod_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(k8s_create_pod_action_pred()).satisfied_by(s)
 {
     assert forall |s: CState| k8s_create_pod_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(k8s_create_pod_action_pred()).satisfied_by(s) by {
-        if k8s_create_pod_pre_state_pred().satisfied_by(s) {
-            let witness_action = Action {
-                state: s,
-                state_prime: CState {
-                    resources: s.resources.insert(new_strlit("my_pod1")@, Resource{}),
-                    ..s
-                }
-            };
-            assert(k8s_create_pod_action_pred().satisfied_by(witness_action));
-        }
+        let witness_action = Action {
+            state: s,
+            state_prime: CState {
+                resources: s.resources.insert(new_strlit("my_pod1")@, Resource{}),
+                ..s
+            }
+        };
+        assert(k8s_create_pod_action_pred().satisfied_by(witness_action));
     };
 }
 
@@ -425,16 +411,14 @@ pub proof fn k8s_attach_vol_to_pod_enabled()
     ensures forall |s: CState| k8s_attach_vol_to_pod_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(k8s_attach_vol_to_pod_action_pred()).satisfied_by(s)
 {
     assert forall |s: CState| k8s_attach_vol_to_pod_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(k8s_attach_vol_to_pod_action_pred()).satisfied_by(s) by {
-        if k8s_attach_vol_to_pod_pre_state_pred().satisfied_by(s) {
-            let witness_action = Action {
-                state: s,
-                state_prime: CState {
-                    vol_attached: true,
-                    ..s
-                }
-            };
-            assert(k8s_attach_vol_to_pod_action_pred().satisfied_by(witness_action));
-        }
+        let witness_action = Action {
+            state: s,
+            state_prime: CState {
+                vol_attached: true,
+                ..s
+            }
+        };
+        assert(k8s_attach_vol_to_pod_action_pred().satisfied_by(witness_action));
     };
 }
 
