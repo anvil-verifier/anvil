@@ -139,46 +139,86 @@ pub open spec fn sm_spec_with_composite() -> TempPred<CState> {
     .and(weak_fairness(k8s_attach_vol_to_pod()))
 }
 
-pub proof fn k8s_handle_create_cr_msg_pre_and_next_and_forward_implies_post()
+pub proof fn k8s_handle_any_create_msg_pre_and_next_and_forward_implies_post(msg: Message)
     ensures
         forall |action: Action<CState>|
-            #[trigger] k8s_handle_create_pre_concretized(create_cr_msg()).satisfied_by(action.state)
+            #[trigger] k8s_handle_create_pre_concretized(msg).satisfied_by(action.state)
             && next_with_composite().satisfied_by(action)
-            && k8s_handle_create_concretized(create_cr_msg()).satisfied_by(action)
-            ==> k8s_handle_create_post_concretized(create_cr_msg()).satisfied_by(action.state_prime)
+            && k8s_handle_create_concretized(msg).satisfied_by(action)
+            ==> k8s_handle_create_post_concretized(msg).satisfied_by(action.state_prime)
 {}
 
-pub proof fn k8s_handle_create_cr_msg_pre_and_next_implies_pre_and_post()
+pub proof fn k8s_handle_any_create_msg_pre_and_next_implies_pre_and_post(msg: Message)
     ensures
         forall |action: Action<CState>|
-            #[trigger] k8s_handle_create_pre_concretized(create_cr_msg()).satisfied_by(action.state)
+            #[trigger] k8s_handle_create_pre_concretized(msg).satisfied_by(action.state)
             && next_with_composite().satisfied_by(action)
-            ==> k8s_handle_create_pre_concretized(create_cr_msg()).satisfied_by(action.state_prime) || k8s_handle_create_post_concretized(create_cr_msg()).satisfied_by(action.state_prime)
+            ==> k8s_handle_create_pre_concretized(msg).satisfied_by(action.state_prime)
+                || k8s_handle_create_post_concretized(msg).satisfied_by(action.state_prime)
 {}
 
-
-pub proof fn k8s_handle_create_cr_msg_pre_implies_enabled()
+pub proof fn k8s_handle_any_create_msg_pre_implies_enabled(msg: Message)
     ensures
-        forall |state: CState| #[trigger] k8s_handle_create_pre_concretized(create_cr_msg()).satisfied_by(state)
-            ==> enabled(k8s_handle_create_concretized(create_cr_msg())).satisfied_by(state),
+        forall |state: CState| #[trigger] k8s_handle_create_pre_concretized(msg).satisfied_by(state)
+            ==> enabled(k8s_handle_create_concretized(msg)).satisfied_by(state),
 {
-    assert forall |state: CState| #[trigger] k8s_handle_create_pre_concretized(create_cr_msg()).satisfied_by(state)
-    implies enabled(k8s_handle_create_concretized(create_cr_msg())).satisfied_by(state) by {
-        if state.resources.dom().contains(new_strlit("my_cr")@) {
-            let witness_action = Action {
-                state: state,
-                state_prime: state,
-            };
-            assert(k8s_handle_create_concretized(create_cr_msg()).satisfied_by(witness_action));
-        } else {
-            let witness_action = Action {
-                state: state,
-                state_prime: CState {
-                    resources: state.resources.insert(new_strlit("my_cr")@, Resource::CustomResource),
-                    ..state
-                },
-            };
-            assert(k8s_handle_create_concretized(create_cr_msg()).satisfied_by(witness_action));
+    assert forall |state: CState| #[trigger] k8s_handle_create_pre_concretized(msg).satisfied_by(state)
+    implies enabled(k8s_handle_create_concretized(msg)).satisfied_by(state) by {
+        match msg {
+            Message::CreateCR => {
+                if state.resources.dom().contains(new_strlit("my_cr")@) {
+                    let witness_action = Action {
+                        state: state,
+                        state_prime: state,
+                    };
+                    assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
+                } else {
+                    let witness_action = Action {
+                        state: state,
+                        state_prime: CState {
+                            resources: state.resources.insert(new_strlit("my_cr")@, Resource::CustomResource),
+                            ..state
+                        },
+                    };
+                    assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
+                }
+            },
+            Message::CreateStatefulSet{..} => {
+                if state.resources.dom().contains(new_strlit("my_statefulset")@) {
+                    let witness_action = Action {
+                        state: state,
+                        state_prime: state,
+                    };
+                    assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
+                } else {
+                    let witness_action = Action {
+                        state: state,
+                        state_prime: CState {
+                            resources: state.resources.insert(new_strlit("my_statefulset")@, Resource::StatefulSet),
+                            ..state
+                        },
+                    };
+                    assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
+                }
+            },
+            Message::CreateVolume{..} => {
+                if state.resources.dom().contains(new_strlit("my_volume1")@) {
+                    let witness_action = Action {
+                        state: state,
+                        state_prime: state,
+                    };
+                    assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
+                } else {
+                    let witness_action = Action {
+                        state: state,
+                        state_prime: CState {
+                            resources: state.resources.insert(new_strlit("my_volume1")@, Resource::Volume{attached: false}),
+                            ..state
+                        },
+                    };
+                    assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
+                }
+            },
         }
     }
 }
