@@ -73,12 +73,16 @@ impl<T, A> UnquantifiedStatePred<T, A> {
         }
     }
 
-    pub open spec fn satisfied_by(self, state: T, additional: A) -> bool {
-        (self.pred)(state, additional)
+    pub open spec fn satisfied_by(self, state: T, unquantified: A) -> bool {
+        (self.pred)(state, unquantified)
+    }
+
+    pub open spec fn quantified_by(self, unquantified: A) -> StatePred<T> {
+        StatePred::new(|state: T| self.satisfied_by(state, unquantified))
     }
 
     pub open spec fn existentially_quantified(self) -> StatePred<T> {
-        StatePred::new(|state: T| exists |additional: A| self.satisfied_by(state, additional))
+        StatePred::new(|state: T| exists |unquantified: A| self.satisfied_by(state, unquantified))
     }
 }
 
@@ -113,12 +117,16 @@ impl<T, A> UnquantifiedActionPred<T, A> {
         }
     }
 
-    pub open spec fn satisfied_by(self, action: Action<T>, additional: A) -> bool {
-        (self.pred)(action, additional)
+    pub open spec fn satisfied_by(self, action: Action<T>, unquantified: A) -> bool {
+        (self.pred)(action, unquantified)
+    }
+
+    pub open spec fn quantified_by(self, unquantified: A) -> ActionPred<T> {
+        ActionPred::new(|action: Action<T>| self.satisfied_by(action, unquantified))
     }
 
     pub open spec fn existentially_quantified(self) -> ActionPred<T> {
-        ActionPred::new(|action: Action<T>| exists |additional: A| self.satisfied_by(action, additional))
+        ActionPred::new(|action: Action<T>| exists |unquantified: A| self.satisfied_by(action, unquantified))
     }
 }
 
