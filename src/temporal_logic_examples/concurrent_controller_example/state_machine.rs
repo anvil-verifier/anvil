@@ -18,7 +18,13 @@ pub enum Message {
     CreateVolume{id: nat},
 }
 
-pub struct Resource {}
+#[is_variant]
+pub enum Resource {
+    CustomResource,
+    StatefulSet,
+    Pod,
+    Volume{attached: bool},
+}
 
 pub struct CState {
     pub resources: Map<Seq<char>, Resource>,
@@ -106,7 +112,7 @@ pub open spec fn sm_k8s_create_cr_precondition(s: CState) -> bool {
 pub open spec fn sm_k8s_create_cr(s: CState, s_prime: CState) -> bool {
     &&& sm_k8s_create_cr_precondition(s)
     &&& s_prime === CState {
-        resources: s.resources.insert(new_strlit("my_cr")@, Resource{}),
+        resources: s.resources.insert(new_strlit("my_cr")@, Resource::CustomResource),
         ..s
     }
 }
@@ -123,7 +129,7 @@ pub open spec fn sm_k8s_create_sts_precondition(s: CState, m: Message) -> bool {
 pub open spec fn sm_k8s_create_sts(s: CState, s_prime: CState, m: Message) -> bool {
     &&& sm_k8s_create_sts_precondition(s, m)
     &&& s_prime === CState {
-        resources: s.resources.insert(new_strlit("my_statefulset")@, Resource{}),
+        resources: s.resources.insert(new_strlit("my_statefulset")@, Resource::StatefulSet),
         ..s
     }
 }
@@ -135,7 +141,7 @@ pub open spec fn sm_k8s_create_vol_precondition(s: CState) -> bool {
 pub open spec fn sm_k8s_create_vol(s: CState, s_prime: CState) -> bool {
     &&& sm_k8s_create_vol_precondition(s)
     &&& s_prime === CState {
-        resources: s.resources.insert(new_strlit("my_volume1")@, Resource{}),
+        resources: s.resources.insert(new_strlit("my_volume1")@, Resource::Volume{attached: false}),
         ..s
     }
 }
@@ -147,7 +153,7 @@ pub open spec fn sm_k8s_create_pod_precondition(s: CState) -> bool {
 pub open spec fn sm_k8s_create_pod(s: CState, s_prime: CState) -> bool {
     &&& sm_k8s_create_pod_precondition(s)
     &&& s_prime === CState {
-        resources: s.resources.insert(new_strlit("my_pod1")@, Resource{}),
+        resources: s.resources.insert(new_strlit("my_pod1")@, Resource::Pod),
         ..s
     }
 }
@@ -387,7 +393,7 @@ pub proof fn k8s_create_cr_enabled()
         let witness_action = Action {
             state: s,
             state_prime: CState {
-                resources: s.resources.insert(new_strlit("my_cr")@, Resource{}),
+                resources: s.resources.insert(new_strlit("my_cr")@, Resource::CustomResource),
                 ..s
             }
         };
@@ -426,7 +432,7 @@ pub proof fn k8s_create_sts_enabled()
         let witness_action = Action {
             state: s,
             state_prime: CState {
-                resources: s.resources.insert(new_strlit("my_statefulset")@, Resource{}),
+                resources: s.resources.insert(new_strlit("my_statefulset")@, Resource::StatefulSet),
                 ..s
             }
         };
@@ -442,7 +448,7 @@ pub proof fn k8s_create_vol_enabled()
         let witness_action = Action {
             state: s,
             state_prime: CState {
-                resources: s.resources.insert(new_strlit("my_volume1")@, Resource{}),
+                resources: s.resources.insert(new_strlit("my_volume1")@, Resource::Volume{attached: false}),
                 ..s
             }
         };
@@ -457,7 +463,7 @@ pub proof fn k8s_create_pod_enabled()
         let witness_action = Action {
             state: s,
             state_prime: CState {
-                resources: s.resources.insert(new_strlit("my_pod1")@, Resource{}),
+                resources: s.resources.insert(new_strlit("my_pod1")@, Resource::Pod),
                 ..s
             }
         };
