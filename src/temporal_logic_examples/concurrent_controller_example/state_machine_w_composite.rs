@@ -212,76 +212,76 @@ pub proof fn k8s_handle_any_create_msg_pre_implies_enabled(msg: Message)
 }
 
 // Mechanically prove k8s_handle_create is enabled. It is a repeated and tedious process.
-pub proof fn k8s_handle_create_enabled()
-    ensures
-        forall |s: CState| k8s_handle_create_pre().satisfied_by(s) ==> #[trigger] enabled(k8s_handle_create()).satisfied_by(s),
-{
-    assert forall |s: CState| k8s_handle_create_pre().satisfied_by(s) implies #[trigger] enabled(k8s_handle_create()).satisfied_by(s) by {
-        let m = choose(|m: Message| sm_k8s_handle_create_pre(s, m));
-        match m {
-            Message::CreateCR => {
-                if s.resources.dom().contains(new_strlit("my_cr")@) {
-                    let witness_action = Action {
-                        state: s,
-                        state_prime: s,
-                    };
-                    assert(UnquantifiedActionPred::new(|action: Action<CState>, message: Message| sm_k8s_handle_create(action.state, action.state_prime, message)).satisfied_by(witness_action, m));
-                    assert(k8s_handle_create().satisfied_by(witness_action));
-                } else {
-                    let witness_action = Action {
-                        state: s,
-                        state_prime: CState {
-                            resources: s.resources.insert(new_strlit("my_cr")@, Resource::CustomResource),
-                            ..s
-                        },
-                    };
-                    assert(UnquantifiedActionPred::new(|action: Action<CState>, message: Message| sm_k8s_handle_create(action.state, action.state_prime, message)).satisfied_by(witness_action, m));
-                    assert(k8s_handle_create().satisfied_by(witness_action));
-                }
-            },
-            Message::CreateStatefulSet{..} => {
-                if s.resources.dom().contains(new_strlit("my_statefulset")@) {
-                    let witness_action = Action {
-                        state: s,
-                        state_prime: s,
-                    };
-                    assert(UnquantifiedActionPred::new(|action: Action<CState>, message: Message| sm_k8s_handle_create(action.state, action.state_prime, message)).satisfied_by(witness_action, m));
-                    assert(k8s_handle_create().satisfied_by(witness_action));
-                } else {
-                    let witness_action = Action {
-                        state: s,
-                        state_prime: CState {
-                            resources: s.resources.insert(new_strlit("my_statefulset")@, Resource::StatefulSet),
-                            ..s
-                        },
-                    };
-                    assert(UnquantifiedActionPred::new(|action: Action<CState>, message: Message| sm_k8s_handle_create(action.state, action.state_prime, message)).satisfied_by(witness_action, m));
-                    assert(k8s_handle_create().satisfied_by(witness_action));
-                }
-            },
-            Message::CreateVolume{..} => {
-                if s.resources.dom().contains(new_strlit("my_volume1")@) {
-                    let witness_action = Action {
-                        state: s,
-                        state_prime: s,
-                    };
-                    assert(UnquantifiedActionPred::new(|action: Action<CState>, message: Message| sm_k8s_handle_create(action.state, action.state_prime, message)).satisfied_by(witness_action, m));
-                    assert(k8s_handle_create().satisfied_by(witness_action));
-                } else {
-                    let witness_action = Action {
-                        state: s,
-                        state_prime: CState {
-                            resources: s.resources.insert(new_strlit("my_volume1")@, Resource::Volume{attached: false}),
-                            ..s
-                        }
-                    };
-                    assert(UnquantifiedActionPred::new(|action: Action<CState>, message: Message| sm_k8s_handle_create(action.state, action.state_prime, message)).satisfied_by(witness_action, m));
-                    assert(k8s_handle_create().satisfied_by(witness_action));
-                }
-            },
-        }
-    };
-}
+// pub proof fn k8s_handle_create_enabled()
+//     ensures
+//         forall |s: CState| k8s_handle_create_pre().satisfied_by(s) ==> #[trigger] enabled(k8s_handle_create()).satisfied_by(s),
+// {
+//     assert forall |s: CState| k8s_handle_create_pre().satisfied_by(s) implies #[trigger] enabled(k8s_handle_create()).satisfied_by(s) by {
+//         let m = choose(|m: Message| sm_k8s_handle_create_pre(s, m));
+//         match m {
+//             Message::CreateCR => {
+//                 if s.resources.dom().contains(new_strlit("my_cr")@) {
+//                     let witness_action = Action {
+//                         state: s,
+//                         state_prime: s,
+//                     };
+//                     assert(UnquantifiedActionPred::new(|action: Action<CState>, message: Message| sm_k8s_handle_create(action.state, action.state_prime, message)).satisfied_by(witness_action, m));
+//                     assert(k8s_handle_create().satisfied_by(witness_action));
+//                 } else {
+//                     let witness_action = Action {
+//                         state: s,
+//                         state_prime: CState {
+//                             resources: s.resources.insert(new_strlit("my_cr")@, Resource::CustomResource),
+//                             ..s
+//                         },
+//                     };
+//                     assert(UnquantifiedActionPred::new(|action: Action<CState>, message: Message| sm_k8s_handle_create(action.state, action.state_prime, message)).satisfied_by(witness_action, m));
+//                     assert(k8s_handle_create().satisfied_by(witness_action));
+//                 }
+//             },
+//             Message::CreateStatefulSet{..} => {
+//                 if s.resources.dom().contains(new_strlit("my_statefulset")@) {
+//                     let witness_action = Action {
+//                         state: s,
+//                         state_prime: s,
+//                     };
+//                     assert(UnquantifiedActionPred::new(|action: Action<CState>, message: Message| sm_k8s_handle_create(action.state, action.state_prime, message)).satisfied_by(witness_action, m));
+//                     assert(k8s_handle_create().satisfied_by(witness_action));
+//                 } else {
+//                     let witness_action = Action {
+//                         state: s,
+//                         state_prime: CState {
+//                             resources: s.resources.insert(new_strlit("my_statefulset")@, Resource::StatefulSet),
+//                             ..s
+//                         },
+//                     };
+//                     assert(UnquantifiedActionPred::new(|action: Action<CState>, message: Message| sm_k8s_handle_create(action.state, action.state_prime, message)).satisfied_by(witness_action, m));
+//                     assert(k8s_handle_create().satisfied_by(witness_action));
+//                 }
+//             },
+//             Message::CreateVolume{..} => {
+//                 if s.resources.dom().contains(new_strlit("my_volume1")@) {
+//                     let witness_action = Action {
+//                         state: s,
+//                         state_prime: s,
+//                     };
+//                     assert(UnquantifiedActionPred::new(|action: Action<CState>, message: Message| sm_k8s_handle_create(action.state, action.state_prime, message)).satisfied_by(witness_action, m));
+//                     assert(k8s_handle_create().satisfied_by(witness_action));
+//                 } else {
+//                     let witness_action = Action {
+//                         state: s,
+//                         state_prime: CState {
+//                             resources: s.resources.insert(new_strlit("my_volume1")@, Resource::Volume{attached: false}),
+//                             ..s
+//                         }
+//                     };
+//                     assert(UnquantifiedActionPred::new(|action: Action<CState>, message: Message| sm_k8s_handle_create(action.state, action.state_prime, message)).satisfied_by(witness_action, m));
+//                     assert(k8s_handle_create().satisfied_by(witness_action));
+//                 }
+//             },
+//         }
+//     };
+// }
 
 // The following just tries to prove that if the "CreateStatefulSet" branch is enabled
 // the pre get preserved after next() action.
