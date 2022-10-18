@@ -12,18 +12,18 @@ use builtin_macros::*;
 
 verus! {
 
-/// The precondition is fairly simple: just make sure the message is sent
-pub open spec fn sm_k8s_handle_create_precondition(s: CState, m: Message) -> bool {
+// The pre is fairly simple: just make sure the message is sent
+pub open spec fn sm_k8s_handle_create_pre(s: CState, m: Message) -> bool {
     &&& s.messages.contains(m)
     // We don't even need the this line since the message has only three types
     // &&& m.is_CreateCR() || m.is_CreateStatefulSet() || m.is_CreateVolume()
 }
 
-/// This sm_k8s_handle_create should replace sm_k8s_create_(cr|sts|vol) in state_machine.rs
-/// Note that sm_k8s_create_pod is a bit different so it is not included yet
-/// TODO: sm_k8s_handle_create should not be hardcoded to my_xxx
+// This sm_k8s_handle_create should replace sm_k8s_create_(cr|sts|vol) in state_machine.rs
+// Note that sm_k8s_create_pod is a bit different so it is not included yet
+// TODO: sm_k8s_handle_create should not be hardcoded to my_xxx
 pub open spec fn sm_k8s_handle_create(s: CState, s_prime: CState, m: Message) -> bool {
-    &&& sm_k8s_handle_create_precondition(s, m)
+    &&& sm_k8s_handle_create_pre(s, m)
     &&& match m {
         Message::CreateCR => {
             if s.resources.dom().contains(new_strlit("my_cr")@) {
@@ -58,12 +58,60 @@ pub open spec fn sm_k8s_handle_create(s: CState, s_prime: CState, m: Message) ->
     }
 }
 
-pub open spec fn k8s_handle_create_precondition() -> StatePred<CState> {
-    UnquantifiedStatePred::new(|state: CState, message: Message| sm_k8s_handle_create_precondition(state, message)).existentially_quantified()
+pub open spec fn sm_k8s_handle_create_post(s_prime: CState, m: Message) -> bool {
+    match m {
+        Message::CreateCR => s_prime.resources.dom().contains(new_strlit("my_cr")@),
+        Message::CreateStatefulSet{..} => s_prime.resources.dom().contains(new_strlit("my_statefulset")@),
+        Message::CreateVolume{..} => s_prime.resources.dom().contains(new_strlit("my_volume1")@),
+    }
+}
+
+pub open spec fn k8s_handle_create_pre_unquantified() -> UnquantifiedStatePred<CState, Message> {
+    UnquantifiedStatePred::new(|state: CState, message: Message| sm_k8s_handle_create_pre(state, message))
+}
+
+pub open spec fn k8s_handle_create_unquantified() -> UnquantifiedActionPred<CState, Message> {
+    UnquantifiedActionPred::new(|action: Action<CState>, message: Message| sm_k8s_handle_create(action.state, action.state_prime, message))
+}
+
+pub open spec fn k8s_handle_create_post_unquantified() -> UnquantifiedStatePred<CState, Message> {
+    UnquantifiedStatePred::new(|state_prime: CState, message: Message| sm_k8s_handle_create_post(state_prime, message))
+}
+
+pub open spec fn k8s_handle_create_pre() -> StatePred<CState> {
+    k8s_handle_create_pre_unquantified().existentially_quantified()
 }
 
 pub open spec fn k8s_handle_create() -> ActionPred<CState> {
-    UnquantifiedActionPred::new(|action: Action<CState>, message: Message| sm_k8s_handle_create(action.state, action.state_prime, message)).existentially_quantified()
+    k8s_handle_create_unquantified().existentially_quantified()
+}
+
+pub open spec fn k8s_handle_create_post() -> StatePred<CState> {
+    k8s_handle_create_post_unquantified().existentially_quantified()
+}
+
+pub open spec fn create_cr_msg() -> Message {
+    Message::CreateCR
+}
+
+pub open spec fn create_sts_msg() -> Message {
+    Message::CreateStatefulSet{replica: 1}
+}
+
+pub open spec fn create_vol_msg() -> Message {
+    Message::CreateVolume{id: 1}
+}
+
+pub open spec fn k8s_handle_create_pre_concretized(m: Message) -> StatePred<CState> {
+    k8s_handle_create_pre_unquantified().quantified_by(m)
+}
+
+pub open spec fn k8s_handle_create_concretized(m: Message) -> ActionPred<CState> {
+    k8s_handle_create_unquantified().quantified_by(m)
+}
+
+pub open spec fn k8s_handle_create_post_concretized(m: Message) -> StatePred<CState> {
+    k8s_handle_create_post_unquantified().quantified_by(m)
 }
 
 pub open spec fn sm_next_with_composite(s: CState, s_prime: CState) -> bool {
@@ -91,13 +139,57 @@ pub open spec fn sm_spec_with_composite() -> TempPred<CState> {
     .and(weak_fairness(k8s_attach_vol_to_pod()))
 }
 
-/// Mechanically prove k8s_handle_create is enabled. It is a repeated and tedious process.
+pub proof fn k8s_handle_create_cr_msg_pre_and_next_and_forward_implies_post()
+    ensures
+        forall |action: Action<CState>|
+            #[trigger] k8s_handle_create_pre_concretized(create_cr_msg()).satisfied_by(action.state)
+            && next_with_composite().satisfied_by(action)
+            && k8s_handle_create_concretized(create_cr_msg()).satisfied_by(action)
+            ==> k8s_handle_create_post_concretized(create_cr_msg()).satisfied_by(action.state_prime)
+{}
+
+pub proof fn k8s_handle_create_cr_msg_pre_and_next_implies_pre_and_post()
+    ensures
+        forall |action: Action<CState>|
+            #[trigger] k8s_handle_create_pre_concretized(create_cr_msg()).satisfied_by(action.state)
+            && next_with_composite().satisfied_by(action)
+            ==> k8s_handle_create_pre_concretized(create_cr_msg()).satisfied_by(action.state_prime) || k8s_handle_create_post_concretized(create_cr_msg()).satisfied_by(action.state_prime)
+{}
+
+
+pub proof fn k8s_handle_create_cr_msg_pre_implies_enabled()
+    ensures
+        forall |state: CState| #[trigger] k8s_handle_create_pre_concretized(create_cr_msg()).satisfied_by(state)
+            ==> enabled(k8s_handle_create_concretized(create_cr_msg())).satisfied_by(state),
+{
+    assert forall |state: CState| #[trigger] k8s_handle_create_pre_concretized(create_cr_msg()).satisfied_by(state)
+    implies enabled(k8s_handle_create_concretized(create_cr_msg())).satisfied_by(state) by {
+        if state.resources.dom().contains(new_strlit("my_cr")@) {
+            let witness_action = Action {
+                state: state,
+                state_prime: state,
+            };
+            assert(k8s_handle_create_concretized(create_cr_msg()).satisfied_by(witness_action));
+        } else {
+            let witness_action = Action {
+                state: state,
+                state_prime: CState {
+                    resources: state.resources.insert(new_strlit("my_cr")@, Resource::CustomResource),
+                    ..state
+                },
+            };
+            assert(k8s_handle_create_concretized(create_cr_msg()).satisfied_by(witness_action));
+        }
+    }
+}
+
+// Mechanically prove k8s_handle_create is enabled. It is a repeated and tedious process.
 pub proof fn k8s_handle_create_enabled()
     ensures
-        forall |s: CState| k8s_handle_create_precondition().satisfied_by(s) ==> #[trigger] enabled(k8s_handle_create()).satisfied_by(s),
+        forall |s: CState| k8s_handle_create_pre().satisfied_by(s) ==> #[trigger] enabled(k8s_handle_create()).satisfied_by(s),
 {
-    assert forall |s: CState| k8s_handle_create_precondition().satisfied_by(s) implies #[trigger] enabled(k8s_handle_create()).satisfied_by(s) by {
-        let m = choose(|m: Message| sm_k8s_handle_create_precondition(s, m));
+    assert forall |s: CState| k8s_handle_create_pre().satisfied_by(s) implies #[trigger] enabled(k8s_handle_create()).satisfied_by(s) by {
+        let m = choose(|m: Message| sm_k8s_handle_create_pre(s, m));
         match m {
             Message::CreateCR => {
                 if s.resources.dom().contains(new_strlit("my_cr")@) {
@@ -163,30 +255,30 @@ pub proof fn k8s_handle_create_enabled()
     };
 }
 
-/// The following just tries to prove that if the "CreateStatefulSet" branch is enabled
-/// the precondition get preserved after next() action.
-pub open spec fn sm_k8s_handle_create_sts_precondition(s: CState, m: Message) -> bool {
-    &&& s.messages.contains(m)
-    &&& m.is_CreateStatefulSet()
-}
+// The following just tries to prove that if the "CreateStatefulSet" branch is enabled
+// the pre get preserved after next() action.
+// pub open spec fn sm_k8s_handle_create_sts_pre(s: CState, m: Message) -> bool {
+//     &&& s.messages.contains(m)
+//     &&& m.is_CreateStatefulSet()
+// }
 
-pub open spec fn k8s_handle_create_sts_precondition() -> StatePred<CState> {
-    UnquantifiedStatePred::new(|state: CState, message: Message| {sm_k8s_handle_create_sts_precondition(state, message)}).existentially_quantified()
-}
+// pub open spec fn k8s_handle_create_sts_pre() -> StatePred<CState> {
+//     UnquantifiedStatePred::new(|state: CState, message: Message| {sm_k8s_handle_create_sts_pre(state, message)}).existentially_quantified()
+// }
 
-pub proof fn k8s_handle_create_sts_pre_and_next_implies_pre_or_post()
-    ensures
-        forall |a: Action<CState>| k8s_handle_create_sts_precondition().satisfied_by(a.state) && #[trigger] next_with_composite().satisfied_by(a)
-        ==> k8s_handle_create_sts_precondition().satisfied_by(a.state_prime) || sts_exists().satisfied_by(a.state_prime),
-{
-    assert forall |a: Action<CState>| k8s_handle_create_sts_precondition().satisfied_by(a.state) && #[trigger] next_with_composite().satisfied_by(a)
-    implies k8s_handle_create_sts_precondition().satisfied_by(a.state_prime) || sts_exists().satisfied_by(a.state_prime) by {
-        let m = choose(|m: Message| sm_k8s_handle_create_sts_precondition(a.state, m));
-        assert(sm_k8s_handle_create_sts_precondition(a.state, m));
-        assert(sm_k8s_handle_create_sts_precondition(a.state_prime, m));
-        assert(UnquantifiedStatePred::new(|state: CState, message: Message| sm_k8s_handle_create_sts_precondition(state, message)).satisfied_by(a.state_prime, m));
-        assert(k8s_handle_create_sts_precondition().satisfied_by(a.state_prime));
-    };
-}
+// pub proof fn k8s_handle_create_sts_pre_and_next_implies_pre_or_post()
+//     ensures
+//         forall |a: Action<CState>| k8s_handle_create_sts_pre().satisfied_by(a.state) && #[trigger] next_with_composite().satisfied_by(a)
+//         ==> k8s_handle_create_sts_pre().satisfied_by(a.state_prime) || sts_exists().satisfied_by(a.state_prime),
+// {
+//     assert forall |a: Action<CState>| k8s_handle_create_sts_pre().satisfied_by(a.state) && #[trigger] next_with_composite().satisfied_by(a)
+//     implies k8s_handle_create_sts_pre().satisfied_by(a.state_prime) || sts_exists().satisfied_by(a.state_prime) by {
+//         let m = choose(|m: Message| sm_k8s_handle_create_sts_pre(a.state, m));
+//         assert(sm_k8s_handle_create_sts_pre(a.state, m));
+//         assert(sm_k8s_handle_create_sts_pre(a.state_prime, m));
+//         assert(UnquantifiedStatePred::new(|state: CState, message: Message| sm_k8s_handle_create_sts_pre(state, message)).satisfied_by(a.state_prime, m));
+//         assert(k8s_handle_create_sts_pre().satisfied_by(a.state_prime));
+//     };
+// }
 
 }
