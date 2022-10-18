@@ -316,6 +316,8 @@ pub proof fn send_create_cr_enabled()
 /// but Verus does not really know whether two strlit are the same or not.
 /// Unfortunately we have to reveal the strlit to convince Verus that they do not equal each other.
 /// Is there a better way to do so?
+///
+/// TODO: run it with Verus team
 pub proof fn send_create_sts_pre_and_next_implies_pre_or_post()
     ensures
         forall |a: Action<CState>| send_create_sts_precondition().satisfied_by(a.state) && #[trigger] next().satisfied_by(a)
