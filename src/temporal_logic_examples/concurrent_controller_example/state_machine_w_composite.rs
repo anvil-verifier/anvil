@@ -90,18 +90,6 @@ pub open spec fn k8s_handle_create_post() -> StatePred<CState> {
     k8s_handle_create_post_unquantified().existentially_quantified()
 }
 
-pub open spec fn create_cr_msg() -> Message {
-    Message::CreateCR
-}
-
-pub open spec fn create_sts_msg() -> Message {
-    Message::CreateStatefulSet{replica: 1}
-}
-
-pub open spec fn create_vol_msg() -> Message {
-    Message::CreateVolume{id: 1}
-}
-
 pub open spec fn k8s_handle_create_pre_concretized(m: Message) -> StatePred<CState> {
     k8s_handle_create_pre_unquantified().quantified_by(m)
 }
@@ -130,7 +118,7 @@ pub open spec fn next_with_composite() -> ActionPred<CState> {
 
 pub open spec fn sm_spec_with_composite() -> TempPred<CState> {
     init().lift()
-    .and(always(next().lift()))
+    .and(always(next_with_composite().lift()))
     .and(weak_fairness(send_create_cr()))
     .and(weak_fairness(send_create_sts()))
     .and(weak_fairness(send_create_vol()))
