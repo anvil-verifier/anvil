@@ -58,7 +58,7 @@ proof fn lemma_init_leads_to_pod1_exists()
     wf1::<CState>(sm_spec(),
         next(),
         send_create_sts(),
-        send_create_sts_precondition(),
+        cr_exists_and_not_create_sts_sent(),
         create_sts_sent()
     );
     leads_to_assume_not::<CState>(sm_spec(),
