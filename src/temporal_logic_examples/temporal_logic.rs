@@ -129,64 +129,9 @@ impl<T> TempPred<T> {
     }
 }
 
-pub struct UnquantifiedStatePred<#[verifier(maybe_negative)] T, #[verifier(maybe_negative)] A> {
-    pub pred: FnSpec(A) -> StatePred<T>,
-}
-
-impl<T, A> UnquantifiedStatePred<T, A> {
-    pub open spec fn new(pred: FnSpec(A) -> StatePred<T>) -> Self {
-        UnquantifiedStatePred {
-            pred: pred,
-        }
-    }
-
-    pub open spec fn quantified_by(self, concrete_a: A) -> StatePred<T> {
-        (self.pred)(concrete_a)
-    }
-}
-
-pub struct UnquantifiedActionPred<T, #[verifier(maybe_negative)] A> {
-    pub pred: FnSpec(A) -> ActionPred<T>,
-}
-
-impl<T, A> UnquantifiedActionPred<T, A> {
-    pub open spec fn new(pred: FnSpec(A) -> ActionPred<T>) -> Self {
-        UnquantifiedActionPred {
-            pred: pred,
-        }
-    }
-
-    pub open spec fn quantified_by(self, concrete_a: A) -> ActionPred<T> {
-        (self.pred)(concrete_a)
-    }
-}
-
-pub struct UnquantifiedTempPred<#[verifier(maybe_negative)] T, #[verifier(maybe_negative)] A> {
-    pub pred: FnSpec(A) -> TempPred<T>,
-}
-
-impl<T, A> UnquantifiedTempPred<T, A> {
-    pub open spec fn new(pred: FnSpec(A) -> TempPred<T>) -> Self {
-        UnquantifiedTempPred {
-            pred: pred,
-        }
-    }
-
-    pub open spec fn quantified_by(self, concrete_a: A) -> TempPred<T> {
-        (self.pred)(concrete_a)
-    }
-}
-
-pub open spec fn tla_forall<T, A>(unquantified_temp_pred: UnquantifiedTempPred<T, A>) -> TempPred<T> {
-    TempPred::new(|ex: Execution<T>| forall |any: A|
-        #![auto] unquantified_temp_pred.quantified_by(any).satisfied_by(ex))
-}
-
-pub open spec fn weak_fairness_forall<T, A>(action_pred: UnquantifiedActionPred<T, A>) -> TempPred<T> {
-    TempPred::new(
-        |ex: Execution<T>| forall |any: A| weak_fairness(#[trigger] action_pred.quantified_by(any)).satisfied_by(ex)
-    )
-}
+pub type UnquantifiedStatePred<T, A> = FnSpec(A) -> StatePred<T>;
+pub type UnquantifiedActionPred<T, A> = FnSpec(A) -> ActionPred<T>;
+pub type UnquantifiedTempPred<T, A> = FnSpec(A) -> TempPred<T>;
 
 /// `[]` for temporal predicates in TLA+.
 /// Returns a temporal predicate that is satisfied iff `temp_pred` is satisfied on every suffix of the execution.
@@ -204,18 +149,29 @@ pub open spec fn eventually<T>(temp_pred: TempPred<T>) -> TempPred<T> {
     TempPred::new(|ex: Execution<T>| exists |i: nat| #[trigger] temp_pred.satisfied_by(ex.suffix(i)))
 }
 
-/// Implement the temporal logic described in the paper "The Temporal Logic of Actions."
-///
-/// Note:
-/// The paper uses [A]_f as an abbreviation of A || (f' = f)
-/// and <A>_f as an abbreviation of A && (f' != f)
-/// where f' = f represents a stuttering step.
-/// But here we assume the caller ensures whether the action allows a stuttering step when passing the arguments.
-///
-/// TODO: Explicitly allow or disallow stuttering step.
 /// `~` for temporal predicates in TLA+ (i.e., `!` in Verus).
 pub open spec fn not<T>(temp_pred: TempPred<T>) -> TempPred<T> {
     TempPred::new(|ex: Execution<T>| !temp_pred.satisfied_by(ex))
+}
+
+/// `\A` for temporal predicates in TLA+ (i.e., `forall` in Verus).
+pub open spec fn tla_forall<T, A>(unquantified_temp_pred: UnquantifiedTempPred<T, A>) -> TempPred<T> {
+    TempPred::new(
+        |ex: Execution<T>| forall |any: A| #[trigger] unquantified_temp_pred(any).satisfied_by(ex)
+    )
+}
+
+/// This lemmas is unfortunately necessary when using tla_forall.
+pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, unquantified_temp_pred: UnquantifiedTempPred<T, A>, a: A)
+    requires
+        valid(spec.implies(tla_forall(unquantified_temp_pred))),
+    ensures
+        valid(spec.implies(unquantified_temp_pred(a))),
+{
+    implies_unfold_auto::<T>();
+    assert forall |ex: Execution<T>| #[trigger] spec.implies(unquantified_temp_pred(a)).satisfied_by(ex) by {
+        assert(spec.implies(tla_forall(unquantified_temp_pred)).satisfied_by(ex));
+    };
 }
 
 /// Returns a state predicate that is satisfied
