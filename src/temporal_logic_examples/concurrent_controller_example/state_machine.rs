@@ -277,25 +277,14 @@ pub proof fn send_create_cr_enabled()
     };
 }
 
-/// Typically there is not need to prove the following lemma,
-/// but Verus does not really know whether two strlit are the same or not.
-/// Unfortunately we have to reveal the strlit to convince Verus that they do not equal each other.
-/// Is there a better way to do so?
+/// Note that in some cases we need to call reveal_strlit to tell Verus two strings are not the same, like:
+///
+/// reveal_strlit("my_volume1");
+/// reveal_strlit("my_statefulset");
+/// assert(!new_strlit("my_statefulset")@.ext_equal(new_strlit("my_volume1")@));
+/// assert(new_strlit("my_statefulset")@ !== new_strlit("my_volume1")@);
 ///
 /// TODO: run it with Verus team
-pub proof fn send_create_sts_pre_and_next_implies_pre_or_post()
-    ensures
-        forall |a: Action<CState>| cr_exists_and_not_create_sts_sent().satisfied_by(a.state) && #[trigger] next().satisfied_by(a)
-            ==> cr_exists_and_not_create_sts_sent().satisfied_by(a.state_prime) || create_sts_sent().satisfied_by(a.state_prime),
-{
-    // assert forall |a: Action<CState>| cr_exists_and_not_create_sts_sent().satisfied_by(a.state) && #[trigger] next().satisfied_by(a)
-    // implies cr_exists_and_not_create_sts_sent().satisfied_by(a.state_prime) || create_sts_sent().satisfied_by(a.state_prime) by {
-    //     reveal_strlit("my_volume1");
-    //     reveal_strlit("my_statefulset");
-    //     assert(!new_strlit("my_statefulset")@.ext_equal(new_strlit("my_volume1")@));
-    //     assert(new_strlit("my_statefulset")@ !== new_strlit("my_volume1")@);
-    // };
-}
 
 pub proof fn send_create_sts_enabled()
     ensures
@@ -311,23 +300,6 @@ pub proof fn send_create_sts_enabled()
         };
         assert(send_create_sts().satisfied_by(witness_action));
     };
-}
-
-pub proof fn sm_cr_exists_and_not_create_vol_sent_and_next_implies_pre_or_post()
-    ensures
-        forall |a: Action<CState>| cr_exists_and_not_create_vol_sent().satisfied_by(a.state) && #[trigger] next().satisfied_by(a)
-            ==> cr_exists_and_not_create_vol_sent().satisfied_by(a.state_prime) || create_vol_sent().satisfied_by(a.state_prime),
-{
-    // assert forall |a: Action<CState>| cr_exists_and_not_create_vol_sent().satisfied_by(a.state) && #[trigger] next().satisfied_by(a)
-    // implies cr_exists_and_not_create_vol_sent().satisfied_by(a.state_prime) || create_vol_sent().satisfied_by(a.state_prime) by {
-    //     reveal_strlit("my_volume1");
-    //     reveal_strlit("my_statefulset");
-    //     reveal_strlit("my_pod1");
-    //     assert(!new_strlit("my_volume1")@.ext_equal(new_strlit("my_statefulset")@));
-    //     assert(!new_strlit("my_volume1")@.ext_equal(new_strlit("my_pod1")@));
-    //     assert(new_strlit("my_volume1")@ !== new_strlit("my_statefulset")@);
-    //     assert(new_strlit("my_volume1")@ !== new_strlit("my_pod1")@);
-    // };
 }
 
 pub proof fn send_create_vol_enabled()
