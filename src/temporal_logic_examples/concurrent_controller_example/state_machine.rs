@@ -270,7 +270,8 @@ pub open spec fn sm_spec() -> TempPred<CState> {
     .and(weak_fairness(send_create_cr()))
     .and(weak_fairness(send_create_sts()))
     .and(weak_fairness(send_create_vol()))
-    .and(weak_fairness_for_unquantified(k8s_handle_create_unquantified()))
+    .and(weak_fairness_forall(k8s_handle_create_unquantified()))
+    // .and(tla_forall(UnquantifiedTempPred::new(|m: Message| weak_fairness(k8s_handle_create_concretized(m)))))
     .and(weak_fairness(k8s_create_pod()))
     .and(weak_fairness(k8s_attach_vol_to_pod()))
 }
@@ -369,27 +370,15 @@ pub open spec fn sm_k8s_handle_create_post(s_prime: CState, m: Message) -> bool 
 }
 
 pub open spec fn k8s_handle_create_pre_unquantified() -> UnquantifiedStatePred<CState, Message> {
-    UnquantifiedStatePred::new(|state: CState, message: Message| sm_k8s_handle_create_pre(state, message))
+    UnquantifiedStatePred::new(|message: Message| StatePred::new(|state: CState| sm_k8s_handle_create_pre(state, message)))
 }
 
 pub open spec fn k8s_handle_create_unquantified() -> UnquantifiedActionPred<CState, Message> {
-    UnquantifiedActionPred::new(|action: Action<CState>, message: Message| sm_k8s_handle_create(action.state, action.state_prime, message))
+    UnquantifiedActionPred::new(|message: Message| ActionPred::new(|action: Action<CState>| sm_k8s_handle_create(action.state, action.state_prime, message)))
 }
 
 pub open spec fn k8s_handle_create_post_unquantified() -> UnquantifiedStatePred<CState, Message> {
-    UnquantifiedStatePred::new(|state_prime: CState, message: Message| sm_k8s_handle_create_post(state_prime, message))
-}
-
-pub open spec fn k8s_handle_create_pre() -> StatePred<CState> {
-    k8s_handle_create_pre_unquantified().existentially_quantified()
-}
-
-pub open spec fn k8s_handle_create() -> ActionPred<CState> {
-    k8s_handle_create_unquantified().existentially_quantified()
-}
-
-pub open spec fn k8s_handle_create_post() -> StatePred<CState> {
-    k8s_handle_create_post_unquantified().existentially_quantified()
+    UnquantifiedStatePred::new(|message: Message| StatePred::new(|state: CState| sm_k8s_handle_create_post(state, message)))
 }
 
 pub open spec fn k8s_handle_create_pre_concretized(m: Message) -> StatePred<CState> {
