@@ -293,6 +293,22 @@ pub open spec fn weak_fairness<T>(action_pred: ActionPred<T>) -> TempPred<T> {
         .leads_to(action_pred.lift())
 }
 
+
+/// We plan to implement forall operator for TempPred but
+/// the following cannot compile because Verus cannot decide the trigger
+///
+/// pub open spec fn tla_forall<T, A>(f: FnSpec(A) -> TempPred<T>) -> TempPred<T> {
+///     TempPred::new(|ex: Execution<T>| forall |any: A| f(any).satisfied_by(ex))
+/// }
+///
+/// As a workaround, we implemented the weak_fairness for UnquantifiedActionPred
+/// so that we can state weak fairness assumptions correctly.
+pub open spec fn weak_fairness_for_unquantified<T, A>(action_pred: UnquantifiedActionPred<T, A>) -> TempPred<T> {
+    TempPred::new(
+        |ex: Execution<T>| forall |any: A| weak_fairness(#[trigger] action_pred.quantified_by(any)).satisfied_by(ex)
+    )
+}
+
 /// `|=` for temporal predicates in TLA+.
 /// Returns true iff `temp_pred` is satisfied by all possible executions (behaviors).
 ///

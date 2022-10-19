@@ -270,7 +270,7 @@ pub open spec fn sm_spec() -> TempPred<CState> {
     .and(weak_fairness(send_create_cr()))
     .and(weak_fairness(send_create_sts()))
     .and(weak_fairness(send_create_vol()))
-    .and(weak_fairness(k8s_handle_create()))
+    .and(weak_fairness_for_unquantified(k8s_handle_create_unquantified()))
     .and(weak_fairness(k8s_create_pod()))
     .and(weak_fairness(k8s_attach_vol_to_pod()))
 }
