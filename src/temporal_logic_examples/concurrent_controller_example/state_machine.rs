@@ -110,42 +110,26 @@ pub open spec fn sm_k8s_handle_create_pre(s: CState, m: Message) -> bool {
     // &&& m.is_CreateCR() || m.is_CreateStatefulSet() || m.is_CreateVolume()
 }
 
+pub open spec fn resources_updated_with(s: CState, s_prime: CState, key: Seq<char>, val: Resource) -> bool {
+    if s.resources.dom().contains(key) {
+        s_prime === s
+    } else {
+        s_prime === CState {
+            resources: s.resources.insert(key, val),
+            ..s
+        }
+    }
+}
+
 // This sm_k8s_handle_create should replace sm_k8s_create_(cr|sts|vol) in state_machine.rs
 // Note that sm_k8s_create_pod is a bit different so it is not included yet
 // TODO: sm_k8s_handle_create should not be hardcoded to my_xxx
 pub open spec fn sm_k8s_handle_create(s: CState, s_prime: CState, m: Message) -> bool {
     &&& sm_k8s_handle_create_pre(s, m)
     &&& match m {
-        Message::CreateCR => {
-            if s.resources.dom().contains(new_strlit("my_cr")@) {
-                s_prime === s
-            } else {
-                s_prime === CState {
-                    resources: s.resources.insert(new_strlit("my_cr")@, Resource::CustomResource),
-                    ..s
-                }
-            }
-        },
-        Message::CreateStatefulSet{..} => {
-            if s.resources.dom().contains(new_strlit("my_statefulset")@) {
-                s_prime === s
-            } else {
-                s_prime === CState {
-                    resources: s.resources.insert(new_strlit("my_statefulset")@, Resource::StatefulSet),
-                    ..s
-                }
-            }
-        },
-        Message::CreateVolume{..} => {
-            if s.resources.dom().contains(new_strlit("my_volume1")@) {
-                s_prime === s
-            } else {
-                s_prime === CState {
-                    resources: s.resources.insert(new_strlit("my_volume1")@, Resource::Volume{attached: false}),
-                    ..s
-                }
-            }
-        },
+        Message::CreateCR => resources_updated_with(s, s_prime, new_strlit("my_cr")@, Resource::CustomResource),
+        Message::CreateStatefulSet{..} => resources_updated_with(s, s_prime, new_strlit("my_statefulset")@, Resource::StatefulSet),
+        Message::CreateVolume{..} => resources_updated_with(s, s_prime, new_strlit("my_volume1")@, Resource::Volume{attached: false}),
     }
 }
 
@@ -438,6 +422,23 @@ pub proof fn k8s_handle_any_create_msg_pre_and_next_implies_pre_and_post(msg: Me
                 || k8s_handle_create_post_concretized(msg).satisfied_by(action.state_prime)
 {}
 
+pub open spec fn k8s_handle_create_witness_action(state: CState, key: Seq<char>, val: Resource) -> Action<CState> {
+    if state.resources.dom().contains(key) {
+        Action {
+            state: state,
+            state_prime: state,
+        }
+    } else {
+        Action {
+            state: state,
+            state_prime: CState {
+                resources: state.resources.insert(key, val),
+                ..state
+            },
+        }
+    }
+}
+
 pub proof fn k8s_handle_any_create_msg_pre_implies_enabled(msg: Message)
     ensures
         forall |state: CState| #[trigger] k8s_handle_create_pre_concretized(msg).satisfied_by(state)
@@ -447,58 +448,16 @@ pub proof fn k8s_handle_any_create_msg_pre_implies_enabled(msg: Message)
     implies enabled(k8s_handle_create_concretized(msg)).satisfied_by(state) by {
         match msg {
             Message::CreateCR => {
-                if state.resources.dom().contains(new_strlit("my_cr")@) {
-                    let witness_action = Action {
-                        state: state,
-                        state_prime: state,
-                    };
-                    assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
-                } else {
-                    let witness_action = Action {
-                        state: state,
-                        state_prime: CState {
-                            resources: state.resources.insert(new_strlit("my_cr")@, Resource::CustomResource),
-                            ..state
-                        },
-                    };
-                    assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
-                }
+                let witness_action = k8s_handle_create_witness_action(state, new_strlit("my_cr")@, Resource::CustomResource);
+                assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
             },
             Message::CreateStatefulSet{..} => {
-                if state.resources.dom().contains(new_strlit("my_statefulset")@) {
-                    let witness_action = Action {
-                        state: state,
-                        state_prime: state,
-                    };
-                    assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
-                } else {
-                    let witness_action = Action {
-                        state: state,
-                        state_prime: CState {
-                            resources: state.resources.insert(new_strlit("my_statefulset")@, Resource::StatefulSet),
-                            ..state
-                        },
-                    };
-                    assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
-                }
+                let witness_action = k8s_handle_create_witness_action(state, new_strlit("my_statefulset")@, Resource::StatefulSet);
+                assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
             },
             Message::CreateVolume{..} => {
-                if state.resources.dom().contains(new_strlit("my_volume1")@) {
-                    let witness_action = Action {
-                        state: state,
-                        state_prime: state,
-                    };
-                    assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
-                } else {
-                    let witness_action = Action {
-                        state: state,
-                        state_prime: CState {
-                            resources: state.resources.insert(new_strlit("my_volume1")@, Resource::Volume{attached: false}),
-                            ..state
-                        },
-                    };
-                    assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
-                }
+                let witness_action = k8s_handle_create_witness_action(state, new_strlit("my_volume1")@, Resource::Volume{attached: false});
+                assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
             },
         }
     }
