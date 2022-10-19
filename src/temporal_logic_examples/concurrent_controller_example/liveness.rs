@@ -32,26 +32,14 @@ proof fn lemma_init_leads_to_pod1_exists()
     use_tla_forall::<CState, Message>(sm_spec(), |m: Message| weak_fairness(k8s_handle_create_concretized(m)), create_sts_msg());
 
     send_create_cr_enabled();
-    wf1::<CState>(sm_spec(),
+    k8s_handle_any_create_msg_pre_implies_enabled(create_cr_msg());
+    wf1_chain::<CState>(sm_spec(),
         next(),
         send_create_cr(),
-        init(),
-        create_cr_sent()
-    );
-
-    k8s_handle_any_create_msg_pre_implies_enabled(create_cr_msg());
-    wf1::<CState>(
-        sm_spec(),
-        next(),
         k8s_handle_create_concretized(create_cr_msg()),
+        init(),
         k8s_handle_create_pre_concretized(create_cr_msg()),
-        k8s_handle_create_post_concretized(create_cr_msg())
-    );
-
-    leads_to_trans::<CState>(sm_spec(),
-        init().lift(),
-        create_cr_sent().lift(),
-        cr_exists().lift()
+        cr_exists(),
     );
 
     send_create_sts_enabled();

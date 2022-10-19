@@ -256,6 +256,27 @@ pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<
         valid(spec.implies(p.lift().leads_to(q.lift()))),
 {}
 
+/// Handy lemma that combines two wf1 and leads_to_trans.
+pub proof fn wf1_chain<T>(spec: TempPred<T>, next: ActionPred<T>, forward_p_q: ActionPred<T>, forward_q_r: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
+    requires
+        forall |a: Action<T>| p.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) ==> p.satisfied_by(a.state_prime) || q.satisfied_by(a.state_prime),
+        forall |a: Action<T>| p.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) && #[trigger] forward_p_q.satisfied_by(a) ==> q.satisfied_by(a.state_prime),
+        forall |a: Action<T>| #[trigger] p.satisfied_by(a.state) ==> enabled(forward_p_q).satisfied_by(a.state),
+        valid(spec.implies(always(next.lift()).and(weak_fairness(forward_p_q)))),
+        forall |a: Action<T>| q.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) ==> q.satisfied_by(a.state_prime) || r.satisfied_by(a.state_prime),
+        forall |a: Action<T>| q.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) && #[trigger] forward_q_r.satisfied_by(a) ==> r.satisfied_by(a.state_prime),
+        forall |a: Action<T>| #[trigger] q.satisfied_by(a.state) ==> enabled(forward_q_r).satisfied_by(a.state),
+        valid(spec.implies(always(next.lift()).and(weak_fairness(forward_q_r)))),
+    ensures
+        valid(spec.implies(p.lift().leads_to(q.lift()))),
+        valid(spec.implies(q.lift().leads_to(r.lift()))),
+        valid(spec.implies(p.lift().leads_to(r.lift()))),
+{
+    wf1::<T>(spec, next, forward_p_q, p, q);
+    wf1::<T>(spec, next, forward_q_r, q, r);
+    leads_to_trans::<T>(spec, p.lift(), q.lift(), r.lift());
+}
+
 #[verifier(external_body)]
 pub proof fn always_p_implies_p<T>(p: TempPred<T>)
     ensures
