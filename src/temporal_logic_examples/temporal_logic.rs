@@ -248,9 +248,9 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
 #[verifier(external_body)]
 pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        valid(p.lift().and(next.lift()).implies(p.lift_prime().or(q.lift_prime()))),
-        valid(p.lift().and(next.lift()).and(forward.lift()).implies(q.lift_prime())),
-        valid(p.lift().implies(tla_enabled(forward))),
+        forall |a: Action<T>| p.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) ==> p.satisfied_by(a.state_prime) || q.satisfied_by(a.state_prime),
+        forall |a: Action<T>| p.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) && #[trigger] forward.satisfied_by(a) ==> q.satisfied_by(a.state_prime),
+        forall |a: Action<T>| #[trigger] p.satisfied_by(a.state) ==> enabled(forward).satisfied_by(a.state),
         valid(spec.implies(always(next.lift()).and(weak_fairness(forward)))),
     ensures
         valid(spec.implies(p.lift().leads_to(q.lift()))),
