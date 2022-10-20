@@ -274,50 +274,59 @@ pub proof fn wf1_chain<T>(spec: TempPred<T>, next: ActionPred<T>, forward_p_q: A
 {
     wf1::<T>(spec, next, forward_p_q, p, q);
     wf1::<T>(spec, next, forward_q_r, q, r);
-    leads_to_trans::<T>(spec, p.lift(), q.lift(), r.lift());
+    leads_to_trans::<T>(spec, p, q, r);
 }
 
 #[verifier(external_body)]
-pub proof fn always_p_implies_p<T>(p: TempPred<T>)
+pub proof fn always_p_implies_p<T>(p: StatePred<T>)
     ensures
-        valid(always(p).implies(p)),
+        valid(always(p.lift()).implies(p.lift())),
 {}
 
 #[verifier(external_body)]
-pub proof fn p_implies_eventually_p<T>(p: TempPred<T>)
+pub proof fn p_implies_eventually_p<T>(p: StatePred<T>)
     ensures
-        valid(p.implies(eventually(p))),
+        valid(p.lift().implies(eventually(p.lift()))),
 {}
 
 /// Generalizes implies.
 /// If we have `|= p1 => p2`, then we have `|= []p1 => []p2`
 
 #[verifier(external_body)]
-pub proof fn always_weaken<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+pub proof fn always_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        valid(spec.implies(always(p))),
-        valid(spec.implies(p.implies(q))),
+        valid(spec.implies(always(p.lift()))),
+        valid(spec.implies(p.lift().implies(q.lift()))),
     ensures
-        valid(spec.implies(always(q))),
+        valid(spec.implies(always(q.lift()))),
 {}
 
 /// Gets eventually p and q from always p and eventually q.
 /// `|= ([]p /\ <>q) => <>(p /\ p)`
 
 #[verifier(external_body)]
-pub proof fn always_and_eventually<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+pub proof fn always_and_eventually<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        valid(spec.implies(always(p))),
-        valid(spec.implies(eventually(q))),
+        valid(spec.implies(always(p.lift()))),
+        valid(spec.implies(eventually(q.lift()))),
     ensures
-        valid(spec.implies(eventually(p.and(q)))),
+        valid(spec.implies(eventually(p.lift().and(q.lift())))),
 {}
 
 /// Gets eventually q from eventually p and p implies q.
 /// `|= (<>p /\ (p => q)) => <>q`
 
 #[verifier(external_body)]
-pub proof fn eventually_weaken<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+pub proof fn eventually_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
+    requires
+        valid(spec.implies(eventually(p.lift()))),
+        valid(spec.implies(p.lift().implies(q.lift()))),
+    ensures
+        valid(spec.implies(eventually(q.lift()))),
+{}
+
+#[verifier(external_body)]
+pub proof fn eventually_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         valid(spec.implies(eventually(p))),
         valid(spec.implies(p.implies(q))),
@@ -325,29 +334,42 @@ pub proof fn eventually_weaken<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred
         valid(spec.implies(eventually(q))),
 {}
 
+pub proof fn eventually_weaken_temp_auto<T>(spec: TempPred<T>)
+    ensures
+        forall |p: TempPred<T>, q: TempPred<T>|
+            valid(#[trigger] spec.implies(eventually(p))) && valid(spec.implies(p.implies(q))) ==>
+            valid(#[trigger] spec.implies(eventually(q))),
+{
+    assert forall |p: TempPred<T>, q: TempPred<T>|
+    valid(#[trigger] spec.implies(eventually(p))) && valid(spec.implies(p.implies(q)))
+    implies valid(#[trigger] spec.implies(eventually(q))) by {
+        eventually_weaken_temp(spec, p, q);
+    };
+}
+
 /// Gets eventually from leads_to.
 /// `|= (p /\ (p ~> q)) => <>q`
 
 /// Proves eventually q if we have p and p leads_to q.
 /// `|= p /\ (p ~> q) -> <>q`
 #[verifier(external_body)]
-pub proof fn leads_to_apply<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+pub proof fn leads_to_apply<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        valid(spec.implies(p)),
-        valid(spec.implies(p.leads_to(q))),
+        valid(spec.implies(p.lift())),
+        valid(spec.implies(p.lift().leads_to(q.lift()))),
     ensures
-        valid(spec.implies(eventually(q))),
+        valid(spec.implies(eventually(q.lift()))),
 {}
 
 /// Connects two leads_to with the transitivity of leads_to.
 /// `|= ((p ~> q) /\ (q ~> r)) => (p ~> r)`
 #[verifier(external_body)]
-pub proof fn leads_to_trans<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+pub proof fn leads_to_trans<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        valid(spec.implies(p.leads_to(q))),
-        valid(spec.implies(q.leads_to(r))),
+        valid(spec.implies(p.lift().leads_to(q.lift()))),
+        valid(spec.implies(q.lift().leads_to(r.lift()))),
     ensures
-        valid(spec.implies(p.leads_to(r))),
+        valid(spec.implies(p.lift().leads_to(r.lift()))),
 {}
 
 /// Gets (p1 leads_to q1) implies (p2 leads_to q2) if:
@@ -356,7 +378,59 @@ pub proof fn leads_to_trans<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>
 /// then we have |= (p1 ~> q1) => (p2 ~> q2)
 /// TODO: have a generalized version: valid(implies(and(implies(p2, p1), implies(q1, q2)), implies(leads_to(p1, q1), leads_to(p2, q2))))
 #[verifier(external_body)]
-proof fn leads_to_weaken<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
+proof fn leads_to_weaken<T>(spec: TempPred<T>, p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>)
+    requires
+        valid(p2.lift().implies(p1.lift())),
+        valid(q1.lift().implies(q2.lift())),
+        valid(spec.implies(p1.lift().leads_to(q1.lift()))),
+    ensures
+        valid(spec.implies(p2.lift().leads_to(q2.lift()))),
+{}
+
+pub proof fn leads_to_weaken_left<T>(spec: TempPred<T>, p1: StatePred<T>, p2: StatePred<T>, q: StatePred<T>)
+    requires
+        valid(p2.lift().implies(p1.lift())),
+        valid(spec.implies(p1.lift().leads_to(q.lift()))),
+    ensures
+        valid(spec.implies(p2.lift().leads_to(q.lift()))),
+{
+    leads_to_weaken::<T>(spec, p1, q, p2, q);
+}
+
+pub proof fn leads_to_weaken_right<T>(spec: TempPred<T>, p: StatePred<T>, q1: StatePred<T>, q2: StatePred<T>)
+    requires
+        valid(q1.lift().implies(q2.lift())),
+        valid(spec.implies(p.lift().leads_to(q1.lift()))),
+    ensures
+        valid(spec.implies(p.lift().leads_to(q2.lift()))),
+{
+    leads_to_weaken::<T>(spec, p, q1, p, q2);
+}
+
+#[verifier(external_body)]
+pub proof fn leads_to_always_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
+    requires
+        valid(spec.implies(p.lift().leads_to(always(q.lift())))),
+    ensures
+        valid(spec.implies(p.lift().leads_to(q.lift()))),
+{}
+
+/// Auto version of leads_to_weaken.
+pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
+    ensures
+        forall |p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>|
+            valid(p2.lift().implies(p1.lift())) && valid(q1.lift().implies(q2.lift())) && valid(spec.implies(#[trigger] p1.lift().leads_to(q1.lift()))) ==>
+            valid(spec.implies(#[trigger] p2.lift().leads_to(q2.lift())))
+{
+    assert forall |p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>|
+    valid(p2.lift().implies(p1.lift())) && valid(q1.lift().implies(q2.lift())) && valid(spec.implies(#[trigger] p1.lift().leads_to(q1.lift())))
+    implies valid(spec.implies(#[trigger] p2.lift().leads_to(q2.lift()))) by {
+        leads_to_weaken(spec, p1, q1, p2, q2);
+    };
+}
+
+#[verifier(external_body)]
+proof fn leads_to_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
     requires
         valid(p2.implies(p1)),
         valid(q1.implies(q2)),
@@ -365,36 +439,7 @@ proof fn leads_to_weaken<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>,
         valid(spec.implies(p2.leads_to(q2))),
 {}
 
-pub proof fn leads_to_weaken_left<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, q: TempPred<T>)
-    requires
-        valid(p2.implies(p1)),
-        valid(spec.implies(p1.leads_to(q))),
-    ensures
-        valid(spec.implies(p2.leads_to(q))),
-{
-    leads_to_weaken::<T>(spec, p1, q, p2, q);
-}
-
-pub proof fn leads_to_weaken_right<T>(spec: TempPred<T>, p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
-    requires
-        valid(q1.implies(q2)),
-        valid(spec.implies(p.leads_to(q1))),
-    ensures
-        valid(spec.implies(p.leads_to(q2))),
-{
-    leads_to_weaken::<T>(spec, p, q1, p, q2);
-}
-
-#[verifier(external_body)]
-pub proof fn leads_to_always_weaken<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        valid(spec.implies(p.leads_to(always(q)))),
-    ensures
-        valid(spec.implies(p.leads_to(q))),
-{}
-
-/// Auto version of leads_to_weaken.
-pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
+pub proof fn leads_to_weaken_temp_auto<T>(spec: TempPred<T>)
     ensures
         forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
             valid(p2.implies(p1)) && valid(q1.implies(q2)) && valid(spec.implies(#[trigger] p1.leads_to(q1))) ==>
@@ -403,12 +448,35 @@ pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
     assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
     valid(p2.implies(p1)) && valid(q1.implies(q2)) && valid(spec.implies(#[trigger] p1.leads_to(q1)))
     implies valid(spec.implies(#[trigger] p2.leads_to(q2))) by {
-        leads_to_weaken(spec, p1, q1, p2, q2);
+        leads_to_weaken_temp(spec, p1, q1, p2, q2);
     };
 }
 
 #[verifier(external_body)]
-proof fn leads_to_eq<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
+proof fn leads_to_eq<T>(spec: TempPred<T>, p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>)
+    requires
+        valid(p2.lift().equals(p1.lift())),
+        valid(q1.lift().equals(q2.lift())),
+        valid(spec.implies(p1.lift().leads_to(q1.lift()))),
+    ensures
+        valid(spec.implies(p2.lift().leads_to(q2.lift()))),
+{}
+
+pub proof fn leads_to_eq_auto<T>(spec: TempPred<T>)
+    ensures
+        forall |p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>|
+            valid(p2.lift().equals(p1.lift())) && valid(q1.lift().equals(q2.lift())) && valid(spec.implies(#[trigger] p1.lift().leads_to(q1.lift()))) ==>
+            valid(spec.implies(#[trigger] p2.lift().leads_to(q2.lift())))
+{
+    assert forall |p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>|
+    valid(p2.lift().equals(p1.lift())) && valid(q1.lift().equals(q2.lift())) && valid(spec.implies(#[trigger] p1.lift().leads_to(q1.lift())))
+    implies valid(spec.implies(#[trigger] p2.lift().leads_to(q2.lift()))) by {
+        leads_to_eq(spec, p1, q1, p2, q2);
+    };
+}
+
+#[verifier(external_body)]
+proof fn leads_to_eq_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
     requires
         valid(p2.equals(p1)),
         valid(q1.equals(q2)),
@@ -417,7 +485,7 @@ proof fn leads_to_eq<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2:
         valid(spec.implies(p2.leads_to(q2))),
 {}
 
-pub proof fn leads_to_eq_auto<T>(spec: TempPred<T>)
+pub proof fn leads_to_eq_temp_auto<T>(spec: TempPred<T>)
     ensures
         forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
             valid(p2.equals(p1)) && valid(q1.equals(q2)) && valid(spec.implies(#[trigger] p1.leads_to(q1))) ==>
@@ -426,7 +494,7 @@ pub proof fn leads_to_eq_auto<T>(spec: TempPred<T>)
     assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
     valid(p2.equals(p1)) && valid(q1.equals(q2)) && valid(spec.implies(#[trigger] p1.leads_to(q1)))
     implies valid(spec.implies(#[trigger] p2.leads_to(q2))) by {
-        leads_to_eq(spec, p1, q1, p2, q2);
+        leads_to_eq_temp(spec, p1, q1, p2, q2);
     };
 }
 
@@ -434,23 +502,23 @@ pub proof fn leads_to_eq_auto<T>(spec: TempPred<T>)
 /// `|= ((p ~> r) /\ (q ~> r)) == (p \/ q ~> r)`
 
 #[verifier(external_body)]
-pub proof fn leads_to_or_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+pub proof fn leads_to_or_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        valid(spec.implies(p.leads_to(r))),
-        valid(spec.implies(q.leads_to(r))),
+        valid(spec.implies(p.lift().leads_to(r.lift()))),
+        valid(spec.implies(q.lift().leads_to(r.lift()))),
     ensures
-        valid(spec.implies(p.or(q).leads_to(r))),
+        valid(spec.implies(p.lift().or(q.lift()).leads_to(r.lift()))),
 {}
 
 /// `|= (((p /\ q) ~> r) /\ ((p /\ ~q) ~> r)) -> (p ~> r)`
 
 #[verifier(external_body)]
-pub proof fn leads_to_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+pub proof fn leads_to_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        valid(spec.implies(p.and(r).leads_to(q))),
-        valid(spec.implies(p.and(not(r)).leads_to(q))),
+        valid(spec.implies(p.lift().and(r.lift()).leads_to(q.lift()))),
+        valid(spec.implies(p.lift().and(not(r.lift())).leads_to(q.lift()))),
     ensures
-        valid(spec.implies(p.leads_to(q)))
+        valid(spec.implies(p.lift().leads_to(q.lift())))
 {}
 
 /// Removes r from the premise if we have always r.
@@ -459,12 +527,12 @@ pub proof fn leads_to_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
 /// TODO: prove the equivalence.
 
 #[verifier(external_body)]
-pub proof fn leads_to_assume<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+pub proof fn leads_to_assume<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        valid(spec.implies(always(r))),
-        valid(spec.implies(p.and(r).leads_to(q))),
+        valid(spec.implies(always(r.lift()))),
+        valid(spec.implies(p.lift().and(r.lift()).leads_to(q.lift()))),
     ensures
-        valid(spec.implies(p.leads_to(q))),
+        valid(spec.implies(p.lift().leads_to(q.lift()))),
 {}
 
 /// Removes not q from the premise.
@@ -473,7 +541,15 @@ pub proof fn leads_to_assume<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T
 /// TODO: prove the equivalence.
 
 #[verifier(external_body)]
-pub proof fn leads_to_assume_not<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+pub proof fn leads_to_assume_not<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
+    requires
+        valid(spec.implies(p.lift().and(not(q.lift())).leads_to(q.lift()))),
+    ensures
+        valid(spec.implies(p.lift().leads_to(q.lift()))),
+{}
+
+#[verifier(external_body)]
+pub proof fn leads_to_assume_not_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         valid(spec.implies(p.and(not(q)).leads_to(q))),
     ensures
@@ -481,23 +557,23 @@ pub proof fn leads_to_assume_not<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPr
 {}
 
 #[verifier(external_body)]
-pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        valid(spec.implies(p.leads_to(always(q)))),
-        valid(spec.implies(p.leads_to(always(r)))),
+        valid(spec.implies(p.lift().leads_to(always(q.lift())))),
+        valid(spec.implies(p.lift().leads_to(always(r.lift())))),
     ensures
-        valid(spec.implies(p.leads_to(always(q.and(r))))),
+        valid(spec.implies(p.lift().leads_to(always(q.lift().and(r.lift()))))),
 {}
 
 /// Xudong: I feel bad when mixing TempPred, ActionPred and StatePred together
 #[verifier(external_body)]
-pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: TempPred<T>, Q: StatePred<T>)
+pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |a: Action<T>| Q.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) ==> Q.satisfied_by(a.state_prime),
+        forall |a: Action<T>| q.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) ==> q.satisfied_by(a.state_prime),
         valid(spec.implies(always(next.lift()))),
-        valid(spec.implies(p.leads_to(Q.lift()))),
+        valid(spec.implies(p.lift().leads_to(q.lift()))),
     ensures
-        valid(spec.implies(p.leads_to(always(Q.lift())))),
+        valid(spec.implies(p.lift().leads_to(always(q.lift())))),
 {}
 
 }
