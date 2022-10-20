@@ -25,6 +25,10 @@ spec fn obj2_state_pred() -> StatePred<CState> {
     StatePred::new(|state: CState| state.obj_2_exists)
 }
 
+spec fn obj1_and_not_sent2_state_pred() -> StatePred<CState> {
+    StatePred::new(|state: CState| state.obj_1_exists && !state.sent_2_create)
+}
+
 /*
  * This is just a witness to show that reconcile is enabled by send1_pre_state_pred()
  */
@@ -123,7 +127,7 @@ proof fn lemma_init_leads_to_obj1()
      * It seems that we are abusing this rule in this proof.
      * Hope there is a more efficient way to do this.
      */
-    leads_to_weaken_auto::<CState>(sm_spec());
+    leads_to_weaken_temp_auto::<CState>(sm_spec());
 
     send1_enabled();
     wf1::<CState>(sm_spec(), next_action_pred(), reconcile_action_pred(), send1_pre_state_pred(), create1_pre_state_pred());
@@ -131,7 +135,7 @@ proof fn lemma_init_leads_to_obj1()
     create1_enabled();
     wf1::<CState>(sm_spec(), next_action_pred(), create1_action_pred(), create1_pre_state_pred(), obj1_state_pred());
 
-    leads_to_trans::<CState>(sm_spec(), send1_pre_state_pred().lift(), create1_pre_state_pred().lift(), obj1_state_pred().lift());
+    leads_to_trans::<CState>(sm_spec(), send1_pre_state_pred(), create1_pre_state_pred(), obj1_state_pred());
 }
 
 proof fn lemma_obj1_and_not_sent2_leads_to_obj2()
@@ -147,7 +151,7 @@ proof fn lemma_obj1_and_not_sent2_leads_to_obj2()
      * and connect the leads_to together using `leads_to_trans` rule.
      */
 
-    leads_to_weaken_auto::<CState>(sm_spec());
+    leads_to_weaken_temp_auto::<CState>(sm_spec());
 
     send2_enabled();
     wf1::<CState>(sm_spec(), next_action_pred(), reconcile_action_pred(), send2_pre_state_pred(), create2_pre_state_pred());
@@ -155,7 +159,7 @@ proof fn lemma_obj1_and_not_sent2_leads_to_obj2()
     create2_enabled();
     wf1::<CState>(sm_spec(), next_action_pred(), create2_action_pred(), create2_pre_state_pred(), obj2_state_pred());
 
-    leads_to_trans::<CState>(sm_spec(), send2_pre_state_pred().lift(), create2_pre_state_pred().lift(), obj2_state_pred().lift());
+    leads_to_trans::<CState>(sm_spec(), send2_pre_state_pred(), create2_pre_state_pred(), obj2_state_pred());
 
     /*
      * Now we have `(s.obj_1_exists /\ ~s.obj_2_exists /\ ~s.sent_2_create) ~> s.obj_2_exists`.
@@ -169,7 +173,8 @@ proof fn lemma_obj1_and_not_sent2_leads_to_obj2()
     /*
      * With `leads_to_assume_not` we can kick out `~s.obj_2_exists`.
      */
-    leads_to_assume_not::<CState>(sm_spec(), obj1_state_pred().lift().and(not(sent2_state_pred().lift())), obj2_state_pred().lift());
+    // leads_to_assume_not_temp::<CState>(sm_spec(), obj1_state_pred().lift().and(not(sent2_state_pred().lift())), obj2_state_pred().lift());
+    leads_to_assume_not::<CState>(sm_spec(), obj1_and_not_sent2_state_pred(), obj2_state_pred());
 
     /*
      * Should we just continue connecting the leads_to and reach our final goal?
@@ -208,7 +213,7 @@ proof fn lemma_obj1_and_sent2_leads_to_obj2()
      * It is interesting and quite complex, so fasten your seat belt.
      */
 
-    leads_to_weaken_auto::<CState>(sm_spec());
+    leads_to_weaken_temp_auto::<CState>(sm_spec());
 
     /*
      * It is hard to even start the first step because `wf1` does not directly give you
@@ -263,7 +268,7 @@ proof fn lemma_obj1_and_sent2_leads_to_obj2()
      * Our new friend `leads_to_assume` allows us to remove it since `lemma_msg_inv` shows `msg_inv` always holds.
      */
     lemma_msg_inv();
-    leads_to_assume::<CState>(sm_spec(), sent2_state_pred().lift(), obj2_state_pred().lift(), msg_inv_state_pred().lift());
+    leads_to_assume::<CState>(sm_spec(), sent2_state_pred(), obj2_state_pred(), msg_inv_state_pred());
 
     /*
      * At this point we have `s.sent_2_create ~> s.obj_2_exists`.
@@ -293,7 +298,7 @@ proof fn lemma_obj1_leads_to_obj2()
             .implies(obj1_state_pred().lift()
                 .leads_to(obj2_state_pred().lift()))),
 {
-    leads_to_weaken_auto::<CState>(sm_spec());
+    leads_to_weaken_temp_auto::<CState>(sm_spec());
 
     /*
      * With `lemma_premise1_leads_to_obj2` and `lemma_premise2_leads_to_obj2`,
@@ -305,7 +310,7 @@ proof fn lemma_obj1_leads_to_obj2()
     /*
      * We will combine the two premises together with or using `leads_to_combine`.
      */
-    leads_to_combine::<CState>(sm_spec(), obj1_state_pred().lift(), obj2_state_pred().lift(), sent2_state_pred().lift());
+    leads_to_combine::<CState>(sm_spec(), obj1_state_pred(), obj2_state_pred(), sent2_state_pred());
 }
 
 proof fn lemma_eventually_obj1()
@@ -319,7 +324,7 @@ proof fn lemma_eventually_obj1()
 
     lemma_init_leads_to_obj1();
 
-    leads_to_apply::<CState>(sm_spec(), init_state_pred().lift(), obj1_state_pred().lift());
+    leads_to_apply::<CState>(sm_spec(), init_state_pred(), obj1_state_pred());
 }
 
 proof fn lemma_eventually_obj2()
@@ -337,9 +342,9 @@ proof fn lemma_eventually_obj2()
 
     lemma_obj1_leads_to_obj2();
 
-    leads_to_trans::<CState>(sm_spec(), init_state_pred().lift(), obj1_state_pred().lift(), obj2_state_pred().lift());
+    leads_to_trans::<CState>(sm_spec(), init_state_pred(), obj1_state_pred(), obj2_state_pred());
 
-    leads_to_apply::<CState>(sm_spec(), init_state_pred().lift(), obj2_state_pred().lift());
+    leads_to_apply::<CState>(sm_spec(), init_state_pred(), obj2_state_pred());
 }
 
 proof fn liveness()
@@ -367,7 +372,7 @@ proof fn liveness()
     safety();
     // assert(valid(implies(sm_spec(), always(order_inv_state_pred().lift()))));
 
-    always_and_eventually::<CState>(sm_spec(), order_inv_state_pred().lift(), obj2_state_pred().lift());
+    always_and_eventually::<CState>(sm_spec(), order_inv_state_pred(), obj2_state_pred());
     // assert(valid(implies(
     //     sm_spec(),
     //     eventually(and(order_inv_state_pred().lift(), obj2_state_pred().lift()))
@@ -376,7 +381,7 @@ proof fn liveness()
     /*
      * We get a weaker eventually, which is our goal, from `eventually_weaken`.
      */
-    eventually_weaken::<CState>(sm_spec(), order_inv_state_pred().lift().and(obj2_state_pred().lift()), obj1_state_pred().lift().and(obj2_state_pred().lift()));
+    eventually_weaken_temp_auto::<CState>(sm_spec());
 }
 
 }
