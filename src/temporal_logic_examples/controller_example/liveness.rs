@@ -117,24 +117,19 @@ proof fn lemma_init_leads_to_obj1()
      */
 
     /*
-     * `implies_apply_auto` is our old friend that helps us avoid writing `assert forall |ex| ... by {...}`
-     */
-    implies_apply_auto::<CState>();
-
-    /*
      * `leads_to_weaken_auto` allows us to prove the desired leads_to
      * by proving a equally "strong" leads_to or a "stronger" leads_to
      * that is easier to be proved.
      * It seems that we are abusing this rule in this proof.
      * Hope there is a more efficient way to do this.
      */
-    leads_to_weaken_auto::<CState>();
+    leads_to_weaken_auto::<CState>(sm_spec());
 
     send1_enabled();
-    wf1::<CState>(next_action_pred(), reconcile_action_pred(), send1_pre_state_pred(), create1_pre_state_pred());
+    wf1::<CState>(sm_spec(), next_action_pred(), reconcile_action_pred(), send1_pre_state_pred(), create1_pre_state_pred());
 
     create1_enabled();
-    wf1::<CState>(next_action_pred(), create1_action_pred(), create1_pre_state_pred(), obj1_state_pred());
+    wf1::<CState>(sm_spec(), next_action_pred(), create1_action_pred(), create1_pre_state_pred(), obj1_state_pred());
 
     leads_to_trans::<CState>(sm_spec(), send1_pre_state_pred().lift(), create1_pre_state_pred().lift(), obj1_state_pred().lift());
 }
@@ -152,15 +147,13 @@ proof fn lemma_obj1_and_not_sent2_leads_to_obj2()
      * and connect the leads_to together using `leads_to_trans` rule.
      */
 
-    implies_apply_auto::<CState>();
-
-    leads_to_weaken_auto::<CState>();
+    leads_to_weaken_auto::<CState>(sm_spec());
 
     send2_enabled();
-    wf1::<CState>(next_action_pred(), reconcile_action_pred(), send2_pre_state_pred(), create2_pre_state_pred());
+    wf1::<CState>(sm_spec(), next_action_pred(), reconcile_action_pred(), send2_pre_state_pred(), create2_pre_state_pred());
 
     create2_enabled();
-    wf1::<CState>(next_action_pred(), create2_action_pred(), create2_pre_state_pred(), obj2_state_pred());
+    wf1::<CState>(sm_spec(), next_action_pred(), create2_action_pred(), create2_pre_state_pred(), obj2_state_pred());
 
     leads_to_trans::<CState>(sm_spec(), send2_pre_state_pred().lift(), create2_pre_state_pred().lift(), obj2_state_pred().lift());
 
@@ -200,8 +193,7 @@ proof fn lemma_msg_inv()
     ensures
         valid(sm_spec().implies(always(msg_inv_state_pred().lift())))
 {
-    implies_apply_auto::<CState>();
-    init_invariant::<CState>(init_state_pred(), next_action_pred(), msg_inv_state_pred());
+    init_invariant::<CState>(sm_spec(), init_state_pred(), next_action_pred(), msg_inv_state_pred());
 }
 
 proof fn lemma_obj1_and_sent2_leads_to_obj2()
@@ -216,9 +208,7 @@ proof fn lemma_obj1_and_sent2_leads_to_obj2()
      * It is interesting and quite complex, so fasten your seat belt.
      */
 
-    implies_apply_auto::<CState>();
-
-    leads_to_weaken_auto::<CState>();
+    leads_to_weaken_auto::<CState>(sm_spec());
 
     /*
      * It is hard to even start the first step because `wf1` does not directly give you
@@ -237,7 +227,7 @@ proof fn lemma_obj1_and_sent2_leads_to_obj2()
      */
 
     create2_enabled();
-    wf1::<CState>(next_action_pred(), create2_action_pred(), create2_pre_state_pred(), obj2_state_pred());
+    wf1::<CState>(sm_spec(), next_action_pred(), create2_action_pred(), create2_pre_state_pred(), obj2_state_pred());
 
     /*
      * We have the following leads_to from `wf1`: `s.messages.contains(Message::CreateReq{id: 2}) ~> s.obj_2_exists`.
@@ -273,7 +263,7 @@ proof fn lemma_obj1_and_sent2_leads_to_obj2()
      * Our new friend `leads_to_assume` allows us to remove it since `lemma_msg_inv` shows `msg_inv` always holds.
      */
     lemma_msg_inv();
-    leads_to_assume::<CState>(sent2_state_pred().lift(), obj2_state_pred().lift(), msg_inv_state_pred().lift());
+    leads_to_assume::<CState>(sm_spec(), sent2_state_pred().lift(), obj2_state_pred().lift(), msg_inv_state_pred().lift());
 
     /*
      * At this point we have `s.sent_2_create ~> s.obj_2_exists`.
@@ -303,10 +293,7 @@ proof fn lemma_obj1_leads_to_obj2()
             .implies(obj1_state_pred().lift()
                 .leads_to(obj2_state_pred().lift()))),
 {
-
-    implies_apply_auto::<CState>();
-
-    leads_to_weaken_auto::<CState>();
+    leads_to_weaken_auto::<CState>(sm_spec());
 
     /*
      * With `lemma_premise1_leads_to_obj2` and `lemma_premise2_leads_to_obj2`,
@@ -316,9 +303,9 @@ proof fn lemma_obj1_leads_to_obj2()
     lemma_obj1_and_sent2_leads_to_obj2();
 
     /*
-     * We will combine the two premises together with or using `leads_to_split`.
+     * We will combine the two premises together with or using `leads_to_combine`.
      */
-    leads_to_split::<CState>(sm_spec(), obj1_state_pred().lift(), obj2_state_pred().lift(), sent2_state_pred().lift());
+    leads_to_combine::<CState>(sm_spec(), obj1_state_pred().lift(), obj2_state_pred().lift(), sent2_state_pred().lift());
 }
 
 proof fn lemma_eventually_obj1()
@@ -329,8 +316,6 @@ proof fn lemma_eventually_obj1()
      * This proof is simple: just take the leads_to from `lemma_init_leads_to_obj1`
      * and use `leads_to_apply` rule to get eventually from leads_to.
      */
-
-    implies_apply_auto::<CState>();
 
     lemma_init_leads_to_obj1();
 
@@ -347,8 +332,6 @@ proof fn lemma_eventually_obj2()
      * connect them together with `leads_to_trans` rule
      * and use `leads_to_apply` rule to get eventually from leads_to.
      */
-
-    implies_apply_auto::<CState>();
 
     lemma_init_leads_to_obj1();
 
@@ -378,15 +361,13 @@ proof fn liveness()
      * to one eventually.
      */
 
-    implies_apply_auto::<CState>();
-
     lemma_eventually_obj2();
     // assert(valid(implies(sm_spec(), eventually(obj2_state_pred().lift()))));
 
     safety();
     // assert(valid(implies(sm_spec(), always(order_inv_state_pred().lift()))));
 
-    always_and_eventually::<CState>(order_inv_state_pred().lift(), obj2_state_pred().lift());
+    always_and_eventually::<CState>(sm_spec(), order_inv_state_pred().lift(), obj2_state_pred().lift());
     // assert(valid(implies(
     //     sm_spec(),
     //     eventually(and(order_inv_state_pred().lift(), obj2_state_pred().lift()))
@@ -395,7 +376,7 @@ proof fn liveness()
     /*
      * We get a weaker eventually, which is our goal, from `eventually_weaken`.
      */
-    eventually_weaken::<CState>(order_inv_state_pred().lift().and(obj2_state_pred().lift()), obj1_state_pred().lift().and(obj2_state_pred().lift()));
+    eventually_weaken::<CState>(sm_spec(), order_inv_state_pred().lift().and(obj2_state_pred().lift()), obj1_state_pred().lift().and(obj2_state_pred().lift()));
 }
 
 }

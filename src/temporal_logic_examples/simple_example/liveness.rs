@@ -70,22 +70,17 @@ proof fn prove_eventually_c()
     ensures
         valid(eventually_c())
 {
-    // implies_apply_auto is used to automatically apply the following rule:
-    // valid(implies(p, q)) && p.satisfied_by(ex) ==> q.satisfied_by(ex)
-    // without requiring the developer to write `assert forall |ex| ... implies ... by {...}` in the proof
-    implies_apply_auto::<SimpleState>();
-
     // a_b_enabled() gives a witness to convince Verus that x === a enables a_b()
     a_b_enabled();
     // wf1 gives us a leads_to
-    wf1::<SimpleState>(next_action_pred(), a_b_action_pred(), a_state_pred(), b_state_pred());
+    wf1::<SimpleState>(sm_spec(), next_action_pred(), a_b_action_pred(), a_state_pred(), b_state_pred());
     // Now we have:
     // assert(valid(implies(sm_spec(), leads_to(a_temp_pred(), b_temp_pred()))));
 
     // a_b_enabled() gives a witness to convince Verus that x === b enables b_c()
     b_c_enabled();
     // wf1 gives us another leads_to
-    wf1::<SimpleState>(next_action_pred(), b_c_action_pred(), b_state_pred(), c_state_pred());
+    wf1::<SimpleState>(sm_spec(), next_action_pred(), b_c_action_pred(), b_state_pred(), c_state_pred());
     // Now we have:
     // assert(valid(implies(sm_spec(), leads_to(b_temp_pred(), c_temp_pred()))));
 
