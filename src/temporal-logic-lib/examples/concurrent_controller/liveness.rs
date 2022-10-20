@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::concurrent_controller_example::state_machine::*;
+use crate::examples::concurrent_controller::state_machine::*;
 use crate::pervasive::string::*;
 use crate::temporal_logic::*;
 use builtin::*;
