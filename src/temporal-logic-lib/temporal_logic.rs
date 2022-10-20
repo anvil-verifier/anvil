@@ -334,7 +334,7 @@ pub proof fn eventually_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: Tem
         valid(spec.implies(eventually(q))),
 {}
 
-pub proof fn eventually_weaken_temp_auto<T>(spec: TempPred<T>)
+pub proof fn eventually_weaken_auto<T>(spec: TempPred<T>)
     ensures
         forall |p: TempPred<T>, q: TempPred<T>|
             valid(#[trigger] spec.implies(eventually(p))) && valid(spec.implies(p.implies(q))) ==>
@@ -416,19 +416,6 @@ pub proof fn leads_to_always_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: St
 {}
 
 /// Auto version of leads_to_weaken.
-pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
-    ensures
-        forall |p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>|
-            valid(p2.lift().implies(p1.lift())) && valid(q1.lift().implies(q2.lift())) && valid(spec.implies(#[trigger] p1.lift().leads_to(q1.lift()))) ==>
-            valid(spec.implies(#[trigger] p2.lift().leads_to(q2.lift())))
-{
-    assert forall |p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>|
-    valid(p2.lift().implies(p1.lift())) && valid(q1.lift().implies(q2.lift())) && valid(spec.implies(#[trigger] p1.lift().leads_to(q1.lift())))
-    implies valid(spec.implies(#[trigger] p2.lift().leads_to(q2.lift()))) by {
-        leads_to_weaken(spec, p1, q1, p2, q2);
-    };
-}
-
 #[verifier(external_body)]
 proof fn leads_to_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
     requires
@@ -439,7 +426,7 @@ proof fn leads_to_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPre
         valid(spec.implies(p2.leads_to(q2))),
 {}
 
-pub proof fn leads_to_weaken_temp_auto<T>(spec: TempPred<T>)
+pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
     ensures
         forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
             valid(p2.implies(p1)) && valid(q1.implies(q2)) && valid(spec.implies(#[trigger] p1.leads_to(q1))) ==>
@@ -462,19 +449,6 @@ proof fn leads_to_eq<T>(spec: TempPred<T>, p1: StatePred<T>, q1: StatePred<T>, p
         valid(spec.implies(p2.lift().leads_to(q2.lift()))),
 {}
 
-pub proof fn leads_to_eq_auto<T>(spec: TempPred<T>)
-    ensures
-        forall |p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>|
-            valid(p2.lift().equals(p1.lift())) && valid(q1.lift().equals(q2.lift())) && valid(spec.implies(#[trigger] p1.lift().leads_to(q1.lift()))) ==>
-            valid(spec.implies(#[trigger] p2.lift().leads_to(q2.lift())))
-{
-    assert forall |p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>|
-    valid(p2.lift().equals(p1.lift())) && valid(q1.lift().equals(q2.lift())) && valid(spec.implies(#[trigger] p1.lift().leads_to(q1.lift())))
-    implies valid(spec.implies(#[trigger] p2.lift().leads_to(q2.lift()))) by {
-        leads_to_eq(spec, p1, q1, p2, q2);
-    };
-}
-
 #[verifier(external_body)]
 proof fn leads_to_eq_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
     requires
@@ -485,7 +459,7 @@ proof fn leads_to_eq_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>
         valid(spec.implies(p2.leads_to(q2))),
 {}
 
-pub proof fn leads_to_eq_temp_auto<T>(spec: TempPred<T>)
+pub proof fn leads_to_eq_auto<T>(spec: TempPred<T>)
     ensures
         forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
             valid(p2.equals(p1)) && valid(q1.equals(q2)) && valid(spec.implies(#[trigger] p1.leads_to(q1))) ==>

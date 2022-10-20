@@ -27,7 +27,7 @@ proof fn lemma_init_leads_to_pod1_exists()
             .implies(init().lift()
                 .leads_to(pod1_exists().lift()))),
 {
-    leads_to_eq_temp_auto::<CState>(sm_spec());
+    leads_to_eq_auto::<CState>(sm_spec());
     use_tla_forall::<CState, Message>(sm_spec(), |m: Message| weak_fairness(k8s_handle_create_concretized(m)), create_cr_msg());
     use_tla_forall::<CState, Message>(sm_spec(), |m: Message| weak_fairness(k8s_handle_create_concretized(m)), create_sts_msg());
 

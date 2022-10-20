@@ -127,7 +127,7 @@ proof fn lemma_init_leads_to_obj1_exists()
      * It seems that we are abusing this rule in this proof.
      * Hope there is a more efficient way to do this.
      */
-    leads_to_weaken_temp_auto::<CState>(sm_spec());
+    leads_to_weaken_auto::<CState>(sm_spec());
 
     send1_enabled();
     wf1::<CState>(sm_spec(), next_action_pred(), reconcile_action_pred(), send1_pre_state_pred(), create1_pre_state_pred());
@@ -151,7 +151,7 @@ proof fn lemma_obj1_exists_and_not_sent2_leads_to_obj2_exists()
      * and connect the leads_to together using `leads_to_trans` rule.
      */
 
-    leads_to_weaken_temp_auto::<CState>(sm_spec());
+    leads_to_weaken_auto::<CState>(sm_spec());
 
     send2_enabled();
     wf1::<CState>(sm_spec(), next_action_pred(), reconcile_action_pred(), send2_pre_state_pred(), create2_pre_state_pred());
@@ -213,7 +213,7 @@ proof fn lemma_obj1_exists_and_sent2_leads_to_obj2_exists()
      * It is interesting and quite complex, so fasten your seat belt.
      */
 
-    leads_to_weaken_temp_auto::<CState>(sm_spec());
+    leads_to_weaken_auto::<CState>(sm_spec());
 
     /*
      * It is hard to even start the first step because `wf1` does not directly give you
@@ -298,7 +298,7 @@ proof fn lemma_obj1_leads_to_obj2_exists()
             .implies(obj1_exists().lift()
                 .leads_to(obj2_exists().lift()))),
 {
-    leads_to_weaken_temp_auto::<CState>(sm_spec());
+    leads_to_weaken_auto::<CState>(sm_spec());
 
     /*
      * With `lemma_premise1_leads_to_obj2_exists` and `lemma_premise2_leads_to_obj2_exists`,
@@ -381,7 +381,7 @@ proof fn liveness()
     /*
      * We get a weaker eventually, which is our goal, from `eventually_weaken`.
      */
-    eventually_weaken_temp_auto::<CState>(sm_spec());
+    eventually_weaken_auto::<CState>(sm_spec());
 }
 
 }
