@@ -1,8 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::controller_example::safety::*;
-use crate::controller_example::state_machine::*;
+use crate::examples::simple_controller::safety::*;
+use crate::examples::simple_controller::state_machine::*;
 use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
