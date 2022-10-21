@@ -32,7 +32,7 @@ proof fn lemma_init_leads_to_pod1_exists()
     use_tla_forall::<CState, Message>(sm_spec(), |m: Message| weak_fairness(k8s_handle_create_concretized(m)), create_sts_msg());
 
     send_create_cr_enabled();
-    k8s_handle_any_create_msg_pre_implies_enabled(create_cr_msg());
+    k8s_handle_create_enabled(create_cr_msg());
     wf1_chain::<CState>(sm_spec(),
         next(),
         ActionPred::new(|action: Action<CState>| sm_send_create_cr(action.state, action.state_prime)),
@@ -54,7 +54,7 @@ proof fn lemma_init_leads_to_pod1_exists()
         StatePred::new(|state: CState| state.messages.contains(Message::CreateStatefulSet{replica: 1}))
     );
 
-    k8s_handle_any_create_msg_pre_implies_enabled(create_sts_msg());
+    k8s_handle_create_enabled(create_sts_msg());
     wf1::<CState>(sm_spec(),
         next(),
         k8s_handle_create_concretized(create_sts_msg()),

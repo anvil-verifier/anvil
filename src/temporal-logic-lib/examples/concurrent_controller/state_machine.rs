@@ -215,9 +215,12 @@ pub open spec fn sm_spec() -> TempPred<CState> {
 }
 
 pub proof fn send_create_cr_enabled()
-    ensures forall |s: CState| StatePred::new(|state: CState| init(state)).satisfied_by(s) ==> #[trigger] enabled(send_create_cr()).satisfied_by(s)
+    ensures
+        forall |s: CState| StatePred::new(|state: CState| init(state)).satisfied_by(s)
+            ==> #[trigger] enabled(send_create_cr()).satisfied_by(s),
 {
-    assert forall |s: CState| StatePred::new(|state: CState| init(state)).satisfied_by(s) implies #[trigger] enabled(send_create_cr()).satisfied_by(s) by {
+    assert forall |s: CState| StatePred::new(|state: CState| init(state)).satisfied_by(s)
+    implies #[trigger] enabled(send_create_cr()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
             state_prime: CState {
@@ -240,9 +243,11 @@ pub proof fn send_create_cr_enabled()
 
 pub proof fn send_create_sts_enabled()
     ensures
-        forall |s: CState| StatePred::new(|state: CState| cr_exists_and_not_create_sts_sent(state)).satisfied_by(s) ==> #[trigger] enabled(send_create_sts()).satisfied_by(s),
+        forall |s: CState| StatePred::new(|state: CState| cr_exists_and_not_create_sts_sent(state)).satisfied_by(s)
+            ==> #[trigger] enabled(send_create_sts()).satisfied_by(s),
 {
-    assert forall |s: CState| StatePred::new(|state: CState| cr_exists_and_not_create_sts_sent(state)).satisfied_by(s) implies #[trigger] enabled(send_create_sts()).satisfied_by(s) by {
+    assert forall |s: CState| StatePred::new(|state: CState| cr_exists_and_not_create_sts_sent(state)).satisfied_by(s)
+    implies #[trigger] enabled(send_create_sts()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
             state_prime: CState {
@@ -255,9 +260,12 @@ pub proof fn send_create_sts_enabled()
 }
 
 pub proof fn send_create_vol_enabled()
-    ensures forall |s: CState| StatePred::new(|state: CState| cr_exists_and_not_create_vol_sent(state)).satisfied_by(s) ==> #[trigger] enabled(send_create_vol()).satisfied_by(s)
+    ensures
+        forall |s: CState| StatePred::new(|state: CState| cr_exists_and_not_create_vol_sent(state)).satisfied_by(s)
+            ==> #[trigger] enabled(send_create_vol()).satisfied_by(s),
 {
-    assert forall |s: CState| StatePred::new(|state: CState| cr_exists_and_not_create_vol_sent(state)).satisfied_by(s) implies #[trigger] enabled(send_create_vol()).satisfied_by(s) by {
+    assert forall |s: CState| StatePred::new(|state: CState| cr_exists_and_not_create_vol_sent(state)).satisfied_by(s)
+    implies #[trigger] enabled(send_create_vol()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
             state_prime: CState {
@@ -314,13 +322,13 @@ pub open spec fn k8s_handle_create_witness_action(state: CState, key: Seq<char>,
     }
 }
 
-pub proof fn k8s_handle_any_create_msg_pre_implies_enabled(msg: Message)
+pub proof fn k8s_handle_create_enabled(msg: Message)
     ensures
-        forall |state: CState| #[trigger] k8s_handle_create_pre_concretized(msg).satisfied_by(state)
-            ==> enabled(k8s_handle_create_concretized(msg)).satisfied_by(state),
+        forall |state: CState| k8s_handle_create_pre_concretized(msg).satisfied_by(state)
+            ==> #[trigger] enabled(k8s_handle_create_concretized(msg)).satisfied_by(state),
 {
-    assert forall |state: CState| #[trigger] k8s_handle_create_pre_concretized(msg).satisfied_by(state)
-    implies enabled(k8s_handle_create_concretized(msg)).satisfied_by(state) by {
+    assert forall |state: CState| k8s_handle_create_pre_concretized(msg).satisfied_by(state)
+    implies #[trigger] enabled(k8s_handle_create_concretized(msg)).satisfied_by(state) by {
         match msg {
             Message::CreateCR => {
                 let witness_action = k8s_handle_create_witness_action(state, new_strlit("my_cr")@, Resource::CustomResource);
@@ -335,13 +343,16 @@ pub proof fn k8s_handle_any_create_msg_pre_implies_enabled(msg: Message)
                 assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
             },
         }
-    }
+    };
 }
 
 pub proof fn k8s_create_pod_enabled()
-    ensures forall |s: CState| StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_statefulset")@)).satisfied_by(s) ==> #[trigger] enabled(k8s_create_pod()).satisfied_by(s)
+    ensures
+        forall |s: CState| StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_statefulset")@)).satisfied_by(s)
+            ==> #[trigger] enabled(k8s_create_pod()).satisfied_by(s),
 {
-    assert forall |s: CState| StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_statefulset")@)).satisfied_by(s) implies #[trigger] enabled(k8s_create_pod()).satisfied_by(s) by {
+    assert forall |s: CState| StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_statefulset")@)).satisfied_by(s)
+    implies #[trigger] enabled(k8s_create_pod()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
             state_prime: CState {
@@ -354,9 +365,12 @@ pub proof fn k8s_create_pod_enabled()
 }
 
 pub proof fn k8s_attach_vol_to_pod_enabled()
-    ensures forall |s: CState| StatePred::new(|state: CState| pod1_exists_and_vol1_exists(state)).satisfied_by(s) ==> #[trigger] enabled(k8s_attach_vol_to_pod()).satisfied_by(s)
+    ensures
+        forall |s: CState| StatePred::new(|state: CState| pod1_exists_and_vol1_exists(state)).satisfied_by(s)
+            ==> #[trigger] enabled(k8s_attach_vol_to_pod()).satisfied_by(s),
 {
-    assert forall |s: CState| StatePred::new(|state: CState| pod1_exists_and_vol1_exists(state)).satisfied_by(s) implies #[trigger] enabled(k8s_attach_vol_to_pod()).satisfied_by(s) by {
+    assert forall |s: CState| StatePred::new(|state: CState| pod1_exists_and_vol1_exists(state)).satisfied_by(s)
+    implies #[trigger] enabled(k8s_attach_vol_to_pod()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
             state_prime: CState {
