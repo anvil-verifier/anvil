@@ -28,15 +28,15 @@ proof fn lemma_init_leads_to_pod1_exists()
                 .leads_to(StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_pod1")@)).lift())),
 {
     leads_to_eq_auto::<CState>(sm_spec());
-    use_tla_forall::<CState, Message>(sm_spec(), |m: Message| weak_fairness(k8s_handle_create_quantified(m)), create_cr_msg());
-    use_tla_forall::<CState, Message>(sm_spec(), |m: Message| weak_fairness(k8s_handle_create_quantified(m)), create_sts_msg());
+    use_tla_forall::<CState, Message>(sm_spec(), |m: Message| weak_fairness(k8s_handle_create(m)), create_cr_msg());
+    use_tla_forall::<CState, Message>(sm_spec(), |m: Message| weak_fairness(k8s_handle_create(m)), create_sts_msg());
 
     send_create_cr_enabled();
     k8s_handle_create_enabled(create_cr_msg());
     wf1_chain::<CState>(sm_spec(),
         next(),
         send_create_cr(),
-        k8s_handle_create_quantified(create_cr_msg()),
+        k8s_handle_create(create_cr_msg()),
         StatePred::new(|state: CState| init(state)),
         (|message: Message| StatePred::new(|state: CState| message_sent(state, message)))(create_cr_msg()),
         StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_cr")@)),
@@ -60,7 +60,7 @@ proof fn lemma_init_leads_to_pod1_exists()
     k8s_handle_create_enabled(create_sts_msg());
     wf1::<CState>(sm_spec(),
         next(),
-        k8s_handle_create_quantified(create_sts_msg()),
+        k8s_handle_create(create_sts_msg()),
         (|message: Message| StatePred::new(|state: CState| message_sent(state, message)))(create_sts_msg()),
         StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_statefulset")@))
     );
