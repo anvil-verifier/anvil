@@ -35,7 +35,7 @@ proof fn lemma_init_leads_to_pod1_exists()
     k8s_handle_create_enabled(create_cr_msg());
     wf1_chain::<CState>(sm_spec(),
         next(),
-        ActionPred::new(|action: Action<CState>| sm_send_create_cr(action.state, action.state_prime)),
+        send_create_cr(),
         k8s_handle_create_quantified(create_cr_msg()),
         StatePred::new(|state: CState| init(state)),
         (|message: Message| StatePred::new(|state: CState| message_sent(state, message)))(create_cr_msg()),
@@ -46,7 +46,10 @@ proof fn lemma_init_leads_to_pod1_exists()
     wf1::<CState>(sm_spec(),
         next(),
         send_create_sts(),
-        StatePred::new(|state: CState| cr_exists_and_not_create_sts_sent(state)),
+        StatePred::new(|state: CState| {
+            &&& state.resources.dom().contains(new_strlit("my_cr")@)
+            &&& !state.messages.contains(Message::CreateStatefulSet{replica: 1})
+        }),
         StatePred::new(|state: CState| state.messages.contains(Message::CreateStatefulSet{replica: 1}))
     );
     leads_to_assume_not::<CState>(sm_spec(),
