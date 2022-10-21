@@ -56,6 +56,14 @@ pub struct CState {
  *  }
  */
 
+pub open spec fn message_sent(s: CState, m: Message) -> bool {
+    s.messages.contains(m)
+}
+
+pub open spec fn resource_exists(s: CState, key: Seq<char>) -> bool {
+    s.resources.dom().contains(key)
+}
+
 pub open spec fn init(s: CState) -> bool {
     &&& s.resources === Map::empty()
     &&& s.messages === Set::empty()
@@ -63,21 +71,17 @@ pub open spec fn init(s: CState) -> bool {
 }
 
 pub open spec fn cr_exists_and_not_create_sts_sent(s: CState) -> bool {
-    &&& s.resources.dom().contains(new_strlit("my_cr")@)
-    &&& !s.messages.contains(Message::CreateStatefulSet{replica: 1})
+    &&& resource_exists(s, new_strlit("my_cr")@)
+    &&& !message_sent(s, Message::CreateStatefulSet{replica: 1})
 }
 
 pub open spec fn cr_exists_and_not_create_vol_sent(s: CState) -> bool {
-    &&& s.resources.dom().contains(new_strlit("my_cr")@)
-    &&& !s.messages.contains(Message::CreateVolume{id: 1})
-}
-
-pub open spec fn message_sent(s: CState, m: Message) -> bool {
-    s.messages.contains(m)
+    &&& resource_exists(s, new_strlit("my_cr")@)
+    &&& !message_sent(s, Message::CreateVolume{id: 1})
 }
 
 pub open spec fn resources_updated_with(s: CState, s_prime: CState, key: Seq<char>, val: Resource) -> bool {
-    if s.resources.dom().contains(key) {
+    if resource_exists(s, key) {
         s_prime === s
     } else {
         s_prime === CState {
@@ -87,13 +91,9 @@ pub open spec fn resources_updated_with(s: CState, s_prime: CState, key: Seq<cha
     }
 }
 
-pub open spec fn sts_exists(s: CState) -> bool {
-    s.resources.dom().contains(new_strlit("my_statefulset")@)
-}
-
 pub open spec fn pod1_exists_and_vol1_exists(s: CState) -> bool {
-    &&& s.resources.dom().contains(new_strlit("my_pod1")@)
-    &&& s.resources.dom().contains(new_strlit("my_volume1")@)
+    &&& resource_exists(s, new_strlit("my_pod1")@)
+    &&& resource_exists(s, new_strlit("my_volume1")@)
 }
 
 pub open spec fn send_create_cr() -> ActionPred<CState> {
@@ -140,7 +140,7 @@ pub open spec fn k8s_handle_create(quantified_msg: Message) -> ActionPred<CState
 
 pub open spec fn k8s_create_pod() -> ActionPred<CState> {
     ActionPred::new(|a: Action<CState>| {
-        &&& sts_exists(a.state)
+        &&& resource_exists(a.state, new_strlit("my_statefulset")@)
         &&& a.state_prime === CState {
             resources: a.state.resources.insert(new_strlit("my_pod1")@, Resource::Pod),
             ..a.state
@@ -291,10 +291,10 @@ pub proof fn k8s_handle_create_enabled(msg: Message)
 
 pub proof fn k8s_create_pod_enabled()
     ensures
-        forall |s: CState| StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_statefulset")@)).satisfied_by(s)
+        forall |s: CState| StatePred::new(|state: CState| resource_exists(state, new_strlit("my_statefulset")@)).satisfied_by(s)
             ==> enabled(k8s_create_pod()).satisfied_by(s),
 {
-    assert forall |s: CState| StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_statefulset")@)).satisfied_by(s)
+    assert forall |s: CState| StatePred::new(|state: CState| resource_exists(state, new_strlit("my_statefulset")@)).satisfied_by(s)
     implies enabled(k8s_create_pod()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
