@@ -52,7 +52,7 @@ pub proof fn safety()
         valid(sm_spec().implies(always(order_inv_state_pred().lift())))
 {
     lemma_inductive_inv();
-    always_weaken::<CState>(sm_spec(), inductive_inv_state_pred().lift(), order_inv_state_pred().lift());
+    always_weaken::<CState>(sm_spec(), inductive_inv_state_pred(), order_inv_state_pred());
 }
 
 }

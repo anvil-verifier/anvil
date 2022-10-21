@@ -50,8 +50,8 @@ proof fn lemma_init_leads_to_pod1_exists()
         create_sts_sent()
     );
     leads_to_assume_not::<CState>(sm_spec(),
-        cr_exists().lift(),
-        create_sts_sent().lift()
+        cr_exists(),
+        create_sts_sent()
     );
 
     k8s_handle_any_create_msg_pre_implies_enabled(create_sts_msg());
@@ -63,9 +63,9 @@ proof fn lemma_init_leads_to_pod1_exists()
     );
 
     leads_to_trans::<CState>(sm_spec(),
-        cr_exists().lift(),
-        create_sts_sent().lift(),
-        sts_exists().lift()
+        cr_exists(),
+        create_sts_sent(),
+        sts_exists()
     );
 
     k8s_create_pod_enabled();
@@ -76,15 +76,15 @@ proof fn lemma_init_leads_to_pod1_exists()
         pod1_exists()
     );
     leads_to_trans::<CState>(sm_spec(),
-        cr_exists().lift(),
-        sts_exists().lift(),
-        pod1_exists().lift()
+        cr_exists(),
+        sts_exists(),
+        pod1_exists()
     );
 
     leads_to_trans::<CState>(sm_spec(),
-        init().lift(),
-        cr_exists().lift(),
-        pod1_exists().lift()
+        init(),
+        cr_exists(),
+        pod1_exists()
     );
 }
 
