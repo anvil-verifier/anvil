@@ -167,7 +167,7 @@ pub open spec fn next() -> ActionPred<CState> {
         ||| send_create_cr().satisfied_by(a)
         ||| send_create_sts().satisfied_by(a)
         ||| send_create_vol().satisfied_by(a)
-        ||| exists |m: Message| (#[trigger] k8s_handle_create(m)).satisfied_by(a)
+        ||| exists |msg| (#[trigger] k8s_handle_create(msg)).satisfied_by(a)
         ||| k8s_create_pod().satisfied_by(a)
         ||| k8s_attach_vol_to_pod().satisfied_by(a)
         ||| stutter().satisfied_by(a)
@@ -180,7 +180,7 @@ pub open spec fn sm_spec() -> TempPred<CState> {
     .and(weak_fairness(send_create_cr()))
     .and(weak_fairness(send_create_sts()))
     .and(weak_fairness(send_create_vol()))
-    .and(tla_forall(|m: Message| weak_fairness(k8s_handle_create(m))))
+    .and(tla_forall(|msg| weak_fairness(k8s_handle_create(msg))))
     .and(weak_fairness(k8s_create_pod()))
     .and(weak_fairness(k8s_attach_vol_to_pod()))
 }
@@ -267,10 +267,10 @@ pub open spec fn k8s_handle_create_witness_action(state: CState, key: Seq<char>,
 
 pub proof fn k8s_handle_create_enabled(msg: Message)
     ensures
-        forall |state| (|message: Message| StatePred::new(|state| message_sent(state, message)))(msg).satisfied_by(state)
+        forall |state| (|unquantified_msg| StatePred::new(|state| message_sent(state, unquantified_msg)))(msg).satisfied_by(state)
             ==> #[trigger] enabled(k8s_handle_create(msg)).satisfied_by(state),
 {
-    assert forall |state| (|message: Message| StatePred::new(|state| message_sent(state, message)))(msg).satisfied_by(state)
+    assert forall |state| (|unquantified_msg| StatePred::new(|state| message_sent(state, unquantified_msg)))(msg).satisfied_by(state)
     implies #[trigger] enabled(k8s_handle_create(msg)).satisfied_by(state) by {
         match msg {
             Message::CreateCR => {

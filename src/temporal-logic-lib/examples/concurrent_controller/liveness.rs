@@ -28,8 +28,8 @@ proof fn lemma_init_leads_to_pod1_exists()
                 .leads_to(StatePred::new(|state| resource_exists(state, new_strlit("my_pod1")@)).lift())),
 {
     leads_to_eq_auto::<CState>(sm_spec());
-    use_tla_forall::<CState, Message>(sm_spec(), |m: Message| weak_fairness(k8s_handle_create(m)), create_cr_msg());
-    use_tla_forall::<CState, Message>(sm_spec(), |m: Message| weak_fairness(k8s_handle_create(m)), create_sts_msg());
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_msg());
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_sts_msg());
 
     send_create_cr_enabled();
     k8s_handle_create_enabled(create_cr_msg());
