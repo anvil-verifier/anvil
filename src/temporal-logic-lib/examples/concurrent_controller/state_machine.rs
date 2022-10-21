@@ -125,6 +125,9 @@ pub open spec fn sm_k8s_handle_create(s: CState, s_prime: CState, m: Message) ->
     }
 }
 
+pub open spec fn k8s_handle_create_quantified(m: Message) -> ActionPred<CState> {
+    (|message: Message| ActionPred::new(|action: Action<CState>| sm_k8s_handle_create(action.state, action.state_prime, message)))(m)
+}
 
 pub open spec fn sts_exists(s: CState) -> bool {
     s.resources.dom().contains(new_strlit("my_statefulset")@)
@@ -209,7 +212,7 @@ pub open spec fn sm_spec() -> TempPred<CState> {
     .and(weak_fairness(send_create_cr()))
     .and(weak_fairness(send_create_sts()))
     .and(weak_fairness(send_create_vol()))
-    .and(tla_forall(|m: Message| weak_fairness(k8s_handle_create_concretized(m))))
+    .and(tla_forall(|m: Message| weak_fairness(k8s_handle_create_quantified(m))))
     .and(weak_fairness(k8s_create_pod()))
     .and(weak_fairness(k8s_attach_vol_to_pod()))
 }
@@ -277,34 +280,6 @@ pub proof fn send_create_vol_enabled()
     };
 }
 
-pub open spec fn sm_k8s_handle_create_post(s_prime: CState, m: Message) -> bool {
-    match m {
-        Message::CreateCR => s_prime.resources.dom().contains(new_strlit("my_cr")@),
-        Message::CreateStatefulSet{..} => s_prime.resources.dom().contains(new_strlit("my_statefulset")@),
-        Message::CreateVolume{..} => s_prime.resources.dom().contains(new_strlit("my_volume1")@),
-    }
-}
-
-pub open spec fn k8s_handle_create_unquantified() -> UnquantifiedActionPred<CState, Message> {
-    |message: Message| ActionPred::new(|action: Action<CState>| sm_k8s_handle_create(action.state, action.state_prime, message))
-}
-
-pub open spec fn k8s_handle_create_post_unquantified() -> UnquantifiedStatePred<CState, Message> {
-    |message: Message| StatePred::new(|state: CState| sm_k8s_handle_create_post(state, message))
-}
-
-pub open spec fn k8s_handle_create_pre_concretized(m: Message) -> StatePred<CState> {
-    (|message: Message| StatePred::new(|state: CState| message_sent(state, message)))(m)
-}
-
-pub open spec fn k8s_handle_create_concretized(m: Message) -> ActionPred<CState> {
-    k8s_handle_create_unquantified()(m)
-}
-
-pub open spec fn k8s_handle_create_post_concretized(m: Message) -> StatePred<CState> {
-    k8s_handle_create_post_unquantified()(m)
-}
-
 pub open spec fn k8s_handle_create_witness_action(state: CState, key: Seq<char>, val: Resource) -> Action<CState> {
     if state.resources.dom().contains(key) {
         Action {
@@ -324,23 +299,23 @@ pub open spec fn k8s_handle_create_witness_action(state: CState, key: Seq<char>,
 
 pub proof fn k8s_handle_create_enabled(msg: Message)
     ensures
-        forall |state: CState| k8s_handle_create_pre_concretized(msg).satisfied_by(state)
-            ==> #[trigger] enabled(k8s_handle_create_concretized(msg)).satisfied_by(state),
+        forall |state: CState| (|message: Message| StatePred::new(|state: CState| message_sent(state, message)))(msg).satisfied_by(state)
+            ==> #[trigger] enabled(k8s_handle_create_quantified(msg)).satisfied_by(state),
 {
-    assert forall |state: CState| k8s_handle_create_pre_concretized(msg).satisfied_by(state)
-    implies #[trigger] enabled(k8s_handle_create_concretized(msg)).satisfied_by(state) by {
+    assert forall |state: CState| (|message: Message| StatePred::new(|state: CState| message_sent(state, message)))(msg).satisfied_by(state)
+    implies #[trigger] enabled(k8s_handle_create_quantified(msg)).satisfied_by(state) by {
         match msg {
             Message::CreateCR => {
                 let witness_action = k8s_handle_create_witness_action(state, new_strlit("my_cr")@, Resource::CustomResource);
-                assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
+                assert(k8s_handle_create_quantified(msg).satisfied_by(witness_action));
             },
             Message::CreateStatefulSet{..} => {
                 let witness_action = k8s_handle_create_witness_action(state, new_strlit("my_statefulset")@, Resource::StatefulSet);
-                assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
+                assert(k8s_handle_create_quantified(msg).satisfied_by(witness_action));
             },
             Message::CreateVolume{..} => {
                 let witness_action = k8s_handle_create_witness_action(state, new_strlit("my_volume1")@, Resource::Volume{attached: false});
-                assert(k8s_handle_create_concretized(msg).satisfied_by(witness_action));
+                assert(k8s_handle_create_quantified(msg).satisfied_by(witness_action));
             },
         }
     };
