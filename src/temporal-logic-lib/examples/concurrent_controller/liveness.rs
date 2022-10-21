@@ -24,8 +24,8 @@ pub open spec fn create_vol_msg() -> Message {
 proof fn lemma_init_leads_to_pod1_exists()
     ensures
         sm_spec()
-            .entails(init().lift()
-                .leads_to(pod1_exists().lift())),
+            .entails(StatePred::new(|state: CState| init(state)).lift()
+                .leads_to(StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_pod1")@)).lift())),
 {
     leads_to_eq_auto::<CState>(sm_spec());
     use_tla_forall::<CState, Message>(sm_spec(), |m: Message| weak_fairness(k8s_handle_create_concretized(m)), create_cr_msg());
@@ -35,23 +35,23 @@ proof fn lemma_init_leads_to_pod1_exists()
     k8s_handle_any_create_msg_pre_implies_enabled(create_cr_msg());
     wf1_chain::<CState>(sm_spec(),
         next(),
-        send_create_cr(),
+        ActionPred::new(|action: Action<CState>| sm_send_create_cr(action.state, action.state_prime)),
         k8s_handle_create_concretized(create_cr_msg()),
-        init(),
+        StatePred::new(|state: CState| init(state)),
         k8s_handle_create_pre_concretized(create_cr_msg()),
-        cr_exists(),
+        StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_cr")@)),
     );
 
     send_create_sts_enabled();
     wf1::<CState>(sm_spec(),
         next(),
         send_create_sts(),
-        cr_exists_and_not_create_sts_sent(),
-        create_sts_sent()
+        StatePred::new(|state: CState| cr_exists_and_not_create_sts_sent(state)),
+        StatePred::new(|state: CState| state.messages.contains(Message::CreateStatefulSet{replica: 1}))
     );
     leads_to_assume_not::<CState>(sm_spec(),
-        cr_exists(),
-        create_sts_sent()
+        StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_cr")@)),
+        StatePred::new(|state: CState| state.messages.contains(Message::CreateStatefulSet{replica: 1}))
     );
 
     k8s_handle_any_create_msg_pre_implies_enabled(create_sts_msg());
@@ -63,28 +63,28 @@ proof fn lemma_init_leads_to_pod1_exists()
     );
 
     leads_to_trans::<CState>(sm_spec(),
-        cr_exists(),
-        create_sts_sent(),
-        sts_exists()
+        StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_cr")@)),
+        StatePred::new(|state: CState| state.messages.contains(Message::CreateStatefulSet{replica: 1})),
+        StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_statefulset")@))
     );
 
     k8s_create_pod_enabled();
     wf1::<CState>(sm_spec(),
         next(),
         k8s_create_pod(),
-        sts_exists(),
-        pod1_exists()
+        StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_statefulset")@)),
+        StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_pod1")@))
     );
     leads_to_trans::<CState>(sm_spec(),
-        cr_exists(),
-        sts_exists(),
-        pod1_exists()
+        StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_cr")@)),
+        StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_statefulset")@)),
+        StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_pod1")@))
     );
 
     leads_to_trans::<CState>(sm_spec(),
-        init(),
-        cr_exists(),
-        pod1_exists()
+        StatePred::new(|state: CState| init(state)),
+        StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_cr")@)),
+        StatePred::new(|state: CState| state.resources.dom().contains(new_strlit("my_pod1")@))
     );
 }
 
