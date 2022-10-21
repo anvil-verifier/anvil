@@ -70,12 +70,12 @@ pub open spec fn init(s: CState) -> bool {
     &&& !s.vol_attached
 }
 
-pub open spec fn cr_exists_and_not_create_sts_sent(s: CState) -> bool {
+pub open spec fn cr_exists_and_create_sts_not_sent(s: CState) -> bool {
     &&& resource_exists(s, new_strlit("my_cr")@)
     &&& !message_sent(s, Message::CreateStatefulSet{replica: 1})
 }
 
-pub open spec fn cr_exists_and_not_create_vol_sent(s: CState) -> bool {
+pub open spec fn cr_exists_and_create_vol_not_sent(s: CState) -> bool {
     &&& resource_exists(s, new_strlit("my_cr")@)
     &&& !message_sent(s, Message::CreateVolume{id: 1})
 }
@@ -108,7 +108,7 @@ pub open spec fn send_create_cr() -> ActionPred<CState> {
 
 pub open spec fn send_create_sts() -> ActionPred<CState> {
     ActionPred::new(|a: Action<CState>| {
-        &&& cr_exists_and_not_create_sts_sent(a.state)
+        &&& cr_exists_and_create_sts_not_sent(a.state)
         &&& a.state_prime === CState {
             messages: a.state.messages.insert(Message::CreateStatefulSet{replica: 1}),
             ..a.state
@@ -118,7 +118,7 @@ pub open spec fn send_create_sts() -> ActionPred<CState> {
 
 pub open spec fn send_create_vol() -> ActionPred<CState> {
     ActionPred::new(|a: Action<CState>| {
-        &&& cr_exists_and_not_create_vol_sent(a.state)
+        &&& cr_exists_and_create_vol_not_sent(a.state)
         &&& a.state_prime === CState {
             messages: a.state.messages.insert(Message::CreateVolume{id: 1}),
             ..a.state
@@ -214,10 +214,10 @@ pub proof fn send_create_cr_enabled()
 
 pub proof fn send_create_sts_enabled()
     ensures
-        forall |s: CState| StatePred::new(|state: CState| cr_exists_and_not_create_sts_sent(state)).satisfied_by(s)
+        forall |s: CState| StatePred::new(|state: CState| cr_exists_and_create_sts_not_sent(state)).satisfied_by(s)
             ==> enabled(send_create_sts()).satisfied_by(s),
 {
-    assert forall |s: CState| StatePred::new(|state: CState| cr_exists_and_not_create_sts_sent(state)).satisfied_by(s)
+    assert forall |s: CState| StatePred::new(|state: CState| cr_exists_and_create_sts_not_sent(state)).satisfied_by(s)
     implies enabled(send_create_sts()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
@@ -232,10 +232,10 @@ pub proof fn send_create_sts_enabled()
 
 pub proof fn send_create_vol_enabled()
     ensures
-        forall |s: CState| StatePred::new(|state: CState| cr_exists_and_not_create_vol_sent(state)).satisfied_by(s)
+        forall |s: CState| StatePred::new(|state: CState| cr_exists_and_create_vol_not_sent(state)).satisfied_by(s)
             ==> enabled(send_create_vol()).satisfied_by(s),
 {
-    assert forall |s: CState| StatePred::new(|state: CState| cr_exists_and_not_create_vol_sent(state)).satisfied_by(s)
+    assert forall |s: CState| StatePred::new(|state: CState| cr_exists_and_create_vol_not_sent(state)).satisfied_by(s)
     implies enabled(send_create_vol()).satisfied_by(s) by {
         let witness_action = Action {
             state: s,
