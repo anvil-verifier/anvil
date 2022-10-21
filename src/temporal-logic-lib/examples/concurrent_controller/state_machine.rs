@@ -164,13 +164,13 @@ pub open spec fn stutter() -> ActionPred<CState> {
 
 pub open spec fn next() -> ActionPred<CState> {
     |a: Action<CState>| {
-        ||| closure_call(send_create_cr(), a)
-        ||| closure_call(send_create_sts(), a)
-        ||| closure_call(send_create_vol(), a)
-        ||| exists |msg| closure_call(#[trigger] k8s_handle_create(msg), a)
-        ||| closure_call(k8s_create_pod(), a)
-        ||| closure_call(k8s_attach_vol_to_pod(), a)
-        ||| closure_call(stutter(), a)
+        ||| send_create_cr()(a)
+        ||| send_create_sts()(a)
+        ||| send_create_vol()(a)
+        ||| exists |msg| #[trigger] closure_call(k8s_handle_create(msg), a)
+        ||| k8s_create_pod()(a)
+        ||| k8s_attach_vol_to_pod()(a)
+        ||| stutter()(a)
     }
 }
 
