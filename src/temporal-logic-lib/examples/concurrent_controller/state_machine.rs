@@ -297,24 +297,6 @@ pub open spec fn k8s_handle_create_post_concretized(m: Message) -> StatePred<CSt
     k8s_handle_create_post_unquantified()(m)
 }
 
-pub proof fn k8s_handle_any_create_msg_pre_and_next_and_forward_implies_post(msg: Message)
-    ensures
-        forall |action: Action<CState>|
-            #[trigger] k8s_handle_create_pre_concretized(msg).satisfied_by(action.state)
-            && next().satisfied_by(action)
-            && k8s_handle_create_concretized(msg).satisfied_by(action)
-            ==> k8s_handle_create_post_concretized(msg).satisfied_by(action.state_prime)
-{}
-
-pub proof fn k8s_handle_any_create_msg_pre_and_next_implies_pre_and_post(msg: Message)
-    ensures
-        forall |action: Action<CState>|
-            #[trigger] k8s_handle_create_pre_concretized(msg).satisfied_by(action.state)
-            && next().satisfied_by(action)
-            ==> k8s_handle_create_pre_concretized(msg).satisfied_by(action.state_prime)
-                || k8s_handle_create_post_concretized(msg).satisfied_by(action.state_prime)
-{}
-
 pub open spec fn k8s_handle_create_witness_action(state: CState, key: Seq<char>, val: Resource) -> Action<CState> {
     if state.resources.dom().contains(key) {
         Action {
