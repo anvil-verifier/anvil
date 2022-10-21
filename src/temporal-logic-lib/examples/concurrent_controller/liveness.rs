@@ -23,68 +23,71 @@ pub open spec fn create_vol_msg() -> Message {
 
 proof fn lemma_init_leads_to_pod1_exists()
     ensures
-        valid(sm_spec()
-            .implies(init().lift()
-                .leads_to(pod1_exists().lift()))),
+        sm_spec()
+            .entails(StatePred::new(|state| init(state)).lift()
+                .leads_to(StatePred::new(|state| resource_exists(state, new_strlit("my_pod1")@)).lift())),
 {
     leads_to_eq_auto::<CState>(sm_spec());
-    use_tla_forall::<CState, Message>(sm_spec(), |m: Message| weak_fairness(k8s_handle_create_concretized(m)), create_cr_msg());
-    use_tla_forall::<CState, Message>(sm_spec(), |m: Message| weak_fairness(k8s_handle_create_concretized(m)), create_sts_msg());
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_msg());
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_sts_msg());
 
     send_create_cr_enabled();
-    k8s_handle_any_create_msg_pre_implies_enabled(create_cr_msg());
+    k8s_handle_create_enabled(create_cr_msg());
     wf1_chain::<CState>(sm_spec(),
         next(),
         send_create_cr(),
-        k8s_handle_create_concretized(create_cr_msg()),
-        init(),
-        k8s_handle_create_pre_concretized(create_cr_msg()),
-        cr_exists(),
+        k8s_handle_create(create_cr_msg()),
+        StatePred::new(|state| init(state)),
+        (|message: Message| StatePred::new(|state| message_sent(state, message)))(create_cr_msg()),
+        StatePred::new(|state| resource_exists(state, new_strlit("my_cr")@)),
     );
 
     send_create_sts_enabled();
     wf1::<CState>(sm_spec(),
         next(),
         send_create_sts(),
-        cr_exists_and_not_create_sts_sent(),
-        create_sts_sent()
+        StatePred::new(|state| {
+            &&& resource_exists(state, new_strlit("my_cr")@)
+            &&& !message_sent(state, Message::CreateStatefulSet{replica: 1})
+        }),
+        StatePred::new(|state| message_sent(state, Message::CreateStatefulSet{replica: 1}))
     );
     leads_to_assume_not::<CState>(sm_spec(),
-        cr_exists(),
-        create_sts_sent()
+        StatePred::new(|state| resource_exists(state, new_strlit("my_cr")@)),
+        StatePred::new(|state| message_sent(state, Message::CreateStatefulSet{replica: 1}))
     );
 
-    k8s_handle_any_create_msg_pre_implies_enabled(create_sts_msg());
+    k8s_handle_create_enabled(create_sts_msg());
     wf1::<CState>(sm_spec(),
         next(),
-        k8s_handle_create_concretized(create_sts_msg()),
-        k8s_handle_create_pre_concretized(create_sts_msg()),
-        k8s_handle_create_post_concretized(create_sts_msg()),
+        k8s_handle_create(create_sts_msg()),
+        (|message: Message| StatePred::new(|state| message_sent(state, message)))(create_sts_msg()),
+        StatePred::new(|state| resource_exists(state, new_strlit("my_statefulset")@))
     );
 
     leads_to_trans::<CState>(sm_spec(),
-        cr_exists(),
-        create_sts_sent(),
-        sts_exists()
+        StatePred::new(|state| resource_exists(state, new_strlit("my_cr")@)),
+        StatePred::new(|state| message_sent(state, Message::CreateStatefulSet{replica: 1})),
+        StatePred::new(|state| resource_exists(state, new_strlit("my_statefulset")@))
     );
 
     k8s_create_pod_enabled();
     wf1::<CState>(sm_spec(),
         next(),
         k8s_create_pod(),
-        sts_exists(),
-        pod1_exists()
+        StatePred::new(|state| resource_exists(state, new_strlit("my_statefulset")@)),
+        StatePred::new(|state| resource_exists(state, new_strlit("my_pod1")@))
     );
     leads_to_trans::<CState>(sm_spec(),
-        cr_exists(),
-        sts_exists(),
-        pod1_exists()
+        StatePred::new(|state| resource_exists(state, new_strlit("my_cr")@)),
+        StatePred::new(|state| resource_exists(state, new_strlit("my_statefulset")@)),
+        StatePred::new(|state| resource_exists(state, new_strlit("my_pod1")@))
     );
 
     leads_to_trans::<CState>(sm_spec(),
-        init(),
-        cr_exists(),
-        pod1_exists()
+        StatePred::new(|state| init(state)),
+        StatePred::new(|state| resource_exists(state, new_strlit("my_cr")@)),
+        StatePred::new(|state| resource_exists(state, new_strlit("my_pod1")@))
     );
 }
 

@@ -110,9 +110,9 @@ proof fn create2_enabled()
 
 proof fn lemma_init_leads_to_obj1_exists()
     ensures
-        valid(sm_spec()
-            .implies(init_state_pred().lift()
-                .leads_to(obj1_exists().lift()))),
+        sm_spec()
+            .entails(init_state_pred().lift()
+                .leads_to(obj1_exists().lift())),
 {
     /*
      * This proof is straightforward:
@@ -140,10 +140,10 @@ proof fn lemma_init_leads_to_obj1_exists()
 
 proof fn lemma_obj1_exists_and_not_sent2_leads_to_obj2_exists()
     ensures
-        valid(sm_spec()
-            .implies(obj1_exists().lift()
+        sm_spec()
+            .entails(obj1_exists().lift()
                 .and(not(sent2().lift()))
-                    .leads_to(obj2_exists().lift()))),
+                    .leads_to(obj2_exists().lift())),
 {
     /*
      * This proof is also straightforward:
@@ -164,11 +164,11 @@ proof fn lemma_obj1_exists_and_not_sent2_leads_to_obj2_exists()
     /*
      * Now we have `(s.obj_1_exists /\ ~s.obj_2_exists /\ ~s.sent_2_create) ~> s.obj_2_exists`.
      */
-    // assert(valid(sm_spec()
-    //     .implies(obj1_exists().lift()
+    // assert(sm_spec()
+    //     .entails(obj1_exists().lift()
     //         .and(not(obj2_exists().lift())
     //             .and(not(sent2().lift())))
-    //                 .leads_to(obj2_exists().lift()))));
+    //                 .leads_to(obj2_exists().lift())));
 
     /*
      * With `leads_to_assume_not` we can kick out `~s.obj_2_exists`.
@@ -196,17 +196,17 @@ proof fn lemma_obj1_exists_and_not_sent2_leads_to_obj2_exists()
  */
 proof fn lemma_msg_inv()
     ensures
-        valid(sm_spec().implies(always(msg_inv_state_pred().lift())))
+        sm_spec().entails(always(msg_inv_state_pred().lift())),
 {
     init_invariant::<CState>(sm_spec(), init_state_pred(), next_action_pred(), msg_inv_state_pred());
 }
 
 proof fn lemma_obj1_exists_and_sent2_leads_to_obj2_exists()
     ensures
-        valid(sm_spec()
-            .implies(obj1_exists().lift()
+        sm_spec()
+            .entails(obj1_exists().lift()
                 .and(sent2().lift())
-                    .leads_to(obj2_exists().lift()))),
+                    .leads_to(obj2_exists().lift())),
 {
     /*
      * This proof shows you `(s.obj_1_exists /\ ~s.obj_2_exists /\ s.sent_2_create) ~> s.obj_2_exists`
@@ -239,10 +239,6 @@ proof fn lemma_obj1_exists_and_sent2_leads_to_obj2_exists()
      *
      * But how to make a connection between `s.messages.contains(Message::CreateReq{id: 2})` and `s.sent_2_create`?
      */
-    // assert(valid(implies(
-    //     sm_spec(),
-    //     create2_pre_state_pred().lift().leads_to(obj2_exists().lift())
-    // )));
 
     /*
      * OK this is really the most difficult step in the entire proof I think.
@@ -256,10 +252,10 @@ proof fn lemma_obj1_exists_and_sent2_leads_to_obj2_exists()
      *
      * Thanks `leads_to_weaken_auto` for automatically weakening leads_to for us :)
      */
-    assert(valid(sm_spec()
-        .implies(sent2().lift()
+    assert(sm_spec()
+        .entails(sent2().lift()
             .and(msg_inv_state_pred().lift())
-                .leads_to(obj2_exists().lift()))));
+                .leads_to(obj2_exists().lift())));
 
     /*
      * Thanks `msg_inv` for giving us `s.sent_2_create`.
@@ -274,29 +270,21 @@ proof fn lemma_obj1_exists_and_sent2_leads_to_obj2_exists()
      * At this point we have `s.sent_2_create ~> s.obj_2_exists`.
      * `leads_to_weaken_auto` secretly helps us weaken the leads_to to the one we want to prove!
      */
-    // assert(valid(sm_spec()
-    //     .implies(sent2().lift()
-    //         .leads_to(obj2_exists().lift()))));
-
-    // assert(valid(sm_spec()
-    //     .implies(obj1_exists().lift()
-    //         .and(sent2().lift())
-    //             .leads_to(obj2_exists().lift()))));
 }
 
 
 /*
  * To connect with the above leads_to and further prove
- * `valid(implies(sm_spec(), eventually(obj2_exists().lift()))`,
+ * `sm_spec().entails(eventually(obj2_exists().lift()))`,
  * now we need to prove
- * `valid(implies(sm_spec(), leads_to(obj1_exists().lift(), obj2_exists().lift())))`.
+ * `sm_spec().entails(leads_to(obj1_exists().lift(), obj2_exists().lift()))`.
  */
 
 proof fn lemma_obj1_leads_to_obj2_exists()
     ensures
-        valid(sm_spec()
-            .implies(obj1_exists().lift()
-                .leads_to(obj2_exists().lift()))),
+        sm_spec()
+            .entails(obj1_exists().lift()
+                .leads_to(obj2_exists().lift())),
 {
     leads_to_weaken_auto::<CState>(sm_spec());
 
@@ -315,7 +303,7 @@ proof fn lemma_obj1_leads_to_obj2_exists()
 
 proof fn lemma_eventually_obj1()
     ensures
-        valid(sm_spec().implies(eventually(obj1_exists().lift()))),
+        sm_spec().entails(eventually(obj1_exists().lift())),
 {
     /*
      * This proof is simple: just take the leads_to from `lemma_init_leads_to_obj1_exists`
@@ -327,9 +315,9 @@ proof fn lemma_eventually_obj1()
     leads_to_apply::<CState>(sm_spec(), init_state_pred(), obj1_exists());
 }
 
-proof fn lemma_eventually_obj2()
+proof fn lemma_eventually_obj2_exits()
     ensures
-        valid(sm_spec().implies(eventually(obj2_exists().lift())))
+        sm_spec().entails(eventually(obj2_exists().lift())),
 {
     /*
      * This proof is also simple: just take the two leads_to
@@ -349,8 +337,7 @@ proof fn lemma_eventually_obj2()
 
 proof fn liveness()
     ensures
-        valid(sm_spec()
-            .implies(eventually(obj1_exists().lift().and(obj2_exists().lift())))),
+        sm_spec().entails(eventually(obj1_exists().lift().and(obj2_exists().lift()))),
 {
     /*
      * This proof needs the safety property we proved in safety.rs
@@ -362,21 +349,15 @@ proof fn liveness()
      * then when obj2 exists, obj1 is also there.
      *
      * We use `always_and_eventually` rule to combine
-     * the eventually from `lemma_eventually_obj2` and the always from `safety`
+     * the eventually from `lemma_eventually_obj2_exits` and the always from `safety`
      * to one eventually.
      */
 
-    lemma_eventually_obj2();
-    // assert(valid(implies(sm_spec(), eventually(obj2_exists().lift()))));
+    lemma_eventually_obj2_exits();
 
     safety();
-    // assert(valid(implies(sm_spec(), always(order_inv_state_pred().lift()))));
 
     always_and_eventually::<CState>(sm_spec(), order_inv_state_pred(), obj2_exists());
-    // assert(valid(implies(
-    //     sm_spec(),
-    //     eventually(and(order_inv_state_pred().lift(), obj2_exists().lift()))
-    // )));
 
     /*
      * We get a weaker eventually, which is our goal, from `eventually_weaken`.

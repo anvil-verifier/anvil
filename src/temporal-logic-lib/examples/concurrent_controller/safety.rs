@@ -9,18 +9,21 @@ use builtin_macros::*;
 
 verus! {
 
-pub open spec fn attach_after_create() -> StatePred<CState> {
-    StatePred::new(|state: CState| {
-        &&& state.vol_attached ==> state.resources.dom().contains(new_strlit("my_pod1")@)
-        &&& state.vol_attached ==> state.resources.dom().contains(new_strlit("my_volume1")@)
-    })
-}
-
 pub proof fn lemma_always_attach_after_create()
     ensures
-        valid(sm_spec().implies(always(attach_after_create().lift())))
+        sm_spec().entails(always(StatePred::new(|state| {
+            &&& state.vol_attached ==> resource_exists(state, new_strlit("my_pod1")@)
+            &&& state.vol_attached ==> resource_exists(state, new_strlit("my_volume1")@)
+        }).lift())),
 {
-    init_invariant::<CState>(sm_spec(), init(), next(), attach_after_create());
+    init_invariant::<CState>(sm_spec(),
+        StatePred::new(|state| init(state)),
+        next(),
+        StatePred::new(|state| {
+            &&& state.vol_attached ==> resource_exists(state, new_strlit("my_pod1")@)
+            &&& state.vol_attached ==> resource_exists(state, new_strlit("my_volume1")@)
+        })
+    );
 }
 
 }
