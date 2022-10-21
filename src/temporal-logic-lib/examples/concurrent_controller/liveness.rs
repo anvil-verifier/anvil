@@ -24,7 +24,7 @@ pub open spec fn create_vol_msg() -> Message {
 proof fn lemma_init_leads_to_pod1_exists()
     ensures
         sm_spec()
-            .entails(lift_state(|state| init(state))
+            .entails(lift_state(init())
                 .leads_to(lift_state(|state| resource_exists(state, new_strlit("my_pod1")@)))),
 {
     leads_to_eq_auto::<CState>(sm_spec());
@@ -37,7 +37,7 @@ proof fn lemma_init_leads_to_pod1_exists()
         next(),
         send_create_cr(),
         k8s_handle_create(create_cr_msg()),
-        |state| init(state),
+        init(),
         k8s_handle_create_pre(create_cr_msg()),
         |state| resource_exists(state, new_strlit("my_cr")@),
     );
@@ -85,7 +85,7 @@ proof fn lemma_init_leads_to_pod1_exists()
     );
 
     leads_to_trans::<CState>(sm_spec(),
-        |state| init(state),
+        init(),
         |state| resource_exists(state, new_strlit("my_cr")@),
         |state| resource_exists(state, new_strlit("my_pod1")@)
     );

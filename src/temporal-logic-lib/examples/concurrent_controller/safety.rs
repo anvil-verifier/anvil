@@ -17,7 +17,7 @@ pub proof fn lemma_always_attach_after_create()
         }))),
 {
     init_invariant::<CState>(sm_spec(),
-        |state| init(state),
+        init(),
         next(),
         |state: CState| {
             &&& state.vol_attached ==> resource_exists(state, new_strlit("my_pod1")@)
