@@ -31,57 +31,6 @@ impl<T> Execution<T> {
     }
 }
 
-pub struct StatePred<#[verifier(maybe_negative)] T> {
-    // It is better to keep pred private,
-    // but Verus does not allow open method to access private field
-    pub pred: FnSpec(T) -> bool,
-}
-
-impl<T> StatePred<T> {
-    pub open spec fn new(pred: FnSpec(T) -> bool) -> Self {
-        StatePred {
-            pred: pred,
-        }
-    }
-
-    pub open spec fn satisfied_by(self, state: T) -> bool {
-        (self.pred)(state)
-    }
-
-    /// lift does not belong to the original temporal logic.
-    /// Temporal logic always talks about execution/behavior from the very beginning
-    /// so there is no need to lift anything.
-    /// Since Verus does not have native support for temporal logic,
-    /// lift allows us to implement temporal predicates on top of state/action predicates.
-    pub open spec fn lift(self) -> TempPred<T> {
-        TempPred::new(|ex: Execution<T>| self.satisfied_by(ex.head()))
-    }
-
-    pub open spec fn lift_prime(self) -> TempPred<T> {
-        TempPred::new(|ex: Execution<T>| self.satisfied_by(ex.head_next()))
-    }
-}
-
-pub struct ActionPred<T> {
-    pub pred: FnSpec(Action<T>) -> bool,
-}
-
-impl<T> ActionPred<T> {
-    pub open spec fn new(pred: FnSpec(Action<T>) -> bool) -> Self {
-        ActionPred {
-            pred: pred,
-        }
-    }
-
-    pub open spec fn satisfied_by(self, action: Action<T>) -> bool {
-        (self.pred)(action)
-    }
-
-    pub open spec fn lift(self) -> TempPred<T> {
-        TempPred::new(|ex: Execution<T>| self.satisfied_by(Action{state: ex.head(), state_prime: ex.head_next()}))
-    }
-}
-
 pub struct TempPred<#[verifier(maybe_negative)] T> {
     pub pred: FnSpec(Execution<T>) -> bool,
 }
@@ -134,8 +83,21 @@ impl<T> TempPred<T> {
     }
 }
 
-pub type UnquantifiedStatePred<T, A> = FnSpec(A) -> StatePred<T>;
-pub type UnquantifiedActionPred<T, A> = FnSpec(A) -> ActionPred<T>;
+pub open spec fn closure_call<T, R>(f: FnSpec(T) -> R, t: T) -> R {
+    f(t)
+}
+
+pub type StatePred<T> = FnSpec(T) -> bool;
+pub type ActionPred<T> = FnSpec(Action<T>) -> bool;
+
+pub open spec fn lift_state<T>(state_pred: StatePred<T>) -> TempPred<T> {
+    TempPred::new(|ex: Execution<T>| closure_call(state_pred, ex.head()))
+}
+
+pub open spec fn lift_action<T>(action_pred: ActionPred<T>) -> TempPred<T> {
+    TempPred::new(|ex: Execution<T>| closure_call(action_pred, Action{state: ex.head(), state_prime: ex.head_next()}))
+}
+
 pub type UnquantifiedTempPred<T, A> = FnSpec(A) -> TempPred<T>;
 
 /// `[]` for temporal predicates in TLA+.
@@ -186,7 +148,7 @@ pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, unquantified_temp_pred: Unq
 ///
 /// Note: it says whether the action *can possibly* happen, rather than whether the action *actually does* happen!
 pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> StatePred<T> {
-    StatePred::new(|s: T| exists |s_prime: T| #[trigger] action_pred.satisfied_by(Action{state: s, state_prime: s_prime}))
+    |s: T| exists |s_prime: T| #[trigger] closure_call(action_pred, Action{state: s, state_prime: s_prime})
 }
 
 /// Returns a temporal predicate that is satisfied
@@ -198,11 +160,11 @@ pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> StatePred<T> {
 ///
 /// Note: it says whether the action *can possibly* happen, rather than whether the action *actually does* happen!
 pub open spec fn tla_enabled<T>(action_pred: ActionPred<T>) -> TempPred<T> {
-    enabled(action_pred).lift()
+    lift_state(enabled(action_pred))
 }
 
 /// Returns a temporal predicate that is satisfied
-/// iff `always(tla_enabled(action_pred))` getting satisfied leads to `action_pred.lift()` getting satisfied.
+/// iff `always(tla_enabled(action_pred))` getting satisfied leads to `lift_action(action_pred)` getting satisfied.
 ///
 /// It says whether it is *always* the case that if the action is *always* enabled, the action *eventually* happens.
 ///
@@ -218,7 +180,7 @@ pub open spec fn tla_enabled<T>(action_pred: ActionPred<T>) -> TempPred<T> {
 /// == []<>A \/ []<>~E(A)
 pub open spec fn weak_fairness<T>(action_pred: ActionPred<T>) -> TempPred<T> {
     always(tla_enabled(action_pred))
-        .leads_to(action_pred.lift())
+        .leads_to(lift_action(action_pred))
 }
 
 /// `|=` for temporal predicates in TLA+.
@@ -242,40 +204,40 @@ pub proof fn implies_unfold_auto<T>()
 #[verifier(external_body)]
 pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>)
     requires
-        forall |s: T| init.satisfied_by(s) ==> inv.satisfied_by(s),
-        forall |a: Action<T>| inv.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) ==> inv.satisfied_by(a.state_prime),
-        spec.entails(init.lift().and(always(next.lift()))),
+        forall |s: T| closure_call(init, s) ==> closure_call(inv, s),
+        forall |a: Action<T>| closure_call(inv, a.state) && #[trigger] closure_call(next, a) ==> closure_call(inv, a.state_prime),
+        spec.entails(lift_state(init).and(always(lift_action(next)))),
     ensures
-        spec.entails(always(inv.lift())),
+        spec.entails(always(lift_state(inv))),
 {}
 
 /// See WF1 in Fig 5.
 #[verifier(external_body)]
 pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |a: Action<T>| p.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) ==> p.satisfied_by(a.state_prime) || q.satisfied_by(a.state_prime),
-        forall |a: Action<T>| p.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) && #[trigger] forward.satisfied_by(a) ==> q.satisfied_by(a.state_prime),
-        forall |a: Action<T>| #[trigger] p.satisfied_by(a.state) ==> enabled(forward).satisfied_by(a.state),
-        spec.entails(always(next.lift()).and(weak_fairness(forward))),
+        forall |a: Action<T>| closure_call(p, a.state) && #[trigger] closure_call(next, a) ==> closure_call(p, a.state_prime) || closure_call(q, a.state_prime),
+        forall |a: Action<T>| closure_call(p, a.state) && #[trigger] closure_call(next, a) && #[trigger] closure_call(forward, a) ==> closure_call(q, a.state_prime),
+        forall |a: Action<T>| #[trigger] closure_call(p, a.state) ==> closure_call(enabled(forward), a.state),
+        spec.entails(always(lift_action(next)).and(weak_fairness(forward))),
     ensures
-        spec.entails(p.lift().leads_to(q.lift())),
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
 {}
 
 /// Handy lemma that combines two wf1 and leads_to_trans.
 pub proof fn wf1_chain<T>(spec: TempPred<T>, next: ActionPred<T>, forward_p_q: ActionPred<T>, forward_q_r: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        forall |a: Action<T>| p.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) ==> p.satisfied_by(a.state_prime) || q.satisfied_by(a.state_prime),
-        forall |a: Action<T>| p.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) && #[trigger] forward_p_q.satisfied_by(a) ==> q.satisfied_by(a.state_prime),
-        forall |a: Action<T>| #[trigger] p.satisfied_by(a.state) ==> enabled(forward_p_q).satisfied_by(a.state),
-        spec.entails(always(next.lift()).and(weak_fairness(forward_p_q))),
-        forall |a: Action<T>| q.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) ==> q.satisfied_by(a.state_prime) || r.satisfied_by(a.state_prime),
-        forall |a: Action<T>| q.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) && #[trigger] forward_q_r.satisfied_by(a) ==> r.satisfied_by(a.state_prime),
-        forall |a: Action<T>| #[trigger] q.satisfied_by(a.state) ==> enabled(forward_q_r).satisfied_by(a.state),
-        spec.entails(always(next.lift()).and(weak_fairness(forward_q_r))),
+        forall |a: Action<T>| closure_call(p, a.state) && #[trigger] closure_call(next, a) ==> closure_call(p, a.state_prime) || closure_call(q, a.state_prime),
+        forall |a: Action<T>| closure_call(p, a.state) && #[trigger] closure_call(next, a) && #[trigger] closure_call(forward_p_q, a) ==> closure_call(q, a.state_prime),
+        forall |a: Action<T>| #[trigger] closure_call(p, a.state) ==> closure_call(enabled(forward_p_q), a.state),
+        spec.entails(always(lift_action(next)).and(weak_fairness(forward_p_q))),
+        forall |a: Action<T>| closure_call(q, a.state) && #[trigger] closure_call(next, a) ==> closure_call(q, a.state_prime) || closure_call(r, a.state_prime),
+        forall |a: Action<T>| closure_call(q, a.state) && #[trigger] closure_call(next, a) && #[trigger] closure_call(forward_q_r, a) ==> closure_call(r, a.state_prime),
+        forall |a: Action<T>| #[trigger] closure_call(q, a.state) ==> closure_call(enabled(forward_q_r), a.state),
+        spec.entails(always(lift_action(next)).and(weak_fairness(forward_q_r))),
     ensures
-        spec.entails(p.lift().leads_to(q.lift())),
-        spec.entails(q.lift().leads_to(r.lift())),
-        spec.entails(p.lift().leads_to(r.lift())),
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
+        spec.entails(lift_state(q).leads_to(lift_state(r))),
+        spec.entails(lift_state(p).leads_to(lift_state(r))),
 {
     wf1::<T>(spec, next, forward_p_q, p, q);
     wf1::<T>(spec, next, forward_q_r, q, r);
@@ -285,13 +247,13 @@ pub proof fn wf1_chain<T>(spec: TempPred<T>, next: ActionPred<T>, forward_p_q: A
 #[verifier(external_body)]
 pub proof fn always_p_implies_p<T>(p: StatePred<T>)
     ensures
-        valid(always(p.lift()).implies(p.lift())),
+        valid(always(lift_state(p)).implies(lift_state(p))),
 {}
 
 #[verifier(external_body)]
 pub proof fn p_implies_eventually_p<T>(p: StatePred<T>)
     ensures
-        valid(p.lift().implies(eventually(p.lift()))),
+        valid(lift_state(p).implies(eventually(lift_state(p)))),
 {}
 
 /// Generalizes implies.
@@ -300,10 +262,10 @@ pub proof fn p_implies_eventually_p<T>(p: StatePred<T>)
 #[verifier(external_body)]
 pub proof fn always_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        spec.entails(always(p.lift())),
-        spec.entails(p.lift().implies(q.lift())),
+        spec.entails(always(lift_state(p))),
+        spec.entails(lift_state(p).implies(lift_state(q))),
     ensures
-        spec.entails(always(q.lift())),
+        spec.entails(always(lift_state(q))),
 {}
 
 /// Gets eventually p and q from always p and eventually q.
@@ -312,10 +274,10 @@ pub proof fn always_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T
 #[verifier(external_body)]
 pub proof fn always_and_eventually<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        spec.entails(always(p.lift())),
-        spec.entails(eventually(q.lift())),
+        spec.entails(always(lift_state(p))),
+        spec.entails(eventually(lift_state(q))),
     ensures
-        spec.entails(eventually(p.lift().and(q.lift()))),
+        spec.entails(eventually(lift_state(p).and(lift_state(q)))),
 {}
 
 /// Gets eventually q from eventually p and p implies q.
@@ -324,10 +286,10 @@ pub proof fn always_and_eventually<T>(spec: TempPred<T>, p: StatePred<T>, q: Sta
 #[verifier(external_body)]
 pub proof fn eventually_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        spec.entails(eventually(p.lift())),
-        spec.entails(p.lift().implies(q.lift())),
+        spec.entails(eventually(lift_state(p))),
+        spec.entails(lift_state(p).implies(lift_state(q))),
     ensures
-        spec.entails(eventually(q.lift())),
+        spec.entails(eventually(lift_state(q))),
 {}
 
 #[verifier(external_body)]
@@ -360,10 +322,10 @@ pub proof fn eventually_weaken_auto<T>(spec: TempPred<T>)
 #[verifier(external_body)]
 pub proof fn leads_to_apply<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        spec.entails(p.lift()),
-        spec.entails(p.lift().leads_to(q.lift())),
+        spec.entails(lift_state(p)),
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
     ensures
-        spec.entails(eventually(q.lift())),
+        spec.entails(eventually(lift_state(q))),
 {}
 
 /// Connects two leads_to with the transitivity of leads_to.
@@ -371,10 +333,10 @@ pub proof fn leads_to_apply<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<
 #[verifier(external_body)]
 pub proof fn leads_to_trans<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        spec.entails(p.lift().leads_to(q.lift())),
-        spec.entails(q.lift().leads_to(r.lift())),
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
+        spec.entails(lift_state(q).leads_to(lift_state(r))),
     ensures
-        spec.entails(p.lift().leads_to(r.lift())),
+        spec.entails(lift_state(p).leads_to(lift_state(r))),
 {}
 
 /// Gets (p1 leads_to q1) implies (p2 leads_to q2) if:
@@ -385,29 +347,29 @@ pub proof fn leads_to_trans<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<
 #[verifier(external_body)]
 proof fn leads_to_weaken<T>(spec: TempPred<T>, p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>)
     requires
-        valid(p2.lift().implies(p1.lift())),
-        valid(q1.lift().implies(q2.lift())),
-        spec.entails(p1.lift().leads_to(q1.lift())),
+        valid(lift_state(p2).implies(lift_state(p1))),
+        valid(lift_state(q1).implies(lift_state(q2))),
+        spec.entails(lift_state(p1).leads_to(lift_state(q1))),
     ensures
-        spec.entails(p2.lift().leads_to(q2.lift())),
+        spec.entails(lift_state(p2).leads_to(lift_state(q2))),
 {}
 
 pub proof fn leads_to_weaken_left<T>(spec: TempPred<T>, p1: StatePred<T>, p2: StatePred<T>, q: StatePred<T>)
     requires
-        valid(p2.lift().implies(p1.lift())),
-        spec.entails(p1.lift().leads_to(q.lift())),
+        valid(lift_state(p2).implies(lift_state(p1))),
+        spec.entails(lift_state(p1).leads_to(lift_state(q))),
     ensures
-        spec.entails(p2.lift().leads_to(q.lift())),
+        spec.entails(lift_state(p2).leads_to(lift_state(q))),
 {
     leads_to_weaken::<T>(spec, p1, q, p2, q);
 }
 
 pub proof fn leads_to_weaken_right<T>(spec: TempPred<T>, p: StatePred<T>, q1: StatePred<T>, q2: StatePred<T>)
     requires
-        valid(q1.lift().implies(q2.lift())),
-        spec.entails(p.lift().leads_to(q1.lift())),
+        valid(lift_state(q1).implies(lift_state(q2))),
+        spec.entails(lift_state(p).leads_to(lift_state(q1))),
     ensures
-        spec.entails(p.lift().leads_to(q2.lift())),
+        spec.entails(lift_state(p).leads_to(lift_state(q2))),
 {
     leads_to_weaken::<T>(spec, p, q1, p, q2);
 }
@@ -415,9 +377,9 @@ pub proof fn leads_to_weaken_right<T>(spec: TempPred<T>, p: StatePred<T>, q1: St
 #[verifier(external_body)]
 pub proof fn leads_to_always_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        spec.entails(p.lift().leads_to(always(q.lift()))),
+        spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
     ensures
-        spec.entails(p.lift().leads_to(q.lift())),
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
 {}
 
 /// Auto version of leads_to_weaken.
@@ -447,11 +409,11 @@ pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
 #[verifier(external_body)]
 proof fn leads_to_eq<T>(spec: TempPred<T>, p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>)
     requires
-        valid(p2.lift().equals(p1.lift())),
-        valid(q1.lift().equals(q2.lift())),
-        spec.entails(p1.lift().leads_to(q1.lift())),
+        valid(lift_state(p2).equals(lift_state(p1))),
+        valid(lift_state(q1).equals(lift_state(q2))),
+        spec.entails(lift_state(p1).leads_to(lift_state(q1))),
     ensures
-        spec.entails(p2.lift().leads_to(q2.lift())),
+        spec.entails(lift_state(p2).leads_to(lift_state(q2))),
 {}
 
 #[verifier(external_body)]
@@ -483,10 +445,10 @@ pub proof fn leads_to_eq_auto<T>(spec: TempPred<T>)
 #[verifier(external_body)]
 pub proof fn leads_to_or_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        spec.entails(p.lift().leads_to(r.lift())),
-        spec.entails(q.lift().leads_to(r.lift())),
+        spec.entails(lift_state(p).leads_to(lift_state(r))),
+        spec.entails(lift_state(q).leads_to(lift_state(r))),
     ensures
-        spec.entails(p.lift().or(q.lift()).leads_to(r.lift())),
+        spec.entails(lift_state(p).or(lift_state(q)).leads_to(lift_state(r))),
 {}
 
 /// `|= (((p /\ q) ~> r) /\ ((p /\ ~q) ~> r)) -> (p ~> r)`
@@ -494,10 +456,10 @@ pub proof fn leads_to_or_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: State
 #[verifier(external_body)]
 pub proof fn leads_to_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        spec.entails(p.lift().and(r.lift()).leads_to(q.lift())),
-        spec.entails(p.lift().and(not(r.lift())).leads_to(q.lift())),
+        spec.entails(lift_state(p).and(lift_state(r)).leads_to(lift_state(q))),
+        spec.entails(lift_state(p).and(not(lift_state(r))).leads_to(lift_state(q))),
     ensures
-        spec.entails(p.lift().leads_to(q.lift())),
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
 {}
 
 /// Removes r from the premise if we have always r.
@@ -508,10 +470,10 @@ pub proof fn leads_to_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePre
 #[verifier(external_body)]
 pub proof fn leads_to_assume<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        spec.entails(always(r.lift())),
-        spec.entails(p.lift().and(r.lift()).leads_to(q.lift())),
+        spec.entails(always(lift_state(r))),
+        spec.entails(lift_state(p).and(lift_state(r)).leads_to(lift_state(q))),
     ensures
-        spec.entails(p.lift().leads_to(q.lift())),
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
 {}
 
 /// Removes not q from the premise.
@@ -522,9 +484,9 @@ pub proof fn leads_to_assume<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred
 #[verifier(external_body)]
 pub proof fn leads_to_assume_not<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        spec.entails(p.lift().and(not(q.lift())).leads_to(q.lift())),
+        spec.entails(lift_state(p).and(not(lift_state(q))).leads_to(lift_state(q))),
     ensures
-        spec.entails(p.lift().leads_to(q.lift())),
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
 {}
 
 #[verifier(external_body)]
@@ -538,20 +500,20 @@ pub proof fn leads_to_assume_not_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: T
 #[verifier(external_body)]
 pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        spec.entails(p.lift().leads_to(always(q.lift()))),
-        spec.entails(p.lift().leads_to(always(r.lift()))),
+        spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
+        spec.entails(lift_state(p).leads_to(always(lift_state(r)))),
     ensures
-        spec.entails(p.lift().leads_to(always(q.lift().and(r.lift())))),
+        spec.entails(lift_state(p).leads_to(always(lift_state(q).and(lift_state(r))))),
 {}
 
 #[verifier(external_body)]
 pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |a: Action<T>| q.satisfied_by(a.state) && #[trigger] next.satisfied_by(a) ==> q.satisfied_by(a.state_prime),
-        spec.entails(always(next.lift())),
-        spec.entails(p.lift().leads_to(q.lift())),
+        forall |a: Action<T>| closure_call(q, a.state) && #[trigger] closure_call(next, a) ==> closure_call(q, a.state_prime),
+        spec.entails(always(lift_action(next))),
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
     ensures
-        spec.entails(p.lift().leads_to(always(q.lift()))),
+        spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
 {}
 
 }
