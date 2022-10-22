@@ -37,11 +37,11 @@ pub struct CState {
  *                        |
  *                 send_create_cr
  *                        |
- *                 k8s_create_cr
+ *              k8s_handle_create(cr)
  *                 /           \
  *  send_create_sts             send_create_vol
  *                |             |
- *   k8s_create_sts             k8s_create_vol
+ * k8s_handle_create(sts)       k8s_handle_create(vol)
  *                |             |
  *   k8s_create_pod             |
  *                \             /
@@ -49,11 +49,6 @@ pub struct CState {
  *             k8s_attach_vol_to_pod
  *
  *
- * TODO: k8s_create_vol and k8s_create_pod should be like
- *  {
- *      exists |i: nat|
- *          // create pod_i/volume_i
- *  }
  */
 
 pub open spec fn message_sent(s: CState, m: Message) -> bool {
@@ -205,11 +200,11 @@ pub open spec fn sm_spec() -> TempPred<CState> {
 
 pub proof fn send_create_cr_enabled()
     ensures
-        forall |s| init()(s)
-            ==> state_pred_call(enabled(send_create_cr()), s),
+        forall |s| state_pred_call(init(), s)
+            ==> enabled(send_create_cr())(s),
 {
-    assert forall |s| init()(s)
-    implies state_pred_call(enabled(send_create_cr()), s) by {
+    assert forall |s| state_pred_call(init(), s)
+    implies enabled(send_create_cr())(s) by {
         let witness_s_prime = CState {
             messages: s.messages.insert(Message::CreateCR),
             ..s
@@ -229,11 +224,11 @@ pub proof fn send_create_cr_enabled()
 
 pub proof fn send_create_sts_enabled()
     ensures
-        forall |s| send_create_sts_pre()(s)
-            ==> state_pred_call(enabled(send_create_sts()), s),
+        forall |s| state_pred_call(send_create_sts_pre(), s)
+            ==> enabled(send_create_sts())(s),
 {
-    assert forall |s| send_create_sts_pre()(s)
-    implies state_pred_call(enabled(send_create_sts()), s) by {
+    assert forall |s| state_pred_call(send_create_sts_pre(), s)
+    implies enabled(send_create_sts())(s) by {
         let witness_s_prime = CState {
             messages: s.messages.insert(Message::CreateStatefulSet{replica: 1}),
             ..s
@@ -244,11 +239,11 @@ pub proof fn send_create_sts_enabled()
 
 pub proof fn send_create_vol_enabled()
     ensures
-        forall |s| send_create_vol_pre()(s)
-            ==> state_pred_call(enabled(send_create_vol()), s),
+        forall |s| state_pred_call(send_create_vol_pre(), s)
+            ==> enabled(send_create_vol())(s),
 {
-    assert forall |s| send_create_vol_pre()(s)
-    implies state_pred_call(enabled(send_create_vol()), s) by {
+    assert forall |s| state_pred_call(send_create_vol_pre(), s)
+    implies enabled(send_create_vol())(s) by {
         let witness_s_prime = CState {
             messages: s.messages.insert(Message::CreateVolume{id: 1}),
             ..s
@@ -270,11 +265,11 @@ pub open spec fn k8s_handle_create_witness_s_prime(state: CState, key: Seq<char>
 
 pub proof fn k8s_handle_create_enabled(msg: Message)
     ensures
-        forall |s| k8s_handle_create_pre(msg)(s)
-            ==> #[trigger] state_pred_call(enabled(k8s_handle_create(msg)), s),
+        forall |s| state_pred_call(k8s_handle_create_pre(msg), s)
+            ==> enabled(k8s_handle_create(msg))(s),
 {
-    assert forall |s| k8s_handle_create_pre(msg)(s)
-    implies #[trigger] state_pred_call(enabled(k8s_handle_create(msg)), s) by {
+    assert forall |s| state_pred_call(k8s_handle_create_pre(msg), s)
+    implies enabled(k8s_handle_create(msg))(s) by {
         match msg {
             Message::CreateCR => {
                 let witness_s_prime = k8s_handle_create_witness_s_prime(s, new_strlit("my_cr")@, Resource::CustomResource);
@@ -294,11 +289,11 @@ pub proof fn k8s_handle_create_enabled(msg: Message)
 
 pub proof fn k8s_create_pod_enabled()
     ensures
-        forall |s| k8s_create_pod_pre()(s)
-            ==> state_pred_call(enabled(k8s_create_pod()), s),
+        forall |s| state_pred_call(k8s_create_pod_pre(), s)
+            ==> enabled(k8s_create_pod())(s),
 {
-    assert forall |s| k8s_create_pod_pre()(s)
-    implies state_pred_call(enabled(k8s_create_pod()), s) by {
+    assert forall |s| state_pred_call(k8s_create_pod_pre(), s)
+    implies enabled(k8s_create_pod())(s) by {
         let witness_s_prime = CState {
             resources: s.resources.insert(new_strlit("my_pod1")@, Resource::Pod),
             ..s
@@ -309,11 +304,11 @@ pub proof fn k8s_create_pod_enabled()
 
 pub proof fn k8s_attach_vol_to_pod_enabled()
     ensures
-        forall |s| k8s_attach_vol_to_pod_pre()(s)
-            ==> state_pred_call(enabled(k8s_attach_vol_to_pod()), s),
+        forall |s| state_pred_call(k8s_attach_vol_to_pod_pre(), s)
+            ==> enabled(k8s_attach_vol_to_pod())(s),
 {
-    assert forall |s| k8s_attach_vol_to_pod_pre()(s)
-    implies state_pred_call(enabled(k8s_attach_vol_to_pod()), s) by {
+    assert forall |s| state_pred_call(k8s_attach_vol_to_pod_pre(), s)
+    implies enabled(k8s_attach_vol_to_pod())(s) by {
         let witness_s_prime = CState {
             vol_attached: true,
             ..s
