@@ -6,11 +6,6 @@ use builtin_macros::*;
 
 verus! {
 
-pub struct Action<T> {
-    pub state: T,
-    pub state_prime: T,
-}
-
 pub struct Execution<T> {
     pub nat_to_state: FnSpec(nat) -> T,
 }
@@ -30,6 +25,10 @@ impl<T> Execution<T> {
         }
     }
 }
+
+pub type StatePred<T> = FnSpec(T) -> bool;
+
+pub type ActionPred<T> = FnSpec(T, T) -> bool;
 
 pub struct TempPred<#[verifier(maybe_negative)] T> {
     pub pred: FnSpec(Execution<T>) -> bool,
@@ -83,19 +82,20 @@ impl<T> TempPred<T> {
     }
 }
 
-pub open spec fn closure_call<T, R>(f: FnSpec(T) -> R, t: T) -> R {
-    f(t)
+pub open spec fn state_pred_call<T>(state_pred: StatePred<T>, s: T) -> bool {
+    state_pred(s)
 }
 
-pub type StatePred<T> = FnSpec(T) -> bool;
-pub type ActionPred<T> = FnSpec(Action<T>) -> bool;
+pub open spec fn action_pred_call<T>(action_pred: ActionPred<T>, s: T, s_prime: T) -> bool {
+    action_pred(s, s_prime)
+}
 
 pub open spec fn lift_state<T>(state_pred: StatePred<T>) -> TempPred<T> {
-    TempPred::new(|ex: Execution<T>| closure_call(state_pred, ex.head()))
+    TempPred::new(|ex: Execution<T>| state_pred_call(state_pred, ex.head()))
 }
 
 pub open spec fn lift_action<T>(action_pred: ActionPred<T>) -> TempPred<T> {
-    TempPred::new(|ex: Execution<T>| closure_call(action_pred, Action{state: ex.head(), state_prime: ex.head_next()}))
+    TempPred::new(|ex: Execution<T>| action_pred_call(action_pred, ex.head(), ex.head_next()))
 }
 
 pub type UnquantifiedTempPred<T, A> = FnSpec(A) -> TempPred<T>;
@@ -123,9 +123,7 @@ pub open spec fn not<T>(temp_pred: TempPred<T>) -> TempPred<T> {
 
 /// `\A` for temporal predicates in TLA+ (i.e., `forall` in Verus).
 pub open spec fn tla_forall<T, A>(unquantified_temp_pred: UnquantifiedTempPred<T, A>) -> TempPred<T> {
-    TempPred::new(
-        |ex: Execution<T>| forall |any: A| #[trigger] unquantified_temp_pred(any).satisfied_by(ex)
-    )
+    TempPred::new(|ex: Execution<T>| forall |a: A| #[trigger] unquantified_temp_pred(a).satisfied_by(ex))
 }
 
 /// This lemmas is unfortunately necessary when using tla_forall.
@@ -148,7 +146,7 @@ pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, unquantified_temp_pred: Unq
 ///
 /// Note: it says whether the action *can possibly* happen, rather than whether the action *actually does* happen!
 pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> StatePred<T> {
-    |s: T| exists |s_prime: T| #[trigger] closure_call(action_pred, Action{state: s, state_prime: s_prime})
+    |s: T| exists |s_prime: T| #[trigger] action_pred_call(action_pred, s, s_prime)
 }
 
 /// Returns a temporal predicate that is satisfied
@@ -204,8 +202,8 @@ pub proof fn implies_unfold_auto<T>()
 #[verifier(external_body)]
 pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>)
     requires
-        forall |s: T| closure_call(init, s) ==> closure_call(inv, s),
-        forall |a: Action<T>| closure_call(inv, a.state) && #[trigger] closure_call(next, a) ==> closure_call(inv, a.state_prime),
+        forall |s: T| state_pred_call(init, s) ==> state_pred_call(inv, s),
+        forall |s, s_prime: T| state_pred_call(inv, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(inv, s_prime),
         spec.entails(lift_state(init).and(always(lift_action(next)))),
     ensures
         spec.entails(always(lift_state(inv))),
@@ -215,9 +213,9 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
 #[verifier(external_body)]
 pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |a: Action<T>| closure_call(p, a.state) && #[trigger] closure_call(next, a) ==> closure_call(p, a.state_prime) || closure_call(q, a.state_prime),
-        forall |a: Action<T>| closure_call(p, a.state) && #[trigger] closure_call(next, a) && #[trigger] closure_call(forward, a) ==> closure_call(q, a.state_prime),
-        forall |a: Action<T>| #[trigger] closure_call(p, a.state) ==> closure_call(enabled(forward), a.state),
+        forall |s, s_prime: T| state_pred_call(p, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(p, s_prime) || state_pred_call(q, s_prime),
+        forall |s, s_prime: T| state_pred_call(p, s) && #[trigger] action_pred_call(next, s, s_prime) && #[trigger] action_pred_call(forward, s, s_prime) ==> state_pred_call(q, s_prime),
+        forall |s: T| #[trigger] state_pred_call(p, s) ==> state_pred_call(enabled(forward), s),
         spec.entails(always(lift_action(next)).and(weak_fairness(forward))),
     ensures
         spec.entails(lift_state(p).leads_to(lift_state(q))),
@@ -226,13 +224,13 @@ pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<
 /// Handy lemma that combines two wf1 and leads_to_trans.
 pub proof fn wf1_chain<T>(spec: TempPred<T>, next: ActionPred<T>, forward_p_q: ActionPred<T>, forward_q_r: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        forall |a: Action<T>| closure_call(p, a.state) && #[trigger] closure_call(next, a) ==> closure_call(p, a.state_prime) || closure_call(q, a.state_prime),
-        forall |a: Action<T>| closure_call(p, a.state) && #[trigger] closure_call(next, a) && #[trigger] closure_call(forward_p_q, a) ==> closure_call(q, a.state_prime),
-        forall |a: Action<T>| #[trigger] closure_call(p, a.state) ==> closure_call(enabled(forward_p_q), a.state),
+        forall |s, s_prime: T| state_pred_call(p, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(p, s_prime) || state_pred_call(q, s_prime),
+        forall |s, s_prime: T| state_pred_call(p, s) && #[trigger] action_pred_call(next, s, s_prime) && #[trigger] action_pred_call(forward_p_q, s, s_prime) ==> state_pred_call(q, s_prime),
+        forall |s: T| #[trigger] state_pred_call(p, s) ==> state_pred_call(enabled(forward_p_q), s),
         spec.entails(always(lift_action(next)).and(weak_fairness(forward_p_q))),
-        forall |a: Action<T>| closure_call(q, a.state) && #[trigger] closure_call(next, a) ==> closure_call(q, a.state_prime) || closure_call(r, a.state_prime),
-        forall |a: Action<T>| closure_call(q, a.state) && #[trigger] closure_call(next, a) && #[trigger] closure_call(forward_q_r, a) ==> closure_call(r, a.state_prime),
-        forall |a: Action<T>| #[trigger] closure_call(q, a.state) ==> closure_call(enabled(forward_q_r), a.state),
+        forall |s, s_prime: T| state_pred_call(q, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(q, s_prime) || state_pred_call(r, s_prime),
+        forall |s, s_prime: T| state_pred_call(q, s) && #[trigger] action_pred_call(next, s, s_prime) && #[trigger] action_pred_call(forward_q_r, s, s_prime) ==> state_pred_call(r, s_prime),
+        forall |s: T| #[trigger] state_pred_call(q, s) ==> state_pred_call(enabled(forward_q_r), s),
         spec.entails(always(lift_action(next)).and(weak_fairness(forward_q_r))),
     ensures
         spec.entails(lift_state(p).leads_to(lift_state(q))),
@@ -509,7 +507,7 @@ pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: S
 #[verifier(external_body)]
 pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |a: Action<T>| closure_call(q, a.state) && #[trigger] closure_call(next, a) ==> closure_call(q, a.state_prime),
+        forall |s, s_prime: T| state_pred_call(q, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(q, s_prime),
         spec.entails(always(lift_action(next))),
         spec.entails(lift_state(p).leads_to(lift_state(q))),
     ensures
