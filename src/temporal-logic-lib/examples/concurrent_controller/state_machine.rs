@@ -84,11 +84,11 @@ pub open spec fn init() -> StatePred<CState> {
 }
 
 pub open spec fn send_create_cr() -> ActionPred<CState> {
-    |a: Action<CState>| {
-        &&& init()(a.state)
-        &&& a.state_prime === CState {
-            messages: a.state.messages.insert(Message::CreateCR),
-            ..a.state
+    |s, s_prime| {
+        &&& init()(s)
+        &&& s_prime === CState {
+            messages: s.messages.insert(Message::CreateCR),
+            ..s
         }
     }
 }
@@ -101,11 +101,11 @@ pub open spec fn send_create_sts_pre() -> StatePred<CState> {
 }
 
 pub open spec fn send_create_sts() -> ActionPred<CState> {
-    |a: Action<CState>| {
-        &&& send_create_sts_pre()(a.state)
-        &&& a.state_prime === CState {
-            messages: a.state.messages.insert(Message::CreateStatefulSet{replica: 1}),
-            ..a.state
+    |s, s_prime| {
+        &&& send_create_sts_pre()(s)
+        &&& s_prime === CState {
+            messages: s.messages.insert(Message::CreateStatefulSet{replica: 1}),
+            ..s
         }
     }
 }
@@ -118,11 +118,11 @@ pub open spec fn send_create_vol_pre() -> StatePred<CState> {
 }
 
 pub open spec fn send_create_vol() -> ActionPred<CState> {
-    |a: Action<CState>| {
-        &&& send_create_vol_pre()(a.state)
-        &&& a.state_prime === CState {
-            messages: a.state.messages.insert(Message::CreateVolume{id: 1}),
-            ..a.state
+    |s, s_prime| {
+        &&& send_create_vol_pre()(s)
+        &&& s_prime === CState {
+            messages: s.messages.insert(Message::CreateVolume{id: 1}),
+            ..s
         }
     }
 }
@@ -133,12 +133,12 @@ pub open spec fn k8s_handle_create_pre(msg: Message) -> StatePred<CState> {
 
 // TODO: k8s_handle_create should not be hardcoded to my_xxx
 pub open spec fn k8s_handle_create(msg: Message) -> ActionPred<CState> {
-    |a: Action<CState>| {
-        &&& k8s_handle_create_pre(msg)(a.state)
+    |s, s_prime| {
+        &&& k8s_handle_create_pre(msg)(s)
         &&& match msg {
-            Message::CreateCR => resources_updated_with(a.state, a.state_prime, new_strlit("my_cr")@, Resource::CustomResource),
-            Message::CreateStatefulSet{..} => resources_updated_with(a.state, a.state_prime, new_strlit("my_statefulset")@, Resource::StatefulSet),
-            Message::CreateVolume{..} => resources_updated_with(a.state, a.state_prime, new_strlit("my_volume1")@, Resource::Volume{attached: false}),
+            Message::CreateCR => resources_updated_with(s, s_prime, new_strlit("my_cr")@, Resource::CustomResource),
+            Message::CreateStatefulSet{..} => resources_updated_with(s, s_prime, new_strlit("my_statefulset")@, Resource::StatefulSet),
+            Message::CreateVolume{..} => resources_updated_with(s, s_prime, new_strlit("my_volume1")@, Resource::Volume{attached: false}),
         }
     }
 }
@@ -150,11 +150,11 @@ pub open spec fn k8s_create_pod_pre() -> StatePred<CState> {
 }
 
 pub open spec fn k8s_create_pod() -> ActionPred<CState> {
-    |a: Action<CState>| {
-        &&& k8s_create_pod_pre()(a.state)
-        &&& a.state_prime === CState {
-            resources: a.state.resources.insert(new_strlit("my_pod1")@, Resource::Pod),
-            ..a.state
+    |s, s_prime| {
+        &&& k8s_create_pod_pre()(s)
+        &&& s_prime === CState {
+            resources: s.resources.insert(new_strlit("my_pod1")@, Resource::Pod),
+            ..s
         }
     }
 }
@@ -167,28 +167,28 @@ pub open spec fn k8s_attach_vol_to_pod_pre() -> StatePred<CState> {
 }
 
 pub open spec fn k8s_attach_vol_to_pod() -> ActionPred<CState> {
-    |a: Action<CState>| {
-        &&& k8s_attach_vol_to_pod_pre()(a.state)
-        &&& a.state_prime === CState {
+    |s, s_prime| {
+        &&& k8s_attach_vol_to_pod_pre()(s)
+        &&& s_prime === CState {
             vol_attached: true,
-            ..a.state
+            ..s
         }
     }
 }
 
 pub open spec fn stutter() -> ActionPred<CState> {
-    |a: Action<CState>| a.state === a.state_prime
+    |s, s_prime| s === s_prime
 }
 
 pub open spec fn next() -> ActionPred<CState> {
-    |a: Action<CState>| {
-        ||| send_create_cr()(a)
-        ||| send_create_sts()(a)
-        ||| send_create_vol()(a)
-        ||| exists |msg| #[trigger] closure_call(k8s_handle_create(msg), a)
-        ||| k8s_create_pod()(a)
-        ||| k8s_attach_vol_to_pod()(a)
-        ||| stutter()(a)
+    |s, s_prime| {
+        ||| send_create_cr()(s, s_prime)
+        ||| send_create_sts()(s, s_prime)
+        ||| send_create_vol()(s, s_prime)
+        ||| exists |msg| #[trigger] action_pred_call(k8s_handle_create(msg), s, s_prime)
+        ||| k8s_create_pod()(s, s_prime)
+        ||| k8s_attach_vol_to_pod()(s, s_prime)
+        ||| stutter()(s, s_prime)
     }
 }
 
@@ -206,18 +206,15 @@ pub open spec fn sm_spec() -> TempPred<CState> {
 pub proof fn send_create_cr_enabled()
     ensures
         forall |s| init()(s)
-            ==> closure_call(enabled(send_create_cr()), s),
+            ==> state_pred_call(enabled(send_create_cr()), s),
 {
     assert forall |s| init()(s)
-    implies closure_call(enabled(send_create_cr()), s) by {
-        let witness_action = Action {
-            state: s,
-            state_prime: CState {
-                messages: s.messages.insert(Message::CreateCR),
-                ..s
-            }
+    implies state_pred_call(enabled(send_create_cr()), s) by {
+        let witness_s_prime = CState {
+            messages: s.messages.insert(Message::CreateCR),
+            ..s
         };
-        assert(closure_call(send_create_cr(), witness_action));
+        assert(action_pred_call(send_create_cr(), s, witness_s_prime));
     };
 }
 
@@ -233,75 +230,63 @@ pub proof fn send_create_cr_enabled()
 pub proof fn send_create_sts_enabled()
     ensures
         forall |s| send_create_sts_pre()(s)
-            ==> closure_call(enabled(send_create_sts()), s),
+            ==> state_pred_call(enabled(send_create_sts()), s),
 {
     assert forall |s| send_create_sts_pre()(s)
-    implies closure_call(enabled(send_create_sts()), s) by {
-        let witness_action = Action {
-            state: s,
-            state_prime: CState {
-                messages: s.messages.insert(Message::CreateStatefulSet{replica: 1}),
-                ..s
-            }
+    implies state_pred_call(enabled(send_create_sts()), s) by {
+        let witness_s_prime = CState {
+            messages: s.messages.insert(Message::CreateStatefulSet{replica: 1}),
+            ..s
         };
-        assert(closure_call(send_create_sts(), witness_action));
+        assert(action_pred_call(send_create_sts(), s, witness_s_prime));
     };
 }
 
 pub proof fn send_create_vol_enabled()
     ensures
         forall |s| send_create_vol_pre()(s)
-            ==> closure_call(enabled(send_create_vol()), s),
+            ==> state_pred_call(enabled(send_create_vol()), s),
 {
     assert forall |s| send_create_vol_pre()(s)
-    implies closure_call(enabled(send_create_vol()), s) by {
-        let witness_action = Action {
-            state: s,
-            state_prime: CState {
-                messages: s.messages.insert(Message::CreateVolume{id: 1}),
-                ..s
-            }
+    implies state_pred_call(enabled(send_create_vol()), s) by {
+        let witness_s_prime = CState {
+            messages: s.messages.insert(Message::CreateVolume{id: 1}),
+            ..s
         };
-        assert(closure_call(send_create_vol(), witness_action));
+        assert(action_pred_call(send_create_vol(), s, witness_s_prime));
     };
 }
 
-pub open spec fn k8s_handle_create_witness_action(state: CState, key: Seq<char>, val: Resource) -> Action<CState> {
+pub open spec fn k8s_handle_create_witness_s_prime(state: CState, key: Seq<char>, val: Resource) -> CState {
     if state.resources.dom().contains(key) {
-        Action {
-            state: state,
-            state_prime: state,
-        }
+        state
     } else {
-        Action {
-            state: state,
-            state_prime: CState {
-                resources: state.resources.insert(key, val),
-                ..state
-            },
+        CState {
+            resources: state.resources.insert(key, val),
+            ..state
         }
     }
 }
 
 pub proof fn k8s_handle_create_enabled(msg: Message)
     ensures
-        forall |state| k8s_handle_create_pre(msg)(state)
-            ==> #[trigger] closure_call(enabled(k8s_handle_create(msg)), state),
+        forall |s| k8s_handle_create_pre(msg)(s)
+            ==> #[trigger] state_pred_call(enabled(k8s_handle_create(msg)), s),
 {
-    assert forall |state| k8s_handle_create_pre(msg)(state)
-    implies #[trigger] closure_call(enabled(k8s_handle_create(msg)), state) by {
+    assert forall |s| k8s_handle_create_pre(msg)(s)
+    implies #[trigger] state_pred_call(enabled(k8s_handle_create(msg)), s) by {
         match msg {
             Message::CreateCR => {
-                let witness_action = k8s_handle_create_witness_action(state, new_strlit("my_cr")@, Resource::CustomResource);
-                assert(closure_call(k8s_handle_create(msg), witness_action));
+                let witness_s_prime = k8s_handle_create_witness_s_prime(s, new_strlit("my_cr")@, Resource::CustomResource);
+                assert(action_pred_call(k8s_handle_create(msg), s, witness_s_prime));
             },
             Message::CreateStatefulSet{..} => {
-                let witness_action = k8s_handle_create_witness_action(state, new_strlit("my_statefulset")@, Resource::StatefulSet);
-                assert(closure_call(k8s_handle_create(msg), witness_action));
+                let witness_s_prime = k8s_handle_create_witness_s_prime(s, new_strlit("my_statefulset")@, Resource::StatefulSet);
+                assert(action_pred_call(k8s_handle_create(msg), s, witness_s_prime));
             },
             Message::CreateVolume{..} => {
-                let witness_action = k8s_handle_create_witness_action(state, new_strlit("my_volume1")@, Resource::Volume{attached: false});
-                assert(closure_call(k8s_handle_create(msg), witness_action));
+                let witness_s_prime = k8s_handle_create_witness_s_prime(s, new_strlit("my_volume1")@, Resource::Volume{attached: false});
+                assert(action_pred_call(k8s_handle_create(msg), s, witness_s_prime));
             },
         }
     };
@@ -310,36 +295,30 @@ pub proof fn k8s_handle_create_enabled(msg: Message)
 pub proof fn k8s_create_pod_enabled()
     ensures
         forall |s| k8s_create_pod_pre()(s)
-            ==> closure_call(enabled(k8s_create_pod()), s),
+            ==> state_pred_call(enabled(k8s_create_pod()), s),
 {
     assert forall |s| k8s_create_pod_pre()(s)
-    implies closure_call(enabled(k8s_create_pod()), s) by {
-        let witness_action = Action {
-            state: s,
-            state_prime: CState {
-                resources: s.resources.insert(new_strlit("my_pod1")@, Resource::Pod),
-                ..s
-            }
+    implies state_pred_call(enabled(k8s_create_pod()), s) by {
+        let witness_s_prime = CState {
+            resources: s.resources.insert(new_strlit("my_pod1")@, Resource::Pod),
+            ..s
         };
-        assert(closure_call(k8s_create_pod(), witness_action));
+        assert(action_pred_call(k8s_create_pod(), s, witness_s_prime));
     };
 }
 
 pub proof fn k8s_attach_vol_to_pod_enabled()
     ensures
         forall |s| k8s_attach_vol_to_pod_pre()(s)
-            ==> closure_call(enabled(k8s_attach_vol_to_pod()), s),
+            ==> state_pred_call(enabled(k8s_attach_vol_to_pod()), s),
 {
     assert forall |s| k8s_attach_vol_to_pod_pre()(s)
-    implies closure_call(enabled(k8s_attach_vol_to_pod()), s) by {
-        let witness_action = Action {
-            state: s,
-            state_prime: CState {
-                vol_attached: true,
-                ..s
-            }
+    implies state_pred_call(enabled(k8s_attach_vol_to_pod()), s) by {
+        let witness_s_prime = CState {
+            vol_attached: true,
+            ..s
         };
-        assert(closure_call(k8s_attach_vol_to_pod(), witness_action));
+        assert(action_pred_call(k8s_attach_vol_to_pod(), s, witness_s_prime));
     };
 }
 
