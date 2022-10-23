@@ -8,18 +8,6 @@ use builtin_macros::*;
 
 verus! {
 
-spec fn a() -> StatePred<SimpleState> {
-    |s: SimpleState| s.x === ABC::A
-}
-
-spec fn b() -> StatePred<SimpleState> {
-    |s: SimpleState| s.x === ABC::B
-}
-
-spec fn c() -> StatePred<SimpleState> {
-    |s: SimpleState| s.x === ABC::C
-}
-
 proof fn eventually_c()
     ensures
         sm_spec().entails(

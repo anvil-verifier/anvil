@@ -25,13 +25,22 @@ pub open spec fn init() -> StatePred<SimpleState> {
     }
 }
 
-pub open spec fn a_b_pre() -> StatePred<SimpleState> {
+pub open spec fn a() -> StatePred<SimpleState> {
     |s: SimpleState| s.x === ABC::A
+}
+
+
+pub open spec fn b() -> StatePred<SimpleState> {
+    |s: SimpleState| s.x === ABC::B
+}
+
+pub open spec fn c() -> StatePred<SimpleState> {
+    |s: SimpleState| s.x === ABC::C
 }
 
 pub open spec fn a_b() -> ActionPred<SimpleState> {
     |s, s_prime: SimpleState| {
-        &&& a_b_pre()(s)
+        &&& a()(s)
         &&& s_prime === SimpleState{
             x: ABC::B,
             happy: s.happy
@@ -39,14 +48,9 @@ pub open spec fn a_b() -> ActionPred<SimpleState> {
     }
 }
 
-
-pub open spec fn b_c_pre() -> StatePred<SimpleState> {
-    |s: SimpleState| s.x === ABC::B
-}
-
 pub open spec fn b_c() -> ActionPred<SimpleState> {
     |s, s_prime: SimpleState| {
-        &&& b_c_pre()(s)
+        &&& b()(s)
         &&& s_prime === SimpleState{
             x: ABC::C,
             happy: s.happy
@@ -75,9 +79,9 @@ pub open spec fn sm_spec() -> TempPred<SimpleState> {
 
 pub proof fn a_b_enabled()
     ensures
-        forall |s: SimpleState| #[trigger] state_pred_call(a_b_pre(), s) ==> enabled(a_b())(s),
+        forall |s: SimpleState| #[trigger] state_pred_call(a(), s) ==> enabled(a_b())(s),
 {
-    assert forall |s: SimpleState| #[trigger] state_pred_call(a_b_pre(), s) implies enabled(a_b())(s) by {
+    assert forall |s: SimpleState| #[trigger] state_pred_call(a(), s) implies enabled(a_b())(s) by {
         let witness_s_prime = SimpleState {
             x: ABC::B,
             happy: s.happy,
@@ -88,9 +92,9 @@ pub proof fn a_b_enabled()
 
 pub proof fn b_c_enabled()
     ensures
-        forall |s: SimpleState| #[trigger] state_pred_call(b_c_pre(), s) ==> enabled(b_c())(s),
+        forall |s: SimpleState| #[trigger] state_pred_call(b(), s) ==> enabled(b_c())(s),
 {
-    assert forall |s: SimpleState| #[trigger] state_pred_call(b_c_pre(), s) implies enabled(b_c())(s) by {
+    assert forall |s: SimpleState| #[trigger] state_pred_call(b(), s) implies enabled(b_c())(s) by {
         let witness_s_prime = SimpleState {
             x: ABC::C,
             happy: s.happy,
