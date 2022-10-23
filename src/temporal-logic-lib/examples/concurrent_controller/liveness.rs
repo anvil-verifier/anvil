@@ -26,7 +26,7 @@ proof fn lemma_init_leads_to_pod1_exists()
     ensures
         sm_spec()
             .entails(lift_state(init())
-                .leads_to(lift_state(|state| resource_exists(state, new_strlit("my_pod1")@)))),
+                .leads_to(lift_state(|s| resource_exists(s, new_strlit("my_pod1")@)))),
 {
     leads_to_eq_auto::<CState>(sm_spec());
     use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_msg());
@@ -40,22 +40,22 @@ proof fn lemma_init_leads_to_pod1_exists()
         k8s_handle_create(create_cr_msg()),
         init(),
         k8s_handle_create_pre(create_cr_msg()),
-        |state| resource_exists(state, new_strlit("my_cr")@),
+        |s| resource_exists(s, new_strlit("my_cr")@),
     );
 
     send_create_sts_enabled();
     wf1::<CState>(sm_spec(),
         next(),
         send_create_sts(),
-        |state| {
-            &&& resource_exists(state, new_strlit("my_cr")@)
-            &&& !message_sent(state, Message::CreateStatefulSet{replica: 1})
+        |s| {
+            &&& resource_exists(s, new_strlit("my_cr")@)
+            &&& !message_sent(s, Message::CreateStatefulSet{replica: 1})
         },
-        |state| message_sent(state, Message::CreateStatefulSet{replica: 1})
+        |s| message_sent(s, Message::CreateStatefulSet{replica: 1})
     );
     leads_to_assume_not::<CState>(sm_spec(),
-        |state| resource_exists(state, new_strlit("my_cr")@),
-        |state| message_sent(state, Message::CreateStatefulSet{replica: 1})
+        |s| resource_exists(s, new_strlit("my_cr")@),
+        |s| message_sent(s, Message::CreateStatefulSet{replica: 1})
     );
 
     k8s_handle_create_enabled(create_sts_msg());
@@ -63,32 +63,32 @@ proof fn lemma_init_leads_to_pod1_exists()
         next(),
         k8s_handle_create(create_sts_msg()),
         k8s_handle_create_pre(create_sts_msg()),
-        |state| resource_exists(state, new_strlit("my_statefulset")@)
+        |s| resource_exists(s, new_strlit("my_statefulset")@)
     );
 
     leads_to_trans::<CState>(sm_spec(),
-        |state| resource_exists(state, new_strlit("my_cr")@),
-        |state| message_sent(state, Message::CreateStatefulSet{replica: 1}),
-        |state| resource_exists(state, new_strlit("my_statefulset")@)
+        |s| resource_exists(s, new_strlit("my_cr")@),
+        |s| message_sent(s, Message::CreateStatefulSet{replica: 1}),
+        |s| resource_exists(s, new_strlit("my_statefulset")@)
     );
 
     k8s_create_pod_enabled();
     wf1::<CState>(sm_spec(),
         next(),
         k8s_create_pod(),
-        |state| resource_exists(state, new_strlit("my_statefulset")@),
-        |state| resource_exists(state, new_strlit("my_pod1")@)
+        |s| resource_exists(s, new_strlit("my_statefulset")@),
+        |s| resource_exists(s, new_strlit("my_pod1")@)
     );
     leads_to_trans::<CState>(sm_spec(),
-        |state| resource_exists(state, new_strlit("my_cr")@),
-        |state| resource_exists(state, new_strlit("my_statefulset")@),
-        |state| resource_exists(state, new_strlit("my_pod1")@)
+        |s| resource_exists(s, new_strlit("my_cr")@),
+        |s| resource_exists(s, new_strlit("my_statefulset")@),
+        |s| resource_exists(s, new_strlit("my_pod1")@)
     );
 
     leads_to_trans::<CState>(sm_spec(),
         init(),
-        |state| resource_exists(state, new_strlit("my_cr")@),
-        |state| resource_exists(state, new_strlit("my_pod1")@)
+        |s| resource_exists(s, new_strlit("my_cr")@),
+        |s| resource_exists(s, new_strlit("my_pod1")@)
     );
 }
 
@@ -96,7 +96,7 @@ proof fn lemma_init_leads_to_vol1_exists()
     ensures
         sm_spec()
             .entails(lift_state(init())
-                .leads_to(lift_state(|state| resource_exists(state, new_strlit("my_volume1")@)))),
+                .leads_to(lift_state(|s| resource_exists(s, new_strlit("my_volume1")@)))),
 {
     leads_to_eq_auto::<CState>(sm_spec());
     use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_msg());
@@ -110,22 +110,22 @@ proof fn lemma_init_leads_to_vol1_exists()
         k8s_handle_create(create_cr_msg()),
         init(),
         k8s_handle_create_pre(create_cr_msg()),
-        |state| resource_exists(state, new_strlit("my_cr")@),
+        |s| resource_exists(s, new_strlit("my_cr")@),
     );
 
     send_create_vol_enabled();
     wf1::<CState>(sm_spec(),
         next(),
         send_create_vol(),
-        |state| {
-            &&& resource_exists(state, new_strlit("my_cr")@)
-            &&& !message_sent(state, Message::CreateVolume{id: 1})
+        |s| {
+            &&& resource_exists(s, new_strlit("my_cr")@)
+            &&& !message_sent(s, Message::CreateVolume{id: 1})
         },
-        |state| message_sent(state, Message::CreateVolume{id: 1})
+        |s| message_sent(s, Message::CreateVolume{id: 1})
     );
     leads_to_assume_not::<CState>(sm_spec(),
-        |state| resource_exists(state, new_strlit("my_cr")@),
-        |state| message_sent(state, Message::CreateVolume{id: 1})
+        |s| resource_exists(s, new_strlit("my_cr")@),
+        |s| message_sent(s, Message::CreateVolume{id: 1})
     );
 
     k8s_handle_create_enabled(create_vol_msg());
@@ -133,19 +133,19 @@ proof fn lemma_init_leads_to_vol1_exists()
         next(),
         k8s_handle_create(create_vol_msg()),
         k8s_handle_create_pre(create_vol_msg()),
-        |state| resource_exists(state, new_strlit("my_volume1")@)
+        |s| resource_exists(s, new_strlit("my_volume1")@)
     );
 
     leads_to_trans::<CState>(sm_spec(),
-        |state| resource_exists(state, new_strlit("my_cr")@),
-        |state| message_sent(state, Message::CreateVolume{id: 1}),
-        |state| resource_exists(state, new_strlit("my_volume1")@)
+        |s| resource_exists(s, new_strlit("my_cr")@),
+        |s| message_sent(s, Message::CreateVolume{id: 1}),
+        |s| resource_exists(s, new_strlit("my_volume1")@)
     );
 
     leads_to_trans::<CState>(sm_spec(),
         init(),
-        |state| resource_exists(state, new_strlit("my_cr")@),
-        |state| resource_exists(state, new_strlit("my_volume1")@)
+        |s| resource_exists(s, new_strlit("my_cr")@),
+        |s| resource_exists(s, new_strlit("my_volume1")@)
     );
 }
 
@@ -159,37 +159,37 @@ proof fn lemma_eventually_vol_attached()
     leads_to_stable::<CState>(sm_spec(),
         next(),
         init(),
-        |state| resource_exists(state, new_strlit("my_pod1")@)
+        |s| resource_exists(s, new_strlit("my_pod1")@)
     );
 
     lemma_init_leads_to_vol1_exists();
     leads_to_stable::<CState>(sm_spec(),
         next(),
         init(),
-        |state| resource_exists(state, new_strlit("my_volume1")@)
+        |s| resource_exists(s, new_strlit("my_volume1")@)
     );
 
     leads_to_always_combine::<CState>(sm_spec(),
         init(),
-        |state| resource_exists(state, new_strlit("my_pod1")@),
-        |state| resource_exists(state, new_strlit("my_volume1")@)
+        |s| resource_exists(s, new_strlit("my_pod1")@),
+        |s| resource_exists(s, new_strlit("my_volume1")@)
     );
 
     // TODO: better to auto this lemma with correct triggers
     eq_implies_always_eq_temp::<CState>(
-        lift_state(|state| resource_exists(state, new_strlit("my_pod1")@))
-            .and(lift_state(|state| resource_exists(state, new_strlit("my_volume1")@))),
-        lift_state(|state| {
-                &&& resource_exists(state, new_strlit("my_pod1")@)
-                &&& resource_exists(state, new_strlit("my_volume1")@)
+        lift_state(|s| resource_exists(s, new_strlit("my_pod1")@))
+            .and(lift_state(|s| resource_exists(s, new_strlit("my_volume1")@))),
+        lift_state(|s| {
+                &&& resource_exists(s, new_strlit("my_pod1")@)
+                &&& resource_exists(s, new_strlit("my_volume1")@)
         })
     );
 
     leads_to_always_weaken::<CState>(sm_spec(),
         init(),
-        |state| {
-            &&& resource_exists(state, new_strlit("my_pod1")@)
-            &&& resource_exists(state, new_strlit("my_volume1")@)
+        |s| {
+            &&& resource_exists(s, new_strlit("my_pod1")@)
+            &&& resource_exists(s, new_strlit("my_volume1")@)
         }
     );
 

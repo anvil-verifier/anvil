@@ -11,17 +11,17 @@ verus! {
 
 pub proof fn lemma_always_attach_after_create()
     ensures
-        sm_spec().entails(always(lift_state(|state: CState| {
-            &&& state.vol_attached ==> resource_exists(state, new_strlit("my_pod1")@)
-            &&& state.vol_attached ==> resource_exists(state, new_strlit("my_volume1")@)
+        sm_spec().entails(always(lift_state(|s: CState| {
+            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_pod1")@)
+            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_volume1")@)
         }))),
 {
     init_invariant::<CState>(sm_spec(),
         init(),
         next(),
-        |state: CState| {
-            &&& state.vol_attached ==> resource_exists(state, new_strlit("my_pod1")@)
-            &&& state.vol_attached ==> resource_exists(state, new_strlit("my_volume1")@)
+        |s: CState| {
+            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_pod1")@)
+            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_volume1")@)
         }
     );
 }
