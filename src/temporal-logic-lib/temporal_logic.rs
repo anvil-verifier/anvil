@@ -332,6 +332,7 @@ pub proof fn always_and_eventually<T>(spec: TempPred<T>, p: StatePred<T>, q: Sta
         spec.entails(eventually(lift_state(q))),
     ensures
         spec.entails(eventually(lift_state(p).and(lift_state(q)))),
+        spec.entails(eventually(lift_state(|s| p(s) && q(s)))),
 {}
 
 #[verifier(external_body)]
@@ -590,6 +591,15 @@ pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: S
         spec.entails(lift_state(p).leads_to(always(lift_state(r)))),
     ensures
         spec.entails(lift_state(p).leads_to(always(lift_state(q).and(lift_state(r))))),
+{}
+
+#[verifier(external_body)]
+pub proof fn leads_to_always_combine_then_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
+    requires
+        spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
+        spec.entails(lift_state(p).leads_to(always(lift_state(r)))),
+    ensures
+        spec.entails(lift_state(p).leads_to(lift_state(q).and(lift_state(r)))),
 {}
 
 #[verifier(external_body)]

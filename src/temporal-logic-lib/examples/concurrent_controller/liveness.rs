@@ -169,28 +169,10 @@ proof fn lemma_eventually_vol_attached()
         |s| resource_exists(s, new_strlit("my_volume1")@)
     );
 
-    leads_to_always_combine::<CState>(sm_spec(),
+    leads_to_always_combine_then_weaken::<CState>(sm_spec(),
         init(),
         |s| resource_exists(s, new_strlit("my_pod1")@),
         |s| resource_exists(s, new_strlit("my_volume1")@)
-    );
-
-    // TODO: better to auto this lemma with correct triggers
-    eq_implies_always_eq_temp::<CState>(
-        lift_state(|s| resource_exists(s, new_strlit("my_pod1")@))
-            .and(lift_state(|s| resource_exists(s, new_strlit("my_volume1")@))),
-        lift_state(|s| {
-                &&& resource_exists(s, new_strlit("my_pod1")@)
-                &&& resource_exists(s, new_strlit("my_volume1")@)
-        })
-    );
-
-    leads_to_always_weaken::<CState>(sm_spec(),
-        init(),
-        |s| {
-            &&& resource_exists(s, new_strlit("my_pod1")@)
-            &&& resource_exists(s, new_strlit("my_volume1")@)
-        }
     );
 
     k8s_attach_vol_to_pod_enabled();
@@ -240,21 +222,6 @@ proof fn liveness()
             &&& s.vol_attached ==> resource_exists(s, new_strlit("my_volume1")@)
         },
         |s: CState| s.vol_attached
-    );
-
-    // TODO: better to auto this lemma with correct triggers
-    eq_implies_eventually_eq_temp::<CState>(
-        lift_state(|s: CState| {
-            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_pod1")@)
-            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_volume1")@)
-        }).and(
-            lift_state(|s: CState| s.vol_attached)
-        ),
-        lift_state(|s: CState| {
-            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_pod1")@)
-            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_volume1")@)
-            &&& s.vol_attached
-        })
     );
 
     eventually_weaken::<CState>(sm_spec(),
