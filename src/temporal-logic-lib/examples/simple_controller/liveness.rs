@@ -10,109 +10,31 @@ use builtin_macros::*;
 verus! {
 
 spec fn sent1() -> StatePred<CState> {
-    StatePred::new(|state: CState| state.sent_1_create)
+    |s: CState| s.sent_1_create
 }
 
 spec fn sent2() -> StatePred<CState> {
-    StatePred::new(|state: CState| state.sent_2_create)
+    |s: CState| s.sent_2_create
 }
 
 spec fn obj1_exists() -> StatePred<CState> {
-    StatePred::new(|state: CState| state.obj_1_exists)
+    |s: CState| s.obj_1_exists
 }
 
 spec fn obj2_exists() -> StatePred<CState> {
-    StatePred::new(|state: CState| state.obj_2_exists)
+    |s: CState| s.obj_2_exists
 }
 
 spec fn obj1_exists_and_not_sent2() -> StatePred<CState> {
-    StatePred::new(|state: CState| state.obj_1_exists && !state.sent_2_create)
-}
-
-/*
- * This is just a witness to show that reconcile is enabled by send1_pre_state_pred()
- */
-
-proof fn send1_enabled()
-    ensures forall |s: CState| send1_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(reconcile_action_pred()).satisfied_by(s)
-{
-    assert forall |s: CState| send1_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(reconcile_action_pred()).satisfied_by(s) by {
-        if send1_pre_state_pred().satisfied_by(s) {
-            let witness_action = Action {
-                state: s,
-                state_prime: CState {
-                    sent_1_create: true,
-                    messages: s.messages.insert(Message::CreateReq{id: 1}),
-                    ..s
-                }
-            };
-            assert(reconcile_action_pred().satisfied_by(witness_action));
-        }
-    };
-}
-
-/*
- * This is just a witness to show that reconcile is enabled by send2_pre_state_pred()
- */
-proof fn send2_enabled()
-    ensures forall |s: CState| send2_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(reconcile_action_pred()).satisfied_by(s)
-{
-    assert forall |s: CState| send2_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(reconcile_action_pred()).satisfied_by(s) by {
-        if send2_pre_state_pred().satisfied_by(s) {
-            let witness_action = Action {
-                state: s,
-                state_prime: CState {
-                    sent_2_create: true,
-                    messages: s.messages.insert(Message::CreateReq{id: 2}),
-                    ..s
-                }
-            };
-            assert(reconcile_action_pred().satisfied_by(witness_action));
-        }
-    };
-}
-
-/*
- * This is just a witness to show that create1 is enabled by create1_pre_state_pred()
- */
-proof fn create1_enabled()
-    ensures forall |s: CState| create1_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(create1_action_pred()).satisfied_by(s)
-{
-    assert forall |s: CState| create1_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(create1_action_pred()).satisfied_by(s) by {
-        let witness_action = Action {
-            state: s,
-            state_prime: CState {
-                obj_1_exists: true,
-                ..s
-            }
-        };
-        assert(create1_action_pred().satisfied_by(witness_action));
-    };
-}
-
-/*
- * This is just a witness to show that create2 is enabled by create2_pre_state_pred()
- */
-proof fn create2_enabled()
-    ensures forall |s: CState| create2_pre_state_pred().satisfied_by(s) ==> #[trigger] enabled(create2_action_pred()).satisfied_by(s)
-{
-    assert forall |s: CState| create2_pre_state_pred().satisfied_by(s) implies #[trigger] enabled(create2_action_pred()).satisfied_by(s) by {
-        let witness_action = Action {
-            state: s,
-            state_prime: CState {
-                obj_2_exists: true,
-                ..s
-            }
-        };
-        assert(create2_action_pred().satisfied_by(witness_action));
-    };
+    |s: CState| s.obj_1_exists && !s.sent_2_create
 }
 
 proof fn lemma_init_leads_to_obj1_exists()
     ensures
-        sm_spec()
-            .entails(init_state_pred().lift()
-                .leads_to(obj1_exists().lift())),
+        sm_spec().entails(
+            lift_state(init())
+                .leads_to(lift_state(obj1_exists()))
+        ),
 {
     /*
      * This proof is straightforward:
@@ -130,20 +52,21 @@ proof fn lemma_init_leads_to_obj1_exists()
     leads_to_weaken_auto::<CState>(sm_spec());
 
     send1_enabled();
-    wf1::<CState>(sm_spec(), next_action_pred(), reconcile_action_pred(), send1_pre_state_pred(), create1_pre_state_pred());
+    wf1::<CState>(sm_spec(), next(), reconcile(), send1_pre(), create1_pre());
 
     create1_enabled();
-    wf1::<CState>(sm_spec(), next_action_pred(), create1_action_pred(), create1_pre_state_pred(), obj1_exists());
+    wf1::<CState>(sm_spec(), next(), create1(), create1_pre(), obj1_exists());
 
-    leads_to_trans::<CState>(sm_spec(), send1_pre_state_pred(), create1_pre_state_pred(), obj1_exists());
+    leads_to_trans::<CState>(sm_spec(), send1_pre(), create1_pre(), obj1_exists());
 }
 
 proof fn lemma_obj1_exists_and_not_sent2_leads_to_obj2_exists()
     ensures
-        sm_spec()
-            .entails(obj1_exists().lift()
-                .and(not(sent2().lift()))
-                    .leads_to(obj2_exists().lift())),
+        sm_spec().entails(
+            lift_state(obj1_exists())
+                .and(not(lift_state(sent2())))
+                    .leads_to(lift_state(obj2_exists()))
+        ),
 {
     /*
      * This proof is also straightforward:
@@ -154,26 +77,26 @@ proof fn lemma_obj1_exists_and_not_sent2_leads_to_obj2_exists()
     leads_to_weaken_auto::<CState>(sm_spec());
 
     send2_enabled();
-    wf1::<CState>(sm_spec(), next_action_pred(), reconcile_action_pred(), send2_pre_state_pred(), create2_pre_state_pred());
+    wf1::<CState>(sm_spec(), next(), reconcile(), send2_pre(), create2_pre());
 
     create2_enabled();
-    wf1::<CState>(sm_spec(), next_action_pred(), create2_action_pred(), create2_pre_state_pred(), obj2_exists());
+    wf1::<CState>(sm_spec(), next(), create2(), create2_pre(), obj2_exists());
 
-    leads_to_trans::<CState>(sm_spec(), send2_pre_state_pred(), create2_pre_state_pred(), obj2_exists());
+    leads_to_trans::<CState>(sm_spec(), send2_pre(), create2_pre(), obj2_exists());
 
     /*
      * Now we have `(s.obj_1_exists /\ ~s.obj_2_exists /\ ~s.sent_2_create) ~> s.obj_2_exists`.
      */
-    // assert(sm_spec()
-    //     .entails(obj1_exists().lift()
-    //         .and(not(obj2_exists().lift())
-    //             .and(not(sent2().lift())))
-    //                 .leads_to(obj2_exists().lift())));
+    // assert(sm_spec().entails(
+    //     lift_state(obj1_exists())
+    //         .and(not(lift_state(obj2_exists()))
+    //             .and(not(lift_state(sent2()))))
+    //                 .leads_to(lift_state(obj2_exists()))
+    // ));
 
     /*
      * With `leads_to_assume_not` we can kick out `~s.obj_2_exists`.
      */
-    // leads_to_assume_not_temp::<CState>(sm_spec(), obj1_exists().lift().and(not(sent2().lift())), obj2_exists().lift());
     leads_to_assume_not::<CState>(sm_spec(), obj1_exists_and_not_sent2(), obj2_exists());
 
     /*
@@ -196,17 +119,20 @@ proof fn lemma_obj1_exists_and_not_sent2_leads_to_obj2_exists()
  */
 proof fn lemma_msg_inv()
     ensures
-        sm_spec().entails(always(msg_inv_state_pred().lift())),
+        sm_spec().entails(
+            always(lift_state(msg_inv()))
+        ),
 {
-    init_invariant::<CState>(sm_spec(), init_state_pred(), next_action_pred(), msg_inv_state_pred());
+    init_invariant::<CState>(sm_spec(), init(), next(), msg_inv());
 }
 
 proof fn lemma_obj1_exists_and_sent2_leads_to_obj2_exists()
     ensures
-        sm_spec()
-            .entails(obj1_exists().lift()
-                .and(sent2().lift())
-                    .leads_to(obj2_exists().lift())),
+        sm_spec().entails(
+            lift_state(obj1_exists())
+                .and(lift_state(sent2()))
+                    .leads_to(lift_state(obj2_exists()))
+        ),
 {
     /*
      * This proof shows you `(s.obj_1_exists /\ ~s.obj_2_exists /\ s.sent_2_create) ~> s.obj_2_exists`
@@ -232,7 +158,7 @@ proof fn lemma_obj1_exists_and_sent2_leads_to_obj2_exists()
      */
 
     create2_enabled();
-    wf1::<CState>(sm_spec(), next_action_pred(), create2_action_pred(), create2_pre_state_pred(), obj2_exists());
+    wf1::<CState>(sm_spec(), next(), create2(), create2_pre(), obj2_exists());
 
     /*
      * We have the following leads_to from `wf1`: `s.messages.contains(Message::CreateReq{id: 2}) ~> s.obj_2_exists`.
@@ -252,10 +178,11 @@ proof fn lemma_obj1_exists_and_sent2_leads_to_obj2_exists()
      *
      * Thanks `leads_to_weaken_auto` for automatically weakening leads_to for us :)
      */
-    assert(sm_spec()
-        .entails(sent2().lift()
-            .and(msg_inv_state_pred().lift())
-                .leads_to(obj2_exists().lift())));
+    assert(sm_spec().entails(
+        lift_state(sent2())
+            .and(lift_state(msg_inv()))
+                .leads_to(lift_state(obj2_exists()))
+    ));
 
     /*
      * Thanks `msg_inv` for giving us `s.sent_2_create`.
@@ -264,7 +191,7 @@ proof fn lemma_obj1_exists_and_sent2_leads_to_obj2_exists()
      * Our new friend `leads_to_assume` allows us to remove it since `lemma_msg_inv` shows `msg_inv` always holds.
      */
     lemma_msg_inv();
-    leads_to_assume::<CState>(sm_spec(), sent2(), obj2_exists(), msg_inv_state_pred());
+    leads_to_assume::<CState>(sm_spec(), sent2(), obj2_exists(), msg_inv());
 
     /*
      * At this point we have `s.sent_2_create ~> s.obj_2_exists`.
@@ -275,16 +202,17 @@ proof fn lemma_obj1_exists_and_sent2_leads_to_obj2_exists()
 
 /*
  * To connect with the above leads_to and further prove
- * `sm_spec().entails(eventually(obj2_exists().lift()))`,
+ * `sm_spec().entails(eventually(lift_state(obj2_exists())))`,
  * now we need to prove
- * `sm_spec().entails(leads_to(obj1_exists().lift(), obj2_exists().lift()))`.
+ * `sm_spec().entails(leads_to(lift_state(obj1_exists()), lift_state(obj2_exists())))`.
  */
 
-proof fn lemma_obj1_leads_to_obj2_exists()
+proof fn lemma_obj1_exists_leads_to_obj2_exists()
     ensures
-        sm_spec()
-            .entails(obj1_exists().lift()
-                .leads_to(obj2_exists().lift())),
+        sm_spec().entails(
+            lift_state(obj1_exists())
+                .leads_to(lift_state(obj2_exists()))
+        ),
 {
     leads_to_weaken_auto::<CState>(sm_spec());
 
@@ -301,9 +229,9 @@ proof fn lemma_obj1_leads_to_obj2_exists()
     leads_to_combine::<CState>(sm_spec(), obj1_exists(), obj2_exists(), sent2());
 }
 
-proof fn lemma_eventually_obj1()
+proof fn lemma_eventually_obj1_exists()
     ensures
-        sm_spec().entails(eventually(obj1_exists().lift())),
+        sm_spec().entails(eventually(lift_state(obj1_exists()))),
 {
     /*
      * This proof is simple: just take the leads_to from `lemma_init_leads_to_obj1_exists`
@@ -312,32 +240,32 @@ proof fn lemma_eventually_obj1()
 
     lemma_init_leads_to_obj1_exists();
 
-    leads_to_apply::<CState>(sm_spec(), init_state_pred(), obj1_exists());
+    leads_to_apply::<CState>(sm_spec(), init(), obj1_exists());
 }
 
 proof fn lemma_eventually_obj2_exits()
     ensures
-        sm_spec().entails(eventually(obj2_exists().lift())),
+        sm_spec().entails(eventually(lift_state(obj2_exists()))),
 {
     /*
      * This proof is also simple: just take the two leads_to
-     * from `lemma_init_leads_to_obj1_exists` and `lemma_obj1_leads_to_obj2_exists`,
+     * from `lemma_init_leads_to_obj1_exists` and `lemma_obj1_exists_leads_to_obj2_exists`,
      * connect them together with `leads_to_trans` rule
      * and use `leads_to_apply` rule to get eventually from leads_to.
      */
 
     lemma_init_leads_to_obj1_exists();
 
-    lemma_obj1_leads_to_obj2_exists();
+    lemma_obj1_exists_leads_to_obj2_exists();
 
-    leads_to_trans::<CState>(sm_spec(), init_state_pred(), obj1_exists(), obj2_exists());
+    leads_to_trans::<CState>(sm_spec(), init(), obj1_exists(), obj2_exists());
 
-    leads_to_apply::<CState>(sm_spec(), init_state_pred(), obj2_exists());
+    leads_to_apply::<CState>(sm_spec(), init(), obj2_exists());
 }
 
 proof fn liveness()
     ensures
-        sm_spec().entails(eventually(obj1_exists().lift().and(obj2_exists().lift()))),
+        sm_spec().entails(eventually(lift_state(obj1_exists()).and(lift_state(obj2_exists())))),
 {
     /*
      * This proof needs the safety property we proved in safety.rs
@@ -357,7 +285,7 @@ proof fn liveness()
 
     safety();
 
-    always_and_eventually::<CState>(sm_spec(), order_inv_state_pred(), obj2_exists());
+    always_and_eventually::<CState>(sm_spec(), order_inv(), obj2_exists());
 
     /*
      * We get a weaker eventually, which is our goal, from `eventually_weaken`.
