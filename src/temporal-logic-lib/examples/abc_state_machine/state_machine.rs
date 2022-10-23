@@ -18,62 +18,89 @@ pub struct SimpleState {
     pub happy: bool,
 }
 
-pub open spec fn init(s: SimpleState) -> bool {
-    &&& s.x === ABC::A
-    &&& s.happy
+pub open spec fn init() -> StatePred<SimpleState> {
+    |s: SimpleState| {
+        &&& s.x === ABC::A
+        &&& s.happy
+    }
 }
 
-pub open spec fn a_b(s: SimpleState, s_prime: SimpleState) -> bool {
-    &&& s.x === ABC::A
-    &&& s_prime.x === ABC::B
-    &&& s.happy === s_prime.happy
+pub open spec fn a() -> StatePred<SimpleState> {
+    |s: SimpleState| s.x === ABC::A
 }
 
 
-pub open spec fn b_c(s: SimpleState, s_prime: SimpleState) -> bool {
-    &&& s.x === ABC::B
-    &&& s_prime.x === ABC::C
-    &&& s.happy === s_prime.happy
+pub open spec fn b() -> StatePred<SimpleState> {
+    |s: SimpleState| s.x === ABC::B
 }
 
-pub open spec fn stutter(s: SimpleState, s_prime: SimpleState) -> bool {
-    s === s_prime
+pub open spec fn c() -> StatePred<SimpleState> {
+    |s: SimpleState| s.x === ABC::C
 }
 
-pub open spec fn next(s: SimpleState, s_prime: SimpleState) -> bool {
-    ||| a_b(s, s_prime)
-    ||| b_c(s, s_prime)
-    ||| stutter(s, s_prime)
+pub open spec fn a_b() -> ActionPred<SimpleState> {
+    |s, s_prime: SimpleState| {
+        &&& a()(s)
+        &&& s_prime === SimpleState{
+            x: ABC::B,
+            happy: s.happy
+        }
+    }
 }
 
-pub open spec fn init_state_pred() -> StatePred<SimpleState> {
-    StatePred::new(|state: SimpleState| init(state))
+pub open spec fn b_c() -> ActionPred<SimpleState> {
+    |s, s_prime: SimpleState| {
+        &&& b()(s)
+        &&& s_prime === SimpleState{
+            x: ABC::C,
+            happy: s.happy
+        }
+    }
 }
 
-pub open spec fn a_b_action_pred() -> ActionPred<SimpleState> {
-    ActionPred::new(|action: Action<SimpleState>| a_b(action.state, action.state_prime))
+pub open spec fn stutter() -> ActionPred<SimpleState> {
+    |s, s_prime: SimpleState| s === s_prime
 }
 
-pub open spec fn b_c_action_pred() -> ActionPred<SimpleState> {
-    ActionPred::new(|action: Action<SimpleState>| b_c(action.state, action.state_prime))
-}
-
-pub open spec fn stutter_action_pred() -> ActionPred<SimpleState> {
-    ActionPred::new(|action: Action<SimpleState>| stutter(action.state, action.state_prime))
-}
-
-pub open spec fn next_action_pred() -> ActionPred<SimpleState> {
-    ActionPred::new(|action: Action<SimpleState>| next(action.state, action.state_prime))
+pub open spec fn next() -> ActionPred<SimpleState> {
+    |s, s_prime: SimpleState| {
+        ||| a_b()(s, s_prime)
+        ||| b_c()(s, s_prime)
+        ||| stutter()(s, s_prime)
+    }
 }
 
 pub open spec fn sm_spec() -> TempPred<SimpleState> {
-    init_state_pred().lift().and(
-        always(next_action_pred().lift()).and(
-            weak_fairness(a_b_action_pred()).and(
-                    weak_fairness(b_c_action_pred())
-            )
-        )
-    )
+    lift_state(init())
+    .and(always(lift_action(next())))
+    .and(weak_fairness(a_b()))
+    .and(weak_fairness(b_c()))
+}
+
+pub proof fn a_b_enabled()
+    ensures
+        forall |s: SimpleState| #[trigger] state_pred_call(a(), s) ==> enabled(a_b())(s),
+{
+    assert forall |s: SimpleState| #[trigger] state_pred_call(a(), s) implies enabled(a_b())(s) by {
+        let witness_s_prime = SimpleState {
+            x: ABC::B,
+            happy: s.happy,
+        };
+        assert(action_pred_call(a_b(), s, witness_s_prime));
+    };
+}
+
+pub proof fn b_c_enabled()
+    ensures
+        forall |s: SimpleState| #[trigger] state_pred_call(b(), s) ==> enabled(b_c())(s),
+{
+    assert forall |s: SimpleState| #[trigger] state_pred_call(b(), s) implies enabled(b_c())(s) by {
+        let witness_s_prime = SimpleState {
+            x: ABC::C,
+            happy: s.happy,
+        };
+        assert(action_pred_call(b_c(), s, witness_s_prime));
+    };
 }
 
 }
