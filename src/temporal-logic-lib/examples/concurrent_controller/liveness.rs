@@ -19,6 +19,7 @@ proof fn lemma_init_leads_to_pod1_exists()
     leads_to_eq_auto::<CState>(sm_spec());
     use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_msg());
     use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_sts_msg());
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_pod_msg());
 
     send_create_cr_enabled();
     k8s_handle_create_enabled(create_cr_msg());
@@ -51,25 +52,41 @@ proof fn lemma_init_leads_to_pod1_exists()
         next(),
         k8s_handle_create(create_sts_msg()),
         k8s_handle_create_pre(create_sts_msg()),
-        |s| resource_exists(s, new_strlit("my_statefulset")@)
+        |s| {
+            &&& resource_exists(s, new_strlit("my_statefulset")@)
+            &&& message_sent(s, create_pod_msg())
+        }
     );
 
     leads_to_trans::<CState>(sm_spec(),
         |s| resource_exists(s, new_strlit("my_cr")@),
         |s| message_sent(s, create_sts_msg()),
-        |s| resource_exists(s, new_strlit("my_statefulset")@)
+        |s| {
+            &&& resource_exists(s, new_strlit("my_statefulset")@)
+            &&& message_sent(s, create_pod_msg())
+        }
     );
 
-    k8s_create_pod_enabled();
+    leads_to_weaken_right::<CState>(sm_spec(),
+        |s| resource_exists(s, new_strlit("my_cr")@),
+        |s| {
+            &&& resource_exists(s, new_strlit("my_statefulset")@)
+            &&& message_sent(s, create_pod_msg())
+        },
+        |s| message_sent(s, create_pod_msg())
+    );
+
+    k8s_handle_create_enabled(create_pod_msg());
     wf1::<CState>(sm_spec(),
         next(),
-        k8s_create_pod(),
-        |s| resource_exists(s, new_strlit("my_statefulset")@),
+        k8s_handle_create(create_pod_msg()),
+        k8s_handle_create_pre(create_pod_msg()),
         |s| resource_exists(s, new_strlit("my_pod1")@)
     );
     leads_to_trans::<CState>(sm_spec(),
         |s| resource_exists(s, new_strlit("my_cr")@),
-        |s| resource_exists(s, new_strlit("my_statefulset")@),
+        // |s| resource_exists(s, new_strlit("my_statefulset")@),
+        |s| message_sent(s, create_pod_msg()),
         |s| resource_exists(s, new_strlit("my_pod1")@)
     );
 

@@ -11,6 +11,17 @@ use builtin_macros::*;
 
 verus! {
 
+proof fn strlit_concat_equality(s1: Seq<char>, s2: Seq<char>, s: Seq<char>)
+    requires
+        s1.len() + s2.len() === s.len(),
+        forall |i:int| 0 <= i < s1.len() ==> s1.index(i) === s.index(i),
+        forall |i:int| 0 <= i < s2.len() ==> s2.index(i) === s.index(i + s1.len()),
+    ensures
+        s1 + s2 === s,
+{
+    assert(s.ext_equal(s1 + s2));
+}
+
 #[is_variant]
 pub enum Resource {
     CustomResource,
@@ -33,6 +44,10 @@ pub enum Message {
         name: Seq<char>,
         obj: Resource,
     },
+    CreatePod{
+        name: Seq<char>,
+        obj: Resource,
+    }
 }
 
 impl Message {
@@ -41,6 +56,7 @@ impl Message {
             Message::CreateCR{name, ..} => name,
             Message::CreateStatefulSet{name, ..} => name,
             Message::CreateVolume{name, ..} => name,
+            Message::CreatePod{name, ..} => name,
         }
     }
 
@@ -49,6 +65,7 @@ impl Message {
             Message::CreateCR{name, obj} => obj,
             Message::CreateStatefulSet{name, obj} => obj,
             Message::CreateVolume{name, obj} => obj,
+            Message::CreatePod{name, obj} => obj,
         }
     }
 }
@@ -86,13 +103,6 @@ pub open spec fn resource_exists(s: CState, key: Seq<char>) -> bool {
     s.resources.dom().contains(key)
 }
 
-pub open spec fn create_resource_if_not_exist(r: Map<Seq<char>, Resource>, key: Seq<char>, val: Resource) -> Map<Seq<char>, Resource> {
-    if r.dom().contains(key) {
-        r
-    } else {
-        r.insert(key, val)
-    }
-}
 
 pub open spec fn create_cr_msg() -> Message {
     Message::CreateCR{
@@ -108,12 +118,35 @@ pub open spec fn create_sts_msg() -> Message {
     }
 }
 
+pub open spec fn create_pod_msg() -> Message {
+    Message::CreatePod{
+        name: new_strlit("my_pod1")@,
+        obj: Resource::Pod,
+    }
+}
+
 pub open spec fn create_vol_msg() -> Message {
     Message::CreateVolume{
         name: new_strlit("my_volume1")@,
         obj: Resource::Volume{
             attached: false,
         },
+    }
+}
+
+pub open spec fn update_resources_with(s: CState, msg: Message) -> Map<Seq<char>, Resource> {
+    if s.resources.dom().contains(msg.name()) {
+        s.resources
+    } else {
+        s.resources.insert(msg.name(), msg.obj())
+    }
+}
+
+pub open spec fn update_messages_with(s: CState, msg: Message) -> Set<Message> {
+    if msg.is_CreateStatefulSet() {
+        s.messages.insert(create_pod_msg())
+    } else {
+        s.messages
     }
 }
 
@@ -179,23 +212,8 @@ pub open spec fn k8s_handle_create(msg: Message) -> ActionPred<CState> {
     |s, s_prime| {
         &&& k8s_handle_create_pre(msg)(s)
         &&& s_prime === CState {
-            resources: create_resource_if_not_exist(s.resources, msg.name(), msg.obj()),
-            ..s
-        }
-    }
-}
-
-pub open spec fn k8s_create_pod_pre() -> StatePred<CState> {
-    |s| {
-        resource_exists(s, new_strlit("my_statefulset")@)
-    }
-}
-
-pub open spec fn k8s_create_pod() -> ActionPred<CState> {
-    |s, s_prime| {
-        &&& k8s_create_pod_pre()(s)
-        &&& s_prime === CState {
-            resources: s.resources.insert(new_strlit("my_pod1")@, Resource::Pod),
+            resources: update_resources_with(s, msg),
+            messages: update_messages_with(s, msg),
             ..s
         }
     }
@@ -228,7 +246,6 @@ pub open spec fn next() -> ActionPred<CState> {
         ||| send_create_sts()(s, s_prime)
         ||| send_create_vol()(s, s_prime)
         ||| exists |msg| #[trigger] action_pred_call(k8s_handle_create(msg), s, s_prime)
-        ||| k8s_create_pod()(s, s_prime)
         ||| k8s_attach_vol_to_pod()(s, s_prime)
         ||| stutter()(s, s_prime)
     }
@@ -241,7 +258,6 @@ pub open spec fn sm_spec() -> TempPred<CState> {
     .and(weak_fairness(send_create_sts()))
     .and(weak_fairness(send_create_vol()))
     .and(tla_forall(|msg| weak_fairness(k8s_handle_create(msg))))
-    .and(weak_fairness(k8s_create_pod()))
     .and(weak_fairness(k8s_attach_vol_to_pod()))
 }
 
@@ -307,25 +323,11 @@ pub proof fn k8s_handle_create_enabled(msg: Message)
     assert forall |s| state_pred_call(k8s_handle_create_pre(msg), s)
     implies enabled(k8s_handle_create(msg))(s) by {
         let witness_s_prime = CState {
-            resources: create_resource_if_not_exist(s.resources, msg.name(), msg.obj()),
+            resources: update_resources_with(s, msg),
+            messages: update_messages_with(s, msg),
             ..s
         };
         assert(action_pred_call(k8s_handle_create(msg), s, witness_s_prime));
-    };
-}
-
-pub proof fn k8s_create_pod_enabled()
-    ensures
-        forall |s| state_pred_call(k8s_create_pod_pre(), s)
-            ==> enabled(k8s_create_pod())(s),
-{
-    assert forall |s| state_pred_call(k8s_create_pod_pre(), s)
-    implies enabled(k8s_create_pod())(s) by {
-        let witness_s_prime = CState {
-            resources: s.resources.insert(new_strlit("my_pod1")@, Resource::Pod),
-            ..s
-        };
-        assert(action_pred_call(k8s_create_pod(), s, witness_s_prime));
     };
 }
 
