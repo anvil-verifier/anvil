@@ -60,6 +60,15 @@ proof fn lemma_init_leads_to_pod1_exists()
         |s| message_sent(s, create_sts_msg(new_strlit("my_statefulset")@))
     );
 
+    // We have to reveal the three strlit and prove that
+    // new_strlit("my_statefulset")@ + new_strlit("_pod1")@ === new_strlit("my_statefulset_pod1")@
+    // Otherwise, the next wf1 will only show:
+    // k8s_handle_create_pre(create_sts_msg(new_strlit("my_statefulset")@))
+    // leads to
+    // |s| {
+    //     &&& resource_exists(s, new_strlit("my_statefulset")@)
+    //     &&& message_sent(s, create_pod_msg(new_strlit("my_statefulset")@ + new_strlit("_pod1")@)
+    // }
     reveal_strlit("my_statefulset");
     reveal_strlit("_pod1");
     reveal_strlit("my_statefulset_pod1");
