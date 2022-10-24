@@ -116,7 +116,7 @@ pub open spec fn create_pod_msg(name: Seq<char>) -> Message {
 
 pub open spec fn create_vol_msg(name: Seq<char>) -> Message {
     Message::CreateVolume{
-        name: new_strlit("my_volume1")@,
+        name: name,
         obj: Resource::Volume{
             attached: false,
         },
