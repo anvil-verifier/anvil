@@ -12,36 +12,45 @@ use builtin_macros::*;
 verus! {
 
 #[is_variant]
+pub enum Resource {
+    CustomResource,
+    StatefulSet,
+    Pod,
+    Volume{attached: bool},
+}
+
+#[is_variant]
 pub enum Message {
     CreateCR{
         name: Seq<char>,
+        obj: Resource,
     },
     CreateStatefulSet{
         name: Seq<char>,
-        replica: nat
+        obj: Resource,
     },
     CreateVolume{
         name: Seq<char>,
-        id: nat
+        obj: Resource,
     },
 }
 
 impl Message {
     pub open spec fn name(self) -> Seq<char> {
         match self {
-            Message::CreateCR{name} => name,
-            Message::CreateStatefulSet{name, replica} => name,
-            Message::CreateVolume{name, id} => name,
+            Message::CreateCR{name, ..} => name,
+            Message::CreateStatefulSet{name, ..} => name,
+            Message::CreateVolume{name, ..} => name,
         }
     }
-}
 
-#[is_variant]
-pub enum Resource {
-    CustomResource,
-    StatefulSet,
-    Pod,
-    Volume{attached: bool},
+    pub open spec fn obj(self) -> Resource {
+        match self {
+            Message::CreateCR{name, obj} => obj,
+            Message::CreateStatefulSet{name, obj} => obj,
+            Message::CreateVolume{name, obj} => obj,
+        }
+    }
 }
 
 pub struct CState {
@@ -77,34 +86,34 @@ pub open spec fn resource_exists(s: CState, key: Seq<char>) -> bool {
     s.resources.dom().contains(key)
 }
 
-pub open spec fn resources_updated_with(s: CState, s_prime: CState, key: Seq<char>, val: Resource) -> bool {
-    if resource_exists(s, key) {
-        s_prime === s
+pub open spec fn create_resource_if_not_exist(r: Map<Seq<char>, Resource>, key: Seq<char>, val: Resource) -> Map<Seq<char>, Resource> {
+    if r.dom().contains(key) {
+        r
     } else {
-        s_prime === CState {
-            resources: s.resources.insert(key, val),
-            ..s
-        }
+        r.insert(key, val)
     }
 }
 
 pub open spec fn create_cr_msg() -> Message {
     Message::CreateCR{
         name: new_strlit("my_cr")@,
+        obj: Resource::CustomResource,
     }
 }
 
 pub open spec fn create_sts_msg() -> Message {
     Message::CreateStatefulSet{
         name: new_strlit("my_statefulset")@,
-        replica: 1
+        obj: Resource::StatefulSet,
     }
 }
 
 pub open spec fn create_vol_msg() -> Message {
     Message::CreateVolume{
         name: new_strlit("my_volume1")@,
-        id: 1
+        obj: Resource::Volume{
+            attached: false,
+        },
     }
 }
 
@@ -169,10 +178,9 @@ pub open spec fn k8s_handle_create_pre(msg: Message) -> StatePred<CState> {
 pub open spec fn k8s_handle_create(msg: Message) -> ActionPred<CState> {
     |s, s_prime| {
         &&& k8s_handle_create_pre(msg)(s)
-        &&& match msg {
-            Message::CreateCR{name, ..} => resources_updated_with(s, s_prime, name, Resource::CustomResource),
-            Message::CreateStatefulSet{name, ..} => resources_updated_with(s, s_prime, name, Resource::StatefulSet),
-            Message::CreateVolume{name, ..} => resources_updated_with(s, s_prime, name, Resource::Volume{attached: false}),
+        &&& s_prime === CState {
+            resources: create_resource_if_not_exist(s.resources, msg.name(), msg.obj()),
+            ..s
         }
     }
 }
@@ -291,17 +299,6 @@ pub proof fn send_create_vol_enabled()
     };
 }
 
-pub open spec fn k8s_handle_create_witness_s_prime(state: CState, key: Seq<char>, val: Resource) -> CState {
-    if state.resources.dom().contains(key) {
-        state
-    } else {
-        CState {
-            resources: state.resources.insert(key, val),
-            ..state
-        }
-    }
-}
-
 pub proof fn k8s_handle_create_enabled(msg: Message)
     ensures
         forall |s| state_pred_call(k8s_handle_create_pre(msg), s)
@@ -309,20 +306,11 @@ pub proof fn k8s_handle_create_enabled(msg: Message)
 {
     assert forall |s| state_pred_call(k8s_handle_create_pre(msg), s)
     implies enabled(k8s_handle_create(msg))(s) by {
-        match msg {
-            Message::CreateCR{name, ..} => {
-                let witness_s_prime = k8s_handle_create_witness_s_prime(s, name, Resource::CustomResource);
-                assert(action_pred_call(k8s_handle_create(msg), s, witness_s_prime));
-            },
-            Message::CreateStatefulSet{name, ..} => {
-                let witness_s_prime = k8s_handle_create_witness_s_prime(s, name, Resource::StatefulSet);
-                assert(action_pred_call(k8s_handle_create(msg), s, witness_s_prime));
-            },
-            Message::CreateVolume{name, ..} => {
-                let witness_s_prime = k8s_handle_create_witness_s_prime(s, name, Resource::Volume{attached: false});
-                assert(action_pred_call(k8s_handle_create(msg), s, witness_s_prime));
-            },
-        }
+        let witness_s_prime = CState {
+            resources: create_resource_if_not_exist(s.resources, msg.name(), msg.obj()),
+            ..s
+        };
+        assert(action_pred_call(k8s_handle_create(msg), s, witness_s_prime));
     };
 }
 
