@@ -27,8 +27,8 @@ pub enum Message {
 }
 
 impl Message {
-    pub open spec fn name(&self) -> Seq<char> {
-        match *self {
+    pub open spec fn name(self) -> Seq<char> {
+        match self {
             Message::CreateCR{name} => name,
             Message::CreateStatefulSet{name, replica} => name,
             Message::CreateVolume{name, id} => name,
