@@ -10,18 +10,6 @@ use builtin_macros::*;
 
 verus! {
 
-pub open spec fn create_cr_msg() -> Message {
-    Message::CreateCR
-}
-
-pub open spec fn create_sts_msg() -> Message {
-    Message::CreateStatefulSet{replica: 1}
-}
-
-pub open spec fn create_vol_msg() -> Message {
-    Message::CreateVolume{id: 1}
-}
-
 proof fn lemma_init_leads_to_pod1_exists()
     ensures
         sm_spec()
@@ -49,13 +37,13 @@ proof fn lemma_init_leads_to_pod1_exists()
         send_create_sts(),
         |s| {
             &&& resource_exists(s, new_strlit("my_cr")@)
-            &&& !message_sent(s, Message::CreateStatefulSet{replica: 1})
+            &&& !message_sent(s, create_sts_msg())
         },
-        |s| message_sent(s, Message::CreateStatefulSet{replica: 1})
+        |s| message_sent(s, create_sts_msg())
     );
     leads_to_assume_not::<CState>(sm_spec(),
         |s| resource_exists(s, new_strlit("my_cr")@),
-        |s| message_sent(s, Message::CreateStatefulSet{replica: 1})
+        |s| message_sent(s, create_sts_msg())
     );
 
     k8s_handle_create_enabled(create_sts_msg());
@@ -68,7 +56,7 @@ proof fn lemma_init_leads_to_pod1_exists()
 
     leads_to_trans::<CState>(sm_spec(),
         |s| resource_exists(s, new_strlit("my_cr")@),
-        |s| message_sent(s, Message::CreateStatefulSet{replica: 1}),
+        |s| message_sent(s, create_sts_msg()),
         |s| resource_exists(s, new_strlit("my_statefulset")@)
     );
 
@@ -119,13 +107,13 @@ proof fn lemma_init_leads_to_vol1_exists()
         send_create_vol(),
         |s| {
             &&& resource_exists(s, new_strlit("my_cr")@)
-            &&& !message_sent(s, Message::CreateVolume{id: 1})
+            &&& !message_sent(s, create_vol_msg())
         },
-        |s| message_sent(s, Message::CreateVolume{id: 1})
+        |s| message_sent(s, create_vol_msg())
     );
     leads_to_assume_not::<CState>(sm_spec(),
         |s| resource_exists(s, new_strlit("my_cr")@),
-        |s| message_sent(s, Message::CreateVolume{id: 1})
+        |s| message_sent(s, create_vol_msg())
     );
 
     k8s_handle_create_enabled(create_vol_msg());
@@ -138,7 +126,7 @@ proof fn lemma_init_leads_to_vol1_exists()
 
     leads_to_trans::<CState>(sm_spec(),
         |s| resource_exists(s, new_strlit("my_cr")@),
-        |s| message_sent(s, Message::CreateVolume{id: 1}),
+        |s| message_sent(s, create_vol_msg()),
         |s| resource_exists(s, new_strlit("my_volume1")@)
     );
 
