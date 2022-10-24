@@ -19,44 +19,9 @@ pub enum Resource {
     Volume{attached: bool},
 }
 
-#[is_variant]
-pub enum Message {
-    CreateCR{
-        name: Seq<char>,
-        obj: Resource,
-    },
-    CreateStatefulSet{
-        name: Seq<char>,
-        obj: Resource,
-    },
-    CreateVolume{
-        name: Seq<char>,
-        obj: Resource,
-    },
-    CreatePod{
-        name: Seq<char>,
-        obj: Resource,
-    }
-}
-
-impl Message {
-    pub open spec fn name(self) -> Seq<char> {
-        match self {
-            Message::CreateCR{name, ..} => name,
-            Message::CreateStatefulSet{name, ..} => name,
-            Message::CreateVolume{name, ..} => name,
-            Message::CreatePod{name, ..} => name,
-        }
-    }
-
-    pub open spec fn obj(self) -> Resource {
-        match self {
-            Message::CreateCR{name, obj} => obj,
-            Message::CreateStatefulSet{name, obj} => obj,
-            Message::CreateVolume{name, obj} => obj,
-            Message::CreatePod{name, obj} => obj,
-        }
-    }
+pub struct Message {
+    pub name: Seq<char>,
+    pub obj: Resource,
 }
 
 pub struct CState {
@@ -66,20 +31,20 @@ pub struct CState {
 }
 
 /**
- *                      init
- *                        |
- *                 user_send_create_cr
- *                        |
- *              k8s_handle_create(cr)
- *                 /           \
- *  controller_send_create_sts             controller_send_create_vol
- *                |             |
- * k8s_handle_create(sts)       k8s_handle_create(vol)
- *                |             |
- *   k8s_create_pod             |
- *                \             /
- *                 \           /
- *             k8s_attach_vol_to_pod
+ *                          init
+ *                            |
+ *                     user_send_create_cr
+ *                            |
+ *                  k8s_handle_create(cr)
+ *                     /           \
+ * controller_send_create_sts       controller_send_create_vol
+ *                    |             |
+ * k8s_handle_create(sts)           k8s_handle_create(vol)
+ *                    |             |
+ * k8s_handle_create(pod)           |
+ *                    \             /
+ *                     \           /
+ *                 k8s_attach_vol_to_pod
  *
  *
  */
@@ -94,28 +59,28 @@ pub open spec fn resource_exists(s: CState, key: Seq<char>) -> bool {
 
 
 pub open spec fn create_cr_msg(name: Seq<char>) -> Message {
-    Message::CreateCR{
+    Message {
         name: name,
         obj: Resource::CustomResource,
     }
 }
 
 pub open spec fn create_sts_msg(name: Seq<char>) -> Message {
-    Message::CreateStatefulSet{
+    Message {
         name: name,
         obj: Resource::StatefulSet,
     }
 }
 
 pub open spec fn create_pod_msg(name: Seq<char>) -> Message {
-    Message::CreatePod{
+    Message {
         name: name,
         obj: Resource::Pod,
     }
 }
 
 pub open spec fn create_vol_msg(name: Seq<char>) -> Message {
-    Message::CreateVolume{
+    Message {
         name: name,
         obj: Resource::Volume{
             attached: false,
@@ -124,16 +89,16 @@ pub open spec fn create_vol_msg(name: Seq<char>) -> Message {
 }
 
 pub open spec fn update_resources_with(s: CState, msg: Message) -> Map<Seq<char>, Resource> {
-    if s.resources.dom().contains(msg.name()) {
+    if s.resources.dom().contains(msg.name) {
         s.resources
     } else {
-        s.resources.insert(msg.name(), msg.obj())
+        s.resources.insert(msg.name, msg.obj)
     }
 }
 
 pub open spec fn update_messages_with(s: CState, msg: Message) -> Set<Message> {
-    if msg.is_CreateStatefulSet() {
-        s.messages.insert(create_pod_msg(msg.name() + new_strlit("_pod1")@))
+    if msg.obj.is_StatefulSet() {
+        s.messages.insert(create_pod_msg(msg.name + new_strlit("_pod1")@))
     } else {
         s.messages
     }
