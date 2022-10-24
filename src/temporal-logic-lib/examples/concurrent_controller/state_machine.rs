@@ -11,17 +11,6 @@ use builtin_macros::*;
 
 verus! {
 
-proof fn strlit_concat_equality(s1: Seq<char>, s2: Seq<char>, s: Seq<char>)
-    requires
-        s1.len() + s2.len() === s.len(),
-        forall |i:int| 0 <= i < s1.len() ==> s1.index(i) === s.index(i),
-        forall |i:int| 0 <= i < s2.len() ==> s2.index(i) === s.index(i + s1.len()),
-    ensures
-        s1 + s2 === s,
-{
-    assert(s.ext_equal(s1 + s2));
-}
-
 #[is_variant]
 pub enum Resource {
     CustomResource,
@@ -104,28 +93,28 @@ pub open spec fn resource_exists(s: CState, key: Seq<char>) -> bool {
 }
 
 
-pub open spec fn create_cr_msg() -> Message {
+pub open spec fn create_cr_msg(name: Seq<char>) -> Message {
     Message::CreateCR{
-        name: new_strlit("my_cr")@,
+        name: name,
         obj: Resource::CustomResource,
     }
 }
 
-pub open spec fn create_sts_msg() -> Message {
+pub open spec fn create_sts_msg(name: Seq<char>) -> Message {
     Message::CreateStatefulSet{
-        name: new_strlit("my_statefulset")@,
+        name: name,
         obj: Resource::StatefulSet,
     }
 }
 
-pub open spec fn create_pod_msg() -> Message {
+pub open spec fn create_pod_msg(name: Seq<char>) -> Message {
     Message::CreatePod{
-        name: new_strlit("my_pod1")@,
+        name: name,
         obj: Resource::Pod,
     }
 }
 
-pub open spec fn create_vol_msg() -> Message {
+pub open spec fn create_vol_msg(name: Seq<char>) -> Message {
     Message::CreateVolume{
         name: new_strlit("my_volume1")@,
         obj: Resource::Volume{
@@ -144,7 +133,7 @@ pub open spec fn update_resources_with(s: CState, msg: Message) -> Map<Seq<char>
 
 pub open spec fn update_messages_with(s: CState, msg: Message) -> Set<Message> {
     if msg.is_CreateStatefulSet() {
-        s.messages.insert(create_pod_msg())
+        s.messages.insert(create_pod_msg(msg.name() + new_strlit("_pod1")@))
     } else {
         s.messages
     }
@@ -163,7 +152,7 @@ pub open spec fn send_create_cr() -> ActionPred<CState> {
     |s, s_prime| {
         &&& init()(s)
         &&& s_prime === CState {
-            messages: s.messages.insert(create_cr_msg()),
+            messages: s.messages.insert(create_cr_msg(new_strlit("my_cr")@)),
             ..s
         }
     }
@@ -172,7 +161,7 @@ pub open spec fn send_create_cr() -> ActionPred<CState> {
 pub open spec fn send_create_sts_pre() -> StatePred<CState> {
     |s| {
         &&& resource_exists(s, new_strlit("my_cr")@)
-        &&& !message_sent(s, create_sts_msg())
+        &&& !message_sent(s, create_sts_msg(new_strlit("my_statefulset")@))
     }
 }
 
@@ -180,7 +169,7 @@ pub open spec fn send_create_sts() -> ActionPred<CState> {
     |s, s_prime| {
         &&& send_create_sts_pre()(s)
         &&& s_prime === CState {
-            messages: s.messages.insert(create_sts_msg()),
+            messages: s.messages.insert(create_sts_msg(new_strlit("my_statefulset")@)),
             ..s
         }
     }
@@ -189,7 +178,7 @@ pub open spec fn send_create_sts() -> ActionPred<CState> {
 pub open spec fn send_create_vol_pre() -> StatePred<CState> {
     |s| {
         &&& resource_exists(s, new_strlit("my_cr")@)
-        &&& !message_sent(s, create_vol_msg())
+        &&& !message_sent(s, create_vol_msg(new_strlit("my_volume1")@))
     }
 }
 
@@ -197,7 +186,7 @@ pub open spec fn send_create_vol() -> ActionPred<CState> {
     |s, s_prime| {
         &&& send_create_vol_pre()(s)
         &&& s_prime === CState {
-            messages: s.messages.insert(create_vol_msg()),
+            messages: s.messages.insert(create_vol_msg(new_strlit("my_volume1")@)),
             ..s
         }
     }
@@ -221,7 +210,7 @@ pub open spec fn k8s_handle_create(msg: Message) -> ActionPred<CState> {
 
 pub open spec fn k8s_attach_vol_to_pod_pre() -> StatePred<CState> {
     |s| {
-        &&& resource_exists(s, new_strlit("my_pod1")@)
+        &&& resource_exists(s, new_strlit("my_statefulset_pod1")@)
         &&& resource_exists(s, new_strlit("my_volume1")@)
     }
 }
@@ -269,7 +258,7 @@ pub proof fn send_create_cr_enabled()
     assert forall |s| state_pred_call(init(), s)
     implies enabled(send_create_cr())(s) by {
         let witness_s_prime = CState {
-            messages: s.messages.insert(create_cr_msg()),
+            messages: s.messages.insert(create_cr_msg(new_strlit("my_cr")@)),
             ..s
         };
         assert(action_pred_call(send_create_cr(), s, witness_s_prime));
@@ -293,7 +282,7 @@ pub proof fn send_create_sts_enabled()
     assert forall |s| state_pred_call(send_create_sts_pre(), s)
     implies enabled(send_create_sts())(s) by {
         let witness_s_prime = CState {
-            messages: s.messages.insert(create_sts_msg()),
+            messages: s.messages.insert(create_sts_msg(new_strlit("my_statefulset")@)),
             ..s
         };
         assert(action_pred_call(send_create_sts(), s, witness_s_prime));
@@ -308,7 +297,7 @@ pub proof fn send_create_vol_enabled()
     assert forall |s| state_pred_call(send_create_vol_pre(), s)
     implies enabled(send_create_vol())(s) by {
         let witness_s_prime = CState {
-            messages: s.messages.insert(create_vol_msg()),
+            messages: s.messages.insert(create_vol_msg(new_strlit("my_volume1")@)),
             ..s
         };
         assert(action_pred_call(send_create_vol(), s, witness_s_prime));
