@@ -68,11 +68,11 @@ pub struct CState {
 /**
  *                      init
  *                        |
- *                 send_create_cr
+ *                 user_send_create_cr
  *                        |
  *              k8s_handle_create(cr)
  *                 /           \
- *  send_create_sts             send_create_vol
+ *  controller_send_create_sts             controller_send_create_vol
  *                |             |
  * k8s_handle_create(sts)       k8s_handle_create(vol)
  *                |             |
@@ -148,7 +148,7 @@ pub open spec fn init() -> StatePred<CState> {
     }
 }
 
-pub open spec fn send_create_cr() -> ActionPred<CState> {
+pub open spec fn user_send_create_cr() -> ActionPred<CState> {
     |s, s_prime| {
         &&& init()(s)
         &&& s_prime === CState {
@@ -158,16 +158,16 @@ pub open spec fn send_create_cr() -> ActionPred<CState> {
     }
 }
 
-pub open spec fn send_create_sts_pre() -> StatePred<CState> {
+pub open spec fn controller_send_create_sts_pre() -> StatePred<CState> {
     |s| {
         &&& resource_exists(s, new_strlit("my_cr")@)
         &&& !message_sent(s, create_sts_msg(new_strlit("my_statefulset")@))
     }
 }
 
-pub open spec fn send_create_sts() -> ActionPred<CState> {
+pub open spec fn controller_send_create_sts() -> ActionPred<CState> {
     |s, s_prime| {
-        &&& send_create_sts_pre()(s)
+        &&& controller_send_create_sts_pre()(s)
         &&& s_prime === CState {
             messages: s.messages.insert(create_sts_msg(new_strlit("my_statefulset")@)),
             ..s
@@ -175,16 +175,16 @@ pub open spec fn send_create_sts() -> ActionPred<CState> {
     }
 }
 
-pub open spec fn send_create_vol_pre() -> StatePred<CState> {
+pub open spec fn controller_send_create_vol_pre() -> StatePred<CState> {
     |s| {
         &&& resource_exists(s, new_strlit("my_cr")@)
         &&& !message_sent(s, create_vol_msg(new_strlit("my_volume1")@))
     }
 }
 
-pub open spec fn send_create_vol() -> ActionPred<CState> {
+pub open spec fn controller_send_create_vol() -> ActionPred<CState> {
     |s, s_prime| {
-        &&& send_create_vol_pre()(s)
+        &&& controller_send_create_vol_pre()(s)
         &&& s_prime === CState {
             messages: s.messages.insert(create_vol_msg(new_strlit("my_volume1")@)),
             ..s
@@ -231,9 +231,9 @@ pub open spec fn stutter() -> ActionPred<CState> {
 
 pub open spec fn next() -> ActionPred<CState> {
     |s, s_prime| {
-        ||| send_create_cr()(s, s_prime)
-        ||| send_create_sts()(s, s_prime)
-        ||| send_create_vol()(s, s_prime)
+        ||| user_send_create_cr()(s, s_prime)
+        ||| controller_send_create_sts()(s, s_prime)
+        ||| controller_send_create_vol()(s, s_prime)
         ||| exists |msg| #[trigger] action_pred_call(k8s_handle_create(msg), s, s_prime)
         ||| k8s_attach_vol_to_pod()(s, s_prime)
         ||| stutter()(s, s_prime)
@@ -243,25 +243,25 @@ pub open spec fn next() -> ActionPred<CState> {
 pub open spec fn sm_spec() -> TempPred<CState> {
     lift_state(init())
     .and(always(lift_action(next())))
-    .and(weak_fairness(send_create_cr()))
-    .and(weak_fairness(send_create_sts()))
-    .and(weak_fairness(send_create_vol()))
+    .and(weak_fairness(user_send_create_cr()))
+    .and(weak_fairness(controller_send_create_sts()))
+    .and(weak_fairness(controller_send_create_vol()))
     .and(tla_forall(|msg| weak_fairness(k8s_handle_create(msg))))
     .and(weak_fairness(k8s_attach_vol_to_pod()))
 }
 
-pub proof fn send_create_cr_enabled()
+pub proof fn user_send_create_cr_enabled()
     ensures
         forall |s| state_pred_call(init(), s)
-            ==> enabled(send_create_cr())(s),
+            ==> enabled(user_send_create_cr())(s),
 {
     assert forall |s| state_pred_call(init(), s)
-    implies enabled(send_create_cr())(s) by {
+    implies enabled(user_send_create_cr())(s) by {
         let witness_s_prime = CState {
             messages: s.messages.insert(create_cr_msg(new_strlit("my_cr")@)),
             ..s
         };
-        assert(action_pred_call(send_create_cr(), s, witness_s_prime));
+        assert(action_pred_call(user_send_create_cr(), s, witness_s_prime));
     };
 }
 
@@ -274,33 +274,33 @@ pub proof fn send_create_cr_enabled()
 ///
 /// TODO: run it with Verus team
 
-pub proof fn send_create_sts_enabled()
+pub proof fn controller_send_create_sts_enabled()
     ensures
-        forall |s| state_pred_call(send_create_sts_pre(), s)
-            ==> enabled(send_create_sts())(s),
+        forall |s| state_pred_call(controller_send_create_sts_pre(), s)
+            ==> enabled(controller_send_create_sts())(s),
 {
-    assert forall |s| state_pred_call(send_create_sts_pre(), s)
-    implies enabled(send_create_sts())(s) by {
+    assert forall |s| state_pred_call(controller_send_create_sts_pre(), s)
+    implies enabled(controller_send_create_sts())(s) by {
         let witness_s_prime = CState {
             messages: s.messages.insert(create_sts_msg(new_strlit("my_statefulset")@)),
             ..s
         };
-        assert(action_pred_call(send_create_sts(), s, witness_s_prime));
+        assert(action_pred_call(controller_send_create_sts(), s, witness_s_prime));
     };
 }
 
-pub proof fn send_create_vol_enabled()
+pub proof fn controller_send_create_vol_enabled()
     ensures
-        forall |s| state_pred_call(send_create_vol_pre(), s)
-            ==> enabled(send_create_vol())(s),
+        forall |s| state_pred_call(controller_send_create_vol_pre(), s)
+            ==> enabled(controller_send_create_vol())(s),
 {
-    assert forall |s| state_pred_call(send_create_vol_pre(), s)
-    implies enabled(send_create_vol())(s) by {
+    assert forall |s| state_pred_call(controller_send_create_vol_pre(), s)
+    implies enabled(controller_send_create_vol())(s) by {
         let witness_s_prime = CState {
             messages: s.messages.insert(create_vol_msg(new_strlit("my_volume1")@)),
             ..s
         };
-        assert(action_pred_call(send_create_vol(), s, witness_s_prime));
+        assert(action_pred_call(controller_send_create_vol(), s, witness_s_prime));
     };
 }
 

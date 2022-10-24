@@ -34,21 +34,21 @@ proof fn lemma_init_leads_to_pod1_exists()
     use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_sts_msg(new_strlit("my_statefulset")@));
     use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_pod_msg(new_strlit("my_statefulset_pod1")@));
 
-    send_create_cr_enabled();
+    user_send_create_cr_enabled();
     k8s_handle_create_enabled(create_cr_msg(new_strlit("my_cr")@));
     wf1_chain::<CState>(sm_spec(),
         next(),
-        send_create_cr(),
+        user_send_create_cr(),
         k8s_handle_create(create_cr_msg(new_strlit("my_cr")@)),
         init(),
         k8s_handle_create_pre(create_cr_msg(new_strlit("my_cr")@)),
         |s| resource_exists(s, new_strlit("my_cr")@),
     );
 
-    send_create_sts_enabled();
+    controller_send_create_sts_enabled();
     wf1::<CState>(sm_spec(),
         next(),
-        send_create_sts(),
+        controller_send_create_sts(),
         |s| {
             &&& resource_exists(s, new_strlit("my_cr")@)
             &&& !message_sent(s, create_sts_msg(new_strlit("my_statefulset")@))
@@ -125,21 +125,21 @@ proof fn lemma_init_leads_to_vol1_exists()
     use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_msg(new_strlit("my_cr")@));
     use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_vol_msg(new_strlit("my_volume1")@));
 
-    send_create_cr_enabled();
+    user_send_create_cr_enabled();
     k8s_handle_create_enabled(create_cr_msg(new_strlit("my_cr")@));
     wf1_chain::<CState>(sm_spec(),
         next(),
-        send_create_cr(),
+        user_send_create_cr(),
         k8s_handle_create(create_cr_msg(new_strlit("my_cr")@)),
         init(),
         k8s_handle_create_pre(create_cr_msg(new_strlit("my_cr")@)),
         |s| resource_exists(s, new_strlit("my_cr")@),
     );
 
-    send_create_vol_enabled();
+    controller_send_create_vol_enabled();
     wf1::<CState>(sm_spec(),
         next(),
-        send_create_vol(),
+        controller_send_create_vol(),
         |s| {
             &&& resource_exists(s, new_strlit("my_cr")@)
             &&& !message_sent(s, create_vol_msg(new_strlit("my_volume1")@))
