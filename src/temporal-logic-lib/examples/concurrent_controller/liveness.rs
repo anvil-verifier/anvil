@@ -23,138 +23,138 @@ proof fn strlit_concat_equality(s1: Seq<char>, s2: Seq<char>, s: Seq<char>)
 }
 
 
-proof fn lemma_init_leads_to_pod1_exists()
+proof fn lemma_init_leads_to_pod_exists()
     ensures
         sm_spec()
             .entails(lift_state(init())
-                .leads_to(lift_state(|s| resource_exists(s, new_strlit("my_cr_sts_pod1")@)))),
+                .leads_to(lift_state(|s| resource_exists(s, new_strlit("app_sts_pod")@)))),
 {
     leads_to_eq_auto::<CState>(sm_spec());
 
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(controller_send_create_sts(msg)), create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind));
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(controller_send_create_sts(msg)), create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind));
 
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_req_msg(new_strlit("my_cr")@));
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_sts_req_msg(new_strlit("my_cr_sts")@));
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_pod_req_msg(new_strlit("my_cr_sts_pod1")@));
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_req_msg(new_strlit("app")@));
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_sts_req_msg(new_strlit("app_sts")@));
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_pod_req_msg(new_strlit("app_sts_pod")@));
 
     user_send_create_cr_enabled();
-    k8s_handle_create_enabled(create_cr_req_msg(new_strlit("my_cr")@));
+    k8s_handle_create_enabled(create_cr_req_msg(new_strlit("app")@));
     wf1_chain::<CState>(sm_spec(),
         next(),
         user_send_create_cr(),
-        k8s_handle_create(create_cr_req_msg(new_strlit("my_cr")@)),
+        k8s_handle_create(create_cr_req_msg(new_strlit("app")@)),
         init(),
-        k8s_handle_create_pre(create_cr_req_msg(new_strlit("my_cr")@)),
-        |s| message_sent(s, create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
+        k8s_handle_create_pre(create_cr_req_msg(new_strlit("app")@)),
+        |s| message_sent(s, create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
     );
 
-    reveal_strlit("my_cr");
+    reveal_strlit("app");
     reveal_strlit("_sts");
-    reveal_strlit("my_cr_sts");
-    strlit_concat_equality(new_strlit("my_cr")@, new_strlit("_sts")@, new_strlit("my_cr_sts")@);
+    reveal_strlit("app_sts");
+    strlit_concat_equality(new_strlit("app")@, new_strlit("_sts")@, new_strlit("app_sts")@);
 
-    controller_send_create_sts_enabled(create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind));
+    controller_send_create_sts_enabled(create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind));
     wf1::<CState>(sm_spec(),
         next(),
-        controller_send_create_sts(create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
-        controller_send_create_sts_pre(create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
-        |s| message_sent(s, create_sts_req_msg(new_strlit("my_cr_sts")@))
+        controller_send_create_sts(create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
+        controller_send_create_sts_pre(create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
+        |s| message_sent(s, create_sts_req_msg(new_strlit("app_sts")@))
     );
 
     leads_to_trans::<CState>(sm_spec(),
         init(),
-        |s| message_sent(s, create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
-        |s| message_sent(s, create_sts_req_msg(new_strlit("my_cr_sts")@))
+        |s| message_sent(s, create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
+        |s| message_sent(s, create_sts_req_msg(new_strlit("app_sts")@))
     );
 
-    reveal_strlit("my_cr_sts");
-    reveal_strlit("_pod1");
-    reveal_strlit("my_cr_sts_pod1");
-    strlit_concat_equality(new_strlit("my_cr_sts")@, new_strlit("_pod1")@, new_strlit("my_cr_sts_pod1")@);
+    reveal_strlit("app_sts");
+    reveal_strlit("_pod");
+    reveal_strlit("app_sts_pod");
+    strlit_concat_equality(new_strlit("app_sts")@, new_strlit("_pod")@, new_strlit("app_sts_pod")@);
 
-    k8s_handle_create_enabled(create_sts_req_msg(new_strlit("my_cr_sts")@));
+    k8s_handle_create_enabled(create_sts_req_msg(new_strlit("app_sts")@));
     wf1::<CState>(sm_spec(),
         next(),
-        k8s_handle_create(create_sts_req_msg(new_strlit("my_cr_sts")@)),
-        k8s_handle_create_pre(create_sts_req_msg(new_strlit("my_cr_sts")@)),
-        |s| message_sent(s, create_pod_req_msg(new_strlit("my_cr_sts_pod1")@))
+        k8s_handle_create(create_sts_req_msg(new_strlit("app_sts")@)),
+        k8s_handle_create_pre(create_sts_req_msg(new_strlit("app_sts")@)),
+        |s| message_sent(s, create_pod_req_msg(new_strlit("app_sts_pod")@))
     );
 
     leads_to_trans::<CState>(sm_spec(),
         init(),
-        |s| message_sent(s, create_sts_req_msg(new_strlit("my_cr_sts")@)),
-        |s| message_sent(s, create_pod_req_msg(new_strlit("my_cr_sts_pod1")@))
+        |s| message_sent(s, create_sts_req_msg(new_strlit("app_sts")@)),
+        |s| message_sent(s, create_pod_req_msg(new_strlit("app_sts_pod")@))
     );
 
-    k8s_handle_create_enabled(create_pod_req_msg(new_strlit("my_cr_sts_pod1")@));
+    k8s_handle_create_enabled(create_pod_req_msg(new_strlit("app_sts_pod")@));
     wf1::<CState>(sm_spec(),
         next(),
-        k8s_handle_create(create_pod_req_msg(new_strlit("my_cr_sts_pod1")@)),
-        k8s_handle_create_pre(create_pod_req_msg(new_strlit("my_cr_sts_pod1")@)),
-        |s| resource_exists(s, new_strlit("my_cr_sts_pod1")@)
+        k8s_handle_create(create_pod_req_msg(new_strlit("app_sts_pod")@)),
+        k8s_handle_create_pre(create_pod_req_msg(new_strlit("app_sts_pod")@)),
+        |s| resource_exists(s, new_strlit("app_sts_pod")@)
     );
     leads_to_trans::<CState>(sm_spec(),
         init(),
-        |s| message_sent(s, create_pod_req_msg(new_strlit("my_cr_sts_pod1")@)),
-        |s| resource_exists(s, new_strlit("my_cr_sts_pod1")@)
+        |s| message_sent(s, create_pod_req_msg(new_strlit("app_sts_pod")@)),
+        |s| resource_exists(s, new_strlit("app_sts_pod")@)
     );
 }
 
-proof fn lemma_init_leads_to_vol1_exists()
+proof fn lemma_init_leads_to_vol_exists()
     ensures
         sm_spec()
             .entails(lift_state(init())
-                .leads_to(lift_state(|s| resource_exists(s, new_strlit("my_cr_vol1")@)))),
+                .leads_to(lift_state(|s| resource_exists(s, new_strlit("app_vol")@)))),
 {
     leads_to_eq_auto::<CState>(sm_spec());
 
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(controller_send_create_vol(msg)), create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind));
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(controller_send_create_vol(msg)), create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind));
 
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_req_msg(new_strlit("my_cr")@));
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_vol_req_msg(new_strlit("my_cr_vol1")@));
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_req_msg(new_strlit("app")@));
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_vol_req_msg(new_strlit("app_vol")@));
 
     user_send_create_cr_enabled();
-    k8s_handle_create_enabled(create_cr_req_msg(new_strlit("my_cr")@));
+    k8s_handle_create_enabled(create_cr_req_msg(new_strlit("app")@));
     wf1_chain::<CState>(sm_spec(),
         next(),
         user_send_create_cr(),
-        k8s_handle_create(create_cr_req_msg(new_strlit("my_cr")@)),
+        k8s_handle_create(create_cr_req_msg(new_strlit("app")@)),
         init(),
-        k8s_handle_create_pre(create_cr_req_msg(new_strlit("my_cr")@)),
-        |s| message_sent(s, create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
+        k8s_handle_create_pre(create_cr_req_msg(new_strlit("app")@)),
+        |s| message_sent(s, create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
     );
 
-    reveal_strlit("my_cr");
-    reveal_strlit("_vol1");
-    reveal_strlit("my_cr_vol1");
-    strlit_concat_equality(new_strlit("my_cr")@, new_strlit("_vol1")@, new_strlit("my_cr_vol1")@);
+    reveal_strlit("app");
+    reveal_strlit("_vol");
+    reveal_strlit("app_vol");
+    strlit_concat_equality(new_strlit("app")@, new_strlit("_vol")@, new_strlit("app_vol")@);
 
-    controller_send_create_vol_enabled(create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind));
+    controller_send_create_vol_enabled(create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind));
     wf1::<CState>(sm_spec(),
         next(),
-        controller_send_create_vol(create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
-        controller_send_create_vol_pre(create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
-        |s| message_sent(s, create_vol_req_msg(new_strlit("my_cr_vol1")@))
+        controller_send_create_vol(create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
+        controller_send_create_vol_pre(create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
+        |s| message_sent(s, create_vol_req_msg(new_strlit("app_vol")@))
     );
 
     leads_to_trans::<CState>(sm_spec(),
         init(),
-        |s| message_sent(s, create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
-        |s| message_sent(s, create_vol_req_msg(new_strlit("my_cr_vol1")@)),
+        |s| message_sent(s, create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
+        |s| message_sent(s, create_vol_req_msg(new_strlit("app_vol")@)),
     );
 
-    k8s_handle_create_enabled(create_vol_req_msg(new_strlit("my_cr_vol1")@));
+    k8s_handle_create_enabled(create_vol_req_msg(new_strlit("app_vol")@));
     wf1::<CState>(sm_spec(),
         next(),
-        k8s_handle_create(create_vol_req_msg(new_strlit("my_cr_vol1")@)),
-        k8s_handle_create_pre(create_vol_req_msg(new_strlit("my_cr_vol1")@)),
-        |s| resource_exists(s, new_strlit("my_cr_vol1")@)
+        k8s_handle_create(create_vol_req_msg(new_strlit("app_vol")@)),
+        k8s_handle_create_pre(create_vol_req_msg(new_strlit("app_vol")@)),
+        |s| resource_exists(s, new_strlit("app_vol")@)
     );
 
     leads_to_trans::<CState>(sm_spec(),
         init(),
-        |s| message_sent(s, create_vol_req_msg(new_strlit("my_cr_vol1")@)),
-        |s| resource_exists(s, new_strlit("my_cr_vol1")@)
+        |s| message_sent(s, create_vol_req_msg(new_strlit("app_vol")@)),
+        |s| resource_exists(s, new_strlit("app_vol")@)
     );
 }
 
@@ -164,24 +164,24 @@ proof fn lemma_eventually_vol_attached()
 {
     leads_to_eq_auto::<CState>(sm_spec());
 
-    lemma_init_leads_to_pod1_exists();
+    lemma_init_leads_to_pod_exists();
     leads_to_stable::<CState>(sm_spec(),
         next(),
         init(),
-        |s| resource_exists(s, new_strlit("my_cr_sts_pod1")@)
+        |s| resource_exists(s, new_strlit("app_sts_pod")@)
     );
 
-    lemma_init_leads_to_vol1_exists();
+    lemma_init_leads_to_vol_exists();
     leads_to_stable::<CState>(sm_spec(),
         next(),
         init(),
-        |s| resource_exists(s, new_strlit("my_cr_vol1")@)
+        |s| resource_exists(s, new_strlit("app_vol")@)
     );
 
     leads_to_always_combine_then_weaken::<CState>(sm_spec(),
         init(),
-        |s| resource_exists(s, new_strlit("my_cr_sts_pod1")@),
-        |s| resource_exists(s, new_strlit("my_cr_vol1")@)
+        |s| resource_exists(s, new_strlit("app_sts_pod")@),
+        |s| resource_exists(s, new_strlit("app_vol")@)
     );
 
     k8s_attach_vol_to_pod_enabled();
@@ -189,8 +189,8 @@ proof fn lemma_eventually_vol_attached()
         next(),
         k8s_attach_vol_to_pod(),
         |s| {
-            &&& resource_exists(s, new_strlit("my_cr_sts_pod1")@)
-            &&& resource_exists(s, new_strlit("my_cr_vol1")@)
+            &&& resource_exists(s, new_strlit("app_sts_pod")@)
+            &&& resource_exists(s, new_strlit("app_vol")@)
         },
         |s: CState| s.vol_attached
     );
@@ -198,8 +198,8 @@ proof fn lemma_eventually_vol_attached()
     leads_to_trans::<CState>(sm_spec(),
         init(),
         |s| {
-            &&& resource_exists(s, new_strlit("my_cr_sts_pod1")@)
-            &&& resource_exists(s, new_strlit("my_cr_vol1")@)
+            &&& resource_exists(s, new_strlit("app_sts_pod")@)
+            &&& resource_exists(s, new_strlit("app_vol")@)
         },
         |s: CState| s.vol_attached
     );
@@ -215,8 +215,8 @@ proof fn liveness()
         sm_spec().entails(
             eventually(lift_state(
                 |s: CState| {
-                    &&& resource_exists(s, new_strlit("my_cr_sts_pod1")@)
-                    &&& resource_exists(s, new_strlit("my_cr_vol1")@)
+                    &&& resource_exists(s, new_strlit("app_sts_pod")@)
+                    &&& resource_exists(s, new_strlit("app_vol")@)
                     &&& s.vol_attached
                 }
             ))),
@@ -227,21 +227,21 @@ proof fn liveness()
     lemma_always_attach_after_create();
     always_and_eventually::<CState>(sm_spec(),
         |s: CState| {
-            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_cr_sts_pod1")@)
-            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_cr_vol1")@)
+            &&& s.vol_attached ==> resource_exists(s, new_strlit("app_sts_pod")@)
+            &&& s.vol_attached ==> resource_exists(s, new_strlit("app_vol")@)
         },
         |s: CState| s.vol_attached
     );
 
     eventually_weaken::<CState>(sm_spec(),
         |s: CState| {
-            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_cr_sts_pod1")@)
-            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_cr_vol1")@)
+            &&& s.vol_attached ==> resource_exists(s, new_strlit("app_sts_pod")@)
+            &&& s.vol_attached ==> resource_exists(s, new_strlit("app_vol")@)
             &&& s.vol_attached
         },
         |s: CState| {
-            &&& resource_exists(s, new_strlit("my_cr_sts_pod1")@)
-            &&& resource_exists(s, new_strlit("my_cr_vol1")@)
+            &&& resource_exists(s, new_strlit("app_sts_pod")@)
+            &&& resource_exists(s, new_strlit("app_vol")@)
             &&& s.vol_attached
         }
     );

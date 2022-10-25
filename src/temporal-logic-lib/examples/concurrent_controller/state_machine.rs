@@ -16,7 +16,7 @@ pub enum ResourceObj {
     CustomResource,
     StatefulSet,
     Pod,
-    Volume{attached: bool},
+    Volume,
 }
 
 #[is_variant]
@@ -105,9 +105,7 @@ pub open spec fn create_vol_req_msg(name: Seq<char>) -> Message {
     Message::CreateRequest(CreateRequestMessage{
         name: name,
         kind: ResourceKind::VolumeKind,
-        obj: ResourceObj::Volume{
-            attached: false,
-        },
+        obj: ResourceObj::Volume,
     })
 }
 
@@ -128,7 +126,7 @@ pub open spec fn update_resources_with(s: CState, msg: CreateRequestMessage) -> 
 
 pub open spec fn update_messages_with(s: CState, msg: CreateRequestMessage) -> Set<Message> {
     if msg.obj.is_StatefulSet() {
-        s.messages.insert(create_resp_msg(msg.name, msg.kind)).insert(create_pod_req_msg(msg.name + new_strlit("_pod1")@))
+        s.messages.insert(create_resp_msg(msg.name, msg.kind)).insert(create_pod_req_msg(msg.name + new_strlit("_pod")@))
     } else {
         s.messages.insert(create_resp_msg(msg.name, msg.kind))
     }
@@ -147,7 +145,7 @@ pub open spec fn user_send_create_cr() -> ActionPred<CState> {
     |s, s_prime| {
         &&& init()(s)
         &&& s_prime === CState {
-            messages: s.messages.insert(create_cr_req_msg(new_strlit("my_cr")@)),
+            messages: s.messages.insert(create_cr_req_msg(new_strlit("app")@)),
             ..s
         }
     }
@@ -183,7 +181,7 @@ pub open spec fn controller_send_create_vol(msg: Message) -> ActionPred<CState> 
     |s, s_prime| {
         &&& controller_send_create_vol_pre(msg)(s)
         &&& s_prime === CState {
-            messages: s.messages.insert(create_vol_req_msg(msg.get_CreateResponse_0().name + new_strlit("_vol1")@)),
+            messages: s.messages.insert(create_vol_req_msg(msg.get_CreateResponse_0().name + new_strlit("_vol")@)),
             ..s
         }
     }
@@ -209,8 +207,8 @@ pub open spec fn k8s_handle_create(msg: Message) -> ActionPred<CState> {
 
 pub open spec fn k8s_attach_vol_to_pod_pre() -> StatePred<CState> {
     |s| {
-        &&& resource_exists(s, new_strlit("my_cr_sts_pod1")@)
-        &&& resource_exists(s, new_strlit("my_cr_vol1")@)
+        &&& resource_exists(s, new_strlit("app_sts_pod")@)
+        &&& resource_exists(s, new_strlit("app_vol")@)
     }
 }
 
@@ -257,7 +255,7 @@ pub proof fn user_send_create_cr_enabled()
     assert forall |s| state_pred_call(init(), s)
     implies enabled(user_send_create_cr())(s) by {
         let witness_s_prime = CState {
-            messages: s.messages.insert(create_cr_req_msg(new_strlit("my_cr")@)),
+            messages: s.messages.insert(create_cr_req_msg(new_strlit("app")@)),
             ..s
         };
         assert(action_pred_call(user_send_create_cr(), s, witness_s_prime));
@@ -287,7 +285,7 @@ pub proof fn controller_send_create_vol_enabled(msg: Message)
     assert forall |s| state_pred_call(controller_send_create_vol_pre(msg), s)
     implies enabled(controller_send_create_vol(msg))(s) by {
         let witness_s_prime = CState {
-            messages: s.messages.insert(create_vol_req_msg(msg.get_CreateResponse_0().name + new_strlit("_vol1")@)),
+            messages: s.messages.insert(create_vol_req_msg(msg.get_CreateResponse_0().name + new_strlit("_vol")@)),
             ..s
         };
         assert(action_pred_call(controller_send_create_vol(msg), s, witness_s_prime));
