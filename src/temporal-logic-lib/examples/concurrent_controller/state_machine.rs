@@ -70,6 +70,18 @@ pub struct CState {
  *
  */
 
+pub open spec fn sts_suffix() -> Seq<char> {
+    new_strlit("_sts")@
+}
+
+pub open spec fn pod_suffix() -> Seq<char> {
+    new_strlit("_pod")@
+}
+
+pub open spec fn vol_suffix() -> Seq<char> {
+    new_strlit("_vol")@
+}
+
 pub open spec fn message_sent(s: CState, m: Message) -> bool {
     s.messages.contains(m)
 }
@@ -135,12 +147,11 @@ pub open spec fn update_resources_with(s: CState, msg: CreateRequestMessage) -> 
 pub open spec fn update_messages_with(s: CState, msg: CreateRequestMessage) -> Set<Message> {
     if msg.obj.is_StatefulSet() {
         // TODO: the number of pods created here should depend on the replica field in the sts
-        s.messages.insert(create_resp_msg(msg.name, msg.kind)).insert(create_pod_req_msg(msg.name + new_strlit("_pod")@))
+        s.messages.insert(create_resp_msg(msg.name, msg.kind)).insert(create_pod_req_msg(msg.name + pod_suffix()))
     } else {
         s.messages.insert(create_resp_msg(msg.name, msg.kind))
     }
 }
-
 
 pub open spec fn init() -> StatePred<CState> {
     |s: CState| {
@@ -176,7 +187,7 @@ pub open spec fn controller_send_create_sts(msg: Message) -> ActionPred<CState> 
     |s, s_prime| {
         &&& controller_send_create_sts_pre(msg)(s)
         &&& s_prime === CState {
-            messages: s.messages.insert(create_sts_req_msg(msg.get_CreateResponse_0().name + new_strlit("_sts")@)),
+            messages: s.messages.insert(create_sts_req_msg(msg.get_CreateResponse_0().name + sts_suffix())),
             ..s
         }
     }
@@ -194,7 +205,7 @@ pub open spec fn controller_send_create_vol(msg: Message) -> ActionPred<CState> 
     |s, s_prime| {
         &&& controller_send_create_vol_pre(msg)(s)
         &&& s_prime === CState {
-            messages: s.messages.insert(create_vol_req_msg(msg.get_CreateResponse_0().name + new_strlit("_vol")@)),
+            messages: s.messages.insert(create_vol_req_msg(msg.get_CreateResponse_0().name + vol_suffix())),
             ..s
         }
     }
@@ -220,8 +231,8 @@ pub open spec fn k8s_handle_create(msg: Message) -> ActionPred<CState> {
 
 pub open spec fn k8s_attach_vol_to_pod_pre(cr_name: Seq<char>) -> StatePred<CState> {
     |s| {
-        &&& resource_exists(s, cr_name + new_strlit("_sts")@ + new_strlit("_pod")@)
-        &&& resource_exists(s, cr_name + new_strlit("_vol")@)
+        &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
+        &&& resource_exists(s, cr_name + vol_suffix())
     }
 }
 
@@ -300,7 +311,7 @@ pub proof fn controller_send_create_sts_enabled(msg: Message)
     assert forall |s| state_pred_call(controller_send_create_sts_pre(msg), s)
     implies enabled(controller_send_create_sts(msg))(s) by {
         let witness_s_prime = CState {
-            messages: s.messages.insert(create_sts_req_msg(msg.get_CreateResponse_0().name + new_strlit("_sts")@)),
+            messages: s.messages.insert(create_sts_req_msg(msg.get_CreateResponse_0().name + sts_suffix())),
             ..s
         };
         assert(action_pred_call(controller_send_create_sts(msg), s, witness_s_prime));
@@ -315,7 +326,7 @@ pub proof fn controller_send_create_vol_enabled(msg: Message)
     assert forall |s| state_pred_call(controller_send_create_vol_pre(msg), s)
     implies enabled(controller_send_create_vol(msg))(s) by {
         let witness_s_prime = CState {
-            messages: s.messages.insert(create_vol_req_msg(msg.get_CreateResponse_0().name + new_strlit("_vol")@)),
+            messages: s.messages.insert(create_vol_req_msg(msg.get_CreateResponse_0().name + vol_suffix())),
             ..s
         };
         assert(action_pred_call(controller_send_create_vol(msg), s, witness_s_prime));
