@@ -47,6 +47,7 @@ pub struct CreateResponseMessage {
 pub struct CState {
     pub resources: Map<Seq<char>, ResourceObj>,
     pub messages: Set<Message>,
+    // TODO: vol_attached should be a field in Volume or Pod
     pub vol_attached: bool,
 }
 
@@ -126,6 +127,7 @@ pub open spec fn update_resources_with(s: CState, msg: CreateRequestMessage) -> 
 
 pub open spec fn update_messages_with(s: CState, msg: CreateRequestMessage) -> Set<Message> {
     if msg.obj.is_StatefulSet() {
+        // TODO: the number of pods created here should depend on the replica field in the sts
         s.messages.insert(create_resp_msg(msg.name, msg.kind)).insert(create_pod_req_msg(msg.name + new_strlit("_pod")@))
     } else {
         s.messages.insert(create_resp_msg(msg.name, msg.kind))
@@ -141,6 +143,7 @@ pub open spec fn init() -> StatePred<CState> {
     }
 }
 
+// TODO: get rid of hardcoded strlit
 pub open spec fn user_send_create_cr() -> ActionPred<CState> {
     |s, s_prime| {
         &&& init()(s)
@@ -205,6 +208,7 @@ pub open spec fn k8s_handle_create(msg: Message) -> ActionPred<CState> {
     }
 }
 
+// TODO: get rid of hardcoded strlit
 pub open spec fn k8s_attach_vol_to_pod_pre() -> StatePred<CState> {
     |s| {
         &&& resource_exists(s, new_strlit("app_sts_pod")@)
