@@ -237,15 +237,28 @@ pub open spec fn stutter() -> ActionPred<CState> {
     |s, s_prime| s === s_prime
 }
 
-pub open spec fn next() -> ActionPred<CState> {
-    |s, s_prime| {
-        ||| user_send_create_cr()(s, s_prime)
-        ||| exists |msg| #[trigger] action_pred_call(controller_send_create_sts(msg), s, s_prime)
-        ||| exists |msg| #[trigger] action_pred_call(controller_send_create_vol(msg), s, s_prime)
-        ||| exists |msg| #[trigger] action_pred_call(k8s_handle_create(msg), s, s_prime)
-        ||| k8s_attach_vol_to_pod()(s, s_prime)
-        ||| stutter()(s, s_prime)
+pub enum ActionLabel {
+    UserSendCreateCr,
+    ControllerSendCreateSts(Message),
+    ControllerSendCreateVol(Message),
+    K8sHandleCreate(Message),
+    K8sAttachVolToPod,
+    Stutter
+}
+
+pub open spec fn next_step(s: CState, s_prime: CState, action_label: ActionLabel) -> bool {
+    match action_label {
+        ActionLabel::UserSendCreateCr => user_send_create_cr()(s, s_prime),
+        ActionLabel::ControllerSendCreateSts(msg) => controller_send_create_sts(msg)(s, s_prime),
+        ActionLabel::ControllerSendCreateVol(msg) => controller_send_create_vol(msg)(s, s_prime),
+        ActionLabel::K8sHandleCreate(msg) => k8s_handle_create(msg)(s, s_prime),
+        ActionLabel::K8sAttachVolToPod => k8s_attach_vol_to_pod()(s, s_prime),
+        ActionLabel::Stutter => stutter()(s, s_prime),
     }
+}
+
+pub open spec fn next() -> ActionPred<CState> {
+    |s, s_prime| exists |action_label| next_step(s, s_prime, action_label)
 }
 
 pub open spec fn sm_spec() -> TempPred<CState> {
