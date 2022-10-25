@@ -150,10 +150,14 @@ pub open spec fn init() -> StatePred<CState> {
     }
 }
 
+pub open spec fn user_send_create_cr_pre() -> StatePred<CState> {
+    |s: CState| true
+}
+
 // TODO: get rid of hardcoded strlit
 pub open spec fn user_send_create_cr() -> ActionPred<CState> {
     |s, s_prime| {
-        &&& init()(s)
+        &&& user_send_create_cr_pre()(s)
         &&& s_prime === CState {
             messages: s.messages.insert(create_cr_req_msg(new_strlit("app")@)),
             ..s
@@ -273,10 +277,10 @@ pub open spec fn sm_spec() -> TempPred<CState> {
 
 pub proof fn user_send_create_cr_enabled()
     ensures
-        forall |s| state_pred_call(init(), s)
+        forall |s| state_pred_call(user_send_create_cr_pre(), s)
             ==> enabled(user_send_create_cr())(s),
 {
-    assert forall |s| state_pred_call(init(), s)
+    assert forall |s| state_pred_call(user_send_create_cr_pre(), s)
     implies enabled(user_send_create_cr())(s) by {
         let witness_s_prime = CState {
             messages: s.messages.insert(create_cr_req_msg(new_strlit("app")@)),

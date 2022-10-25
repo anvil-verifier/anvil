@@ -43,9 +43,15 @@ proof fn lemma_init_leads_to_pod_exists()
         next(),
         user_send_create_cr(),
         k8s_handle_create(create_cr_req_msg(new_strlit("app")@)),
-        init(),
+        user_send_create_cr_pre(),
         k8s_handle_create_pre(create_cr_req_msg(new_strlit("app")@)),
-        |s| message_sent(s, create_cr_resp_msg(new_strlit("app")@)),
+        |s| message_sent(s, create_cr_resp_msg(new_strlit("app")@))
+    );
+
+    leads_to_weaken_left::<CState>(sm_spec(),
+        user_send_create_cr_pre(),
+        init(),
+        |s| message_sent(s, create_cr_resp_msg(new_strlit("app")@))
     );
 
     reveal_strlit("app");
@@ -119,9 +125,15 @@ proof fn lemma_init_leads_to_vol_exists()
         next(),
         user_send_create_cr(),
         k8s_handle_create(create_cr_req_msg(new_strlit("app")@)),
-        init(),
+        user_send_create_cr_pre(),
         k8s_handle_create_pre(create_cr_req_msg(new_strlit("app")@)),
-        |s| message_sent(s, create_cr_resp_msg(new_strlit("app")@)),
+        |s| message_sent(s, create_cr_resp_msg(new_strlit("app")@))
+    );
+
+    leads_to_weaken_left::<CState>(sm_spec(),
+        user_send_create_cr_pre(),
+        init(),
+        |s| message_sent(s, create_cr_resp_msg(new_strlit("app")@))
     );
 
     reveal_strlit("app");
