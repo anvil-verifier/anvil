@@ -21,6 +21,8 @@ proof fn strlit_concat_equality(s1: Seq<char>, s2: Seq<char>, s: Seq<char>)
 {
     assert(s.ext_equal(s1 + s2));
 }
+// This is only useful when we want to prove:
+// strlit_new("a")@ + strlit_new("b")@ === strlit_new("ab")@
 
 
 proof fn lemma_init_leads_to_pod_exists(cr_name: Seq<char>)
@@ -55,11 +57,6 @@ proof fn lemma_init_leads_to_pod_exists(cr_name: Seq<char>)
         init(),
         |s| message_sent(s, create_cr_resp_msg(cr_name))
     );
-
-    reveal_strlit("app");
-    reveal_strlit("_sts");
-    reveal_strlit("app_sts");
-    strlit_concat_equality(cr_name, sts_suffix(), cr_name + sts_suffix());
 
     controller_send_create_sts_enabled(create_cr_resp_msg(cr_name));
     wf1::<CState>(sm_spec(),
