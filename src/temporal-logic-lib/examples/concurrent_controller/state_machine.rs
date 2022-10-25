@@ -12,20 +12,40 @@ use builtin_macros::*;
 verus! {
 
 #[is_variant]
-pub enum Resource {
+pub enum ResourceObj {
     CustomResource,
     StatefulSet,
     Pod,
     Volume{attached: bool},
 }
 
-pub struct Message {
+#[is_variant]
+pub enum ResourceKind {
+    CustomResourceKind,
+    StatefulSetKind,
+    PodKind,
+    VolumeKind,
+}
+
+#[is_variant]
+pub enum Message {
+    CreateRequest(CreateRequestMessage),
+    CreateResponse(CreateResponseMessage),
+}
+
+pub struct CreateRequestMessage {
     pub name: Seq<char>,
-    pub obj: Resource,
+    pub kind: ResourceKind,
+    pub obj: ResourceObj,
+}
+
+pub struct CreateResponseMessage {
+    pub name: Seq<char>,
+    pub kind: ResourceKind,
 }
 
 pub struct CState {
-    pub resources: Map<Seq<char>, Resource>,
+    pub resources: Map<Seq<char>, ResourceObj>,
     pub messages: Set<Message>,
     pub vol_attached: bool,
 }
@@ -57,38 +77,48 @@ pub open spec fn resource_exists(s: CState, key: Seq<char>) -> bool {
     s.resources.dom().contains(key)
 }
 
-
-pub open spec fn create_cr_msg(name: Seq<char>) -> Message {
-    Message {
+pub open spec fn create_cr_req_msg(name: Seq<char>) -> Message {
+    Message::CreateRequest(CreateRequestMessage{
         name: name,
-        obj: Resource::CustomResource,
-    }
+        kind: ResourceKind::CustomResourceKind,
+        obj: ResourceObj::CustomResource,
+    })
 }
 
-pub open spec fn create_sts_msg(name: Seq<char>) -> Message {
-    Message {
+pub open spec fn create_sts_req_msg(name: Seq<char>) -> Message {
+    Message::CreateRequest(CreateRequestMessage{
         name: name,
-        obj: Resource::StatefulSet,
-    }
+        kind: ResourceKind::StatefulSetKind,
+        obj: ResourceObj::StatefulSet,
+    })
 }
 
-pub open spec fn create_pod_msg(name: Seq<char>) -> Message {
-    Message {
+pub open spec fn create_pod_req_msg(name: Seq<char>) -> Message {
+    Message::CreateRequest(CreateRequestMessage{
         name: name,
-        obj: Resource::Pod,
-    }
+        kind: ResourceKind::PodKind,
+        obj: ResourceObj::Pod,
+    })
 }
 
-pub open spec fn create_vol_msg(name: Seq<char>) -> Message {
-    Message {
+pub open spec fn create_vol_req_msg(name: Seq<char>) -> Message {
+    Message::CreateRequest(CreateRequestMessage{
         name: name,
-        obj: Resource::Volume{
+        kind: ResourceKind::VolumeKind,
+        obj: ResourceObj::Volume{
             attached: false,
         },
-    }
+    })
 }
 
-pub open spec fn update_resources_with(s: CState, msg: Message) -> Map<Seq<char>, Resource> {
+pub open spec fn create_resp_msg(name: Seq<char>, kind: ResourceKind) -> Message {
+    Message::CreateResponse(CreateResponseMessage{
+        name: name,
+        kind: kind,
+    })
+}
+
+pub open spec fn update_resources_with(s: CState, msg: CreateRequestMessage) -> Map<Seq<char>, ResourceObj> {
     if s.resources.dom().contains(msg.name) {
         s.resources
     } else {
@@ -96,11 +126,11 @@ pub open spec fn update_resources_with(s: CState, msg: Message) -> Map<Seq<char>
     }
 }
 
-pub open spec fn update_messages_with(s: CState, msg: Message) -> Set<Message> {
+pub open spec fn update_messages_with(s: CState, msg: CreateRequestMessage) -> Set<Message> {
     if msg.obj.is_StatefulSet() {
-        s.messages.insert(create_pod_msg(msg.name + new_strlit("_pod1")@))
+        s.messages.insert(create_resp_msg(msg.name, msg.kind)).insert(create_pod_req_msg(msg.name + new_strlit("_pod1")@))
     } else {
-        s.messages
+        s.messages.insert(create_resp_msg(msg.name, msg.kind))
     }
 }
 
@@ -117,57 +147,61 @@ pub open spec fn user_send_create_cr() -> ActionPred<CState> {
     |s, s_prime| {
         &&& init()(s)
         &&& s_prime === CState {
-            messages: s.messages.insert(create_cr_msg(new_strlit("my_cr")@)),
+            messages: s.messages.insert(create_cr_req_msg(new_strlit("my_cr")@)),
             ..s
         }
     }
 }
 
-pub open spec fn controller_send_create_sts_pre() -> StatePred<CState> {
+pub open spec fn controller_send_create_sts_pre(msg: Message) -> StatePred<CState> {
     |s| {
-        &&& resource_exists(s, new_strlit("my_cr")@)
-        &&& !message_sent(s, create_sts_msg(new_strlit("my_statefulset")@))
+        &&& message_sent(s, msg)
+        &&& msg.is_CreateResponse()
+        &&& msg.get_CreateResponse_0().kind.is_CustomResourceKind()
     }
 }
 
-pub open spec fn controller_send_create_sts() -> ActionPred<CState> {
+pub open spec fn controller_send_create_sts(msg: Message) -> ActionPred<CState> {
     |s, s_prime| {
-        &&& controller_send_create_sts_pre()(s)
+        &&& controller_send_create_sts_pre(msg)(s)
         &&& s_prime === CState {
-            messages: s.messages.insert(create_sts_msg(new_strlit("my_statefulset")@)),
+            messages: s.messages.insert(create_sts_req_msg(msg.get_CreateResponse_0().name + new_strlit("_sts")@)),
             ..s
         }
     }
 }
 
-pub open spec fn controller_send_create_vol_pre() -> StatePred<CState> {
+pub open spec fn controller_send_create_vol_pre(msg: Message) -> StatePred<CState> {
     |s| {
-        &&& resource_exists(s, new_strlit("my_cr")@)
-        &&& !message_sent(s, create_vol_msg(new_strlit("my_volume1")@))
+        &&& message_sent(s, msg)
+        &&& msg.is_CreateResponse()
+        &&& msg.get_CreateResponse_0().kind.is_CustomResourceKind()
     }
 }
 
-pub open spec fn controller_send_create_vol() -> ActionPred<CState> {
+pub open spec fn controller_send_create_vol(msg: Message) -> ActionPred<CState> {
     |s, s_prime| {
-        &&& controller_send_create_vol_pre()(s)
+        &&& controller_send_create_vol_pre(msg)(s)
         &&& s_prime === CState {
-            messages: s.messages.insert(create_vol_msg(new_strlit("my_volume1")@)),
+            messages: s.messages.insert(create_vol_req_msg(msg.get_CreateResponse_0().name + new_strlit("_vol1")@)),
             ..s
         }
     }
 }
 
 pub open spec fn k8s_handle_create_pre(msg: Message) -> StatePred<CState> {
-    |s| message_sent(s, msg)
+    |s| {
+        &&& message_sent(s, msg)
+        &&& msg.is_CreateRequest()
+    }
 }
 
-// TODO: k8s_handle_create should not be hardcoded to my_xxx
 pub open spec fn k8s_handle_create(msg: Message) -> ActionPred<CState> {
     |s, s_prime| {
         &&& k8s_handle_create_pre(msg)(s)
         &&& s_prime === CState {
-            resources: update_resources_with(s, msg),
-            messages: update_messages_with(s, msg),
+            resources: update_resources_with(s, msg.get_CreateRequest_0()),
+            messages: update_messages_with(s, msg.get_CreateRequest_0()),
             ..s
         }
     }
@@ -175,8 +209,8 @@ pub open spec fn k8s_handle_create(msg: Message) -> ActionPred<CState> {
 
 pub open spec fn k8s_attach_vol_to_pod_pre() -> StatePred<CState> {
     |s| {
-        &&& resource_exists(s, new_strlit("my_statefulset_pod1")@)
-        &&& resource_exists(s, new_strlit("my_volume1")@)
+        &&& resource_exists(s, new_strlit("my_cr_sts_pod1")@)
+        &&& resource_exists(s, new_strlit("my_cr_vol1")@)
     }
 }
 
@@ -197,8 +231,8 @@ pub open spec fn stutter() -> ActionPred<CState> {
 pub open spec fn next() -> ActionPred<CState> {
     |s, s_prime| {
         ||| user_send_create_cr()(s, s_prime)
-        ||| controller_send_create_sts()(s, s_prime)
-        ||| controller_send_create_vol()(s, s_prime)
+        ||| exists |msg| #[trigger] action_pred_call(controller_send_create_sts(msg), s, s_prime)
+        ||| exists |msg| #[trigger] action_pred_call(controller_send_create_vol(msg), s, s_prime)
         ||| exists |msg| #[trigger] action_pred_call(k8s_handle_create(msg), s, s_prime)
         ||| k8s_attach_vol_to_pod()(s, s_prime)
         ||| stutter()(s, s_prime)
@@ -209,8 +243,8 @@ pub open spec fn sm_spec() -> TempPred<CState> {
     lift_state(init())
     .and(always(lift_action(next())))
     .and(weak_fairness(user_send_create_cr()))
-    .and(weak_fairness(controller_send_create_sts()))
-    .and(weak_fairness(controller_send_create_vol()))
+    .and(tla_forall(|msg| weak_fairness(controller_send_create_sts(msg))))
+    .and(tla_forall(|msg| weak_fairness(controller_send_create_vol(msg))))
     .and(tla_forall(|msg| weak_fairness(k8s_handle_create(msg))))
     .and(weak_fairness(k8s_attach_vol_to_pod()))
 }
@@ -223,49 +257,40 @@ pub proof fn user_send_create_cr_enabled()
     assert forall |s| state_pred_call(init(), s)
     implies enabled(user_send_create_cr())(s) by {
         let witness_s_prime = CState {
-            messages: s.messages.insert(create_cr_msg(new_strlit("my_cr")@)),
+            messages: s.messages.insert(create_cr_req_msg(new_strlit("my_cr")@)),
             ..s
         };
         assert(action_pred_call(user_send_create_cr(), s, witness_s_prime));
     };
 }
 
-/// Note that in some cases we need to call reveal_strlit to tell Verus two strings are not the same, like:
-///
-/// reveal_strlit("my_volume1");
-/// reveal_strlit("my_statefulset");
-/// assert(!new_strlit("my_statefulset")@.ext_equal(new_strlit("my_volume1")@));
-/// assert(new_strlit("my_statefulset")@ !== new_strlit("my_volume1")@);
-///
-/// TODO: run it with Verus team
-
-pub proof fn controller_send_create_sts_enabled()
+pub proof fn controller_send_create_sts_enabled(msg: Message)
     ensures
-        forall |s| state_pred_call(controller_send_create_sts_pre(), s)
-            ==> enabled(controller_send_create_sts())(s),
+        forall |s| state_pred_call(controller_send_create_sts_pre(msg), s)
+            ==> enabled(controller_send_create_sts(msg))(s),
 {
-    assert forall |s| state_pred_call(controller_send_create_sts_pre(), s)
-    implies enabled(controller_send_create_sts())(s) by {
+    assert forall |s| state_pred_call(controller_send_create_sts_pre(msg), s)
+    implies enabled(controller_send_create_sts(msg))(s) by {
         let witness_s_prime = CState {
-            messages: s.messages.insert(create_sts_msg(new_strlit("my_statefulset")@)),
+            messages: s.messages.insert(create_sts_req_msg(msg.get_CreateResponse_0().name + new_strlit("_sts")@)),
             ..s
         };
-        assert(action_pred_call(controller_send_create_sts(), s, witness_s_prime));
+        assert(action_pred_call(controller_send_create_sts(msg), s, witness_s_prime));
     };
 }
 
-pub proof fn controller_send_create_vol_enabled()
+pub proof fn controller_send_create_vol_enabled(msg: Message)
     ensures
-        forall |s| state_pred_call(controller_send_create_vol_pre(), s)
-            ==> enabled(controller_send_create_vol())(s),
+        forall |s| state_pred_call(controller_send_create_vol_pre(msg), s)
+            ==> enabled(controller_send_create_vol(msg))(s),
 {
-    assert forall |s| state_pred_call(controller_send_create_vol_pre(), s)
-    implies enabled(controller_send_create_vol())(s) by {
+    assert forall |s| state_pred_call(controller_send_create_vol_pre(msg), s)
+    implies enabled(controller_send_create_vol(msg))(s) by {
         let witness_s_prime = CState {
-            messages: s.messages.insert(create_vol_msg(new_strlit("my_volume1")@)),
+            messages: s.messages.insert(create_vol_req_msg(msg.get_CreateResponse_0().name + new_strlit("_vol1")@)),
             ..s
         };
-        assert(action_pred_call(controller_send_create_vol(), s, witness_s_prime));
+        assert(action_pred_call(controller_send_create_vol(msg), s, witness_s_prime));
     };
 }
 
@@ -277,8 +302,8 @@ pub proof fn k8s_handle_create_enabled(msg: Message)
     assert forall |s| state_pred_call(k8s_handle_create_pre(msg), s)
     implies enabled(k8s_handle_create(msg))(s) by {
         let witness_s_prime = CState {
-            resources: update_resources_with(s, msg),
-            messages: update_messages_with(s, msg),
+            resources: update_resources_with(s, msg.get_CreateRequest_0()),
+            messages: update_messages_with(s, msg.get_CreateRequest_0()),
             ..s
         };
         assert(action_pred_call(k8s_handle_create(msg), s, witness_s_prime));

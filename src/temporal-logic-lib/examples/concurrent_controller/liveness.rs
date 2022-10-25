@@ -27,100 +27,76 @@ proof fn lemma_init_leads_to_pod1_exists()
     ensures
         sm_spec()
             .entails(lift_state(init())
-                .leads_to(lift_state(|s| resource_exists(s, new_strlit("my_statefulset_pod1")@)))),
+                .leads_to(lift_state(|s| resource_exists(s, new_strlit("my_cr_sts_pod1")@)))),
 {
     leads_to_eq_auto::<CState>(sm_spec());
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_msg(new_strlit("my_cr")@));
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_sts_msg(new_strlit("my_statefulset")@));
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_pod_msg(new_strlit("my_statefulset_pod1")@));
+
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(controller_send_create_sts(msg)), create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind));
+
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_req_msg(new_strlit("my_cr")@));
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_sts_req_msg(new_strlit("my_cr_sts")@));
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_pod_req_msg(new_strlit("my_cr_sts_pod1")@));
 
     user_send_create_cr_enabled();
-    k8s_handle_create_enabled(create_cr_msg(new_strlit("my_cr")@));
+    k8s_handle_create_enabled(create_cr_req_msg(new_strlit("my_cr")@));
     wf1_chain::<CState>(sm_spec(),
         next(),
         user_send_create_cr(),
-        k8s_handle_create(create_cr_msg(new_strlit("my_cr")@)),
+        k8s_handle_create(create_cr_req_msg(new_strlit("my_cr")@)),
         init(),
-        k8s_handle_create_pre(create_cr_msg(new_strlit("my_cr")@)),
-        |s| resource_exists(s, new_strlit("my_cr")@),
+        k8s_handle_create_pre(create_cr_req_msg(new_strlit("my_cr")@)),
+        |s| message_sent(s, create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
     );
 
-    controller_send_create_sts_enabled();
+    reveal_strlit("my_cr");
+    reveal_strlit("_sts");
+    reveal_strlit("my_cr_sts");
+    strlit_concat_equality(new_strlit("my_cr")@, new_strlit("_sts")@, new_strlit("my_cr_sts")@);
+
+    controller_send_create_sts_enabled(create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind));
     wf1::<CState>(sm_spec(),
         next(),
-        controller_send_create_sts(),
-        |s| {
-            &&& resource_exists(s, new_strlit("my_cr")@)
-            &&& !message_sent(s, create_sts_msg(new_strlit("my_statefulset")@))
-        },
-        |s| message_sent(s, create_sts_msg(new_strlit("my_statefulset")@))
-    );
-    leads_to_assume_not::<CState>(sm_spec(),
-        |s| resource_exists(s, new_strlit("my_cr")@),
-        |s| message_sent(s, create_sts_msg(new_strlit("my_statefulset")@))
+        controller_send_create_sts(create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
+        controller_send_create_sts_pre(create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
+        |s| message_sent(s, create_sts_req_msg(new_strlit("my_cr_sts")@))
     );
 
-    // We have to reveal the three strlit and prove that
-    // new_strlit("my_statefulset")@ + new_strlit("_pod1")@ === new_strlit("my_statefulset_pod1")@
-    // Otherwise, the next wf1 will only show:
-    // k8s_handle_create_pre(create_sts_msg(new_strlit("my_statefulset")@))
-    // leads to
-    // |s| {
-    //     &&& resource_exists(s, new_strlit("my_statefulset")@)
-    //     &&& message_sent(s, create_pod_msg(new_strlit("my_statefulset")@ + new_strlit("_pod1")@)
-    // }
-    reveal_strlit("my_statefulset");
+    leads_to_trans::<CState>(sm_spec(),
+        init(),
+        |s| message_sent(s, create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
+        |s| message_sent(s, create_sts_req_msg(new_strlit("my_cr_sts")@))
+    );
+
+    reveal_strlit("my_cr_sts");
     reveal_strlit("_pod1");
-    reveal_strlit("my_statefulset_pod1");
-    strlit_concat_equality(new_strlit("my_statefulset")@, new_strlit("_pod1")@, new_strlit("my_statefulset_pod1")@);
+    reveal_strlit("my_cr_sts_pod1");
+    strlit_concat_equality(new_strlit("my_cr_sts")@, new_strlit("_pod1")@, new_strlit("my_cr_sts_pod1")@);
 
-    k8s_handle_create_enabled(create_sts_msg(new_strlit("my_statefulset")@));
+    k8s_handle_create_enabled(create_sts_req_msg(new_strlit("my_cr_sts")@));
     wf1::<CState>(sm_spec(),
         next(),
-        k8s_handle_create(create_sts_msg(new_strlit("my_statefulset")@)),
-        k8s_handle_create_pre(create_sts_msg(new_strlit("my_statefulset")@)),
-        |s| {
-            &&& resource_exists(s, new_strlit("my_statefulset")@)
-            &&& message_sent(s, create_pod_msg(new_strlit("my_statefulset_pod1")@))
-        }
-    );
-
-    leads_to_trans::<CState>(sm_spec(),
-        |s| resource_exists(s, new_strlit("my_cr")@),
-        |s| message_sent(s, create_sts_msg(new_strlit("my_statefulset")@)),
-        |s| {
-            &&& resource_exists(s, new_strlit("my_statefulset")@)
-            &&& message_sent(s, create_pod_msg(new_strlit("my_statefulset_pod1")@))
-        }
-    );
-
-    leads_to_weaken_right::<CState>(sm_spec(),
-        |s| resource_exists(s, new_strlit("my_cr")@),
-        |s| {
-            &&& resource_exists(s, new_strlit("my_statefulset")@)
-            &&& message_sent(s, create_pod_msg(new_strlit("my_statefulset_pod1")@))
-        },
-        |s| message_sent(s, create_pod_msg(new_strlit("my_statefulset_pod1")@))
-    );
-
-    k8s_handle_create_enabled(create_pod_msg(new_strlit("my_statefulset_pod1")@));
-    wf1::<CState>(sm_spec(),
-        next(),
-        k8s_handle_create(create_pod_msg(new_strlit("my_statefulset_pod1")@)),
-        k8s_handle_create_pre(create_pod_msg(new_strlit("my_statefulset_pod1")@)),
-        |s| resource_exists(s, new_strlit("my_statefulset_pod1")@)
-    );
-    leads_to_trans::<CState>(sm_spec(),
-        |s| resource_exists(s, new_strlit("my_cr")@),
-        // |s| resource_exists(s, new_strlit("my_statefulset")@),
-        |s| message_sent(s, create_pod_msg(new_strlit("my_statefulset_pod1")@)),
-        |s| resource_exists(s, new_strlit("my_statefulset_pod1")@)
+        k8s_handle_create(create_sts_req_msg(new_strlit("my_cr_sts")@)),
+        k8s_handle_create_pre(create_sts_req_msg(new_strlit("my_cr_sts")@)),
+        |s| message_sent(s, create_pod_req_msg(new_strlit("my_cr_sts_pod1")@))
     );
 
     leads_to_trans::<CState>(sm_spec(),
         init(),
-        |s| resource_exists(s, new_strlit("my_cr")@),
-        |s| resource_exists(s, new_strlit("my_statefulset_pod1")@)
+        |s| message_sent(s, create_sts_req_msg(new_strlit("my_cr_sts")@)),
+        |s| message_sent(s, create_pod_req_msg(new_strlit("my_cr_sts_pod1")@))
+    );
+
+    k8s_handle_create_enabled(create_pod_req_msg(new_strlit("my_cr_sts_pod1")@));
+    wf1::<CState>(sm_spec(),
+        next(),
+        k8s_handle_create(create_pod_req_msg(new_strlit("my_cr_sts_pod1")@)),
+        k8s_handle_create_pre(create_pod_req_msg(new_strlit("my_cr_sts_pod1")@)),
+        |s| resource_exists(s, new_strlit("my_cr_sts_pod1")@)
+    );
+    leads_to_trans::<CState>(sm_spec(),
+        init(),
+        |s| message_sent(s, create_pod_req_msg(new_strlit("my_cr_sts_pod1")@)),
+        |s| resource_exists(s, new_strlit("my_cr_sts_pod1")@)
     );
 }
 
@@ -128,56 +104,57 @@ proof fn lemma_init_leads_to_vol1_exists()
     ensures
         sm_spec()
             .entails(lift_state(init())
-                .leads_to(lift_state(|s| resource_exists(s, new_strlit("my_volume1")@)))),
+                .leads_to(lift_state(|s| resource_exists(s, new_strlit("my_cr_vol1")@)))),
 {
     leads_to_eq_auto::<CState>(sm_spec());
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_msg(new_strlit("my_cr")@));
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_vol_msg(new_strlit("my_volume1")@));
+
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(controller_send_create_vol(msg)), create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind));
+
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_req_msg(new_strlit("my_cr")@));
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_vol_req_msg(new_strlit("my_cr_vol1")@));
 
     user_send_create_cr_enabled();
-    k8s_handle_create_enabled(create_cr_msg(new_strlit("my_cr")@));
+    k8s_handle_create_enabled(create_cr_req_msg(new_strlit("my_cr")@));
     wf1_chain::<CState>(sm_spec(),
         next(),
         user_send_create_cr(),
-        k8s_handle_create(create_cr_msg(new_strlit("my_cr")@)),
+        k8s_handle_create(create_cr_req_msg(new_strlit("my_cr")@)),
         init(),
-        k8s_handle_create_pre(create_cr_msg(new_strlit("my_cr")@)),
-        |s| resource_exists(s, new_strlit("my_cr")@),
+        k8s_handle_create_pre(create_cr_req_msg(new_strlit("my_cr")@)),
+        |s| message_sent(s, create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
     );
 
-    controller_send_create_vol_enabled();
+    reveal_strlit("my_cr");
+    reveal_strlit("_vol1");
+    reveal_strlit("my_cr_vol1");
+    strlit_concat_equality(new_strlit("my_cr")@, new_strlit("_vol1")@, new_strlit("my_cr_vol1")@);
+
+    controller_send_create_vol_enabled(create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind));
     wf1::<CState>(sm_spec(),
         next(),
-        controller_send_create_vol(),
-        |s| {
-            &&& resource_exists(s, new_strlit("my_cr")@)
-            &&& !message_sent(s, create_vol_msg(new_strlit("my_volume1")@))
-        },
-        |s| message_sent(s, create_vol_msg(new_strlit("my_volume1")@))
-    );
-    leads_to_assume_not::<CState>(sm_spec(),
-        |s| resource_exists(s, new_strlit("my_cr")@),
-        |s| message_sent(s, create_vol_msg(new_strlit("my_volume1")@))
-    );
-
-    k8s_handle_create_enabled(create_vol_msg(new_strlit("my_volume1")@));
-    wf1::<CState>(sm_spec(),
-        next(),
-        k8s_handle_create(create_vol_msg(new_strlit("my_volume1")@)),
-        k8s_handle_create_pre(create_vol_msg(new_strlit("my_volume1")@)),
-        |s| resource_exists(s, new_strlit("my_volume1")@)
-    );
-
-    leads_to_trans::<CState>(sm_spec(),
-        |s| resource_exists(s, new_strlit("my_cr")@),
-        |s| message_sent(s, create_vol_msg(new_strlit("my_volume1")@)),
-        |s| resource_exists(s, new_strlit("my_volume1")@)
+        controller_send_create_vol(create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
+        controller_send_create_vol_pre(create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
+        |s| message_sent(s, create_vol_req_msg(new_strlit("my_cr_vol1")@))
     );
 
     leads_to_trans::<CState>(sm_spec(),
         init(),
-        |s| resource_exists(s, new_strlit("my_cr")@),
-        |s| resource_exists(s, new_strlit("my_volume1")@)
+        |s| message_sent(s, create_resp_msg(new_strlit("my_cr")@, ResourceKind::CustomResourceKind)),
+        |s| message_sent(s, create_vol_req_msg(new_strlit("my_cr_vol1")@)),
+    );
+
+    k8s_handle_create_enabled(create_vol_req_msg(new_strlit("my_cr_vol1")@));
+    wf1::<CState>(sm_spec(),
+        next(),
+        k8s_handle_create(create_vol_req_msg(new_strlit("my_cr_vol1")@)),
+        k8s_handle_create_pre(create_vol_req_msg(new_strlit("my_cr_vol1")@)),
+        |s| resource_exists(s, new_strlit("my_cr_vol1")@)
+    );
+
+    leads_to_trans::<CState>(sm_spec(),
+        init(),
+        |s| message_sent(s, create_vol_req_msg(new_strlit("my_cr_vol1")@)),
+        |s| resource_exists(s, new_strlit("my_cr_vol1")@)
     );
 }
 
@@ -191,20 +168,20 @@ proof fn lemma_eventually_vol_attached()
     leads_to_stable::<CState>(sm_spec(),
         next(),
         init(),
-        |s| resource_exists(s, new_strlit("my_statefulset_pod1")@)
+        |s| resource_exists(s, new_strlit("my_cr_sts_pod1")@)
     );
 
     lemma_init_leads_to_vol1_exists();
     leads_to_stable::<CState>(sm_spec(),
         next(),
         init(),
-        |s| resource_exists(s, new_strlit("my_volume1")@)
+        |s| resource_exists(s, new_strlit("my_cr_vol1")@)
     );
 
     leads_to_always_combine_then_weaken::<CState>(sm_spec(),
         init(),
-        |s| resource_exists(s, new_strlit("my_statefulset_pod1")@),
-        |s| resource_exists(s, new_strlit("my_volume1")@)
+        |s| resource_exists(s, new_strlit("my_cr_sts_pod1")@),
+        |s| resource_exists(s, new_strlit("my_cr_vol1")@)
     );
 
     k8s_attach_vol_to_pod_enabled();
@@ -212,8 +189,8 @@ proof fn lemma_eventually_vol_attached()
         next(),
         k8s_attach_vol_to_pod(),
         |s| {
-            &&& resource_exists(s, new_strlit("my_statefulset_pod1")@)
-            &&& resource_exists(s, new_strlit("my_volume1")@)
+            &&& resource_exists(s, new_strlit("my_cr_sts_pod1")@)
+            &&& resource_exists(s, new_strlit("my_cr_vol1")@)
         },
         |s: CState| s.vol_attached
     );
@@ -221,8 +198,8 @@ proof fn lemma_eventually_vol_attached()
     leads_to_trans::<CState>(sm_spec(),
         init(),
         |s| {
-            &&& resource_exists(s, new_strlit("my_statefulset_pod1")@)
-            &&& resource_exists(s, new_strlit("my_volume1")@)
+            &&& resource_exists(s, new_strlit("my_cr_sts_pod1")@)
+            &&& resource_exists(s, new_strlit("my_cr_vol1")@)
         },
         |s: CState| s.vol_attached
     );
@@ -238,8 +215,8 @@ proof fn liveness()
         sm_spec().entails(
             eventually(lift_state(
                 |s: CState| {
-                    &&& resource_exists(s, new_strlit("my_statefulset_pod1")@)
-                    &&& resource_exists(s, new_strlit("my_volume1")@)
+                    &&& resource_exists(s, new_strlit("my_cr_sts_pod1")@)
+                    &&& resource_exists(s, new_strlit("my_cr_vol1")@)
                     &&& s.vol_attached
                 }
             ))),
@@ -250,21 +227,21 @@ proof fn liveness()
     lemma_always_attach_after_create();
     always_and_eventually::<CState>(sm_spec(),
         |s: CState| {
-            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_statefulset_pod1")@)
-            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_volume1")@)
+            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_cr_sts_pod1")@)
+            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_cr_vol1")@)
         },
         |s: CState| s.vol_attached
     );
 
     eventually_weaken::<CState>(sm_spec(),
         |s: CState| {
-            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_statefulset_pod1")@)
-            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_volume1")@)
+            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_cr_sts_pod1")@)
+            &&& s.vol_attached ==> resource_exists(s, new_strlit("my_cr_vol1")@)
             &&& s.vol_attached
         },
         |s: CState| {
-            &&& resource_exists(s, new_strlit("my_statefulset_pod1")@)
-            &&& resource_exists(s, new_strlit("my_volume1")@)
+            &&& resource_exists(s, new_strlit("my_cr_sts_pod1")@)
+            &&& resource_exists(s, new_strlit("my_cr_vol1")@)
             &&& s.vol_attached
         }
     );
