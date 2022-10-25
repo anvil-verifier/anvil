@@ -110,6 +110,13 @@ pub open spec fn create_vol_req_msg(name: Seq<char>) -> Message {
     })
 }
 
+pub open spec fn create_cr_resp_msg(name: Seq<char>) -> Message {
+    Message::CreateResponse(CreateResponseMessage{
+        name: name,
+        kind: ResourceKind::CustomResourceKind,
+    })
+}
+
 pub open spec fn create_resp_msg(name: Seq<char>, kind: ResourceKind) -> Message {
     Message::CreateResponse(CreateResponseMessage{
         name: name,

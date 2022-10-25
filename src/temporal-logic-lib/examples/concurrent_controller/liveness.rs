@@ -31,7 +31,7 @@ proof fn lemma_init_leads_to_pod_exists()
 {
     leads_to_eq_auto::<CState>(sm_spec());
 
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(controller_send_create_sts(msg)), create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind));
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(controller_send_create_sts(msg)), create_cr_resp_msg(new_strlit("app")@));
 
     use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_req_msg(new_strlit("app")@));
     use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_sts_req_msg(new_strlit("app_sts")@));
@@ -45,7 +45,7 @@ proof fn lemma_init_leads_to_pod_exists()
         k8s_handle_create(create_cr_req_msg(new_strlit("app")@)),
         init(),
         k8s_handle_create_pre(create_cr_req_msg(new_strlit("app")@)),
-        |s| message_sent(s, create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
+        |s| message_sent(s, create_cr_resp_msg(new_strlit("app")@)),
     );
 
     reveal_strlit("app");
@@ -53,17 +53,17 @@ proof fn lemma_init_leads_to_pod_exists()
     reveal_strlit("app_sts");
     strlit_concat_equality(new_strlit("app")@, new_strlit("_sts")@, new_strlit("app_sts")@);
 
-    controller_send_create_sts_enabled(create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind));
+    controller_send_create_sts_enabled(create_cr_resp_msg(new_strlit("app")@));
     wf1::<CState>(sm_spec(),
         next(),
-        controller_send_create_sts(create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
-        controller_send_create_sts_pre(create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
+        controller_send_create_sts(create_cr_resp_msg(new_strlit("app")@)),
+        controller_send_create_sts_pre(create_cr_resp_msg(new_strlit("app")@)),
         |s| message_sent(s, create_sts_req_msg(new_strlit("app_sts")@))
     );
 
     leads_to_trans::<CState>(sm_spec(),
         init(),
-        |s| message_sent(s, create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
+        |s| message_sent(s, create_cr_resp_msg(new_strlit("app")@)),
         |s| message_sent(s, create_sts_req_msg(new_strlit("app_sts")@))
     );
 
@@ -108,7 +108,7 @@ proof fn lemma_init_leads_to_vol_exists()
 {
     leads_to_eq_auto::<CState>(sm_spec());
 
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(controller_send_create_vol(msg)), create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind));
+    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(controller_send_create_vol(msg)), create_cr_resp_msg(new_strlit("app")@));
 
     use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_cr_req_msg(new_strlit("app")@));
     use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(k8s_handle_create(msg)), create_vol_req_msg(new_strlit("app_vol")@));
@@ -121,7 +121,7 @@ proof fn lemma_init_leads_to_vol_exists()
         k8s_handle_create(create_cr_req_msg(new_strlit("app")@)),
         init(),
         k8s_handle_create_pre(create_cr_req_msg(new_strlit("app")@)),
-        |s| message_sent(s, create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
+        |s| message_sent(s, create_cr_resp_msg(new_strlit("app")@)),
     );
 
     reveal_strlit("app");
@@ -129,17 +129,17 @@ proof fn lemma_init_leads_to_vol_exists()
     reveal_strlit("app_vol");
     strlit_concat_equality(new_strlit("app")@, new_strlit("_vol")@, new_strlit("app_vol")@);
 
-    controller_send_create_vol_enabled(create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind));
+    controller_send_create_vol_enabled(create_cr_resp_msg(new_strlit("app")@));
     wf1::<CState>(sm_spec(),
         next(),
-        controller_send_create_vol(create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
-        controller_send_create_vol_pre(create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
+        controller_send_create_vol(create_cr_resp_msg(new_strlit("app")@)),
+        controller_send_create_vol_pre(create_cr_resp_msg(new_strlit("app")@)),
         |s| message_sent(s, create_vol_req_msg(new_strlit("app_vol")@))
     );
 
     leads_to_trans::<CState>(sm_spec(),
         init(),
-        |s| message_sent(s, create_resp_msg(new_strlit("app")@, ResourceKind::CustomResourceKind)),
+        |s| message_sent(s, create_cr_resp_msg(new_strlit("app")@)),
         |s| message_sent(s, create_vol_req_msg(new_strlit("app_vol")@)),
     );
 
