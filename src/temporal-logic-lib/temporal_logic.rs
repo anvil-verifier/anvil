@@ -226,13 +226,23 @@ pub proof fn implies_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
         p.satisfied_by(ex) ==> q.satisfied_by(ex),
 {}
 
-#[verifier(external_body)]
+pub proof fn lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
+    requires
+        lift_action(p).satisfied_by(ex),
+    ensures
+        p(ex.head(), ex.head_next()),
+{}
+
 pub proof fn always_lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
     requires
         always(lift_action(p)).satisfied_by(ex),
     ensures
         forall |i: nat| #[trigger] action_pred_call(p, ex.suffix(i).head(), ex.suffix(i).head_next()),
-{}
+{
+    assert forall |i: nat| #[trigger] action_pred_call(p, ex.suffix(i).head(), ex.suffix(i).head_next()) by {
+        lift_action_unfold(ex.suffix(i), p);
+    };
+}
 
 pub proof fn init_invariant_rec<T>(ex: Execution<T>, init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>, i: nat)
     requires
