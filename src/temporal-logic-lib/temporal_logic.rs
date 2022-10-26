@@ -597,20 +597,38 @@ pub proof fn leads_to_trans<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<
     leads_to_trans_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }
 
-/// Gets (p1 leads_to q1) implies (p2 leads_to q2) if:
-/// (1) p2 implies p1 and (2) q1 implies q2.
-/// if we have |= p2 => p1 and |= q1 => q2
-/// then we have |= (p1 ~> q1) => (p2 ~> q2)
-/// TODO: have a generalized version: valid(implies(and(implies(p2, p1), implies(q1, q2)), implies(leads_to(p1, q1), leads_to(p2, q2))))
 #[verifier(external_body)]
-proof fn leads_to_weaken<T>(spec: TempPred<T>, p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>)
+pub proof fn implies_weaken_to_leads_to_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        valid(p.implies(q)),
+    ensures
+        valid(p.leads_to(q)),
+{}
+
+pub proof fn leads_to_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
+    requires
+        valid(p2.implies(p1)),
+        valid(q1.implies(q2)),
+        spec.entails(p1.leads_to(q1)),
+    ensures
+        spec.entails(p2.leads_to(q2)),
+{
+    implies_weaken_to_leads_to_temp::<T>(spec, p2, p1);
+    implies_weaken_to_leads_to_temp::<T>(spec, q1, q2);
+    leads_to_trans_temp::<T>(spec, p2, p1, q1);
+    leads_to_trans_temp::<T>(spec, p2, q1, q2);
+}
+
+pub proof fn leads_to_weaken<T>(spec: TempPred<T>, p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>)
     requires
         valid(lift_state(p2).implies(lift_state(p1))),
         valid(lift_state(q1).implies(lift_state(q2))),
         spec.entails(lift_state(p1).leads_to(lift_state(q1))),
     ensures
         spec.entails(lift_state(p2).leads_to(lift_state(q2))),
-{}
+{
+    leads_to_weaken_temp::<T>(spec, lift_state(p1), lift_state(q1), lift_state(p2), lift_state(q2));
+}
 
 pub proof fn leads_to_weaken_left<T>(spec: TempPred<T>, p1: StatePred<T>, p2: StatePred<T>, q: StatePred<T>)
     requires
@@ -632,24 +650,6 @@ pub proof fn leads_to_weaken_right<T>(spec: TempPred<T>, p: StatePred<T>, q1: St
     leads_to_weaken::<T>(spec, p, q1, p, q2);
 }
 
-#[verifier(external_body)]
-pub proof fn leads_to_always_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
-    requires
-        spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
-    ensures
-        spec.entails(lift_state(p).leads_to(lift_state(q))),
-{}
-
-#[verifier(external_body)]
-proof fn leads_to_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
-    requires
-        valid(p2.implies(p1)),
-        valid(q1.implies(q2)),
-        spec.entails(p1.leads_to(q1)),
-    ensures
-        spec.entails(p2.leads_to(q2)),
-{}
-
 pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
     ensures
         forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
@@ -662,6 +662,14 @@ pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
         leads_to_weaken_temp(spec, p1, q1, p2, q2);
     };
 }
+
+#[verifier(external_body)]
+pub proof fn leads_to_always_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
+    requires
+        spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
+    ensures
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
+{}
 
 #[verifier(external_body)]
 proof fn leads_to_eq<T>(spec: TempPred<T>, p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>)
