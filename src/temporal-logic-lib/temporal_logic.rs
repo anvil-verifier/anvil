@@ -189,7 +189,7 @@ pub open spec fn valid<T>(temp_pred: TempPred<T>) -> bool {
     forall |ex: Execution<T>| temp_pred.satisfied_by(ex)
 }
 
-pub proof fn implies_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+proof fn implies_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.implies(q).satisfied_by(ex),
         p.satisfied_by(ex),
@@ -197,7 +197,7 @@ pub proof fn implies_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
         q.satisfied_by(ex),
 {}
 
-pub proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.entails(q),
         p.satisfied_by(ex),
@@ -207,7 +207,7 @@ pub proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     assert(p.implies(q).satisfied_by(ex));
 }
 
-pub proof fn entails_apply_auto<T>()
+proof fn entails_apply_auto<T>()
     ensures
         forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>| #[trigger] p.entails(q) && p.satisfied_by(ex)
             ==> #[trigger] q.satisfied_by(ex),
@@ -219,7 +219,7 @@ pub proof fn entails_apply_auto<T>()
 }
 
 #[verifier(external_body)]
-pub proof fn entails_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+proof fn entails_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     requires
         p.entails(q),
         q.entails(r),
@@ -227,14 +227,14 @@ pub proof fn entails_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
         p.entails(r),
 {}
 
-pub proof fn always_unfold<T>(ex: Execution<T>, p: TempPred<T>)
+proof fn always_unfold<T>(ex: Execution<T>, p: TempPred<T>)
     requires
         always(p).satisfied_by(ex),
     ensures
         forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
 {}
 
-pub proof fn eventually_unfold<T>(ex: Execution<T>, p: TempPred<T>)
+proof fn eventually_unfold<T>(ex: Execution<T>, p: TempPred<T>)
     requires
         eventually(p).satisfied_by(ex),
     ensures
@@ -242,14 +242,14 @@ pub proof fn eventually_unfold<T>(ex: Execution<T>, p: TempPred<T>)
 {}
 
 #[verifier(external_body)]
-pub proof fn eventually_delay<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
+proof fn eventually_delay<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
     requires
         eventually(p).satisfied_by(ex.suffix(i)),
     ensures
         eventually(p).satisfied_by(ex),
 {}
 
-pub open spec fn eventually_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
+spec fn eventually_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
     recommends
         exists |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
 {
@@ -258,7 +258,7 @@ pub open spec fn eventually_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
 }
 
 #[verifier(external_body)]
-pub proof fn execution_suffix_merge<T>(ex: Execution<T>, p: TempPred<T>, i: nat, j: nat)
+proof fn execution_suffix_merge<T>(ex: Execution<T>, p: TempPred<T>, i: nat, j: nat)
     requires
         p.satisfied_by(ex.suffix(i).suffix(j)),
     ensures
@@ -266,7 +266,7 @@ pub proof fn execution_suffix_merge<T>(ex: Execution<T>, p: TempPred<T>, i: nat,
 {}
 
 #[verifier(external_body)]
-pub proof fn execution_suffix_tear<T>(ex: Execution<T>, p: TempPred<T>, i: nat, j: nat, k: nat)
+proof fn execution_suffix_tear<T>(ex: Execution<T>, p: TempPred<T>, i: nat, j: nat, k: nat)
     requires
         p.satisfied_by(ex.suffix(k)),
         k === i + j,
@@ -274,21 +274,21 @@ pub proof fn execution_suffix_tear<T>(ex: Execution<T>, p: TempPred<T>, i: nat, 
         p.satisfied_by(ex.suffix(i).suffix(j)),
 {}
 
-pub proof fn implies_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+proof fn implies_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.implies(q).satisfied_by(ex),
     ensures
         p.satisfied_by(ex) ==> q.satisfied_by(ex),
 {}
 
-pub proof fn lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
+proof fn lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
     requires
         lift_action(p).satisfied_by(ex),
     ensures
         p(ex.head(), ex.head_next()),
 {}
 
-pub proof fn always_lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
+proof fn always_lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
     requires
         always(lift_action(p)).satisfied_by(ex),
     ensures
@@ -299,7 +299,7 @@ pub proof fn always_lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
     };
 }
 
-pub proof fn init_invariant_rec<T>(ex: Execution<T>, init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>, i: nat)
+proof fn init_invariant_rec<T>(ex: Execution<T>, init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>, i: nat)
     requires
         init(ex.head()),
         forall |idx: nat| #[trigger] action_pred_call(next, ex.suffix(idx).head(), ex.suffix(idx).head_next()),
@@ -567,7 +567,6 @@ pub proof fn leads_to_trans_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPr
         assert forall |i: nat| #[trigger] p.satisfied_by(ex.suffix(i))
         implies eventually(r).satisfied_by(ex.suffix(i)) by {
             entails_apply(ex, spec, p.leads_to(q));
-
             always_unfold(ex, p.implies(eventually(q)));
             implies_apply(ex.suffix(i), p, eventually(q));
             eventually_unfold(ex.suffix(i), q);
