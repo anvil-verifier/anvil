@@ -65,7 +65,7 @@ pub struct CState {
  * k8s_handle_create(pod)           |
  *                    \             /
  *                     \           /
- *                 k8s_attach_vol_to_pod
+ *                 controller_attach_vol_to_pod
  *
  *
  */
@@ -145,7 +145,7 @@ pub open spec fn update_resources_with(s: CState, msg: CreateRequestMessage) -> 
 }
 
 pub open spec fn update_messages_with(s: CState, msg: CreateRequestMessage) -> Set<Message> {
-    if msg.obj.is_StatefulSet() {
+    if msg.kind.is_StatefulSetKind() {
         // TODO: the number of pods created here should depend on the replica field in the sts
         s.messages.insert(create_resp_msg(msg.name, msg.kind)).insert(create_pod_req_msg(msg.name + pod_suffix()))
     } else {
@@ -229,20 +229,20 @@ pub open spec fn k8s_handle_create(msg: Message) -> ActionPred<CState> {
     }
 }
 
-pub open spec fn k8s_attach_vol_to_pod_pre(cr_name: Seq<char>) -> StatePred<CState> {
+pub open spec fn controller_attach_vol_to_pod_pre(cr_name: Seq<char>) -> StatePred<CState> {
     |s| {
         &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
         &&& resource_exists(s, cr_name + vol_suffix())
     }
 }
 
-// TODO: k8s_attach_vol_to_pod_pre should be parameterized by Message
+// TODO: controller_attach_vol_to_pod_pre should be parameterized by Message
 // I didn't do so because it actually waits for two messages:
 // One for pod creation and one for volume creation
 // Not sure what is the best way to write actions that require receiving multiple messages
-pub open spec fn k8s_attach_vol_to_pod(cr_name: Seq<char>) -> ActionPred<CState> {
+pub open spec fn controller_attach_vol_to_pod(cr_name: Seq<char>) -> ActionPred<CState> {
     |s, s_prime| {
-        &&& k8s_attach_vol_to_pod_pre(cr_name)(s)
+        &&& controller_attach_vol_to_pod_pre(cr_name)(s)
         &&& s_prime === CState {
             attached: s.attached.insert(cr_name),
             ..s
@@ -269,7 +269,7 @@ pub open spec fn next_step(s: CState, s_prime: CState, action_label: ActionLabel
         ActionLabel::ControllerSendCreateSts(msg) => controller_send_create_sts(msg)(s, s_prime),
         ActionLabel::ControllerSendCreateVol(msg) => controller_send_create_vol(msg)(s, s_prime),
         ActionLabel::K8sHandleCreate(msg) => k8s_handle_create(msg)(s, s_prime),
-        ActionLabel::K8sAttachVolToPod(cr_name) => k8s_attach_vol_to_pod(cr_name)(s, s_prime),
+        ActionLabel::K8sAttachVolToPod(cr_name) => controller_attach_vol_to_pod(cr_name)(s, s_prime),
         ActionLabel::Stutter => stutter()(s, s_prime),
     }
 }
@@ -285,7 +285,7 @@ pub open spec fn sm_spec() -> TempPred<CState> {
     .and(tla_forall(|msg| weak_fairness(controller_send_create_sts(msg))))
     .and(tla_forall(|msg| weak_fairness(controller_send_create_vol(msg))))
     .and(tla_forall(|msg| weak_fairness(k8s_handle_create(msg))))
-    .and(tla_forall(|cr_name| weak_fairness(k8s_attach_vol_to_pod(cr_name))))
+    .and(tla_forall(|cr_name| weak_fairness(controller_attach_vol_to_pod(cr_name))))
 }
 
 pub proof fn user_send_create_cr_enabled(cr_name: Seq<char>)
@@ -349,18 +349,18 @@ pub proof fn k8s_handle_create_enabled(msg: Message)
     };
 }
 
-pub proof fn k8s_attach_vol_to_pod_enabled(cr_name: Seq<char>)
+pub proof fn controller_attach_vol_to_pod_enabled(cr_name: Seq<char>)
     ensures
-        forall |s| state_pred_call(k8s_attach_vol_to_pod_pre(cr_name), s)
-            ==> enabled(k8s_attach_vol_to_pod(cr_name))(s),
+        forall |s| state_pred_call(controller_attach_vol_to_pod_pre(cr_name), s)
+            ==> enabled(controller_attach_vol_to_pod(cr_name))(s),
 {
-    assert forall |s| state_pred_call(k8s_attach_vol_to_pod_pre(cr_name), s)
-    implies enabled(k8s_attach_vol_to_pod(cr_name))(s) by {
+    assert forall |s| state_pred_call(controller_attach_vol_to_pod_pre(cr_name), s)
+    implies enabled(controller_attach_vol_to_pod(cr_name))(s) by {
         let witness_s_prime = CState {
             attached: s.attached.insert(cr_name),
             ..s
         };
-        assert(action_pred_call(k8s_attach_vol_to_pod(cr_name), s, witness_s_prime));
+        assert(action_pred_call(controller_attach_vol_to_pod(cr_name), s, witness_s_prime));
     };
 }
 
