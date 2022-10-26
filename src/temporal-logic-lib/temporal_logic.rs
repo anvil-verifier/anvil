@@ -242,13 +242,16 @@ proof fn eventually_unfold<T>(ex: Execution<T>, p: TempPred<T>)
         exists |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
 {}
 
-#[verifier(external_body)]
 proof fn eventually_delay<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
     requires
         eventually(p).satisfied_by(ex.suffix(i)),
     ensures
         eventually(p).satisfied_by(ex),
-{}
+{
+    eventually_unfold::<T>(ex.suffix(i), p);
+    let witness_idx = eventually_witness(ex.suffix(i), p);
+    execution_suffix_merge::<T>(ex, p, i, witness_idx);
+}
 
 spec fn eventually_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
     recommends
