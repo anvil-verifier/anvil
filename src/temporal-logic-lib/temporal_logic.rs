@@ -218,14 +218,15 @@ proof fn entails_apply_auto<T>()
     };
 }
 
-#[verifier(external_body)]
 proof fn entails_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     requires
         p.entails(q),
         q.entails(r),
     ensures
         p.entails(r),
-{}
+{
+    entails_apply_auto::<T>();
+}
 
 proof fn always_unfold<T>(ex: Execution<T>, p: TempPred<T>)
     requires
