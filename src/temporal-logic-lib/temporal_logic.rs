@@ -133,7 +133,7 @@ pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, unquantified_temp_pred: Unq
     ensures
         spec.entails(unquantified_temp_pred(a)),
 {
-    implies_unfold_auto::<T>();
+    implies_apply_auto::<T>();
     assert forall |ex: Execution<T>| #[trigger] spec.implies(unquantified_temp_pred(a)).satisfied_by(ex) by {
         assert(spec.implies(tla_forall(unquantified_temp_pred)).satisfied_by(ex));
     };
@@ -189,7 +189,7 @@ pub open spec fn valid<T>(temp_pred: TempPred<T>) -> bool {
     forall |ex: Execution<T>| temp_pred.satisfied_by(ex)
 }
 
-pub proof fn implies_unfold_auto<T>()
+pub proof fn implies_apply_auto<T>()
     ensures forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>|
         #[trigger] valid(p.implies(q)) && p.satisfied_by(ex) ==> #[trigger] q.satisfied_by(ex),
 {
@@ -200,6 +200,66 @@ pub proof fn implies_unfold_auto<T>()
 }
 
 #[verifier(external_body)]
+pub proof fn entails_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    requires
+        p.entails(q),
+        q.entails(r),
+    ensures
+        p.entails(r),
+{}
+
+pub proof fn implies_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        p.implies(q).satisfied_by(ex),
+    ensures
+        p.satisfied_by(ex) ==> q.satisfied_by(ex),
+{}
+
+#[verifier(external_body)]
+pub proof fn always_lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
+    requires
+        always(lift_action(p)).satisfied_by(ex),
+    ensures
+        forall |i: nat| #[trigger] action_pred_call(p, ex.suffix(i).head(), ex.suffix(i).head_next()),
+{}
+
+pub proof fn init_invariant_rec<T>(ex: Execution<T>, init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>, i: nat)
+    requires
+        init(ex.head()),
+        forall |idx: nat| #[trigger] action_pred_call(next, ex.suffix(idx).head(), ex.suffix(idx).head_next()),
+        forall |idx: nat| #[trigger] state_pred_call(init, ex.suffix(idx).head()) ==> inv(ex.suffix(idx).head()),
+        forall |idx: nat| #[trigger] state_pred_call(inv, ex.suffix(idx).head()) && action_pred_call(next, ex.suffix(idx).head(), ex.suffix(idx).head_next())
+            ==> inv(ex.suffix(idx).head_next()),
+    ensures
+        inv(ex.suffix(i).head()),
+    decreases
+        i,
+{
+    if i == 0 {
+        assert(state_pred_call(init, ex.suffix(0).head()));
+    } else {
+        init_invariant_rec::<T>(ex, init, next, inv, (i-1) as nat);
+        assert(action_pred_call(next, ex.suffix((i-1) as nat).head(), ex.suffix((i-1) as nat).head_next()));
+        assert(state_pred_call(inv, ex.suffix((i-1) as nat).head()));
+    }
+}
+
+pub proof fn init_invariant_wo_spec<T>(init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>)
+    requires
+        forall |s: T| state_pred_call(init, s) ==> state_pred_call(inv, s),
+        forall |s, s_prime: T| state_pred_call(inv, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(inv, s_prime),
+    ensures
+        lift_state(init).and(always(lift_action(next))).entails(always(lift_state(inv))),
+{
+    assert forall |ex: Execution<T>| lift_state(init).and(always(lift_action(next))).satisfied_by(ex)
+    implies #[trigger] always(lift_state(inv)).satisfied_by(ex) by {
+        always_lift_action_unfold::<T>(ex, next);
+        assert forall |i: nat| #[trigger] state_pred_call(inv, ex.suffix(i).head()) by {
+            init_invariant_rec(ex, init, next, inv, i);
+        };
+    };
+}
+
 pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>)
     requires
         forall |s: T| state_pred_call(init, s) ==> state_pred_call(inv, s),
@@ -207,7 +267,10 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
         spec.entails(lift_state(init).and(always(lift_action(next)))),
     ensures
         spec.entails(always(lift_state(inv))),
-{}
+{
+    init_invariant_wo_spec::<T>(init, next, inv);
+    entails_trans::<T>(spec, lift_state(init).and(always(lift_action(next))), always(lift_state(inv)));
+}
 
 /// See WF1 in Fig 5.
 #[verifier(external_body)]
