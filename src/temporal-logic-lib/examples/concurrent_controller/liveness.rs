@@ -197,7 +197,7 @@ proof fn lemma_controller_pod_exists_and_vol_exists_leads_to_attached(cr_name: S
 
 
 /// All the proofs below are supposed to be part of the Anvil framework,
-/// and the user should not reason about the controller related execution.
+/// and the user should only reason about the controller related execution.
 
 proof fn lemma_user_init_leads_to_create_cr_req(cr_name: Seq<char>)
     ensures
