@@ -189,6 +189,16 @@ pub open spec fn valid<T>(temp_pred: TempPred<T>) -> bool {
     forall |ex: Execution<T>| temp_pred.satisfied_by(ex)
 }
 
+pub proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        p.entails(q),
+        p.satisfied_by(ex),
+    ensures
+        q.satisfied_by(ex),
+{
+    assert(p.implies(q).satisfied_by(ex));
+}
+
 pub proof fn entails_apply_auto<T>()
     ensures
         forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>| #[trigger] p.entails(q) && p.satisfied_by(ex)
@@ -196,7 +206,7 @@ pub proof fn entails_apply_auto<T>()
 {
     assert forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>|
     #[trigger] valid(p.implies(q)) && p.satisfied_by(ex) implies #[trigger] q.satisfied_by(ex) by {
-        assert(p.implies(q).satisfied_by(ex));
+       entails_apply(ex, p, q);
     };
 }
 
