@@ -255,22 +255,6 @@ pub proof fn init_invariant_rec<T>(ex: Execution<T>, init: StatePred<T>, next: A
     }
 }
 
-pub proof fn init_invariant_wo_spec<T>(init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>)
-    requires
-        forall |s: T| state_pred_call(init, s) ==> state_pred_call(inv, s),
-        forall |s, s_prime: T| state_pred_call(inv, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(inv, s_prime),
-    ensures
-        lift_state(init).and(always(lift_action(next))).entails(always(lift_state(inv))),
-{
-    assert forall |ex: Execution<T>| lift_state(init).and(always(lift_action(next))).satisfied_by(ex)
-    implies #[trigger] always(lift_state(inv)).satisfied_by(ex) by {
-        always_lift_action_unfold::<T>(ex, next);
-        assert forall |i: nat| #[trigger] state_pred_call(inv, ex.suffix(i).head()) by {
-            init_invariant_rec(ex, init, next, inv, i);
-        };
-    };
-}
-
 pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>)
     requires
         forall |s: T| state_pred_call(init, s) ==> state_pred_call(inv, s),
@@ -279,8 +263,14 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
     ensures
         spec.entails(always(lift_state(inv))),
 {
-    init_invariant_wo_spec::<T>(init, next, inv);
-    entails_trans::<T>(spec, lift_state(init).and(always(lift_action(next))), always(lift_state(inv)));
+    assert forall |ex: Execution<T>| spec.satisfied_by(ex)
+    implies #[trigger] always(lift_state(inv)).satisfied_by(ex) by {
+        entails_apply(ex, spec, lift_state(init).and(always(lift_action(next))));
+        always_lift_action_unfold::<T>(ex, next);
+        assert forall |i: nat| #[trigger] state_pred_call(inv, ex.suffix(i).head()) by {
+            init_invariant_rec(ex, init, next, inv, i);
+        };
+    };
 }
 
 /// See WF1 in Fig 5.
