@@ -133,7 +133,7 @@ pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, unquantified_temp_pred: Unq
     ensures
         spec.entails(unquantified_temp_pred(a)),
 {
-    implies_apply_auto::<T>();
+    entails_apply_auto::<T>();
     assert forall |ex: Execution<T>| #[trigger] spec.implies(unquantified_temp_pred(a)).satisfied_by(ex) by {
         assert(spec.implies(tla_forall(unquantified_temp_pred)).satisfied_by(ex));
     };
@@ -189,12 +189,13 @@ pub open spec fn valid<T>(temp_pred: TempPred<T>) -> bool {
     forall |ex: Execution<T>| temp_pred.satisfied_by(ex)
 }
 
-pub proof fn implies_apply_auto<T>()
-    ensures forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>|
-        #[trigger] valid(p.implies(q)) && p.satisfied_by(ex) ==> #[trigger] q.satisfied_by(ex),
+pub proof fn entails_apply_auto<T>()
+    ensures
+        forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>| #[trigger] p.entails(q) && p.satisfied_by(ex)
+            ==> #[trigger] q.satisfied_by(ex),
 {
     assert forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>|
-        #[trigger] valid(p.implies(q)) && p.satisfied_by(ex) implies #[trigger] q.satisfied_by(ex) by {
+    #[trigger] valid(p.implies(q)) && p.satisfied_by(ex) implies #[trigger] q.satisfied_by(ex) by {
         assert(p.implies(q).satisfied_by(ex));
     };
 }
