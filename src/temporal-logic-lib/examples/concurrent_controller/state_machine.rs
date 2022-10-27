@@ -211,6 +211,9 @@ pub open spec fn k8s_handle_create(msg: Message) -> ActionPred<CState> {
     }
 }
 
+/// Maybe we should make this controller parameterized by two messages?
+/// This action is not realistic because actual controllers won't wait for two messages at the same time
+/// A controller typically sends out a message, receives the response, and sends out another message...
 pub open spec fn controller_attach_vol_to_pod_pre(cr_name: Seq<char>) -> StatePred<CState> {
     |s| {
         &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
