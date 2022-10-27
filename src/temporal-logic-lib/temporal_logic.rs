@@ -98,8 +98,6 @@ pub open spec fn lift_action<T>(action_pred: ActionPred<T>) -> TempPred<T> {
     TempPred::new(|ex: Execution<T>| action_pred_call(action_pred, ex.head(), ex.head_next()))
 }
 
-pub type UnquantifiedTempPred<T, A> = FnSpec(A) -> TempPred<T>;
-
 /// `[]` for temporal predicates in TLA+.
 /// Returns a temporal predicate that is satisfied iff `temp_pred` is satisfied on every suffix of the execution.
 ///
@@ -122,20 +120,20 @@ pub open spec fn not<T>(temp_pred: TempPred<T>) -> TempPred<T> {
 }
 
 /// `\A` for temporal predicates in TLA+ (i.e., `forall` in Verus).
-pub open spec fn tla_forall<T, A>(unquantified_temp_pred: UnquantifiedTempPred<T, A>) -> TempPred<T> {
-    TempPred::new(|ex: Execution<T>| forall |a: A| #[trigger] unquantified_temp_pred(a).satisfied_by(ex))
+pub open spec fn tla_forall<T, A>(a_to_temp_pred: FnSpec(A) -> TempPred<T>) -> TempPred<T> {
+    TempPred::new(|ex: Execution<T>| forall |a: A| #[trigger] a_to_temp_pred(a).satisfied_by(ex))
 }
 
 /// This lemmas is unfortunately necessary when using tla_forall.
-pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, unquantified_temp_pred: UnquantifiedTempPred<T, A>, a: A)
+pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, a_to_temp_pred: FnSpec(A) -> TempPred<T>, a: A)
     requires
-        spec.entails(tla_forall(unquantified_temp_pred)),
+        spec.entails(tla_forall(a_to_temp_pred)),
     ensures
-        spec.entails(unquantified_temp_pred(a)),
+        spec.entails(a_to_temp_pred(a)),
 {
     entails_apply_auto::<T>();
-    assert forall |ex: Execution<T>| #[trigger] spec.implies(unquantified_temp_pred(a)).satisfied_by(ex) by {
-        assert(spec.implies(tla_forall(unquantified_temp_pred)).satisfied_by(ex));
+    assert forall |ex: Execution<T>| #[trigger] spec.implies(a_to_temp_pred(a)).satisfied_by(ex) by {
+        assert(spec.implies(tla_forall(a_to_temp_pred)).satisfied_by(ex));
     };
 }
 
