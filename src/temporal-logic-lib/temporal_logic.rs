@@ -262,6 +262,14 @@ spec fn eventually_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
 }
 
 #[verifier(external_body)]
+proof fn execution_suffix_zero<T>(ex: Execution<T>, p: TempPred<T>)
+    requires
+        p.satisfied_by(ex),
+    ensures
+        p.satisfied_by(ex.suffix(0)),
+{}
+
+#[verifier(external_body)]
 proof fn execution_suffix_merge<T>(ex: Execution<T>, p: TempPred<T>, i: nat, j: nat)
     requires
         p.satisfied_by(ex.suffix(i).suffix(j)),
@@ -597,13 +605,20 @@ pub proof fn leads_to_trans<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<
     leads_to_trans_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }
 
-#[verifier(external_body)]
-pub proof fn implies_weaken_to_leads_to_temp<T>(p: TempPred<T>, q: TempPred<T>)
+proof fn implies_to_leads_to_temp<T>(p: TempPred<T>, q: TempPred<T>)
     requires
         valid(p.implies(q)),
     ensures
         valid(p.leads_to(q)),
-{}
+{
+    assert forall |ex| p.leads_to(q).satisfied_by(ex) by {
+        assert forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i))
+        implies eventually(q).satisfied_by(ex.suffix(i)) by {
+            implies_apply(ex.suffix(i), p, q);
+            execution_suffix_zero(ex.suffix(i), q);
+        };
+    };
+}
 
 pub proof fn leads_to_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
     requires
@@ -613,8 +628,8 @@ pub proof fn leads_to_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: Tem
     ensures
         spec.entails(p2.leads_to(q2)),
 {
-    implies_weaken_to_leads_to_temp::<T>(p2, p1);
-    implies_weaken_to_leads_to_temp::<T>(q1, q2);
+    implies_to_leads_to_temp::<T>(p2, p1);
+    implies_to_leads_to_temp::<T>(q1, q2);
     leads_to_trans_temp::<T>(spec, p2, p1, q1);
     leads_to_trans_temp::<T>(spec, p2, q1, q2);
 }
