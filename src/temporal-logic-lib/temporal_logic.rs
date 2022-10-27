@@ -475,6 +475,14 @@ pub proof fn always_and_eventually<T>(spec: TempPred<T>, p: StatePred<T>, q: Sta
 {}
 
 #[verifier(external_body)]
+pub proof fn always_to_leads_to_always<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
+    requires
+        spec.entails(always(lift_state(q))),
+    ensures
+        spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
+{}
+
+#[verifier(external_body)]
 pub proof fn eq_implies_eventually_eq_temp<T>(p: TempPred<T>, q: TempPred<T>)
     requires
         valid(p.equals(q)),
@@ -676,8 +684,20 @@ pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
     };
 }
 
+/// TODO: I think a better way than having leads_to_xxx_weaken
+/// is to have a lemma saying forall p and q,
+/// if p implies q then always(p) implies always(q)
+/// How to trigger that lemma might be a problem
 #[verifier(external_body)]
-pub proof fn leads_to_always_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
+pub proof fn leads_to_always_weaken_auto<T>(spec: TempPred<T>)
+    ensures
+        forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
+            valid(p2.implies(p1)) && valid(q1.implies(q2)) && spec.entails(#[trigger] p1.leads_to(always(q1))) ==>
+            spec.entails(#[trigger] p2.leads_to(always(q2)))
+{}
+
+#[verifier(external_body)]
+pub proof fn leads_to_always_drop_always<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
         spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
     ensures
@@ -774,10 +794,11 @@ pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: S
         spec.entails(lift_state(p).leads_to(always(lift_state(r)))),
     ensures
         spec.entails(lift_state(p).leads_to(always(lift_state(q).and(lift_state(r))))),
+        spec.entails(lift_state(p).leads_to(always(lift_state(|s| q(s) && r(s))))),
 {}
 
 #[verifier(external_body)]
-pub proof fn leads_to_always_combine_then_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
+pub proof fn leads_to_always_combine_then_drop_always<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
         spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
         spec.entails(lift_state(p).leads_to(always(lift_state(r)))),

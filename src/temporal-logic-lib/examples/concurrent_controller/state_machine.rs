@@ -52,10 +52,6 @@ pub struct CState {
 }
 
 /**
- *                          init
- *                            |
- *                     user_send_create_cr
- *                            |
  *                  k8s_handle_create(cr)
  *                     /           \
  * controller_send_create_sts       controller_send_create_vol
@@ -161,20 +157,6 @@ pub open spec fn init() -> StatePred<CState> {
     }
 }
 
-pub open spec fn user_send_create_cr_pre() -> StatePred<CState> {
-    |s: CState| true
-}
-
-pub open spec fn user_send_create_cr(cr_name: Seq<char>) -> ActionPred<CState> {
-    |s, s_prime| {
-        &&& user_send_create_cr_pre()(s)
-        &&& s_prime === CState {
-            messages: s.messages.insert(create_cr_req_msg(cr_name)),
-            ..s
-        }
-    }
-}
-
 pub open spec fn controller_send_create_sts_pre(msg: Message) -> StatePred<CState> {
     |s| {
         &&& message_sent(s, msg)
@@ -255,7 +237,6 @@ pub open spec fn stutter() -> ActionPred<CState> {
 }
 
 pub enum ActionLabel {
-    UserSendCreateCr(Seq<char>),
     ControllerSendCreateSts(Message),
     ControllerSendCreateVol(Message),
     K8sHandleCreate(Message),
@@ -265,7 +246,6 @@ pub enum ActionLabel {
 
 pub open spec fn next_step(s: CState, s_prime: CState, action_label: ActionLabel) -> bool {
     match action_label {
-        ActionLabel::UserSendCreateCr(cr_name) => user_send_create_cr(cr_name)(s, s_prime),
         ActionLabel::ControllerSendCreateSts(msg) => controller_send_create_sts(msg)(s, s_prime),
         ActionLabel::ControllerSendCreateVol(msg) => controller_send_create_vol(msg)(s, s_prime),
         ActionLabel::K8sHandleCreate(msg) => k8s_handle_create(msg)(s, s_prime),
@@ -281,26 +261,10 @@ pub open spec fn next() -> ActionPred<CState> {
 pub open spec fn sm_spec() -> TempPred<CState> {
     lift_state(init())
     .and(always(lift_action(next())))
-    .and(tla_forall(|cr_name| weak_fairness(user_send_create_cr(cr_name))))
     .and(tla_forall(|msg| weak_fairness(controller_send_create_sts(msg))))
     .and(tla_forall(|msg| weak_fairness(controller_send_create_vol(msg))))
     .and(tla_forall(|msg| weak_fairness(k8s_handle_create(msg))))
     .and(tla_forall(|cr_name| weak_fairness(controller_attach_vol_to_pod(cr_name))))
-}
-
-pub proof fn user_send_create_cr_enabled(cr_name: Seq<char>)
-    ensures
-        forall |s| state_pred_call(user_send_create_cr_pre(), s)
-            ==> enabled(user_send_create_cr(cr_name))(s),
-{
-    assert forall |s| state_pred_call(user_send_create_cr_pre(), s)
-    implies enabled(user_send_create_cr(cr_name))(s) by {
-        let witness_s_prime = CState {
-            messages: s.messages.insert(create_cr_req_msg(cr_name)),
-            ..s
-        };
-        assert(action_pred_call(user_send_create_cr(cr_name), s, witness_s_prime));
-    };
 }
 
 pub proof fn controller_send_create_sts_enabled(msg: Message)

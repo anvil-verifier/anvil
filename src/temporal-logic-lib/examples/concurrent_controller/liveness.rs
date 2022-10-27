@@ -12,13 +12,18 @@ use builtin_macros::*;
 verus! {
 
 spec fn liveness_property(cr_name: Seq<char>) -> TempPred<CState> {
-    eventually(lift_state(
-        |s: CState| {
-            &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-            &&& resource_exists(s, cr_name + vol_suffix())
-            &&& s.attached.contains(cr_name)
-        }
-    ))
+    lift_state(
+        |s| message_sent(s, create_cr_req_msg(cr_name))
+    )
+    .leads_to(
+        always(lift_state(
+            |s: CState| {
+                &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
+                &&& resource_exists(s, cr_name + vol_suffix())
+                &&& s.attached.contains(cr_name)
+            }
+        ))
+    )
 }
 
 proof fn liveness_proof_for_all_cr()
@@ -34,94 +39,86 @@ proof fn liveness_proof(cr_name: Seq<char>)
     ensures
         sm_spec().entails(liveness_property(cr_name)),
 {
-    eventually_eq_auto::<CState>(sm_spec());
+    lemma_leads_to_always_attached(cr_name);
 
-    lemma_eventually_attached(cr_name);
     lemma_always_attach_after_create(cr_name);
-    always_and_eventually::<CState>(sm_spec(),
+    always_to_leads_to_always::<CState>(sm_spec(),
+        |s| message_sent(s, create_cr_req_msg(cr_name)),
         |s: CState| {
             &&& s.attached.contains(cr_name) ==> resource_exists(s, cr_name + sts_suffix() + pod_suffix())
             &&& s.attached.contains(cr_name) ==> resource_exists(s, cr_name + vol_suffix())
         },
-        |s: CState| s.attached.contains(cr_name)
     );
 
-    eventually_weaken::<CState>(sm_spec(),
+    leads_to_always_combine::<CState>(sm_spec(),
+        |s| message_sent(s, create_cr_req_msg(cr_name)),
+        |s: CState| s.attached.contains(cr_name),
         |s: CState| {
             &&& s.attached.contains(cr_name) ==> resource_exists(s, cr_name + sts_suffix() + pod_suffix())
             &&& s.attached.contains(cr_name) ==> resource_exists(s, cr_name + vol_suffix())
-            &&& s.attached.contains(cr_name)
         },
-        |s: CState| {
-            &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-            &&& resource_exists(s, cr_name + vol_suffix())
-            &&& s.attached.contains(cr_name)
-        }
     );
+
+    leads_to_always_weaken_auto::<CState>(sm_spec());
 }
 
-proof fn lemma_eventually_attached(cr_name: Seq<char>)
+proof fn lemma_leads_to_always_attached(cr_name: Seq<char>)
     ensures
-        sm_spec()
-            .entails(eventually(lift_state(|s: CState| s.attached.contains(cr_name)))),
+        sm_spec().entails(
+            lift_state(|s| message_sent(s, create_cr_req_msg(cr_name)))
+                .leads_to(always(lift_state(|s: CState| s.attached.contains(cr_name))))
+        ),
 {
     leads_to_eq_auto::<CState>(sm_spec());
 
-    lemma_user_init_leads_to_create_cr_req(cr_name);
     lemma_k8s_create_cr_req_leads_to_create_cr_resp(create_cr_req_msg(cr_name));
-    leads_to_trans::<CState>(sm_spec(),
-        init(),
-        |s| message_sent(s, create_cr_req_msg(cr_name)),
-        |s| message_sent(s, create_cr_resp_msg(cr_name))
-    );
-
     lemma_controller_create_cr_resp_leads_to_create_sts_req(cr_name);
     leads_to_trans::<CState>(sm_spec(),
-        init(),
+        |s| message_sent(s, create_cr_req_msg(cr_name)),
         |s| message_sent(s, create_cr_resp_msg(cr_name)),
         |s| message_sent(s, create_sts_req_msg(cr_name + sts_suffix()))
     );
 
    lemma_k8s_create_sts_req_sent_leads_to_pod_exists(create_sts_req_msg(cr_name + sts_suffix()));
    leads_to_trans::<CState>(sm_spec(),
-       init(),
+       |s| message_sent(s, create_cr_req_msg(cr_name)),
        |s| message_sent(s, create_sts_req_msg(cr_name + sts_suffix())),
        |s| resource_exists(s, cr_name + sts_suffix() + pod_suffix())
     );
 
     lemma_controller_create_cr_resp_leads_to_create_vol_req(cr_name);
     leads_to_trans::<CState>(sm_spec(),
-        init(),
+        |s| message_sent(s, create_cr_req_msg(cr_name)),
         |s| message_sent(s, create_cr_resp_msg(cr_name)),
         |s| message_sent(s, create_vol_req_msg(cr_name + vol_suffix()))
     );
 
     lemma_k8s_create_vol_req_sent_leads_to_vol_exists(create_vol_req_msg(cr_name + vol_suffix()));
     leads_to_trans::<CState>(sm_spec(),
-        init(),
+        |s| message_sent(s, create_cr_req_msg(cr_name)),
         |s| message_sent(s, create_vol_req_msg(cr_name + vol_suffix())),
         |s| resource_exists(s, cr_name + vol_suffix())
     );
 
     leads_to_stable::<CState>(sm_spec(),
         next(),
-        init(),
+        |s| message_sent(s, create_cr_req_msg(cr_name)),
         |s| resource_exists(s, cr_name + sts_suffix() + pod_suffix())
     );
     leads_to_stable::<CState>(sm_spec(),
         next(),
-        init(),
+        |s| message_sent(s, create_cr_req_msg(cr_name)),
         |s| resource_exists(s, cr_name + vol_suffix())
     );
-    leads_to_always_combine_then_weaken::<CState>(sm_spec(),
-        init(),
+    leads_to_always_combine_then_drop_always::<CState>(sm_spec(),
+        |s| message_sent(s, create_cr_req_msg(cr_name)),
         |s| resource_exists(s, cr_name + sts_suffix() + pod_suffix()),
         |s| resource_exists(s, cr_name + vol_suffix())
     );
 
     lemma_controller_pod_exists_and_vol_exists_leads_to_attached(cr_name);
     leads_to_trans::<CState>(sm_spec(),
-        init(),
+        |s| message_sent(s, create_cr_req_msg(cr_name)),
         |s| {
             &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
             &&& resource_exists(s, cr_name + vol_suffix())
@@ -129,8 +126,9 @@ proof fn lemma_eventually_attached(cr_name: Seq<char>)
         |s: CState| s.attached.contains(cr_name)
     );
 
-    leads_to_apply::<CState>(sm_spec(),
-        init(),
+    leads_to_stable::<CState>(sm_spec(),
+        next(),
+        |s| message_sent(s, create_cr_req_msg(cr_name)),
         |s: CState| s.attached.contains(cr_name)
     );
 }
@@ -180,7 +178,6 @@ proof fn lemma_controller_pod_exists_and_vol_exists_leads_to_attached(cr_name: S
             })
                 .leads_to(lift_state(|s: CState| s.attached.contains(cr_name)))),
 {
-    leads_to_eq_auto::<CState>(sm_spec());
     use_tla_forall::<CState, Seq<char>>(sm_spec(), |name| weak_fairness(controller_attach_vol_to_pod(name)), cr_name);
 
     controller_attach_vol_to_pod_enabled(cr_name);
@@ -198,29 +195,6 @@ proof fn lemma_controller_pod_exists_and_vol_exists_leads_to_attached(cr_name: S
 
 /// All the proofs below are supposed to be part of the Anvil framework,
 /// and the user should only reason about the controller related execution.
-
-proof fn lemma_user_init_leads_to_create_cr_req(cr_name: Seq<char>)
-    ensures
-        sm_spec()
-            .entails(lift_state(init())
-                .leads_to(lift_state(|s| message_sent(s, create_cr_req_msg(cr_name))))),
-{
-    use_tla_forall::<CState, Seq<char>>(sm_spec(), |name| weak_fairness(user_send_create_cr(name)), cr_name);
-
-    user_send_create_cr_enabled(cr_name);
-    wf1::<CState>(sm_spec(),
-        next(),
-        user_send_create_cr(cr_name),
-        user_send_create_cr_pre(),
-        |s| message_sent(s, create_cr_req_msg(cr_name))
-    );
-
-    leads_to_weaken_left::<CState>(sm_spec(),
-        user_send_create_cr_pre(),
-        init(),
-        |s| message_sent(s, create_cr_req_msg(cr_name))
-    );
-}
 
 proof fn lemma_k8s_create_cr_req_leads_to_create_cr_resp(msg: Message)
     requires
