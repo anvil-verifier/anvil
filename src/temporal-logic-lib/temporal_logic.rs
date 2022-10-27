@@ -446,10 +446,10 @@ pub proof fn always_eq<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
 
 pub proof fn always_eq_auto<T>(spec: TempPred<T>)
     ensures
-        forall |p, q: TempPred<T>| valid(p.equals(q)) && spec.entails(#[trigger] always(p))
+        forall |p: TempPred<T>, q: TempPred<T>| valid(p.equals(q)) && spec.entails(#[trigger] always(p))
         ==> spec.entails(#[trigger] always(q)),
 {
-    assert forall |p, q: TempPred<T>| valid(p.equals(q)) && spec.entails(#[trigger] always(p))
+    assert forall |p: TempPred<T>, q: TempPred<T>| valid(p.equals(q)) && spec.entails(#[trigger] always(p))
     implies spec.entails(#[trigger] always(q)) by {
         always_eq_temp::<T>(spec, p, q);
     }
