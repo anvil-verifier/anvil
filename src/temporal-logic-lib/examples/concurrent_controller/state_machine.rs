@@ -64,6 +64,13 @@ pub struct CState {
  *                 controller_attach_vol_to_pod
  *
  *
+ * Note that this state machine is different from real controllers in several ways:
+ * 1. Controllers usually issue sync call to k8s. It will only proceed after it
+ * receives the response of the last call.
+ * 2. Controllers' reconcile functions are usually single-threaded.
+ * 3. Controllers don't and can't make decisions based on the sent messages.
+ * Controllers rely on the response from the k8s and its local cache to make decision.
+ *
  */
 
 pub open spec fn sts_suffix() -> Seq<char> {
