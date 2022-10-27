@@ -70,6 +70,8 @@ pub struct CState {
  * 2. Controllers' reconcile functions are usually single-threaded.
  * 3. Controllers don't and can't make decisions based on the sent messages.
  * Controllers rely on the response from the k8s and its local cache to make decision.
+ * 4. In a real k8s cluster, the sts controller is supposed to create both the pod and vol
+ * and attach the vol to the pod, rather than the custom controller.
  *
  */
 
