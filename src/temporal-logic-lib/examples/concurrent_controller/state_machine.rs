@@ -125,6 +125,20 @@ pub open spec fn create_cr_resp_msg(name: Seq<char>) -> Message {
     })
 }
 
+pub open spec fn create_pod_resp_msg(name: Seq<char>) -> Message {
+    Message::CreateResponse(CreateResponseMessage{
+        name: name,
+        kind: ResourceKind::PodKind,
+    })
+}
+
+pub open spec fn create_vol_resp_msg(name: Seq<char>) -> Message {
+    Message::CreateResponse(CreateResponseMessage{
+        name: name,
+        kind: ResourceKind::VolumeKind,
+    })
+}
+
 pub open spec fn create_resp_msg(name: Seq<char>, kind: ResourceKind) -> Message {
     Message::CreateResponse(CreateResponseMessage{
         name: name,
@@ -211,13 +225,12 @@ pub open spec fn k8s_handle_create(msg: Message) -> ActionPred<CState> {
     }
 }
 
-/// Maybe we should make this controller parameterized by two messages?
 /// This action is not realistic because actual controllers won't wait for two messages at the same time
 /// A controller typically sends out a message, receives the response, and sends out another message...
 pub open spec fn controller_attach_vol_to_pod_pre(cr_name: Seq<char>) -> StatePred<CState> {
     |s| {
-        &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-        &&& resource_exists(s, cr_name + vol_suffix())
+        &&& message_sent(s, create_pod_resp_msg(cr_name + sts_suffix() + pod_suffix()))
+        &&& message_sent(s, create_vol_resp_msg(cr_name + vol_suffix()))
     }
 }
 

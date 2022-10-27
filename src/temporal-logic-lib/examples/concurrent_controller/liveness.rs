@@ -23,8 +23,8 @@ spec fn liveness_property(msg: Message) -> TempPred<CState>
     .leads_to(
         always(lift_state(
             |s: CState| {
-                &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-                &&& resource_exists(s, cr_name + vol_suffix())
+                &&& message_sent(s, create_pod_resp_msg(cr_name + sts_suffix() + pod_suffix()))
+                &&& message_sent(s, create_vol_resp_msg(cr_name + vol_suffix()))
                 &&& s.attached.contains(cr_name)
             }
         ))
@@ -57,8 +57,8 @@ proof fn liveness_proof(msg: Message)
     always_to_leads_to_always::<CState>(sm_spec(),
         |s| message_sent(s, msg),
         |s: CState| {
-            &&& s.attached.contains(cr_name) ==> resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-            &&& s.attached.contains(cr_name) ==> resource_exists(s, cr_name + vol_suffix())
+            &&& s.attached.contains(cr_name) ==> message_sent(s, create_pod_resp_msg(cr_name + sts_suffix() + pod_suffix()))
+            &&& s.attached.contains(cr_name) ==> message_sent(s, create_vol_resp_msg(cr_name + vol_suffix()))
         },
     );
 
@@ -66,8 +66,8 @@ proof fn liveness_proof(msg: Message)
         |s| message_sent(s, msg),
         |s: CState| s.attached.contains(cr_name),
         |s: CState| {
-            &&& s.attached.contains(cr_name) ==> resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-            &&& s.attached.contains(cr_name) ==> resource_exists(s, cr_name + vol_suffix())
+            &&& s.attached.contains(cr_name) ==> message_sent(s, create_pod_resp_msg(cr_name + sts_suffix() + pod_suffix()))
+            &&& s.attached.contains(cr_name) ==> message_sent(s, create_vol_resp_msg(cr_name + vol_suffix()))
         },
     );
 
@@ -100,7 +100,7 @@ proof fn lemma_leads_to_always_attached(msg: Message)
    leads_to_trans::<CState>(sm_spec(),
        |s| message_sent(s, msg),
        |s| message_sent(s, create_sts_req_msg(cr_name + sts_suffix())),
-       |s| resource_exists(s, cr_name + sts_suffix() + pod_suffix())
+       |s| message_sent(s, create_pod_resp_msg(cr_name + sts_suffix() + pod_suffix()))
     );
 
     lemma_controller_create_cr_resp_leads_to_create_vol_req(create_cr_resp_msg(cr_name));
@@ -114,31 +114,31 @@ proof fn lemma_leads_to_always_attached(msg: Message)
     leads_to_trans::<CState>(sm_spec(),
         |s| message_sent(s, msg),
         |s| message_sent(s, create_vol_req_msg(cr_name + vol_suffix())),
-        |s| resource_exists(s, cr_name + vol_suffix())
+        |s| message_sent(s, create_vol_resp_msg(cr_name + vol_suffix()))
     );
 
     leads_to_stable::<CState>(sm_spec(),
         next(),
         |s| message_sent(s, msg),
-        |s| resource_exists(s, cr_name + sts_suffix() + pod_suffix())
+        |s| message_sent(s, create_pod_resp_msg(cr_name + sts_suffix() + pod_suffix()))
     );
     leads_to_stable::<CState>(sm_spec(),
         next(),
         |s| message_sent(s, msg),
-        |s| resource_exists(s, cr_name + vol_suffix())
+        |s| message_sent(s, create_vol_resp_msg(cr_name + vol_suffix()))
     );
     leads_to_always_combine_then_drop_always::<CState>(sm_spec(),
         |s| message_sent(s, msg),
-        |s| resource_exists(s, cr_name + sts_suffix() + pod_suffix()),
-        |s| resource_exists(s, cr_name + vol_suffix())
+        |s| message_sent(s, create_pod_resp_msg(cr_name + sts_suffix() + pod_suffix())),
+        |s| message_sent(s, create_vol_resp_msg(cr_name + vol_suffix()))
     );
 
     lemma_controller_pod_exists_and_vol_exists_leads_to_attached(cr_name);
     leads_to_trans::<CState>(sm_spec(),
         |s| message_sent(s, msg),
         |s| {
-            &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-            &&& resource_exists(s, cr_name + vol_suffix())
+            &&& message_sent(s, create_pod_resp_msg(cr_name + sts_suffix() + pod_suffix()))
+            &&& message_sent(s, create_vol_resp_msg(cr_name + vol_suffix()))
         },
         |s: CState| s.attached.contains(cr_name)
     );
@@ -203,8 +203,8 @@ proof fn lemma_controller_pod_exists_and_vol_exists_leads_to_attached(cr_name: S
     ensures
         sm_spec()
             .entails(lift_state(|s| {
-                &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-                &&& resource_exists(s, cr_name + vol_suffix())
+                &&& message_sent(s, create_pod_resp_msg(cr_name + sts_suffix() + pod_suffix()))
+                &&& message_sent(s, create_vol_resp_msg(cr_name + vol_suffix()))
             })
                 .leads_to(lift_state(|s: CState| s.attached.contains(cr_name)))),
 {
@@ -215,8 +215,8 @@ proof fn lemma_controller_pod_exists_and_vol_exists_leads_to_attached(cr_name: S
         next(),
         controller_attach_vol_to_pod(cr_name),
         |s| {
-            &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-            &&& resource_exists(s, cr_name + vol_suffix())
+            &&& message_sent(s, create_pod_resp_msg(cr_name + sts_suffix() + pod_suffix()))
+            &&& message_sent(s, create_vol_resp_msg(cr_name + vol_suffix()))
         },
         |s: CState| s.attached.contains(cr_name)
     );
@@ -256,7 +256,7 @@ proof fn lemma_k8s_create_sts_req_sent_leads_to_pod_exists(msg: Message)
     ensures
         sm_spec()
             .entails(lift_state(|s| message_sent(s, msg))
-                .leads_to(lift_state(|s| resource_exists(s, msg.get_CreateRequest_0().name + pod_suffix())))),
+                .leads_to(lift_state(|s| message_sent(s, create_pod_resp_msg(msg.get_CreateRequest_0().name + pod_suffix()))))),
 {
     let sts_name = msg.get_CreateRequest_0().name;
 
@@ -277,12 +277,12 @@ proof fn lemma_k8s_create_sts_req_sent_leads_to_pod_exists(msg: Message)
         next(),
         k8s_handle_create(create_pod_req_msg(sts_name + pod_suffix())),
         k8s_handle_create_pre(create_pod_req_msg(sts_name + pod_suffix())),
-        |s| resource_exists(s, sts_name + pod_suffix())
+        |s| message_sent(s, create_pod_resp_msg(sts_name + pod_suffix()))
     );
     leads_to_trans::<CState>(sm_spec(),
         |s| message_sent(s, msg),
         |s| message_sent(s, create_pod_req_msg(sts_name + pod_suffix())),
-        |s| resource_exists(s, sts_name + pod_suffix())
+        |s| message_sent(s, create_pod_resp_msg(sts_name + pod_suffix()))
     );
 }
 
@@ -293,7 +293,7 @@ proof fn lemma_k8s_create_vol_req_sent_leads_to_vol_exists(msg: Message)
     ensures
         sm_spec()
             .entails(lift_state(|s| message_sent(s, msg))
-                .leads_to(lift_state(|s| resource_exists(s, msg.get_CreateRequest_0().name)))),
+                .leads_to(lift_state(|s| message_sent(s, create_vol_resp_msg(msg.get_CreateRequest_0().name))))),
 {
     let vol_name = msg.get_CreateRequest_0().name;
 
@@ -305,7 +305,7 @@ proof fn lemma_k8s_create_vol_req_sent_leads_to_vol_exists(msg: Message)
         next(),
         k8s_handle_create(msg),
         k8s_handle_create_pre(msg),
-        |s| resource_exists(s, vol_name)
+        |s| message_sent(s, create_vol_resp_msg(vol_name))
     );
 }
 
