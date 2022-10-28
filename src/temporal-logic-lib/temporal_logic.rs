@@ -611,6 +611,19 @@ pub proof fn leads_to_trans<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<
     leads_to_trans_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }
 
+pub proof fn leads_to_trans_auto<T>(spec: TempPred<T>)
+    ensures
+        forall |p: TempPred<T>, q: TempPred<T>, r: TempPred<T>|
+            #[trigger] spec.entails(p.leads_to(q)) && #[trigger] spec.entails(q.leads_to(r))
+            ==> spec.entails(p.leads_to(r))
+{
+    assert forall |p: TempPred<T>, q: TempPred<T>, r: TempPred<T>|
+    #[trigger] spec.entails(p.leads_to(q)) && #[trigger] spec.entails(q.leads_to(r))
+    implies spec.entails(p.leads_to(r)) by {
+        leads_to_trans_temp(spec, p, q, r);
+    };
+}
+
 proof fn implies_to_leads_to_temp<T>(p: TempPred<T>, q: TempPred<T>)
     requires
         valid(p.implies(q)),

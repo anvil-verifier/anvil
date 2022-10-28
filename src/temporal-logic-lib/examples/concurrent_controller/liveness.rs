@@ -97,28 +97,12 @@ proof fn lemma_leads_to_always_attached(msg: Message)
     let vol_name = sts_name + vol_suffix();
 
     leads_to_eq_auto::<CState>(sm_spec());
+    leads_to_trans_auto::<CState>(sm_spec());
 
     lemma_k8s_create_cr_req_leads_to_create_cr_resp(msg);
     lemma_controller_create_cr_resp_leads_to_create_sts_req(create_cr_resp_msg(cr_name));
-    leads_to_trans::<CState>(sm_spec(),
-        |s| message_sent(s, msg),
-        |s| message_sent(s, create_cr_resp_msg(cr_name)),
-        |s| message_sent(s, create_sts_req_msg(sts_name))
-    );
-
-   lemma_k8s_create_sts_req_sent_leads_to_pod_exists(create_sts_req_msg(sts_name));
-   leads_to_trans::<CState>(sm_spec(),
-       |s| message_sent(s, msg),
-       |s| message_sent(s, create_sts_req_msg(sts_name)),
-       |s| resource_exists(s, pod_name)
-    );
-
+    lemma_k8s_create_sts_req_sent_leads_to_pod_exists(create_sts_req_msg(sts_name));
     lemma_k8s_create_sts_req_sent_leads_to_vol_exists(create_sts_req_msg(sts_name));
-    leads_to_trans::<CState>(sm_spec(),
-        |s| message_sent(s, msg),
-        |s| message_sent(s, create_sts_req_msg(sts_name)),
-        |s| resource_exists(s, vol_name)
-     );
 
     leads_to_stable::<CState>(sm_spec(),
         next(),
