@@ -103,17 +103,8 @@ proof fn lemma_leads_to_always_attached(msg: Message)
     lemma_controller_create_cr_resp_leads_to_create_sts_req(create_cr_resp_msg(cr_name));
     lemma_k8s_create_sts_req_sent_leads_to_pod_exists_and_vol_exists(create_sts_req_msg(sts_name));
 
-    leads_to_stable::<CState>(sm_spec(),
+    leads_to_and_combine::<CState>(sm_spec(),
         next(),
-        |s| message_sent(s, msg),
-        |s| resource_exists(s, pod_name)
-    );
-    leads_to_stable::<CState>(sm_spec(),
-        next(),
-        |s| message_sent(s, msg),
-        |s| resource_exists(s, vol_name)
-    );
-    leads_to_always_combine_then_drop_always::<CState>(sm_spec(),
         |s| message_sent(s, msg),
         |s| resource_exists(s, pod_name),
         |s| resource_exists(s, vol_name)

@@ -781,7 +781,7 @@ pub proof fn leads_to_eq_auto<T>(spec: TempPred<T>)
 /// `|= ((p ~> r) /\ (q ~> r)) == (p \/ q ~> r)`
 
 #[verifier(external_body)]
-pub proof fn leads_to_or_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
+pub proof fn or_leads_to_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
         spec.entails(lift_state(p).leads_to(lift_state(r))),
         spec.entails(lift_state(q).leads_to(lift_state(r))),
@@ -855,5 +855,35 @@ pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: State
     ensures
         spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
 {}
+
+pub proof fn leads_to_always_and_combine<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
+    requires
+        forall |s, s_prime: T| state_pred_call(q, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(q, s_prime),
+        forall |s, s_prime: T| state_pred_call(r, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(r, s_prime),
+        spec.entails(always(lift_action(next))),
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
+        spec.entails(lift_state(p).leads_to(lift_state(r))),
+    ensures
+        spec.entails(lift_state(p).leads_to(always(lift_state(q).and(lift_state(r))))),
+{
+    leads_to_stable::<T>(spec, next, p, q);
+    leads_to_stable::<T>(spec, next, p, r);
+    leads_to_always_combine::<T>(spec, p, q, r);
+}
+
+pub proof fn leads_to_and_combine<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
+    requires
+        forall |s, s_prime: T| state_pred_call(q, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(q, s_prime),
+        forall |s, s_prime: T| state_pred_call(r, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(r, s_prime),
+        spec.entails(always(lift_action(next))),
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
+        spec.entails(lift_state(p).leads_to(lift_state(r))),
+    ensures
+        spec.entails(lift_state(p).leads_to(lift_state(q).and(lift_state(r)))),
+{
+    leads_to_stable::<T>(spec, next, p, q);
+    leads_to_stable::<T>(spec, next, p, r);
+    leads_to_always_combine_then_drop_always::<T>(spec, p, q, r);
+}
 
 }
