@@ -11,214 +11,167 @@ use builtin_macros::*;
 
 verus! {
 
-spec fn liveness_property(cr_name: Seq<char>) -> TempPred<CState> {
-    eventually(lift_state(
-        |s: CState| {
-            &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-            &&& resource_exists(s, cr_name + vol_suffix())
-            &&& s.attached.contains(cr_name)
-        }
-    ))
+spec fn liveness_property(msg: Message) -> TempPred<CState>
+    recommends
+        msg.is_CreateRequest(),
+        msg.get_CreateRequest_0().kind.is_CustomResourceKind(),
+{
+    let cr_name = msg.get_CreateRequest_0().name;
+    let sts_name = cr_name + sts_suffix();
+    let pod_name = sts_name + pod_suffix();
+    let vol_name = sts_name + vol_suffix();
+
+    lift_state(
+        |s| message_sent(s, msg)
+    )
+    .leads_to(
+        always(lift_state(
+            |s: CState| {
+                &&& resource_exists(s, pod_name)
+                &&& resource_exists(s, vol_name)
+                &&& s.attached.contains(sts_name)
+            }
+        ))
+    )
 }
 
 proof fn liveness_proof_for_all_cr()
     ensures
-        forall |cr_name| sm_spec().entails(#[trigger] liveness_property(cr_name)),
+        forall |msg: Message| msg.is_CreateRequest() && msg.get_CreateRequest_0().kind.is_CustomResourceKind()
+          ==> sm_spec().entails(#[trigger] liveness_property(msg)),
 {
-    assert forall |cr_name: Seq<char>| sm_spec().entails(#[trigger] liveness_property(cr_name)) by {
-        liveness_proof(cr_name);
+    assert forall |msg: Message| msg.is_CreateRequest() && msg.get_CreateRequest_0().kind.is_CustomResourceKind()
+    implies sm_spec().entails(#[trigger] liveness_property(msg)) by {
+        liveness_proof(msg);
     };
 }
 
-proof fn liveness_proof(cr_name: Seq<char>)
+proof fn liveness_proof(msg: Message)
+    requires
+        msg.is_CreateRequest(),
+        msg.get_CreateRequest_0().kind.is_CustomResourceKind(),
     ensures
-        sm_spec().entails(liveness_property(cr_name)),
+        sm_spec().entails(liveness_property(msg)),
 {
-    eventually_eq_auto::<CState>(sm_spec());
+    let cr_name = msg.get_CreateRequest_0().name;
+    let sts_name = cr_name + sts_suffix();
+    let pod_name = sts_name + pod_suffix();
+    let vol_name = sts_name + vol_suffix();
 
-    lemma_eventually_attached(cr_name);
-    lemma_always_attach_after_create(cr_name);
-    always_and_eventually::<CState>(sm_spec(),
+    lemma_leads_to_always_attached(msg);
+
+    lemma_always_attach_after_create(sts_name);
+    always_to_leads_to_always::<CState>(sm_spec(),
+        |s| message_sent(s, msg),
         |s: CState| {
-            &&& s.attached.contains(cr_name) ==> resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-            &&& s.attached.contains(cr_name) ==> resource_exists(s, cr_name + vol_suffix())
+            &&& s.attached.contains(sts_name) ==> resource_exists(s, pod_name)
+            &&& s.attached.contains(sts_name) ==> resource_exists(s, vol_name)
         },
-        |s: CState| s.attached.contains(cr_name)
     );
 
-    eventually_weaken::<CState>(sm_spec(),
+    leads_to_always_combine::<CState>(sm_spec(),
+        |s| message_sent(s, msg),
+        |s: CState| s.attached.contains(sts_name),
         |s: CState| {
-            &&& s.attached.contains(cr_name) ==> resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-            &&& s.attached.contains(cr_name) ==> resource_exists(s, cr_name + vol_suffix())
-            &&& s.attached.contains(cr_name)
+            &&& s.attached.contains(sts_name) ==> resource_exists(s, pod_name)
+            &&& s.attached.contains(sts_name) ==> resource_exists(s, vol_name)
         },
-        |s: CState| {
-            &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-            &&& resource_exists(s, cr_name + vol_suffix())
-            &&& s.attached.contains(cr_name)
-        }
     );
+
+    implies_preserved_by_always_auto::<CState>();
+    leads_to_weaken_auto::<CState>(sm_spec());
 }
 
-proof fn lemma_eventually_attached(cr_name: Seq<char>)
+proof fn lemma_leads_to_always_attached(msg: Message)
+    requires
+        msg.is_CreateRequest(),
+        msg.get_CreateRequest_0().kind.is_CustomResourceKind(),
     ensures
-        sm_spec()
-            .entails(eventually(lift_state(|s: CState| s.attached.contains(cr_name)))),
+        sm_spec().entails(
+            lift_state(|s| message_sent(s, msg))
+                .leads_to(always(lift_state(|s: CState| s.attached.contains(msg.get_CreateRequest_0().name + sts_suffix()))))
+        ),
 {
-    leads_to_eq_auto::<CState>(sm_spec());
+    let cr_name = msg.get_CreateRequest_0().name;
+    let sts_name = cr_name + sts_suffix();
+    let pod_name = sts_name + pod_suffix();
+    let vol_name = sts_name + vol_suffix();
 
-    lemma_user_init_leads_to_create_cr_req(cr_name);
-    lemma_k8s_create_cr_req_leads_to_create_cr_resp(create_cr_req_msg(cr_name));
-    leads_to_trans::<CState>(sm_spec(),
-        init(),
-        |s| message_sent(s, create_cr_req_msg(cr_name)),
-        |s| message_sent(s, create_cr_resp_msg(cr_name))
+    // This is heavy, but saves a lot of lines
+    leads_to_trans_relaxed_auto::<CState>(sm_spec());
+
+    lemma_k8s_create_cr_req_leads_to_create_cr_resp(msg);
+    lemma_controller_create_cr_resp_leads_to_create_sts_req(create_cr_resp_msg(cr_name));
+    lemma_k8s_create_sts_req_sent_leads_to_pod_exists_and_vol_exists(create_sts_req_msg(sts_name));
+
+    leads_to_and_combine::<CState>(sm_spec(),
+        next(),
+        |s| message_sent(s, msg),
+        |s| resource_exists(s, pod_name),
+        |s| resource_exists(s, vol_name)
     );
 
-    lemma_controller_create_cr_resp_leads_to_create_sts_req(cr_name);
-    leads_to_trans::<CState>(sm_spec(),
-        init(),
-        |s| message_sent(s, create_cr_resp_msg(cr_name)),
-        |s| message_sent(s, create_sts_req_msg(cr_name + sts_suffix()))
-    );
-
-   lemma_k8s_create_sts_req_sent_leads_to_pod_exists(create_sts_req_msg(cr_name + sts_suffix()));
-   leads_to_trans::<CState>(sm_spec(),
-       init(),
-       |s| message_sent(s, create_sts_req_msg(cr_name + sts_suffix())),
-       |s| resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-    );
-
-    lemma_controller_create_cr_resp_leads_to_create_vol_req(cr_name);
-    leads_to_trans::<CState>(sm_spec(),
-        init(),
-        |s| message_sent(s, create_cr_resp_msg(cr_name)),
-        |s| message_sent(s, create_vol_req_msg(cr_name + vol_suffix()))
-    );
-
-    lemma_k8s_create_vol_req_sent_leads_to_vol_exists(create_vol_req_msg(cr_name + vol_suffix()));
-    leads_to_trans::<CState>(sm_spec(),
-        init(),
-        |s| message_sent(s, create_vol_req_msg(cr_name + vol_suffix())),
-        |s| resource_exists(s, cr_name + vol_suffix())
-    );
+    lemma_k8s_pod_exists_and_vol_exists_leads_to_attached(sts_name);
 
     leads_to_stable::<CState>(sm_spec(),
         next(),
-        init(),
-        |s| resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-    );
-    leads_to_stable::<CState>(sm_spec(),
-        next(),
-        init(),
-        |s| resource_exists(s, cr_name + vol_suffix())
-    );
-    leads_to_always_combine_then_weaken::<CState>(sm_spec(),
-        init(),
-        |s| resource_exists(s, cr_name + sts_suffix() + pod_suffix()),
-        |s| resource_exists(s, cr_name + vol_suffix())
-    );
-
-    lemma_controller_pod_exists_and_vol_exists_leads_to_attached(cr_name);
-    leads_to_trans::<CState>(sm_spec(),
-        init(),
-        |s| {
-            &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-            &&& resource_exists(s, cr_name + vol_suffix())
-        },
-        |s: CState| s.attached.contains(cr_name)
-    );
-
-    leads_to_apply::<CState>(sm_spec(),
-        init(),
-        |s: CState| s.attached.contains(cr_name)
+        |s| message_sent(s, msg),
+        |s: CState| s.attached.contains(sts_name)
     );
 }
 
-proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(cr_name: Seq<char>)
+proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(msg: Message)
+    requires
+        msg.is_CreateResponse(),
+        msg.get_CreateResponse_0().kind.is_CustomResourceKind(),
     ensures
         sm_spec()
-            .entails(lift_state(|s| message_sent(s, create_cr_resp_msg(cr_name)))
-                .leads_to(lift_state(|s| message_sent(s, create_sts_req_msg(cr_name + sts_suffix()))))),
+            .entails(lift_state(|s| message_sent(s, msg))
+                .leads_to(lift_state(|s| message_sent(s, create_sts_req_msg(msg.get_CreateResponse_0().name + sts_suffix()))))),
 {
-    leads_to_eq_auto::<CState>(sm_spec());
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(controller_send_create_sts(msg)), create_cr_resp_msg(cr_name));
+    let cr_name = msg.get_CreateResponse_0().name;
 
-    controller_send_create_sts_enabled(create_cr_resp_msg(cr_name));
+    leads_to_eq_auto::<CState>(sm_spec());
+    use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(controller_send_create_sts(m)), msg);
+
+    controller_send_create_sts_enabled(msg);
     wf1::<CState>(sm_spec(),
         next(),
-        controller_send_create_sts(create_cr_resp_msg(cr_name)),
-        controller_send_create_sts_pre(create_cr_resp_msg(cr_name)),
+        controller_send_create_sts(msg),
+        controller_send_create_sts_pre(msg),
         |s| message_sent(s, create_sts_req_msg(cr_name + sts_suffix()))
     );
 }
-
-proof fn lemma_controller_create_cr_resp_leads_to_create_vol_req(cr_name: Seq<char>)
-    ensures
-        sm_spec()
-            .entails(lift_state(|s| message_sent(s, create_cr_resp_msg(cr_name)))
-                .leads_to(lift_state(|s| message_sent(s, create_vol_req_msg(cr_name + vol_suffix()))))),
-{
-    leads_to_eq_auto::<CState>(sm_spec());
-    use_tla_forall::<CState, Message>(sm_spec(), |msg| weak_fairness(controller_send_create_vol(msg)), create_cr_resp_msg(cr_name));
-
-    controller_send_create_vol_enabled(create_cr_resp_msg(cr_name));
-    wf1::<CState>(sm_spec(),
-        next(),
-        controller_send_create_vol(create_cr_resp_msg(cr_name)),
-        controller_send_create_vol_pre(create_cr_resp_msg(cr_name)),
-        |s| message_sent(s, create_vol_req_msg(cr_name + vol_suffix()))
-    );
-}
-
-proof fn lemma_controller_pod_exists_and_vol_exists_leads_to_attached(cr_name: Seq<char>)
-    ensures
-        sm_spec()
-            .entails(lift_state(|s| {
-                &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-                &&& resource_exists(s, cr_name + vol_suffix())
-            })
-                .leads_to(lift_state(|s: CState| s.attached.contains(cr_name)))),
-{
-    leads_to_eq_auto::<CState>(sm_spec());
-    use_tla_forall::<CState, Seq<char>>(sm_spec(), |name| weak_fairness(controller_attach_vol_to_pod(name)), cr_name);
-
-    controller_attach_vol_to_pod_enabled(cr_name);
-    wf1::<CState>(sm_spec(),
-        next(),
-        controller_attach_vol_to_pod(cr_name),
-        |s| {
-            &&& resource_exists(s, cr_name + sts_suffix() + pod_suffix())
-            &&& resource_exists(s, cr_name + vol_suffix())
-        },
-        |s: CState| s.attached.contains(cr_name)
-    );
-}
-
 
 /// All the proofs below are supposed to be part of the Anvil framework,
 /// and the user should only reason about the controller related execution.
 
-proof fn lemma_user_init_leads_to_create_cr_req(cr_name: Seq<char>)
+/// TODO: this lemma should also take a Message, or two, since the action is waiting for two messages
+/// This is not realistic because actual controllers won't wait for two messages at the same time
+/// A controller typically sends out a message, receives the response, and sends out another message...
+proof fn lemma_k8s_pod_exists_and_vol_exists_leads_to_attached(sts_name: Seq<char>)
     ensures
         sm_spec()
-            .entails(lift_state(init())
-                .leads_to(lift_state(|s| message_sent(s, create_cr_req_msg(cr_name))))),
+            .entails(lift_state(|s| {
+                &&& resource_exists(s, sts_name + pod_suffix())
+                &&& resource_exists(s, sts_name + vol_suffix())
+            })
+                .leads_to(lift_state(|s: CState| s.attached.contains(sts_name)))),
 {
-    use_tla_forall::<CState, Seq<char>>(sm_spec(), |name| weak_fairness(user_send_create_cr(name)), cr_name);
+    let pod_name = sts_name + pod_suffix();
+    let vol_name = sts_name + vol_suffix();
 
-    user_send_create_cr_enabled(cr_name);
+    use_tla_forall::<CState, Seq<char>>(sm_spec(), |name| weak_fairness(k8s_attach_vol_to_pod(name)), sts_name);
+
+    k8s_attach_vol_to_pod_enabled(sts_name);
     wf1::<CState>(sm_spec(),
         next(),
-        user_send_create_cr(cr_name),
-        user_send_create_cr_pre(),
-        |s| message_sent(s, create_cr_req_msg(cr_name))
-    );
-
-    leads_to_weaken_left::<CState>(sm_spec(),
-        user_send_create_cr_pre(),
-        init(),
-        |s| message_sent(s, create_cr_req_msg(cr_name))
+        k8s_attach_vol_to_pod(sts_name),
+        |s| {
+            &&& resource_exists(s, pod_name)
+            &&& resource_exists(s, vol_name)
+        },
+        |s: CState| s.attached.contains(sts_name)
     );
 }
 
@@ -245,7 +198,7 @@ proof fn lemma_k8s_create_cr_req_leads_to_create_cr_resp(msg: Message)
     );
 }
 
-proof fn lemma_k8s_create_sts_req_sent_leads_to_pod_exists(msg: Message)
+proof fn lemma_k8s_create_sts_req_sent_leads_to_pod_exists_and_vol_exists(msg: Message)
     requires
         msg.is_CreateRequest(),
         msg.get_CreateRequest_0().kind.is_StatefulSetKind(),
@@ -253,57 +206,58 @@ proof fn lemma_k8s_create_sts_req_sent_leads_to_pod_exists(msg: Message)
         sm_spec()
             .entails(lift_state(|s| message_sent(s, msg))
                 .leads_to(lift_state(|s| resource_exists(s, msg.get_CreateRequest_0().name + pod_suffix())))),
+        sm_spec()
+            .entails(lift_state(|s| message_sent(s, msg))
+                .leads_to(lift_state(|s| resource_exists(s, msg.get_CreateRequest_0().name + vol_suffix())))),
 {
     let sts_name = msg.get_CreateRequest_0().name;
+    let pod_name = sts_name + pod_suffix();
+    let vol_name = sts_name + vol_suffix();
 
-    leads_to_eq_auto::<CState>(sm_spec());
-    use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_create(m)), msg);
-    use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_create(m)), create_pod_req_msg(sts_name + pod_suffix()));
-
-    k8s_handle_create_enabled(msg);
-    wf1::<CState>(sm_spec(),
-        next(),
-        k8s_handle_create(msg),
-        k8s_handle_create_pre(msg),
-        |s| message_sent(s, create_pod_req_msg(sts_name + pod_suffix()))
-    );
-
-    k8s_handle_create_enabled(create_pod_req_msg(sts_name + pod_suffix()));
-    wf1::<CState>(sm_spec(),
-        next(),
-        k8s_handle_create(create_pod_req_msg(sts_name + pod_suffix())),
-        k8s_handle_create_pre(create_pod_req_msg(sts_name + pod_suffix())),
-        |s| resource_exists(s, sts_name + pod_suffix())
-    );
-    leads_to_trans::<CState>(sm_spec(),
-        |s| message_sent(s, msg),
-        |s| message_sent(s, create_pod_req_msg(sts_name + pod_suffix())),
-        |s| resource_exists(s, sts_name + pod_suffix())
-    );
+    lemma_k8s_create_sts_req_sent_leads_to(msg, create_pod_req_msg(pod_name));
+    lemma_k8s_create_sts_req_sent_leads_to(msg, create_vol_req_msg(vol_name));
 }
 
-proof fn lemma_k8s_create_vol_req_sent_leads_to_vol_exists(msg: Message)
+proof fn lemma_k8s_create_sts_req_sent_leads_to(msg: Message, sub_res_msg: Message)
     requires
         msg.is_CreateRequest(),
-        msg.get_CreateRequest_0().kind.is_VolumeKind(),
+        msg.get_CreateRequest_0().kind.is_StatefulSetKind(),
+        sub_res_msg === create_pod_req_msg(msg.get_CreateRequest_0().name + pod_suffix())
+        || sub_res_msg === create_vol_req_msg(msg.get_CreateRequest_0().name + vol_suffix()),
     ensures
         sm_spec()
             .entails(lift_state(|s| message_sent(s, msg))
-                .leads_to(lift_state(|s| resource_exists(s, msg.get_CreateRequest_0().name)))),
+                .leads_to(lift_state(|s| resource_exists(s, sub_res_msg.get_CreateRequest_0().name)))),
 {
-    let vol_name = msg.get_CreateRequest_0().name;
+    let sts_name = msg.get_CreateRequest_0().name;
+    let sub_res_name = sub_res_msg.get_CreateRequest_0().name;
 
     leads_to_eq_auto::<CState>(sm_spec());
     use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_create(m)), msg);
+    use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_create(m)), sub_res_msg);
 
     k8s_handle_create_enabled(msg);
     wf1::<CState>(sm_spec(),
         next(),
         k8s_handle_create(msg),
         k8s_handle_create_pre(msg),
-        |s| resource_exists(s, vol_name)
+        |s| message_sent(s, sub_res_msg)
+    );
+
+    k8s_handle_create_enabled(sub_res_msg);
+    wf1::<CState>(sm_spec(),
+        next(),
+        k8s_handle_create(sub_res_msg),
+        k8s_handle_create_pre(sub_res_msg),
+        |s| resource_exists(s, sub_res_name)
+    );
+    leads_to_trans::<CState>(sm_spec(),
+        |s| message_sent(s, msg),
+        |s| message_sent(s, sub_res_msg),
+        |s| resource_exists(s, sub_res_name)
     );
 }
+
 
 /// This is only useful when we want to prove:
 /// strlit_new("a")@ + strlit_new("b")@ === strlit_new("ab")@
