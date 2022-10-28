@@ -611,6 +611,33 @@ pub proof fn leads_to_trans<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<
     leads_to_trans_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }
 
+pub proof fn leads_to_trans_relaxed_temp<T>(spec: TempPred<T>, p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>, r: TempPred<T>)
+    requires
+        valid(q1.implies(q2)),
+        spec.entails(p.leads_to(q1)),
+        spec.entails(q2.leads_to(r)),
+    ensures
+        spec.entails(p.leads_to(r)),
+{
+    implies_to_leads_to_temp::<T>(q1, q2);
+    leads_to_trans_temp::<T>(spec, p, q1, q2);
+    leads_to_trans_temp::<T>(spec, p, q2, r);
+}
+
+
+pub proof fn leads_to_trans_relaxed_auto<T>(spec: TempPred<T>)
+    ensures
+        forall |p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>, r: TempPred<T>|
+        valid(q1.implies(q2)) && #[trigger] spec.entails(p.leads_to(q1)) && #[trigger] spec.entails(q2.leads_to(r))
+        ==> spec.entails(p.leads_to(r)),
+{
+    assert forall |p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>, r: TempPred<T>|
+    valid(q1.implies(q2)) && #[trigger] spec.entails(p.leads_to(q1)) && #[trigger] spec.entails(q2.leads_to(r))
+    implies spec.entails(p.leads_to(r)) by {
+        leads_to_trans_relaxed_temp::<T>(spec, p, q1, q2, r);
+    };
+}
+
 pub proof fn leads_to_trans_auto<T>(spec: TempPred<T>)
     ensures
         forall |p: TempPred<T>, q: TempPred<T>, r: TempPred<T>|

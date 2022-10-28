@@ -96,8 +96,8 @@ proof fn lemma_leads_to_always_attached(msg: Message)
     let pod_name = sts_name + pod_suffix();
     let vol_name = sts_name + vol_suffix();
 
-    leads_to_eq_auto::<CState>(sm_spec());
-    leads_to_trans_auto::<CState>(sm_spec());
+    // This is heavy, but saves a lot of lines
+    leads_to_trans_relaxed_auto::<CState>(sm_spec());
 
     lemma_k8s_create_cr_req_leads_to_create_cr_resp(msg);
     lemma_controller_create_cr_resp_leads_to_create_sts_req(create_cr_resp_msg(cr_name));
@@ -120,14 +120,6 @@ proof fn lemma_leads_to_always_attached(msg: Message)
     );
 
     lemma_k8s_pod_exists_and_vol_exists_leads_to_attached(sts_name);
-    leads_to_trans::<CState>(sm_spec(),
-        |s| message_sent(s, msg),
-        |s| {
-            &&& resource_exists(s, pod_name)
-            &&& resource_exists(s, vol_name)
-        },
-        |s: CState| s.attached.contains(sts_name)
-    );
 
     leads_to_stable::<CState>(sm_spec(),
         next(),
