@@ -101,8 +101,7 @@ proof fn lemma_leads_to_always_attached(msg: Message)
 
     lemma_k8s_create_cr_req_leads_to_create_cr_resp(msg);
     lemma_controller_create_cr_resp_leads_to_create_sts_req(create_cr_resp_msg(cr_name));
-    lemma_k8s_create_sts_req_sent_leads_to_pod_exists(create_sts_req_msg(sts_name));
-    lemma_k8s_create_sts_req_sent_leads_to_vol_exists(create_sts_req_msg(sts_name));
+    lemma_k8s_create_sts_req_sent_leads_to_pod_exists_and_vol_exists(create_sts_req_msg(sts_name));
 
     leads_to_stable::<CState>(sm_spec(),
         next(),
@@ -215,7 +214,7 @@ proof fn lemma_k8s_create_cr_req_leads_to_create_cr_resp(msg: Message)
     );
 }
 
-proof fn lemma_k8s_create_sts_req_sent_leads_to_pod_exists(msg: Message)
+proof fn lemma_k8s_create_sts_req_sent_leads_to_pod_exists_and_vol_exists(msg: Message)
     requires
         msg.is_CreateRequest(),
         msg.get_CreateRequest_0().kind.is_StatefulSetKind(),
@@ -223,13 +222,18 @@ proof fn lemma_k8s_create_sts_req_sent_leads_to_pod_exists(msg: Message)
         sm_spec()
             .entails(lift_state(|s| message_sent(s, msg))
                 .leads_to(lift_state(|s| resource_exists(s, msg.get_CreateRequest_0().name + pod_suffix())))),
+        sm_spec()
+            .entails(lift_state(|s| message_sent(s, msg))
+                .leads_to(lift_state(|s| resource_exists(s, msg.get_CreateRequest_0().name + vol_suffix())))),
 {
     let sts_name = msg.get_CreateRequest_0().name;
     let pod_name = sts_name + pod_suffix();
+    let vol_name = sts_name + vol_suffix();
 
     leads_to_eq_auto::<CState>(sm_spec());
     use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_create(m)), msg);
     use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_create(m)), create_pod_req_msg(pod_name));
+    use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_create(m)), create_vol_req_msg(vol_name));
 
     k8s_handle_create_enabled(msg);
     wf1::<CState>(sm_spec(),
@@ -251,25 +255,7 @@ proof fn lemma_k8s_create_sts_req_sent_leads_to_pod_exists(msg: Message)
         |s| message_sent(s, create_pod_req_msg(pod_name)),
         |s| resource_exists(s, pod_name)
     );
-}
 
-proof fn lemma_k8s_create_sts_req_sent_leads_to_vol_exists(msg: Message)
-    requires
-        msg.is_CreateRequest(),
-        msg.get_CreateRequest_0().kind.is_StatefulSetKind(),
-    ensures
-        sm_spec()
-            .entails(lift_state(|s| message_sent(s, msg))
-                .leads_to(lift_state(|s| resource_exists(s, msg.get_CreateRequest_0().name + vol_suffix())))),
-{
-    let sts_name = msg.get_CreateRequest_0().name;
-    let vol_name = sts_name + vol_suffix();
-
-    leads_to_eq_auto::<CState>(sm_spec());
-    use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_create(m)), msg);
-    use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_create(m)), create_vol_req_msg(vol_name));
-
-    k8s_handle_create_enabled(msg);
     wf1::<CState>(sm_spec(),
         next(),
         k8s_handle_create(msg),
