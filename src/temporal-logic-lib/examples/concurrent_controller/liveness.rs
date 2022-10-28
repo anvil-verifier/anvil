@@ -214,52 +214,50 @@ proof fn lemma_k8s_create_sts_req_sent_leads_to_pod_exists_and_vol_exists(msg: M
     let pod_name = sts_name + pod_suffix();
     let vol_name = sts_name + vol_suffix();
 
+    lemma_k8s_create_sts_req_sent_leads_to(msg, create_pod_req_msg(pod_name));
+    lemma_k8s_create_sts_req_sent_leads_to(msg, create_vol_req_msg(vol_name));
+}
+
+proof fn lemma_k8s_create_sts_req_sent_leads_to(msg: Message, sub_res_msg: Message)
+    requires
+        msg.is_CreateRequest(),
+        msg.get_CreateRequest_0().kind.is_StatefulSetKind(),
+        sub_res_msg === create_pod_req_msg(msg.get_CreateRequest_0().name + pod_suffix())
+        || sub_res_msg === create_vol_req_msg(msg.get_CreateRequest_0().name + vol_suffix()),
+    ensures
+        sm_spec()
+            .entails(lift_state(|s| message_sent(s, msg))
+                .leads_to(lift_state(|s| resource_exists(s, sub_res_msg.get_CreateRequest_0().name)))),
+{
+    let sts_name = msg.get_CreateRequest_0().name;
+    let sub_res_name = sub_res_msg.get_CreateRequest_0().name;
+
     leads_to_eq_auto::<CState>(sm_spec());
     use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_create(m)), msg);
-    use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_create(m)), create_pod_req_msg(pod_name));
-    use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_create(m)), create_vol_req_msg(vol_name));
+    use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_create(m)), sub_res_msg);
 
     k8s_handle_create_enabled(msg);
     wf1::<CState>(sm_spec(),
         next(),
         k8s_handle_create(msg),
         k8s_handle_create_pre(msg),
-        |s| message_sent(s, create_pod_req_msg(pod_name))
+        |s| message_sent(s, sub_res_msg)
     );
 
-    k8s_handle_create_enabled(create_pod_req_msg(pod_name));
+    k8s_handle_create_enabled(sub_res_msg);
     wf1::<CState>(sm_spec(),
         next(),
-        k8s_handle_create(create_pod_req_msg(pod_name)),
-        k8s_handle_create_pre(create_pod_req_msg(pod_name)),
-        |s| resource_exists(s, pod_name)
+        k8s_handle_create(sub_res_msg),
+        k8s_handle_create_pre(sub_res_msg),
+        |s| resource_exists(s, sub_res_name)
     );
     leads_to_trans::<CState>(sm_spec(),
         |s| message_sent(s, msg),
-        |s| message_sent(s, create_pod_req_msg(pod_name)),
-        |s| resource_exists(s, pod_name)
-    );
-
-    wf1::<CState>(sm_spec(),
-        next(),
-        k8s_handle_create(msg),
-        k8s_handle_create_pre(msg),
-        |s| message_sent(s, create_vol_req_msg(vol_name))
-    );
-
-    k8s_handle_create_enabled(create_vol_req_msg(vol_name));
-    wf1::<CState>(sm_spec(),
-        next(),
-        k8s_handle_create(create_vol_req_msg(vol_name)),
-        k8s_handle_create_pre(create_vol_req_msg(vol_name)),
-        |s| resource_exists(s, vol_name)
-    );
-    leads_to_trans::<CState>(sm_spec(),
-        |s| message_sent(s, msg),
-        |s| message_sent(s, create_vol_req_msg(vol_name)),
-        |s| resource_exists(s, vol_name)
+        |s| message_sent(s, sub_res_msg),
+        |s| resource_exists(s, sub_res_name)
     );
 }
+
 
 /// This is only useful when we want to prove:
 /// strlit_new("a")@ + strlit_new("b")@ === strlit_new("ab")@
