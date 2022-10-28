@@ -78,7 +78,8 @@ proof fn liveness_proof(msg: Message)
         },
     );
 
-    leads_to_always_weaken_auto::<CState>(sm_spec());
+    implies_preserved_by_always_auto::<CState>();
+    leads_to_weaken_auto::<CState>(sm_spec());
 }
 
 proof fn lemma_leads_to_always_attached(msg: Message)

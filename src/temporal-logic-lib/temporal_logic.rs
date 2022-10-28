@@ -406,28 +406,60 @@ pub proof fn always_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T
 {}
 
 #[verifier(external_body)]
-pub proof fn eq_implies_always_eq_temp<T>(p: TempPred<T>, q: TempPred<T>)
+pub proof fn implies_preserved_by_always_temp<T>(p: TempPred<T>, q: TempPred<T>)
+    requires
+        valid(p.implies(q)),
+    ensures
+        valid(always(p).implies(always(q))),
+{}
+
+pub proof fn implies_preserved_by_always<T>(p: StatePred<T>, q: StatePred<T>)
+    requires
+        valid(lift_state(p).implies(lift_state(q))),
+    ensures
+        valid(always(lift_state(p)).implies(always(lift_state(q)))),
+{
+    implies_preserved_by_always_temp::<T>(lift_state(p), lift_state(q));
+}
+
+pub proof fn implies_preserved_by_always_auto<T>()
+    ensures
+        forall |p: TempPred<T>, q: TempPred<T>|
+        #![trigger always(p), always(q)] valid(p.implies(q))
+        ==> valid(always(p).implies(always(q))),
+{
+    assert forall |p: TempPred<T>, q: TempPred<T>| #[trigger] valid(p.implies(q))
+    implies valid(always(p).implies(always(q))) by {
+        implies_preserved_by_always_temp::<T>(p, q);
+    };
+}
+
+#[verifier(external_body)]
+pub proof fn eq_preserved_by_always_temp<T>(p: TempPred<T>, q: TempPred<T>)
     requires
         valid(p.equals(q)),
     ensures
         valid(always(p).equals(always(q))),
 {}
 
-pub proof fn eq_implies_always_eq<T>(p: StatePred<T>, q: StatePred<T>)
+pub proof fn eq_preserved_by_always<T>(p: StatePred<T>, q: StatePred<T>)
     requires
         valid(lift_state(p).equals(lift_state(q))),
     ensures
         valid(always(lift_state(p)).equals(always(lift_state(q)))),
 {
-    eq_implies_always_eq_temp::<T>(lift_state(p), lift_state(q))
+    eq_preserved_by_always_temp::<T>(lift_state(p), lift_state(q))
 }
 
 pub proof fn eq_implies_always_eq_auto<T>()
     ensures
-        forall |p: TempPred<T>, q: TempPred<T>| valid(#[trigger] p.equals(q)) ==> valid(always(p).equals(always(q))),
+        forall |p: TempPred<T>, q: TempPred<T>|
+        #![trigger always(p), always(q)] valid(p.equals(q))
+        ==> valid(always(p).equals(always(q))),
 {
-    assert forall |p: TempPred<T>, q: TempPred<T>| valid(#[trigger] p.equals(q)) implies valid(always(p).equals(always(q))) by {
-        eq_implies_always_eq_temp::<T>(p, q);
+    assert forall |p: TempPred<T>, q: TempPred<T>| #[trigger] valid(p.equals(q))
+    implies valid(always(p).equals(always(q))) by {
+        eq_preserved_by_always_temp::<T>(p, q);
     };
 }
 
@@ -723,18 +755,6 @@ pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
         leads_to_weaken_temp(spec, p1, q1, p2, q2);
     };
 }
-
-/// TODO: I think a better way than having leads_to_xxx_weaken
-/// is to have a lemma saying forall p and q,
-/// if p implies q then always(p) implies always(q)
-/// How to trigger that lemma might be a problem
-#[verifier(external_body)]
-pub proof fn leads_to_always_weaken_auto<T>(spec: TempPred<T>)
-    ensures
-        forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
-            valid(p2.implies(p1)) && valid(q1.implies(q2)) && spec.entails(#[trigger] p1.leads_to(always(q1))) ==>
-            spec.entails(#[trigger] p2.leads_to(always(q2)))
-{}
 
 #[verifier(external_body)]
 pub proof fn leads_to_always_drop_always<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
