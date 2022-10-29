@@ -61,7 +61,7 @@ proof fn liveness_proof(msg: Message)
     lemma_leads_to_always_attached(msg);
 
     lemma_always_attach_after_create(sts_name);
-    always_to_leads_to_always::<CState>(sm_spec(),
+    leads_to_intro::<CState>(sm_spec(),
         |s| message_sent(s, msg),
         |s: CState| {
             &&& s.attached.contains(sts_name) ==> resource_exists(s, pod_name)
