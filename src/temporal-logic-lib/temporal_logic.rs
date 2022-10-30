@@ -393,6 +393,13 @@ proof fn init_invariant_rec<T>(ex: Execution<T>, init: StatePred<T>, next: Actio
     }
 }
 
+/// Get the initial always by induction.
+/// pre:
+///     |= init => inv
+///     |= inv /\ next => inv'
+///     spec |= init /\ []next
+/// post:
+///     spec |= []inv
 pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>)
     requires
         forall |s: T| state_pred_call(init, s) ==> state_pred_call(inv, s),
@@ -411,7 +418,14 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
     };
 }
 
-/// See WF1 in Fig 5.
+/// Get the initial leads_to with weak fairness assumptions.
+/// pre:
+///     |= p /\ next => p' /\ q'
+///     |= p /\ next /\ forward => q'
+///     |= p => enabled(forward)
+///     spec |= []next /\ wf(forward)
+/// post:
+///     spec |= p ~> q
 #[verifier(external_body)]
 pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
@@ -423,27 +437,11 @@ pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<
         spec.entails(lift_state(p).leads_to(lift_state(q))),
 {}
 
-/// Handy lemma that combines two wf1 and leads_to_trans.
-pub proof fn wf1_chain<T>(spec: TempPred<T>, next: ActionPred<T>, forward_p_q: ActionPred<T>, forward_q_r: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
-    requires
-        forall |s, s_prime: T| state_pred_call(p, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(p, s_prime) || state_pred_call(q, s_prime),
-        forall |s, s_prime: T| state_pred_call(p, s) && #[trigger] action_pred_call(next, s, s_prime) && #[trigger] action_pred_call(forward_p_q, s, s_prime) ==> state_pred_call(q, s_prime),
-        forall |s: T| #[trigger] state_pred_call(p, s) ==> state_pred_call(enabled(forward_p_q), s),
-        spec.entails(always(lift_action(next)).and(weak_fairness(forward_p_q))),
-        forall |s, s_prime: T| state_pred_call(q, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(q, s_prime) || state_pred_call(r, s_prime),
-        forall |s, s_prime: T| state_pred_call(q, s) && #[trigger] action_pred_call(next, s, s_prime) && #[trigger] action_pred_call(forward_q_r, s, s_prime) ==> state_pred_call(r, s_prime),
-        forall |s: T| #[trigger] state_pred_call(q, s) ==> state_pred_call(enabled(forward_q_r), s),
-        spec.entails(always(lift_action(next)).and(weak_fairness(forward_q_r))),
-    ensures
-        spec.entails(lift_state(p).leads_to(lift_state(q))),
-        spec.entails(lift_state(q).leads_to(lift_state(r))),
-        spec.entails(lift_state(p).leads_to(lift_state(r))),
-{
-    wf1::<T>(spec, next, forward_p_q, p, q);
-    wf1::<T>(spec, next, forward_q_r, q, r);
-    leads_to_trans::<T>(spec, p, q, r);
-}
-
+/// Introduce always to both sides of implies.
+/// pre:
+///     |= p => q
+/// post:
+///     |= []p => []q
 #[verifier(external_body)]
 pub proof fn implies_preserved_by_always_temp<T>(p: TempPred<T>, q: TempPred<T>)
     requires
@@ -452,6 +450,7 @@ pub proof fn implies_preserved_by_always_temp<T>(p: TempPred<T>, q: TempPred<T>)
         valid(always(p).implies(always(q))),
 {}
 
+/// StatePred version of implies_preserved_by_always_temp.
 pub proof fn implies_preserved_by_always<T>(p: StatePred<T>, q: StatePred<T>)
     requires
         valid(lift_state(p).implies(lift_state(q))),
@@ -461,6 +460,7 @@ pub proof fn implies_preserved_by_always<T>(p: StatePred<T>, q: StatePred<T>)
     implies_preserved_by_always_temp::<T>(lift_state(p), lift_state(q));
 }
 
+/// Auto version of implies_preserved_by_always_temp.
 pub proof fn implies_preserved_by_always_auto<T>()
     ensures
         forall |p: TempPred<T>, q: TempPred<T>|
@@ -473,6 +473,11 @@ pub proof fn implies_preserved_by_always_auto<T>()
     };
 }
 
+/// Introduce always to both sides of equals.
+/// pre:
+///     |= p <=> q
+/// post:
+///     |= []p <=> []q
 pub proof fn eq_preserved_by_always_temp<T>(p: TempPred<T>, q: TempPred<T>)
     requires
         valid(p.equals(q)),
@@ -485,6 +490,7 @@ pub proof fn eq_preserved_by_always_temp<T>(p: TempPred<T>, q: TempPred<T>)
     valid_implies_to_valid_equals::<T>(always(p), always(q));
 }
 
+/// StatePred version of eq_preserved_by_always_temp.
 pub proof fn eq_preserved_by_always<T>(p: StatePred<T>, q: StatePred<T>)
     requires
         valid(lift_state(p).equals(lift_state(q))),
@@ -494,6 +500,7 @@ pub proof fn eq_preserved_by_always<T>(p: StatePred<T>, q: StatePred<T>)
     eq_preserved_by_always_temp::<T>(lift_state(p), lift_state(q))
 }
 
+/// Auto version of eq_preserved_by_always_temp.
 pub proof fn eq_preserved_by_always_auto<T>()
     ensures
         forall |p: TempPred<T>, q: TempPred<T>|
@@ -506,9 +513,12 @@ pub proof fn eq_preserved_by_always_auto<T>()
     };
 }
 
-/// Generalizes implies.
-/// If we have `|= p1 => p2`, then we have `|= []p1 => []p2`
-
+/// Weaken always by implies.
+/// pre:
+///     |= p => q
+///     spec |= []p
+/// post:
+///     spec |= []q
 pub proof fn always_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         valid(p.implies(q)),
@@ -523,6 +533,7 @@ pub proof fn always_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPre
     };
 }
 
+/// StatePred version of always_weaken_temp.
 pub proof fn always_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
         valid(lift_state(p).implies(lift_state(q))),
@@ -533,6 +544,12 @@ pub proof fn always_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T
     always_weaken_temp::<T>(spec, lift_state(p), lift_state(q));
 }
 
+/// Get another always by equals.
+/// pre:
+///     |= p <=> q
+///     spec |= []p
+/// post:
+///     spec |= []q
 pub proof fn always_eq_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         valid(p.equals(q)),
@@ -547,6 +564,7 @@ pub proof fn always_eq_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>
     };
 }
 
+/// StatePred version of always_eq_temp.
 pub proof fn always_eq<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
         valid(lift_state(p).equals(lift_state(q))),
@@ -557,6 +575,7 @@ pub proof fn always_eq<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     always_eq_temp::<T>(spec, lift_state(p), lift_state(q));
 }
 
+/// Auto version of always_eq_temp.
 pub proof fn always_eq_auto<T>(spec: TempPred<T>)
     ensures
         forall |p: TempPred<T>, q: TempPred<T>| valid(p.equals(q)) && spec.entails(#[trigger] always(p))
@@ -568,9 +587,12 @@ pub proof fn always_eq_auto<T>(spec: TempPred<T>)
     }
 }
 
-/// Gets eventually p and q from always p and eventually q.
-/// `|= ([]p /\ <>q) => <>(p /\ p)`
-
+/// Merge an always and an eventually into an eventually.
+/// pre:
+///     spec |= []p
+///     spec |= <>q
+/// post:
+///     spec |= <>(p /\ q)
 #[verifier(external_body)]
 pub proof fn always_and_eventually<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
@@ -580,6 +602,11 @@ pub proof fn always_and_eventually<T>(spec: TempPred<T>, p: StatePred<T>, q: Sta
         spec.entails(eventually(lift_state(p).and(lift_state(q)))),
 {}
 
+/// Introduce leads_to when there is always.
+/// pre:
+///     spec |= []q
+/// post:
+///     spec |= p ~> []q
 #[verifier(external_body)]
 pub proof fn leads_to_intro<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
@@ -588,6 +615,11 @@ pub proof fn leads_to_intro<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<
         spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
 {}
 
+/// Introduce eventually to both sides of implies.
+/// pre:
+///     |= p => q
+/// post:
+///     |= <>p => <>q
 #[verifier(external_body)]
 pub proof fn implies_preserved_by_eventually_temp<T>(p: TempPred<T>, q: TempPred<T>)
     requires
@@ -596,6 +628,11 @@ pub proof fn implies_preserved_by_eventually_temp<T>(p: TempPred<T>, q: TempPred
         valid(eventually(p).implies(eventually(q))),
 {}
 
+/// Introduce eventually to both sides of equals.
+/// pre:
+///     |= p <=> q
+/// post:
+///     |= <>p <=> <>q
 pub proof fn eq_preserved_by_eventually_temp<T>(p: TempPred<T>, q: TempPred<T>)
     requires
         valid(p.equals(q)),
@@ -608,9 +645,12 @@ pub proof fn eq_preserved_by_eventually_temp<T>(p: TempPred<T>, q: TempPred<T>)
     valid_implies_to_valid_equals::<T>(eventually(p), eventually(q));
 }
 
-/// Gets eventually q from eventually p and p implies q.
-/// `|= (<>p /\ (p => q)) => <>q`
-
+/// Weaken the eventually by implies.
+/// pre:
+///     |= p => q
+///     spec |= <>p
+/// post:
+///     spec |= <>q
 pub proof fn eventually_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         valid(p.implies(q)),
@@ -625,6 +665,7 @@ pub proof fn eventually_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: Tem
     };
 }
 
+/// StatePred version of eventually_weaken_temp.
 pub proof fn eventually_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
         valid(lift_state(p).implies(lift_state(q))),
@@ -635,6 +676,7 @@ pub proof fn eventually_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePr
     eventually_weaken_temp::<T>(spec, lift_state(p), lift_state(q));
 }
 
+/// Auto version of eventually_weaken_temp.
 pub proof fn eventually_weaken_auto<T>(spec: TempPred<T>)
     ensures
         forall |p: TempPred<T>, q: TempPred<T>|
@@ -648,6 +690,12 @@ pub proof fn eventually_weaken_auto<T>(spec: TempPred<T>)
     };
 }
 
+/// Get another eventually by equals.
+/// pre:
+///     |= p <=> q
+///     spec |= <>p
+/// post:
+///     spec |= <>q
 pub proof fn eventually_eq_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         valid(p.equals(q)),
@@ -662,6 +710,7 @@ pub proof fn eventually_eq_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPre
     };
 }
 
+/// StatePred version of eventually_eq_temp.
 pub proof fn eventually_eq<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
         valid(lift_state(p).equals(lift_state(q))),
@@ -672,6 +721,7 @@ pub proof fn eventually_eq<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T
     eventually_eq_temp::<T>(spec, lift_state(p), lift_state(q));
 }
 
+/// Auto version of eventually_eq_temp.
 pub proof fn eventually_eq_auto<T>(spec: TempPred<T>)
     ensures
         forall |p: TempPred<T>, q: TempPred<T>|
@@ -685,9 +735,32 @@ pub proof fn eventually_eq_auto<T>(spec: TempPred<T>)
     };
 }
 
-/// Gets eventually from leads_to.
-/// `|= (p /\ (p ~> q)) => <>q`
+/// Introduce leads_to when there is implies.
+/// pre:
+///     |= p => q
+/// post:
+///     |= p ~> q
+proof fn implies_to_leads_to_temp<T>(p: TempPred<T>, q: TempPred<T>)
+    requires
+        valid(p.implies(q)),
+    ensures
+        valid(p.leads_to(q)),
+{
+    assert forall |ex| p.leads_to(q).satisfied_by(ex) by {
+        assert forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i))
+        implies eventually(q).satisfied_by(ex.suffix(i)) by {
+            implies_apply(ex.suffix(i), p, q);
+            execution_suffix_zero(ex.suffix(i), q);
+        };
+    };
+}
 
+/// Get eventually from leads_to.
+/// pre:
+///     spec |= p
+///     spec |= p ~> q
+/// post:
+///     spec |= <>q
 #[verifier(external_body)]
 pub proof fn leads_to_apply<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
@@ -697,8 +770,12 @@ pub proof fn leads_to_apply<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<
         spec.entails(eventually(lift_state(q))),
 {}
 
-/// Connects two leads_to with the transitivity of leads_to.
-/// `|= ((p ~> q) /\ (q ~> r)) => (p ~> r)`
+/// Connect two leads_to by transitivity.
+/// pre:
+///     spec |= p ~> q
+///     spec |= q ~> r
+/// post:
+///     spec |= p ~> r
 pub proof fn leads_to_trans_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     requires
         spec.entails(p.leads_to(q)),
@@ -727,6 +804,7 @@ pub proof fn leads_to_trans_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPr
     };
 }
 
+/// StatePred version of leads_to_trans_temp.
 pub proof fn leads_to_trans<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
         spec.entails(lift_state(p).leads_to(lift_state(q))),
@@ -737,33 +815,7 @@ pub proof fn leads_to_trans<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<
     leads_to_trans_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }
 
-pub proof fn leads_to_trans_relaxed_temp<T>(spec: TempPred<T>, p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>, r: TempPred<T>)
-    requires
-        valid(q1.implies(q2)),
-        spec.entails(p.leads_to(q1)),
-        spec.entails(q2.leads_to(r)),
-    ensures
-        spec.entails(p.leads_to(r)),
-{
-    implies_to_leads_to_temp::<T>(q1, q2);
-    leads_to_trans_temp::<T>(spec, p, q1, q2);
-    leads_to_trans_temp::<T>(spec, p, q2, r);
-}
-
-
-pub proof fn leads_to_trans_relaxed_auto<T>(spec: TempPred<T>)
-    ensures
-        forall |p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>, r: TempPred<T>|
-        valid(q1.implies(q2)) && #[trigger] spec.entails(p.leads_to(q1)) && #[trigger] spec.entails(q2.leads_to(r))
-        ==> spec.entails(p.leads_to(r)),
-{
-    assert forall |p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>, r: TempPred<T>|
-    valid(q1.implies(q2)) && #[trigger] spec.entails(p.leads_to(q1)) && #[trigger] spec.entails(q2.leads_to(r))
-    implies spec.entails(p.leads_to(r)) by {
-        leads_to_trans_relaxed_temp::<T>(spec, p, q1, q2, r);
-    };
-}
-
+/// Auto version of leads_to_trans_temp.
 pub proof fn leads_to_trans_auto<T>(spec: TempPred<T>)
     ensures
         forall |p: TempPred<T>, q: TempPred<T>, r: TempPred<T>|
@@ -777,21 +829,48 @@ pub proof fn leads_to_trans_auto<T>(spec: TempPred<T>)
     };
 }
 
-proof fn implies_to_leads_to_temp<T>(p: TempPred<T>, q: TempPred<T>)
+/// Relaxed version of leads_to_trans_temp.
+/// pre:
+///     |= q1 => q2
+///     spec |= p ~> q1
+///     spec |= q2 ~> r
+/// post:
+///     spec |= p ~> r
+pub proof fn leads_to_trans_relaxed_temp<T>(spec: TempPred<T>, p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>, r: TempPred<T>)
     requires
-        valid(p.implies(q)),
+        valid(q1.implies(q2)),
+        spec.entails(p.leads_to(q1)),
+        spec.entails(q2.leads_to(r)),
     ensures
-        valid(p.leads_to(q)),
+        spec.entails(p.leads_to(r)),
 {
-    assert forall |ex| p.leads_to(q).satisfied_by(ex) by {
-        assert forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i))
-        implies eventually(q).satisfied_by(ex.suffix(i)) by {
-            implies_apply(ex.suffix(i), p, q);
-            execution_suffix_zero(ex.suffix(i), q);
-        };
+    implies_to_leads_to_temp::<T>(q1, q2);
+    leads_to_trans_temp::<T>(spec, p, q1, q2);
+    leads_to_trans_temp::<T>(spec, p, q2, r);
+}
+
+/// Auto version of leads_to_trans_relaxed_temp.
+/// This one is heavy, but saves a lot of tedious steps.
+pub proof fn leads_to_trans_relaxed_auto<T>(spec: TempPred<T>)
+    ensures
+        forall |p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>, r: TempPred<T>|
+        valid(q1.implies(q2)) && #[trigger] spec.entails(p.leads_to(q1)) && #[trigger] spec.entails(q2.leads_to(r))
+        ==> spec.entails(p.leads_to(r)),
+{
+    assert forall |p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>, r: TempPred<T>|
+    valid(q1.implies(q2)) && #[trigger] spec.entails(p.leads_to(q1)) && #[trigger] spec.entails(q2.leads_to(r))
+    implies spec.entails(p.leads_to(r)) by {
+        leads_to_trans_relaxed_temp::<T>(spec, p, q1, q2, r);
     };
 }
 
+/// Weaken the leads_to by implies.
+/// pre:
+///     |= p2 => p1
+///     |= q1 => q2
+///     spec |= p1 ~> q1
+/// post:
+///     spec |= p2 ~> q2
 pub proof fn leads_to_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
     requires
         valid(p2.implies(p1)),
@@ -806,6 +885,7 @@ pub proof fn leads_to_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: Tem
     leads_to_trans_temp::<T>(spec, p2, q1, q2);
 }
 
+/// StatePred version of leads_to_weaken_temp.
 pub proof fn leads_to_weaken<T>(spec: TempPred<T>, p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>)
     requires
         valid(lift_state(p2).implies(lift_state(p1))),
@@ -817,26 +897,7 @@ pub proof fn leads_to_weaken<T>(spec: TempPred<T>, p1: StatePred<T>, q1: StatePr
     leads_to_weaken_temp::<T>(spec, lift_state(p1), lift_state(q1), lift_state(p2), lift_state(q2));
 }
 
-pub proof fn leads_to_weaken_left<T>(spec: TempPred<T>, p1: StatePred<T>, p2: StatePred<T>, q: StatePred<T>)
-    requires
-        valid(lift_state(p2).implies(lift_state(p1))),
-        spec.entails(lift_state(p1).leads_to(lift_state(q))),
-    ensures
-        spec.entails(lift_state(p2).leads_to(lift_state(q))),
-{
-    leads_to_weaken::<T>(spec, p1, q, p2, q);
-}
-
-pub proof fn leads_to_weaken_right<T>(spec: TempPred<T>, p: StatePred<T>, q1: StatePred<T>, q2: StatePred<T>)
-    requires
-        valid(lift_state(q1).implies(lift_state(q2))),
-        spec.entails(lift_state(p).leads_to(lift_state(q1))),
-    ensures
-        spec.entails(lift_state(p).leads_to(lift_state(q2))),
-{
-    leads_to_weaken::<T>(spec, p, q1, p, q2);
-}
-
+/// Auto version of leads_to_weaken_temp.
 pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
     ensures
         forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
@@ -850,7 +911,13 @@ pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
     };
 }
 
-#[verifier(external_body)]
+/// Weaken another leads_to by equals.
+/// pre:
+///     |= p2 <=> p1
+///     |= q1 <=> q2
+///     spec |= p1 ~> q1
+/// post:
+///     spec |= p2 ~> q2
 proof fn leads_to_eq_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
     requires
         valid(p2.equals(p1)),
@@ -858,8 +925,16 @@ proof fn leads_to_eq_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>
         spec.entails(p1.leads_to(q1)),
     ensures
         spec.entails(p2.leads_to(q2)),
-{}
+{
+    valid_equals_to_valid_implies::<T>(p2, p1);
+    valid_equals_to_valid_implies::<T>(q1, q2);
+    implies_to_leads_to_temp::<T>(p2, p1);
+    implies_to_leads_to_temp::<T>(q1, q2);
+    leads_to_trans_temp::<T>(spec, p2, p1, q1);
+    leads_to_trans_temp::<T>(spec, p2, q1, q2);
+}
 
+/// StatePred version of leads_to_eq_temp.
 proof fn leads_to_eq<T>(spec: TempPred<T>, p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>)
     requires
         valid(lift_state(p2).equals(lift_state(p1))),
@@ -871,6 +946,7 @@ proof fn leads_to_eq<T>(spec: TempPred<T>, p1: StatePred<T>, q1: StatePred<T>, p
     leads_to_eq_temp::<T>(spec, lift_state(p1), lift_state(q1), lift_state(p2), lift_state(q2));
 }
 
+/// Auto version of leads_to_eq_temp.
 pub proof fn leads_to_eq_auto<T>(spec: TempPred<T>)
     ensures
         forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
@@ -884,9 +960,12 @@ pub proof fn leads_to_eq_auto<T>(spec: TempPred<T>)
     };
 }
 
-/// Combines leads_to using or.
-/// `|= ((p ~> r) /\ (q ~> r)) == (p \/ q ~> r)`
-
+/// Combine the premises of two leads_to using or.
+/// pre:
+///     spec |= p ~> r
+///     spec |= q ~> r
+/// post:
+///     spec |= (p \/ q) ~> r
 #[verifier(external_body)]
 pub proof fn or_leads_to_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
@@ -896,8 +975,12 @@ pub proof fn or_leads_to_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: State
         spec.entails(lift_state(p).or(lift_state(q)).leads_to(lift_state(r))),
 {}
 
-/// `|= (((p /\ q) ~> r) /\ ((p /\ ~q) ~> r)) -> (p ~> r)`
-
+/// Specialized version of or_leads_to_combine used for eliminating q in premise.
+/// pre:
+///     spec |= p /\ r ~> q
+///     spec |= p /\ ~r ~> q
+/// post:
+///     spec |= p ~> q
 #[verifier(external_body)]
 pub proof fn leads_to_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
@@ -907,11 +990,12 @@ pub proof fn leads_to_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePre
         spec.entails(lift_state(p).leads_to(lift_state(q))),
 {}
 
-/// Removes r from the premise if we have always r.
-/// `|= ([]r /\ ((p /\ r) ~> q)) => (p ~> q)`
-/// Note that the other direction also holds.
-/// TODO: prove the equivalence.
-
+/// Remove r from the premise of leads_to if always r.
+/// pre:
+///     spec |= []r
+///     spec |= (p /\ r) ~> q
+/// post:
+///     spec |= p ~> q
 #[verifier(external_body)]
 pub proof fn leads_to_assume<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
@@ -921,11 +1005,11 @@ pub proof fn leads_to_assume<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred
         spec.entails(lift_state(p).leads_to(lift_state(q))),
 {}
 
-/// Removes not q from the premise.
-/// `|= ((p /\ ~q) ~> q) => (p ~> q)`
-/// Note that the other direction also holds.
-/// TODO: prove the equivalence.
-
+/// Remove ~q from the premise of leads_to if q is the conclusion.
+/// pre:
+///     spec |= (p /\ ~q) ~> q
+/// post:
+///     spec |= p ~> q
 #[verifier(external_body)]
 pub proof fn leads_to_assume_not<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
@@ -934,6 +1018,12 @@ pub proof fn leads_to_assume_not<T>(spec: TempPred<T>, p: StatePred<T>, q: State
         spec.entails(lift_state(p).leads_to(lift_state(q))),
 {}
 
+/// Combine the conclusions of two leads_to if the conclusions are stable.
+/// pre:
+///     spec |= p ~> []q
+///     spec |= p ~> []r
+/// post:
+///     spec |= p ~> [](q /\ r)
 #[verifier(external_body)]
 pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
@@ -944,8 +1034,14 @@ pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: S
         spec.entails(lift_state(p).leads_to(always(lift_state(|s| q(s) && r(s))))),
 {}
 
+/// Weaken version of leads_to_always_combine by dropping the always in the conclusion.
+/// pre:
+///     spec |= p ~> []q
+///     spec |= p ~> []r
+/// post:
+///     spec |= p ~> (q /\ r)
 #[verifier(external_body)]
-pub proof fn leads_to_always_combine_then_drop_always<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
+pub proof fn leads_to_always_combine_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
         spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
         spec.entails(lift_state(p).leads_to(always(lift_state(r)))),
@@ -953,6 +1049,13 @@ pub proof fn leads_to_always_combine_then_drop_always<T>(spec: TempPred<T>, p: S
         spec.entails(lift_state(p).leads_to(lift_state(q).and(lift_state(r)))),
 {}
 
+/// Strengthen leads_to to leads_to always if q is preserved by next.
+/// pre:
+///     |= q /\ next => q'
+///     spec |= []next
+///     spec |= p ~> q
+/// post:
+///     spec |= p ~> []q
 #[verifier(external_body)]
 pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
@@ -963,6 +1066,7 @@ pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: State
         spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
 {}
 
+/// Combination of leads_to_stable and leads_to_always_combine.
 pub proof fn leads_to_always_and_combine<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
         forall |s, s_prime: T| state_pred_call(q, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(q, s_prime),
@@ -978,6 +1082,7 @@ pub proof fn leads_to_always_and_combine<T>(spec: TempPred<T>, next: ActionPred<
     leads_to_always_combine::<T>(spec, p, q, r);
 }
 
+/// Combination of leads_to_stable and leads_to_always_combine_weaken.
 pub proof fn leads_to_and_combine<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
         forall |s, s_prime: T| state_pred_call(q, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(q, s_prime),
@@ -990,7 +1095,7 @@ pub proof fn leads_to_and_combine<T>(spec: TempPred<T>, next: ActionPred<T>, p: 
 {
     leads_to_stable::<T>(spec, next, p, q);
     leads_to_stable::<T>(spec, next, p, r);
-    leads_to_always_combine_then_drop_always::<T>(spec, p, q, r);
+    leads_to_always_combine_weaken::<T>(spec, p, q, r);
 }
 
 }
