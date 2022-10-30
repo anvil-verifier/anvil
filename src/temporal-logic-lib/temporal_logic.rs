@@ -492,8 +492,8 @@ pub proof fn implies_preserved_by_always<T>(p: StatePred<T>, q: StatePred<T>)
 pub proof fn implies_preserved_by_always_auto<T>()
     ensures
         forall |p: TempPred<T>, q: TempPred<T>|
-        #![trigger always(p), always(q)] valid(p.implies(q))
-        ==> valid(always(p).implies(always(q))),
+        #![trigger always(p), always(q)]
+        valid(p.implies(q)) ==> valid(always(p).implies(always(q))),
 {
     assert forall |p: TempPred<T>, q: TempPred<T>| #[trigger] valid(p.implies(q))
     implies valid(always(p).implies(always(q))) by {
@@ -532,8 +532,8 @@ pub proof fn eq_preserved_by_always<T>(p: StatePred<T>, q: StatePred<T>)
 pub proof fn eq_preserved_by_always_auto<T>()
     ensures
         forall |p: TempPred<T>, q: TempPred<T>|
-        #![trigger always(p), always(q)] valid(p.equals(q))
-        ==> valid(always(p).equals(always(q))),
+        #![trigger always(p), always(q)]
+        valid(p.equals(q)) ==> valid(always(p).equals(always(q))),
 {
     assert forall |p: TempPred<T>, q: TempPred<T>| #[trigger] valid(p.equals(q))
     implies valid(always(p).equals(always(q))) by {
