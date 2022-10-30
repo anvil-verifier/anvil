@@ -652,6 +652,7 @@ pub proof fn leads_to_intro_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPr
     };
 }
 
+/// StatePred version of leads_to_intro_temp.
 pub proof fn leads_to_intro<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
         spec.entails(always(lift_state(q))),
