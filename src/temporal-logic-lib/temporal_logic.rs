@@ -620,13 +620,18 @@ pub proof fn leads_to_intro<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<
 ///     |= p => q
 /// post:
 ///     |= <>p => <>q
-#[verifier(external_body)]
 pub proof fn implies_preserved_by_eventually_temp<T>(p: TempPred<T>, q: TempPred<T>)
     requires
         valid(p.implies(q)),
     ensures
         valid(eventually(p).implies(eventually(q))),
-{}
+{
+    assert forall |ex| eventually(p).satisfied_by(ex) implies eventually(q).satisfied_by(ex) by {
+        eventually_unfold::<T>(ex, p);
+        let p_witness = eventually_witness::<T>(ex, p);
+        implies_unfold::<T>(ex.suffix(p_witness), p, q);
+    };
+}
 
 /// Introduce eventually to both sides of equals.
 /// pre:
