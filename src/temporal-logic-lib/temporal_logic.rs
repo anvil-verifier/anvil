@@ -212,6 +212,43 @@ proof fn execution_suffix_tear<T>(ex: Execution<T>, p: TempPred<T>, i: nat, j: n
         p.satisfied_by(ex.suffix(i).suffix(j)),
 {}
 
+proof fn always_unfold<T>(ex: Execution<T>, p: TempPred<T>)
+    requires
+        always(p).satisfied_by(ex),
+    ensures
+        forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
+{}
+
+proof fn eventually_unfold<T>(ex: Execution<T>, p: TempPred<T>)
+    requires
+        eventually(p).satisfied_by(ex),
+    ensures
+        exists |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
+{}
+
+proof fn equals_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        p.equals(q).satisfied_by(ex),
+    ensures
+        p.satisfied_by(ex) <==> q.satisfied_by(ex),
+{}
+
+proof fn implies_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        p.implies(q).satisfied_by(ex),
+    ensures
+        p.satisfied_by(ex) ==> q.satisfied_by(ex),
+{}
+
+proof fn leads_to_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        p.leads_to(q).satisfied_by(ex),
+    ensures
+        forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)) ==> eventually(q).satisfied_by(ex.suffix(i)),
+{
+    always_unfold::<T>(ex, p.implies(eventually(q)));
+}
+
 proof fn implies_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.implies(q).satisfied_by(ex),
@@ -251,20 +288,6 @@ proof fn entails_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     entails_apply_auto::<T>();
 }
 
-proof fn always_unfold<T>(ex: Execution<T>, p: TempPred<T>)
-    requires
-        always(p).satisfied_by(ex),
-    ensures
-        forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
-{}
-
-proof fn eventually_unfold<T>(ex: Execution<T>, p: TempPred<T>)
-    requires
-        eventually(p).satisfied_by(ex),
-    ensures
-        exists |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
-{}
-
 proof fn eventually_delay<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
     requires
         eventually(p).satisfied_by(ex.suffix(i)),
@@ -283,20 +306,6 @@ spec fn eventually_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
     let witness = choose |i| p.satisfied_by(#[trigger] ex.suffix(i));
     witness
 }
-
-proof fn equals_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        p.equals(q).satisfied_by(ex),
-    ensures
-        p.satisfied_by(ex) <==> q.satisfied_by(ex),
-{}
-
-proof fn implies_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        p.implies(q).satisfied_by(ex),
-    ensures
-        p.satisfied_by(ex) ==> q.satisfied_by(ex),
-{}
 
 proof fn equals_trans<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     requires
@@ -354,24 +363,6 @@ proof fn valid_implies_to_valid_equals<T>(p: TempPred<T>, q: TempPred<T>)
     };
 }
 
-proof fn lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
-    requires
-        lift_action(p).satisfied_by(ex),
-    ensures
-        p(ex.head(), ex.head_next()),
-{}
-
-proof fn always_lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
-    requires
-        always(lift_action(p)).satisfied_by(ex),
-    ensures
-        forall |i: nat| #[trigger] action_pred_call(p, ex.suffix(i).head(), ex.suffix(i).head_next()),
-{
-    assert forall |i: nat| #[trigger] action_pred_call(p, ex.suffix(i).head(), ex.suffix(i).head_next()) by {
-        lift_action_unfold(ex.suffix(i), p);
-    };
-}
-
 proof fn init_invariant_rec<T>(ex: Execution<T>, init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>, i: nat)
     requires
         init(ex.head()),
@@ -411,7 +402,7 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
     assert forall |ex: Execution<T>| spec.satisfied_by(ex)
     implies #[trigger] always(lift_state(inv)).satisfied_by(ex) by {
         entails_apply(ex, spec, lift_state(init).and(always(lift_action(next))));
-        always_lift_action_unfold::<T>(ex, next);
+        always_unfold::<T>(ex, lift_action(next));
         assert forall |i: nat| #[trigger] state_pred_call(inv, ex.suffix(i).head()) by {
             init_invariant_rec(ex, init, next, inv, i);
         };
