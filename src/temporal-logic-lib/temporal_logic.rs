@@ -442,13 +442,19 @@ pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<
 ///     |= p => q
 /// post:
 ///     |= []p => []q
-#[verifier(external_body)]
 pub proof fn implies_preserved_by_always_temp<T>(p: TempPred<T>, q: TempPred<T>)
     requires
         valid(p.implies(q)),
     ensures
         valid(always(p).implies(always(q))),
-{}
+{
+    assert forall |ex| always(p).satisfied_by(ex) implies always(q).satisfied_by(ex) by {
+        assert forall |i:nat| q.satisfied_by(#[trigger] ex.suffix(i)) by {
+            always_unfold::<T>(ex, p);
+            implies_unfold::<T>(ex.suffix(i), p, q);
+        };
+    };
+}
 
 /// StatePred version of implies_preserved_by_always_temp.
 pub proof fn implies_preserved_by_always<T>(p: StatePred<T>, q: StatePred<T>)
