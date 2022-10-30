@@ -288,7 +288,31 @@ proof fn entails_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     entails_apply_auto::<T>();
 }
 
-proof fn eventually_delay<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
+proof fn always_propagate_forwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
+    requires
+        always(p).satisfied_by(ex),
+    ensures
+        always(p).satisfied_by(ex.suffix(i)),
+{
+    always_unfold::<T>(ex, p);
+    assert forall |j| p.satisfied_by(#[trigger] ex.suffix(i).suffix(j)) by {
+        execution_suffix_tear::<T>(ex, p, i, j, i + j);
+    };
+}
+
+proof fn always_double<T>(ex: Execution<T>, p: TempPred<T>)
+    requires
+        always(p).satisfied_by(ex),
+    ensures
+        always(always(p)).satisfied_by(ex),
+{
+    always_unfold::<T>(ex, p);
+    assert forall |i| always(p).satisfied_by(#[trigger] ex.suffix(i)) by {
+        always_propagate_forwards::<T>(ex, p, i);
+    };
+}
+
+proof fn eventually_propagate_backwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
     requires
         eventually(p).satisfied_by(ex.suffix(i)),
     ensures
@@ -298,6 +322,13 @@ proof fn eventually_delay<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
     let witness_idx = eventually_witness(ex.suffix(i), p);
     execution_suffix_merge::<T>(ex, p, i, witness_idx);
 }
+
+proof fn eventually_fed<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
+    requires
+        p.satisfied_by(ex.suffix(i)),
+    ensures
+        eventually(p).satisfied_by(ex)
+{}
 
 spec fn eventually_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
     recommends
@@ -604,13 +635,31 @@ pub proof fn always_and_eventually<T>(spec: TempPred<T>, p: StatePred<T>, q: Sta
 ///     spec |= []q
 /// post:
 ///     spec |= p ~> []q
-#[verifier(external_body)]
+pub proof fn leads_to_intro_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(always(q)),
+    ensures
+        spec.entails(p.leads_to(always(q))),
+{
+    assert forall |ex| spec.satisfied_by(ex) implies #[trigger] p.leads_to(always(q)).satisfied_by(ex) by {
+        implies_unfold::<T>(ex, spec, always(q));
+        always_double::<T>(ex, q);
+        assert forall |i| p.satisfied_by(#[trigger] ex.suffix(i)) implies eventually(always(q)).satisfied_by(ex.suffix(i)) by {
+            always_propagate_forwards::<T>(ex, always(q), i);
+            always_unfold::<T>(ex.suffix(i), always(q));
+            eventually_fed::<T>(ex.suffix(i), always(q), 0);
+        };
+    };
+}
+
 pub proof fn leads_to_intro<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
         spec.entails(always(lift_state(q))),
     ensures
         spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
-{}
+{
+    leads_to_intro_temp::<T>(spec, lift_state(p), lift_state(q));
+}
 
 /// Introduce eventually to both sides of implies.
 /// pre:
@@ -801,7 +850,7 @@ pub proof fn leads_to_trans_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPr
             implies_apply(ex.suffix(i + q_witness_idx), q, eventually(r));
             execution_suffix_tear(ex, eventually(r), i, q_witness_idx, i + q_witness_idx);
 
-            eventually_delay(ex.suffix(i), r, q_witness_idx);
+            eventually_propagate_backwards(ex.suffix(i), r, q_witness_idx);
         }
     };
 }
