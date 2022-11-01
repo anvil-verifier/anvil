@@ -319,18 +319,18 @@ proof fn eventually_propagate_backwards<T>(ex: Execution<T>, p: TempPred<T>, i: 
         eventually(p).satisfied_by(ex),
 {
     eventually_unfold::<T>(ex.suffix(i), p);
-    let witness_idx = eventually_witness(ex.suffix(i), p);
+    let witness_idx = eventually_choose_witness(ex.suffix(i), p);
     execution_suffix_merge::<T>(ex, p, i, witness_idx);
 }
 
-proof fn eventually_fed<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
+proof fn eventually_proved<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
     requires
         p.satisfied_by(ex.suffix(i)),
     ensures
         eventually(p).satisfied_by(ex)
 {}
 
-spec fn eventually_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
+spec fn eventually_choose_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
     recommends
         exists |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
 {
@@ -647,7 +647,7 @@ pub proof fn leads_to_intro_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPr
         assert forall |i| p.satisfied_by(#[trigger] ex.suffix(i)) implies eventually(always(q)).satisfied_by(ex.suffix(i)) by {
             always_propagate_forwards::<T>(ex, always(q), i);
             always_unfold::<T>(ex.suffix(i), always(q));
-            eventually_fed::<T>(ex.suffix(i), always(q), 0);
+            eventually_proved::<T>(ex.suffix(i), always(q), 0);
         };
     };
 }
@@ -675,7 +675,7 @@ pub proof fn implies_preserved_by_eventually_temp<T>(p: TempPred<T>, q: TempPred
 {
     assert forall |ex| eventually(p).satisfied_by(ex) implies eventually(q).satisfied_by(ex) by {
         eventually_unfold::<T>(ex, p);
-        let p_witness = eventually_witness::<T>(ex, p);
+        let p_witness = eventually_choose_witness::<T>(ex, p);
         implies_unfold::<T>(ex.suffix(p_witness), p, q);
     };
 }
@@ -843,7 +843,7 @@ pub proof fn leads_to_trans_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPr
             always_unfold(ex, p.implies(eventually(q)));
             implies_apply(ex.suffix(i), p, eventually(q));
             eventually_unfold(ex.suffix(i), q);
-            let q_witness_idx = eventually_witness(ex.suffix(i), q);
+            let q_witness_idx = eventually_choose_witness(ex.suffix(i), q);
             execution_suffix_merge(ex, q, i, q_witness_idx);
 
             entails_apply(ex, spec, q.leads_to(r));
