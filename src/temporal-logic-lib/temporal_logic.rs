@@ -323,9 +323,9 @@ proof fn eventually_propagate_backwards<T>(ex: Execution<T>, p: TempPred<T>, i: 
     execution_suffix_merge::<T>(ex, p, i, witness_idx);
 }
 
-proof fn eventually_proved<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
+proof fn eventually_proved_by_witness<T>(ex: Execution<T>, p: TempPred<T>, witness_idx: nat)
     requires
-        p.satisfied_by(ex.suffix(i)),
+        p.satisfied_by(ex.suffix(witness_idx)),
     ensures
         eventually(p).satisfied_by(ex)
 {}
@@ -647,7 +647,7 @@ pub proof fn leads_to_intro_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPr
         assert forall |i| p.satisfied_by(#[trigger] ex.suffix(i)) implies eventually(always(q)).satisfied_by(ex.suffix(i)) by {
             always_propagate_forwards::<T>(ex, always(q), i);
             always_unfold::<T>(ex.suffix(i), always(q));
-            eventually_proved::<T>(ex.suffix(i), always(q), 0);
+            eventually_proved_by_witness::<T>(ex.suffix(i), always(q), 0);
         };
     };
 }
