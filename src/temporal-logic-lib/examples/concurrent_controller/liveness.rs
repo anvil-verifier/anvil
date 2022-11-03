@@ -20,7 +20,7 @@ spec fn liveness_property(cr: ResourceObj) -> TempPred<CState>
     let pod_name = sts_name + pod_suffix();
     let vol_name = sts_name + vol_suffix();
 
-    lift_state(|s| resource_exists(s, cr.key)).and(always(lift_state(|s| !message_sent(s, delete_req_msg(cr.key)))))
+    always(lift_state(|s| resource_exists(s, cr.key)))
     .leads_to(always(lift_state(
         |s: CState| {
             &&& resource_exists(s, ResourceKey{name: pod_name, kind: ResourceKind::PodKind})
@@ -51,30 +51,16 @@ proof fn liveness_proof(cr: ResourceObj)
     let pod_name = sts_name + pod_suffix();
     let vol_name = sts_name + vol_suffix();
 
-    leads_to_trans_auto::<CState>(sm_spec());
     leads_to_weaken_auto::<CState>(sm_spec());
 
-    lemma_always_res_exists_implies_create_req_sent(cr);
-
-    lemma_k8s_create_cr_req_leads_to_create_cr_resp(create_req_msg(cr.key));
-    lemma_controller_create_cr_resp_leads_to_create_sts_req(create_resp_msg(cr.key));
-    lemma_k8s_create_sts_req_sent_leads_to_pod_exists_and_vol_exists(create_req_msg(ResourceKey{name: sts_name, kind: ResourceKind::StatefulSetKind}));
-
-    assert(sm_spec().entails(
-        lift_state(|s| resource_exists(s, cr.key))
-            .leads_to(lift_state(|s| resource_exists(s, ResourceKey{name: pod_name, kind: ResourceKind::PodKind})))
-    ));
-    assert(sm_spec().entails(
-        lift_state(|s| resource_exists(s, cr.key))
-            .leads_to(lift_state(|s| resource_exists(s, ResourceKey{name: vol_name, kind: ResourceKind::VolumeKind})))
-    ));
-
-    lemma_always_delete_cr_req_not_sent_implies_delete_pod_and_vol_req_not_sent(cr);
-    leads_to_stable_with_asm_combine::<CState>(sm_spec(),
+    lemma_cr_exists_leads_to_pod_exists_and_vol_exists(cr);
+    lemma_always_cr_always_exists_implies_delete_pod_vol_req_never_sent(cr);
+    leads_to_stable_assume_p_combine::<CState>(sm_spec(),
         next(),
-        |s| !message_sent(s, delete_req_msg(cr.key)),
-        |s| !message_sent(s, delete_req_msg(ResourceKey{name: pod_name, kind: ResourceKind::PodKind }))
-            && !message_sent(s, delete_req_msg(ResourceKey{name: vol_name, kind: ResourceKind::VolumeKind})),
+        |s| {
+            &&& !message_sent(s, delete_req_msg(ResourceKey{name: pod_name, kind: ResourceKind::PodKind}))
+            &&& !message_sent(s, delete_req_msg(ResourceKey{name: vol_name, kind: ResourceKind::VolumeKind}))
+        },
         |s| resource_exists(s, cr.key),
         |s| resource_exists(s, ResourceKey{name: pod_name, kind: ResourceKind::PodKind}),
         |s| resource_exists(s, ResourceKey{name: vol_name, kind: ResourceKind::VolumeKind})
@@ -91,6 +77,90 @@ proof fn liveness_proof(cr: ResourceObj)
             }
         )
     );
+}
+
+proof fn lemma_cr_exists_leads_to_pod_exists_and_vol_exists(cr: ResourceObj)
+    requires
+        cr.key.kind.is_CustomResourceKind(),
+    ensures
+        sm_spec().entails(
+            lift_state(|s| resource_exists(s, cr.key))
+                .leads_to(lift_state(|s| resource_exists(s, ResourceKey{name: cr.key.name + sts_suffix() + pod_suffix(), kind: ResourceKind::PodKind})))
+        ),
+        sm_spec().entails(
+            lift_state(|s| resource_exists(s, cr.key))
+                .leads_to(lift_state(|s| resource_exists(s, ResourceKey{name: cr.key.name + sts_suffix() + vol_suffix(), kind: ResourceKind::VolumeKind})))
+        ),
+{
+    let cr_name = cr.key.name;
+    let sts_name = cr_name + sts_suffix();
+
+    leads_to_trans_auto::<CState>(sm_spec());
+    leads_to_weaken_auto::<CState>(sm_spec());
+
+    lemma_always_res_exists_implies_create_req_sent(cr);
+
+    lemma_k8s_create_cr_req_leads_to_create_cr_resp(create_req_msg(cr.key));
+    lemma_controller_create_cr_resp_leads_to_create_sts_req(create_resp_msg(cr.key));
+    lemma_k8s_create_sts_req_sent_leads_to_pod_exists_and_vol_exists(create_req_msg(ResourceKey{name: sts_name, kind: ResourceKind::StatefulSetKind}));
+}
+
+proof fn lemma_always_delete_cr_req_not_sent_implies_delete_pod_and_vol_req_not_sent(cr: ResourceObj)
+    requires
+        cr.key.kind.is_CustomResourceKind(),
+    ensures
+        sm_spec().entails(always(
+            lift_state(|s| !message_sent(s, delete_req_msg(cr.key)))
+                .implies(lift_state(|s| {
+                    &&& !message_sent(s, delete_req_msg(ResourceKey{name: cr.key.name + sts_suffix() + pod_suffix(), kind: ResourceKind::PodKind}))
+                    &&& !message_sent(s, delete_req_msg(ResourceKey{name: cr.key.name + sts_suffix() + vol_suffix(), kind: ResourceKind::VolumeKind}))
+                }))
+        )),
+{
+    let delete_cr_req_msg = delete_req_msg(cr.key);
+    let delete_cr_resp_msg = delete_resp_msg(cr.key);
+    let delete_sts_req_msg = delete_req_msg(ResourceKey{
+        name: cr.key.name + sts_suffix(),
+        kind: ResourceKind::StatefulSetKind,
+    });
+    lemma_always_delete_req_not_sent_implies_delete_resp_not_sent(delete_cr_req_msg);
+    lemma_always_delete_cr_resp_not_sent_implies_delete_sts_req_not_sent(delete_cr_resp_msg);
+    lemma_always_delete_sts_req_not_sent_implies_delete_pod_and_vol_req_not_sent(delete_sts_req_msg);
+
+    always_implies_trans_auto::<CState>(sm_spec());
+}
+
+proof fn lemma_always_cr_always_exists_implies_delete_pod_vol_req_never_sent(cr: ResourceObj)
+    requires
+        cr.key.kind.is_CustomResourceKind(),
+    ensures
+        sm_spec().entails(
+            always(
+                always(lift_state(|s| resource_exists(s, cr.key)))
+                .implies(always(lift_state(|s| {
+                    &&& !message_sent(s, delete_req_msg(ResourceKey{name: cr.key.name + sts_suffix() + pod_suffix(), kind: ResourceKind::PodKind}))
+                    &&& !message_sent(s, delete_req_msg(ResourceKey{name: cr.key.name + sts_suffix() + vol_suffix(), kind: ResourceKind::VolumeKind}))
+                })))
+            )
+        ),
+{
+    lemma_k8s_delete_cr_req_leads_to_cr_not_exists(delete_req_msg(cr.key));
+    leads_to_contradiction::<CState>(sm_spec(),
+        |s| message_sent(s, delete_req_msg(cr.key)),
+        |s| !resource_exists(s, cr.key),
+    );
+
+    lemma_always_delete_cr_req_not_sent_implies_delete_pod_and_vol_req_not_sent(cr);
+    always_implies_add_always::<CState>(sm_spec(),
+        |s| !message_sent(s, delete_req_msg(cr.key)),
+        |s| {
+            &&& !message_sent(s, delete_req_msg(ResourceKey{name: cr.key.name + sts_suffix() + pod_suffix(), kind: ResourceKind::PodKind}))
+            &&& !message_sent(s, delete_req_msg(ResourceKey{name: cr.key.name + sts_suffix() + vol_suffix(), kind: ResourceKind::VolumeKind}))
+        }
+    );
+
+    implies_preserved_by_always_auto::<CState>();
+    always_implies_weaken_auto::<CState>(sm_spec());
 }
 
 proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(msg: Message)
@@ -142,6 +212,27 @@ proof fn lemma_k8s_create_cr_req_leads_to_create_cr_resp(msg: Message)
         k8s_handle_request(msg),
         k8s_handle_request_pre(msg),
         |s| message_sent(s, create_resp_msg(msg.get_CreateRequest_0().obj.key))
+    );
+}
+
+proof fn lemma_k8s_delete_cr_req_leads_to_cr_not_exists(msg: Message)
+    requires
+        msg.is_DeleteRequest(),
+        msg.get_DeleteRequest_0().key.kind.is_CustomResourceKind(),
+    ensures
+        sm_spec()
+            .entails(lift_state(|s| message_sent(s, msg))
+                .leads_to(lift_state(|s| !resource_exists(s, msg.get_DeleteRequest_0().key)))),
+{
+    leads_to_eq_auto::<CState>(sm_spec());
+    use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_request(m)), msg);
+
+    k8s_handle_request_enabled(msg);
+    wf1::<CState>(sm_spec(),
+        next(),
+        k8s_handle_request(msg),
+        k8s_handle_request_pre(msg),
+        |s| !resource_exists(s, msg.get_DeleteRequest_0().key)
     );
 }
 
