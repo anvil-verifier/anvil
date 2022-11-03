@@ -244,7 +244,8 @@ proof fn leads_to_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.leads_to(q).satisfied_by(ex),
     ensures
-        forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)) ==> eventually(q).satisfied_by(ex.suffix(i)),
+        // forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)) ==> eventually(q).satisfied_by(ex.suffix(i)),
+        forall |i: nat| p.implies(eventually(q)).satisfied_by(#[trigger] ex.suffix(i)),
 {
     always_unfold::<T>(ex, p.implies(eventually(q)));
 }
@@ -286,6 +287,23 @@ proof fn entails_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
         p.entails(r),
 {
     entails_apply_auto::<T>();
+}
+
+proof fn not_proved_by_contradiction<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        p.implies(q).satisfied_by(ex),
+        not(q).satisfied_by(ex),
+    ensures
+        not(p).satisfied_by(ex)
+{}
+
+proof fn not_eventually_by_always_not<T>(ex: Execution<T>, p: TempPred<T>)
+    requires
+        always(not(p)).satisfied_by(ex),
+    ensures
+        not(eventually(p)).satisfied_by(ex),
+{
+    always_unfold::<T>(ex, not(p));
 }
 
 proof fn always_propagate_forwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
@@ -1225,6 +1243,43 @@ pub proof fn leads_to_stable_with_asm_combine<T>(spec: TempPred<T>, next: Action
     leads_to_stable_with_asm::<T>(spec, next, asm, blocker, p, q);
     leads_to_stable_with_asm::<T>(spec, next, asm, blocker, p, r);
     leads_to_always_combine_temp::<T>(spec, lift_state(p).and(always(lift_state(asm))), lift_state(q), lift_state(r));
+}
+
+/// Show that if the conclusion of leads_to is never true, then the premise of leads_to is never true
+/// pre:
+///     spec |= p ~> q
+/// ensures:
+///     spec |= []([]~q => []~p)
+pub proof fn leads_to_contradiction_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(p.leads_to(q)),
+    ensures
+        spec.entails(always(always(not(q)).implies(always(not(p))))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(always(not(q)).implies(always(not(p)))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] always(not(q)).satisfied_by(ex.suffix(i)) implies always(not(p)).satisfied_by(ex.suffix(i)) by {
+            assert forall |j| #[trigger] not(p).satisfied_by(ex.suffix(i).suffix(j)) by {
+                implies_apply::<T>(ex, spec, p.leads_to(q));
+                leads_to_unfold::<T>(ex, p, q);
+                execution_suffix_tear::<T>(ex, p.implies(eventually(q)), i, j, i + j);
+
+                always_propagate_forwards::<T>(ex.suffix(i), not(q), j);
+                not_eventually_by_always_not::<T>(ex.suffix(i).suffix(j), q);
+
+                not_proved_by_contradiction::<T>(ex.suffix(i).suffix(j), p, eventually(q));
+            };
+        };
+    };
+}
+
+/// StatePred version of leads_to_contradiction_temp
+pub proof fn leads_to_contradiction<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
+    requires
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
+    ensures
+        spec.entails(always(always(not(lift_state(q))).implies(always(not(lift_state(p)))))),
+{
+    leads_to_contradiction_temp::<T>(spec, lift_state(p), lift_state(q));
 }
 
 }
