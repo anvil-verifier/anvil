@@ -1351,13 +1351,26 @@ pub proof fn leads_to_contradiction<T>(spec: TempPred<T>, p: StatePred<T>, q: St
     leads_to_contradiction_temp::<T>(spec, lift_state(p), lift_state(q));
 }
 
-#[verifier(external_body)]
 pub proof fn always_implies_add_always_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         spec.entails(always(p.implies(q))),
     ensures
         spec.entails(always(always(p).implies(always(q)))),
-{}
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(always(p).implies(always(q))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] always(p).satisfied_by(ex.suffix(i)) implies always(q).satisfied_by(ex.suffix(i)) by {
+            assert forall |j| #[trigger] q.satisfied_by(ex.suffix(i).suffix(j)) by {
+                implies_apply::<T>(ex, spec, always(p.implies(q)));
+                always_unfold::<T>(ex, p.implies(q));
+                execution_suffix_split::<T>(ex, p.implies(q), i, j, i + j);
+
+                always_unfold::<T>(ex.suffix(i), p);
+
+                implies_apply::<T>(ex.suffix(i).suffix(j), p, q);
+            };
+        };
+    };
+}
 
 pub proof fn always_implies_add_always<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
