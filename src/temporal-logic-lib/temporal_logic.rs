@@ -1382,7 +1382,6 @@ pub proof fn always_implies_add_always<T>(spec: TempPred<T>, p: StatePred<T>, q:
 }
 
 
-#[verifier(external_body)]
 pub proof fn always_implies_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
     requires
         spec.entails(always(p2.implies(p1))),
@@ -1390,7 +1389,10 @@ pub proof fn always_implies_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q
         spec.entails(always(p1.implies(q1))),
     ensures
         spec.entails(always(p2.implies(q2))),
-{}
+{
+    always_implies_trans_temp::<T>(spec, p2, p1, q1);
+    always_implies_trans_temp::<T>(spec, p2, q1, q2);
+}
 
 pub proof fn always_implies_weaken_auto<T>(spec: TempPred<T>)
     ensures
