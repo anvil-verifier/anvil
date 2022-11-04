@@ -151,7 +151,7 @@ proof fn lemma_always_cr_always_exists_implies_delete_pod_vol_req_never_sent(cr:
     );
 
     lemma_always_delete_cr_req_not_sent_implies_delete_pod_and_vol_req_not_sent(cr);
-    always_implies_add_always::<CState>(sm_spec(),
+    always_implies_preserved_by_always::<CState>(sm_spec(),
         |s| !message_sent(s, delete_req_msg(cr.key)),
         |s| {
             &&& !message_sent(s, delete_req_msg(ResourceKey{name: cr.key.name + sts_suffix() + pod_suffix(), kind: ResourceKind::PodKind}))

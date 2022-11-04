@@ -689,7 +689,7 @@ pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<
     };
 }
 
-/// Weaken the entails by implies.
+/// Weaken entails by implies.
 /// pre:
 ///     |= p => q
 ///     spec |= p
@@ -919,6 +919,75 @@ pub proof fn always_prepend_leads_to<T>(spec: TempPred<T>, p: StatePred<T>, q: S
     always_prepend_leads_to_temp::<T>(spec, lift_state(p), lift_state(q));
 }
 
+/// Introduce always to both sides of always implies.
+/// pre:
+///     spec |= [](p => q)
+/// post:
+///     spec |= []([]p => []q)
+pub proof fn always_implies_preserved_by_always_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(always(p.implies(q))),
+    ensures
+        spec.entails(always(always(p).implies(always(q)))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(always(p).implies(always(q))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] always(p).satisfied_by(ex.suffix(i)) implies always(q).satisfied_by(ex.suffix(i)) by {
+            assert forall |j| #[trigger] q.satisfied_by(ex.suffix(i).suffix(j)) by {
+                implies_apply::<T>(ex, spec, always(p.implies(q)));
+                always_unfold::<T>(ex, p.implies(q));
+                execution_suffix_split::<T>(ex, p.implies(q), i, j, i + j);
+
+                always_unfold::<T>(ex.suffix(i), p);
+
+                implies_apply::<T>(ex.suffix(i).suffix(j), p, q);
+            };
+        };
+    };
+}
+
+/// StatePred version of always_implies_preserved_by_always_temp.
+pub proof fn always_implies_preserved_by_always<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
+    requires
+        spec.entails(always(lift_state(p).implies(lift_state(q)))),
+    ensures
+        spec.entails(always(always(lift_state(p)).implies(always(lift_state(q))))),
+{
+    always_implies_preserved_by_always_temp::<T>(spec, lift_state(p), lift_state(q));
+}
+
+/// Weaken always implies by implies.
+/// pre:
+///     spec |= [](p2 => p1)
+///     spec |= [](q1 => q2)
+///     spec |= [](p1 => q1)
+/// post:
+///     spec |= [](p2 => q2)
+pub proof fn always_implies_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
+    requires
+        spec.entails(always(p2.implies(p1))),
+        spec.entails(always(q1.implies(q2))),
+        spec.entails(always(p1.implies(q1))),
+    ensures
+        spec.entails(always(p2.implies(q2))),
+{
+    always_implies_trans_temp::<T>(spec, p2, p1, q1);
+    always_implies_trans_temp::<T>(spec, p2, q1, q2);
+}
+
+/// Auto version of always_implies_weaken_temp.
+pub proof fn always_implies_weaken_auto<T>(spec: TempPred<T>)
+    ensures
+        forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
+            spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] always(p1.implies(q1))) ==>
+            spec.entails(#[trigger] always(p2.implies(q2)))
+{
+    assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
+    spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] always(p1.implies(q1)))
+    implies spec.entails(#[trigger] always(p2.implies(q2))) by {
+        always_implies_weaken_temp(spec, p1, q1, p2, q2);
+    };
+}
+
 /// Connect two implies inside always by transitivity.
 /// pre:
 ///     spec |= [](p => q)
@@ -1004,7 +1073,7 @@ pub proof fn eq_preserved_by_eventually_temp<T>(p: TempPred<T>, q: TempPred<T>)
     valid_implies_to_valid_equals::<T>(eventually(p), eventually(q));
 }
 
-/// Weaken the eventually by implies.
+/// Weaken eventually by implies.
 /// pre:
 ///     |= p => q
 ///     spec |= <>p
@@ -1203,7 +1272,7 @@ pub proof fn leads_to_trans_relaxed_auto<T>(spec: TempPred<T>)
     };
 }
 
-/// Weaken the leads_to by implies.
+/// Weaken leads_to by implies.
 /// pre:
 ///     spec |= [](p2 => p1)
 ///     spec |= [](q1 => q2)
@@ -1615,62 +1684,5 @@ pub proof fn leads_to_contradiction<T>(spec: TempPred<T>, p: StatePred<T>, q: St
 {
     leads_to_contradiction_temp::<T>(spec, lift_state(p), lift_state(q));
 }
-
-pub proof fn always_implies_add_always_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(always(p.implies(q))),
-    ensures
-        spec.entails(always(always(p).implies(always(q)))),
-{
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(always(p).implies(always(q))).satisfied_by(ex) by {
-        assert forall |i| #[trigger] always(p).satisfied_by(ex.suffix(i)) implies always(q).satisfied_by(ex.suffix(i)) by {
-            assert forall |j| #[trigger] q.satisfied_by(ex.suffix(i).suffix(j)) by {
-                implies_apply::<T>(ex, spec, always(p.implies(q)));
-                always_unfold::<T>(ex, p.implies(q));
-                execution_suffix_split::<T>(ex, p.implies(q), i, j, i + j);
-
-                always_unfold::<T>(ex.suffix(i), p);
-
-                implies_apply::<T>(ex.suffix(i).suffix(j), p, q);
-            };
-        };
-    };
-}
-
-pub proof fn always_implies_add_always<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
-    requires
-        spec.entails(always(lift_state(p).implies(lift_state(q)))),
-    ensures
-        spec.entails(always(always(lift_state(p)).implies(always(lift_state(q))))),
-{
-    always_implies_add_always_temp::<T>(spec, lift_state(p), lift_state(q));
-}
-
-
-pub proof fn always_implies_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
-    requires
-        spec.entails(always(p2.implies(p1))),
-        spec.entails(always(q1.implies(q2))),
-        spec.entails(always(p1.implies(q1))),
-    ensures
-        spec.entails(always(p2.implies(q2))),
-{
-    always_implies_trans_temp::<T>(spec, p2, p1, q1);
-    always_implies_trans_temp::<T>(spec, p2, q1, q2);
-}
-
-pub proof fn always_implies_weaken_auto<T>(spec: TempPred<T>)
-    ensures
-        forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
-            spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] always(p1.implies(q1))) ==>
-            spec.entails(#[trigger] always(p2.implies(q2)))
-{
-    assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
-    spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] always(p1.implies(q1)))
-    implies spec.entails(#[trigger] always(p2.implies(q2))) by {
-        always_implies_weaken_temp(spec, p1, q1, p2, q2);
-    };
-}
-
 
 }
