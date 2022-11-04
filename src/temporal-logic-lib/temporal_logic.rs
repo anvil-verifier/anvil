@@ -689,12 +689,32 @@ pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<
     };
 }
 
-#[verifier(external_body)]
+/// Weaken the entails by implies.
+/// pre:
+///     |= p => q
+///     spec |= p
+/// post:
+///     spec |= q
+pub proof fn entails_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        valid(p.implies(q)),
+        spec.entails(p),
+    ensures
+        spec.entails(q)
+{
+    entails_trans::<T>(spec, p, q);
+}
+
 pub proof fn entails_weaken_auto<T>(spec: TempPred<T>)
     ensures
-        forall |p1: TempPred<T>, p2: TempPred<T>|
-            valid(p1.implies(p2)) && #[trigger] spec.entails(p1) ==> #[trigger] spec.entails(p2)
-{}
+        forall |p: TempPred<T>, q: TempPred<T>|
+            valid(p.implies(q)) && #[trigger] spec.entails(p) ==> #[trigger] spec.entails(q)
+{
+    assert forall |p: TempPred<T>, q: TempPred<T>| valid(p.implies(q)) && #[trigger] spec.entails(p)
+    implies #[trigger] spec.entails(q) by {
+        entails_weaken_temp::<T>(spec, p, q);
+    };
+}
 
 /// Introduce always to both sides of implies.
 /// pre:
