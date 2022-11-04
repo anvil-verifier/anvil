@@ -281,7 +281,7 @@ proof fn always_lift_state_unfold<T>(ex: Execution<T>, p: StatePred<T>)
     requires
         always(lift_state(p)).satisfied_by(ex),
     ensures
-        forall |i| #[trigger] state_pred_call(p, ex.suffix(i).head()),
+        forall |i| p(#[trigger] ex.suffix(i).head()),
 {
     always_unfold::<T>(ex, lift_state(p));
 }
@@ -520,8 +520,8 @@ proof fn always_add_redundant_and<T>(p: TempPred<T>)
 proof fn next_preserves_inv_rec<T>(ex: Execution<T>, next: ActionPred<T>, inv: StatePred<T>, i: nat)
     requires
         inv(ex.head()),
-        forall |idx: nat| #[trigger] action_pred_call(next, ex.suffix(idx).head(), ex.suffix(idx).head_next()),
-        forall |idx: nat| #[trigger] state_pred_call(inv, ex.suffix(idx).head()) && action_pred_call(next, ex.suffix(idx).head(), ex.suffix(idx).head_next())
+        forall |idx: nat| next(#[trigger] ex.suffix(idx).head(), ex.suffix(idx).head_next()),
+        forall |idx: nat| inv(#[trigger] ex.suffix(idx).head()) && next(ex.suffix(idx).head(), ex.suffix(idx).head_next())
             ==> inv(ex.suffix(idx).head_next()),
     ensures
         inv(ex.suffix(i).head()),
@@ -532,17 +532,15 @@ proof fn next_preserves_inv_rec<T>(ex: Execution<T>, next: ActionPred<T>, inv: S
         assert(inv(ex.suffix(0).head()));
     } else {
         next_preserves_inv_rec::<T>(ex, next, inv, (i-1) as nat);
-        assert(action_pred_call(next, ex.suffix((i-1) as nat).head(), ex.suffix((i-1) as nat).head_next()));
-        assert(state_pred_call(inv, ex.suffix((i-1) as nat).head()));
     }
 }
 
 proof fn next_preserves_inv_assume_rec<T>(ex: Execution<T>, next: ActionPred<T>, asm: StatePred<T>, inv: StatePred<T>, i: nat)
     requires
         inv(ex.head()),
-        forall |idx: nat| #[trigger] action_pred_call(next, ex.suffix(idx).head(), ex.suffix(idx).head_next()),
-        forall |idx: nat| #[trigger] state_pred_call(asm, ex.suffix(idx).head()),
-        forall |idx: nat| #[trigger] state_pred_call(inv, ex.suffix(idx).head()) && action_pred_call(next, ex.suffix(idx).head(), ex.suffix(idx).head_next()) && state_pred_call(asm, ex.suffix(idx).head())
+        forall |idx: nat| next(#[trigger] ex.suffix(idx).head(), ex.suffix(idx).head_next()),
+        forall |idx: nat| asm(#[trigger] ex.suffix(idx).head()),
+        forall |idx: nat| inv(#[trigger] ex.suffix(idx).head()) && next(ex.suffix(idx).head(), ex.suffix(idx).head_next()) && asm(ex.suffix(idx).head())
             ==> inv(ex.suffix(idx).head_next()),
     ensures
         inv(ex.suffix(i).head()),
@@ -553,18 +551,15 @@ proof fn next_preserves_inv_assume_rec<T>(ex: Execution<T>, next: ActionPred<T>,
         assert(inv(ex.suffix(0).head()));
     } else {
         next_preserves_inv_assume_rec::<T>(ex, next, asm, inv, (i-1) as nat);
-        assert(action_pred_call(next, ex.suffix((i-1) as nat).head(), ex.suffix((i-1) as nat).head_next()));
-        assert(state_pred_call(asm, ex.suffix((i-1) as nat).head()));
-        assert(state_pred_call(inv, ex.suffix((i-1) as nat).head()));
     }
 }
 
 proof fn init_invariant_rec<T>(ex: Execution<T>, init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>, i: nat)
     requires
         init(ex.head()),
-        forall |idx: nat| #[trigger] action_pred_call(next, ex.suffix(idx).head(), ex.suffix(idx).head_next()),
-        forall |idx: nat| #[trigger] state_pred_call(init, ex.suffix(idx).head()) ==> inv(ex.suffix(idx).head()),
-        forall |idx: nat| #[trigger] state_pred_call(inv, ex.suffix(idx).head()) && action_pred_call(next, ex.suffix(idx).head(), ex.suffix(idx).head_next())
+        forall |idx: nat| next(#[trigger] ex.suffix(idx).head(), ex.suffix(idx).head_next()),
+        forall |idx: nat| init(#[trigger] ex.suffix(idx).head()) ==> inv(ex.suffix(idx).head()),
+        forall |idx: nat| inv(#[trigger] ex.suffix(idx).head()) && next(ex.suffix(idx).head(), ex.suffix(idx).head_next())
             ==> inv(ex.suffix(idx).head_next()),
     ensures
         inv(ex.suffix(i).head()),
@@ -572,11 +567,9 @@ proof fn init_invariant_rec<T>(ex: Execution<T>, init: StatePred<T>, next: Actio
         i,
 {
     if i == 0 {
-        assert(state_pred_call(init, ex.suffix(0).head()));
+        assert(init(ex.suffix(0).head()));
     } else {
         init_invariant_rec::<T>(ex, init, next, inv, (i-1) as nat);
-        assert(action_pred_call(next, ex.suffix((i-1) as nat).head(), ex.suffix((i-1) as nat).head_next()));
-        assert(state_pred_call(inv, ex.suffix((i-1) as nat).head()));
     }
 }
 
@@ -593,7 +586,7 @@ proof fn always_p_or_eventually_q_rec<T>(ex: Execution<T>, next: ActionPred<T>, 
         i,
 {
     if i == 0 {
-        execution_suffix_zero_split::<T>(ex, lift_state(p));
+        assert(p(ex.suffix(0).head()));
     } else {
         always_p_or_eventually_q_rec::<T>(ex, next, p, q, (i-1) as nat);
     }
@@ -634,8 +627,8 @@ proof fn always_p_or_eventually_q<T>(ex: Execution<T>, next: ActionPred<T>, p: S
 ///     spec |= []inv
 pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>)
     requires
-        forall |s: T| state_pred_call(init, s) ==> state_pred_call(inv, s),
-        forall |s, s_prime: T| state_pred_call(inv, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(inv, s_prime),
+        forall |s: T| state_pred_call(init, s) ==> inv(s),
+        forall |s, s_prime: T| inv(s) && action_pred_call(next, s, s_prime) ==> inv(s_prime),
         spec.entails(lift_state(init).and(always(lift_action(next)))),
     ensures
         spec.entails(always(lift_state(inv))),
@@ -644,7 +637,10 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
     implies #[trigger] always(lift_state(inv)).satisfied_by(ex) by {
         entails_apply(ex, spec, lift_state(init).and(always(lift_action(next))));
         always_unfold::<T>(ex, lift_action(next));
-        assert forall |i: nat| #[trigger] state_pred_call(inv, ex.suffix(i).head()) by {
+        assert forall |i: nat| inv(#[trigger] ex.suffix(i).head()) by {
+            assert forall |idx: nat| init(#[trigger] ex.suffix(idx).head()) implies inv(ex.suffix(idx).head()) by {
+                assert(state_pred_call(init, ex.suffix(idx).head()));
+            };
             init_invariant_rec(ex, init, next, inv, i);
         };
     };
@@ -660,9 +656,9 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
 ///     spec |= p ~> q
 pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |s, s_prime: T| p(s) && #[trigger] action_pred_call(next, s, s_prime) ==> p(s_prime) || q(s_prime),
-        forall |s, s_prime: T| p(s) && #[trigger] action_pred_call(next, s, s_prime) && forward(s, s_prime) ==> q(s_prime),
-        forall |s: T| #[trigger] state_pred_call(p, s) ==> enabled(forward)(s),
+        forall |s, s_prime: T| p(s) && action_pred_call(next, s, s_prime) ==> p(s_prime) || q(s_prime),
+        forall |s, s_prime: T| p(s) && action_pred_call(next, s, s_prime) && forward(s, s_prime) ==> q(s_prime),
+        forall |s: T| state_pred_call(p, s) ==> enabled(forward)(s),
         spec.entails(always(lift_action(next)).and(weak_fairness(forward))),
     ensures
         spec.entails(lift_state(p).leads_to(lift_state(q))),
@@ -1392,7 +1388,7 @@ pub proof fn leads_to_always_combine_weaken<T>(spec: TempPred<T>, p: StatePred<T
 ///     spec |= p ~> []q
 pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |s, s_prime: T| q(s) && #[trigger] action_pred_call(next, s, s_prime) ==> q(s_prime),
+        forall |s, s_prime: T| q(s) && action_pred_call(next, s, s_prime) ==> q(s_prime),
         spec.entails(always(lift_action(next))),
         spec.entails(lift_state(p).leads_to(lift_state(q))),
     ensures
@@ -1411,6 +1407,11 @@ pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: State
             always_lift_action_unfold::<T>(ex.suffix(i).suffix(witness_idx), next);
 
             assert forall |j| #[trigger] lift_state(q).satisfied_by(ex.suffix(i).suffix(witness_idx).suffix(j)) by {
+                assert forall |idx| q(#[trigger] ex.suffix(i).suffix(witness_idx).suffix(idx).head())
+                && next(ex.suffix(i).suffix(witness_idx).suffix(idx).head(), ex.suffix(i).suffix(witness_idx).suffix(idx).head_next())
+                implies q(ex.suffix(i).suffix(witness_idx).suffix(idx).head_next()) by {
+                    assert(action_pred_call(next, ex.suffix(i).suffix(witness_idx).suffix(idx).head(), ex.suffix(i).suffix(witness_idx).suffix(idx).head_next()));
+                };
                 next_preserves_inv_rec::<T>(ex.suffix(i).suffix(witness_idx), next, q, j);
             };
 
@@ -1422,8 +1423,8 @@ pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: State
 /// Combination of leads_to_stable and leads_to_always_combine_weaken.
 pub proof fn leads_to_stable_combine<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        forall |s, s_prime: T| state_pred_call(q, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(q, s_prime),
-        forall |s, s_prime: T| state_pred_call(r, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(r, s_prime),
+        forall |s, s_prime: T| q(s) && action_pred_call(next, s, s_prime) ==> q(s_prime),
+        forall |s, s_prime: T| r(s) && action_pred_call(next, s, s_prime) ==> r(s_prime),
         spec.entails(always(lift_action(next))),
         spec.entails(lift_state(p).leads_to(lift_state(q))),
         spec.entails(lift_state(p).leads_to(lift_state(r))),
@@ -1463,6 +1464,12 @@ pub proof fn leads_to_stable_assume<T>(spec: TempPred<T>, next: ActionPred<T>, a
             always_lift_state_unfold::<T>(ex.suffix(i).suffix(witness_idx), blocker);
 
             assert forall |j| #[trigger] lift_state(q).satisfied_by(ex.suffix(i).suffix(witness_idx).suffix(j)) by {
+                assert forall |idx| q(#[trigger] ex.suffix(i).suffix(witness_idx).suffix(idx).head())
+                && next(ex.suffix(i).suffix(witness_idx).suffix(idx).head(), ex.suffix(i).suffix(witness_idx).suffix(idx).head_next())
+                && blocker(ex.suffix(i).suffix(witness_idx).suffix(idx).head())
+                implies q(ex.suffix(i).suffix(witness_idx).suffix(idx).head_next()) by {
+                    assert(action_pred_call(next, ex.suffix(i).suffix(witness_idx).suffix(idx).head(), ex.suffix(i).suffix(witness_idx).suffix(idx).head_next()));
+                };
                 next_preserves_inv_assume_rec::<T>(ex.suffix(i).suffix(witness_idx), next, blocker, q, j);
             };
 
