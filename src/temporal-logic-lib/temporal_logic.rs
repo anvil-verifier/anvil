@@ -94,6 +94,10 @@ pub open spec fn lift_state<T>(state_pred: StatePred<T>) -> TempPred<T> {
     TempPred::new(|ex: Execution<T>| state_pred_call(state_pred, ex.head()))
 }
 
+pub open spec fn lift_state_prime<T>(state_pred: StatePred<T>) -> TempPred<T> {
+    TempPred::new(|ex: Execution<T>| state_pred_call(state_pred, ex.head_next()))
+}
+
 pub open spec fn lift_action<T>(action_pred: ActionPred<T>) -> TempPred<T> {
     TempPred::new(|ex: Execution<T>| action_pred_call(action_pred, ex.head(), ex.head_next()))
 }
@@ -234,6 +238,13 @@ proof fn eventually_unfold<T>(ex: Execution<T>, p: TempPred<T>)
         exists |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
 {}
 
+proof fn not_eventually_unfold<T>(ex: Execution<T>, p: TempPred<T>)
+    requires
+        not(eventually(p)).satisfied_by(ex),
+    ensures
+        forall |i| !p.satisfied_by(#[trigger] ex.suffix(i))
+{}
+
 proof fn equals_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.equals(q).satisfied_by(ex),
@@ -257,6 +268,15 @@ proof fn leads_to_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     always_unfold::<T>(ex, p.implies(eventually(q)));
 }
 
+proof fn weak_fairness_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
+    requires
+        weak_fairness(p).satisfied_by(ex),
+    ensures
+        forall |i| always(lift_state(enabled(p))).implies(eventually(lift_action(p))).satisfied_by(#[trigger] ex.suffix(i)),
+{
+    leads_to_unfold::<T>(ex, always(tla_enabled(p)), lift_action(p));
+}
+
 proof fn always_lift_state_unfold<T>(ex: Execution<T>, p: StatePred<T>)
     requires
         always(lift_state(p)).satisfied_by(ex),
@@ -270,7 +290,7 @@ proof fn always_lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
     requires
         always(lift_action(p)).satisfied_by(ex),
     ensures
-        forall |i| #[trigger] action_pred_call(p, ex.suffix(i).head(), ex.suffix(i).head_next()),
+        forall |i| p(#[trigger] ex.suffix(i).head(), ex.suffix(i).head_next()),
 {
     always_unfold::<T>(ex, lift_action(p));
 }
@@ -282,6 +302,17 @@ proof fn implies_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     ensures
         q.satisfied_by(ex),
 {}
+
+proof fn implies_apply_with_always<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        always(p.implies(q)).satisfied_by(ex),
+        always(p).satisfied_by(ex),
+    ensures
+        always(q).satisfied_by(ex),
+{
+    always_unfold::<T>(ex, p.implies(q));
+    always_unfold::<T>(ex, p);
+}
 
 proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
@@ -549,6 +580,51 @@ proof fn init_invariant_rec<T>(ex: Execution<T>, init: StatePred<T>, next: Actio
     }
 }
 
+proof fn always_p_or_eventually_q_rec<T>(ex: Execution<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, i: nat)
+    requires
+        forall |idx| p(#[trigger] ex.suffix(idx).head()) && next(ex.suffix(idx).head(), ex.suffix(idx).head_next())
+            ==> p(ex.suffix(idx).head_next()) || q(ex.suffix(idx).head_next()),
+        forall |idx| next(#[trigger] ex.suffix(idx).head(), ex.suffix(idx).head_next()),
+        forall |idx| !q(#[trigger] ex.suffix(idx).head()),
+        p(ex.head()),
+    ensures
+        p(ex.suffix(i).head()),
+    decreases
+        i,
+{
+    if i == 0 {
+        execution_suffix_zero_split::<T>(ex, lift_state(p));
+    } else {
+        always_p_or_eventually_q_rec::<T>(ex, next, p, q, (i-1) as nat);
+    }
+}
+
+proof fn always_p_or_eventually_q<T>(ex: Execution<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
+    requires
+        forall |s, s_prime: T| p(s) && #[trigger] action_pred_call(next, s, s_prime) ==> p(s_prime) || q(s_prime),
+        always(lift_action(next)).satisfied_by(ex),
+    ensures
+        always(lift_state(p).implies(always(lift_state(p)).or(eventually(lift_state(q))))).satisfied_by(ex),
+{
+    assert forall |i| p(#[trigger] ex.suffix(i).head()) implies
+    always(lift_state(p)).satisfied_by(ex.suffix(i)) || eventually(lift_state(q)).satisfied_by(ex.suffix(i)) by {
+        always_propagate_forwards::<T>(ex, lift_action(next), i);
+        always_lift_action_unfold::<T>(ex.suffix(i), next);
+
+        assert forall |idx| p(#[trigger] ex.suffix(i).suffix(idx).head()) && next(ex.suffix(i).suffix(idx).head(), ex.suffix(i).suffix(idx).head_next())
+        implies p(ex.suffix(i).suffix(idx).head_next()) || q(ex.suffix(i).suffix(idx).head_next()) by {
+            assert(action_pred_call(next, ex.suffix(i).suffix(idx).head(), ex.suffix(i).suffix(idx).head_next()));
+        };
+
+        if !eventually(lift_state(q)).satisfied_by(ex.suffix(i)) {
+            not_eventually_unfold::<T>(ex.suffix(i), lift_state(q));
+            assert forall |j| p(#[trigger] ex.suffix(i).suffix(j).head()) by {
+                always_p_or_eventually_q_rec::<T>(ex.suffix(i), next, p, q, j);
+            };
+        }
+    };
+}
+
 /// Get the initial always by induction.
 /// pre:
 ///     |= init => inv
@@ -582,16 +658,40 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
 ///     spec |= []next /\ wf(forward)
 /// post:
 ///     spec |= p ~> q
-#[verifier(external_body)]
 pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |s, s_prime: T| state_pred_call(p, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(p, s_prime) || state_pred_call(q, s_prime),
-        forall |s, s_prime: T| state_pred_call(p, s) && #[trigger] action_pred_call(next, s, s_prime) && #[trigger] action_pred_call(forward, s, s_prime) ==> state_pred_call(q, s_prime),
-        forall |s: T| #[trigger] state_pred_call(p, s) ==> state_pred_call(enabled(forward), s),
+        forall |s, s_prime: T| p(s) && #[trigger] action_pred_call(next, s, s_prime) ==> p(s_prime) || q(s_prime),
+        forall |s, s_prime: T| p(s) && #[trigger] action_pred_call(next, s, s_prime) && forward(s, s_prime) ==> q(s_prime),
+        forall |s: T| #[trigger] state_pred_call(p, s) ==> enabled(forward)(s),
         spec.entails(always(lift_action(next)).and(weak_fairness(forward))),
     ensures
         spec.entails(lift_state(p).leads_to(lift_state(q))),
-{}
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(p).leads_to(lift_state(q)).satisfied_by(ex) by {
+        implies_apply::<T>(ex, spec, always(lift_action(next)).and(weak_fairness(forward)));
+        always_p_or_eventually_q::<T>(ex, next, p, q);
+        assert forall |i| #[trigger] lift_state(p).satisfied_by(ex.suffix(i)) implies eventually(lift_state(q)).satisfied_by(ex.suffix(i)) by {
+            always_propagate_forwards::<T>(ex, lift_state(p).implies(always(lift_state(p)).or(eventually(lift_state(q)))), i);
+            implies_apply::<T>(ex.suffix(i), lift_state(p), always(lift_state(p)).or(eventually(lift_state(q))));
+            if always(lift_state(p)).satisfied_by(ex.suffix(i)) {
+
+                always_propagate_forwards::<T>(ex, lift_action(next), i);
+
+                assert(always(lift_state(p).and(lift_action(next)).and(lift_action(forward)).implies(lift_state_prime(q))).satisfied_by(ex.suffix(i)));
+
+                assert(always(lift_state(p).implies(lift_state(enabled(forward)))).satisfied_by(ex.suffix(i)));
+                implies_apply_with_always::<T>(ex.suffix(i), lift_state(p), lift_state(enabled(forward)));
+                weak_fairness_unfold::<T>(ex, forward);
+                implies_apply::<T>(ex.suffix(i), lift_state(enabled(forward)), eventually(lift_action(forward)));
+                let witness_idx = eventually_choose_witness::<T>(ex.suffix(i), lift_action(forward));
+
+                implies_apply::<T>(ex.suffix(i).suffix(witness_idx), lift_state(p).and(lift_action(next)).and(lift_action(forward)), lift_state_prime(q));
+
+                eventually_proved_by_witness::<T>(ex.suffix(i), lift_state(q), witness_idx+1);
+            }
+        };
+    };
+}
 
 #[verifier(external_body)]
 pub proof fn entails_weaken_auto<T>(spec: TempPred<T>)
