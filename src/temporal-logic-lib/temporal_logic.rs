@@ -257,6 +257,15 @@ proof fn leads_to_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     always_unfold::<T>(ex, p.implies(eventually(q)));
 }
 
+proof fn always_lift_state_unfold<T>(ex: Execution<T>, p: StatePred<T>)
+    requires
+        always(lift_state(p)).satisfied_by(ex),
+    ensures
+        forall |i| #[trigger] state_pred_call(p, ex.suffix(i).head()),
+{
+    always_unfold::<T>(ex, lift_state(p));
+}
+
 proof fn always_lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
     requires
         always(lift_action(p)).satisfied_by(ex),
@@ -493,6 +502,28 @@ proof fn next_preserves_inv_rec<T>(ex: Execution<T>, next: ActionPred<T>, inv: S
     } else {
         next_preserves_inv_rec::<T>(ex, next, inv, (i-1) as nat);
         assert(action_pred_call(next, ex.suffix((i-1) as nat).head(), ex.suffix((i-1) as nat).head_next()));
+        assert(state_pred_call(inv, ex.suffix((i-1) as nat).head()));
+    }
+}
+
+proof fn next_preserves_inv_assume_rec<T>(ex: Execution<T>, next: ActionPred<T>, asm: StatePred<T>, inv: StatePred<T>, i: nat)
+    requires
+        inv(ex.head()),
+        forall |idx: nat| #[trigger] action_pred_call(next, ex.suffix(idx).head(), ex.suffix(idx).head_next()),
+        forall |idx: nat| #[trigger] state_pred_call(asm, ex.suffix(idx).head()),
+        forall |idx: nat| #[trigger] state_pred_call(inv, ex.suffix(idx).head()) && action_pred_call(next, ex.suffix(idx).head(), ex.suffix(idx).head_next()) && state_pred_call(asm, ex.suffix(idx).head())
+            ==> inv(ex.suffix(idx).head_next()),
+    ensures
+        inv(ex.suffix(i).head()),
+    decreases
+        i,
+{
+    if i == 0 {
+        assert(inv(ex.suffix(0).head()));
+    } else {
+        next_preserves_inv_assume_rec::<T>(ex, next, asm, inv, (i-1) as nat);
+        assert(action_pred_call(next, ex.suffix((i-1) as nat).head(), ex.suffix((i-1) as nat).head_next()));
+        assert(state_pred_call(asm, ex.suffix((i-1) as nat).head()));
         assert(state_pred_call(inv, ex.suffix((i-1) as nat).head()));
     }
 }
@@ -1269,18 +1300,20 @@ pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: State
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(p).leads_to(always(lift_state(q))).satisfied_by(ex) by {
         assert forall |i| #[trigger] lift_state(p).satisfied_by(ex.suffix(i)) implies eventually(always(lift_state(q))).satisfied_by(ex.suffix(i)) by {
-            implies_apply::<T>(ex, spec, always(lift_action(next)));
             implies_apply::<T>(ex, spec, lift_state(p).leads_to(lift_state(q)));
-            always_unfold::<T>(ex, lift_action(next));
             always_unfold::<T>(ex, lift_state(p).implies(eventually(lift_state(q))));
             implies_apply::<T>(ex.suffix(i), lift_state(p), eventually(lift_state(q)));
             let witness_idx = eventually_choose_witness::<T>(ex.suffix(i), lift_state(q));
+
+            implies_apply::<T>(ex, spec, always(lift_action(next)));
+            always_propagate_forwards::<T>(ex, lift_action(next), i);
+            always_propagate_forwards::<T>(ex.suffix(i), lift_action(next), witness_idx);
+            always_lift_action_unfold::<T>(ex.suffix(i).suffix(witness_idx), next);
+
             assert forall |j| #[trigger] lift_state(q).satisfied_by(ex.suffix(i).suffix(witness_idx).suffix(j)) by {
-                always_propagate_forwards::<T>(ex, lift_action(next), i);
-                always_propagate_forwards::<T>(ex.suffix(i), lift_action(next), witness_idx);
-                always_lift_action_unfold::<T>(ex.suffix(i).suffix(witness_idx), next);
                 next_preserves_inv_rec::<T>(ex.suffix(i).suffix(witness_idx), next, q, j);
             };
+
             eventually_proved_by_witness::<T>(ex.suffix(i), always(lift_state(q)), witness_idx);
         };
     };
@@ -1302,7 +1335,6 @@ pub proof fn leads_to_stable_combine<T>(spec: TempPred<T>, next: ActionPred<T>, 
     leads_to_always_combine::<T>(spec, p, q, r);
 }
 
-#[verifier(external_body)]
 pub proof fn leads_to_stable_assume<T>(spec: TempPred<T>, next: ActionPred<T>, asm: StatePred<T>, blocker: StatePred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
         forall |s, s_prime: T| q(s) && #[trigger] action_pred_call(next, s, s_prime) && blocker(s) ==> q(s_prime),
@@ -1311,7 +1343,33 @@ pub proof fn leads_to_stable_assume<T>(spec: TempPred<T>, next: ActionPred<T>, a
         spec.entails(lift_state(p).leads_to(lift_state(q))),
     ensures
         spec.entails(lift_state(p).and(always(lift_state(asm))).leads_to(always(lift_state(q)))),
-{}
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(p).and(always(lift_state(asm))).leads_to(always(lift_state(q))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] lift_state(p).and(always(lift_state(asm))).satisfied_by(ex.suffix(i)) implies eventually(always(lift_state(q))).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, lift_state(p).leads_to(lift_state(q)));
+            always_unfold::<T>(ex, lift_state(p).implies(eventually(lift_state(q))));
+            implies_apply::<T>(ex.suffix(i), lift_state(p), eventually(lift_state(q)));
+            let witness_idx = eventually_choose_witness::<T>(ex.suffix(i), lift_state(q));
+
+            implies_apply::<T>(ex, spec, always(lift_action(next)));
+            always_propagate_forwards::<T>(ex, lift_action(next), i);
+            always_propagate_forwards::<T>(ex.suffix(i), lift_action(next), witness_idx);
+            always_lift_action_unfold::<T>(ex.suffix(i).suffix(witness_idx), next);
+
+            implies_apply::<T>(ex, spec, always(always(lift_state(asm)).implies(always(lift_state(blocker)))));
+            always_unfold::<T>(ex, always(lift_state(asm)).implies(always(lift_state(blocker))));
+            implies_apply::<T>(ex.suffix(i), always(lift_state(asm)), always(lift_state(blocker)));
+            always_propagate_forwards::<T>(ex.suffix(i), lift_state(blocker), witness_idx);
+            always_lift_state_unfold::<T>(ex.suffix(i).suffix(witness_idx), blocker);
+
+            assert forall |j| #[trigger] lift_state(q).satisfied_by(ex.suffix(i).suffix(witness_idx).suffix(j)) by {
+                next_preserves_inv_assume_rec::<T>(ex.suffix(i).suffix(witness_idx), next, blocker, q, j);
+            };
+
+            eventually_proved_by_witness::<T>(ex.suffix(i), always(lift_state(q)), witness_idx);
+        };
+    };
+}
 
 pub proof fn leads_to_stable_assume_combine<T>(spec: TempPred<T>, next: ActionPred<T>, asm: StatePred<T>, blocker: StatePred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
