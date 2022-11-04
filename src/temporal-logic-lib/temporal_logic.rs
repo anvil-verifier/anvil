@@ -252,10 +252,18 @@ proof fn leads_to_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.leads_to(q).satisfied_by(ex),
     ensures
-        // forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)) ==> eventually(q).satisfied_by(ex.suffix(i)),
         forall |i: nat| p.implies(eventually(q)).satisfied_by(#[trigger] ex.suffix(i)),
 {
     always_unfold::<T>(ex, p.implies(eventually(q)));
+}
+
+proof fn always_lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
+    requires
+        always(lift_action(p)).satisfied_by(ex),
+    ensures
+        forall |i| #[trigger] action_pred_call(p, ex.suffix(i).head(), ex.suffix(i).head_next()),
+{
+    always_unfold::<T>(ex, lift_action(p));
 }
 
 proof fn implies_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
@@ -467,6 +475,26 @@ proof fn always_add_redundant_and<T>(p: TempPred<T>)
 {
     always_implies_current::<T>(p);
     implies_and::<T>(always(p), p, always(p));
+}
+
+proof fn next_preserves_inv_rec<T>(ex: Execution<T>, next: ActionPred<T>, inv: StatePred<T>, i: nat)
+    requires
+        inv(ex.head()),
+        forall |idx: nat| #[trigger] action_pred_call(next, ex.suffix(idx).head(), ex.suffix(idx).head_next()),
+        forall |idx: nat| #[trigger] state_pred_call(inv, ex.suffix(idx).head()) && action_pred_call(next, ex.suffix(idx).head(), ex.suffix(idx).head_next())
+            ==> inv(ex.suffix(idx).head_next()),
+    ensures
+        inv(ex.suffix(i).head()),
+    decreases
+        i,
+{
+    if i == 0 {
+        assert(inv(ex.suffix(0).head()));
+    } else {
+        next_preserves_inv_rec::<T>(ex, next, inv, (i-1) as nat);
+        assert(action_pred_call(next, ex.suffix((i-1) as nat).head(), ex.suffix((i-1) as nat).head_next()));
+        assert(state_pred_call(inv, ex.suffix((i-1) as nat).head()));
+    }
 }
 
 proof fn init_invariant_rec<T>(ex: Execution<T>, init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>, i: nat)
@@ -1231,15 +1259,32 @@ pub proof fn leads_to_always_combine_weaken<T>(spec: TempPred<T>, p: StatePred<T
 ///     spec |= p ~> q
 /// post:
 ///     spec |= p ~> []q
-#[verifier(external_body)]
 pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |s, s_prime: T| state_pred_call(q, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(q, s_prime),
+        forall |s, s_prime: T| q(s) && #[trigger] action_pred_call(next, s, s_prime) ==> q(s_prime),
         spec.entails(always(lift_action(next))),
         spec.entails(lift_state(p).leads_to(lift_state(q))),
     ensures
         spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
-{}
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(p).leads_to(always(lift_state(q))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] lift_state(p).satisfied_by(ex.suffix(i)) implies eventually(always(lift_state(q))).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, always(lift_action(next)));
+            implies_apply::<T>(ex, spec, lift_state(p).leads_to(lift_state(q)));
+            always_unfold::<T>(ex, lift_action(next));
+            always_unfold::<T>(ex, lift_state(p).implies(eventually(lift_state(q))));
+            implies_apply::<T>(ex.suffix(i), lift_state(p), eventually(lift_state(q)));
+            let witness_idx = eventually_choose_witness::<T>(ex.suffix(i), lift_state(q));
+            assert forall |j| #[trigger] lift_state(q).satisfied_by(ex.suffix(i).suffix(witness_idx).suffix(j)) by {
+                always_propagate_forwards::<T>(ex, lift_action(next), i);
+                always_propagate_forwards::<T>(ex.suffix(i), lift_action(next), witness_idx);
+                always_lift_action_unfold::<T>(ex.suffix(i).suffix(witness_idx), next);
+                next_preserves_inv_rec::<T>(ex.suffix(i).suffix(witness_idx), next, q, j);
+            };
+            eventually_proved_by_witness::<T>(ex.suffix(i), always(lift_state(q)), witness_idx);
+        };
+    };
+}
 
 /// Combination of leads_to_stable and leads_to_always_combine_weaken.
 pub proof fn leads_to_stable_combine_weaken<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
