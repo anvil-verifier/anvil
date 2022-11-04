@@ -1287,7 +1287,7 @@ pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: State
 }
 
 /// Combination of leads_to_stable and leads_to_always_combine_weaken.
-pub proof fn leads_to_stable_combine_weaken<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
+pub proof fn leads_to_stable_combine<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
         forall |s, s_prime: T| state_pred_call(q, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(q, s_prime),
         forall |s, s_prime: T| state_pred_call(r, s) && #[trigger] action_pred_call(next, s, s_prime) ==> state_pred_call(r, s_prime),
@@ -1295,11 +1295,11 @@ pub proof fn leads_to_stable_combine_weaken<T>(spec: TempPred<T>, next: ActionPr
         spec.entails(lift_state(p).leads_to(lift_state(q))),
         spec.entails(lift_state(p).leads_to(lift_state(r))),
     ensures
-        spec.entails(lift_state(p).leads_to(lift_state(q).and(lift_state(r)))),
+        spec.entails(lift_state(p).leads_to(always(lift_state(q).and(lift_state(r))))),
 {
     leads_to_stable::<T>(spec, next, p, q);
     leads_to_stable::<T>(spec, next, p, r);
-    leads_to_always_combine_weaken::<T>(spec, p, q, r);
+    leads_to_always_combine::<T>(spec, p, q, r);
 }
 
 #[verifier(external_body)]
