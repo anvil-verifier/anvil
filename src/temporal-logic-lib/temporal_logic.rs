@@ -728,7 +728,7 @@ pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<
     };
 }
 
-pub proof fn wf1_assume<T>(spec: TempPred<T>, asm: TempPred<T>, next: ActionPred<T>, forward: ActionPred<T>, blocker: StatePred<T>, p: StatePred<T>, q: StatePred<T>)
+pub proof fn wf1_with_assumption<T>(spec: TempPred<T>, asm: TempPred<T>, next: ActionPred<T>, forward: ActionPred<T>, blocker: StatePred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
         forall |s, s_prime: T| p(s) && action_pred_call(next, s, s_prime) && blocker(s) ==> p(s_prime) || q(s_prime),
         forall |s, s_prime: T| p(s) && action_pred_call(next, s, s_prime) && forward(s, s_prime) ==> q(s_prime),
@@ -767,6 +767,19 @@ pub proof fn wf1_assume<T>(spec: TempPred<T>, asm: TempPred<T>, next: ActionPred
             }
         }
     }
+}
+
+pub proof fn wf1_with_assumption_simpl<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<T>, blocker: StatePred<T>, p: StatePred<T>, q: StatePred<T>)
+    requires
+        forall |s, s_prime: T| p(s) && action_pred_call(next, s, s_prime) && blocker(s) ==> p(s_prime) || q(s_prime),
+        forall |s, s_prime: T| p(s) && action_pred_call(next, s, s_prime) && forward(s, s_prime) ==> q(s_prime),
+        forall |s: T| state_pred_call(p, s) ==> enabled(forward)(s),
+        spec.entails(always(lift_action(next))),
+        spec.entails(weak_fairness(forward)),
+    ensures
+        spec.entails(lift_state(p).and(always(lift_state(blocker))).leads_to(lift_state(q))),
+{
+    wf1_with_assumption::<T>(spec, always(lift_state(blocker)), next, forward, blocker, p, q);
 }
 
 /// Weaken entails by implies.
