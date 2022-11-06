@@ -216,10 +216,9 @@ proof fn execution_suffix_merge<T>(ex: Execution<T>, p: TempPred<T>, i: nat, j: 
 {}
 
 #[verifier(external_body)]
-proof fn execution_suffix_split<T>(ex: Execution<T>, p: TempPred<T>, i: nat, j: nat, k: nat)
+proof fn execution_suffix_split<T>(ex: Execution<T>, p: TempPred<T>, i: nat, j: nat)
     requires
-        p.satisfied_by(ex.suffix(k)),
-        k === i + j,
+        p.satisfied_by(ex.suffix(i + j)),
     ensures
         p.satisfied_by(ex.suffix(i).suffix(j)),
 {}
@@ -370,7 +369,7 @@ proof fn always_propagate_forwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
 {
     always_unfold::<T>(ex, p);
     assert forall |j| p.satisfied_by(#[trigger] ex.suffix(i).suffix(j)) by {
-        execution_suffix_split::<T>(ex, p, i, j, i + j);
+        execution_suffix_split::<T>(ex, p, i, j);
     };
 }
 
@@ -1032,7 +1031,7 @@ pub proof fn always_implies_preserved_by_always_temp<T>(spec: TempPred<T>, p: Te
             assert forall |j| #[trigger] q.satisfied_by(ex.suffix(i).suffix(j)) by {
                 implies_apply::<T>(ex, spec, always(p.implies(q)));
                 always_unfold::<T>(ex, p.implies(q));
-                execution_suffix_split::<T>(ex, p.implies(q), i, j, i + j);
+                execution_suffix_split::<T>(ex, p.implies(q), i, j);
 
                 always_unfold::<T>(ex.suffix(i), p);
 
@@ -1319,7 +1318,7 @@ pub proof fn leads_to_trans_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPr
             entails_apply(ex, spec, q.leads_to(r));
             always_unfold(ex, q.implies(eventually(r)));
             implies_apply(ex.suffix(i + q_witness_idx), q, eventually(r));
-            execution_suffix_split(ex, eventually(r), i, q_witness_idx, i + q_witness_idx);
+            execution_suffix_split(ex, eventually(r), i, q_witness_idx);
 
             eventually_propagate_backwards(ex.suffix(i), r, q_witness_idx);
         }
@@ -1907,7 +1906,7 @@ pub proof fn leads_to_contradiction_temp<T>(spec: TempPred<T>, p: TempPred<T>, q
             assert forall |j| #[trigger] not(p).satisfied_by(ex.suffix(i).suffix(j)) by {
                 implies_apply::<T>(ex, spec, p.leads_to(q));
                 leads_to_unfold::<T>(ex, p, q);
-                execution_suffix_split::<T>(ex, p.implies(eventually(q)), i, j, i + j);
+                execution_suffix_split::<T>(ex, p.implies(eventually(q)), i, j);
 
                 always_propagate_forwards::<T>(ex.suffix(i), not(q), j);
                 not_eventually_by_always_not::<T>(ex.suffix(i).suffix(j), q);
