@@ -55,7 +55,7 @@ proof fn liveness_proof(cr: ResourceObj)
 
     lemma_cr_exists_leads_to_pod_exists_and_vol_exists(cr);
     lemma_always_cr_always_exists_implies_delete_pod_vol_req_never_sent(cr);
-    leads_to_stable_assume_p_combine::<CState>(sm_spec(),
+    leads_to_stable_assume_always_p_combine::<CState>(sm_spec(),
         next(),
         |s| {
             &&& !message_sent(s, delete_req_msg(ResourceKey{name: pod_name, kind: ResourceKind::PodKind}))
