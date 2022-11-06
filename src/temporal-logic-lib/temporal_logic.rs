@@ -509,6 +509,15 @@ proof fn always_implies_current<T>(p: TempPred<T>)
     };
 }
 
+proof fn always_distributed_by_and<T>(p: TempPred<T>, q: TempPred<T>)
+    ensures
+        valid(always(p.and(q)).implies(always(p).and(always(q)))),
+{
+    assert forall |ex| #[trigger] always(p.and(q)).satisfied_by(ex) implies always(p).and(always(q)).satisfied_by(ex) by {
+        always_unfold::<T>(ex, p.and(q));
+    };
+}
+
 proof fn always_add_redundant_and<T>(p: TempPred<T>)
     ensures
         valid(always(p).implies(p.and(always(p)))),
@@ -517,25 +526,7 @@ proof fn always_add_redundant_and<T>(p: TempPred<T>)
     implies_and::<T>(always(p), p, always(p));
 }
 
-proof fn next_preserves_inv_rec<T>(ex: Execution<T>, next: ActionPred<T>, inv: StatePred<T>, i: nat)
-    requires
-        inv(ex.head()),
-        forall |idx: nat| next(#[trigger] ex.suffix(idx).head(), ex.suffix(idx).head_next()),
-        forall |idx: nat| inv(#[trigger] ex.suffix(idx).head()) && next(ex.suffix(idx).head(), ex.suffix(idx).head_next())
-            ==> inv(ex.suffix(idx).head_next()),
-    ensures
-        inv(ex.suffix(i).head()),
-    decreases
-        i,
-{
-    if i == 0 {
-        assert(inv(ex.suffix(0).head()));
-    } else {
-        next_preserves_inv_rec::<T>(ex, next, inv, (i-1) as nat);
-    }
-}
-
-proof fn next_preserves_inv_assume_rec<T>(ex: Execution<T>, next: ActionPred<T>, asm: StatePred<T>, inv: StatePred<T>, i: nat)
+proof fn next_preserves_inv_with_assumption_rec<T>(ex: Execution<T>, next: ActionPred<T>, asm: StatePred<T>, inv: StatePred<T>, i: nat)
     requires
         inv(ex.head()),
         forall |idx: nat| next(#[trigger] ex.suffix(idx).head(), ex.suffix(idx).head_next()),
@@ -550,7 +541,7 @@ proof fn next_preserves_inv_assume_rec<T>(ex: Execution<T>, next: ActionPred<T>,
     if i == 0 {
         assert(inv(ex.suffix(0).head()));
     } else {
-        next_preserves_inv_assume_rec::<T>(ex, next, asm, inv, (i-1) as nat);
+        next_preserves_inv_with_assumption_rec::<T>(ex, next, asm, inv, (i-1) as nat);
     }
 }
 
@@ -783,6 +774,25 @@ pub proof fn entails_weaken_auto<T>(spec: TempPred<T>)
     assert forall |p: TempPred<T>, q: TempPred<T>| valid(p.implies(q)) && #[trigger] spec.entails(p)
     implies #[trigger] spec.entails(q) by {
         entails_weaken_temp::<T>(spec, p, q);
+    };
+}
+
+/// Implies is preserved by and.
+/// pre:
+///     |= p1 => p2
+///     |= q1 => q2
+/// post:
+///     |= p1 /\ q1 => p2 /\ q2
+pub proof fn implies_preserved_by_and_temp<T>(p1: TempPred<T>, p2: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
+    requires
+        valid(p1.implies(p2)),
+        valid(q1.implies(q2)),
+    ensures
+        valid(p1.and(q1).implies(p2.and(q2))),
+{
+    assert forall |ex| p1.and(q1).satisfied_by(ex) implies p2.and(q2).satisfied_by(ex) by {
+        implies_apply::<T>(ex, p1, p2);
+        implies_apply::<T>(ex, q1, q2);
     };
 }
 
@@ -1546,7 +1556,7 @@ pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: S
     leads_to_always_combine_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }
 
-/// Weaken version of leads_to_always_combine by dropping the always in the conclusion.
+/// Weaken version of leads_to_always_combine by dropping the always in both conclusions.
 /// pre:
 ///     spec |= p ~> []q
 ///     spec |= p ~> []r
@@ -1564,6 +1574,7 @@ pub proof fn leads_to_always_combine_weaken_temp<T>(spec: TempPred<T>, p: TempPr
     leads_to_weaken_temp::<T>(spec, p, always(q.and(r)), p, q.and(r));
 }
 
+/// StatePred version of leads_to_always_combine_weaken_temp.
 pub proof fn leads_to_always_combine_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
         spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
@@ -1572,6 +1583,39 @@ pub proof fn leads_to_always_combine_weaken<T>(spec: TempPred<T>, p: StatePred<T
         spec.entails(lift_state(p).leads_to(lift_state(q).and(lift_state(r)))),
 {
     leads_to_always_combine_weaken_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
+}
+
+/// Weaken version of leads_to_always_combine by dropping the always in only one conclusion.
+/// pre:
+///     spec |= p ~> []q
+///     spec |= p ~> []r
+/// post:
+///     spec |= p ~> (q /\ []r)
+pub proof fn leads_to_always_combine_partially_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    requires
+        spec.entails(p.leads_to(always(q))),
+        spec.entails(p.leads_to(always(r))),
+    ensures
+        spec.entails(p.leads_to(q.and(always(r)))),
+{
+
+    leads_to_always_combine_temp::<T>(spec, p, q, r);
+    always_distributed_by_and::<T>(q, r);
+    leads_to_weaken_temp::<T>(spec, p, always(q.and(r)), p, always(q).and(always(r)));
+    always_implies_current::<T>(q);
+    implies_preserved_by_and_temp::<T>(always(q), q, always(r), always(r));
+    leads_to_weaken_temp::<T>(spec, p, always(q).and(always(r)), p, q.and(always(r)));
+}
+
+/// StatePred version of leads_to_always_combine_partially_weaken_temp.
+pub proof fn leads_to_always_combine_partially_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
+    requires
+        spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
+        spec.entails(lift_state(p).leads_to(always(lift_state(r)))),
+    ensures
+        spec.entails(lift_state(p).leads_to(lift_state(q).and(always(lift_state(r))))),
+{
+    leads_to_always_combine_partially_weaken_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }
 
 /// Get leads_to always by assuming asm.
@@ -1616,7 +1660,7 @@ pub proof fn leads_to_stable_with_assumption<T>(spec: TempPred<T>, asm: TempPred
                 implies q(ex.suffix(i).suffix(witness_idx).suffix(idx).head_next()) by {
                     assert(action_pred_call(next, ex.suffix(i).suffix(witness_idx).suffix(idx).head(), ex.suffix(i).suffix(witness_idx).suffix(idx).head_next()));
                 };
-                next_preserves_inv_assume_rec::<T>(ex.suffix(i).suffix(witness_idx), next, blocker, q, j);
+                next_preserves_inv_with_assumption_rec::<T>(ex.suffix(i).suffix(witness_idx), next, blocker, q, j);
             };
 
             eventually_proved_by_witness::<T>(ex.suffix(i), always(lift_state(q)), witness_idx);
