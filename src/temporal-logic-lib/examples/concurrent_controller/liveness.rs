@@ -292,6 +292,36 @@ proof fn lemma_k8s_create_sts_req_sent_leads_to(msg: Message, sub_res_msg: Messa
     );
 }
 
+proof fn lemma_k8s_pod_exists_and_vol_exists_leads_to_attached(sts_name: Seq<char>)
+    ensures
+        sm_spec()
+            .entails(lift_state(|s| {
+                &&& resource_exists(s, ResourceKey{name: sts_name + pod_suffix(), kind: ResourceKind::PodKind})
+                &&& resource_exists(s, ResourceKey{name: sts_name + vol_suffix(), kind: ResourceKind::VolumeKind})
+            }).and(always(lift_state(|s| {
+                &&& !message_sent(s, delete_req_msg(ResourceKey{name: sts_name + pod_suffix(), kind: ResourceKind::PodKind}))
+                &&& !message_sent(s, delete_req_msg(ResourceKey{name: sts_name + vol_suffix(), kind: ResourceKind::VolumeKind}))
+            })))
+                .leads_to(lift_state(|s: CState| s.attached.contains(sts_name)))),
+{
+    use_tla_forall::<CState, Seq<char>>(sm_spec(), |name| weak_fairness(k8s_attach_vol_to_pod(name)), sts_name);
+
+    k8s_attach_vol_to_pod_enabled(sts_name);
+    wf1_with_assumption_simpl::<CState>(sm_spec(),
+        next(),
+        k8s_attach_vol_to_pod(sts_name),
+        |s| {
+            &&& !message_sent(s, delete_req_msg(ResourceKey{name: sts_name + pod_suffix(), kind: ResourceKind::PodKind}))
+            &&& !message_sent(s, delete_req_msg(ResourceKey{name: sts_name + vol_suffix(), kind: ResourceKind::VolumeKind}))
+        },
+        |s| {
+            &&& resource_exists(s, ResourceKey{name: sts_name + pod_suffix(), kind: ResourceKind::PodKind})
+            &&& resource_exists(s, ResourceKey{name: sts_name + vol_suffix(), kind: ResourceKind::VolumeKind})
+        },
+        |s: CState| s.attached.contains(sts_name)
+    );
+}
+
 /// This is only useful when we want to prove:
 /// strlit_new("a")@ + strlit_new("b")@ === strlit_new("ab")@
 proof fn strlit_concat_equality(s1: Seq<char>, s2: Seq<char>, s: Seq<char>)
