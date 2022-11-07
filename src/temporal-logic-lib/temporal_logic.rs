@@ -385,6 +385,15 @@ proof fn always_double<T>(ex: Execution<T>, p: TempPred<T>)
     };
 }
 
+proof fn always_to_current<T>(ex: Execution<T>, p: TempPred<T>)
+    requires
+        always(p).satisfied_by(ex),
+    ensures
+        p.satisfied_by(ex),
+{
+    execution_suffix_zero_merge::<T>(ex, p);
+}
+
 proof fn eventually_propagate_backwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
     requires
         eventually(p).satisfied_by(ex.suffix(i)),
@@ -517,15 +526,7 @@ proof fn always_distributed_by_and<T>(p: TempPred<T>, q: TempPred<T>)
     };
 }
 
-proof fn always_add_redundant_and<T>(p: TempPred<T>)
-    ensures
-        valid(always(p).implies(p.and(always(p)))),
-{
-    always_implies_current::<T>(p);
-    implies_and::<T>(always(p), p, always(p));
-}
-
-proof fn next_preserves_inv_with_assumption_rec<T>(ex: Execution<T>, next: ActionPred<T>, asm: StatePred<T>, inv: StatePred<T>, i: nat)
+proof fn next_preserves_inv_assume_rec<T>(ex: Execution<T>, next: ActionPred<T>, asm: StatePred<T>, inv: StatePred<T>, i: nat)
     requires
         inv(ex.head()),
         forall |idx: nat| next(#[trigger] ex.suffix(idx).head(), ex.suffix(idx).head_next()),
@@ -540,7 +541,7 @@ proof fn next_preserves_inv_with_assumption_rec<T>(ex: Execution<T>, next: Actio
     if i == 0 {
         assert(inv(ex.suffix(0).head()));
     } else {
-        next_preserves_inv_with_assumption_rec::<T>(ex, next, asm, inv, (i-1) as nat);
+        next_preserves_inv_assume_rec::<T>(ex, next, asm, inv, (i-1) as nat);
     }
 }
 
@@ -1730,25 +1731,23 @@ pub proof fn leads_to_always_combine_partially_weaken<T>(spec: TempPred<T>, p: S
     leads_to_always_combine_partially_weaken_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }
 
-/// Get leads_to always by assuming asm.
+/// Get leads_to always by assuming always asm.
 /// pre:
-///     |= q /\ next /\ blocker => q
+///     |= q /\ next /\ asm => q
 ///     spec |= []next
-///     spec |= [](asm => []blocker)
 ///     spec |= p ~> q
 /// post:
-///     spec |= p /\ asm ~> []q
-pub proof fn leads_to_stable_with_assumption<T>(spec: TempPred<T>, asm: TempPred<T>, next: ActionPred<T>, blocker: StatePred<T>, p: StatePred<T>, q: StatePred<T>)
+///     spec |= p /\ []asm ~> []q
+pub proof fn leads_to_stable_assume<T>(spec: TempPred<T>, next: ActionPred<T>, asm: StatePred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |s, s_prime: T| q(s) && action_pred_call(next, s, s_prime) && blocker(s) ==> q(s_prime),
+        forall |s, s_prime: T| q(s) && action_pred_call(next, s, s_prime) && asm(s) ==> q(s_prime),
         spec.entails(always(lift_action(next))),
-        spec.entails(always(asm.implies(always(lift_state(blocker))))),
         spec.entails(lift_state(p).leads_to(lift_state(q))),
     ensures
-        spec.entails(lift_state(p).and(asm).leads_to(always(lift_state(q)))),
+        spec.entails(lift_state(p).and(always(lift_state(asm))).leads_to(always(lift_state(q)))),
 {
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(p).and(asm).leads_to(always(lift_state(q))).satisfied_by(ex) by {
-        assert forall |i| #[trigger] lift_state(p).and(asm).satisfied_by(ex.suffix(i)) implies eventually(always(lift_state(q))).satisfied_by(ex.suffix(i)) by {
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(p).and(always(lift_state(asm))).leads_to(always(lift_state(q))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] lift_state(p).and(always(lift_state(asm))).satisfied_by(ex.suffix(i)) implies eventually(always(lift_state(q))).satisfied_by(ex.suffix(i)) by {
             implies_apply::<T>(ex, spec, lift_state(p).leads_to(lift_state(q)));
             always_unfold::<T>(ex, lift_state(p).implies(eventually(lift_state(q))));
             implies_apply::<T>(ex.suffix(i), lift_state(p), eventually(lift_state(q)));
@@ -1759,20 +1758,17 @@ pub proof fn leads_to_stable_with_assumption<T>(spec: TempPred<T>, asm: TempPred
             always_propagate_forwards::<T>(ex.suffix(i), lift_action(next), witness_idx);
             always_lift_action_unfold::<T>(ex.suffix(i).suffix(witness_idx), next);
 
-            implies_apply::<T>(ex, spec, always(asm.implies(always(lift_state(blocker)))));
-            always_unfold::<T>(ex, asm.implies(always(lift_state(blocker))));
-            implies_apply::<T>(ex.suffix(i), asm, always(lift_state(blocker)));
-            always_propagate_forwards::<T>(ex.suffix(i), lift_state(blocker), witness_idx);
-            always_lift_state_unfold::<T>(ex.suffix(i).suffix(witness_idx), blocker);
+            always_propagate_forwards::<T>(ex.suffix(i), lift_state(asm), witness_idx);
+            always_lift_state_unfold::<T>(ex.suffix(i).suffix(witness_idx), asm);
 
             assert forall |j| #[trigger] lift_state(q).satisfied_by(ex.suffix(i).suffix(witness_idx).suffix(j)) by {
                 assert forall |idx| q(#[trigger] ex.suffix(i).suffix(witness_idx).suffix(idx).head())
                 && next(ex.suffix(i).suffix(witness_idx).suffix(idx).head(), ex.suffix(i).suffix(witness_idx).suffix(idx).head_next())
-                && blocker(ex.suffix(i).suffix(witness_idx).suffix(idx).head())
+                && asm(ex.suffix(i).suffix(witness_idx).suffix(idx).head())
                 implies q(ex.suffix(i).suffix(witness_idx).suffix(idx).head_next()) by {
                     assert(action_pred_call(next, ex.suffix(i).suffix(witness_idx).suffix(idx).head(), ex.suffix(i).suffix(witness_idx).suffix(idx).head_next()));
                 };
-                next_preserves_inv_with_assumption_rec::<T>(ex.suffix(i).suffix(witness_idx), next, blocker, q, j);
+                next_preserves_inv_assume_rec::<T>(ex.suffix(i).suffix(witness_idx), next, asm, q, j);
             };
 
             eventually_proved_by_witness::<T>(ex.suffix(i), always(lift_state(q)), witness_idx);
@@ -1782,36 +1778,34 @@ pub proof fn leads_to_stable_with_assumption<T>(spec: TempPred<T>, asm: TempPred
 
 /// Get leads_to always by assuming always p.
 /// pre:
-///     |= q /\ next /\ blocker => q
+///     |= q /\ next /\ asm => q
 ///     spec |= []next
-///     spec |= []([]p => []blocker)
+///     spec |= []([]p => []asm)
 ///     spec |= p ~> q
 /// post:
 ///     spec |= []p ~> []q
-pub proof fn leads_to_stable_assume_always_p<T>(spec: TempPred<T>, next: ActionPred<T>, blocker: StatePred<T>, p: StatePred<T>, q: StatePred<T>)
+pub proof fn leads_to_stable_assume_p<T>(spec: TempPred<T>, next: ActionPred<T>, asm: StatePred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |s, s_prime: T| q(s) && action_pred_call(next, s, s_prime) && blocker(s) ==> q(s_prime),
+        forall |s, s_prime: T| q(s) && action_pred_call(next, s, s_prime) && asm(s) ==> q(s_prime),
         spec.entails(always(lift_action(next))),
-        spec.entails(always(always(lift_state(p)).implies(always(lift_state(blocker))))),
+        spec.entails(always(always(lift_state(p)).implies(always(lift_state(asm))))),
         spec.entails(lift_state(p).leads_to(lift_state(q))),
     ensures
         spec.entails(always(lift_state(p)).leads_to(always(lift_state(q)))),
 {
-    leads_to_stable_with_assumption::<T>(spec, always(lift_state(p)), next, blocker, p, q);
-    always_add_redundant_and::<T>(lift_state(p));
-    leads_to_weaken_auto::<T>(spec);
-}
+    leads_to_stable_assume::<T>(spec, next, asm, p, q);
 
-/// Simplified version of leads_to_stable_with_assumption.
-pub proof fn leads_to_stable_with_assumption_simpl<T>(spec: TempPred<T>, next: ActionPred<T>, blocker: StatePred<T>, p: StatePred<T>, q: StatePred<T>)
-    requires
-        forall |s, s_prime: T| q(s) && action_pred_call(next, s, s_prime) && blocker(s) ==> q(s_prime),
-        spec.entails(always(lift_action(next))),
-        spec.entails(lift_state(p).leads_to(lift_state(q))),
-    ensures
-        spec.entails(lift_state(p).and(always(lift_state(blocker))).leads_to(always(lift_state(q)))),
-{
-    leads_to_stable_with_assumption::<T>(spec, always(lift_state(blocker)), next, blocker, p, q);
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(lift_state(p)).leads_to(always(lift_state(q))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] always(lift_state(p)).satisfied_by(ex.suffix(i)) implies eventually(always(lift_state(q))).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, always(always(lift_state(p)).implies(always(lift_state(asm)))));
+            implies_apply::<T>(ex.suffix(i), always(lift_state(p)), always(lift_state(asm)));
+
+            always_to_current::<T>(ex.suffix(i), lift_state(p));
+
+            implies_apply::<T>(ex, spec, lift_state(p).and(always(lift_state(asm))).leads_to(always(lift_state(q))));
+            implies_apply::<T>(ex.suffix(i), lift_state(p).and(always(lift_state(asm))), eventually(always(lift_state(q))));
+        };
+    };
 }
 
 /// Get leads_to always if q is preserved by next.
@@ -1830,7 +1824,7 @@ pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: State
         spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
 {
     let trivial = |s| true;
-    leads_to_stable_with_assumption_simpl::<T>(spec, next, trivial, p, q);
+    leads_to_stable_assume::<T>(spec, next, trivial, p, q);
 
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(p).leads_to(always(lift_state(q))).satisfied_by(ex) by {
         assert forall |i| #[trigger] lift_state(p).satisfied_by(ex.suffix(i)) implies eventually(always(lift_state(q))).satisfied_by(ex.suffix(i)) by {
@@ -1838,6 +1832,23 @@ pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: State
             always_unfold::<T>(ex, lift_state(p).and(always(lift_state(trivial))).implies(eventually(always(lift_state(q)))));
         };
     };
+}
+
+/// Combination of leads_to_stable_assume_p and leads_to_always_combine_temp.
+pub proof fn leads_to_stable_assume_p_combine<T>(spec: TempPred<T>, next: ActionPred<T>, asm: StatePred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
+    requires
+        forall |s, s_prime: T| q(s) && #[trigger] action_pred_call(next, s, s_prime) && asm(s) ==> q(s_prime),
+        forall |s, s_prime: T| r(s) && #[trigger] action_pred_call(next, s, s_prime) && asm(s) ==> r(s_prime),
+        spec.entails(always(lift_action(next))),
+        spec.entails(always(always(lift_state(p)).implies(always(lift_state(asm))))),
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
+        spec.entails(lift_state(p).leads_to(lift_state(r))),
+    ensures
+        spec.entails(always(lift_state(p)).leads_to(always(lift_state(q).and(lift_state(r))))),
+{
+    leads_to_stable_assume_p::<T>(spec, next, asm, p, q);
+    leads_to_stable_assume_p::<T>(spec, next, asm, p, r);
+    leads_to_always_combine_temp::<T>(spec, always(lift_state(p)), lift_state(q), lift_state(r));
 }
 
 /// Combination of leads_to_stable and leads_to_always_combine.
@@ -1854,40 +1865,6 @@ pub proof fn leads_to_stable_combine<T>(spec: TempPred<T>, next: ActionPred<T>, 
     leads_to_stable::<T>(spec, next, p, q);
     leads_to_stable::<T>(spec, next, p, r);
     leads_to_always_combine::<T>(spec, p, q, r);
-}
-
-/// Combination of leads_to_stable_with_assumption and leads_to_always_combine_temp.
-pub proof fn leads_to_stable_with_assumption_combine<T>(spec: TempPred<T>, asm: TempPred<T>, next: ActionPred<T>, blocker: StatePred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
-    requires
-        forall |s, s_prime: T| q(s) && #[trigger] action_pred_call(next, s, s_prime) && blocker(s) ==> q(s_prime),
-        forall |s, s_prime: T| r(s) && #[trigger] action_pred_call(next, s, s_prime) && blocker(s) ==> r(s_prime),
-        spec.entails(always(lift_action(next))),
-        spec.entails(always(asm.implies(always(lift_state(blocker))))),
-        spec.entails(lift_state(p).leads_to(lift_state(q))),
-        spec.entails(lift_state(p).leads_to(lift_state(r))),
-    ensures
-        spec.entails(lift_state(p).and(asm).leads_to(always(lift_state(q).and(lift_state(r))))),
-{
-    leads_to_stable_with_assumption::<T>(spec, asm, next, blocker, p, q);
-    leads_to_stable_with_assumption::<T>(spec, asm, next, blocker, p, r);
-    leads_to_always_combine_temp::<T>(spec, lift_state(p).and(asm), lift_state(q), lift_state(r));
-}
-
-/// Combination of leads_to_stable_assume_always_p_combine and leads_to_always_combine_temp.
-pub proof fn leads_to_stable_assume_always_p_combine<T>(spec: TempPred<T>, next: ActionPred<T>, blocker: StatePred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
-    requires
-        forall |s, s_prime: T| q(s) && #[trigger] action_pred_call(next, s, s_prime) && blocker(s) ==> q(s_prime),
-        forall |s, s_prime: T| r(s) && #[trigger] action_pred_call(next, s, s_prime) && blocker(s) ==> r(s_prime),
-        spec.entails(always(lift_action(next))),
-        spec.entails(always(always(lift_state(p)).implies(always(lift_state(blocker))))),
-        spec.entails(lift_state(p).leads_to(lift_state(q))),
-        spec.entails(lift_state(p).leads_to(lift_state(r))),
-    ensures
-        spec.entails(always(lift_state(p)).leads_to(always(lift_state(q).and(lift_state(r))))),
-{
-    leads_to_stable_assume_always_p::<T>(spec, next, blocker, p, q);
-    leads_to_stable_assume_always_p::<T>(spec, next, blocker, p, r);
-    leads_to_always_combine_temp::<T>(spec, always(lift_state(p)), lift_state(q), lift_state(r));
 }
 
 /// Show that if the conclusion of leads_to is never true, then the premise of leads_to is never true
