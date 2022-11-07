@@ -244,20 +244,6 @@ proof fn not_eventually_unfold<T>(ex: Execution<T>, p: TempPred<T>)
         forall |i| !p.satisfied_by(#[trigger] ex.suffix(i))
 {}
 
-proof fn equals_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        p.equals(q).satisfied_by(ex),
-    ensures
-        p.satisfied_by(ex) <==> q.satisfied_by(ex),
-{}
-
-proof fn implies_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        p.implies(q).satisfied_by(ex),
-    ensures
-        p.satisfied_by(ex) ==> q.satisfied_by(ex),
-{}
-
 proof fn leads_to_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.leads_to(q).satisfied_by(ex),
@@ -297,6 +283,14 @@ proof fn always_lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
 proof fn implies_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.implies(q).satisfied_by(ex),
+        p.satisfied_by(ex),
+    ensures
+        q.satisfied_by(ex),
+{}
+
+proof fn equals_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        p.equals(q).satisfied_by(ex),
         p.satisfied_by(ex),
     ensures
         q.satisfied_by(ex),
@@ -484,7 +478,7 @@ proof fn implies_to_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T
 {
     assert forall |ex| spec.satisfied_by(ex)
     implies #[trigger] p.leads_to(q).satisfied_by(ex) by {
-        implies_unfold(ex, spec, always(p.implies(q)));
+        implies_apply(ex, spec, always(p.implies(q)));
         always_unfold(ex, p.implies(q));
         assert forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i))
         implies eventually(q).satisfied_by(ex.suffix(i)) by {
@@ -780,7 +774,7 @@ pub proof fn implies_preserved_by_always_temp<T>(p: TempPred<T>, q: TempPred<T>)
     assert forall |ex| always(p).satisfied_by(ex) implies always(q).satisfied_by(ex) by {
         assert forall |i:nat| q.satisfied_by(#[trigger] ex.suffix(i)) by {
             always_unfold::<T>(ex, p);
-            implies_unfold::<T>(ex.suffix(i), p, q);
+            implies_apply::<T>(ex.suffix(i), p, q);
         };
     };
 }
@@ -863,8 +857,8 @@ pub proof fn always_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPre
 {
     implies_preserved_by_always_temp::<T>(p, q);
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(q).satisfied_by(ex) by {
-        implies_unfold::<T>(ex, spec, always(p));
-        implies_unfold::<T>(ex, always(p), always(q));
+        implies_apply::<T>(ex, spec, always(p));
+        implies_apply::<T>(ex, always(p), always(q));
     };
 }
 
@@ -894,8 +888,8 @@ pub proof fn always_eq_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>
 {
     eq_preserved_by_always_temp::<T>(p, q);
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(q).satisfied_by(ex) by {
-        implies_unfold::<T>(ex, spec, always(p));
-        equals_unfold::<T>(ex, always(p), always(q));
+        implies_apply::<T>(ex, spec, always(p));
+        equals_apply::<T>(ex, always(p), always(q));
     };
 }
 
@@ -966,7 +960,7 @@ pub proof fn always_prepend_leads_to_temp<T>(spec: TempPred<T>, p: TempPred<T>, 
         spec.entails(p.leads_to(always(q))),
 {
     assert forall |ex| spec.satisfied_by(ex) implies #[trigger] p.leads_to(always(q)).satisfied_by(ex) by {
-        implies_unfold::<T>(ex, spec, always(q));
+        implies_apply::<T>(ex, spec, always(q));
         always_double::<T>(ex, q);
         assert forall |i| p.satisfied_by(#[trigger] ex.suffix(i)) implies eventually(always(q)).satisfied_by(ex.suffix(i)) by {
             always_propagate_forwards::<T>(ex, always(q), i);
@@ -1119,7 +1113,7 @@ pub proof fn implies_preserved_by_eventually_temp<T>(p: TempPred<T>, q: TempPred
     assert forall |ex| eventually(p).satisfied_by(ex) implies eventually(q).satisfied_by(ex) by {
         eventually_unfold::<T>(ex, p);
         let p_witness = eventually_choose_witness::<T>(ex, p);
-        implies_unfold::<T>(ex.suffix(p_witness), p, q);
+        implies_apply::<T>(ex.suffix(p_witness), p, q);
     };
 }
 
@@ -1155,8 +1149,8 @@ pub proof fn eventually_weaken_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: Tem
 {
     implies_preserved_by_eventually_temp::<T>(p, q);
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies eventually(q).satisfied_by(ex) by {
-        implies_unfold::<T>(ex, spec, eventually(p));
-        implies_unfold::<T>(ex, eventually(p), eventually(q));
+        implies_apply::<T>(ex, spec, eventually(p));
+        implies_apply::<T>(ex, eventually(p), eventually(q));
     };
 }
 
@@ -1200,8 +1194,8 @@ pub proof fn eventually_eq_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPre
 {
     eq_preserved_by_eventually_temp::<T>(p, q);
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies eventually(q).satisfied_by(ex) by {
-        implies_unfold::<T>(ex, spec, eventually(p));
-        equals_unfold::<T>(ex, eventually(p), eventually(q));
+        implies_apply::<T>(ex, spec, eventually(p));
+        equals_apply::<T>(ex, eventually(p), eventually(q));
     };
 }
 
