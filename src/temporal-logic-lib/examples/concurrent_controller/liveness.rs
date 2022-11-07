@@ -54,7 +54,7 @@ proof fn liveness_proof(cr: ResourceObj)
     leads_to_weaken_auto::<CState>(sm_spec());
 
     lemma_cr_exists_leads_to_pod_exists_and_vol_exists(cr);
-    lemma_always_cr_always_exists_implies_delete_pod_vol_req_never_sent(cr);
+    lemma_always_cr_always_exists_implies_subresources_never_deleted(cr);
     leads_to_stable_assume_p_combine::<CState>(sm_spec(),
         next(),
         |s| {
@@ -66,7 +66,7 @@ proof fn liveness_proof(cr: ResourceObj)
         |s| resource_exists(s, ResourceKey{name: vol_name, kind: ResourceKind::VolumeKind})
     );
 
-    // We can also use the auto version, which takes 1500ms more in smt-run
+    // We can also use the auto version, which takes more time in smt-run
     implies_preserved_by_always_temp::<CState>(
         lift_state(|s: CState| resource_exists(s, ResourceKey{name: pod_name, kind: ResourceKind::PodKind}))
             .and(lift_state(|s: CState| resource_exists(s, ResourceKey{name: vol_name, kind: ResourceKind::VolumeKind}))),
@@ -105,32 +105,7 @@ proof fn lemma_cr_exists_leads_to_pod_exists_and_vol_exists(cr: ResourceObj)
     lemma_k8s_create_sts_req_sent_leads_to_pod_exists_and_vol_exists(create_req_msg(ResourceKey{name: sts_name, kind: ResourceKind::StatefulSetKind}));
 }
 
-proof fn lemma_always_delete_cr_req_not_sent_implies_delete_pod_and_vol_req_not_sent(cr: ResourceObj)
-    requires
-        cr.key.kind.is_CustomResourceKind(),
-    ensures
-        sm_spec().entails(always(
-            lift_state(|s| !message_sent(s, delete_req_msg(cr.key)))
-                .implies(lift_state(|s| {
-                    &&& !message_sent(s, delete_req_msg(ResourceKey{name: cr.key.name + sts_suffix() + pod_suffix(), kind: ResourceKind::PodKind}))
-                    &&& !message_sent(s, delete_req_msg(ResourceKey{name: cr.key.name + sts_suffix() + vol_suffix(), kind: ResourceKind::VolumeKind}))
-                }))
-        )),
-{
-    let delete_cr_req_msg = delete_req_msg(cr.key);
-    let delete_cr_resp_msg = delete_resp_msg(cr.key);
-    let delete_sts_req_msg = delete_req_msg(ResourceKey{
-        name: cr.key.name + sts_suffix(),
-        kind: ResourceKind::StatefulSetKind,
-    });
-    lemma_always_delete_req_not_sent_implies_delete_resp_not_sent(delete_cr_req_msg);
-    lemma_always_delete_cr_resp_not_sent_implies_delete_sts_req_not_sent(delete_cr_resp_msg);
-    lemma_always_delete_sts_req_not_sent_implies_delete_pod_and_vol_req_not_sent(delete_sts_req_msg);
-
-    always_implies_trans_auto::<CState>(sm_spec());
-}
-
-proof fn lemma_always_cr_always_exists_implies_delete_pod_vol_req_never_sent(cr: ResourceObj)
+proof fn lemma_always_cr_always_exists_implies_subresources_never_deleted(cr: ResourceObj)
     requires
         cr.key.kind.is_CustomResourceKind(),
     ensures
@@ -161,6 +136,31 @@ proof fn lemma_always_cr_always_exists_implies_delete_pod_vol_req_never_sent(cr:
 
     implies_preserved_by_always_auto::<CState>();
     always_implies_weaken_auto::<CState>(sm_spec());
+}
+
+proof fn lemma_always_delete_cr_req_not_sent_implies_delete_pod_and_vol_req_not_sent(cr: ResourceObj)
+    requires
+        cr.key.kind.is_CustomResourceKind(),
+    ensures
+        sm_spec().entails(always(
+            lift_state(|s| !message_sent(s, delete_req_msg(cr.key)))
+                .implies(lift_state(|s| {
+                    &&& !message_sent(s, delete_req_msg(ResourceKey{name: cr.key.name + sts_suffix() + pod_suffix(), kind: ResourceKind::PodKind}))
+                    &&& !message_sent(s, delete_req_msg(ResourceKey{name: cr.key.name + sts_suffix() + vol_suffix(), kind: ResourceKind::VolumeKind}))
+                }))
+        )),
+{
+    let delete_cr_req_msg = delete_req_msg(cr.key);
+    let delete_cr_resp_msg = delete_resp_msg(cr.key);
+    let delete_sts_req_msg = delete_req_msg(ResourceKey{
+        name: cr.key.name + sts_suffix(),
+        kind: ResourceKind::StatefulSetKind,
+    });
+    lemma_always_delete_req_not_sent_implies_delete_resp_not_sent(delete_cr_req_msg);
+    lemma_always_delete_cr_resp_not_sent_implies_delete_sts_req_not_sent(delete_cr_resp_msg);
+    lemma_always_delete_sts_req_not_sent_implies_delete_pod_and_vol_req_not_sent(delete_sts_req_msg);
+
+    always_implies_trans_auto::<CState>(sm_spec());
 }
 
 proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(msg: Message)
