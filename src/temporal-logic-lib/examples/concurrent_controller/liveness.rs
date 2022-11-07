@@ -54,7 +54,7 @@ proof fn liveness_proof(cr: ResourceObj)
     leads_to_weaken_auto::<CState>(sm_spec());
 
     lemma_cr_exists_leads_to_pod_exists_and_vol_exists(cr);
-    lemma_always_cr_always_exists_implies_subresources_never_deleted(cr);
+    lemma_always_cr_always_exists_implies_sub_resources_never_deleted(cr);
     leads_to_stable_assume_p_combine::<CState>(sm_spec(),
         next(),
         |s| {
@@ -105,7 +105,7 @@ proof fn lemma_cr_exists_leads_to_pod_exists_and_vol_exists(cr: ResourceObj)
     lemma_k8s_create_sts_req_sent_leads_to_pod_exists_and_vol_exists(create_req_msg(ResourceKey{name: sts_name, kind: ResourceKind::StatefulSetKind}));
 }
 
-proof fn lemma_always_cr_always_exists_implies_subresources_never_deleted(cr: ResourceObj)
+proof fn lemma_always_cr_always_exists_implies_sub_resources_never_deleted(cr: ResourceObj)
     requires
         cr.key.kind.is_CustomResourceKind(),
     ensures
@@ -125,7 +125,7 @@ proof fn lemma_always_cr_always_exists_implies_subresources_never_deleted(cr: Re
         |s| !resource_exists(s, cr.key),
     );
 
-    lemma_always_delete_cr_req_not_sent_implies_delete_pod_and_vol_req_not_sent(cr);
+    lemma_always_delete_cr_req_never_sent_implies_sub_resources_never_deleted(cr);
     always_implies_preserved_by_always::<CState>(sm_spec(),
         |s| !message_sent(s, delete_req_msg(cr.key)),
         |s| {
@@ -138,7 +138,7 @@ proof fn lemma_always_cr_always_exists_implies_subresources_never_deleted(cr: Re
     always_implies_weaken_auto::<CState>(sm_spec());
 }
 
-proof fn lemma_always_delete_cr_req_not_sent_implies_delete_pod_and_vol_req_not_sent(cr: ResourceObj)
+proof fn lemma_always_delete_cr_req_never_sent_implies_sub_resources_never_deleted(cr: ResourceObj)
     requires
         cr.key.kind.is_CustomResourceKind(),
     ensures
