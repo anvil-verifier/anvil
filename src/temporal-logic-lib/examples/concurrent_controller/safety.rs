@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 use crate::examples::concurrent_controller::state_machine::*;
 use crate::pervasive::seq::*;
+use crate::pervasive::seq_lib::*;
 use crate::pervasive::string::*;
 use crate::temporal_logic::*;
 use builtin::*;
@@ -120,11 +121,6 @@ pub proof fn lemma_always_attached_and_delete_req_not_sent_implies_res_exists(st
             }
         ))),
 {
-    reveal_strlit("_pod");
-    reveal_strlit("_vol");
-    assert(pod_suffix()[1] !== vol_suffix()[1]);
-    assert(!pod_suffix().ext_equal(vol_suffix()));
-    seq_unequal_introduced_by_add_auto::<char>(pod_suffix(), vol_suffix());
     init_invariant::<CState>(sm_spec(),
         init(),
         next(),
