@@ -43,13 +43,13 @@ proof fn lemma_init_leads_to_obj1_exists()
      */
 
     /*
-     * `leads_to_weaken_auto` allows us to prove the desired leads_to
+     * `leads_to_weaken_lite_auto` allows us to prove the desired leads_to
      * by proving a equally "strong" leads_to or a "stronger" leads_to
      * that is easier to be proved.
      * It seems that we are abusing this rule in this proof.
      * Hope there is a more efficient way to do this.
      */
-    leads_to_weaken_auto::<CState>(sm_spec());
+    leads_to_weaken_lite_auto::<CState>(sm_spec());
 
     send1_enabled();
     wf1::<CState>(sm_spec(), next(), reconcile(), send1_pre(), create1_pre());
@@ -74,7 +74,7 @@ proof fn lemma_obj1_exists_and_not_sent2_leads_to_obj2_exists()
      * and connect the leads_to together using `leads_to_trans` rule.
      */
 
-    leads_to_weaken_auto::<CState>(sm_spec());
+    leads_to_weaken_lite_auto::<CState>(sm_spec());
 
     send2_enabled();
     wf1::<CState>(sm_spec(), next(), reconcile(), send2_pre(), create2_pre());
@@ -139,7 +139,7 @@ proof fn lemma_obj1_exists_and_sent2_leads_to_obj2_exists()
      * It is interesting and quite complex, so fasten your seat belt.
      */
 
-    leads_to_weaken_auto::<CState>(sm_spec());
+    leads_to_weaken_lite_auto::<CState>(sm_spec());
 
     /*
      * It is hard to even start the first step because `wf1` does not directly give you
@@ -176,7 +176,7 @@ proof fn lemma_obj1_exists_and_sent2_leads_to_obj2_exists()
      *
      * With this safety property, we can weaken the above leads_to to the following one.
      *
-     * Thanks `leads_to_weaken_auto` for automatically weakening leads_to for us :)
+     * Thanks `leads_to_weaken_lite_auto` for automatically weakening leads_to for us :)
      */
     assert(sm_spec().entails(
         lift_state(sent2())
@@ -195,7 +195,7 @@ proof fn lemma_obj1_exists_and_sent2_leads_to_obj2_exists()
 
     /*
      * At this point we have `s.sent_2_create ~> s.obj_2_exists`.
-     * `leads_to_weaken_auto` secretly helps us weaken the leads_to to the one we want to prove!
+     * `leads_to_weaken_lite_auto` secretly helps us weaken the leads_to to the one we want to prove!
      */
 }
 
@@ -214,7 +214,7 @@ proof fn lemma_obj1_exists_leads_to_obj2_exists()
                 .leads_to(lift_state(obj2_exists()))
         ),
 {
-    leads_to_weaken_auto::<CState>(sm_spec());
+    leads_to_weaken_lite_auto::<CState>(sm_spec());
 
     /*
      * With `lemma_premise1_leads_to_obj2_exists` and `lemma_premise2_leads_to_obj2_exists`,
