@@ -4,7 +4,6 @@
 use crate::examples::concurrent_controller::safety::*;
 use crate::examples::concurrent_controller::state_machine::*;
 use crate::pervasive::seq::*;
-use crate::pervasive::string::*;
 use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
@@ -320,19 +319,6 @@ proof fn lemma_k8s_pod_exists_and_vol_exists_leads_to_attached(sts_name: Seq<cha
         },
         |s: CState| s.attached.contains(sts_name)
     );
-}
-
-/// This is only useful when we want to prove:
-/// strlit_new("a")@ + strlit_new("b")@ === strlit_new("ab")@
-proof fn strlit_concat_equality(s1: Seq<char>, s2: Seq<char>, s: Seq<char>)
-    requires
-        s1.len() + s2.len() === s.len(),
-        forall |i:int| 0 <= i < s1.len() ==> s1.index(i) === s.index(i),
-        forall |i:int| 0 <= i < s2.len() ==> s2.index(i) === s.index(i + s1.len()),
-    ensures
-        s1 + s2 === s,
-{
-    assert(s.ext_equal(s1 + s2));
 }
 
 }

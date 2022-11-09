@@ -1,10 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::common::*;
 use crate::examples::concurrent_controller::state_machine::*;
 use crate::pervasive::seq::*;
-use crate::pervasive::seq_lib::*;
-use crate::pervasive::string::*;
 use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
@@ -134,52 +133,6 @@ pub proof fn lemma_always_attached_and_delete_req_not_sent_implies_res_exists(st
     );
 }
 
-pub proof fn seq_unequal_preserved_by_add<A>(s1: Seq<A>, s2: Seq<A>, suffix: Seq<A>)
-    requires
-        s1 !== s2
-    ensures
-        s1 + suffix !== s2 + suffix
-{
-    assert(!s1.ext_equal(s2));
-    if s1.len() === s2.len() {
-        let witness_idx = choose |i: int| 0 <= i < s1.len() && s1[i] !== s2[i];
-        assert((s1 + suffix)[witness_idx] !== (s2 + suffix)[witness_idx]);
-    } else {
-        assert((s1 + suffix).len() !== (s2 + suffix).len());
-    }
-}
 
-pub proof fn seq_unequal_preserved_by_add_auto<A>(suffix: Seq<A>)
-    ensures
-        forall |s1, s2: Seq<A>| s1 !== s2 ==> s1 + suffix !== s2 + suffix
-{
-    assert forall |s1, s2: Seq<A>| s1 !== s2 implies s1 + suffix !== s2 + suffix by {
-        seq_unequal_preserved_by_add(s1, s2, suffix);
-    };
-}
-
-pub proof fn seq_unequal_introduced_by_add<A>(s: Seq<A>, suffix1: Seq<A>, suffix2: Seq<A>)
-    requires
-        suffix1 !== suffix2
-    ensures
-        s + suffix1 !== s + suffix2
-{
-    assert(!suffix1.ext_equal(suffix2));
-    if suffix1.len() === suffix2.len() {
-        let witness_idx = choose |i: int| 0 <= i < suffix1.len() && suffix1[i] !== suffix2[i];
-        assert((s + suffix1)[witness_idx + s.len()] !== (s + suffix2)[witness_idx + s.len()]);
-    } else {
-        assert((s + suffix1).len() !== (s + suffix2).len());
-    }
-}
-
-pub proof fn seq_unequal_introduced_by_add_auto<A>(suffix1: Seq<A>, suffix2: Seq<A>)
-    ensures
-        forall |s: Seq<A>| suffix1 !== suffix2 ==> s + suffix1 !== s + suffix2
-{
-    assert forall |s: Seq<A>| suffix1 !== suffix2 implies s + suffix1 !== s + suffix2 by {
-        seq_unequal_introduced_by_add(s, suffix1, suffix2);
-    };
-}
 
 }
