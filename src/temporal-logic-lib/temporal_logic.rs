@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::pervasive::function::*;
 use builtin::*;
 use builtin_macros::*;
 
@@ -191,37 +192,41 @@ pub open spec fn valid<T>(temp_pred: TempPred<T>) -> bool {
     forall |ex: Execution<T>| temp_pred.satisfied_by(ex)
 }
 
-#[verifier(external_body)]
-proof fn execution_suffix_zero_split<T>(ex: Execution<T>, p: TempPred<T>)
-    requires
-        p.satisfied_by(ex),
-    ensures
-        p.satisfied_by(ex.suffix(0)),
-{}
-
-#[verifier(external_body)]
 proof fn execution_suffix_zero_merge<T>(ex: Execution<T>, p: TempPred<T>)
     requires
         p.satisfied_by(ex.suffix(0)),
     ensures
         p.satisfied_by(ex),
-{}
+{
+    fun_ext::<nat, T>(ex.suffix(0).nat_to_state, ex.nat_to_state);
+}
 
-#[verifier(external_body)]
+proof fn execution_suffix_zero_split<T>(ex: Execution<T>, p: TempPred<T>)
+    requires
+        p.satisfied_by(ex),
+    ensures
+        p.satisfied_by(ex.suffix(0)),
+{
+    fun_ext::<nat, T>(ex.nat_to_state, ex.suffix(0).nat_to_state);
+}
+
 proof fn execution_suffix_merge<T>(ex: Execution<T>, p: TempPred<T>, i: nat, j: nat)
     requires
         p.satisfied_by(ex.suffix(i).suffix(j)),
     ensures
         p.satisfied_by(ex.suffix(i + j)),
-{}
+{
+    fun_ext::<nat, T>(ex.suffix(i).suffix(j).nat_to_state, ex.suffix(i + j).nat_to_state);
+}
 
-#[verifier(external_body)]
 proof fn execution_suffix_split<T>(ex: Execution<T>, p: TempPred<T>, i: nat, j: nat)
     requires
         p.satisfied_by(ex.suffix(i + j)),
     ensures
         p.satisfied_by(ex.suffix(i).suffix(j)),
-{}
+{
+    fun_ext::<nat, T>(ex.suffix(i + j).nat_to_state, ex.suffix(i).suffix(j).nat_to_state);
+}
 
 proof fn always_unfold<T>(ex: Execution<T>, p: TempPred<T>)
     requires
