@@ -105,7 +105,7 @@ proof fn controller_action_enabled_by_create_cr_req_sent(msg: Message) -> (outco
         }),
         forall |s| state_pred_call(message_sent(msg), s) ==> enabled(controller_action(MessageOps{
             recv: Option::Some(msg),
-            send: Set::empty().insert(outcome_msg),
+            send: set![outcome_msg],
         }))(s),
 {
     let sts_create_req_msg = create_req_msg(ResourceKey{
@@ -115,11 +115,10 @@ proof fn controller_action_enabled_by_create_cr_req_sent(msg: Message) -> (outco
 
     let msg_ops = MessageOps {
         recv: Option::Some(msg),
-        send: Set::empty().insert(sts_create_req_msg),
+        send: set![sts_create_req_msg],
     };
 
-    assert forall |s| state_pred_call(message_sent(msg), s)
-    implies enabled(controller_action(msg_ops))(s) by {
+    assert forall |s| state_pred_call(message_sent(msg), s) implies enabled(controller_action(msg_ops))(s) by {
         let witness_s_prime = CompoundState {
             network_state: network_state_machine::NetworkState{
                 sent_messages: s.network_state.sent_messages + msg_ops.send
@@ -148,7 +147,7 @@ proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(msg: Message) -
     let sts_create_req_msg = controller_action_enabled_by_create_cr_req_sent(msg);
     let msg_ops = MessageOps {
         recv: Option::Some(msg),
-        send: Set::empty().insert(sts_create_req_msg),
+        send: set![sts_create_req_msg],
     };
 
     use_tla_forall::<CompoundState, MessageOps>(sm_spec(), |m| weak_fairness(controller_action(m)), msg_ops);

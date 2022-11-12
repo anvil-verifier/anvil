@@ -42,19 +42,23 @@ pub open spec fn outcome_messages(s: KubernetesAPIState, msg: Message) -> Set<Me
 {
     if msg.is_CreateRequest() {
         if msg.get_CreateRequest_0().obj.key.kind.is_StatefulSetKind() {
-            Set::empty().insert(create_resp_msg(msg.get_CreateRequest_0().obj.key))
-                .insert(create_req_msg(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + pod_suffix(), kind: ResourceKind::PodKind}))
-                .insert(create_req_msg(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + vol_suffix(), kind: ResourceKind::VolumeKind}))
+            set![
+                create_resp_msg(msg.get_CreateRequest_0().obj.key),
+                create_req_msg(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + pod_suffix(), kind: ResourceKind::PodKind}),
+                create_req_msg(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + vol_suffix(), kind: ResourceKind::VolumeKind})
+            ]
         } else {
-            Set::empty().insert(create_resp_msg(msg.get_CreateRequest_0().obj.key))
+            set![create_resp_msg(msg.get_CreateRequest_0().obj.key)]
         }
     } else {
         if msg.get_DeleteRequest_0().key.kind.is_StatefulSetKind() {
-            Set::empty().insert(delete_resp_msg(msg.get_DeleteRequest_0().key))
-                .insert(delete_req_msg(ResourceKey{name: msg.get_DeleteRequest_0().key.name + pod_suffix(), kind: ResourceKind::PodKind}))
-                .insert(delete_req_msg(ResourceKey{name: msg.get_DeleteRequest_0().key.name + vol_suffix(), kind: ResourceKind::VolumeKind}))
+            set![
+                delete_resp_msg(msg.get_DeleteRequest_0().key),
+                delete_req_msg(ResourceKey{name: msg.get_DeleteRequest_0().key.name + pod_suffix(), kind: ResourceKind::PodKind}),
+                delete_req_msg(ResourceKey{name: msg.get_DeleteRequest_0().key.name + vol_suffix(), kind: ResourceKind::VolumeKind})
+            ]
         } else {
-            Set::empty().insert(delete_resp_msg(msg.get_DeleteRequest_0().key))
+            set![delete_resp_msg(msg.get_DeleteRequest_0().key)]
         }
     }
 }

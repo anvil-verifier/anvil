@@ -18,13 +18,13 @@ pub open spec fn init(s: ClientState) -> bool {
 pub open spec fn send_create_cr(s: ClientState, s_prime: ClientState, msg_ops: MessageOps, res: ResourceObj) -> bool {
     &&& res.key.kind.is_CustomResourceKind()
     &&& msg_ops.recv.is_None()
-    &&& msg_ops.send === Set::empty().insert(create_req_msg(res.key))
+    &&& msg_ops.send === set![create_req_msg(res.key)]
 }
 
 pub open spec fn send_delete_cr(s: ClientState, s_prime: ClientState, msg_ops: MessageOps, res: ResourceObj) -> bool {
     &&& res.key.kind.is_CustomResourceKind()
     &&& msg_ops.recv.is_None()
-    &&& msg_ops.send === Set::empty().insert(delete_req_msg(res.key))
+    &&& msg_ops.send === set![delete_req_msg(res.key)]
 }
 
 pub enum ClientStep {

@@ -24,10 +24,10 @@ pub open spec fn send_create_sts(s: ControllerState, s_prime: ControllerState, m
     &&& msg_ops.recv.is_Some()
     &&& send_create_sts_pre(s, msg_ops.recv.get_Some_0())
     &&& s_prime === s
-    &&& msg_ops.send === Set::empty().insert(create_req_msg(ResourceKey{
+    &&& msg_ops.send === set![create_req_msg(ResourceKey{
             name: msg_ops.recv.get_Some_0().get_CreateResponse_0().obj.key.name + sts_suffix(),
             kind: ResourceKind::StatefulSetKind
-        }))
+        })]
 }
 
 pub open spec fn send_delete_sts_pre(s: ControllerState, msg: Message) -> bool {
@@ -39,10 +39,10 @@ pub open spec fn send_delete_sts(s: ControllerState, s_prime: ControllerState, m
     &&& msg_ops.recv.is_Some()
     &&& send_delete_sts_pre(s, msg_ops.recv.get_Some_0())
     &&& s_prime === s
-    &&& msg_ops.send === Set::empty().insert(delete_req_msg(ResourceKey{
+    &&& msg_ops.send === set![delete_req_msg(ResourceKey{
             name: msg_ops.recv.get_Some_0().get_DeleteResponse_0().key.name + sts_suffix(),
             kind: ResourceKind::StatefulSetKind
-        }))
+        })]
 }
 
 pub enum ControllerStep {
