@@ -90,26 +90,31 @@ spec fn message_sent(msg: Message) -> StatePred<CompoundState> {
     |s: CompoundState| s.network_state.sent_messages.contains(msg)
 }
 
-proof fn try_wf1(msg: Message)
+proof fn controller_action_enabled_by_create_cr_req_sent(msg: Message) -> (outcome_msg: Message)
     requires
         msg.is_CreateResponse(),
         msg.get_CreateResponse_0().obj.key.kind.is_CustomResourceKind(),
+    ensures
+        outcome_msg === create_req_msg(ResourceKey{
+            name: msg.get_CreateResponse_0().obj.key.name + sts_suffix(),
+            kind: ResourceKind::StatefulSetKind,
+        }),
+        forall |s| state_pred_call(message_sent(msg), s) ==> enabled(controller_action(MessageOps{
+            recv: Option::Some(msg),
+            send: Set::empty().insert(outcome_msg),
+        }))(s),
 {
-
-    let cr_create_resp_msg = msg;
     let sts_create_req_msg = create_req_msg(ResourceKey{
         name: msg.get_CreateResponse_0().obj.key.name + sts_suffix(),
         kind: ResourceKind::StatefulSetKind
     });
 
     let msg_ops = MessageOps {
-        recv: Option::Some(cr_create_resp_msg),
+        recv: Option::Some(msg),
         send: Set::empty().insert(sts_create_req_msg),
     };
 
-    use_tla_forall::<CompoundState, MessageOps>(sm_spec(), |m| weak_fairness(controller_action(m)), msg_ops);
-
-    assert forall |s| state_pred_call(message_sent(cr_create_resp_msg), s)
+    assert forall |s| state_pred_call(message_sent(msg), s)
     implies enabled(controller_action(msg_ops))(s) by {
         let witness_s_prime = CompoundState {
             network_state: network_state_machine::NetworkState{
@@ -122,12 +127,36 @@ proof fn try_wf1(msg: Message)
         assert(action_pred_call(controller_action(msg_ops), s, witness_s_prime));
     };
 
+    sts_create_req_msg
+}
+
+proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(msg: Message) -> (outcome_msg: Message)
+    requires
+        msg.is_CreateResponse(),
+        msg.get_CreateResponse_0().obj.key.kind.is_CustomResourceKind(),
+    ensures
+        outcome_msg === create_req_msg(ResourceKey{
+            name: msg.get_CreateResponse_0().obj.key.name + sts_suffix(),
+            kind: ResourceKind::StatefulSetKind,
+        }),
+        sm_spec().entails(lift_state(message_sent(msg)).leads_to(lift_state(message_sent(outcome_msg)))),
+{
+    let sts_create_req_msg = controller_action_enabled_by_create_cr_req_sent(msg);
+    let msg_ops = MessageOps {
+        recv: Option::Some(msg),
+        send: Set::empty().insert(sts_create_req_msg),
+    };
+
+    use_tla_forall::<CompoundState, MessageOps>(sm_spec(), |m| weak_fairness(controller_action(m)), msg_ops);
+
     wf1::<CompoundState>(sm_spec(),
         next(),
         controller_action(msg_ops),
-        message_sent(cr_create_resp_msg),
+        message_sent(msg),
         message_sent(sts_create_req_msg),
     );
+
+    sts_create_req_msg
 }
 
 }
