@@ -5,5 +5,6 @@ pub mod common;
 pub mod compound_state_machine;
 pub mod controller_state_machine;
 pub mod kubernetes_api_state_machine;
+pub mod liveness;
 pub mod network_state_machine;
 pub mod safety;

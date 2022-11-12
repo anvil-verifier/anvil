@@ -77,12 +77,12 @@ pub open spec fn handle_request(s: KubernetesAPIState, s_prime: KubernetesAPISta
 }
 
 pub enum KubernetesAPIStep {
-    K8sHandleRequest,
+    HandleRequest,
 }
 
 pub open spec fn next_step(s: KubernetesAPIState, s_prime: KubernetesAPIState, msg_ops: MessageOps, step: KubernetesAPIStep) -> bool {
     match step {
-        KubernetesAPIStep::K8sHandleRequest => handle_request(s, s_prime, msg_ops),
+        KubernetesAPIStep::HandleRequest => handle_request(s, s_prime, msg_ops),
     }
 }
 
