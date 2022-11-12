@@ -86,8 +86,12 @@ pub open spec fn sm_spec() -> TempPred<CompoundState> {
     .and(tla_forall(|msg_ops| weak_fairness(controller_action(msg_ops))))
 }
 
-spec fn message_sent(msg: Message) -> StatePred<CompoundState> {
+pub open spec fn message_sent(msg: Message) -> StatePred<CompoundState> {
     |s: CompoundState| s.network_state.sent_messages.contains(msg)
+}
+
+pub open spec fn resource_exists(key: ResourceKey) -> StatePred<CompoundState> {
+    |s: CompoundState| s.kubernetes_api_state.resources.dom().contains(key)
 }
 
 proof fn controller_action_enabled_by_create_cr_req_sent(msg: Message) -> (outcome_msg: Message)
