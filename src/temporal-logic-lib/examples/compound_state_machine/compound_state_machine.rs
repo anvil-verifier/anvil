@@ -39,17 +39,12 @@ pub open spec fn kubernetes_api_action_handle_request_pre(recv: Option<Message>)
     }
 }
 
-/// TODO: Ideally, we should not choose any outbound messages.
-/// kubernetes_api_state_machine should decide the outbound messages
-/// and return them to the compound one
 pub open spec fn kubernetes_api_action(recv: Option<Message>) -> ActionPred<CompoundState> {
     |s: CompoundState, s_prime: CompoundState| {
-        exists |output_messages: Set<Message>| {
-            &&& #[trigger] kubernetes_api_state_machine::next(recv, s.kubernetes_api_state, s_prime.kubernetes_api_state, output_messages)
-            &&& network_state_machine::next(recv, s.network_state, s_prime.network_state, output_messages)
-            &&& s_prime.controller_state === s.controller_state
-            &&& s_prime.client_state === s.client_state
-        }
+        &&& kubernetes_api_state_machine::next(recv, s.kubernetes_api_state, s_prime.kubernetes_api_state)
+        &&& network_state_machine::next(recv, s.network_state, s_prime.network_state, kubernetes_api_state_machine::output(recv, s.kubernetes_api_state, s_prime.kubernetes_api_state))
+        &&& s_prime.controller_state === s.controller_state
+        &&& s_prime.client_state === s.client_state
     }
 }
 
@@ -62,23 +57,19 @@ pub open spec fn controller_action_send_create_sts_pre(recv: Option<Message>) ->
 
 pub open spec fn controller_action(recv: Option<Message>) -> ActionPred<CompoundState> {
     |s: CompoundState, s_prime: CompoundState| {
-        exists |output_messages: Set<Message>| {
-            &&& #[trigger] controller_state_machine::next(recv, s.controller_state, s_prime.controller_state, output_messages)
-            &&& network_state_machine::next(recv, s.network_state, s_prime.network_state, output_messages)
-            &&& s_prime.kubernetes_api_state === s.kubernetes_api_state
-            &&& s_prime.client_state === s.client_state
-        }
+        &&& controller_state_machine::next(recv, s.controller_state, s_prime.controller_state)
+        &&& network_state_machine::next(recv, s.network_state, s_prime.network_state, controller_state_machine::output(recv, s.controller_state, s_prime.controller_state))
+        &&& s_prime.kubernetes_api_state === s.kubernetes_api_state
+        &&& s_prime.client_state === s.client_state
     }
 }
 
 pub open spec fn client_action(recv: Option<Message>) -> ActionPred<CompoundState> {
     |s: CompoundState, s_prime: CompoundState| {
-        exists |output_messages: Set<Message>| {
-            &&& #[trigger] client_state_machine::next(recv, s.client_state, s_prime.client_state, output_messages)
-            &&& network_state_machine::next(recv, s.network_state, s_prime.network_state, output_messages)
-            &&& s_prime.kubernetes_api_state === s.kubernetes_api_state
-            &&& s_prime.controller_state === s.controller_state
-        }
+        &&& client_state_machine::next(recv, s.client_state, s_prime.client_state)
+        &&& network_state_machine::next(recv, s.network_state, s_prime.network_state, client_state_machine::output(recv, s.client_state, s_prime.client_state))
+        &&& s_prime.kubernetes_api_state === s.kubernetes_api_state
+        &&& s_prime.controller_state === s.controller_state
     }
 }
 
@@ -130,8 +121,8 @@ pub proof fn kubernetes_api_action_handle_request_enabled(recv: Option<Message>)
             ..s
         };
         let witness_kubernetes_step = kubernetes_api_state_machine::KubernetesAPIStep::HandleRequest;
-        assert(kubernetes_api_state_machine::next_step(recv, s.kubernetes_api_state, s_prime.kubernetes_api_state, send, witness_kubernetes_step));
-        assert(kubernetes_api_state_machine::next(recv, s.kubernetes_api_state, s_prime.kubernetes_api_state, send));
+        assert(kubernetes_api_state_machine::next_step(recv, s.kubernetes_api_state, s_prime.kubernetes_api_state, witness_kubernetes_step));
+        assert(kubernetes_api_state_machine::next(recv, s.kubernetes_api_state, s_prime.kubernetes_api_state));
         assert(action_pred_call(kubernetes_api_action(recv), s, s_prime));
     };
 }
@@ -148,8 +139,8 @@ pub proof fn controller_action_send_create_sts_enabled(recv: Option<Message>)
             ..s
         };
         let witness_controller_step = controller_state_machine::ControllerStep::SendCreateStsStep;
-        assert(controller_state_machine::next_step(recv, s.controller_state, s_prime.controller_state, send, witness_controller_step));
-        assert(controller_state_machine::next(recv, s.controller_state, s_prime.controller_state, send));
+        assert(controller_state_machine::next_step(recv, s.controller_state, s_prime.controller_state, witness_controller_step));
+        assert(controller_state_machine::next(recv, s.controller_state, s_prime.controller_state));
         assert(action_pred_call(controller_action(recv), s, s_prime));
     };
 }

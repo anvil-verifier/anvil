@@ -56,15 +56,25 @@ pub enum ClientStep {
     SendDeleteCrStep(ResourceObj),
 }
 
-pub open spec fn next_step(recv: Option<Message>, s: ClientState, s_prime: ClientState, send: Set<Message>, step: ClientStep) -> bool {
+pub open spec fn next_step(recv: Option<Message>, s: ClientState, s_prime: ClientState, step: ClientStep) -> bool {
     match step {
-        ClientStep::SendCreateCrStep(res) => send_create_cr().satisfied_by(ClientInput{cr: res, recv: recv}, s, s_prime, send),
-        ClientStep::SendDeleteCrStep(res) => send_delete_cr().satisfied_by(ClientInput{cr: res, recv: recv}, s, s_prime, send),
+        ClientStep::SendCreateCrStep(res) => send_create_cr().satisfied_by(ClientInput{cr: res, recv: recv}, s, s_prime),
+        ClientStep::SendDeleteCrStep(res) => send_delete_cr().satisfied_by(ClientInput{cr: res, recv: recv}, s, s_prime),
     }
 }
 
-pub open spec fn next(recv: Option<Message>, s: ClientState, s_prime: ClientState, send: Set<Message>) -> bool {
-    exists |step| next_step(recv, s, s_prime, send, step)
+pub open spec fn next(recv: Option<Message>, s: ClientState, s_prime: ClientState) -> bool {
+    exists |step| next_step(recv, s, s_prime, step)
+}
+
+pub open spec fn output(recv: Option<Message>, s: ClientState, s_prime: ClientState) -> Set<Message>
+    recommends next(recv, s, s_prime)
+{
+    let witness_step = choose |step| next_step(recv, s, s_prime, step);
+    match witness_step {
+        ClientStep::SendCreateCrStep(res) => (send_create_cr().output)(ClientInput{cr: res, recv: recv}, s),
+        ClientStep::SendDeleteCrStep(res) => (send_delete_cr().output)(ClientInput{cr: res, recv: recv}, s),
+    }
 }
 
 }

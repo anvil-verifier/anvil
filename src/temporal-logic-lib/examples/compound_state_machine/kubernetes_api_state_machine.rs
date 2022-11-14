@@ -89,14 +89,23 @@ pub enum KubernetesAPIStep {
     HandleRequest,
 }
 
-pub open spec fn next_step(recv: Option<Message>, s: KubernetesAPIState, s_prime: KubernetesAPIState, send: Set<Message>, step: KubernetesAPIStep) -> bool {
+pub open spec fn next_step(recv: Option<Message>, s: KubernetesAPIState, s_prime: KubernetesAPIState, step: KubernetesAPIStep) -> bool {
     match step {
-        KubernetesAPIStep::HandleRequest => handle_request().satisfied_by(recv, s, s_prime, send),
+        KubernetesAPIStep::HandleRequest => handle_request().satisfied_by(recv, s, s_prime),
     }
 }
 
-pub open spec fn next(recv: Option<Message>, s: KubernetesAPIState, s_prime: KubernetesAPIState, send: Set<Message>) -> bool {
-    exists |step| next_step(recv, s, s_prime, send, step)
+pub open spec fn next(recv: Option<Message>, s: KubernetesAPIState, s_prime: KubernetesAPIState) -> bool {
+    exists |step| next_step(recv, s, s_prime, step)
+}
+
+pub open spec fn output(recv: Option<Message>, s: KubernetesAPIState, s_prime: KubernetesAPIState) -> Set<Message>
+    recommends next(recv, s, s_prime)
+{
+    let witness_step = choose |step| next_step(recv, s, s_prime, step);
+    match witness_step {
+        KubernetesAPIStep::HandleRequest => (handle_request().output)(recv, s),
+    }
 }
 
 }

@@ -59,15 +59,25 @@ pub enum ControllerStep {
     SendDeleteStsStep,
 }
 
-pub open spec fn next_step(recv: Option<Message>, s: ControllerState, s_prime: ControllerState, send: Set<Message>, step: ControllerStep) -> bool {
+pub open spec fn next_step(recv: Option<Message>, s: ControllerState, s_prime: ControllerState, step: ControllerStep) -> bool {
     match step {
-        ControllerStep::SendCreateStsStep => send_create_sts().satisfied_by(recv, s, s_prime, send),
-        ControllerStep::SendDeleteStsStep => send_delete_sts().satisfied_by(recv, s, s_prime, send),
+        ControllerStep::SendCreateStsStep => send_create_sts().satisfied_by(recv, s, s_prime),
+        ControllerStep::SendDeleteStsStep => send_delete_sts().satisfied_by(recv, s, s_prime),
     }
 }
 
-pub open spec fn next(recv: Option<Message>, s: ControllerState, s_prime: ControllerState, send: Set<Message>) -> bool {
-    exists |step| next_step(recv, s, s_prime, send, step)
+pub open spec fn next(recv: Option<Message>, s: ControllerState, s_prime: ControllerState) -> bool {
+    exists |step| next_step(recv, s, s_prime, step)
+}
+
+pub open spec fn output(recv: Option<Message>, s: ControllerState, s_prime: ControllerState) -> Set<Message>
+    recommends next(recv, s, s_prime)
+{
+    let witness_step = choose |step| next_step(recv, s, s_prime, step);
+    match witness_step {
+        ControllerStep::SendCreateStsStep => (send_create_sts().output)(recv, s),
+        ControllerStep::SendDeleteStsStep => (send_delete_sts().output)(recv, s),
+    }
 }
 
 }

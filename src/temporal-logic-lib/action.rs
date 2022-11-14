@@ -14,10 +14,9 @@ pub struct HostAction<#[verifier(maybe_negative)] S, #[verifier(maybe_negative)]
 }
 
 impl<S, I, O> HostAction<S, I, O> {
-    pub open spec fn satisfied_by(self, input: I, s: S, s_prime: S, output: O) -> bool {
+    pub open spec fn satisfied_by(self, input: I, s: S, s_prime: S) -> bool {
         &&& (self.precondition)(input, s)
         &&& s_prime === (self.transition)(input, s)
-        &&& output === (self.output)(input, s)
     }
 }
 
