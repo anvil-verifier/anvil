@@ -163,68 +163,52 @@ proof fn lemma_always_delete_cr_req_never_sent_implies_sub_resources_never_delet
     always_implies_trans_auto::<CompoundState>(sm_spec());
 }
 
-proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(msg: Message) -> (outcome_msg: Message)
+proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(msg: Message)
     requires
         msg.is_CreateResponse(),
         msg.get_CreateResponse_0().obj.key.kind.is_CustomResourceKind(),
     ensures
-        outcome_msg === create_req_msg(ResourceKey{
+        sm_spec().entails(lift_state(message_sent(msg)).leads_to(lift_state(message_sent(create_req_msg(ResourceKey{
             name: msg.get_CreateResponse_0().obj.key.name + sts_suffix(),
             kind: ResourceKind::StatefulSetKind,
-        }),
-        sm_spec().entails(lift_state(message_sent(msg)).leads_to(lift_state(message_sent(outcome_msg)))),
+        }))))),
 {
     let create_sts_req_msg = create_req_msg(ResourceKey{
         name: msg.get_CreateResponse_0().obj.key.name + sts_suffix(),
         kind: ResourceKind::StatefulSetKind
     });
 
-    let msg_ops = MessageOps {
-        recv: Option::Some(msg),
-        send: set![create_sts_req_msg],
-    };
-
     controller_action_enabled_by_create_cr_resp_sent(msg);
-    use_tla_forall::<CompoundState, MessageOps>(sm_spec(), |m| weak_fairness(controller_action(m)), msg_ops);
+    use_tla_forall::<CompoundState, Message>(sm_spec(), |m| weak_fairness(controller_action(m)), msg);
 
     wf1::<CompoundState>(sm_spec(),
         next(),
-        controller_action(msg_ops),
+        controller_action(msg),
         message_sent(msg),
         message_sent(create_sts_req_msg),
     );
-
-    create_sts_req_msg
 }
 
-proof fn lemma_k8s_create_cr_req_leads_to_create_cr_resp(msg: Message) -> (outcome_msg: Message)
+proof fn lemma_k8s_create_cr_req_leads_to_create_cr_resp(msg: Message)
     requires
         msg.is_CreateRequest(),
         msg.get_CreateRequest_0().obj.key.kind.is_CustomResourceKind(),
     ensures
-        outcome_msg === create_resp_msg(msg.get_CreateRequest_0().obj.key),
         sm_spec().entails(
-            lift_state(message_sent(msg)).leads_to(lift_state(message_sent(outcome_msg)))
+            lift_state(message_sent(msg)).leads_to(lift_state(message_sent(create_resp_msg(msg.get_CreateRequest_0().obj.key))))
         ),
 {
     let create_cr_resp_msg = create_resp_msg(msg.get_CreateRequest_0().obj.key);
 
-    let msg_ops = MessageOps {
-        recv: Option::Some(msg),
-        send: set![create_cr_resp_msg],
-    };
-
     kubernetes_action_enabled_by_create_req_sent(msg);
-    use_tla_forall::<CompoundState, MessageOps>(sm_spec(), |m| weak_fairness(kubernetes_api_action(m)), msg_ops);
+    use_tla_forall::<CompoundState, Message>(sm_spec(), |m| weak_fairness(kubernetes_api_action(m)), msg);
 
     wf1::<CompoundState>(sm_spec(),
         next(),
-        kubernetes_api_action(msg_ops),
+        kubernetes_api_action(msg),
         message_sent(msg),
         message_sent(create_cr_resp_msg),
     );
-
-    create_cr_resp_msg
 }
 
 proof fn lemma_k8s_delete_cr_req_leads_to_cr_not_exists(msg: Message)
@@ -238,17 +222,12 @@ proof fn lemma_k8s_delete_cr_req_leads_to_cr_not_exists(msg: Message)
 {
     let delete_cr_resp_msg = delete_resp_msg(msg.get_DeleteRequest_0().key);
 
-    let msg_ops = MessageOps {
-        recv: Option::Some(msg),
-        send: set![delete_cr_resp_msg],
-    };
-
     kubernetes_action_enabled_by_delete_cr_req_sent(msg);
-    use_tla_forall::<CompoundState, MessageOps>(sm_spec(), |m| weak_fairness(kubernetes_api_action(m)), msg_ops);
+    use_tla_forall::<CompoundState, Message>(sm_spec(), |m| weak_fairness(kubernetes_api_action(m)), msg);
 
     wf1::<CompoundState>(sm_spec(),
         next(),
-        kubernetes_api_action(msg_ops),
+        kubernetes_api_action(msg),
         message_sent(msg),
         |s| !resource_exists(msg.get_DeleteRequest_0().key)(s)
     );
@@ -286,32 +265,20 @@ proof fn lemma_k8s_create_sts_req_sent_leads_to(msg: Message, sub_res_msg: Messa
 
     leads_to_eq_auto::<CompoundState>(sm_spec());
 
-    let msg_ops = MessageOps {
-        recv: Option::Some(msg),
-        send: set![
-            create_resp_msg(msg.get_CreateRequest_0().obj.key),
-            create_req_msg(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + pod_suffix(), kind: ResourceKind::PodKind}),
-            create_req_msg(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + vol_suffix(), kind: ResourceKind::VolumeKind})
-        ],
-    };
     kubernetes_action_enabled_by_create_sts_req_sent(msg);
-    use_tla_forall::<CompoundState, MessageOps>(sm_spec(), |m| weak_fairness(kubernetes_api_action(m)), msg_ops);
+    use_tla_forall::<CompoundState, Message>(sm_spec(), |m| weak_fairness(kubernetes_api_action(m)), msg);
     wf1::<CompoundState>(sm_spec(),
         next(),
-        kubernetes_api_action(msg_ops),
+        kubernetes_api_action(msg),
         message_sent(msg),
         message_sent(sub_res_msg)
     );
 
-    let sub_res_msg_ops = MessageOps {
-        recv: Option::Some(sub_res_msg),
-        send: set![create_resp_msg(sub_res_key)],
-    };
     kubernetes_action_enabled_by_create_req_sent(sub_res_msg);
-    use_tla_forall::<CompoundState, MessageOps>(sm_spec(), |m| weak_fairness(kubernetes_api_action(m)), sub_res_msg_ops);
+    use_tla_forall::<CompoundState, Message>(sm_spec(), |m| weak_fairness(kubernetes_api_action(m)), sub_res_msg);
     wf1::<CompoundState>(sm_spec(),
         next(),
-        kubernetes_api_action(sub_res_msg_ops),
+        kubernetes_api_action(sub_res_msg),
         message_sent(sub_res_msg),
         resource_exists(sub_res_key)
     );
