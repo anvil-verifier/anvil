@@ -137,10 +137,10 @@ pub open spec fn resource_exists(key: ResourceKey) -> StatePred<CompoundState> {
 
 pub proof fn kubernetes_api_action_handle_request_enabled(msg: Message)
     ensures
-        forall |s| #[trigger] state_pred_call(kubernetes_api_action_handle_request_pre(msg), s)
+        forall |s| state_pred_call(kubernetes_api_action_handle_request_pre(msg), s)
             ==> enabled(kubernetes_api_action(msg))(s),
 {
-    assert forall |s| #[trigger] state_pred_call(kubernetes_api_action_handle_request_pre(msg), s) implies enabled(kubernetes_api_action(msg))(s) by {
+    assert forall |s| state_pred_call(kubernetes_api_action_handle_request_pre(msg), s) implies enabled(kubernetes_api_action(msg))(s) by {
         let msg_ops = MessageOps {
             recv: Option::Some(msg),
             send: kubernetes_api_state_machine::outcome_messages(s.kubernetes_api_state, msg),
