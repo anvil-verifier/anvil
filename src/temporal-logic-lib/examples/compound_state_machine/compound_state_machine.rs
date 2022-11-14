@@ -28,6 +28,9 @@ pub open spec fn init() -> StatePred<CompoundState> {
     }
 }
 
+/// TODO: Ideally, we should not choose any outbound messages.
+/// kubernetes_api_state_machine should decide the outbound messages
+/// and return them to the compound one
 pub open spec fn kubernetes_api_action(msg: Message) -> ActionPred<CompoundState> {
     |s: CompoundState, s_prime: CompoundState| {
         exists |outbound_msgs: Set<Message>| {
