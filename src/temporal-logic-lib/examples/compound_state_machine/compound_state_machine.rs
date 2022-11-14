@@ -32,10 +32,10 @@ pub open spec fn message_sent(msg: Message) -> StatePred<CompoundState> {
     |s: CompoundState| s.network_state.sent_messages.contains(msg)
 }
 
-pub open spec fn kubernetes_api_action_handle_request_pre(msg: Message) -> StatePred<CompoundState> {
+pub open spec fn kubernetes_api_action_handle_request_pre(recv: Option<Message>) -> StatePred<CompoundState> {
     |s: CompoundState| {
-        &&& s.network_state.sent_messages.contains(msg)
-        &&& kubernetes_api_state_machine::handle_request_pre(s.kubernetes_api_state, msg)
+        &&& (network_state_machine::deliver().precondition)(recv, s.network_state)
+        &&& (kubernetes_api_state_machine::handle_request().precondition)(recv, s.kubernetes_api_state)
     }
 }
 
@@ -59,10 +59,10 @@ pub open spec fn kubernetes_api_action(recv: Option<Message>) -> ActionPred<Comp
     }
 }
 
-pub open spec fn controller_action_send_create_sts_pre(msg: Message) -> StatePred<CompoundState> {
+pub open spec fn controller_action_send_create_sts_pre(recv: Option<Message>) -> StatePred<CompoundState> {
     |s: CompoundState| {
-        &&& s.network_state.sent_messages.contains(msg)
-        &&& controller_state_machine::send_create_sts_pre(s.controller_state, msg)
+        &&& (network_state_machine::deliver().precondition)(recv, s.network_state)
+        &&& (controller_state_machine::send_create_sts().precondition)(recv, s.controller_state)
     }
 }
 
@@ -135,54 +135,46 @@ pub open spec fn resource_exists(key: ResourceKey) -> StatePred<CompoundState> {
     |s: CompoundState| s.kubernetes_api_state.resources.dom().contains(key)
 }
 
-pub proof fn kubernetes_api_action_handle_request_enabled(msg: Message)
+pub proof fn kubernetes_api_action_handle_request_enabled(recv: Option<Message>)
     ensures
-        forall |s| state_pred_call(kubernetes_api_action_handle_request_pre(msg), s)
-            ==> enabled(kubernetes_api_action(Option::Some(msg)))(s),
+        forall |s| state_pred_call(kubernetes_api_action_handle_request_pre(recv), s)
+            ==> enabled(kubernetes_api_action(recv))(s),
 {
-    assert forall |s| state_pred_call(kubernetes_api_action_handle_request_pre(msg), s) implies enabled(kubernetes_api_action(Option::Some(msg)))(s) by {
+    assert forall |s| state_pred_call(kubernetes_api_action_handle_request_pre(recv), s) implies enabled(kubernetes_api_action(recv))(s) by {
         let msg_ops = MessageOps {
-            recv: Option::Some(msg),
-            send: kubernetes_api_state_machine::outcome_messages(s.kubernetes_api_state, msg),
+            recv: recv,
+            send: (kubernetes_api_state_machine::handle_request().output)(recv, s.kubernetes_api_state),
         };
         let s_prime = CompoundState {
-            network_state: network_state_machine::NetworkState{
-                sent_messages: s.network_state.sent_messages + msg_ops.send
-            },
-            kubernetes_api_state: kubernetes_api_state_machine::KubernetesAPIState{
-                resources: kubernetes_api_state_machine::update_resources_with(s.kubernetes_api_state, msg),
-            },
+            network_state: (network_state_machine::deliver().transition)(recv, s.network_state, msg_ops.send),
+            kubernetes_api_state: (kubernetes_api_state_machine::handle_request().transition)(recv, s.kubernetes_api_state),
             ..s
         };
         let witness_kubernetes_step = kubernetes_api_state_machine::KubernetesAPIStep::HandleRequest;
         assert(kubernetes_api_state_machine::next_step(s.kubernetes_api_state, s_prime.kubernetes_api_state, msg_ops, witness_kubernetes_step));
         assert(kubernetes_api_state_machine::next(s.kubernetes_api_state, s_prime.kubernetes_api_state, msg_ops));
-        assert(action_pred_call(kubernetes_api_action(Option::Some(msg)), s, s_prime));
+        assert(action_pred_call(kubernetes_api_action(recv), s, s_prime));
     };
 }
 
-pub proof fn controller_action_send_create_sts_enabled(msg: Message)
+pub proof fn controller_action_send_create_sts_enabled(recv: Option<Message>)
     ensures
-        forall |s| state_pred_call(controller_action_send_create_sts_pre(msg), s) ==> enabled(controller_action(Option::Some(msg)))(s),
+        forall |s| state_pred_call(controller_action_send_create_sts_pre(recv), s) ==> enabled(controller_action(recv))(s),
 {
-    assert forall |s| state_pred_call(controller_action_send_create_sts_pre(msg), s) implies enabled(controller_action(Option::Some(msg)))(s) by {
+    assert forall |s| state_pred_call(controller_action_send_create_sts_pre(recv), s) implies enabled(controller_action(recv))(s) by {
         let msg_ops = MessageOps {
-            recv: Option::Some(msg),
-            send: set![create_req_msg(ResourceKey{
-                name: msg.get_CreateResponse_0().obj.key.name + sts_suffix(),
-                kind: ResourceKind::StatefulSetKind
-            })],
+            recv: recv,
+            send: (controller_state_machine::send_create_sts().output)(recv, s.controller_state),
         };
         let s_prime = CompoundState {
-            network_state: network_state_machine::NetworkState{
-                sent_messages: s.network_state.sent_messages + msg_ops.send
-            },
+            network_state: (network_state_machine::deliver().transition)(recv, s.network_state, msg_ops.send),
+            controller_state: (controller_state_machine::send_create_sts().transition)(recv, s.controller_state),
             ..s
         };
         let witness_controller_step = controller_state_machine::ControllerStep::SendCreateStsStep;
         assert(controller_state_machine::next_step(s.controller_state, s_prime.controller_state, msg_ops, witness_controller_step));
         assert(controller_state_machine::next(s.controller_state, s_prime.controller_state, msg_ops));
-        assert(action_pred_call(controller_action(Option::Some(msg)), s, s_prime));
+        assert(action_pred_call(controller_action(recv), s, s_prime));
     };
 }
 

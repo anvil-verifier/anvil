@@ -1,8 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::action::*;
 use crate::examples::compound_state_machine::common::*;
-use crate::pervasive::{seq::*, set::*};
+use crate::pervasive::{option::*, seq::*, set::*};
 use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
@@ -15,16 +16,39 @@ pub open spec fn init(s: ClientState) -> bool {
     true
 }
 
-pub open spec fn send_create_cr(s: ClientState, s_prime: ClientState, msg_ops: MessageOps, res: ResourceObj) -> bool {
-    &&& res.key.kind.is_CustomResourceKind()
-    &&& msg_ops.recv.is_None()
-    &&& msg_ops.send === set![create_req_msg(res.key)]
+pub struct ClientInput {
+    pub cr: ResourceObj,
+    pub recv: Option<Message>,
 }
 
-pub open spec fn send_delete_cr(s: ClientState, s_prime: ClientState, msg_ops: MessageOps, res: ResourceObj) -> bool {
-    &&& res.key.kind.is_CustomResourceKind()
-    &&& msg_ops.recv.is_None()
-    &&& msg_ops.send === set![delete_req_msg(res.key)]
+pub open spec fn send_create_cr() -> HostAction<ClientState, ClientInput, Set<Message>> {
+    HostAction {
+        precondition: |i: ClientInput, s| {
+            &&& i.cr.key.kind.is_CustomResourceKind()
+            &&& i.recv.is_None()
+        },
+        transition: |i: ClientInput, s| {
+            s
+        },
+        output: |i: ClientInput, s| {
+            set![create_req_msg(i.cr.key)]
+        }
+    }
+}
+
+pub open spec fn send_delete_cr() -> HostAction<ClientState, ClientInput, Set<Message>> {
+    HostAction {
+        precondition: |i: ClientInput, s| {
+            &&& i.cr.key.kind.is_CustomResourceKind()
+            &&& i.recv.is_None()
+        },
+        transition: |i: ClientInput, s| {
+            s
+        },
+        output: |i: ClientInput, s| {
+            set![delete_req_msg(i.cr.key)]
+        }
+    }
 }
 
 pub enum ClientStep {
@@ -34,8 +58,8 @@ pub enum ClientStep {
 
 pub open spec fn next_step(s: ClientState, s_prime: ClientState, msg_ops: MessageOps, step: ClientStep) -> bool {
     match step {
-        ClientStep::SendCreateCrStep(res) => send_create_cr(s, s_prime, msg_ops, res),
-        ClientStep::SendDeleteCrStep(res) => send_delete_cr(s, s_prime, msg_ops, res),
+        ClientStep::SendCreateCrStep(res) => send_create_cr().satisfied_by(ClientInput{cr: res, recv: msg_ops.recv}, s, s_prime, msg_ops.send),
+        ClientStep::SendDeleteCrStep(res) => send_delete_cr().satisfied_by(ClientInput{cr: res, recv: msg_ops.recv}, s, s_prime, msg_ops.send),
     }
 }
 

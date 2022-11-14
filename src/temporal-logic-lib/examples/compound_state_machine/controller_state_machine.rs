@@ -1,8 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::action::*;
 use crate::examples::compound_state_machine::common::*;
-use crate::pervasive::{map::*, seq::*, set::*, string::*};
+use crate::pervasive::{map::*, option::*, seq::*, set::*, string::*};
 use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
@@ -15,34 +16,42 @@ pub open spec fn init(s: ControllerState) -> bool {
     true
 }
 
-pub open spec fn send_create_sts_pre(s: ControllerState, msg: Message) -> bool {
-    &&& msg.is_CreateResponse()
-    &&& msg.get_CreateResponse_0().obj.key.kind.is_CustomResourceKind()
+pub open spec fn send_create_sts() -> HostAction<ControllerState, Option<Message>, Set<Message>> {
+    HostAction {
+        precondition: |recv: Option<Message>, s| {
+            &&& recv.is_Some()
+            &&& recv.get_Some_0().is_CreateResponse()
+            &&& recv.get_Some_0().get_CreateResponse_0().obj.key.kind.is_CustomResourceKind()
+        },
+        transition: |recv: Option<Message>, s| {
+            s
+        },
+        output: |recv: Option<Message>, s| {
+            set![create_req_msg(ResourceKey{
+                name: recv.get_Some_0().get_CreateResponse_0().obj.key.name + sts_suffix(),
+                kind: ResourceKind::StatefulSetKind
+            })]
+        }
+    }
 }
 
-pub open spec fn send_create_sts(s: ControllerState, s_prime: ControllerState, msg_ops: MessageOps) -> bool {
-    &&& msg_ops.recv.is_Some()
-    &&& send_create_sts_pre(s, msg_ops.recv.get_Some_0())
-    &&& s_prime === s
-    &&& msg_ops.send === set![create_req_msg(ResourceKey{
-            name: msg_ops.recv.get_Some_0().get_CreateResponse_0().obj.key.name + sts_suffix(),
-            kind: ResourceKind::StatefulSetKind
-        })]
-}
-
-pub open spec fn send_delete_sts_pre(s: ControllerState, msg: Message) -> bool {
-    &&& msg.is_DeleteResponse()
-    &&& msg.get_DeleteResponse_0().key.kind.is_CustomResourceKind()
-}
-
-pub open spec fn send_delete_sts(s: ControllerState, s_prime: ControllerState, msg_ops: MessageOps) -> bool {
-    &&& msg_ops.recv.is_Some()
-    &&& send_delete_sts_pre(s, msg_ops.recv.get_Some_0())
-    &&& s_prime === s
-    &&& msg_ops.send === set![delete_req_msg(ResourceKey{
-            name: msg_ops.recv.get_Some_0().get_DeleteResponse_0().key.name + sts_suffix(),
-            kind: ResourceKind::StatefulSetKind
-        })]
+pub open spec fn send_delete_sts() -> HostAction<ControllerState, Option<Message>, Set<Message>> {
+    HostAction {
+        precondition: |recv: Option<Message>, s| {
+            &&& recv.is_Some()
+            &&& recv.get_Some_0().is_DeleteResponse()
+            &&& recv.get_Some_0().get_DeleteResponse_0().key.kind.is_CustomResourceKind()
+        },
+        transition: |recv: Option<Message>, s| {
+            s
+        },
+        output: |recv: Option<Message>, s| {
+            set![delete_req_msg(ResourceKey{
+                name: recv.get_Some_0().get_DeleteResponse_0().key.name + sts_suffix(),
+                kind: ResourceKind::StatefulSetKind
+            })]
+        }
+    }
 }
 
 pub enum ControllerStep {
@@ -52,8 +61,8 @@ pub enum ControllerStep {
 
 pub open spec fn next_step(s: ControllerState, s_prime: ControllerState, msg_ops: MessageOps, step: ControllerStep) -> bool {
     match step {
-        ControllerStep::SendCreateStsStep => send_create_sts(s, s_prime, msg_ops),
-        ControllerStep::SendDeleteStsStep => send_delete_sts(s, s_prime, msg_ops),
+        ControllerStep::SendCreateStsStep => send_create_sts().satisfied_by(msg_ops.recv, s, s_prime, msg_ops.send),
+        ControllerStep::SendDeleteStsStep => send_delete_sts().satisfied_by(msg_ops.recv, s, s_prime, msg_ops.send),
     }
 }
 
