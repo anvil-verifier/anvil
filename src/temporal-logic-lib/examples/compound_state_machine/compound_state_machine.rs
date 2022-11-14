@@ -28,6 +28,17 @@ pub open spec fn init() -> StatePred<CompoundState> {
     }
 }
 
+pub open spec fn message_sent(msg: Message) -> StatePred<CompoundState> {
+    |s: CompoundState| s.network_state.sent_messages.contains(msg)
+}
+
+pub open spec fn kubernetes_api_action_pre(msg: Message) -> StatePred<CompoundState> {
+    |s: CompoundState| {
+        &&& s.network_state.sent_messages.contains(msg)
+        &&& kubernetes_api_state_machine::handle_request_pre(s.kubernetes_api_state, msg)
+    }
+}
+
 /// TODO: Ideally, we should not choose any outbound messages.
 /// kubernetes_api_state_machine should decide the outbound messages
 /// and return them to the compound one
@@ -113,87 +124,19 @@ pub open spec fn sm_spec() -> TempPred<CompoundState> {
     .and(tla_forall(|msg| weak_fairness(controller_action(msg))))
 }
 
-pub open spec fn message_sent(msg: Message) -> StatePred<CompoundState> {
-    |s: CompoundState| s.network_state.sent_messages.contains(msg)
-}
-
 pub open spec fn resource_exists(key: ResourceKey) -> StatePred<CompoundState> {
     |s: CompoundState| s.kubernetes_api_state.resources.dom().contains(key)
 }
 
-pub proof fn kubernetes_action_enabled_by_create_req_sent(msg: Message)
-    requires
-        msg.is_CreateRequest(),
-        msg.get_CreateRequest_0().obj.key.kind.is_CustomResourceKind()
-        || msg.get_CreateRequest_0().obj.key.kind.is_PodKind()
-        || msg.get_CreateRequest_0().obj.key.kind.is_VolumeKind(),
+pub proof fn kubernetes_api_action_enabled(msg: Message)
     ensures
-        forall |s| state_pred_call(message_sent(msg), s) ==> enabled(kubernetes_api_action(msg))(s),
+        forall |s| #[trigger] state_pred_call(kubernetes_api_action_pre(msg), s)
+            ==> enabled(kubernetes_api_action(msg))(s),
 {
-    assert forall |s| state_pred_call(message_sent(msg), s) implies enabled(kubernetes_api_action(msg))(s) by {
+    assert forall |s| #[trigger] state_pred_call(kubernetes_api_action_pre(msg), s) implies enabled(kubernetes_api_action(msg))(s) by {
         let msg_ops = MessageOps {
             recv: Option::Some(msg),
-            send: set![create_resp_msg(msg.get_CreateRequest_0().obj.key)],
-        };
-        let s_prime = CompoundState {
-            network_state: network_state_machine::NetworkState{
-                sent_messages: s.network_state.sent_messages + msg_ops.send
-            },
-            kubernetes_api_state: kubernetes_api_state_machine::KubernetesAPIState{
-                resources: kubernetes_api_state_machine::update_resources_with(s.kubernetes_api_state, msg),
-            },
-            ..s
-        };
-        let witness_kubernetes_step = kubernetes_api_state_machine::KubernetesAPIStep::HandleRequest;
-        assert(kubernetes_api_state_machine::next_step(s.kubernetes_api_state, s_prime.kubernetes_api_state, msg_ops, witness_kubernetes_step));
-        assert(kubernetes_api_state_machine::next(s.kubernetes_api_state, s_prime.kubernetes_api_state, msg_ops));
-        assert(action_pred_call(kubernetes_api_action(msg), s, s_prime));
-    };
-}
-
-pub proof fn kubernetes_action_enabled_by_create_sts_req_sent(msg: Message)
-    requires
-        msg.is_CreateRequest(),
-        msg.get_CreateRequest_0().obj.key.kind.is_StatefulSetKind(),
-    ensures
-        forall |s| state_pred_call(message_sent(msg), s) ==> enabled(kubernetes_api_action(msg))(s),
-{
-    assert forall |s| state_pred_call(message_sent(msg), s) implies enabled(kubernetes_api_action(msg))(s) by {
-        let msg_ops = MessageOps {
-            recv: Option::Some(msg),
-            send: set![
-                create_resp_msg(msg.get_CreateRequest_0().obj.key),
-                create_req_msg(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + pod_suffix(), kind: ResourceKind::PodKind}),
-                create_req_msg(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + vol_suffix(), kind: ResourceKind::VolumeKind})
-            ],
-        };
-        let s_prime = CompoundState {
-            network_state: network_state_machine::NetworkState{
-                sent_messages: s.network_state.sent_messages + msg_ops.send
-            },
-            kubernetes_api_state: kubernetes_api_state_machine::KubernetesAPIState{
-                resources: kubernetes_api_state_machine::update_resources_with(s.kubernetes_api_state, msg),
-            },
-            ..s
-        };
-        let witness_kubernetes_step = kubernetes_api_state_machine::KubernetesAPIStep::HandleRequest;
-        assert(kubernetes_api_state_machine::next_step(s.kubernetes_api_state, s_prime.kubernetes_api_state, msg_ops, witness_kubernetes_step));
-        assert(kubernetes_api_state_machine::next(s.kubernetes_api_state, s_prime.kubernetes_api_state, msg_ops));
-        assert(action_pred_call(kubernetes_api_action(msg), s, s_prime));
-    };
-}
-
-pub proof fn kubernetes_action_enabled_by_delete_cr_req_sent(msg: Message)
-    requires
-        msg.is_DeleteRequest(),
-        msg.get_DeleteRequest_0().key.kind.is_CustomResourceKind(),
-    ensures
-        forall |s| state_pred_call(message_sent(msg), s) ==> enabled(kubernetes_api_action(msg))(s),
-{
-    assert forall |s| state_pred_call(message_sent(msg), s) implies enabled(kubernetes_api_action(msg))(s) by {
-        let msg_ops = MessageOps {
-            recv: Option::Some(msg),
-            send: set![delete_resp_msg(msg.get_DeleteRequest_0().key)],
+            send: kubernetes_api_state_machine::outcome_messages(s.kubernetes_api_state, msg),
         };
         let s_prime = CompoundState {
             network_state: network_state_machine::NetworkState{

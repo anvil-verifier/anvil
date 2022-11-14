@@ -200,13 +200,14 @@ proof fn lemma_k8s_create_cr_req_leads_to_create_cr_resp(msg: Message)
 {
     let create_cr_resp_msg = create_resp_msg(msg.get_CreateRequest_0().obj.key);
 
-    kubernetes_action_enabled_by_create_req_sent(msg);
+    leads_to_eq_auto::<CompoundState>(sm_spec());
     use_tla_forall::<CompoundState, Message>(sm_spec(), |m| weak_fairness(kubernetes_api_action(m)), msg);
 
+    kubernetes_api_action_enabled(msg);
     wf1::<CompoundState>(sm_spec(),
         next(),
         kubernetes_api_action(msg),
-        message_sent(msg),
+        kubernetes_api_action_pre(msg),
         message_sent(create_cr_resp_msg),
     );
 }
@@ -220,15 +221,14 @@ proof fn lemma_k8s_delete_cr_req_leads_to_cr_not_exists(msg: Message)
             lift_state(message_sent(msg)).leads_to(lift_state(|s| !resource_exists(msg.get_DeleteRequest_0().key)(s)))
         ),
 {
-    let delete_cr_resp_msg = delete_resp_msg(msg.get_DeleteRequest_0().key);
-
-    kubernetes_action_enabled_by_delete_cr_req_sent(msg);
+    leads_to_eq_auto::<CompoundState>(sm_spec());
     use_tla_forall::<CompoundState, Message>(sm_spec(), |m| weak_fairness(kubernetes_api_action(m)), msg);
 
+    kubernetes_api_action_enabled(msg);
     wf1::<CompoundState>(sm_spec(),
         next(),
         kubernetes_api_action(msg),
-        message_sent(msg),
+        kubernetes_api_action_pre(msg),
         |s| !resource_exists(msg.get_DeleteRequest_0().key)(s)
     );
 }
@@ -264,22 +264,22 @@ proof fn lemma_k8s_create_sts_req_sent_leads_to(msg: Message, sub_res_msg: Messa
     let sub_res_key = sub_res_msg.get_CreateRequest_0().obj.key;
 
     leads_to_eq_auto::<CompoundState>(sm_spec());
-
-    kubernetes_action_enabled_by_create_sts_req_sent(msg);
     use_tla_forall::<CompoundState, Message>(sm_spec(), |m| weak_fairness(kubernetes_api_action(m)), msg);
+    use_tla_forall::<CompoundState, Message>(sm_spec(), |m| weak_fairness(kubernetes_api_action(m)), sub_res_msg);
+
+    kubernetes_api_action_enabled(msg);
     wf1::<CompoundState>(sm_spec(),
         next(),
         kubernetes_api_action(msg),
-        message_sent(msg),
+        kubernetes_api_action_pre(msg),
         message_sent(sub_res_msg)
     );
 
-    kubernetes_action_enabled_by_create_req_sent(sub_res_msg);
-    use_tla_forall::<CompoundState, Message>(sm_spec(), |m| weak_fairness(kubernetes_api_action(m)), sub_res_msg);
+    kubernetes_api_action_enabled(sub_res_msg);
     wf1::<CompoundState>(sm_spec(),
         next(),
         kubernetes_api_action(sub_res_msg),
-        message_sent(sub_res_msg),
+        kubernetes_api_action_pre(sub_res_msg),
         resource_exists(sub_res_key)
     );
 
