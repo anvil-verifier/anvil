@@ -31,8 +31,8 @@ pub open spec fn deliver() -> NetworkAction<NetworkState, Option<Message>, Set<M
     }
 }
 
-pub open spec fn next(s: NetworkState, s_prime: NetworkState, msg_ops: MessageOps) -> bool {
-    deliver().satisfied_by(msg_ops.recv, s, s_prime, msg_ops.send)
+pub open spec fn next(recv: Option<Message>, s: NetworkState, s_prime: NetworkState, send: Set<Message>) -> bool {
+    deliver().satisfied_by(recv, s, s_prime, send)
 }
 
 }

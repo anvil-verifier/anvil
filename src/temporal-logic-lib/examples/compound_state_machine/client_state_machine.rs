@@ -56,15 +56,15 @@ pub enum ClientStep {
     SendDeleteCrStep(ResourceObj),
 }
 
-pub open spec fn next_step(s: ClientState, s_prime: ClientState, msg_ops: MessageOps, step: ClientStep) -> bool {
+pub open spec fn next_step(recv: Option<Message>, s: ClientState, s_prime: ClientState, send: Set<Message>, step: ClientStep) -> bool {
     match step {
-        ClientStep::SendCreateCrStep(res) => send_create_cr().satisfied_by(ClientInput{cr: res, recv: msg_ops.recv}, s, s_prime, msg_ops.send),
-        ClientStep::SendDeleteCrStep(res) => send_delete_cr().satisfied_by(ClientInput{cr: res, recv: msg_ops.recv}, s, s_prime, msg_ops.send),
+        ClientStep::SendCreateCrStep(res) => send_create_cr().satisfied_by(ClientInput{cr: res, recv: recv}, s, s_prime, send),
+        ClientStep::SendDeleteCrStep(res) => send_delete_cr().satisfied_by(ClientInput{cr: res, recv: recv}, s, s_prime, send),
     }
 }
 
-pub open spec fn next(s: ClientState, s_prime: ClientState, msg_ops: MessageOps) -> bool {
-    exists |step| next_step(s, s_prime, msg_ops, step)
+pub open spec fn next(recv: Option<Message>, s: ClientState, s_prime: ClientState, send: Set<Message>) -> bool {
+    exists |step| next_step(recv, s, s_prime, send, step)
 }
 
 }

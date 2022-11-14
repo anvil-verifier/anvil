@@ -59,15 +59,15 @@ pub enum ControllerStep {
     SendDeleteStsStep,
 }
 
-pub open spec fn next_step(s: ControllerState, s_prime: ControllerState, msg_ops: MessageOps, step: ControllerStep) -> bool {
+pub open spec fn next_step(recv: Option<Message>, s: ControllerState, s_prime: ControllerState, send: Set<Message>, step: ControllerStep) -> bool {
     match step {
-        ControllerStep::SendCreateStsStep => send_create_sts().satisfied_by(msg_ops.recv, s, s_prime, msg_ops.send),
-        ControllerStep::SendDeleteStsStep => send_delete_sts().satisfied_by(msg_ops.recv, s, s_prime, msg_ops.send),
+        ControllerStep::SendCreateStsStep => send_create_sts().satisfied_by(recv, s, s_prime, send),
+        ControllerStep::SendDeleteStsStep => send_delete_sts().satisfied_by(recv, s, s_prime, send),
     }
 }
 
-pub open spec fn next(s: ControllerState, s_prime: ControllerState, msg_ops: MessageOps) -> bool {
-    exists |step| next_step(s, s_prime, msg_ops, step)
+pub open spec fn next(recv: Option<Message>, s: ControllerState, s_prime: ControllerState, send: Set<Message>) -> bool {
+    exists |step| next_step(recv, s, s_prime, send, step)
 }
 
 }
