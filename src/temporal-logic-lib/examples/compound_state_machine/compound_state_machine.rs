@@ -42,15 +42,15 @@ pub open spec fn kubernetes_api_action_handle_request_pre(msg: Message) -> State
 /// TODO: Ideally, we should not choose any outbound messages.
 /// kubernetes_api_state_machine should decide the outbound messages
 /// and return them to the compound one
-pub open spec fn kubernetes_api_action(msg: Message) -> ActionPred<CompoundState> {
+pub open spec fn kubernetes_api_action(recv: Option<Message>) -> ActionPred<CompoundState> {
     |s: CompoundState, s_prime: CompoundState| {
         exists |outbound_msgs: Set<Message>| {
             &&& #[trigger] kubernetes_api_state_machine::next(s.kubernetes_api_state, s_prime.kubernetes_api_state, MessageOps {
-                recv: Option::Some(msg),
+                recv: recv,
                 send: outbound_msgs,
             })
             &&& network_state_machine::next(s.network_state, s_prime.network_state, MessageOps {
-                recv: Option::Some(msg),
+                recv: recv,
                 send: outbound_msgs,
             })
             &&& s_prime.controller_state === s.controller_state
@@ -66,15 +66,15 @@ pub open spec fn controller_action_send_create_sts_pre(msg: Message) -> StatePre
     }
 }
 
-pub open spec fn controller_action(msg: Message) -> ActionPred<CompoundState> {
+pub open spec fn controller_action(recv: Option<Message>) -> ActionPred<CompoundState> {
     |s: CompoundState, s_prime: CompoundState| {
         exists |outbound_msgs: Set<Message>| {
             &&& #[trigger] controller_state_machine::next(s.controller_state, s_prime.controller_state, MessageOps {
-                recv: Option::Some(msg),
+                recv: recv,
                 send: outbound_msgs,
             })
             &&& network_state_machine::next(s.network_state, s_prime.network_state, MessageOps {
-                recv: Option::Some(msg),
+                recv: recv,
                 send: outbound_msgs,
             })
             &&& s_prime.kubernetes_api_state === s.kubernetes_api_state
@@ -83,15 +83,15 @@ pub open spec fn controller_action(msg: Message) -> ActionPred<CompoundState> {
     }
 }
 
-pub open spec fn client_action() -> ActionPred<CompoundState> {
+pub open spec fn client_action(recv: Option<Message>) -> ActionPred<CompoundState> {
     |s: CompoundState, s_prime: CompoundState| {
         exists |outbound_msgs: Set<Message>| {
             &&& #[trigger] client_state_machine::next(s.client_state, s_prime.client_state, MessageOps {
-                recv: Option::None,
+                recv: recv,
                 send: outbound_msgs,
             })
             &&& network_state_machine::next(s.network_state, s_prime.network_state, MessageOps {
-                recv: Option::None,
+                recv: recv,
                 send: outbound_msgs,
             })
             &&& s_prime.kubernetes_api_state === s.kubernetes_api_state
@@ -105,17 +105,17 @@ pub open spec fn stutter() -> ActionPred<CompoundState> {
 }
 
 pub enum CompoundStep {
-    KubernetesAPIActionStep(Message),
-    ControllerActionStep(Message),
-    ClientActionStep,
+    KubernetesAPIActionStep(Option<Message>),
+    ControllerActionStep(Option<Message>),
+    ClientActionStep(Option<Message>),
     StutterStep,
 }
 
 pub open spec fn next_step(s: CompoundState, s_prime: CompoundState, step: CompoundStep) -> bool {
     match step {
-        CompoundStep::KubernetesAPIActionStep(msg) => kubernetes_api_action(msg)(s, s_prime),
-        CompoundStep::ControllerActionStep(msg) => controller_action(msg)(s, s_prime),
-        CompoundStep::ClientActionStep => client_action()(s, s_prime),
+        CompoundStep::KubernetesAPIActionStep(recv) => kubernetes_api_action(recv)(s, s_prime),
+        CompoundStep::ControllerActionStep(recv) => controller_action(recv)(s, s_prime),
+        CompoundStep::ClientActionStep(recv) => client_action(recv)(s, s_prime),
         CompoundStep::StutterStep => stutter()(s, s_prime),
     }
 }
@@ -127,8 +127,8 @@ pub open spec fn next() -> ActionPred<CompoundState> {
 pub open spec fn sm_spec() -> TempPred<CompoundState> {
     lift_state(init())
     .and(always(lift_action(next())))
-    .and(tla_forall(|msg| weak_fairness(kubernetes_api_action(msg))))
-    .and(tla_forall(|msg| weak_fairness(controller_action(msg))))
+    .and(tla_forall(|recv| weak_fairness(kubernetes_api_action(recv))))
+    .and(tla_forall(|recv| weak_fairness(controller_action(recv))))
 }
 
 pub open spec fn resource_exists(key: ResourceKey) -> StatePred<CompoundState> {
@@ -138,9 +138,9 @@ pub open spec fn resource_exists(key: ResourceKey) -> StatePred<CompoundState> {
 pub proof fn kubernetes_api_action_handle_request_enabled(msg: Message)
     ensures
         forall |s| state_pred_call(kubernetes_api_action_handle_request_pre(msg), s)
-            ==> enabled(kubernetes_api_action(msg))(s),
+            ==> enabled(kubernetes_api_action(Option::Some(msg)))(s),
 {
-    assert forall |s| state_pred_call(kubernetes_api_action_handle_request_pre(msg), s) implies enabled(kubernetes_api_action(msg))(s) by {
+    assert forall |s| state_pred_call(kubernetes_api_action_handle_request_pre(msg), s) implies enabled(kubernetes_api_action(Option::Some(msg)))(s) by {
         let msg_ops = MessageOps {
             recv: Option::Some(msg),
             send: kubernetes_api_state_machine::outcome_messages(s.kubernetes_api_state, msg),
@@ -157,15 +157,15 @@ pub proof fn kubernetes_api_action_handle_request_enabled(msg: Message)
         let witness_kubernetes_step = kubernetes_api_state_machine::KubernetesAPIStep::HandleRequest;
         assert(kubernetes_api_state_machine::next_step(s.kubernetes_api_state, s_prime.kubernetes_api_state, msg_ops, witness_kubernetes_step));
         assert(kubernetes_api_state_machine::next(s.kubernetes_api_state, s_prime.kubernetes_api_state, msg_ops));
-        assert(action_pred_call(kubernetes_api_action(msg), s, s_prime));
+        assert(action_pred_call(kubernetes_api_action(Option::Some(msg)), s, s_prime));
     };
 }
 
 pub proof fn controller_action_send_create_sts_enabled(msg: Message)
     ensures
-        forall |s| state_pred_call(controller_action_send_create_sts_pre(msg), s) ==> enabled(controller_action(msg))(s),
+        forall |s| state_pred_call(controller_action_send_create_sts_pre(msg), s) ==> enabled(controller_action(Option::Some(msg)))(s),
 {
-    assert forall |s| state_pred_call(controller_action_send_create_sts_pre(msg), s) implies enabled(controller_action(msg))(s) by {
+    assert forall |s| state_pred_call(controller_action_send_create_sts_pre(msg), s) implies enabled(controller_action(Option::Some(msg)))(s) by {
         let msg_ops = MessageOps {
             recv: Option::Some(msg),
             send: set![create_req_msg(ResourceKey{
@@ -182,7 +182,7 @@ pub proof fn controller_action_send_create_sts_enabled(msg: Message)
         let witness_controller_step = controller_state_machine::ControllerStep::SendCreateStsStep;
         assert(controller_state_machine::next_step(s.controller_state, s_prime.controller_state, msg_ops, witness_controller_step));
         assert(controller_state_machine::next(s.controller_state, s_prime.controller_state, msg_ops));
-        assert(action_pred_call(controller_action(msg), s, s_prime));
+        assert(action_pred_call(controller_action(Option::Some(msg)), s, s_prime));
     };
 }
 
