@@ -32,7 +32,7 @@ pub open spec fn message_sent(msg: Message) -> StatePred<CompoundState> {
     |s: CompoundState| s.network_state.sent_messages.contains(msg)
 }
 
-pub open spec fn kubernetes_api_action_pre(msg: Message) -> StatePred<CompoundState> {
+pub open spec fn kubernetes_api_action_handle_request_pre(msg: Message) -> StatePred<CompoundState> {
     |s: CompoundState| {
         &&& s.network_state.sent_messages.contains(msg)
         &&& kubernetes_api_state_machine::handle_request_pre(s.kubernetes_api_state, msg)
@@ -56,6 +56,13 @@ pub open spec fn kubernetes_api_action(msg: Message) -> ActionPred<CompoundState
             &&& s_prime.controller_state === s.controller_state
             &&& s_prime.client_state === s.client_state
         }
+    }
+}
+
+pub open spec fn controller_action_send_create_sts_pre(msg: Message) -> StatePred<CompoundState> {
+    |s: CompoundState| {
+        &&& s.network_state.sent_messages.contains(msg)
+        &&& controller_state_machine::send_create_sts_pre(s.controller_state, msg)
     }
 }
 
@@ -128,12 +135,12 @@ pub open spec fn resource_exists(key: ResourceKey) -> StatePred<CompoundState> {
     |s: CompoundState| s.kubernetes_api_state.resources.dom().contains(key)
 }
 
-pub proof fn kubernetes_api_action_enabled(msg: Message)
+pub proof fn kubernetes_api_action_handle_request_enabled(msg: Message)
     ensures
-        forall |s| #[trigger] state_pred_call(kubernetes_api_action_pre(msg), s)
+        forall |s| #[trigger] state_pred_call(kubernetes_api_action_handle_request_pre(msg), s)
             ==> enabled(kubernetes_api_action(msg))(s),
 {
-    assert forall |s| #[trigger] state_pred_call(kubernetes_api_action_pre(msg), s) implies enabled(kubernetes_api_action(msg))(s) by {
+    assert forall |s| #[trigger] state_pred_call(kubernetes_api_action_handle_request_pre(msg), s) implies enabled(kubernetes_api_action(msg))(s) by {
         let msg_ops = MessageOps {
             recv: Option::Some(msg),
             send: kubernetes_api_state_machine::outcome_messages(s.kubernetes_api_state, msg),
@@ -154,14 +161,11 @@ pub proof fn kubernetes_api_action_enabled(msg: Message)
     };
 }
 
-pub proof fn controller_action_enabled_by_create_cr_resp_sent(msg: Message)
-    requires
-        msg.is_CreateResponse(),
-        msg.get_CreateResponse_0().obj.key.kind.is_CustomResourceKind(),
+pub proof fn controller_action_send_create_sts_enabled(msg: Message)
     ensures
-        forall |s| state_pred_call(message_sent(msg), s) ==> enabled(controller_action(msg))(s),
+        forall |s| state_pred_call(controller_action_send_create_sts_pre(msg), s) ==> enabled(controller_action(msg))(s),
 {
-    assert forall |s| state_pred_call(message_sent(msg), s) implies enabled(controller_action(msg))(s) by {
+    assert forall |s| state_pred_call(controller_action_send_create_sts_pre(msg), s) implies enabled(controller_action(msg))(s) by {
         let msg_ops = MessageOps {
             recv: Option::Some(msg),
             send: set![create_req_msg(ResourceKey{
@@ -181,6 +185,5 @@ pub proof fn controller_action_enabled_by_create_cr_resp_sent(msg: Message)
         assert(action_pred_call(controller_action(msg), s, s_prime));
     };
 }
-
 
 }
