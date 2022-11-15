@@ -58,15 +58,15 @@ pub open spec fn valid_actions() -> Set<HostAction<State, Option<Message>, Set<M
     set![send_create_sts(), send_delete_sts()]
 }
 
-pub enum ControllerStep {
+pub enum Step {
     SendCreateStsStep,
     SendDeleteStsStep,
 }
 
-pub open spec fn next_step(recv: Option<Message>, s: State, s_prime: State, step: ControllerStep) -> bool {
+pub open spec fn next_step(recv: Option<Message>, s: State, s_prime: State, step: Step) -> bool {
     match step {
-        ControllerStep::SendCreateStsStep => send_create_sts().satisfied_by(recv, s, s_prime),
-        ControllerStep::SendDeleteStsStep => send_delete_sts().satisfied_by(recv, s, s_prime),
+        Step::SendCreateStsStep => send_create_sts().satisfied_by(recv, s, s_prime),
+        Step::SendDeleteStsStep => send_delete_sts().satisfied_by(recv, s, s_prime),
     }
 }
 
@@ -79,8 +79,8 @@ pub open spec fn output(recv: Option<Message>, s: State, s_prime: State) -> Set<
 {
     let witness_step = choose |step| next_step(recv, s, s_prime, step);
     match witness_step {
-        ControllerStep::SendCreateStsStep => (send_create_sts().output)(recv, s),
-        ControllerStep::SendDeleteStsStep => (send_delete_sts().output)(recv, s),
+        Step::SendCreateStsStep => (send_create_sts().output)(recv, s),
+        Step::SendDeleteStsStep => (send_delete_sts().output)(recv, s),
     }
 }
 
@@ -92,9 +92,9 @@ pub proof fn exists_step_for_valid_action(action: HostAction<State, Option<Messa
         exists |step| next_step(recv, s, s_prime, step)
 {
     if action === send_create_sts() {
-        assert(next_step(recv, s, s_prime, ControllerStep::SendCreateStsStep));
+        assert(next_step(recv, s, s_prime, Step::SendCreateStsStep));
     } else {
-        assert(next_step(recv, s, s_prime, ControllerStep::SendDeleteStsStep));
+        assert(next_step(recv, s, s_prime, Step::SendDeleteStsStep));
     }
 }
 

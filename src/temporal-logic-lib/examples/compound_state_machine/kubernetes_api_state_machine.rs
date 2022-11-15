@@ -85,7 +85,7 @@ pub open spec fn handle_request() -> HostAction<State, Option<Message>, Set<Mess
     }
 }
 
-pub enum KubernetesAPIStep {
+pub enum Step {
     HandleRequest,
 }
 
@@ -93,9 +93,9 @@ pub open spec fn valid_actions() -> Set<HostAction<State, Option<Message>, Set<M
     set![handle_request()]
 }
 
-pub open spec fn next_step(recv: Option<Message>, s: State, s_prime: State, step: KubernetesAPIStep) -> bool {
+pub open spec fn next_step(recv: Option<Message>, s: State, s_prime: State, step: Step) -> bool {
     match step {
-        KubernetesAPIStep::HandleRequest => handle_request().satisfied_by(recv, s, s_prime),
+        Step::HandleRequest => handle_request().satisfied_by(recv, s, s_prime),
     }
 }
 
@@ -108,7 +108,7 @@ pub open spec fn output(recv: Option<Message>, s: State, s_prime: State) -> Set<
 {
     let witness_step = choose |step| next_step(recv, s, s_prime, step);
     match witness_step {
-        KubernetesAPIStep::HandleRequest => (handle_request().output)(recv, s),
+        Step::HandleRequest => (handle_request().output)(recv, s),
     }
 }
 
@@ -119,7 +119,7 @@ pub proof fn exists_step_for_valid_action(action: HostAction<State, Option<Messa
     ensures
         exists |step| next_step(recv, s, s_prime, step)
 {
-    assert(next_step(recv, s, s_prime, KubernetesAPIStep::HandleRequest));
+    assert(next_step(recv, s, s_prime, Step::HandleRequest));
 }
 
 
