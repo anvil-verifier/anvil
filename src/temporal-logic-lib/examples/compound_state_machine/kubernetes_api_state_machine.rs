@@ -66,10 +66,6 @@ pub open spec fn outcome_messages(s: State, msg: Message) -> Set<Message>
     }
 }
 
-pub open spec fn handle_request_pre(s: State, msg: Message) -> bool {
-    msg.is_CreateRequest() || msg.is_DeleteRequest()
-}
-
 pub open spec fn handle_request() -> KubernetesAPIAction {
     HostAction {
         precondition: |recv: Option<Message>, s| {
