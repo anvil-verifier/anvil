@@ -86,12 +86,12 @@ pub open spec fn output(recv: Option<Message>, s: State, s_prime: State) -> Set<
     }
 }
 
-pub proof fn exists_step_for_valid_action(action: ControllerAction, recv: Option<Message>, s: State, s_prime: State)
+pub proof fn exists_next_step(action: ControllerAction, recv: Option<Message>, s: State, s_prime: State)
     requires
         valid_actions().contains(action),
         action.satisfied_by(recv, s, s_prime),
     ensures
-        exists |step| next_step(recv, s, s_prime, step)
+        next(recv, s, s_prime)
 {
     if action === send_create_sts() {
         assert(next_step(recv, s, s_prime, Step::SendCreateStsStep));

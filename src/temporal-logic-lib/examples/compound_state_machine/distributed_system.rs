@@ -127,7 +127,7 @@ pub open spec fn sm_spec() -> TempPred<State> {
 /// if the precondition of a kubernetes api action is satisfied, the action is enabled
 ///
 /// Note that it requires the action to be a valid action allowed by the kubernetes api state machine.
-/// This precondition is required by `exists_step_for_valid_action`.
+/// This precondition is required by `exists_next_step`.
 pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: kubernetes_api::KubernetesAPIAction)
     requires
         kubernetes_api::valid_actions().contains(action),
@@ -141,17 +141,16 @@ pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: kubern
             kubernetes_api_state: (action.transition)(recv, s.kubernetes_api_state),
             ..s
         };
-        kubernetes_api::exists_step_for_valid_action(action, recv, s.kubernetes_api_state, s_prime.kubernetes_api_state);
-        assert(kubernetes_api::next(recv, s.kubernetes_api_state, s_prime.kubernetes_api_state));
+        kubernetes_api::exists_next_step(action, recv, s.kubernetes_api_state, s_prime.kubernetes_api_state);
         assert(action_pred_call(kubernetes_api_action(recv), s, s_prime));
     };
 }
 
-/// `kubernetes_api_action_enabled` gives a generic proof showing that
+/// `controller_action_enabled` gives a generic proof showing that
 /// if the precondition of a controller action is satisfied, the action is enabled
 ///
 /// Note that it requires the action to be a valid action allowed by the controller state machine.
-/// This precondition is required by `exists_step_for_valid_action`.
+/// This precondition is required by `exists_next_step`.
 pub proof fn controller_action_enabled(recv: Option<Message>, action: controller::ControllerAction)
     requires
         controller::valid_actions().contains(action),
@@ -165,8 +164,7 @@ pub proof fn controller_action_enabled(recv: Option<Message>, action: controller
             controller_state: (action.transition)(recv, s.controller_state),
             ..s
         };
-        controller::exists_step_for_valid_action(action, recv, s.controller_state, s_prime.controller_state);
-        assert(controller::next(recv, s.controller_state, s_prime.controller_state));
+        controller::exists_next_step(action, recv, s.controller_state, s_prime.controller_state);
         assert(action_pred_call(controller_action(recv), s, s_prime));
     };
 }
