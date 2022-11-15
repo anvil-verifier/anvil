@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::examples::compound_state_machine::{
-    common::*, compound::*, controller, kubernetes_api_liveness, safety::*,
+    common::*,
+    controller, distributed_system,
+    distributed_system::{message_sent, next, resource_exists, sm_spec, State},
+    kubernetes_api_liveness,
+    safety::*,
 };
 use crate::pervasive::option::*;
 use crate::temporal_logic::*;
@@ -11,7 +15,7 @@ use builtin_macros::*;
 
 verus! {
 
-spec fn liveness_property(cr: ResourceObj) -> TempPred<CompoundState>
+spec fn liveness_property(cr: ResourceObj) -> TempPred<State>
     recommends
         cr.key.kind.is_CustomResourceKind(),
 {
@@ -22,7 +26,7 @@ spec fn liveness_property(cr: ResourceObj) -> TempPred<CompoundState>
 
     always(lift_state(resource_exists(cr.key)))
     .leads_to(always(lift_state(
-        |s: CompoundState| {
+        |s: State| {
             &&& resource_exists(ResourceKey{name: pod_name, kind: ResourceKind::PodKind})(s)
             &&& resource_exists(ResourceKey{name: vol_name, kind: ResourceKind::VolumeKind})(s)
         }
@@ -51,11 +55,11 @@ proof fn liveness_proof(cr: ResourceObj)
     let pod_name = sts_name + pod_suffix();
     let vol_name = sts_name + vol_suffix();
 
-    leads_to_weaken_auto::<CompoundState>(sm_spec());
+    leads_to_weaken_auto::<State>(sm_spec());
 
     lemma_cr_exists_leads_to_pod_exists_and_vol_exists(cr);
     lemma_always_cr_always_exists_implies_sub_resources_never_deleted(cr);
-    leads_to_stable_assume_p_combine::<CompoundState>(sm_spec(),
+    leads_to_stable_assume_p_combine::<State>(sm_spec(),
         next(),
         |s| {
             &&& !message_sent(delete_req_msg(ResourceKey{name: pod_name, kind: ResourceKind::PodKind}))(s)
@@ -67,11 +71,11 @@ proof fn liveness_proof(cr: ResourceObj)
     );
 
     // We can also use the auto version, which takes more time in smt-run
-    implies_preserved_by_always_temp::<CompoundState>(
+    implies_preserved_by_always_temp::<State>(
         lift_state(resource_exists(ResourceKey{name: pod_name, kind: ResourceKind::PodKind}))
             .and(lift_state(resource_exists(ResourceKey{name: vol_name, kind: ResourceKind::VolumeKind}))),
         lift_state(
-            |s: CompoundState| {
+            |s: State| {
                 &&& resource_exists(ResourceKey{name: pod_name, kind: ResourceKind::PodKind})(s)
                 &&& resource_exists(ResourceKey{name: vol_name, kind: ResourceKind::VolumeKind})(s)
             }
@@ -95,8 +99,8 @@ proof fn lemma_cr_exists_leads_to_pod_exists_and_vol_exists(cr: ResourceObj)
     let cr_name = cr.key.name;
     let sts_name = cr_name + sts_suffix();
 
-    leads_to_trans_auto::<CompoundState>(sm_spec());
-    leads_to_weaken_auto::<CompoundState>(sm_spec());
+    leads_to_trans_auto::<State>(sm_spec());
+    leads_to_weaken_auto::<State>(sm_spec());
 
     lemma_always_res_exists_implies_create_req_sent(cr);
 
@@ -120,13 +124,13 @@ proof fn lemma_always_cr_always_exists_implies_sub_resources_never_deleted(cr: R
         ),
 {
     kubernetes_api_liveness::lemma_delete_req_leads_to_res_not_exists(delete_req_msg(cr.key));
-    leads_to_contraposition::<CompoundState>(sm_spec(),
+    leads_to_contraposition::<State>(sm_spec(),
         message_sent(delete_req_msg(cr.key)),
         |s| !resource_exists(cr.key)(s),
     );
 
     lemma_always_delete_cr_req_never_sent_implies_sub_resources_never_deleted(cr);
-    always_implies_preserved_by_always::<CompoundState>(sm_spec(),
+    always_implies_preserved_by_always::<State>(sm_spec(),
         |s| !message_sent(delete_req_msg(cr.key))(s),
         |s| {
             &&& !message_sent(delete_req_msg(ResourceKey{name: cr.key.name + sts_suffix() + pod_suffix(), kind: ResourceKind::PodKind}))(s)
@@ -134,8 +138,8 @@ proof fn lemma_always_cr_always_exists_implies_sub_resources_never_deleted(cr: R
         }
     );
 
-    implies_preserved_by_always_auto::<CompoundState>();
-    always_implies_weaken_auto::<CompoundState>(sm_spec());
+    implies_preserved_by_always_auto::<State>();
+    always_implies_weaken_auto::<State>(sm_spec());
 }
 
 proof fn lemma_always_delete_cr_req_never_sent_implies_sub_resources_never_deleted(cr: ResourceObj)
@@ -160,7 +164,7 @@ proof fn lemma_always_delete_cr_req_never_sent_implies_sub_resources_never_delet
     lemma_always_delete_cr_resp_not_sent_implies_delete_sts_req_not_sent(delete_cr_resp_msg);
     lemma_always_delete_sts_req_not_sent_implies_delete_pod_and_vol_req_not_sent(delete_sts_req_msg);
 
-    always_implies_trans_auto::<CompoundState>(sm_spec());
+    always_implies_trans_auto::<State>(sm_spec());
 }
 
 proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(msg: Message)
@@ -178,15 +182,15 @@ proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(msg: Message)
         kind: ResourceKind::StatefulSetKind
     });
 
-    leads_to_eq_auto::<CompoundState>(sm_spec());
-    use_tla_forall::<CompoundState, Option<Message>>(sm_spec(), |recv| weak_fairness(controller_action(recv)), Option::Some(msg));
+    leads_to_eq_auto::<State>(sm_spec());
+    use_tla_forall::<State, Option<Message>>(sm_spec(), |recv| weak_fairness(distributed_system::controller_action(recv)), Option::Some(msg));
 
-    controller_action_enabled(Option::Some(msg), controller::send_create_sts());
+    distributed_system::controller_action_enabled(Option::Some(msg), controller::send_create_sts());
 
-    wf1::<CompoundState>(sm_spec(),
+    wf1::<State>(sm_spec(),
         next(),
-        controller_action(Option::Some(msg)),
-        controller_action_pre(Option::Some(msg), controller::send_create_sts()),
+        distributed_system::controller_action(Option::Some(msg)),
+        distributed_system::controller_action_pre(Option::Some(msg), controller::send_create_sts()),
         message_sent(create_sts_req_msg),
     );
 }
