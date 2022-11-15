@@ -1044,8 +1044,8 @@ pub proof fn always_implies_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q
 pub proof fn always_implies_weaken_auto<T>(spec: TempPred<T>)
     ensures
         forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
-            spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] always(p1.implies(q1))) ==>
-            spec.entails(#[trigger] always(p2.implies(q2)))
+            spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] always(p1.implies(q1)))
+            ==> spec.entails(#[trigger] always(p2.implies(q2)))
 {
     assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
     spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] always(p1.implies(q1)))
@@ -1174,8 +1174,8 @@ pub proof fn eventually_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePr
 pub proof fn eventually_weaken_auto<T>(spec: TempPred<T>)
     ensures
         forall |p: TempPred<T>, q: TempPred<T>|
-            valid(p.implies(q)) && spec.entails(#[trigger] eventually(p)) ==>
-            spec.entails(#[trigger] eventually(q)),
+            valid(p.implies(q)) && spec.entails(#[trigger] eventually(p))
+            ==> spec.entails(#[trigger] eventually(q)),
 {
     assert forall |p: TempPred<T>, q: TempPred<T>|
     valid(p.implies(q)) && spec.entails(#[trigger] eventually(p))
@@ -1219,8 +1219,8 @@ pub proof fn eventually_eq<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T
 pub proof fn eventually_eq_auto<T>(spec: TempPred<T>)
     ensures
         forall |p: TempPred<T>, q: TempPred<T>|
-            valid(p.equals(q)) && spec.entails(#[trigger] eventually(p)) ==>
-            spec.entails(#[trigger] eventually(q)),
+            valid(p.equals(q)) && spec.entails(#[trigger] eventually(p))
+            ==> spec.entails(#[trigger] eventually(q)),
 {
     assert forall |p: TempPred<T>, q: TempPred<T>|
     valid(p.equals(q)) && spec.entails(#[trigger] eventually(p))
@@ -1380,8 +1380,8 @@ pub proof fn leads_to_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: Tem
 pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
     ensures
         forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
-            spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] p1.leads_to(q1)) ==>
-            spec.entails(#[trigger] p2.leads_to(q2))
+            spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] p1.leads_to(q1))
+            ==> spec.entails(#[trigger] p2.leads_to(q2))
 {
     assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
     spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] p1.leads_to(q1))
@@ -1394,8 +1394,8 @@ pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
 pub proof fn leads_to_weaken_lite_auto<T>(spec: TempPred<T>)
     ensures
         forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
-            valid(p2.implies(p1)) && valid(q1.implies(q2)) && spec.entails(#[trigger] p1.leads_to(q1)) ==>
-            spec.entails(#[trigger] p2.leads_to(q2))
+            valid(p2.implies(p1)) && valid(q1.implies(q2)) && spec.entails(#[trigger] p1.leads_to(q1))
+            ==> spec.entails(#[trigger] p2.leads_to(q2))
 {
     assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
     valid(p2.implies(p1)) && valid(q1.implies(q2)) && spec.entails(#[trigger] p1.leads_to(q1))
@@ -1443,8 +1443,8 @@ proof fn leads_to_eq<T>(spec: TempPred<T>, p1: StatePred<T>, q1: StatePred<T>, p
 pub proof fn leads_to_eq_auto<T>(spec: TempPred<T>)
     ensures
         forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
-            valid(p2.equals(p1)) && valid(q1.equals(q2)) && spec.entails(#[trigger] p1.leads_to(q1)) ==>
-            spec.entails(#[trigger] p2.leads_to(q2))
+            valid(p2.equals(p1)) && valid(q1.equals(q2)) && spec.entails(#[trigger] p1.leads_to(q1))
+            ==> spec.entails(#[trigger] p2.leads_to(q2))
 {
     assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
     valid(p2.equals(p1)) && valid(q1.equals(q2)) && spec.entails(#[trigger] p1.leads_to(q1))
