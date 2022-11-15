@@ -33,14 +33,14 @@ pub open spec fn message_sent(msg: Message) -> StatePred<CompoundState> {
     |s: CompoundState| s.network_state.sent_messages.contains(msg)
 }
 
-pub open spec fn kubernetes_api_action_pre(recv: Option<Message>, action: HostAction<kubernetes_api::State, Option<Message>, Set<Message>>) -> StatePred<CompoundState> {
+pub open spec fn kubernetes_api_action_pre(recv: Option<Message>, action: kubernetes_api::KubernetesAPIAction) -> StatePred<CompoundState> {
     |s: CompoundState| {
         &&& (network::deliver().precondition)(recv, s.network_state)
         &&& (action.precondition)(recv, s.kubernetes_api_state)
     }
 }
 
-pub open spec fn controller_action_pre(recv: Option<Message>, action: HostAction<controller::State, Option<Message>, Set<Message>>) -> StatePred<CompoundState> {
+pub open spec fn controller_action_pre(recv: Option<Message>, action: controller::ControllerAction) -> StatePred<CompoundState> {
     |s: CompoundState| {
         &&& (network::deliver().precondition)(recv, s.network_state)
         &&& (action.precondition)(recv, s.controller_state)
@@ -109,7 +109,7 @@ pub open spec fn resource_exists(key: ResourceKey) -> StatePred<CompoundState> {
     |s: CompoundState| s.kubernetes_api_state.resources.dom().contains(key)
 }
 
-pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: HostAction<kubernetes_api::State, Option<Message>, Set<Message>>)
+pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: kubernetes_api::KubernetesAPIAction)
     requires
         kubernetes_api::valid_actions().contains(action),
     ensures
@@ -130,7 +130,7 @@ pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: HostAc
     };
 }
 
-pub proof fn controller_action_enabled(recv: Option<Message>, action: HostAction<controller::State, Option<Message>, Set<Message>>)
+pub proof fn controller_action_enabled(recv: Option<Message>, action: controller::ControllerAction)
     requires
         controller::valid_actions().contains(action),
     ensures

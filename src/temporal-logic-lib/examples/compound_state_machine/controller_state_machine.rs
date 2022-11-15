@@ -16,7 +16,9 @@ pub open spec fn init(s: State) -> bool {
     true
 }
 
-pub open spec fn send_create_sts() -> HostAction<State, Option<Message>, Set<Message>> {
+pub type ControllerAction = HostAction<State, Option<Message>, Set<Message>>;
+
+pub open spec fn send_create_sts() -> ControllerAction {
     HostAction {
         precondition: |recv: Option<Message>, s| {
             &&& recv.is_Some()
@@ -35,7 +37,7 @@ pub open spec fn send_create_sts() -> HostAction<State, Option<Message>, Set<Mes
     }
 }
 
-pub open spec fn send_delete_sts() -> HostAction<State, Option<Message>, Set<Message>> {
+pub open spec fn send_delete_sts() -> ControllerAction {
     HostAction {
         precondition: |recv: Option<Message>, s| {
             &&& recv.is_Some()
@@ -54,7 +56,7 @@ pub open spec fn send_delete_sts() -> HostAction<State, Option<Message>, Set<Mes
     }
 }
 
-pub open spec fn valid_actions() -> Set<HostAction<State, Option<Message>, Set<Message>>> {
+pub open spec fn valid_actions() -> Set<ControllerAction> {
     set![send_create_sts(), send_delete_sts()]
 }
 
@@ -84,7 +86,7 @@ pub open spec fn output(recv: Option<Message>, s: State, s_prime: State) -> Set<
     }
 }
 
-pub proof fn exists_step_for_valid_action(action: HostAction<State, Option<Message>, Set<Message>>, recv: Option<Message>, s: State, s_prime: State)
+pub proof fn exists_step_for_valid_action(action: ControllerAction, recv: Option<Message>, s: State, s_prime: State)
     requires
         valid_actions().contains(action),
         action.satisfied_by(recv, s, s_prime),

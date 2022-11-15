@@ -21,7 +21,9 @@ pub struct ClientInput {
     pub recv: Option<Message>,
 }
 
-pub open spec fn send_create_cr() -> HostAction<State, ClientInput, Set<Message>> {
+pub type ClientAction = HostAction<State, ClientInput, Set<Message>>;
+
+pub open spec fn send_create_cr() -> ClientAction {
     HostAction {
         precondition: |i: ClientInput, s| {
             &&& i.cr.key.kind.is_CustomResourceKind()
@@ -36,7 +38,7 @@ pub open spec fn send_create_cr() -> HostAction<State, ClientInput, Set<Message>
     }
 }
 
-pub open spec fn send_delete_cr() -> HostAction<State, ClientInput, Set<Message>> {
+pub open spec fn send_delete_cr() -> ClientAction {
     HostAction {
         precondition: |i: ClientInput, s| {
             &&& i.cr.key.kind.is_CustomResourceKind()

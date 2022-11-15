@@ -18,6 +18,8 @@ pub open spec fn init(s: State) -> bool {
     s.resources === Map::empty()
 }
 
+pub type KubernetesAPIAction = HostAction<State, Option<Message>, Set<Message>>;
+
 pub open spec fn update_resources_with(s: State, msg: Message) -> Map<ResourceKey, ResourceObj>
     recommends
         msg.is_CreateRequest() || msg.is_DeleteRequest(),
@@ -68,7 +70,7 @@ pub open spec fn handle_request_pre(s: State, msg: Message) -> bool {
     msg.is_CreateRequest() || msg.is_DeleteRequest()
 }
 
-pub open spec fn handle_request() -> HostAction<State, Option<Message>, Set<Message>> {
+pub open spec fn handle_request() -> KubernetesAPIAction {
     HostAction {
         precondition: |recv: Option<Message>, s| {
             &&& recv.is_Some()
@@ -89,7 +91,7 @@ pub enum Step {
     HandleRequest,
 }
 
-pub open spec fn valid_actions() -> Set<HostAction<State, Option<Message>, Set<Message>>> {
+pub open spec fn valid_actions() -> Set<KubernetesAPIAction> {
     set![handle_request()]
 }
 
@@ -112,7 +114,7 @@ pub open spec fn output(recv: Option<Message>, s: State, s_prime: State) -> Set<
     }
 }
 
-pub proof fn exists_step_for_valid_action(action: HostAction<State, Option<Message>, Set<Message>>, recv: Option<Message>, s: State, s_prime: State)
+pub proof fn exists_step_for_valid_action(action: KubernetesAPIAction, recv: Option<Message>, s: State, s_prime: State)
     requires
         valid_actions().contains(action),
         action.satisfied_by(recv, s, s_prime),
