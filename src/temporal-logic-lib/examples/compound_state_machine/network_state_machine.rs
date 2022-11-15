@@ -10,28 +10,28 @@ use builtin_macros::*;
 
 verus! {
 
-pub struct NetworkState {
+pub struct State {
     pub sent_messages: Set<Message>,
 }
 
-pub open spec fn init(s: NetworkState) -> bool {
+pub open spec fn init(s: State) -> bool {
     s.sent_messages === Set::empty()
 }
 
-pub open spec fn deliver() -> NetworkAction<NetworkState, Option<Message>, Set<Message>> {
+pub open spec fn deliver() -> NetworkAction<State, Option<Message>, Set<Message>> {
     NetworkAction {
-        precondition: |recv: Option<Message>, s: NetworkState| {
+        precondition: |recv: Option<Message>, s: State| {
             recv.is_Some() ==> s.sent_messages.contains(recv.get_Some_0())
         },
-        transition: |recv: Option<Message>, s: NetworkState, send: Set<Message>| {
-            NetworkState {
+        transition: |recv: Option<Message>, s: State, send: Set<Message>| {
+            State {
                 sent_messages: s.sent_messages + send
             }
         },
     }
 }
 
-pub open spec fn next(recv: Option<Message>, s: NetworkState, s_prime: NetworkState, send: Set<Message>) -> bool {
+pub open spec fn next(recv: Option<Message>, s: State, s_prime: State, send: Set<Message>) -> bool {
     deliver().satisfied_by(recv, s, s_prime, send)
 }
 

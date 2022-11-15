@@ -10,9 +10,9 @@ use builtin_macros::*;
 
 verus! {
 
-pub struct ClientState {}
+pub struct State {}
 
-pub open spec fn init(s: ClientState) -> bool {
+pub open spec fn init(s: State) -> bool {
     true
 }
 
@@ -21,7 +21,7 @@ pub struct ClientInput {
     pub recv: Option<Message>,
 }
 
-pub open spec fn send_create_cr() -> HostAction<ClientState, ClientInput, Set<Message>> {
+pub open spec fn send_create_cr() -> HostAction<State, ClientInput, Set<Message>> {
     HostAction {
         precondition: |i: ClientInput, s| {
             &&& i.cr.key.kind.is_CustomResourceKind()
@@ -36,7 +36,7 @@ pub open spec fn send_create_cr() -> HostAction<ClientState, ClientInput, Set<Me
     }
 }
 
-pub open spec fn send_delete_cr() -> HostAction<ClientState, ClientInput, Set<Message>> {
+pub open spec fn send_delete_cr() -> HostAction<State, ClientInput, Set<Message>> {
     HostAction {
         precondition: |i: ClientInput, s| {
             &&& i.cr.key.kind.is_CustomResourceKind()
@@ -56,18 +56,18 @@ pub enum ClientStep {
     SendDeleteCrStep(ResourceObj),
 }
 
-pub open spec fn next_step(recv: Option<Message>, s: ClientState, s_prime: ClientState, step: ClientStep) -> bool {
+pub open spec fn next_step(recv: Option<Message>, s: State, s_prime: State, step: ClientStep) -> bool {
     match step {
         ClientStep::SendCreateCrStep(res) => send_create_cr().satisfied_by(ClientInput{cr: res, recv: recv}, s, s_prime),
         ClientStep::SendDeleteCrStep(res) => send_delete_cr().satisfied_by(ClientInput{cr: res, recv: recv}, s, s_prime),
     }
 }
 
-pub open spec fn next(recv: Option<Message>, s: ClientState, s_prime: ClientState) -> bool {
+pub open spec fn next(recv: Option<Message>, s: State, s_prime: State) -> bool {
     exists |step| next_step(recv, s, s_prime, step)
 }
 
-pub open spec fn output(recv: Option<Message>, s: ClientState, s_prime: ClientState) -> Set<Message>
+pub open spec fn output(recv: Option<Message>, s: State, s_prime: State) -> Set<Message>
     recommends next(recv, s, s_prime)
 {
     let witness_step = choose |step| next_step(recv, s, s_prime, step);

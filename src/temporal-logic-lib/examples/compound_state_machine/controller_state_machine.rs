@@ -10,13 +10,13 @@ use builtin_macros::*;
 
 verus! {
 
-pub struct ControllerState {}
+pub struct State {}
 
-pub open spec fn init(s: ControllerState) -> bool {
+pub open spec fn init(s: State) -> bool {
     true
 }
 
-pub open spec fn send_create_sts() -> HostAction<ControllerState, Option<Message>, Set<Message>> {
+pub open spec fn send_create_sts() -> HostAction<State, Option<Message>, Set<Message>> {
     HostAction {
         precondition: |recv: Option<Message>, s| {
             &&& recv.is_Some()
@@ -35,7 +35,7 @@ pub open spec fn send_create_sts() -> HostAction<ControllerState, Option<Message
     }
 }
 
-pub open spec fn send_delete_sts() -> HostAction<ControllerState, Option<Message>, Set<Message>> {
+pub open spec fn send_delete_sts() -> HostAction<State, Option<Message>, Set<Message>> {
     HostAction {
         precondition: |recv: Option<Message>, s| {
             &&& recv.is_Some()
@@ -59,18 +59,18 @@ pub enum ControllerStep {
     SendDeleteStsStep,
 }
 
-pub open spec fn next_step(recv: Option<Message>, s: ControllerState, s_prime: ControllerState, step: ControllerStep) -> bool {
+pub open spec fn next_step(recv: Option<Message>, s: State, s_prime: State, step: ControllerStep) -> bool {
     match step {
         ControllerStep::SendCreateStsStep => send_create_sts().satisfied_by(recv, s, s_prime),
         ControllerStep::SendDeleteStsStep => send_delete_sts().satisfied_by(recv, s, s_prime),
     }
 }
 
-pub open spec fn next(recv: Option<Message>, s: ControllerState, s_prime: ControllerState) -> bool {
+pub open spec fn next(recv: Option<Message>, s: State, s_prime: State) -> bool {
     exists |step| next_step(recv, s, s_prime, step)
 }
 
-pub open spec fn output(recv: Option<Message>, s: ControllerState, s_prime: ControllerState) -> Set<Message>
+pub open spec fn output(recv: Option<Message>, s: State, s_prime: State) -> Set<Message>
     recommends next(recv, s, s_prime)
 {
     let witness_step = choose |step| next_step(recv, s, s_prime, step);

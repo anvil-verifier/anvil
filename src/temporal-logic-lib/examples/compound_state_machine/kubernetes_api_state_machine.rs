@@ -10,15 +10,15 @@ use builtin_macros::*;
 
 verus! {
 
-pub struct KubernetesAPIState {
+pub struct State {
     pub resources: Map<ResourceKey, ResourceObj>,
 }
 
-pub open spec fn init(s: KubernetesAPIState) -> bool {
+pub open spec fn init(s: State) -> bool {
     s.resources === Map::empty()
 }
 
-pub open spec fn update_resources_with(s: KubernetesAPIState, msg: Message) -> Map<ResourceKey, ResourceObj>
+pub open spec fn update_resources_with(s: State, msg: Message) -> Map<ResourceKey, ResourceObj>
     recommends
         msg.is_CreateRequest() || msg.is_DeleteRequest(),
 {
@@ -37,7 +37,7 @@ pub open spec fn update_resources_with(s: KubernetesAPIState, msg: Message) -> M
     }
 }
 
-pub open spec fn outcome_messages(s: KubernetesAPIState, msg: Message) -> Set<Message>
+pub open spec fn outcome_messages(s: State, msg: Message) -> Set<Message>
     recommends
         msg.is_CreateRequest() || msg.is_DeleteRequest(),
 {
@@ -64,18 +64,18 @@ pub open spec fn outcome_messages(s: KubernetesAPIState, msg: Message) -> Set<Me
     }
 }
 
-pub open spec fn handle_request_pre(s: KubernetesAPIState, msg: Message) -> bool {
+pub open spec fn handle_request_pre(s: State, msg: Message) -> bool {
     msg.is_CreateRequest() || msg.is_DeleteRequest()
 }
 
-pub open spec fn handle_request() -> HostAction<KubernetesAPIState, Option<Message>, Set<Message>> {
+pub open spec fn handle_request() -> HostAction<State, Option<Message>, Set<Message>> {
     HostAction {
         precondition: |recv: Option<Message>, s| {
             &&& recv.is_Some()
             &&& recv.get_Some_0().is_CreateRequest() || recv.get_Some_0().is_DeleteRequest()
         },
         transition: |recv: Option<Message>, s| {
-            KubernetesAPIState {
+            State {
                 resources: update_resources_with(s, recv.get_Some_0()),
             }
         },
@@ -89,17 +89,17 @@ pub enum KubernetesAPIStep {
     HandleRequest,
 }
 
-pub open spec fn next_step(recv: Option<Message>, s: KubernetesAPIState, s_prime: KubernetesAPIState, step: KubernetesAPIStep) -> bool {
+pub open spec fn next_step(recv: Option<Message>, s: State, s_prime: State, step: KubernetesAPIStep) -> bool {
     match step {
         KubernetesAPIStep::HandleRequest => handle_request().satisfied_by(recv, s, s_prime),
     }
 }
 
-pub open spec fn next(recv: Option<Message>, s: KubernetesAPIState, s_prime: KubernetesAPIState) -> bool {
+pub open spec fn next(recv: Option<Message>, s: State, s_prime: State) -> bool {
     exists |step| next_step(recv, s, s_prime, step)
 }
 
-pub open spec fn output(recv: Option<Message>, s: KubernetesAPIState, s_prime: KubernetesAPIState) -> Set<Message>
+pub open spec fn output(recv: Option<Message>, s: State, s_prime: State) -> Set<Message>
     recommends next(recv, s, s_prime)
 {
     let witness_step = choose |step| next_step(recv, s, s_prime, step);

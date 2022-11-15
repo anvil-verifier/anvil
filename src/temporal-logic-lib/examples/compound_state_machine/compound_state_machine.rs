@@ -13,10 +13,10 @@ use builtin_macros::*;
 verus! {
 
 pub struct CompoundState {
-    pub kubernetes_api_state: kubernetes_api::KubernetesAPIState,
-    pub controller_state: controller::ControllerState,
-    pub network_state: network::NetworkState,
-    pub client_state: client::ClientState,
+    pub kubernetes_api_state: kubernetes_api::State,
+    pub controller_state: controller::State,
+    pub network_state: network::State,
+    pub client_state: client::State,
 }
 
 pub open spec fn init() -> StatePred<CompoundState> {
