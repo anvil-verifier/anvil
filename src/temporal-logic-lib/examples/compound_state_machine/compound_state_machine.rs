@@ -33,6 +33,10 @@ pub open spec fn message_sent(msg: Message) -> StatePred<CompoundState> {
     |s: CompoundState| s.network_state.sent_messages.contains(msg)
 }
 
+pub open spec fn resource_exists(key: ResourceKey) -> StatePred<CompoundState> {
+    |s: CompoundState| s.kubernetes_api_state.resources.dom().contains(key)
+}
+
 pub open spec fn kubernetes_api_action_pre(recv: Option<Message>, action: kubernetes_api::KubernetesAPIAction) -> StatePred<CompoundState> {
     |s: CompoundState| {
         &&& (network::deliver().precondition)(recv, s.network_state)
@@ -103,10 +107,6 @@ pub open spec fn sm_spec() -> TempPred<CompoundState> {
     .and(always(lift_action(next())))
     .and(tla_forall(|recv| weak_fairness(kubernetes_api_action(recv))))
     .and(tla_forall(|recv| weak_fairness(controller_action(recv))))
-}
-
-pub open spec fn resource_exists(key: ResourceKey) -> StatePred<CompoundState> {
-    |s: CompoundState| s.kubernetes_api_state.resources.dom().contains(key)
 }
 
 pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: kubernetes_api::KubernetesAPIAction)
