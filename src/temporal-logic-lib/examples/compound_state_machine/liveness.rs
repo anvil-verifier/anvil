@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::examples::compound_state_machine::{
-    client_state_machine as client, common::*, compound_state_machine::*,
-    controller_state_machine as controller, kubernetes_api_state_machine as kubernetes_api,
-    network_state_machine as network, safety::*,
+    common::*, compound_state_machine::*, controller_state_machine as controller,
+    kubernetes_api_liveness, safety::*,
 };
-use crate::pervasive::{option::*, seq::*, set::*};
+use crate::pervasive::option::*;
 use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
@@ -102,9 +101,9 @@ proof fn lemma_cr_exists_leads_to_pod_exists_and_vol_exists(cr: ResourceObj)
 
     lemma_always_res_exists_implies_create_req_sent(cr);
 
-    lemma_k8s_create_cr_req_leads_to_create_cr_resp(create_req_msg(cr.key));
+    kubernetes_api_liveness::lemma_create_req_leads_to_create_resp(create_req_msg(cr.key));
     lemma_controller_create_cr_resp_leads_to_create_sts_req(create_resp_msg(cr.key));
-    lemma_k8s_create_sts_req_sent_leads_to_pod_exists_and_vol_exists(create_req_msg(ResourceKey{name: sts_name, kind: ResourceKind::StatefulSetKind}));
+    kubernetes_api_liveness::lemma_create_sts_req_sent_leads_to_pod_exists_and_vol_exists(create_req_msg(ResourceKey{name: sts_name, kind: ResourceKind::StatefulSetKind}));
 }
 
 proof fn lemma_always_cr_always_exists_implies_sub_resources_never_deleted(cr: ResourceObj)
@@ -121,7 +120,7 @@ proof fn lemma_always_cr_always_exists_implies_sub_resources_never_deleted(cr: R
             )
         ),
 {
-    lemma_k8s_delete_cr_req_leads_to_cr_not_exists(delete_req_msg(cr.key));
+    kubernetes_api_liveness::lemma_delete_req_leads_to_res_not_exists(delete_req_msg(cr.key));
     leads_to_contradiction::<CompoundState>(sm_spec(),
         message_sent(delete_req_msg(cr.key)),
         |s| !resource_exists(cr.key)(s),
@@ -190,107 +189,6 @@ proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(msg: Message)
         controller_action(Option::Some(msg)),
         controller_action_pre(Option::Some(msg), controller::send_create_sts()),
         message_sent(create_sts_req_msg),
-    );
-}
-
-proof fn lemma_k8s_create_cr_req_leads_to_create_cr_resp(msg: Message)
-    requires
-        msg.is_CreateRequest(),
-        msg.get_CreateRequest_0().obj.key.kind.is_CustomResourceKind(),
-    ensures
-        sm_spec().entails(
-            lift_state(message_sent(msg)).leads_to(lift_state(message_sent(create_resp_msg(msg.get_CreateRequest_0().obj.key))))
-        ),
-{
-    let create_cr_resp_msg = create_resp_msg(msg.get_CreateRequest_0().obj.key);
-
-    leads_to_eq_auto::<CompoundState>(sm_spec());
-    use_tla_forall::<CompoundState, Option<Message>>(sm_spec(), |recv| weak_fairness(kubernetes_api_action(recv)), Option::Some(msg));
-
-    kubernetes_api_action_enabled(Option::Some(msg), kubernetes_api::handle_request());
-    wf1::<CompoundState>(sm_spec(),
-        next(),
-        kubernetes_api_action(Option::Some(msg)),
-        kubernetes_api_action_pre(Option::Some(msg), kubernetes_api::handle_request()),
-        message_sent(create_cr_resp_msg),
-    );
-}
-
-proof fn lemma_k8s_delete_cr_req_leads_to_cr_not_exists(msg: Message)
-    requires
-        msg.is_DeleteRequest(),
-        msg.get_DeleteRequest_0().key.kind.is_CustomResourceKind(),
-    ensures
-        sm_spec().entails(
-            lift_state(message_sent(msg)).leads_to(lift_state(|s| !resource_exists(msg.get_DeleteRequest_0().key)(s)))
-        ),
-{
-    leads_to_eq_auto::<CompoundState>(sm_spec());
-    use_tla_forall::<CompoundState, Option<Message>>(sm_spec(), |recv| weak_fairness(kubernetes_api_action(recv)), Option::Some(msg));
-
-    kubernetes_api_action_enabled(Option::Some(msg), kubernetes_api::handle_request());
-    wf1::<CompoundState>(sm_spec(),
-        next(),
-        kubernetes_api_action(Option::Some(msg)),
-        kubernetes_api_action_pre(Option::Some(msg), kubernetes_api::handle_request()),
-        |s| !resource_exists(msg.get_DeleteRequest_0().key)(s)
-    );
-}
-
-proof fn lemma_k8s_create_sts_req_sent_leads_to_pod_exists_and_vol_exists(msg: Message)
-    requires
-        msg.is_CreateRequest(),
-        msg.get_CreateRequest_0().obj.key.kind.is_StatefulSetKind(),
-    ensures
-        sm_spec()
-            .entails(lift_state(message_sent(msg))
-                .leads_to(lift_state(resource_exists(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + pod_suffix(), kind: ResourceKind::PodKind})))),
-        sm_spec()
-            .entails(lift_state(message_sent(msg))
-                .leads_to(lift_state(resource_exists(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + vol_suffix(), kind: ResourceKind::VolumeKind})))),
-{
-    lemma_k8s_create_sts_req_sent_leads_to(msg, create_req_msg(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + pod_suffix(), kind: ResourceKind::PodKind}));
-    lemma_k8s_create_sts_req_sent_leads_to(msg, create_req_msg(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + vol_suffix(), kind: ResourceKind::VolumeKind}));
-}
-
-proof fn lemma_k8s_create_sts_req_sent_leads_to(msg: Message, sub_res_msg: Message)
-    requires
-        msg.is_CreateRequest(),
-        msg.get_CreateRequest_0().obj.key.kind.is_StatefulSetKind(),
-        sub_res_msg.is_CreateRequest(),
-        sub_res_msg.get_CreateRequest_0().obj.key === (ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + pod_suffix(), kind: ResourceKind::PodKind})
-        || sub_res_msg.get_CreateRequest_0().obj.key === (ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + vol_suffix(), kind: ResourceKind::VolumeKind}),
-    ensures
-        sm_spec()
-            .entails(lift_state(message_sent(msg))
-                .leads_to(lift_state(resource_exists(sub_res_msg.get_CreateRequest_0().obj.key)))),
-{
-    let sub_res_key = sub_res_msg.get_CreateRequest_0().obj.key;
-
-    leads_to_eq_auto::<CompoundState>(sm_spec());
-    use_tla_forall::<CompoundState, Option<Message>>(sm_spec(), |recv| weak_fairness(kubernetes_api_action(recv)), Option::Some(msg));
-    use_tla_forall::<CompoundState, Option<Message>>(sm_spec(), |recv| weak_fairness(kubernetes_api_action(recv)), Option::Some(sub_res_msg));
-
-    kubernetes_api_action_enabled(Option::Some(msg), kubernetes_api::handle_request());
-    wf1::<CompoundState>(sm_spec(),
-        next(),
-        kubernetes_api_action(Option::Some(msg)),
-        kubernetes_api_action_pre(Option::Some(msg), kubernetes_api::handle_request()),
-        message_sent(sub_res_msg)
-    );
-
-    kubernetes_api_action_enabled(Option::Some(sub_res_msg), kubernetes_api::handle_request());
-    wf1::<CompoundState>(sm_spec(),
-        next(),
-        kubernetes_api_action(Option::Some(sub_res_msg)),
-        kubernetes_api_action_pre(Option::Some(sub_res_msg), kubernetes_api::handle_request()),
-        resource_exists(sub_res_key)
-    );
-
-    leads_to_trans::<CompoundState>(sm_spec(),
-        message_sent(msg),
-        message_sent(sub_res_msg),
-        resource_exists(sub_res_key)
     );
 }
 
