@@ -15,16 +15,16 @@ verus! {
 pub struct CompoundState {
     pub kubernetes_api_state: kubernetes_api::State,
     pub controller_state: controller::State,
-    pub network_state: network::State,
     pub client_state: client::State,
+    pub network_state: network::State,
 }
 
 pub open spec fn init() -> StatePred<CompoundState> {
     |s: CompoundState| {
         &&& kubernetes_api::init(s.kubernetes_api_state)
         &&& controller::init(s.controller_state)
-        &&& network::init(s.network_state)
         &&& client::init(s.client_state)
+        &&& network::init(s.network_state)
     }
 }
 
@@ -50,6 +50,10 @@ pub open spec fn controller_action_pre(recv: Option<Message>, action: controller
     }
 }
 
+/// `kubernetes_api_action` checks if:
+/// * kubernetes_api can take the next action
+/// * the received message was sent to network before, and kubernetes api's output messages are sent to network
+/// * controller and client remain the same
 pub open spec fn kubernetes_api_action(recv: Option<Message>) -> ActionPred<CompoundState> {
     |s: CompoundState, s_prime: CompoundState| {
         &&& kubernetes_api::next(recv, s.kubernetes_api_state, s_prime.kubernetes_api_state)
@@ -59,6 +63,10 @@ pub open spec fn kubernetes_api_action(recv: Option<Message>) -> ActionPred<Comp
     }
 }
 
+/// `controller_action` checks if:
+/// * controller can take the next action
+/// * the received message was sent to network before, and controller's output messages are sent to network
+/// * kubernetes api and client remain the same
 pub open spec fn controller_action(recv: Option<Message>) -> ActionPred<CompoundState> {
     |s: CompoundState, s_prime: CompoundState| {
         &&& controller::next(recv, s.controller_state, s_prime.controller_state)
@@ -68,6 +76,10 @@ pub open spec fn controller_action(recv: Option<Message>) -> ActionPred<Compound
     }
 }
 
+/// `client_action` checks if:
+/// * client can take the next action
+/// * the received message was sent to network before, and client's output messages are sent to network
+/// * kubernetes api and controller remain the same
 pub open spec fn client_action(recv: Option<Message>) -> ActionPred<CompoundState> {
     |s: CompoundState, s_prime: CompoundState| {
         &&& client::next(recv, s.client_state, s_prime.client_state)
@@ -97,6 +109,9 @@ pub open spec fn next_step(s: CompoundState, s_prime: CompoundState, step: Compo
     }
 }
 
+/// `next` chooses:
+/// * which host to take the next action (`CompoundStep`)
+/// * whether to deliver a message and which message to deliver (`Option<Message>` in `CompoundStep`)
 pub open spec fn next() -> ActionPred<CompoundState> {
     |s: CompoundState, s_prime: CompoundState| exists |step: CompoundStep| next_step(s, s_prime, step)
 }
@@ -108,6 +123,11 @@ pub open spec fn sm_spec() -> TempPred<CompoundState> {
     .and(tla_forall(|recv| weak_fairness(controller_action(recv))))
 }
 
+/// `kubernetes_api_action_enabled` gives a generic proof showing that
+/// if the precondition of a kubernetes api action is satisfied, the action is enabled
+///
+/// Note that it requires the action to be a valid action allowed by the kubernetes api state machine.
+/// This precondition is required by `exists_step_for_valid_action`.
 pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: kubernetes_api::KubernetesAPIAction)
     requires
         kubernetes_api::valid_actions().contains(action),
@@ -127,6 +147,11 @@ pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: kubern
     };
 }
 
+/// `kubernetes_api_action_enabled` gives a generic proof showing that
+/// if the precondition of a controller action is satisfied, the action is enabled
+///
+/// Note that it requires the action to be a valid action allowed by the controller state machine.
+/// This precondition is required by `exists_step_for_valid_action`.
 pub proof fn controller_action_enabled(recv: Option<Message>, action: controller::ControllerAction)
     requires
         controller::valid_actions().contains(action),
