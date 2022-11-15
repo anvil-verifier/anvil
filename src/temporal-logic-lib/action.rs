@@ -26,6 +26,13 @@ pub struct HostAction<#[verifier(maybe_negative)] State, #[verifier(maybe_negati
 }
 
 impl<State, Input, Output> HostAction<State, Input, Output> {
+
+    /// `satisfied_by` is like an action predicate:
+    /// it checks whether the action's precondition is satisfied by `input` and `s`
+    /// and whether the `s_prime` is the same as the new state after transition.
+    /// It is supposed to be called inside each host state machine's `next`.
+    ///
+    /// Note that it does not check the `output` sent to the external world.
     pub open spec fn satisfied_by(self, input: Input, s: State, s_prime: State) -> bool {
         &&& (self.precondition)(input, s)
         &&& s_prime === (self.transition)(input, s)
