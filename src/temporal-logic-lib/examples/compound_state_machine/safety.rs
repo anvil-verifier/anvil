@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::common::*;
 use crate::examples::compound_state_machine::common::*;
-use crate::examples::compound_state_machine::compound_state_machine::*;
+use crate::examples::compound_state_machine::compound::*;
 use crate::pervasive::seq::*;
 use crate::temporal_logic::*;
 use builtin::*;

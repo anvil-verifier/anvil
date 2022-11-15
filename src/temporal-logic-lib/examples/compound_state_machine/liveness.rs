@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::examples::compound_state_machine::{
-    common::*, compound_state_machine::*, controller_state_machine as controller,
-    kubernetes_api_liveness, safety::*,
+    common::*, compound::*, controller, kubernetes_api_liveness, safety::*,
 };
 use crate::pervasive::option::*;
 use crate::temporal_logic::*;

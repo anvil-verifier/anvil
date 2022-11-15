@@ -3,8 +3,7 @@
 #![allow(unused_imports)]
 use crate::action::*;
 use crate::examples::compound_state_machine::{
-    client_state_machine as client, common::*, controller_state_machine as controller,
-    kubernetes_api_state_machine as kubernetes_api, network_state_machine as network,
+    client, common::*, controller, kubernetes_api, network,
 };
 use crate::pervasive::{map::*, option::*, seq::*, set::*, string::*};
 use crate::temporal_logic::*;

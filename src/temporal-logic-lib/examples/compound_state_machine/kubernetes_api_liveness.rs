@@ -1,9 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::examples::compound_state_machine::{
-    common::*, compound_state_machine::*, kubernetes_api_state_machine as kubernetes_api,
-};
+use crate::examples::compound_state_machine::{common::*, compound::*, kubernetes_api};
 use crate::pervasive::option::*;
 use crate::temporal_logic::*;
 use builtin::*;
