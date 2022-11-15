@@ -6,14 +6,14 @@ use builtin_macros::*;
 
 verus! {
 
-pub struct HostAction<#[verifier(maybe_negative)] S, #[verifier(maybe_negative)] I, #[verifier(maybe_negative)] O> {
-    pub precondition: FnSpec(I, S) -> bool,
-    pub transition: FnSpec(I, S) -> S,
-    pub output: FnSpec(I, S) -> O,
+pub struct HostAction<#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] Input, #[verifier(maybe_negative)] Output> {
+    pub precondition: FnSpec(Input, State) -> bool,
+    pub transition: FnSpec(Input, State) -> State,
+    pub output: FnSpec(Input, State) -> Output,
 }
 
-impl<S, I, O> HostAction<S, I, O> {
-    pub open spec fn satisfied_by(self, input: I, s: S, s_prime: S) -> bool {
+impl<State, Input, Output> HostAction<State, Input, Output> {
+    pub open spec fn satisfied_by(self, input: Input, s: State, s_prime: State) -> bool {
         &&& (self.precondition)(input, s)
         &&& s_prime === (self.transition)(input, s)
     }
