@@ -18,7 +18,7 @@ pub open spec fn init(s: State) -> bool {
     s.sent_messages === Set::empty()
 }
 
-pub open spec fn deliver() -> NetworkAction<State, Option<Message>, Set<Message>> {
+pub open spec fn deliver() -> NetworkAction<State, Message> {
     NetworkAction {
         precondition: |recv: Option<Message>, s: State| {
             recv.is_Some() ==> s.sent_messages.contains(recv.get_Some_0())
