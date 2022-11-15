@@ -113,11 +113,9 @@ pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: kubern
     requires
         kubernetes_api::valid_actions().contains(action),
     ensures
-        forall |s| state_pred_call(kubernetes_api_action_pre(recv, action), s)
-            ==> enabled(kubernetes_api_action(recv))(s),
+        forall |s| state_pred_call(kubernetes_api_action_pre(recv, action), s) ==> enabled(kubernetes_api_action(recv))(s),
 {
-    assert forall |s| state_pred_call(kubernetes_api_action_pre(recv, action), s)
-    implies enabled(kubernetes_api_action(recv))(s) by {
+    assert forall |s| state_pred_call(kubernetes_api_action_pre(recv, action), s) implies enabled(kubernetes_api_action(recv))(s) by {
         let send = (action.output)(recv, s.kubernetes_api_state);
         let s_prime = CompoundState {
             network_state: (network::deliver().transition)(recv, s.network_state, send),
@@ -136,8 +134,7 @@ pub proof fn controller_action_enabled(recv: Option<Message>, action: controller
     ensures
         forall |s| state_pred_call(controller_action_pre(recv, action), s) ==> enabled(controller_action(recv))(s),
 {
-    assert forall |s| state_pred_call(controller_action_pre(recv, action), s)
-    implies enabled(controller_action(recv))(s) by {
+    assert forall |s| state_pred_call(controller_action_pre(recv, action), s) implies enabled(controller_action(recv))(s) by {
         let send = (action.output)(recv, s.controller_state);
         let s_prime = CompoundState {
             network_state: (network::deliver().transition)(recv, s.network_state, send),
