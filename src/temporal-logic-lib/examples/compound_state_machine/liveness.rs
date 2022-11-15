@@ -121,7 +121,7 @@ proof fn lemma_always_cr_always_exists_implies_sub_resources_never_deleted(cr: R
         ),
 {
     kubernetes_api_liveness::lemma_delete_req_leads_to_res_not_exists(delete_req_msg(cr.key));
-    leads_to_contradiction::<CompoundState>(sm_spec(),
+    leads_to_contraposition::<CompoundState>(sm_spec(),
         message_sent(delete_req_msg(cr.key)),
         |s| !resource_exists(cr.key)(s),
     );

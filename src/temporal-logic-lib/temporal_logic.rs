@@ -343,7 +343,7 @@ proof fn entails_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     entails_apply_auto::<T>();
 }
 
-proof fn not_proved_by_contradiction<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+proof fn not_proved_by_contraposition<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.implies(q).satisfied_by(ex),
         not(q).satisfied_by(ex),
@@ -1841,7 +1841,7 @@ pub proof fn leads_to_stable_combine<T>(spec: TempPred<T>, next: ActionPred<T>, 
 ///     spec |= p ~> q
 /// ensures:
 ///     spec |= []([]~q => []~p)
-pub proof fn leads_to_contradiction_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+pub proof fn leads_to_contraposition_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         spec.entails(p.leads_to(q)),
     ensures
@@ -1857,20 +1857,20 @@ pub proof fn leads_to_contradiction_temp<T>(spec: TempPred<T>, p: TempPred<T>, q
                 always_propagate_forwards::<T>(ex.suffix(i), not(q), j);
                 not_eventually_by_always_not::<T>(ex.suffix(i).suffix(j), q);
 
-                not_proved_by_contradiction::<T>(ex.suffix(i).suffix(j), p, eventually(q));
+                not_proved_by_contraposition::<T>(ex.suffix(i).suffix(j), p, eventually(q));
             };
         };
     };
 }
 
-/// StatePred version of leads_to_contradiction_temp
-pub proof fn leads_to_contradiction<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
+/// StatePred version of leads_to_contraposition_temp
+pub proof fn leads_to_contraposition<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
         spec.entails(lift_state(p).leads_to(lift_state(q))),
     ensures
         spec.entails(always(always(not(lift_state(q))).implies(always(not(lift_state(p)))))),
 {
-    leads_to_contradiction_temp::<T>(spec, lift_state(p), lift_state(q));
+    leads_to_contraposition_temp::<T>(spec, lift_state(p), lift_state(q));
 }
 
 }
