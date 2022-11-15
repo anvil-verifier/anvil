@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::action::*;
 use crate::examples::compound_state_machine::{
     client_state_machine as client, common::*, controller_state_machine as controller,
     kubernetes_api_state_machine as kubernetes_api, network_state_machine as network,
@@ -32,17 +33,17 @@ pub open spec fn message_sent(msg: Message) -> StatePred<CompoundState> {
     |s: CompoundState| s.network_state.sent_messages.contains(msg)
 }
 
-pub open spec fn kubernetes_api_action_handle_request_pre(recv: Option<Message>) -> StatePred<CompoundState> {
+pub open spec fn kubernetes_api_action_pre(recv: Option<Message>, action: HostAction<kubernetes_api::State, Option<Message>, Set<Message>>) -> StatePred<CompoundState> {
     |s: CompoundState| {
         &&& (network::deliver().precondition)(recv, s.network_state)
-        &&& (kubernetes_api::handle_request().precondition)(recv, s.kubernetes_api_state)
+        &&& (action.precondition)(recv, s.kubernetes_api_state)
     }
 }
 
-pub open spec fn controller_action_send_create_sts_pre(recv: Option<Message>) -> StatePred<CompoundState> {
+pub open spec fn controller_action_pre(recv: Option<Message>, action: HostAction<controller::State, Option<Message>, Set<Message>>) -> StatePred<CompoundState> {
     |s: CompoundState| {
         &&& (network::deliver().precondition)(recv, s.network_state)
-        &&& (controller::send_create_sts().precondition)(recv, s.controller_state)
+        &&& (action.precondition)(recv, s.controller_state)
     }
 }
 
@@ -108,38 +109,42 @@ pub open spec fn resource_exists(key: ResourceKey) -> StatePred<CompoundState> {
     |s: CompoundState| s.kubernetes_api_state.resources.dom().contains(key)
 }
 
-pub proof fn kubernetes_api_action_handle_request_enabled(recv: Option<Message>)
+pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: HostAction<kubernetes_api::State, Option<Message>, Set<Message>>)
+    requires
+        kubernetes_api::valid_actions().contains(action),
     ensures
-        forall |s| state_pred_call(kubernetes_api_action_handle_request_pre(recv), s)
+        forall |s| state_pred_call(kubernetes_api_action_pre(recv, action), s)
             ==> enabled(kubernetes_api_action(recv))(s),
 {
-    assert forall |s| state_pred_call(kubernetes_api_action_handle_request_pre(recv), s) implies enabled(kubernetes_api_action(recv))(s) by {
-        let send = (kubernetes_api::handle_request().output)(recv, s.kubernetes_api_state);
+    assert forall |s| state_pred_call(kubernetes_api_action_pre(recv, action), s)
+    implies enabled(kubernetes_api_action(recv))(s) by {
+        let send = (action.output)(recv, s.kubernetes_api_state);
         let s_prime = CompoundState {
             network_state: (network::deliver().transition)(recv, s.network_state, send),
-            kubernetes_api_state: (kubernetes_api::handle_request().transition)(recv, s.kubernetes_api_state),
+            kubernetes_api_state: (action.transition)(recv, s.kubernetes_api_state),
             ..s
         };
-        let witness_kubernetes_step = kubernetes_api::KubernetesAPIStep::HandleRequest;
-        assert(kubernetes_api::next_step(recv, s.kubernetes_api_state, s_prime.kubernetes_api_state, witness_kubernetes_step));
+        kubernetes_api::exists_step_for_valid_action(action, recv, s.kubernetes_api_state, s_prime.kubernetes_api_state);
         assert(kubernetes_api::next(recv, s.kubernetes_api_state, s_prime.kubernetes_api_state));
         assert(action_pred_call(kubernetes_api_action(recv), s, s_prime));
     };
 }
 
-pub proof fn controller_action_send_create_sts_enabled(recv: Option<Message>)
+pub proof fn controller_action_enabled(recv: Option<Message>, action: HostAction<controller::State, Option<Message>, Set<Message>>)
+    requires
+        controller::valid_actions().contains(action),
     ensures
-        forall |s| state_pred_call(controller_action_send_create_sts_pre(recv), s) ==> enabled(controller_action(recv))(s),
+        forall |s| state_pred_call(controller_action_pre(recv, action), s) ==> enabled(controller_action(recv))(s),
 {
-    assert forall |s| state_pred_call(controller_action_send_create_sts_pre(recv), s) implies enabled(controller_action(recv))(s) by {
-        let send = (controller::send_create_sts().output)(recv, s.controller_state);
+    assert forall |s| state_pred_call(controller_action_pre(recv, action), s)
+    implies enabled(controller_action(recv))(s) by {
+        let send = (action.output)(recv, s.controller_state);
         let s_prime = CompoundState {
             network_state: (network::deliver().transition)(recv, s.network_state, send),
-            controller_state: (controller::send_create_sts().transition)(recv, s.controller_state),
+            controller_state: (action.transition)(recv, s.controller_state),
             ..s
         };
-        let witness_controller_step = controller::ControllerStep::SendCreateStsStep;
-        assert(controller::next_step(recv, s.controller_state, s_prime.controller_state, witness_controller_step));
+        controller::exists_step_for_valid_action(action, recv, s.controller_state, s_prime.controller_state);
         assert(controller::next(recv, s.controller_state, s_prime.controller_state));
         assert(action_pred_call(controller_action(recv), s, s_prime));
     };

@@ -54,6 +54,10 @@ pub open spec fn send_delete_sts() -> HostAction<State, Option<Message>, Set<Mes
     }
 }
 
+pub open spec fn valid_actions() -> Set<HostAction<State, Option<Message>, Set<Message>>> {
+    set![send_create_sts(), send_delete_sts()]
+}
+
 pub enum ControllerStep {
     SendCreateStsStep,
     SendDeleteStsStep,
@@ -77,6 +81,20 @@ pub open spec fn output(recv: Option<Message>, s: State, s_prime: State) -> Set<
     match witness_step {
         ControllerStep::SendCreateStsStep => (send_create_sts().output)(recv, s),
         ControllerStep::SendDeleteStsStep => (send_delete_sts().output)(recv, s),
+    }
+}
+
+pub proof fn exists_step_for_valid_action(action: HostAction<State, Option<Message>, Set<Message>>, recv: Option<Message>, s: State, s_prime: State)
+    requires
+        valid_actions().contains(action),
+        action.satisfied_by(recv, s, s_prime),
+    ensures
+        exists |step| next_step(recv, s, s_prime, step)
+{
+    if action === send_create_sts() {
+        assert(next_step(recv, s, s_prime, ControllerStep::SendCreateStsStep));
+    } else {
+        assert(next_step(recv, s, s_prime, ControllerStep::SendDeleteStsStep));
     }
 }
 

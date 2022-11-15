@@ -89,6 +89,10 @@ pub enum KubernetesAPIStep {
     HandleRequest,
 }
 
+pub open spec fn valid_actions() -> Set<HostAction<State, Option<Message>, Set<Message>>> {
+    set![handle_request()]
+}
+
 pub open spec fn next_step(recv: Option<Message>, s: State, s_prime: State, step: KubernetesAPIStep) -> bool {
     match step {
         KubernetesAPIStep::HandleRequest => handle_request().satisfied_by(recv, s, s_prime),
@@ -107,5 +111,16 @@ pub open spec fn output(recv: Option<Message>, s: State, s_prime: State) -> Set<
         KubernetesAPIStep::HandleRequest => (handle_request().output)(recv, s),
     }
 }
+
+pub proof fn exists_step_for_valid_action(action: HostAction<State, Option<Message>, Set<Message>>, recv: Option<Message>, s: State, s_prime: State)
+    requires
+        valid_actions().contains(action),
+        action.satisfied_by(recv, s, s_prime),
+    ensures
+        exists |step| next_step(recv, s, s_prime, step)
+{
+    assert(next_step(recv, s, s_prime, KubernetesAPIStep::HandleRequest));
+}
+
 
 }
