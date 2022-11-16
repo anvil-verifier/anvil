@@ -119,7 +119,7 @@ proof fn lemma_always_cr_always_exists_implies_sub_resources_never_deleted(cr: R
         ),
 {
     lemma_k8s_delete_cr_req_leads_to_cr_not_exists(delete_req_msg(cr.key));
-    leads_to_contradiction::<CState>(sm_spec(),
+    leads_to_contraposition::<CState>(sm_spec(),
         |s| message_sent(s, delete_req_msg(cr.key)),
         |s| !resource_exists(s, cr.key),
     );

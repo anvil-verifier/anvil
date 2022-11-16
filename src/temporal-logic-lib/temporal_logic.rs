@@ -343,7 +343,7 @@ proof fn entails_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     entails_apply_auto::<T>();
 }
 
-proof fn not_proved_by_contradiction<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+proof fn not_proved_by_contraposition<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.implies(q).satisfied_by(ex),
         not(q).satisfied_by(ex),
@@ -1044,8 +1044,8 @@ pub proof fn always_implies_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q
 pub proof fn always_implies_weaken_auto<T>(spec: TempPred<T>)
     ensures
         forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
-            spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] always(p1.implies(q1))) ==>
-            spec.entails(#[trigger] always(p2.implies(q2)))
+            spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] always(p1.implies(q1)))
+            ==> spec.entails(#[trigger] always(p2.implies(q2)))
 {
     assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
     spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] always(p1.implies(q1)))
@@ -1174,8 +1174,8 @@ pub proof fn eventually_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePr
 pub proof fn eventually_weaken_auto<T>(spec: TempPred<T>)
     ensures
         forall |p: TempPred<T>, q: TempPred<T>|
-            valid(p.implies(q)) && spec.entails(#[trigger] eventually(p)) ==>
-            spec.entails(#[trigger] eventually(q)),
+            valid(p.implies(q)) && spec.entails(#[trigger] eventually(p))
+            ==> spec.entails(#[trigger] eventually(q)),
 {
     assert forall |p: TempPred<T>, q: TempPred<T>|
     valid(p.implies(q)) && spec.entails(#[trigger] eventually(p))
@@ -1219,8 +1219,8 @@ pub proof fn eventually_eq<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T
 pub proof fn eventually_eq_auto<T>(spec: TempPred<T>)
     ensures
         forall |p: TempPred<T>, q: TempPred<T>|
-            valid(p.equals(q)) && spec.entails(#[trigger] eventually(p)) ==>
-            spec.entails(#[trigger] eventually(q)),
+            valid(p.equals(q)) && spec.entails(#[trigger] eventually(p))
+            ==> spec.entails(#[trigger] eventually(q)),
 {
     assert forall |p: TempPred<T>, q: TempPred<T>|
     valid(p.equals(q)) && spec.entails(#[trigger] eventually(p))
@@ -1380,8 +1380,8 @@ pub proof fn leads_to_weaken_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: Tem
 pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
     ensures
         forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
-            spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] p1.leads_to(q1)) ==>
-            spec.entails(#[trigger] p2.leads_to(q2))
+            spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] p1.leads_to(q1))
+            ==> spec.entails(#[trigger] p2.leads_to(q2))
 {
     assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
     spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] p1.leads_to(q1))
@@ -1394,8 +1394,8 @@ pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
 pub proof fn leads_to_weaken_lite_auto<T>(spec: TempPred<T>)
     ensures
         forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
-            valid(p2.implies(p1)) && valid(q1.implies(q2)) && spec.entails(#[trigger] p1.leads_to(q1)) ==>
-            spec.entails(#[trigger] p2.leads_to(q2))
+            valid(p2.implies(p1)) && valid(q1.implies(q2)) && spec.entails(#[trigger] p1.leads_to(q1))
+            ==> spec.entails(#[trigger] p2.leads_to(q2))
 {
     assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
     valid(p2.implies(p1)) && valid(q1.implies(q2)) && spec.entails(#[trigger] p1.leads_to(q1))
@@ -1443,8 +1443,8 @@ proof fn leads_to_eq<T>(spec: TempPred<T>, p1: StatePred<T>, q1: StatePred<T>, p
 pub proof fn leads_to_eq_auto<T>(spec: TempPred<T>)
     ensures
         forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
-            valid(p2.equals(p1)) && valid(q1.equals(q2)) && spec.entails(#[trigger] p1.leads_to(q1)) ==>
-            spec.entails(#[trigger] p2.leads_to(q2))
+            valid(p2.equals(p1)) && valid(q1.equals(q2)) && spec.entails(#[trigger] p1.leads_to(q1))
+            ==> spec.entails(#[trigger] p2.leads_to(q2))
 {
     assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
     valid(p2.equals(p1)) && valid(q1.equals(q2)) && spec.entails(#[trigger] p1.leads_to(q1))
@@ -1841,7 +1841,7 @@ pub proof fn leads_to_stable_combine<T>(spec: TempPred<T>, next: ActionPred<T>, 
 ///     spec |= p ~> q
 /// ensures:
 ///     spec |= []([]~q => []~p)
-pub proof fn leads_to_contradiction_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+pub proof fn leads_to_contraposition_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         spec.entails(p.leads_to(q)),
     ensures
@@ -1857,20 +1857,20 @@ pub proof fn leads_to_contradiction_temp<T>(spec: TempPred<T>, p: TempPred<T>, q
                 always_propagate_forwards::<T>(ex.suffix(i), not(q), j);
                 not_eventually_by_always_not::<T>(ex.suffix(i).suffix(j), q);
 
-                not_proved_by_contradiction::<T>(ex.suffix(i).suffix(j), p, eventually(q));
+                not_proved_by_contraposition::<T>(ex.suffix(i).suffix(j), p, eventually(q));
             };
         };
     };
 }
 
-/// StatePred version of leads_to_contradiction_temp
-pub proof fn leads_to_contradiction<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
+/// StatePred version of leads_to_contraposition_temp
+pub proof fn leads_to_contraposition<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
         spec.entails(lift_state(p).leads_to(lift_state(q))),
     ensures
         spec.entails(always(always(not(lift_state(q))).implies(always(not(lift_state(p)))))),
 {
-    leads_to_contradiction_temp::<T>(spec, lift_state(p), lift_state(q));
+    leads_to_contraposition_temp::<T>(spec, lift_state(p), lift_state(q));
 }
 
 }
