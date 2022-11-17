@@ -18,13 +18,13 @@ pub enum HostActionResult<State, Output> {
 ///
 /// It takes three generic types:
 /// * `State`: The (internal) state of the host.
-/// * `Input`: The input from the external world of the state machine. For example a message.
-/// * `Output`: The output to send to the external world of the state machine. For example a set of messages.
+/// * `Input`: The input from the external world of the state machine. For example, a message.
+/// * `Output`: The output to send to the external world of the state machine. For example, a set of messages.
 pub struct HostAction<#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] Input, #[verifier(maybe_negative)] Output> {
     /// The condition that enables the host action.
     pub precondition: FnSpec(Input, State) -> bool,
 
-    /// The new internal state after the transition made by the action.
+    /// The new internal state and output made by the transition.
     pub transition: FnSpec(Input, State) -> (State, Output),
 }
 
@@ -44,7 +44,7 @@ pub struct NetworkAction<#[verifier(maybe_negative)] State, #[verifier(maybe_neg
     /// The condition that enables the host action. For example, whether the delivered message was sent before.
     pub precondition: FnSpec(Option<Message>, State) -> bool,
 
-    /// The new internal state after the transition made by the action.
+    /// The new internal state made by the transition.
     pub transition: FnSpec(Option<Message>, State, Set<Message>) -> State,
 }
 

@@ -51,8 +51,10 @@ pub open spec fn controller_action_pre(recv: Option<Message>, action: controller
 }
 
 /// `kubernetes_api_action` checks if:
-/// * kubernetes_api can take the next action
-/// * the received message was sent to network before, and kubernetes api's output messages are sent to network
+/// * kubernetes_api is enabled by recv and s
+/// * network is enabled by recv and s
+/// * kubernetes_api transitions to s_prime
+/// * network transitions to s_prime
 /// * controller and client remain the same
 pub open spec fn kubernetes_api_action(recv: Option<Message>) -> ActionPred<State> {
     |s: State, s_prime: State| {
@@ -70,9 +72,11 @@ pub open spec fn kubernetes_api_action(recv: Option<Message>) -> ActionPred<Stat
 }
 
 /// `controller_action` checks if:
-/// * controller can take the next action
-/// * the received message was sent to network before, and controller's output messages are sent to network
-/// * kubernetes api and client remain the same
+/// * controller is enabled by recv and s
+/// * network is enabled by recv and s
+/// * controller transitions to s_prime
+/// * network transitions to s_prime
+/// * kubernetes_api and client remain the same
 pub open spec fn controller_action(recv: Option<Message>) -> ActionPred<State> {
     |s: State, s_prime: State| {
         let host_result = controller::next_result(recv, s.controller_state);
@@ -89,9 +93,11 @@ pub open spec fn controller_action(recv: Option<Message>) -> ActionPred<State> {
 }
 
 /// `client_action` checks if:
-/// * client can take the next action
-/// * the received message was sent to network before, and client's output messages are sent to network
-/// * kubernetes api and controller remain the same
+/// * client is enabled by recv and s
+/// * network is enabled by recv and s
+/// * client transitions to s_prime
+/// * network transitions to s_prime
+/// * kubernetes_api and controller remain the same
 pub open spec fn client_action(recv: Option<Message>) -> ActionPred<State> {
     |s: State, s_prime: State| {
         let host_result = client::next_result(recv, s.client_state);
