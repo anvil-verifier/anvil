@@ -56,10 +56,16 @@ pub open spec fn controller_action_pre(recv: Option<Message>, action: controller
 /// * controller and client remain the same
 pub open spec fn kubernetes_api_action(recv: Option<Message>) -> ActionPred<State> {
     |s: State, s_prime: State| {
-        &&& kubernetes_api::next(recv, s.kubernetes_api_state, s_prime.kubernetes_api_state)
-        &&& network::next(recv, s.network_state, s_prime.network_state, kubernetes_api::output(recv, s.kubernetes_api_state, s_prime.kubernetes_api_state))
-        &&& s_prime.controller_state === s.controller_state
-        &&& s_prime.client_state === s.client_state
+        let host_result = kubernetes_api::next_result(recv, s.kubernetes_api_state);
+        let network_result = network::next_result(recv, s.network_state, host_result.get_Enabled_1());
+
+        &&& host_result.is_Enabled()
+        &&& network_result.is_Enabled()
+        &&& s_prime === State {
+            kubernetes_api_state: host_result.get_Enabled_0(),
+            network_state: network_result.get_Enabled_0(),
+            ..s
+        }
     }
 }
 
@@ -69,10 +75,16 @@ pub open spec fn kubernetes_api_action(recv: Option<Message>) -> ActionPred<Stat
 /// * kubernetes api and client remain the same
 pub open spec fn controller_action(recv: Option<Message>) -> ActionPred<State> {
     |s: State, s_prime: State| {
-        &&& controller::next(recv, s.controller_state, s_prime.controller_state)
-        &&& network::next(recv, s.network_state, s_prime.network_state, controller::output(recv, s.controller_state, s_prime.controller_state))
-        &&& s_prime.kubernetes_api_state === s.kubernetes_api_state
-        &&& s_prime.client_state === s.client_state
+        let host_result = controller::next_result(recv, s.controller_state);
+        let network_result = network::next_result(recv, s.network_state, host_result.get_Enabled_1());
+
+        &&& host_result.is_Enabled()
+        &&& network_result.is_Enabled()
+        &&& s_prime === State {
+            controller_state: host_result.get_Enabled_0(),
+            network_state: network_result.get_Enabled_0(),
+            ..s
+        }
     }
 }
 
@@ -82,10 +94,16 @@ pub open spec fn controller_action(recv: Option<Message>) -> ActionPred<State> {
 /// * kubernetes api and controller remain the same
 pub open spec fn client_action(recv: Option<Message>) -> ActionPred<State> {
     |s: State, s_prime: State| {
-        &&& client::next(recv, s.client_state, s_prime.client_state)
-        &&& network::next(recv, s.network_state, s_prime.network_state, client::output(recv, s.client_state, s_prime.client_state))
-        &&& s_prime.kubernetes_api_state === s.kubernetes_api_state
-        &&& s_prime.controller_state === s.controller_state
+        let host_result = client::next_result(recv, s.client_state);
+        let network_result = network::next_result(recv, s.network_state, host_result.get_Enabled_1());
+
+        &&& host_result.is_Enabled()
+        &&& network_result.is_Enabled()
+        &&& s_prime === State {
+            client_state: host_result.get_Enabled_0(),
+            network_state: network_result.get_Enabled_0(),
+            ..s
+        }
     }
 }
 
@@ -141,7 +159,7 @@ pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: kubern
             kubernetes_api_state: (action.transition)(recv, s.kubernetes_api_state),
             ..s
         };
-        kubernetes_api::exists_next_step(action, recv, s.kubernetes_api_state, s_prime.kubernetes_api_state);
+        kubernetes_api::exists_next_step(action, recv, s.kubernetes_api_state);
         assert(action_pred_call(kubernetes_api_action(recv), s, s_prime));
     };
 }
@@ -164,7 +182,7 @@ pub proof fn controller_action_enabled(recv: Option<Message>, action: controller
             controller_state: (action.transition)(recv, s.controller_state),
             ..s
         };
-        controller::exists_next_step(action, recv, s.controller_state, s_prime.controller_state);
+        controller::exists_next_step(action, recv, s.controller_state);
         assert(action_pred_call(controller_action(recv), s, s_prime));
     };
 }

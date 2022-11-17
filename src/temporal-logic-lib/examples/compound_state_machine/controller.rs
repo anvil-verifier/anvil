@@ -18,6 +18,8 @@ pub open spec fn init(s: State) -> bool {
 
 pub type ControllerAction = HostAction<State, Option<Message>, Set<Message>>;
 
+pub type ControllerHostActionResult = HostActionResult<State, Set<Message>>;
+
 pub open spec fn send_create_sts() -> ControllerAction {
     HostAction {
         precondition: |recv: Option<Message>, s| {
@@ -65,38 +67,34 @@ pub enum Step {
     SendDeleteStsStep,
 }
 
-pub open spec fn next_step(recv: Option<Message>, s: State, s_prime: State, step: Step) -> bool {
-    match step {
-        Step::SendCreateStsStep => send_create_sts().satisfied_by(recv, s, s_prime),
-        Step::SendDeleteStsStep => send_delete_sts().satisfied_by(recv, s, s_prime),
-    }
-}
-
-pub open spec fn next(recv: Option<Message>, s: State, s_prime: State) -> bool {
-    exists |step| next_step(recv, s, s_prime, step)
-}
-
-pub open spec fn output(recv: Option<Message>, s: State, s_prime: State) -> Set<Message>
-    recommends next(recv, s, s_prime)
-{
-    let witness_step = choose |step| next_step(recv, s, s_prime, step);
-    match witness_step {
-        Step::SendCreateStsStep => (send_create_sts().output)(recv, s),
-        Step::SendDeleteStsStep => (send_delete_sts().output)(recv, s),
-    }
-}
-
-pub proof fn exists_next_step(action: ControllerAction, recv: Option<Message>, s: State, s_prime: State)
+pub proof fn exists_next_step(action: ControllerAction, recv: Option<Message>, s: State)
     requires
         valid_actions().contains(action),
-        action.satisfied_by(recv, s, s_prime),
+        (action.precondition)(recv, s),
     ensures
-        next(recv, s, s_prime)
+        exists |step| (#[trigger] step_to_action(step).precondition)(recv, s),
 {
     if action === send_create_sts() {
-        assert(next_step(recv, s, s_prime, Step::SendCreateStsStep));
+        assert((step_to_action(Step::SendCreateStsStep).precondition)(recv, s));
     } else {
-        assert(next_step(recv, s, s_prime, Step::SendDeleteStsStep));
+        assert((step_to_action(Step::SendDeleteStsStep).precondition)(recv, s));
+    }
+}
+
+pub open spec fn step_to_action(step: Step) -> ControllerAction {
+    match step {
+        Step::SendCreateStsStep => send_create_sts(),
+        Step::SendDeleteStsStep => send_delete_sts(),
+    }
+}
+
+pub open spec fn next_result(recv: Option<Message>, s: State) -> ControllerHostActionResult {
+    if exists |step| (#[trigger] step_to_action(step).precondition)(recv, s) {
+        let witness_step = choose |step| (#[trigger] step_to_action(step).precondition)(recv, s);
+        let action = step_to_action(witness_step);
+        HostActionResult::Enabled((action.transition)(recv, s), (action.output)(recv, s))
+    } else {
+        HostActionResult::Disabled
     }
 }
 

@@ -23,6 +23,8 @@ pub struct ClientInput {
 
 pub type ClientAction = HostAction<State, ClientInput, Set<Message>>;
 
+pub type ClientHostActionResult = HostActionResult<State, Set<Message>>;
+
 pub open spec fn send_create_cr() -> ClientAction {
     HostAction {
         precondition: |i: ClientInput, s| {
@@ -58,24 +60,28 @@ pub enum Step {
     SendDeleteCrStep(ResourceObj),
 }
 
-pub open spec fn next_step(recv: Option<Message>, s: State, s_prime: State, step: Step) -> bool {
+pub open spec fn step_to_action(step: Step) -> ClientAction {
     match step {
-        Step::SendCreateCrStep(res) => send_create_cr().satisfied_by(ClientInput{cr: res, recv: recv}, s, s_prime),
-        Step::SendDeleteCrStep(res) => send_delete_cr().satisfied_by(ClientInput{cr: res, recv: recv}, s, s_prime),
+        Step::SendCreateCrStep(_) => send_create_cr(),
+        Step::SendDeleteCrStep(_) => send_delete_cr(),
     }
 }
 
-pub open spec fn next(recv: Option<Message>, s: State, s_prime: State) -> bool {
-    exists |step| next_step(recv, s, s_prime, step)
+pub open spec fn step_to_action_input(step: Step, recv: Option<Message>) -> ClientInput {
+    match step {
+        Step::SendCreateCrStep(res) => ClientInput{cr: res, recv: recv},
+        Step::SendDeleteCrStep(res) => ClientInput{cr: res, recv: recv},
+    }
 }
 
-pub open spec fn output(recv: Option<Message>, s: State, s_prime: State) -> Set<Message>
-    recommends next(recv, s, s_prime)
-{
-    let witness_step = choose |step| next_step(recv, s, s_prime, step);
-    match witness_step {
-        Step::SendCreateCrStep(res) => (send_create_cr().output)(ClientInput{cr: res, recv: recv}, s),
-        Step::SendDeleteCrStep(res) => (send_delete_cr().output)(ClientInput{cr: res, recv: recv}, s),
+pub open spec fn next_result(recv: Option<Message>, s: State) -> ClientHostActionResult {
+    if exists |step| (#[trigger] step_to_action(step).precondition)(step_to_action_input(step, recv), s) {
+        let witness_step = choose |step| (#[trigger] step_to_action(step).precondition)(step_to_action_input(step, recv), s);
+        let action = step_to_action(witness_step);
+        let action_input = step_to_action_input(witness_step, recv);
+        HostActionResult::Enabled((action.transition)(action_input, s), (action.output)(action_input, s))
+    } else {
+        HostActionResult::Disabled
     }
 }
 

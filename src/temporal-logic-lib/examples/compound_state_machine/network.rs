@@ -31,8 +31,12 @@ pub open spec fn deliver() -> NetworkAction<State, Message> {
     }
 }
 
-pub open spec fn next(recv: Option<Message>, s: State, s_prime: State, send: Set<Message>) -> bool {
-    deliver().satisfied_by(recv, s, s_prime, send)
+pub open spec fn next_result(recv: Option<Message>, s: State, send: Set<Message>) -> NetworkActionResult<State> {
+    if (deliver().precondition)(recv, s) {
+        NetworkActionResult::Enabled((deliver().transition)(recv, s, send))
+    } else {
+        NetworkActionResult::Disabled
+    }
 }
 
 }

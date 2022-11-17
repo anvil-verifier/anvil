@@ -7,6 +7,12 @@ use builtin_macros::*;
 
 verus! {
 
+#[is_variant]
+pub enum HostActionResult<State, Output> {
+    Disabled,
+    Enabled(State, Output)
+}
+
 /// `HostAction` helps to write host actions in a disciplined way
 /// by explicitly writing `precondition`, `transition` and `output`.
 ///
@@ -37,6 +43,12 @@ impl<State, Input, Output> HostAction<State, Input, Output> {
         &&& (self.precondition)(input, s)
         &&& s_prime === (self.transition)(input, s)
     }
+}
+
+#[is_variant]
+pub enum NetworkActionResult<State> {
+    Disabled,
+    Enabled(State)
 }
 
 /// `NetworkAction` helps to write network actions in a disciplined way
