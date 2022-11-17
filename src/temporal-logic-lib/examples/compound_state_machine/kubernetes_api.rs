@@ -75,13 +75,8 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
             &&& recv.get_Some_0().is_CreateRequest() || recv.get_Some_0().is_DeleteRequest()
         },
         transition: |recv: Option<Message>, s| {
-            State {
-                resources: update_resources_with(s, recv.get_Some_0()),
-            }
+            (State {resources: update_resources_with(s, recv.get_Some_0())}, outcome_messages(s, recv.get_Some_0()))
         },
-        output: |recv: Option<Message>, s| {
-            outcome_messages(s, recv.get_Some_0())
-        }
     }
 }
 
@@ -113,7 +108,7 @@ pub open spec fn next_result(recv: Option<Message>, s: State) -> KubernetesAPIHo
     if exists |step| (#[trigger] step_to_action(step).precondition)(recv, s) {
         let witness_step = choose |step| (#[trigger] step_to_action(step).precondition)(recv, s);
         let action = step_to_action(witness_step);
-        HostActionResult::Enabled((action.transition)(recv, s), (action.output)(recv, s))
+        HostActionResult::Enabled((action.transition)(recv, s).0, (action.transition)(recv, s).1)
     } else {
         HostActionResult::Disabled
     }

@@ -28,14 +28,11 @@ pub open spec fn send_create_sts() -> ControllerAction {
             &&& recv.get_Some_0().get_CreateResponse_0().obj.key.kind.is_CustomResourceKind()
         },
         transition: |recv: Option<Message>, s| {
-            s
-        },
-        output: |recv: Option<Message>, s| {
-            set![create_req_msg(ResourceKey{
+            (s, set![create_req_msg(ResourceKey{
                 name: recv.get_Some_0().get_CreateResponse_0().obj.key.name + sts_suffix(),
                 kind: ResourceKind::StatefulSetKind
-            })]
-        }
+            })])
+        },
     }
 }
 
@@ -47,14 +44,11 @@ pub open spec fn send_delete_sts() -> ControllerAction {
             &&& recv.get_Some_0().get_DeleteResponse_0().key.kind.is_CustomResourceKind()
         },
         transition: |recv: Option<Message>, s| {
-            s
-        },
-        output: |recv: Option<Message>, s| {
-            set![delete_req_msg(ResourceKey{
+            (s, set![delete_req_msg(ResourceKey{
                 name: recv.get_Some_0().get_DeleteResponse_0().key.name + sts_suffix(),
                 kind: ResourceKind::StatefulSetKind
-            })]
-        }
+            })])
+        },
     }
 }
 
@@ -92,7 +86,7 @@ pub open spec fn next_result(recv: Option<Message>, s: State) -> ControllerHostA
     if exists |step| (#[trigger] step_to_action(step).precondition)(recv, s) {
         let witness_step = choose |step| (#[trigger] step_to_action(step).precondition)(recv, s);
         let action = step_to_action(witness_step);
-        HostActionResult::Enabled((action.transition)(recv, s), (action.output)(recv, s))
+        HostActionResult::Enabled((action.transition)(recv, s).0, (action.transition)(recv, s).1)
     } else {
         HostActionResult::Disabled
     }

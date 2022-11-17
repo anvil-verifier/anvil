@@ -153,10 +153,10 @@ pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: kubern
         forall |s| state_pred_call(kubernetes_api_action_pre(recv, action), s) ==> enabled(kubernetes_api_action(recv))(s),
 {
     assert forall |s| state_pred_call(kubernetes_api_action_pre(recv, action), s) implies enabled(kubernetes_api_action(recv))(s) by {
-        let send = (action.output)(recv, s.kubernetes_api_state);
+        let send = (action.transition)(recv, s.kubernetes_api_state).1;
         let s_prime = State {
             network_state: (network::deliver().transition)(recv, s.network_state, send),
-            kubernetes_api_state: (action.transition)(recv, s.kubernetes_api_state),
+            kubernetes_api_state: (action.transition)(recv, s.kubernetes_api_state).0,
             ..s
         };
         kubernetes_api::exists_next_step(action, recv, s.kubernetes_api_state);
@@ -176,10 +176,10 @@ pub proof fn controller_action_enabled(recv: Option<Message>, action: controller
         forall |s| state_pred_call(controller_action_pre(recv, action), s) ==> enabled(controller_action(recv))(s),
 {
     assert forall |s| state_pred_call(controller_action_pre(recv, action), s) implies enabled(controller_action(recv))(s) by {
-        let send = (action.output)(recv, s.controller_state);
+        let send = (action.transition)(recv, s.controller_state).1;
         let s_prime = State {
             network_state: (network::deliver().transition)(recv, s.network_state, send),
-            controller_state: (action.transition)(recv, s.controller_state),
+            controller_state: (action.transition)(recv, s.controller_state).0,
             ..s
         };
         controller::exists_next_step(action, recv, s.controller_state);

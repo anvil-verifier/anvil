@@ -32,11 +32,8 @@ pub open spec fn send_create_cr() -> ClientAction {
             &&& i.recv.is_None()
         },
         transition: |i: ClientInput, s| {
-            s
+            (s, set![create_req_msg(i.cr.key)])
         },
-        output: |i: ClientInput, s| {
-            set![create_req_msg(i.cr.key)]
-        }
     }
 }
 
@@ -47,11 +44,8 @@ pub open spec fn send_delete_cr() -> ClientAction {
             &&& i.recv.is_None()
         },
         transition: |i: ClientInput, s| {
-            s
+            (s, set![delete_req_msg(i.cr.key)])
         },
-        output: |i: ClientInput, s| {
-            set![delete_req_msg(i.cr.key)]
-        }
     }
 }
 
@@ -79,7 +73,7 @@ pub open spec fn next_result(recv: Option<Message>, s: State) -> ClientHostActio
         let witness_step = choose |step| (#[trigger] step_to_action(step).precondition)(step_to_action_input(step, recv), s);
         let action = step_to_action(witness_step);
         let action_input = step_to_action_input(witness_step, recv);
-        HostActionResult::Enabled((action.transition)(action_input, s), (action.output)(action_input, s))
+        HostActionResult::Enabled((action.transition)(action_input, s).0, (action.transition)(action_input, s).1)
     } else {
         HostActionResult::Disabled
     }
