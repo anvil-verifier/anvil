@@ -103,9 +103,9 @@ pub enum Step {
 
 pub open spec fn next_step(s: State, s_prime: State, step: Step) -> bool {
     match step {
-        Step::KubernetesAPIStep(recv) => kubernetes_api_next().pred(recv)(s, s_prime),
-        Step::ControllerStep(recv) => controller_next().pred(recv)(s, s_prime),
-        Step::ClientStep(recv) => client_next().pred(recv)(s, s_prime),
+        Step::KubernetesAPIStep(recv) => kubernetes_api_next().forward(recv)(s, s_prime),
+        Step::ControllerStep(recv) => controller_next().forward(recv)(s, s_prime),
+        Step::ClientStep(recv) => client_next().forward(recv)(s, s_prime),
         Step::StutterStep => s === s_prime,
     }
 }
@@ -120,8 +120,8 @@ pub open spec fn next() -> ActionPred<State> {
 pub open spec fn sm_spec() -> TempPred<State> {
     lift_state(init())
     .and(always(lift_action(next())))
-    .and(tla_forall(|recv| weak_fairness(kubernetes_api_next().pred(recv))))
-    .and(tla_forall(|recv| weak_fairness(controller_next().pred(recv))))
+    .and(tla_forall(|recv| weak_fairness(kubernetes_api_next().forward(recv))))
+    .and(tla_forall(|recv| weak_fairness(controller_next().forward(recv))))
 }
 
 pub open spec fn message_sent(msg: Message) -> StatePred<State> {
@@ -139,27 +139,16 @@ pub open spec fn kubernetes_api_action_pre(recv: Option<Message>, action: kubern
     }
 }
 
-/// `kubernetes_api_action_enabled` gives a generic proof showing that
-/// if the precondition of a kubernetes api action is satisfied, the action is enabled
-///
-/// Note that it requires the action to be a valid action allowed by the kubernetes api state machine.
-/// This precondition is required by `exists_next_step`.
 pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: kubernetes_api::KubernetesAPIAction)
     requires
         kubernetes_api::valid_actions().contains(action),
     ensures
-        forall |s| state_pred_call(kubernetes_api_action_pre(recv, action), s) ==> enabled(kubernetes_api_next().pred(recv))(s),
+        forall |s| state_pred_call(kubernetes_api_action_pre(recv, action), s) ==> enabled(kubernetes_api_next().forward(recv))(s),
 {
-    assert forall |s| state_pred_call(kubernetes_api_action_pre(recv, action), s) implies enabled(kubernetes_api_next().pred(recv))(s) by {
-        let send = (action.transition)(recv, s.kubernetes_api_state).1;
-        let s_prime = State {
-            network_state: (network::deliver().transition)(recv, s.network_state, send),
-            kubernetes_api_state: (action.transition)(recv, s.kubernetes_api_state).0,
-            ..s
-        };
+    assert forall |s| #[trigger] state_pred_call(kubernetes_api_action_pre(recv, action), s) implies state_pred_call(kubernetes_api_next().pre(recv), s) by {
         kubernetes_api::exists_next_step(action, recv, s.kubernetes_api_state);
-        assert(action_pred_call(kubernetes_api_next().pred(recv), s, s_prime));
     };
+    compound_action_enabled::<State, Option<Message>>(kubernetes_api_next(), recv);
 }
 
 pub open spec fn controller_action_pre(recv: Option<Message>, action: controller::ControllerAction) -> StatePred<State> {
@@ -169,27 +158,16 @@ pub open spec fn controller_action_pre(recv: Option<Message>, action: controller
     }
 }
 
-/// `controller_action_enabled` gives a generic proof showing that
-/// if the precondition of a controller action is satisfied, the action is enabled
-///
-/// Note that it requires the action to be a valid action allowed by the controller state machine.
-/// This precondition is required by `exists_next_step`.
 pub proof fn controller_action_enabled(recv: Option<Message>, action: controller::ControllerAction)
     requires
         controller::valid_actions().contains(action),
     ensures
-        forall |s| state_pred_call(controller_action_pre(recv, action), s) ==> enabled(controller_next().pred(recv))(s),
+        forall |s| state_pred_call(controller_action_pre(recv, action), s) ==> enabled(controller_next().forward(recv))(s),
 {
-    assert forall |s| state_pred_call(controller_action_pre(recv, action), s) implies enabled(controller_next().pred(recv))(s) by {
-        let send = (action.transition)(recv, s.controller_state).1;
-        let s_prime = State {
-            network_state: (network::deliver().transition)(recv, s.network_state, send),
-            controller_state: (action.transition)(recv, s.controller_state).0,
-            ..s
-        };
+    assert forall |s| #[trigger] state_pred_call(controller_action_pre(recv, action), s) implies state_pred_call(controller_next().pre(recv), s) by {
         controller::exists_next_step(action, recv, s.controller_state);
-        assert(action_pred_call(controller_next().pred(recv), s, s_prime));
     };
+    compound_action_enabled::<State, Option<Message>>(controller_next(), recv);
 }
 
 }

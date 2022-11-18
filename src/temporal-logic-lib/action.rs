@@ -64,12 +64,28 @@ pub struct CompoundAction<#[verifier(maybe_negative)] State, #[verifier(maybe_ne
 }
 
 impl<State, Input> CompoundAction<State, Input> {
-    pub open spec fn pred(self, input: Input) -> ActionPred<State> {
-        |s: State, s_prime: State|{
+    pub open spec fn pre(self, input: Input) -> StatePred<State> {
+        |s: State| (self.precondition)(input, s)
+    }
+
+    pub open spec fn forward(self, input: Input) -> ActionPred<State> {
+        |s: State, s_prime: State| {
             &&& (self.precondition)(input, s)
             &&& s_prime === (self.transition)(input, s)
         }
     }
+}
+
+/// `compound_action_enabled` gives a generic proof showing that
+/// if the precondition of a action is satisfied, the action is enabled
+pub proof fn compound_action_enabled<State, Input>(ca: CompoundAction<State, Input>, input: Input)
+    ensures
+        forall |s| state_pred_call(ca.pre(input), s) ==> enabled(ca.forward(input))(s),
+{
+    assert forall |s| state_pred_call(ca.pre(input), s) implies enabled(ca.forward(input))(s) by {
+        let s_prime = (ca.transition)(input, s);
+        assert(action_pred_call(ca.forward(input), s, s_prime));
+    };
 }
 
 }
