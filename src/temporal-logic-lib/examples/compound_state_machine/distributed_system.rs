@@ -148,7 +148,7 @@ pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: kubern
     assert forall |s| #[trigger] state_pred_call(kubernetes_api_action_pre(recv, action), s) implies state_pred_call(kubernetes_api_next().pre(recv), s) by {
         kubernetes_api::exists_next_step(action, recv, s.kubernetes_api_state);
     };
-    compound_action_enabled::<State, Option<Message>>(kubernetes_api_next(), recv);
+    kubernetes_api_next().pre_implies_forward_enabled(recv);
 }
 
 pub open spec fn controller_action_pre(recv: Option<Message>, action: controller::ControllerAction) -> StatePred<State> {
@@ -167,7 +167,7 @@ pub proof fn controller_action_enabled(recv: Option<Message>, action: controller
     assert forall |s| #[trigger] state_pred_call(controller_action_pre(recv, action), s) implies state_pred_call(controller_next().pre(recv), s) by {
         controller::exists_next_step(action, recv, s.controller_state);
     };
-    compound_action_enabled::<State, Option<Message>>(controller_next(), recv);
+    controller_next().pre_implies_forward_enabled(recv);
 }
 
 }

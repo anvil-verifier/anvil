@@ -74,18 +74,18 @@ impl<State, Input> CompoundAction<State, Input> {
             &&& s_prime === (self.transition)(input, s)
         }
     }
-}
 
-/// `compound_action_enabled` gives a generic proof showing that
-/// if the precondition of a action is satisfied, the action is enabled
-pub proof fn compound_action_enabled<State, Input>(ca: CompoundAction<State, Input>, input: Input)
-    ensures
-        forall |s| state_pred_call(ca.pre(input), s) ==> enabled(ca.forward(input))(s),
-{
-    assert forall |s| state_pred_call(ca.pre(input), s) implies enabled(ca.forward(input))(s) by {
-        let s_prime = (ca.transition)(input, s);
-        assert(action_pred_call(ca.forward(input), s, s_prime));
-    };
+    /// `pre_implies_forward_enabled` gives a generic proof showing that
+    /// if the precondition of a action is satisfied, the action is enabled
+    pub proof fn pre_implies_forward_enabled(self, input: Input)
+        ensures
+            forall |s| state_pred_call(self.pre(input), s) ==> enabled(self.forward(input))(s),
+    {
+        assert forall |s| state_pred_call(self.pre(input), s) implies enabled(self.forward(input))(s) by {
+            let s_prime = (self.transition)(input, s);
+            assert(action_pred_call(self.forward(input), s, s_prime));
+        };
+    }
 }
 
 }
