@@ -3,7 +3,8 @@
 #![allow(unused_imports)]
 use crate::action::*;
 use crate::examples::compound_state_machine::{
-    client, common::*, controller, kubernetes_api, network,
+    client, client::client, common::*, controller, controller::controller, kubernetes_api,
+    kubernetes_api::kubernetes_api, network, network::network,
 };
 use crate::pervasive::{map::*, option::*, seq::*, set::*, string::*};
 use crate::temporal_logic::*;
@@ -21,25 +22,25 @@ pub struct State {
 
 pub open spec fn init() -> StatePred<State> {
     |s: State| {
-        &&& kubernetes_api::init(s.kubernetes_api_state)
-        &&& controller::init(s.controller_state)
-        &&& client::init(s.client_state)
-        &&& network::init(s.network_state)
+        &&& (kubernetes_api().init)(s.kubernetes_api_state)
+        &&& (controller().init)(s.controller_state)
+        &&& (client().init)(s.client_state)
+        &&& (network().init)(s.network_state)
     }
 }
 
 pub open spec fn kubernetes_api_next() -> CompoundAction<State, Option<Message>> {
     CompoundAction {
         precondition: |recv: Option<Message>, s: State| {
-            let host_result = kubernetes_api::next_result(recv, s.kubernetes_api_state);
-            let network_result = network::next_result(recv, s.network_state, host_result.get_Enabled_1());
+            let host_result = kubernetes_api().next_result(recv, s.kubernetes_api_state);
+            let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
 
             &&& host_result.is_Enabled()
             &&& network_result.is_Enabled()
         },
         transition: |recv: Option<Message>, s: State| {
-            let host_result = kubernetes_api::next_result(recv, s.kubernetes_api_state);
-            let network_result = network::next_result(recv, s.network_state, host_result.get_Enabled_1());
+            let host_result = kubernetes_api().next_result(recv, s.kubernetes_api_state);
+            let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
 
             State {
                 kubernetes_api_state: host_result.get_Enabled_0(),
@@ -53,15 +54,15 @@ pub open spec fn kubernetes_api_next() -> CompoundAction<State, Option<Message>>
 pub open spec fn controller_next() -> CompoundAction<State, Option<Message>> {
     CompoundAction {
         precondition: |recv: Option<Message>, s: State| {
-            let host_result = controller::next_result(recv, s.controller_state);
-            let network_result = network::next_result(recv, s.network_state, host_result.get_Enabled_1());
+            let host_result = controller().next_result(recv, s.controller_state);
+            let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
 
             &&& host_result.is_Enabled()
             &&& network_result.is_Enabled()
         },
         transition: |recv: Option<Message>, s: State| {
-            let host_result = controller::next_result(recv, s.controller_state);
-            let network_result = network::next_result(recv, s.network_state, host_result.get_Enabled_1());
+            let host_result = controller().next_result(recv, s.controller_state);
+            let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
 
             State {
                 controller_state: host_result.get_Enabled_0(),
@@ -75,15 +76,15 @@ pub open spec fn controller_next() -> CompoundAction<State, Option<Message>> {
 pub open spec fn client_next() -> CompoundAction<State, Option<Message>> {
     CompoundAction {
         precondition: |recv: Option<Message>, s: State| {
-            let host_result = client::next_result(recv, s.client_state);
-            let network_result = network::next_result(recv, s.network_state, host_result.get_Enabled_1());
+            let host_result = client().next_result(recv, s.client_state);
+            let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
 
             &&& host_result.is_Enabled()
             &&& network_result.is_Enabled()
         },
         transition: |recv: Option<Message>, s: State| {
-            let host_result = client::next_result(recv, s.client_state);
-            let network_result = network::next_result(recv, s.network_state, host_result.get_Enabled_1());
+            let host_result = client().next_result(recv, s.client_state);
+            let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
 
             State {
                 client_state: host_result.get_Enabled_0(),
@@ -141,7 +142,7 @@ pub open spec fn kubernetes_api_action_pre(recv: Option<Message>, action: kubern
 
 pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: kubernetes_api::KubernetesAPIAction)
     requires
-        kubernetes_api::valid_actions().contains(action),
+        kubernetes_api().actions.contains(action),
     ensures
         forall |s| state_pred_call(kubernetes_api_action_pre(recv, action), s) ==> enabled(kubernetes_api_next().forward(recv))(s),
 {
@@ -160,7 +161,7 @@ pub open spec fn controller_action_pre(recv: Option<Message>, action: controller
 
 pub proof fn controller_action_enabled(recv: Option<Message>, action: controller::ControllerAction)
     requires
-        controller::valid_actions().contains(action),
+        controller().actions.contains(action),
     ensures
         forall |s| state_pred_call(controller_action_pre(recv, action), s) ==> enabled(controller_next().forward(recv))(s),
 {

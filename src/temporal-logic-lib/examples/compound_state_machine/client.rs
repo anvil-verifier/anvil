@@ -4,6 +4,7 @@
 use crate::action::*;
 use crate::examples::compound_state_machine::common::*;
 use crate::pervasive::{option::*, seq::*, set::*};
+use crate::state_machine::*;
 use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
@@ -12,14 +13,17 @@ verus! {
 
 pub struct State {}
 
-pub open spec fn init(s: State) -> bool {
-    true
-}
-
 pub struct ClientInput {
     pub cr: ResourceObj,
     pub recv: Option<Message>,
 }
+
+pub enum Step {
+    SendCreateCrStep(ResourceObj),
+    SendDeleteCrStep(ResourceObj),
+}
+
+pub type ClientStateMachine = HostStateMachine<State, Option<Message>, ClientInput, Set<Message>, Step>;
 
 pub type ClientAction = HostAction<State, ClientInput, Set<Message>>;
 
@@ -49,33 +53,22 @@ pub open spec fn send_delete_cr() -> ClientAction {
     }
 }
 
-pub enum Step {
-    SendCreateCrStep(ResourceObj),
-    SendDeleteCrStep(ResourceObj),
-}
-
-pub open spec fn step_to_action(step: Step) -> ClientAction {
-    match step {
-        Step::SendCreateCrStep(_) => send_create_cr(),
-        Step::SendDeleteCrStep(_) => send_delete_cr(),
-    }
-}
-
-pub open spec fn step_to_action_input(step: Step, recv: Option<Message>) -> ClientInput {
-    match step {
-        Step::SendCreateCrStep(res) => ClientInput{cr: res, recv: recv},
-        Step::SendDeleteCrStep(res) => ClientInput{cr: res, recv: recv},
-    }
-}
-
-pub open spec fn next_result(recv: Option<Message>, s: State) -> ClientHostActionResult {
-    if exists |step| (#[trigger] step_to_action(step).precondition)(step_to_action_input(step, recv), s) {
-        let witness_step = choose |step| (#[trigger] step_to_action(step).precondition)(step_to_action_input(step, recv), s);
-        let action = step_to_action(witness_step);
-        let action_input = step_to_action_input(witness_step, recv);
-        HostActionResult::Enabled((action.transition)(action_input, s).0, (action.transition)(action_input, s).1)
-    } else {
-        HostActionResult::Disabled
+pub open spec fn client() -> ClientStateMachine {
+    HostStateMachine {
+        init: |s: State| true,
+        actions: set![send_create_cr(), send_delete_cr()],
+        step_to_action: |step: Step| {
+            match step {
+                Step::SendCreateCrStep(_) => send_create_cr(),
+                Step::SendDeleteCrStep(_) => send_delete_cr(),
+            }
+        },
+        step_to_action_input: |step: Step, recv: Option<Message>| {
+            match step {
+                Step::SendCreateCrStep(res) => ClientInput{cr: res, recv: recv},
+                Step::SendDeleteCrStep(res) => ClientInput{cr: res, recv: recv},
+            }
+        }
     }
 }
 
