@@ -51,6 +51,16 @@ impl<State, Input, ActionInput, Output, Step> HostStateMachine<State, Input, Act
             HostActionResult::Disabled
         }
     }
+
+    /// `next_result_by_step` is similar to `next_result` except that the step is fixed.
+    pub open spec fn next_result_by_step(self, input: ActionInput, s: State, step: Step) -> HostActionResult<State, Output> {
+        let action = (self.step_to_action)(step);
+        if (action.precondition)(input, s) {
+            HostActionResult::Enabled((action.transition)(input, s).0, (action.transition)(input, s).1)
+        } else {
+            HostActionResult::Disabled
+        }
+    }
 }
 
 pub struct NetworkStateMachine <#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] Message> {

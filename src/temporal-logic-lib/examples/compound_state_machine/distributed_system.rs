@@ -133,41 +133,39 @@ pub open spec fn resource_exists(key: ResourceKey) -> StatePred<State> {
     |s: State| s.kubernetes_api_state.resources.dom().contains(key)
 }
 
-pub open spec fn kubernetes_api_action_pre(recv: Option<Message>, action: kubernetes_api::KubernetesAPIAction) -> StatePred<State> {
+pub open spec fn kubernetes_api_step_pre(recv: Option<Message>, step: kubernetes_api::Step) -> StatePred<State> {
     |s: State| {
-        &&& (network::deliver().precondition)(recv, s.network_state)
-        &&& (action.precondition)(recv, s.kubernetes_api_state)
+        let host_result = kubernetes_api().next_result_by_step(recv, s.kubernetes_api_state, step);
+        let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
+
+        &&& host_result.is_Enabled()
+        &&& network_result.is_Enabled()
     }
 }
 
-pub proof fn kubernetes_api_action_enabled(recv: Option<Message>, action: kubernetes_api::KubernetesAPIAction)
-    requires
-        kubernetes_api().actions.contains(action),
+pub proof fn kubernetes_api_step_enabled(recv: Option<Message>, step: kubernetes_api::Step)
     ensures
-        forall |s| state_pred_call(kubernetes_api_action_pre(recv, action), s) ==> enabled(kubernetes_api_next().forward(recv))(s),
+        forall |s| state_pred_call(kubernetes_api_step_pre(recv, step), s) ==> enabled(kubernetes_api_next().forward(recv))(s),
 {
-    assert forall |s| #[trigger] state_pred_call(kubernetes_api_action_pre(recv, action), s) implies state_pred_call(kubernetes_api_next().pre(recv), s) by {
-        kubernetes_api::exists_next_step(action, recv, s.kubernetes_api_state);
-    };
+    assert(forall |s| #[trigger] state_pred_call(kubernetes_api_step_pre(recv, step), s) ==> state_pred_call(kubernetes_api_next().pre(recv), s));
     kubernetes_api_next().pre_implies_forward_enabled(recv);
 }
 
-pub open spec fn controller_action_pre(recv: Option<Message>, action: controller::ControllerAction) -> StatePred<State> {
+pub open spec fn controller_step_pre(recv: Option<Message>, step: controller::Step) -> StatePred<State> {
     |s: State| {
-        &&& (network::deliver().precondition)(recv, s.network_state)
-        &&& (action.precondition)(recv, s.controller_state)
+        let host_result = controller().next_result_by_step(recv, s.controller_state, step);
+        let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
+
+        &&& host_result.is_Enabled()
+        &&& network_result.is_Enabled()
     }
 }
 
-pub proof fn controller_action_enabled(recv: Option<Message>, action: controller::ControllerAction)
-    requires
-        controller().actions.contains(action),
+pub proof fn controller_step_enabled(recv: Option<Message>, step: controller::Step)
     ensures
-        forall |s| state_pred_call(controller_action_pre(recv, action), s) ==> enabled(controller_next().forward(recv))(s),
+        forall |s| state_pred_call(controller_step_pre(recv, step), s) ==> enabled(controller_next().forward(recv))(s),
 {
-    assert forall |s| #[trigger] state_pred_call(controller_action_pre(recv, action), s) implies state_pred_call(controller_next().pre(recv), s) by {
-        controller::exists_next_step(action, recv, s.controller_state);
-    };
+    assert(forall |s| #[trigger] state_pred_call(controller_step_pre(recv, step), s) ==> state_pred_call(controller_next().pre(recv), s));
     controller_next().pre_implies_forward_enabled(recv);
 }
 

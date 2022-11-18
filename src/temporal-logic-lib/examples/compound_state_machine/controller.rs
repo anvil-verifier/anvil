@@ -72,18 +72,4 @@ pub open spec fn controller() -> ControllerStateMachine {
     }
 }
 
-pub proof fn exists_next_step(action: ControllerAction, recv: Option<Message>, s: State)
-    requires
-        controller().actions.contains(action),
-        (action.precondition)(recv, s),
-    ensures
-        exists |step| (#[trigger] (controller().step_to_action)(step).precondition)(recv, s),
-{
-    if action === send_create_sts() {
-        assert(((controller().step_to_action)(Step::SendCreateStsStep).precondition)(recv, s));
-    } else {
-        assert(((controller().step_to_action)(Step::SendDeleteStsStep).precondition)(recv, s));
-    }
-}
-
 }

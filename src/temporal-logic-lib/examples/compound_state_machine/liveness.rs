@@ -185,12 +185,12 @@ proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(msg: Message)
     leads_to_eq_auto::<State>(sm_spec());
     use_tla_forall::<State, Option<Message>>(sm_spec(), |recv| weak_fairness(distributed_system::controller_next().forward(recv)), Option::Some(msg));
 
-    distributed_system::controller_action_enabled(Option::Some(msg), controller::send_create_sts());
+    distributed_system::controller_step_enabled(Option::Some(msg), controller::Step::SendCreateStsStep);
 
     wf1::<State>(sm_spec(),
         next(),
         distributed_system::controller_next().forward(Option::Some(msg)),
-        distributed_system::controller_action_pre(Option::Some(msg), controller::send_create_sts()),
+        distributed_system::controller_step_pre(Option::Some(msg), controller::Step::SendCreateStsStep),
         message_sent(create_sts_req_msg),
     );
 }

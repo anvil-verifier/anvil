@@ -98,14 +98,4 @@ pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine {
     }
 }
 
-pub proof fn exists_next_step(action: KubernetesAPIAction, recv: Option<Message>, s: State)
-    requires
-        kubernetes_api().actions.contains(action),
-        (action.precondition)(recv, s),
-    ensures
-        exists |step| (#[trigger] (kubernetes_api().step_to_action)(step).precondition)(recv, s),
-{
-    assert(((kubernetes_api().step_to_action)(Step::HandleRequest).precondition)(recv, s));
-}
-
 }
