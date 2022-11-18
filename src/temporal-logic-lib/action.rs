@@ -49,6 +49,12 @@ pub struct NetworkAction<#[verifier(maybe_negative)] State, #[verifier(maybe_neg
     pub transition: FnSpec(Option<Message>, State, Set<Message>) -> State,
 }
 
+/// `NetworkAction` helps to write compound state machine actions in a disciplined way
+/// by explicitly writing `precondition` and `transition`.
+///
+/// It takes two generic types:
+/// * `State`: The state of the compound state machine.
+/// * `Input`:The input selected by the compound state machine to feed to the host state machine.
 pub struct CompoundAction<#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] Input> {
     /// The condition that enables the host action.
     pub precondition: FnSpec(Input, State) -> bool,
