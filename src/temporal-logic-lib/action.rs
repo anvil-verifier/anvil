@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::pervasive::{option::*, set::*};
+use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
 
@@ -46,6 +47,23 @@ pub struct NetworkAction<#[verifier(maybe_negative)] State, #[verifier(maybe_neg
 
     /// The new internal state made by the transition.
     pub transition: FnSpec(Option<Message>, State, Set<Message>) -> State,
+}
+
+pub struct CompoundAction<#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] Input> {
+    /// The condition that enables the host action.
+    pub precondition: FnSpec(Input, State) -> bool,
+
+    /// The new internal state and output made by the transition.
+    pub transition: FnSpec(Input, State) -> State,
+}
+
+impl<State, Input> CompoundAction<State, Input> {
+    pub open spec fn pred(self, input: Input) -> ActionPred<State> {
+        |s: State, s_prime: State|{
+            &&& (self.precondition)(input, s)
+            &&& s_prime === (self.transition)(input, s)
+        }
+    }
 }
 
 }

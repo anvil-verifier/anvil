@@ -23,12 +23,12 @@ pub proof fn lemma_create_req_leads_to_create_resp(msg: Message)
         ),
 {
     leads_to_eq_auto::<State>(sm_spec());
-    use_tla_forall::<State, Option<Message>>(sm_spec(), |recv| weak_fairness(distributed_system::kubernetes_api_action(recv)), Option::Some(msg));
+    use_tla_forall::<State, Option<Message>>(sm_spec(), |recv| weak_fairness(distributed_system::kubernetes_api_next().pred(recv)), Option::Some(msg));
 
     distributed_system::kubernetes_api_action_enabled(Option::Some(msg), kubernetes_api::handle_request());
     wf1::<State>(sm_spec(),
         next(),
-        distributed_system::kubernetes_api_action(Option::Some(msg)),
+        distributed_system::kubernetes_api_next().pred(Option::Some(msg)),
         distributed_system::kubernetes_api_action_pre(Option::Some(msg), kubernetes_api::handle_request()),
         message_sent(create_resp_msg(msg.get_CreateRequest_0().obj.key)),
     );
@@ -43,12 +43,12 @@ pub proof fn lemma_delete_req_leads_to_res_not_exists(msg: Message)
         ),
 {
     leads_to_eq_auto::<State>(sm_spec());
-    use_tla_forall::<State, Option<Message>>(sm_spec(), |recv| weak_fairness(distributed_system::kubernetes_api_action(recv)), Option::Some(msg));
+    use_tla_forall::<State, Option<Message>>(sm_spec(), |recv| weak_fairness(distributed_system::kubernetes_api_next().pred(recv)), Option::Some(msg));
 
     distributed_system::kubernetes_api_action_enabled(Option::Some(msg), kubernetes_api::handle_request());
     wf1::<State>(sm_spec(),
         next(),
-        distributed_system::kubernetes_api_action(Option::Some(msg)),
+        distributed_system::kubernetes_api_next().pred(Option::Some(msg)),
         distributed_system::kubernetes_api_action_pre(Option::Some(msg), kubernetes_api::handle_request()),
         |s| !resource_exists(msg.get_DeleteRequest_0().key)(s)
     );
@@ -85,13 +85,13 @@ proof fn lemma_create_sts_req_sent_leads_to(msg: Message, sub_res_msg: Message)
     let sub_res_key = sub_res_msg.get_CreateRequest_0().obj.key;
 
     leads_to_eq_auto::<State>(sm_spec());
-    use_tla_forall::<State, Option<Message>>(sm_spec(), |recv| weak_fairness(distributed_system::kubernetes_api_action(recv)), Option::Some(msg));
-    use_tla_forall::<State, Option<Message>>(sm_spec(), |recv| weak_fairness(distributed_system::kubernetes_api_action(recv)), Option::Some(sub_res_msg));
+    use_tla_forall::<State, Option<Message>>(sm_spec(), |recv| weak_fairness(distributed_system::kubernetes_api_next().pred(recv)), Option::Some(msg));
+    use_tla_forall::<State, Option<Message>>(sm_spec(), |recv| weak_fairness(distributed_system::kubernetes_api_next().pred(recv)), Option::Some(sub_res_msg));
 
     distributed_system::kubernetes_api_action_enabled(Option::Some(msg), kubernetes_api::handle_request());
     wf1::<State>(sm_spec(),
         next(),
-        distributed_system::kubernetes_api_action(Option::Some(msg)),
+        distributed_system::kubernetes_api_next().pred(Option::Some(msg)),
         distributed_system::kubernetes_api_action_pre(Option::Some(msg), kubernetes_api::handle_request()),
         message_sent(sub_res_msg)
     );
@@ -99,7 +99,8 @@ proof fn lemma_create_sts_req_sent_leads_to(msg: Message, sub_res_msg: Message)
     distributed_system::kubernetes_api_action_enabled(Option::Some(sub_res_msg), kubernetes_api::handle_request());
     wf1::<State>(sm_spec(),
         next(),
-        distributed_system::kubernetes_api_action(Option::Some(sub_res_msg)),
+        // distributed_system::kubernetes_api_action(Option::Some(sub_res_msg)),
+        distributed_system::kubernetes_api_next().pred(Option::Some(sub_res_msg)),
         distributed_system::kubernetes_api_action_pre(Option::Some(sub_res_msg), kubernetes_api::handle_request()),
         resource_exists(sub_res_key)
     );
