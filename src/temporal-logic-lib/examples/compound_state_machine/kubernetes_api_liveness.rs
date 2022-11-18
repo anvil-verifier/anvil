@@ -29,7 +29,7 @@ pub proof fn lemma_create_req_leads_to_create_resp(msg: Message)
     wf1::<State>(sm_spec(),
         next(),
         distributed_system::kubernetes_api_next().forward(Option::Some(msg)),
-        distributed_system::kubernetes_api_step_pre(Option::Some(msg), kubernetes_api::Step::HandleRequest),
+        distributed_system::kubernetes_api_next().step_pre(Option::Some(msg), kubernetes_api::Step::HandleRequest),
         message_sent(create_resp_msg(msg.get_CreateRequest_0().obj.key)),
     );
 }
@@ -49,7 +49,7 @@ pub proof fn lemma_delete_req_leads_to_res_not_exists(msg: Message)
     wf1::<State>(sm_spec(),
         next(),
         distributed_system::kubernetes_api_next().forward(Option::Some(msg)),
-        distributed_system::kubernetes_api_step_pre(Option::Some(msg), kubernetes_api::Step::HandleRequest),
+        distributed_system::kubernetes_api_next().step_pre(Option::Some(msg), kubernetes_api::Step::HandleRequest),
         |s| !resource_exists(msg.get_DeleteRequest_0().key)(s)
     );
 }
@@ -92,7 +92,7 @@ proof fn lemma_create_sts_req_sent_leads_to(msg: Message, sub_res_msg: Message)
     wf1::<State>(sm_spec(),
         next(),
         distributed_system::kubernetes_api_next().forward(Option::Some(msg)),
-        distributed_system::kubernetes_api_step_pre(Option::Some(msg), kubernetes_api::Step::HandleRequest),
+        distributed_system::kubernetes_api_next().step_pre(Option::Some(msg), kubernetes_api::Step::HandleRequest),
         message_sent(sub_res_msg)
     );
 
@@ -100,7 +100,7 @@ proof fn lemma_create_sts_req_sent_leads_to(msg: Message, sub_res_msg: Message)
     wf1::<State>(sm_spec(),
         next(),
         distributed_system::kubernetes_api_next().forward(Option::Some(sub_res_msg)),
-        distributed_system::kubernetes_api_step_pre(Option::Some(sub_res_msg), kubernetes_api::Step::HandleRequest),
+        distributed_system::kubernetes_api_next().step_pre(Option::Some(sub_res_msg), kubernetes_api::Step::HandleRequest),
         resource_exists(sub_res_key)
     );
 
