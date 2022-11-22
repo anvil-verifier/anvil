@@ -66,7 +66,7 @@ pub open spec fn controller() -> ControllerStateMachine {
                 Step::SendDeleteStsStep => send_delete_sts(),
             }
         },
-        step_to_action_input: |step: Step, recv: Option<Message>| {
+        action_input: |step: Step, recv: Option<Message>| {
             recv
         }
     }

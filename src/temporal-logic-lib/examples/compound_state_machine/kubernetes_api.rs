@@ -92,7 +92,7 @@ pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine {
                 Step::HandleRequest => handle_request(),
             }
         },
-        step_to_action_input: |step: Step, recv: Option<Message>| {
+        action_input: |step: Step, recv: Option<Message>| {
             recv
         }
     }

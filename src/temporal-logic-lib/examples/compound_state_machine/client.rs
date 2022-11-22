@@ -63,7 +63,7 @@ pub open spec fn client() -> ClientStateMachine {
                 Step::SendDeleteCrStep(_) => send_delete_cr(),
             }
         },
-        step_to_action_input: |step: Step, recv: Option<Message>| {
+        action_input: |step: Step, recv: Option<Message>| {
             match step {
                 Step::SendCreateCrStep(res) => ClientInput{cr: res, recv: recv},
                 Step::SendDeleteCrStep(res) => ClientInput{cr: res, recv: recv},

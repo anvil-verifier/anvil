@@ -39,7 +39,7 @@ pub open spec fn kubernetes_api_next() -> CompoundAction<State, Option<Message>,
             &&& network_result.is_Enabled()
         },
         step_precondition: |step: kubernetes_api::Step, recv: Option<Message>, s: State| {
-            let input = (kubernetes_api().step_to_action_input)(step, recv);
+            let input = (kubernetes_api().action_input)(step, recv);
             let host_result = kubernetes_api().next_step_result(step, input, s.kubernetes_api_state);
             let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
 
@@ -69,7 +69,7 @@ pub open spec fn controller_next() -> CompoundAction<State, Option<Message>, con
             &&& network_result.is_Enabled()
         },
         step_precondition: |step: controller::Step, recv: Option<Message>, s: State| {
-            let input = (controller().step_to_action_input)(step, recv);
+            let input = (controller().action_input)(step, recv);
             let host_result = controller().next_step_result(step, input, s.controller_state);
             let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
 
@@ -99,7 +99,7 @@ pub open spec fn client_next() -> CompoundAction<State, Option<Message>, client:
             &&& network_result.is_Enabled()
         },
         step_precondition: |step: client::Step, recv: Option<Message>, s: State| {
-            let input = (client().step_to_action_input)(step, recv);
+            let input = (client().action_input)(step, recv);
             let host_result = client().next_step_result(step, input, s.client_state);
             let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
 
