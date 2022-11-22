@@ -9,13 +9,14 @@ use builtin_macros::*;
 verus! {
 
 /// `HostStateMachine` helps to write host state machines in a disciplined way
-/// by explicitly writing `init`, `actions`, and `result`.
+/// by explicitly writing `init`, `actions`, `step_to_action`, and `action_input`.
 ///
 /// It takes four generic types:
 /// * `State`: The (internal) state of the host.
 /// * `Input`: The input from the external world of the state machine. For example a message.
 /// * `ActionInput`: The input to feed to the action. It might be a compound of `Input` and other types.
 /// * `Output`: The output to send to the external world of the state machine. For example a set of messages.
+/// * `Step`: The step binding variable that the state machine chooses to decide the action.
 pub struct HostStateMachine <
     #[verifier(maybe_negative)] State,
     #[verifier(maybe_negative)] Input,
@@ -63,6 +64,8 @@ impl<State, Input, ActionInput, Output, Step> HostStateMachine<State, Input, Act
     }
 }
 
+/// `NetworkStateMachine` is similar to `HostStateMachine` except that it has only one action `deliver`
+/// and there is no need for `step_to_action` or `action_input`.
 pub struct NetworkStateMachine <#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] Message> {
     /// Check if it is the initial internal state.
     pub init: FnSpec(State) -> bool,
