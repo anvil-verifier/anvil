@@ -53,7 +53,7 @@ impl<State, Input, ActionInput, Output, Step> HostStateMachine<State, Input, Act
     }
 
     /// `next_step_result` is similar to `next_result` except that the step is fixed.
-    pub open spec fn next_step_result(self, input: ActionInput, s: State, step: Step) -> HostActionResult<State, Output> {
+    pub open spec fn next_step_result(self, step: Step, input: ActionInput, s: State) -> HostActionResult<State, Output> {
         let action = (self.step_to_action)(step);
         if (action.precondition)(input, s) {
             HostActionResult::Enabled((action.transition)(input, s).0, (action.transition)(input, s).1)

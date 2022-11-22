@@ -71,7 +71,7 @@ impl<State, Input, Step> CompoundAction<State, Input, Step> {
         |s: State| (self.precondition)(input, s)
     }
 
-    pub open spec fn step_pre(self, input: Input, step: Step) -> StatePred<State> {
+    pub open spec fn step_pre(self, step: Step, input: Input) -> StatePred<State> {
         |s: State| (self.step_precondition)(input, s, step)
     }
 
