@@ -29,18 +29,10 @@ pub open spec fn init() -> StatePred<State> {
     }
 }
 
-pub open spec fn kubernetes_api_next() -> CompoundAction<State, Option<Message>, kubernetes_api::Step> {
+pub open spec fn kubernetes_api_next() -> CompoundAction<State, Option<Message>> {
     CompoundAction {
         precondition: |recv: Option<Message>, s: State| {
             let host_result = kubernetes_api().next_result(recv, s.kubernetes_api_state);
-            let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
-
-            &&& host_result.is_Enabled()
-            &&& network_result.is_Enabled()
-        },
-        step_precondition: |step: kubernetes_api::Step, recv: Option<Message>, s: State| {
-            let input = (kubernetes_api().action_input)(step, recv);
-            let host_result = kubernetes_api().next_step_result(step, input, s.kubernetes_api_state);
             let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
 
             &&& host_result.is_Enabled()
@@ -59,18 +51,10 @@ pub open spec fn kubernetes_api_next() -> CompoundAction<State, Option<Message>,
     }
 }
 
-pub open spec fn controller_next() -> CompoundAction<State, Option<Message>, controller::Step> {
+pub open spec fn controller_next() -> CompoundAction<State, Option<Message>> {
     CompoundAction {
         precondition: |recv: Option<Message>, s: State| {
             let host_result = controller().next_result(recv, s.controller_state);
-            let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
-
-            &&& host_result.is_Enabled()
-            &&& network_result.is_Enabled()
-        },
-        step_precondition: |step: controller::Step, recv: Option<Message>, s: State| {
-            let input = (controller().action_input)(step, recv);
-            let host_result = controller().next_step_result(step, input, s.controller_state);
             let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
 
             &&& host_result.is_Enabled()
@@ -89,18 +73,10 @@ pub open spec fn controller_next() -> CompoundAction<State, Option<Message>, con
     }
 }
 
-pub open spec fn client_next() -> CompoundAction<State, Option<Message>, client::Step> {
+pub open spec fn client_next() -> CompoundAction<State, Option<Message>> {
     CompoundAction {
         precondition: |recv: Option<Message>, s: State| {
             let host_result = client().next_result(recv, s.client_state);
-            let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
-
-            &&& host_result.is_Enabled()
-            &&& network_result.is_Enabled()
-        },
-        step_precondition: |step: client::Step, recv: Option<Message>, s: State| {
-            let input = (client().action_input)(step, recv);
-            let host_result = client().next_step_result(step, input, s.client_state);
             let network_result = network().next_result(recv, s.network_state, host_result.get_Enabled_1());
 
             &&& host_result.is_Enabled()
@@ -157,19 +133,41 @@ pub open spec fn resource_exists(key: ResourceKey) -> StatePred<State> {
     |s: State| s.kubernetes_api_state.resources.dom().contains(key)
 }
 
-pub proof fn kubernetes_api_step_enabled(step: kubernetes_api::Step, recv: Option<Message>)
+pub open spec fn kubernetes_api_action_pre(action: kubernetes_api::KubernetesAPIAction, recv: Option<Message>) -> StatePred<State> {
+    |s: State| {
+        &&& (network::deliver().precondition)(recv, s.network_state)
+        &&& (action.precondition)(recv, s.kubernetes_api_state)
+    }
+}
+
+pub open spec fn controller_action_pre(action: controller::ControllerAction, recv: Option<Message>) -> StatePred<State> {
+    |s: State| {
+        &&& (network::deliver().precondition)(recv, s.network_state)
+        &&& (action.precondition)(recv, s.controller_state)
+    }
+}
+
+pub proof fn kubernetes_api_action_enabled(action: kubernetes_api::KubernetesAPIAction, recv: Option<Message>)
+    requires
+        kubernetes_api().actions.contains(action),
     ensures
-        forall |s| state_pred_call(kubernetes_api_next().step_pre(step, recv), s) ==> enabled(kubernetes_api_next().forward(recv))(s),
+        forall |s| state_pred_call(kubernetes_api_action_pre(action, recv), s) ==> enabled(kubernetes_api_next().forward(recv))(s),
 {
-    assert(forall |s| #[trigger] state_pred_call(kubernetes_api_next().step_pre(step, recv), s) ==> state_pred_call(kubernetes_api_next().pre(recv), s));
+    assert forall |s| #[trigger] state_pred_call(kubernetes_api_action_pre(action, recv), s) implies state_pred_call(kubernetes_api_next().pre(recv), s) by {
+        kubernetes_api::exists_next_step(action, recv, s.kubernetes_api_state);
+    };
     kubernetes_api_next().pre_implies_forward_enabled(recv);
 }
 
-pub proof fn controller_step_enabled(step: controller::Step, recv: Option<Message>)
+pub proof fn controller_action_enabled(action: controller::ControllerAction, recv: Option<Message>)
+    requires
+        controller().actions.contains(action),
     ensures
-        forall |s| state_pred_call(controller_next().step_pre(step, recv), s) ==> enabled(controller_next().forward(recv))(s),
+        forall |s| state_pred_call(controller_action_pre(action, recv), s) ==> enabled(controller_next().forward(recv))(s),
 {
-    assert(forall |s| #[trigger] state_pred_call(controller_next().step_pre(step, recv), s) ==> state_pred_call(controller_next().pre(recv), s));
+    assert forall |s| #[trigger] state_pred_call(controller_action_pre(action, recv), s) implies state_pred_call(controller_next().pre(recv), s) by {
+        controller::exists_next_step(action, recv, s.controller_state);
+    };
     controller_next().pre_implies_forward_enabled(recv);
 }
 

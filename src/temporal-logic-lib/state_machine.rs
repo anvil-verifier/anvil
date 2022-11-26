@@ -62,6 +62,15 @@ impl<State, Input, ActionInput, Output, Step> HostStateMachine<State, Input, Act
             HostActionResult::Disabled
         }
     }
+
+    /// `next_action_result` is similar to `next_result` except that the action is fixed.
+    pub open spec fn next_action_result(self, action: HostAction<State, ActionInput, Output>, input: ActionInput, s: State) -> HostActionResult<State, Output> {
+        if (action.precondition)(input, s) {
+            HostActionResult::Enabled((action.transition)(input, s).0, (action.transition)(input, s).1)
+        } else {
+            HostActionResult::Disabled
+        }
+    }
 }
 
 /// `NetworkStateMachine` is similar to `HostStateMachine` except that it has only one action `deliver`

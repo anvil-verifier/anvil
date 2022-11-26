@@ -55,24 +55,17 @@ pub struct NetworkAction<#[verifier(maybe_negative)] State, #[verifier(maybe_neg
 /// It takes two generic types:
 /// * `State`: The state of the compound state machine.
 /// * `Input`:The input selected by the compound state machine to feed to the host state machine.
-pub struct CompoundAction<#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] Input, #[verifier(maybe_negative)] Step> {
+pub struct CompoundAction<#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] Input> {
     /// The condition that enables the host and the network.
     pub precondition: FnSpec(Input, State) -> bool,
-
-    /// The condition that enables the particular host step and the network.
-    pub step_precondition: FnSpec(Step, Input, State) -> bool,
 
     /// The new compound state made by the transition.
     pub transition: FnSpec(Input, State) -> State,
 }
 
-impl<State, Input, Step> CompoundAction<State, Input, Step> {
+impl<State, Input> CompoundAction<State, Input> {
     pub open spec fn pre(self, input: Input) -> StatePred<State> {
         |s: State| (self.precondition)(input, s)
-    }
-
-    pub open spec fn step_pre(self, step: Step, input: Input) -> StatePred<State> {
-        |s: State| (self.step_precondition)(step, input, s)
     }
 
     pub open spec fn forward(self, input: Input) -> ActionPred<State> {
