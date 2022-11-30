@@ -19,11 +19,11 @@ pub enum Step {
     HandleRequest,
 }
 
-pub type KubernetesAPIStateMachine = HostStateMachine<State, Option<Message>, Option<Message>, Set<Message>, Step>;
+pub type KubernetesAPIStateMachine = StateMachine<State, Option<Message>, Option<Message>, Set<Message>, Step>;
 
-pub type KubernetesAPIAction = HostAction<State, Option<Message>, Set<Message>>;
+pub type KubernetesAPIAction = Action<State, Option<Message>, Set<Message>>;
 
-pub type KubernetesAPIHostActionResult = HostActionResult<State, Set<Message>>;
+pub type KubernetesAPIActionResult = ActionResult<State, Set<Message>>;
 
 pub open spec fn update_resources_with(s: State, msg: Message) -> Map<ResourceKey, ResourceObj>
     recommends
@@ -72,7 +72,7 @@ pub open spec fn outcome_messages(s: State, msg: Message) -> Set<Message>
 }
 
 pub open spec fn handle_request() -> KubernetesAPIAction {
-    HostAction {
+    Action {
         precondition: |recv: Option<Message>, s| {
             &&& recv.is_Some()
             &&& recv.get_Some_0().is_CreateRequest() || recv.get_Some_0().is_DeleteRequest()
@@ -84,7 +84,7 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
 }
 
 pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine {
-    HostStateMachine {
+    StateMachine {
         init: |s: State| s.resources === Map::empty(),
         actions: set![handle_request()],
         step_to_action: |step: Step| {

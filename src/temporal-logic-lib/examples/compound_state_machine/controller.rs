@@ -18,14 +18,14 @@ pub enum Step {
     SendDeleteStsStep,
 }
 
-pub type ControllerStateMachine = HostStateMachine<State, Option<Message>, Option<Message>, Set<Message>, Step>;
+pub type ControllerStateMachine = StateMachine<State, Option<Message>, Option<Message>, Set<Message>, Step>;
 
-pub type ControllerAction = HostAction<State, Option<Message>, Set<Message>>;
+pub type ControllerAction = Action<State, Option<Message>, Set<Message>>;
 
-pub type ControllerHostActionResult = HostActionResult<State, Set<Message>>;
+pub type ControllerActionResult = ActionResult<State, Set<Message>>;
 
 pub open spec fn send_create_sts() -> ControllerAction {
-    HostAction {
+    Action {
         precondition: |recv: Option<Message>, s| {
             &&& recv.is_Some()
             &&& recv.get_Some_0().is_CreateResponse()
@@ -41,7 +41,7 @@ pub open spec fn send_create_sts() -> ControllerAction {
 }
 
 pub open spec fn send_delete_sts() -> ControllerAction {
-    HostAction {
+    Action {
         precondition: |recv: Option<Message>, s| {
             &&& recv.is_Some()
             &&& recv.get_Some_0().is_DeleteResponse()
@@ -57,7 +57,7 @@ pub open spec fn send_delete_sts() -> ControllerAction {
 }
 
 pub open spec fn controller() -> ControllerStateMachine {
-    HostStateMachine {
+    StateMachine {
         init: |s: State| true,
         actions: set![send_create_sts(), send_delete_sts()],
         step_to_action: |step: Step| {
