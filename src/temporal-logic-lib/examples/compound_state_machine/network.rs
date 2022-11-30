@@ -4,6 +4,7 @@
 use crate::action::*;
 use crate::examples::compound_state_machine::common::*;
 use crate::pervasive::{option::*, set::*};
+use crate::state_machine::*;
 use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
@@ -12,10 +13,6 @@ verus! {
 
 pub struct State {
     pub sent_messages: Set<Message>,
-}
-
-pub open spec fn init(s: State) -> bool {
-    s.sent_messages === Set::empty()
 }
 
 pub open spec fn deliver() -> NetworkAction<State, Message> {
@@ -31,8 +28,11 @@ pub open spec fn deliver() -> NetworkAction<State, Message> {
     }
 }
 
-pub open spec fn next(recv: Option<Message>, s: State, s_prime: State, send: Set<Message>) -> bool {
-    deliver().satisfied_by(recv, s, s_prime, send)
+pub open spec fn network() -> NetworkStateMachine<State, Message> {
+    NetworkStateMachine {
+        init: |s: State| s.sent_messages === Set::empty(),
+        deliver: deliver(),
+    }
 }
 
 }

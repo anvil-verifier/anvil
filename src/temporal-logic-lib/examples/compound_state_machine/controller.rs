@@ -4,6 +4,7 @@
 use crate::action::*;
 use crate::examples::compound_state_machine::common::*;
 use crate::pervasive::{map::*, option::*, seq::*, set::*, string::*};
+use crate::state_machine::*;
 use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
@@ -12,11 +13,16 @@ verus! {
 
 pub struct State {}
 
-pub open spec fn init(s: State) -> bool {
-    true
+pub enum Step {
+    SendCreateStsStep,
+    SendDeleteStsStep,
 }
 
+pub type ControllerStateMachine = HostStateMachine<State, Option<Message>, Option<Message>, Set<Message>, Step>;
+
 pub type ControllerAction = HostAction<State, Option<Message>, Set<Message>>;
+
+pub type ControllerHostActionResult = HostActionResult<State, Set<Message>>;
 
 pub open spec fn send_create_sts() -> ControllerAction {
     HostAction {
@@ -26,14 +32,11 @@ pub open spec fn send_create_sts() -> ControllerAction {
             &&& recv.get_Some_0().get_CreateResponse_0().obj.key.kind.is_CustomResourceKind()
         },
         transition: |recv: Option<Message>, s| {
-            s
-        },
-        output: |recv: Option<Message>, s| {
-            set![create_req_msg(ResourceKey{
+            (s, set![create_req_msg(ResourceKey{
                 name: recv.get_Some_0().get_CreateResponse_0().obj.key.name + sts_suffix(),
                 kind: ResourceKind::StatefulSetKind
-            })]
-        }
+            })])
+        },
     }
 }
 
@@ -45,58 +48,41 @@ pub open spec fn send_delete_sts() -> ControllerAction {
             &&& recv.get_Some_0().get_DeleteResponse_0().key.kind.is_CustomResourceKind()
         },
         transition: |recv: Option<Message>, s| {
-            s
-        },
-        output: |recv: Option<Message>, s| {
-            set![delete_req_msg(ResourceKey{
+            (s, set![delete_req_msg(ResourceKey{
                 name: recv.get_Some_0().get_DeleteResponse_0().key.name + sts_suffix(),
                 kind: ResourceKind::StatefulSetKind
-            })]
+            })])
+        },
+    }
+}
+
+pub open spec fn controller() -> ControllerStateMachine {
+    HostStateMachine {
+        init: |s: State| true,
+        actions: set![send_create_sts(), send_delete_sts()],
+        step_to_action: |step: Step| {
+            match step {
+                Step::SendCreateStsStep => send_create_sts(),
+                Step::SendDeleteStsStep => send_delete_sts(),
+            }
+        },
+        action_input: |step: Step, recv: Option<Message>| {
+            recv
         }
     }
 }
 
-pub open spec fn valid_actions() -> Set<ControllerAction> {
-    set![send_create_sts(), send_delete_sts()]
-}
-
-pub enum Step {
-    SendCreateStsStep,
-    SendDeleteStsStep,
-}
-
-pub open spec fn next_step(recv: Option<Message>, s: State, s_prime: State, step: Step) -> bool {
-    match step {
-        Step::SendCreateStsStep => send_create_sts().satisfied_by(recv, s, s_prime),
-        Step::SendDeleteStsStep => send_delete_sts().satisfied_by(recv, s, s_prime),
-    }
-}
-
-pub open spec fn next(recv: Option<Message>, s: State, s_prime: State) -> bool {
-    exists |step| next_step(recv, s, s_prime, step)
-}
-
-pub open spec fn output(recv: Option<Message>, s: State, s_prime: State) -> Set<Message>
-    recommends next(recv, s, s_prime)
-{
-    let witness_step = choose |step| next_step(recv, s, s_prime, step);
-    match witness_step {
-        Step::SendCreateStsStep => (send_create_sts().output)(recv, s),
-        Step::SendDeleteStsStep => (send_delete_sts().output)(recv, s),
-    }
-}
-
-pub proof fn exists_next_step(action: ControllerAction, recv: Option<Message>, s: State, s_prime: State)
+pub proof fn exists_next_step(action: ControllerAction, recv: Option<Message>, s: State)
     requires
-        valid_actions().contains(action),
-        action.satisfied_by(recv, s, s_prime),
+        controller().actions.contains(action),
+        (action.precondition)(recv, s),
     ensures
-        next(recv, s, s_prime)
+        exists |step| (#[trigger] (controller().step_to_action)(step).precondition)(recv, s),
 {
     if action === send_create_sts() {
-        assert(next_step(recv, s, s_prime, Step::SendCreateStsStep));
+        assert(((controller().step_to_action)(Step::SendCreateStsStep).precondition)(recv, s));
     } else {
-        assert(next_step(recv, s, s_prime, Step::SendDeleteStsStep));
+        assert(((controller().step_to_action)(Step::SendDeleteStsStep).precondition)(recv, s));
     }
 }
 

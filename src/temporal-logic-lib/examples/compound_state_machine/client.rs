@@ -4,6 +4,7 @@
 use crate::action::*;
 use crate::examples::compound_state_machine::common::*;
 use crate::pervasive::{option::*, seq::*, set::*};
+use crate::state_machine::*;
 use crate::temporal_logic::*;
 use builtin::*;
 use builtin_macros::*;
@@ -12,16 +13,21 @@ verus! {
 
 pub struct State {}
 
-pub open spec fn init(s: State) -> bool {
-    true
-}
-
 pub struct ClientInput {
     pub cr: ResourceObj,
     pub recv: Option<Message>,
 }
 
+pub enum Step {
+    SendCreateCrStep(ResourceObj),
+    SendDeleteCrStep(ResourceObj),
+}
+
+pub type ClientStateMachine = HostStateMachine<State, Option<Message>, ClientInput, Set<Message>, Step>;
+
 pub type ClientAction = HostAction<State, ClientInput, Set<Message>>;
+
+pub type ClientHostActionResult = HostActionResult<State, Set<Message>>;
 
 pub open spec fn send_create_cr() -> ClientAction {
     HostAction {
@@ -30,11 +36,8 @@ pub open spec fn send_create_cr() -> ClientAction {
             &&& i.recv.is_None()
         },
         transition: |i: ClientInput, s| {
-            s
+            (s, set![create_req_msg(i.cr.key)])
         },
-        output: |i: ClientInput, s| {
-            set![create_req_msg(i.cr.key)]
-        }
     }
 }
 
@@ -45,37 +48,27 @@ pub open spec fn send_delete_cr() -> ClientAction {
             &&& i.recv.is_None()
         },
         transition: |i: ClientInput, s| {
-            s
+            (s, set![delete_req_msg(i.cr.key)])
         },
-        output: |i: ClientInput, s| {
-            set![delete_req_msg(i.cr.key)]
+    }
+}
+
+pub open spec fn client() -> ClientStateMachine {
+    HostStateMachine {
+        init: |s: State| true,
+        actions: set![send_create_cr(), send_delete_cr()],
+        step_to_action: |step: Step| {
+            match step {
+                Step::SendCreateCrStep(_) => send_create_cr(),
+                Step::SendDeleteCrStep(_) => send_delete_cr(),
+            }
+        },
+        action_input: |step: Step, recv: Option<Message>| {
+            match step {
+                Step::SendCreateCrStep(res) => ClientInput{cr: res, recv: recv},
+                Step::SendDeleteCrStep(res) => ClientInput{cr: res, recv: recv},
+            }
         }
-    }
-}
-
-pub enum Step {
-    SendCreateCrStep(ResourceObj),
-    SendDeleteCrStep(ResourceObj),
-}
-
-pub open spec fn next_step(recv: Option<Message>, s: State, s_prime: State, step: Step) -> bool {
-    match step {
-        Step::SendCreateCrStep(res) => send_create_cr().satisfied_by(ClientInput{cr: res, recv: recv}, s, s_prime),
-        Step::SendDeleteCrStep(res) => send_delete_cr().satisfied_by(ClientInput{cr: res, recv: recv}, s, s_prime),
-    }
-}
-
-pub open spec fn next(recv: Option<Message>, s: State, s_prime: State) -> bool {
-    exists |step| next_step(recv, s, s_prime, step)
-}
-
-pub open spec fn output(recv: Option<Message>, s: State, s_prime: State) -> Set<Message>
-    recommends next(recv, s, s_prime)
-{
-    let witness_step = choose |step| next_step(recv, s, s_prime, step);
-    match witness_step {
-        Step::SendCreateCrStep(res) => (send_create_cr().output)(ClientInput{cr: res, recv: recv}, s),
-        Step::SendDeleteCrStep(res) => (send_delete_cr().output)(ClientInput{cr: res, recv: recv}, s),
     }
 }
 
