@@ -49,11 +49,6 @@ pub enum Message {
     DeleteResponse(DeleteResponse),
 }
 
-pub struct MessageOps {
-    pub recv: Option<Message>,
-    pub send: Set<Message>,
-}
-
 pub open spec fn sts_suffix() -> Seq<char> {
     new_strlit("_sts")@
 }

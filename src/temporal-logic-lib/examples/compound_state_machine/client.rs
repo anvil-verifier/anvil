@@ -23,14 +23,14 @@ pub enum Step {
     SendDeleteCrStep(ResourceObj),
 }
 
-pub type ClientStateMachine = HostStateMachine<State, Option<Message>, ClientInput, Set<Message>, Step>;
+pub type ClientStateMachine = StateMachine<State, Option<Message>, ClientInput, Set<Message>, Step>;
 
-pub type ClientAction = HostAction<State, ClientInput, Set<Message>>;
+pub type ClientAction = Action<State, ClientInput, Set<Message>>;
 
-pub type ClientHostActionResult = HostActionResult<State, Set<Message>>;
+pub type ClientActionResult = ActionResult<State, Set<Message>>;
 
 pub open spec fn send_create_cr() -> ClientAction {
-    HostAction {
+    Action {
         precondition: |i: ClientInput, s| {
             &&& i.cr.key.kind.is_CustomResourceKind()
             &&& i.recv.is_None()
@@ -42,7 +42,7 @@ pub open spec fn send_create_cr() -> ClientAction {
 }
 
 pub open spec fn send_delete_cr() -> ClientAction {
-    HostAction {
+    Action {
         precondition: |i: ClientInput, s| {
             &&& i.cr.key.kind.is_CustomResourceKind()
             &&& i.recv.is_None()
@@ -54,7 +54,7 @@ pub open spec fn send_delete_cr() -> ClientAction {
 }
 
 pub open spec fn client() -> ClientStateMachine {
-    HostStateMachine {
+    StateMachine {
         init: |s: State| true,
         actions: set![send_create_cr(), send_delete_cr()],
         step_to_action: |step: Step| {
