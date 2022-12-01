@@ -47,24 +47,4 @@ pub enum ActionResult<State, Output> {
     Enabled(State, Output)
 }
 
-/// `NetworkAction` helps to write network actions in a disciplined way
-/// by explicitly writing `precondition` and `transition`.
-///
-/// It takes two generic types:
-/// * `State`: The (internal) state of the network. For example, messages on the fly.
-/// * `Message`: The message that the network receives and sends.
-pub struct NetworkAction<#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] Message> {
-    /// The condition that enables the host action. For example, whether the delivered message was sent before.
-    pub precondition: FnSpec(Option<Message>, State) -> bool,
-
-    /// The new internal state made by the transition.
-    pub transition: FnSpec(Option<Message>, State, Set<Message>) -> State,
-}
-
-#[is_variant]
-pub enum NetworkActionResult<State> {
-    Disabled,
-    Enabled(State)
-}
-
 }

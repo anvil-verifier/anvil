@@ -53,27 +53,42 @@ impl<State, Input, ActionInput, Output, Step> StateMachine<State, Input, ActionI
             ActionResult::Disabled
         }
     }
+
+    /// `next_action_result` is similar to `next_result` except that it does not choose a step/action.
+    /// Instead, it just returns the result of the argument `action`.
+    pub open spec fn next_action_result(self, action: Action<State, ActionInput, Output>, action_input: ActionInput, s: State) -> ActionResult<State, Output> {
+        if (action.precondition)(action_input, s) {
+            ActionResult::Enabled((action.transition)(action_input, s).0, (action.transition)(action_input, s).1)
+        } else {
+            ActionResult::Disabled
+        }
+    }
 }
 
-/// `NetworkStateMachine` is similar to `HostStateMachine` except that it has only one action `deliver`
+pub struct MessageOps<#[verifier(maybe_negative)] M> {
+    pub recv: Option<M>,
+    pub send: Set<M>,
+}
+
+/// `NetworkStateMachine` is similar to `StateMachine` except that it has only one action `deliver`
 /// and there is no need for `step_to_action` or `action_input`.
 pub struct NetworkStateMachine <#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] Message> {
     /// Check if it is the initial internal state.
     pub init: FnSpec(State) -> bool,
 
     /// The deliver action that (1) sends zero or one message to a host and (2) takes any number of messages from a host.
-    pub deliver: NetworkAction<State, Message>,
+    pub deliver: Action<State, MessageOps<Message>, ()>,
 }
 
 impl<State, Message> NetworkStateMachine<State, Message> {
 
     /// `next_result` is the interface that the network state machine exposes to the compound state machine.
     /// It returns whether deliver is enabled or not, and the new internal state if deliver is enabled.
-    pub open spec fn next_result(self, recv: Option<Message>, s: State, send: Set<Message>) -> NetworkActionResult<State> {
-        if (self.deliver.precondition)(recv, s) {
-            NetworkActionResult::Enabled((self.deliver.transition)(recv, s, send))
+    pub open spec fn next_result(self, msg_ops: MessageOps<Message>, s: State) -> ActionResult<State, ()> {
+        if (self.deliver.precondition)(msg_ops, s) {
+            ActionResult::Enabled((self.deliver.transition)(msg_ops, s).0, (self.deliver.transition)(msg_ops, s).1)
         } else {
-            NetworkActionResult::Disabled
+            ActionResult::Disabled
         }
     }
 }

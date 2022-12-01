@@ -15,15 +15,15 @@ pub struct State {
     pub sent_messages: Set<Message>,
 }
 
-pub open spec fn deliver() -> NetworkAction<State, Message> {
-    NetworkAction {
-        precondition: |recv: Option<Message>, s: State| {
-            recv.is_Some() ==> s.sent_messages.contains(recv.get_Some_0())
+pub open spec fn deliver() -> Action<State, MessageOps<Message>, ()> {
+    Action {
+        precondition: |msg_ops: MessageOps<Message>, s: State| {
+            msg_ops.recv.is_Some() ==> s.sent_messages.contains(msg_ops.recv.get_Some_0())
         },
-        transition: |recv: Option<Message>, s: State, send: Set<Message>| {
-            State {
-                sent_messages: s.sent_messages + send
-            }
+        transition: |msg_ops: MessageOps<Message>, s: State| {
+            (State {
+                sent_messages: s.sent_messages + msg_ops.send
+            }, ())
         },
     }
 }
