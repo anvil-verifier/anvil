@@ -9,6 +9,7 @@ use crate::examples::compound_state_machine::{
 };
 use crate::pervasive::option::*;
 use crate::temporal_logic::*;
+use crate::temporal_logic_rules::*;
 use builtin::*;
 use builtin_macros::*;
 
