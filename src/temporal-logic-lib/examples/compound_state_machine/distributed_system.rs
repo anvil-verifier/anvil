@@ -174,28 +174,26 @@ pub open spec fn controller_action_pre(action: controller::ControllerAction, rec
     }
 }
 
-pub proof fn kubernetes_api_action_enabled(action: kubernetes_api::KubernetesAPIAction, recv: Option<Message>)
+pub proof fn kubernetes_api_action_pre_implies_next_pre(action: kubernetes_api::KubernetesAPIAction, recv: Option<Message>)
     requires
         kubernetes_api().actions.contains(action),
     ensures
-        forall |s| state_pred_call(kubernetes_api_action_pre(action, recv), s) ==> enabled(kubernetes_api_next().forward(recv))(s),
+        valid(lift_state(kubernetes_api_action_pre(action, recv)).implies(lift_state(kubernetes_api_next().pre(recv)))),
 {
     assert forall |s| #[trigger] state_pred_call(kubernetes_api_action_pre(action, recv), s) implies state_pred_call(kubernetes_api_next().pre(recv), s) by {
         kubernetes_api::exists_next_step(action, recv, s.kubernetes_api_state);
     };
-    kubernetes_api_next().pre_implies_forward_enabled(recv);
 }
 
-pub proof fn controller_action_enabled(action: controller::ControllerAction, recv: Option<Message>)
+pub proof fn controller_action_pre_implies_next_pre(action: controller::ControllerAction, recv: Option<Message>)
     requires
         controller().actions.contains(action),
     ensures
-        forall |s| state_pred_call(controller_action_pre(action, recv), s) ==> enabled(controller_next().forward(recv))(s),
+        valid(lift_state(controller_action_pre(action, recv)).implies(lift_state(controller_next().pre(recv)))),
 {
     assert forall |s| #[trigger] state_pred_call(controller_action_pre(action, recv), s) implies state_pred_call(controller_next().pre(recv), s) by {
         controller::exists_next_step(action, recv, s.controller_state);
     };
-    controller_next().pre_implies_forward_enabled(recv);
 }
 
 }

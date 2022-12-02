@@ -23,16 +23,17 @@ pub proof fn lemma_create_req_leads_to_create_resp(msg: Message)
             lift_state(message_sent(msg)).leads_to(lift_state(message_sent(create_resp_msg(msg.get_CreateRequest_0().obj.key))))
         ),
 {
-    leads_to_eq_auto::<State>(sm_spec());
-    use_tla_forall::<State, Option<Message>>(sm_spec(), |recv| weak_fairness(distributed_system::kubernetes_api_next().forward(recv)), Option::Some(msg));
+    let recv = Option::Some(msg);
+    let pre = distributed_system::kubernetes_api_action_pre(kubernetes_api::handle_request(), recv);
+    let post = message_sent(create_resp_msg(msg.get_CreateRequest_0().obj.key));
 
-    distributed_system::kubernetes_api_action_enabled(kubernetes_api::handle_request(), Option::Some(msg));
-    wf1::<State>(sm_spec(),
-        next(),
-        distributed_system::kubernetes_api_next().forward(Option::Some(msg)),
-        distributed_system::kubernetes_api_action_pre(kubernetes_api::handle_request(), Option::Some(msg)),
-        message_sent(create_resp_msg(msg.get_CreateRequest_0().obj.key)),
-    );
+    leads_to_weaken_auto::<State>(sm_spec());
+    use_tla_forall::<State, Option<Message>>(sm_spec(), |r| weak_fairness(distributed_system::kubernetes_api_next().forward(r)), recv);
+
+    distributed_system::kubernetes_api_action_pre_implies_next_pre(kubernetes_api::handle_request(), recv);
+    distributed_system::kubernetes_api_next().wf1(recv, sm_spec(), next(), post);
+
+    assert(sm_spec().entails(lift_state(pre).leads_to(lift_state(post))));
 }
 
 pub proof fn lemma_delete_req_leads_to_res_not_exists(msg: Message)
@@ -43,16 +44,17 @@ pub proof fn lemma_delete_req_leads_to_res_not_exists(msg: Message)
             lift_state(message_sent(msg)).leads_to(lift_state(|s| !resource_exists(msg.get_DeleteRequest_0().key)(s)))
         ),
 {
-    leads_to_eq_auto::<State>(sm_spec());
-    use_tla_forall::<State, Option<Message>>(sm_spec(), |recv| weak_fairness(distributed_system::kubernetes_api_next().forward(recv)), Option::Some(msg));
+    let recv = Option::Some(msg);
+    let pre = distributed_system::kubernetes_api_action_pre(kubernetes_api::handle_request(), recv);
+    let post = |s| !resource_exists(msg.get_DeleteRequest_0().key)(s);
 
-    distributed_system::kubernetes_api_action_enabled(kubernetes_api::handle_request(), Option::Some(msg));
-    wf1::<State>(sm_spec(),
-        next(),
-        distributed_system::kubernetes_api_next().forward(Option::Some(msg)),
-        distributed_system::kubernetes_api_action_pre(kubernetes_api::handle_request(), Option::Some(msg)),
-        |s| !resource_exists(msg.get_DeleteRequest_0().key)(s)
-    );
+    leads_to_weaken_auto::<State>(sm_spec());
+    use_tla_forall::<State, Option<Message>>(sm_spec(), |r| weak_fairness(distributed_system::kubernetes_api_next().forward(r)), recv);
+
+    distributed_system::kubernetes_api_action_pre_implies_next_pre(kubernetes_api::handle_request(), recv);
+    distributed_system::kubernetes_api_next().wf1(recv, sm_spec(), next(), post);
+
+    assert(sm_spec().entails(lift_state(pre).leads_to(lift_state(post))));
 }
 
 pub proof fn lemma_create_sts_req_sent_leads_to_pod_exists_and_vol_exists(msg: Message)
@@ -83,33 +85,24 @@ proof fn lemma_create_sts_req_sent_leads_to(msg: Message, sub_res_msg: Message)
             .entails(lift_state(message_sent(msg))
                 .leads_to(lift_state(resource_exists(sub_res_msg.get_CreateRequest_0().obj.key)))),
 {
-    let sub_res_key = sub_res_msg.get_CreateRequest_0().obj.key;
+    let recv_msg = Option::Some(msg);
+    let recv_sub_res_msg = Option::Some(sub_res_msg);
+    let pre = distributed_system::kubernetes_api_action_pre(kubernetes_api::handle_request(), recv_msg);
+    let post = resource_exists(sub_res_msg.get_CreateRequest_0().obj.key);
 
-    leads_to_eq_auto::<State>(sm_spec());
-    use_tla_forall::<State, Option<Message>>(sm_spec(), |recv| weak_fairness(distributed_system::kubernetes_api_next().forward(recv)), Option::Some(msg));
-    use_tla_forall::<State, Option<Message>>(sm_spec(), |recv| weak_fairness(distributed_system::kubernetes_api_next().forward(recv)), Option::Some(sub_res_msg));
+    leads_to_weaken_auto::<State>(sm_spec());
+    use_tla_forall::<State, Option<Message>>(sm_spec(), |r| weak_fairness(distributed_system::kubernetes_api_next().forward(r)), recv_msg);
+    use_tla_forall::<State, Option<Message>>(sm_spec(), |r| weak_fairness(distributed_system::kubernetes_api_next().forward(r)), recv_sub_res_msg);
 
-    distributed_system::kubernetes_api_action_enabled(kubernetes_api::handle_request(), Option::Some(msg));
-    wf1::<State>(sm_spec(),
-        next(),
-        distributed_system::kubernetes_api_next().forward(Option::Some(msg)),
-        distributed_system::kubernetes_api_action_pre(kubernetes_api::handle_request(), Option::Some(msg)),
-        message_sent(sub_res_msg)
-    );
+    distributed_system::kubernetes_api_action_pre_implies_next_pre(kubernetes_api::handle_request(), recv_msg);
+    distributed_system::kubernetes_api_next().wf1(recv_msg, sm_spec(), next(), message_sent(sub_res_msg));
+    assert(sm_spec().entails(lift_state(pre).leads_to(lift_state(message_sent(sub_res_msg)))));
 
-    distributed_system::kubernetes_api_action_enabled(kubernetes_api::handle_request(), Option::Some(sub_res_msg));
-    wf1::<State>(sm_spec(),
-        next(),
-        distributed_system::kubernetes_api_next().forward(Option::Some(sub_res_msg)),
-        distributed_system::kubernetes_api_action_pre(kubernetes_api::handle_request(), Option::Some(sub_res_msg)),
-        resource_exists(sub_res_key)
-    );
+    distributed_system::kubernetes_api_action_pre_implies_next_pre(kubernetes_api::handle_request(), recv_sub_res_msg);
+    distributed_system::kubernetes_api_next().wf1(recv_sub_res_msg, sm_spec(), next(), post);
+    assert(sm_spec().entails(lift_state(message_sent(sub_res_msg)).leads_to(lift_state(post))));
 
-    leads_to_trans::<State>(sm_spec(),
-        message_sent(msg),
-        message_sent(sub_res_msg),
-        resource_exists(sub_res_key)
-    );
+    leads_to_trans::<State>(sm_spec(), pre, message_sent(sub_res_msg), post);
 }
 
 }

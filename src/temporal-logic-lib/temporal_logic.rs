@@ -140,19 +140,7 @@ pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> StatePred<T> {
 }
 
 /// Returns a temporal predicate that is satisfied
-/// iff `action_pred` can be satisfied by any possible execution starting with the current state.
-///
-/// Different from enabled(), tla_enabled() is used for checking whether the action is enabled at (the first state) of this **execution**
-///
-/// Defined in 2.7.
-///
-/// Note: it says whether the action *can possibly* happen, rather than whether the action *actually does* happen!
-pub open spec fn tla_enabled<T>(action_pred: ActionPred<T>) -> TempPred<T> {
-    lift_state(enabled(action_pred))
-}
-
-/// Returns a temporal predicate that is satisfied
-/// iff `always(tla_enabled(action_pred))` getting satisfied leads to `lift_action(action_pred)` getting satisfied.
+/// iff `always(lift_state(enabled(action_pred)))` getting satisfied leads to `lift_action(action_pred)` getting satisfied.
 ///
 /// It says whether it is *always* the case that if the action is *always* enabled, the action *eventually* happens.
 ///
@@ -167,8 +155,7 @@ pub open spec fn tla_enabled<T>(action_pred: ActionPred<T>) -> TempPred<T> {
 /// == []<>~E(A) \/ []<>A    <--- apply always_eventually_distrib
 /// == []<>A \/ []<>~E(A)
 pub open spec fn weak_fairness<T>(action_pred: ActionPred<T>) -> TempPred<T> {
-    always(tla_enabled(action_pred))
-        .leads_to(lift_action(action_pred))
+    always(lift_state(enabled(action_pred))).leads_to(lift_action(action_pred))
 }
 
 /// `|=` for temporal predicates in TLA+.

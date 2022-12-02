@@ -93,7 +93,7 @@ proof fn weak_fairness_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
     ensures
         forall |i| always(lift_state(enabled(p))).implies(eventually(lift_action(p))).satisfied_by(#[trigger] ex.suffix(i)),
 {
-    leads_to_unfold::<T>(ex, always(tla_enabled(p)), lift_action(p));
+    leads_to_unfold::<T>(ex, always(lift_state(enabled(p))), lift_action(p));
 }
 
 proof fn always_lift_state_unfold<T>(ex: Execution<T>, p: StatePred<T>)
