@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 use crate::examples::abc_state_machine::state_machine::*;
 use crate::temporal_logic::*;
+use crate::temporal_logic_rules::*;
 use builtin::*;
 use builtin_macros::*;
 

@@ -7,5 +7,6 @@ pub mod examples;
 pub mod pervasive;
 pub mod state_machine;
 pub mod temporal_logic;
+pub mod temporal_logic_rules;
 
 fn main() {}

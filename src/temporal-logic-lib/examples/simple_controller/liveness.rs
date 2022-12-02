@@ -4,6 +4,7 @@
 use crate::examples::simple_controller::safety::*;
 use crate::examples::simple_controller::state_machine::*;
 use crate::temporal_logic::*;
+use crate::temporal_logic_rules::*;
 use builtin::*;
 use builtin_macros::*;
 
