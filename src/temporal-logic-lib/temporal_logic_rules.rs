@@ -475,6 +475,76 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
 /// pre:
 ///     |= p /\ next /\ asm => p' /\ q'
 ///     |= p /\ next /\ forward => q'
+///     spec |= []next
+///     spec |= []p ~> forward
+/// post:
+///     spec |= p /\ []asm ~> q
+pub proof fn leads_to_by_forward_assume<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<T>, asm: StatePred<T>, p: StatePred<T>, q: StatePred<T>)
+    requires
+        forall |s, s_prime: T| p(s) && action_pred_call(next, s, s_prime) && asm(s) ==> p(s_prime) || q(s_prime),
+        forall |s, s_prime: T| p(s) && action_pred_call(next, s, s_prime) && forward(s, s_prime) ==> q(s_prime),
+        spec.entails(always(lift_action(next))),
+        spec.entails(always(lift_state(p)).leads_to(lift_action(forward))),
+    ensures
+        spec.entails(lift_state(p).and(always(lift_state(asm))).leads_to(lift_state(q))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(p).and(always(lift_state(asm))).leads_to(lift_state(q)).satisfied_by(ex) by {
+        assert forall |i| always(lift_state(asm)).satisfied_by(ex.suffix(i)) &&  #[trigger] lift_state(p).satisfied_by(ex.suffix(i))
+        implies eventually(lift_state(q)).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, always(lift_action(next)));
+
+            always_p_or_eventually_q_assume::<T>(ex, next, asm, p, q);
+            always_unfold::<T>(ex, always(lift_state(asm)).and(lift_state(p)).implies(always(lift_state(p)).or(eventually(lift_state(q)))));
+
+            implies_apply::<T>(ex.suffix(i), lift_state(p).and(always(lift_state(asm))), always(lift_state(p)).or(eventually(lift_state(q))));
+            if always(lift_state(p)).satisfied_by(ex.suffix(i)) {
+                implies_apply::<T>(ex, spec, always(lift_state(p)).leads_to(lift_action(forward)));
+                leads_to_unfold::<T>(ex, always(lift_state(p)), lift_action(forward));
+                implies_apply::<T>(ex.suffix(i), always(lift_state(p)), eventually(lift_action(forward)));
+                let witness_idx = eventually_choose_witness::<T>(ex.suffix(i), lift_action(forward));
+
+                always_propagate_forwards::<T>(ex, lift_action(next), i);
+                assert(always(lift_state(p).and(lift_action(next)).and(lift_action(forward)).implies(lift_state_prime(q))).satisfied_by(ex.suffix(i)));
+                implies_apply::<T>(ex.suffix(i).suffix(witness_idx), lift_state(p).and(lift_action(next)).and(lift_action(forward)), lift_state_prime(q));
+
+                eventually_proved_by_witness::<T>(ex.suffix(i), lift_state(q), witness_idx+1);
+            }
+        }
+    }
+}
+
+/// Get the initial leads_to.
+/// pre:
+///     |= p /\ next => p' /\ q'
+///     |= p /\ next /\ forward => q'
+///     spec |= []next
+///     spec |= []p ~> forward
+/// post:
+///     spec |= p ~> q
+pub proof fn leads_to_by_forward<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
+    requires
+        forall |s, s_prime: T| p(s) && action_pred_call(next, s, s_prime) ==> p(s_prime) || q(s_prime),
+        forall |s, s_prime: T| p(s) && action_pred_call(next, s, s_prime) && forward(s, s_prime) ==> q(s_prime),
+        spec.entails(always(lift_action(next))),
+        spec.entails(always(lift_state(p)).leads_to(lift_action(forward))),
+    ensures
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
+{
+    let trivial = |s| true;
+    leads_to_by_forward_assume::<T>(spec, next, forward, trivial, p, q);
+
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(p).leads_to(lift_state(q)).satisfied_by(ex) by {
+        assert forall |i| #[trigger] lift_state(p).satisfied_by(ex.suffix(i)) implies eventually(lift_state(q)).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, lift_state(p).and(always(lift_state(trivial))).leads_to(lift_state(q)));
+            always_unfold::<T>(ex, lift_state(p).and(always(lift_state(trivial))).implies(eventually(lift_state(q))));
+        };
+    };
+}
+
+/// Get the initial leads_to by assuming (1) always asm and (2) a weaker wf assumption than leads_to_by_forward_assume.
+/// pre:
+///     |= p /\ next /\ asm => p' /\ q'
+///     |= p /\ next /\ forward => q'
 ///     |= p => enabled(forward)
 ///     spec |= []next
 ///     spec |= wf(forward)
@@ -490,34 +560,21 @@ pub proof fn wf1_assume<T>(spec: TempPred<T>, next: ActionPred<T>, forward: Acti
     ensures
         spec.entails(lift_state(p).and(always(lift_state(asm))).leads_to(lift_state(q))),
 {
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(p).and(always(lift_state(asm))).leads_to(lift_state(q)).satisfied_by(ex) by {
-        assert forall |i| always(lift_state(asm)).satisfied_by(ex.suffix(i)) &&  #[trigger] lift_state(p).satisfied_by(ex.suffix(i))
-        implies eventually(lift_state(q)).satisfied_by(ex.suffix(i)) by {
-            implies_apply::<T>(ex, spec, always(lift_action(next)));
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(lift_state(p)).leads_to(lift_action(forward)).satisfied_by(ex) by {
+        assert forall |i| #[trigger] always(lift_state(p)).satisfied_by(ex.suffix(i)) implies eventually(lift_action(forward)).satisfied_by(ex.suffix(i)) by {
+            assert(always(lift_state(p).implies(lift_state(enabled(forward)))).satisfied_by(ex.suffix(i)));
+            implies_apply_with_always::<T>(ex.suffix(i), lift_state(p), lift_state(enabled(forward)));
+            execution_suffix_merge::<T>(ex, lift_state(enabled(forward)), i, 0);
 
-            always_p_or_eventually_q_assume::<T>(ex, next, asm, p, q);
-            always_unfold::<T>(ex, always(lift_state(asm)).and(lift_state(p)).implies(always(lift_state(p)).or(eventually(lift_state(q)))));
-
-            implies_apply::<T>(ex.suffix(i), lift_state(p).and(always(lift_state(asm))), always(lift_state(p)).or(eventually(lift_state(q))));
-            if always(lift_state(p)).satisfied_by(ex.suffix(i)) {
-                assert(always(lift_state(p).implies(lift_state(enabled(forward)))).satisfied_by(ex.suffix(i)));
-                implies_apply_with_always::<T>(ex.suffix(i), lift_state(p), lift_state(enabled(forward)));
-                implies_apply::<T>(ex, spec, weak_fairness(forward));
-                weak_fairness_unfold::<T>(ex, forward);
-                implies_apply::<T>(ex.suffix(i), lift_state(enabled(forward)), eventually(lift_action(forward)));
-                let witness_idx = eventually_choose_witness::<T>(ex.suffix(i), lift_action(forward));
-
-                always_propagate_forwards::<T>(ex, lift_action(next), i);
-                assert(always(lift_state(p).and(lift_action(next)).and(lift_action(forward)).implies(lift_state_prime(q))).satisfied_by(ex.suffix(i)));
-                implies_apply::<T>(ex.suffix(i).suffix(witness_idx), lift_state(p).and(lift_action(next)).and(lift_action(forward)), lift_state_prime(q));
-
-                eventually_proved_by_witness::<T>(ex.suffix(i), lift_state(q), witness_idx+1);
-            }
-        }
-    }
+            implies_apply::<T>(ex, spec, weak_fairness(forward));
+            weak_fairness_unfold::<T>(ex, forward);
+            implies_apply::<T>(ex.suffix(i), lift_state(enabled(forward)), eventually(lift_action(forward)));
+        };
+    };
+    leads_to_by_forward_assume::<T>(spec, next, forward, asm, p, q);
 }
 
-/// Get the initial leads_to.
+/// Get the initial leads_to with a weaker wf assumption than leads_to_by_forward.
 /// pre:
 ///     |= p /\ next => p' /\ q'
 ///     |= p /\ next /\ forward => q'
