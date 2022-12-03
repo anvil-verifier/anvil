@@ -134,8 +134,8 @@ pub open spec fn next() -> ActionPred<State> {
 pub open spec fn sm_spec() -> TempPred<State> {
     lift_state(init())
     .and(always(lift_action(next())))
-    .and(tla_forall(|recv| weak_fairness(kubernetes_api_next().forward(recv))))
-    .and(tla_forall(|recv| weak_fairness(controller_next().forward(recv))))
+    .and(tla_forall(|recv| kubernetes_api_next().weak_fairness(recv)))
+    .and(tla_forall(|recv| controller_next().weak_fairness(recv)))
 }
 
 pub open spec fn message_sent(msg: Message) -> StatePred<State> {

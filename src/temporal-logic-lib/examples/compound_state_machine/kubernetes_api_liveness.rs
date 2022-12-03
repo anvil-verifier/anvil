@@ -32,7 +32,7 @@ pub proof fn lemma_msg_sent_leads_to_post_by_kubernetes_api(msg: Message, action
     let pre = kubernetes_api_action_pre(kubernetes_api::handle_request(), recv);
 
     leads_to_weaken_auto::<State>(sm_spec());
-    use_tla_forall::<State, Option<Message>>(sm_spec(), |r| weak_fairness(kubernetes_api_next().forward(r)), recv);
+    use_tla_forall::<State, Option<Message>>(sm_spec(), |r| kubernetes_api_next().weak_fairness(r), recv);
 
     kubernetes_api_action_pre_implies_next_pre(action, recv);
     kubernetes_api_next().wf1(recv, sm_spec(), next(), post);
