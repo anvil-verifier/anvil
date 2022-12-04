@@ -435,7 +435,7 @@ proof fn always_p_or_eventually_q<T>(ex: Execution<T>, next: TempPred<T>, p: Tem
     };
 }
 
-proof fn next_preserves_inv<T>(ex: Execution<T>, next: TempPred<T>, inv: TempPred<T>, i: nat)
+proof fn next_preserves_inv_rec<T>(ex: Execution<T>, next: TempPred<T>, inv: TempPred<T>, i: nat)
     requires
         inv.satisfied_by(ex),
         forall |idx| next.satisfied_by(#[trigger] ex.suffix(idx)),
@@ -449,7 +449,7 @@ proof fn next_preserves_inv<T>(ex: Execution<T>, next: TempPred<T>, inv: TempPre
     if i == 0 {
         execution_suffix_zero_split::<T>(ex, inv);
     } else {
-        next_preserves_inv::<T>(ex, next, inv, (i-1) as nat);
+        next_preserves_inv_rec::<T>(ex, next, inv, (i-1) as nat);
     }
 }
 
@@ -541,22 +541,13 @@ pub proof fn leads_to_by_forward_assume_temp<T>(spec: TempPred<T>, next: TempPre
     ensures
         spec.entails(p.and(always(asm)).leads_to(q)),
 {
-    assert forall |ex| #[trigger] spec.satisfied_by(ex)
-    implies always(p.and(always(asm))).leads_to(forward).satisfied_by(ex) by {
-        implies_apply::<T>(ex, spec, always(p).leads_to(forward));
-        leads_to_unfold::<T>(ex, always(p), forward);
-        assert forall |i| #[trigger] always(p.and(always(asm))).satisfied_by(ex.suffix(i))
-        implies eventually(forward).satisfied_by(ex.suffix(i)) by {
-            always_unfold::<T>(ex.suffix(i), p.and(always(asm)));
-            implies_apply::<T>(ex.suffix(i), always(p), eventually(forward));
-        };
-    };
+    let p_and_always_asm = p.and(always(asm));
 
     assert forall |ex| #[trigger] spec.satisfied_by(ex)
-    implies always(p.and(always(asm)).and(next).implies(later(p.and(always(asm))).or(later(q)))).satisfied_by(ex) by {
+    implies always(p_and_always_asm.and(next).implies(later(p_and_always_asm).or(later(q)))).satisfied_by(ex) by {
         implies_apply::<T>(ex, spec, always(p.and(next).and(asm).implies(later(p).or(later(q)))));
-        assert forall |i| #[trigger] p.and(always(asm)).and(next).satisfied_by(ex.suffix(i))
-        implies later(p.and(always(asm))).or(later(q)).satisfied_by(ex.suffix(i)) by {
+        assert forall |i| #[trigger] p_and_always_asm.and(next).satisfied_by(ex.suffix(i))
+        implies later(p_and_always_asm).or(later(q)).satisfied_by(ex.suffix(i)) by {
             always_unfold::<T>(ex.suffix(i), asm);
             execution_suffix_zero_merge::<T>(ex.suffix(i), asm);
             implies_apply::<T>(ex.suffix(i), p.and(next).and(asm), later(p).or(later(q)));
@@ -565,15 +556,26 @@ pub proof fn leads_to_by_forward_assume_temp<T>(spec: TempPred<T>, next: TempPre
     };
 
     assert forall |ex| #[trigger] spec.satisfied_by(ex)
-    implies always(p.and(always(asm)).and(next).and(forward).implies(later(q))).satisfied_by(ex) by {
+    implies always(p_and_always_asm.and(next).and(forward).implies(later(q))).satisfied_by(ex) by {
         implies_apply::<T>(ex, spec, always(p.and(next).and(forward).implies(later(q))));
-        assert forall |i| #[trigger] p.and(always(asm)).and(next).and(forward).satisfied_by(ex.suffix(i))
+        assert forall |i| #[trigger] p_and_always_asm.and(next).and(forward).satisfied_by(ex.suffix(i))
         implies later(q).satisfied_by(ex.suffix(i)) by {
             implies_apply::<T>(ex.suffix(i), p.and(next).and(forward), later(q));
         };
     };
 
-    leads_to_by_forward_temp::<T>(spec, next, forward, p.and(always(asm)), q);
+    assert forall |ex| #[trigger] spec.satisfied_by(ex)
+    implies always(p_and_always_asm).leads_to(forward).satisfied_by(ex) by {
+        implies_apply::<T>(ex, spec, always(p).leads_to(forward));
+        leads_to_unfold::<T>(ex, always(p), forward);
+        assert forall |i| #[trigger] always(p_and_always_asm).satisfied_by(ex.suffix(i))
+        implies eventually(forward).satisfied_by(ex.suffix(i)) by {
+            always_unfold::<T>(ex.suffix(i), p_and_always_asm);
+            implies_apply::<T>(ex.suffix(i), always(p), eventually(forward));
+        };
+    };
+
+    leads_to_by_forward_temp::<T>(spec, next, forward, p_and_always_asm, q);
 }
 
 /// Get the initial leads_to with a stronger wf assumption than leads_to_by_forward.
@@ -1661,7 +1663,7 @@ pub proof fn leads_to_stable_temp<T>(spec: TempPred<T>, next: TempPred<T>, p: Te
                     implies_apply::<T>(ex.suffix(i).suffix(witness_idx).suffix(idx), q.and(next), later(q));
                     execution_suffix_merge::<T>(ex.suffix(i).suffix(witness_idx), q, idx, 1);
                 };
-                next_preserves_inv::<T>(ex.suffix(i).suffix(witness_idx), next, q, j);
+                next_preserves_inv_rec::<T>(ex.suffix(i).suffix(witness_idx), next, q, j);
             };
 
             eventually_proved_by_witness::<T>(ex.suffix(i), always(q), witness_idx);
