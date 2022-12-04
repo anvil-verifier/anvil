@@ -435,22 +435,21 @@ proof fn always_p_or_eventually_q<T>(ex: Execution<T>, next: TempPred<T>, p: Tem
     };
 }
 
-proof fn next_preserves_inv_assume_rec<T>(ex: Execution<T>, next: ActionPred<T>, asm: StatePred<T>, inv: StatePred<T>, i: nat)
+proof fn next_preserves_inv<T>(ex: Execution<T>, next: TempPred<T>, inv: TempPred<T>, i: nat)
     requires
-        inv(ex.head()),
-        forall |idx: nat| next(#[trigger] ex.suffix(idx).head(), ex.suffix(idx).head_next()),
-        forall |idx: nat| asm(#[trigger] ex.suffix(idx).head()),
-        forall |idx: nat| inv(#[trigger] ex.suffix(idx).head()) && next(ex.suffix(idx).head(), ex.suffix(idx).head_next()) && asm(ex.suffix(idx).head())
-            ==> inv(ex.suffix(idx).head_next()),
+        inv.satisfied_by(ex),
+        forall |idx| next.satisfied_by(#[trigger] ex.suffix(idx)),
+        forall |idx| inv.satisfied_by(#[trigger] ex.suffix(idx)) && next.satisfied_by(ex.suffix(idx))
+            ==> inv.satisfied_by(ex.suffix(idx + 1)),
     ensures
-        inv(ex.suffix(i).head()),
+        inv.satisfied_by(ex.suffix(i)),
     decreases
         i,
 {
     if i == 0 {
-        assert(inv(ex.suffix(0).head()));
+        execution_suffix_zero_split::<T>(ex, inv);
     } else {
-        next_preserves_inv_assume_rec::<T>(ex, next, asm, inv, (i-1) as nat);
+        next_preserves_inv::<T>(ex, next, inv, (i-1) as nat);
     }
 }
 
@@ -484,8 +483,8 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
 
 /// Get the initial leads_to.
 /// pre:
-///     |= p /\ next => p' /\ q'
-///     |= p /\ next /\ forward => q'
+///     spec |= [](p /\ next => p' /\ q')
+///     spec |= [](p /\ next /\ forward => q')
 ///     spec |= []next
 ///     spec |= []p ~> forward
 /// post:
@@ -1625,13 +1624,123 @@ pub proof fn leads_to_always_combine_partially_weaken<T>(spec: TempPred<T>, p: S
     leads_to_always_combine_partially_weaken_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }
 
+/// Get leads_to always.
+/// pre:
+///     spec |= [](q /\ next => q')
+///     spec |= []next
+///     spec |= p ~> q
+/// post:
+///     spec |= p ~> []q
+pub proof fn leads_to_stable_temp<T>(spec: TempPred<T>, next: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(always(q.and(next).implies(later(q)))),
+        spec.entails(always(next)),
+        spec.entails(p.leads_to(q)),
+    ensures
+        spec.entails(p.leads_to(always(q))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(always(q)).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(always(q)).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, p.leads_to(q));
+            leads_to_unfold::<T>(ex, p, q);
+            implies_apply::<T>(ex.suffix(i), p, eventually(q));
+            let witness_idx = eventually_choose_witness::<T>(ex.suffix(i), q);
+
+            implies_apply::<T>(ex, spec, always(q.and(next).implies(later(q))));
+            always_propagate_forwards::<T>(ex, q.and(next).implies(later(q)), i);
+            always_propagate_forwards::<T>(ex.suffix(i), q.and(next).implies(later(q)), witness_idx);
+
+            implies_apply::<T>(ex, spec, always(next));
+            always_propagate_forwards::<T>(ex, next, i);
+            always_propagate_forwards::<T>(ex.suffix(i), next, witness_idx);
+
+            assert forall |j| #[trigger] q.satisfied_by(ex.suffix(i).suffix(witness_idx).suffix(j)) by {
+                assert forall |idx| q.satisfied_by(#[trigger] ex.suffix(i).suffix(witness_idx).suffix(idx))
+                && next.satisfied_by(ex.suffix(i).suffix(witness_idx).suffix(idx))
+                implies q.satisfied_by(ex.suffix(i).suffix(witness_idx).suffix(idx + 1)) by {
+                    implies_apply::<T>(ex.suffix(i).suffix(witness_idx).suffix(idx), q.and(next), later(q));
+                    execution_suffix_merge::<T>(ex.suffix(i).suffix(witness_idx), q, idx, 1);
+                };
+                next_preserves_inv::<T>(ex.suffix(i).suffix(witness_idx), next, q, j);
+            };
+
+            eventually_proved_by_witness::<T>(ex.suffix(i), always(q), witness_idx);
+        };
+    };
+}
+
 /// Get leads_to always by assuming always asm.
 /// pre:
-///     |= q /\ next /\ asm => q
+///     spec |= [](q /\ next /\ asm => q')
 ///     spec |= []next
 ///     spec |= p ~> q
 /// post:
 ///     spec |= p /\ []asm ~> []q
+pub proof fn leads_to_stable_assume_temp<T>(spec: TempPred<T>, next: TempPred<T>, asm: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(always(q.and(next).and(asm).implies(later(q)))),
+        spec.entails(always(next)),
+        spec.entails(p.leads_to(q)),
+    ensures
+        spec.entails(p.and(always(asm)).leads_to(always(q))),
+{
+    let p_and_always_asm = p.and(always(asm));
+    let q_and_always_asm = q.and(always(asm));
+
+    assert forall |ex| #[trigger] spec.satisfied_by(ex)
+    implies always(q_and_always_asm.and(next).implies(later(q_and_always_asm))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] q_and_always_asm.and(next).satisfied_by(ex.suffix(i))
+        implies later(q_and_always_asm).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, always(q.and(next).and(asm).implies(later(q))));
+            always_to_current::<T>(ex.suffix(i), asm);
+            implies_apply::<T>(ex.suffix(i), q.and(next).and(asm), later(q));
+            always_propagate_forwards::<T>(ex.suffix(i), asm, 1);
+        };
+    };
+
+    assert forall |ex| #[trigger] spec.satisfied_by(ex)
+    implies p_and_always_asm.leads_to(q_and_always_asm).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p_and_always_asm.satisfied_by(ex.suffix(i))
+        implies eventually(q_and_always_asm).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, p.leads_to(q));
+            leads_to_unfold::<T>(ex, p, q);
+            implies_apply::<T>(ex.suffix(i), p, eventually(q));
+            let witness_idx = eventually_choose_witness::<T>(ex.suffix(i), q);
+            always_propagate_forwards::<T>(ex.suffix(i), asm, witness_idx);
+            eventually_proved_by_witness::<T>(ex.suffix(i), q_and_always_asm, witness_idx);
+        };
+    };
+
+    leads_to_stable_temp::<T>(spec, next, p_and_always_asm, q_and_always_asm);
+
+    assert forall |ex| #[trigger] spec.satisfied_by(ex)
+    implies p.and(always(asm)).leads_to(always(q)).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.and(always(asm)).satisfied_by(ex.suffix(i))
+        implies eventually(always(q)).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, p_and_always_asm.leads_to(always(q_and_always_asm)));
+            leads_to_unfold::<T>(ex, p_and_always_asm, always(q_and_always_asm));
+
+            implies_apply::<T>(ex.suffix(i), p_and_always_asm, eventually(always(q_and_always_asm)));
+            let witness_idx = eventually_choose_witness::<T>(ex.suffix(i), always(q_and_always_asm));
+            always_unfold::<T>(ex.suffix(i).suffix(witness_idx), q_and_always_asm);
+            eventually_proved_by_witness::<T>(ex.suffix(i), always(q), witness_idx);
+        };
+    };
+}
+
+/// StatePred version of leads_to_stable_temp.
+pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
+    requires
+        forall |s, s_prime: T| q(s) && action_pred_call(next, s, s_prime) ==> q(s_prime),
+        spec.entails(always(lift_action(next))),
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
+    ensures
+        spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
+{
+    leads_to_stable_temp::<T>(spec, lift_action(next), lift_state(p), lift_state(q));
+}
+
+/// StatePred version of leads_to_stable_assume_temp.
 pub proof fn leads_to_stable_assume<T>(spec: TempPred<T>, next: ActionPred<T>, asm: StatePred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
         forall |s, s_prime: T| q(s) && action_pred_call(next, s, s_prime) && asm(s) ==> q(s_prime),
@@ -1640,39 +1749,12 @@ pub proof fn leads_to_stable_assume<T>(spec: TempPred<T>, next: ActionPred<T>, a
     ensures
         spec.entails(lift_state(p).and(always(lift_state(asm))).leads_to(always(lift_state(q)))),
 {
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(p).and(always(lift_state(asm))).leads_to(always(lift_state(q))).satisfied_by(ex) by {
-        assert forall |i| #[trigger] lift_state(p).and(always(lift_state(asm))).satisfied_by(ex.suffix(i)) implies eventually(always(lift_state(q))).satisfied_by(ex.suffix(i)) by {
-            implies_apply::<T>(ex, spec, lift_state(p).leads_to(lift_state(q)));
-            always_unfold::<T>(ex, lift_state(p).implies(eventually(lift_state(q))));
-            implies_apply::<T>(ex.suffix(i), lift_state(p), eventually(lift_state(q)));
-            let witness_idx = eventually_choose_witness::<T>(ex.suffix(i), lift_state(q));
-
-            implies_apply::<T>(ex, spec, always(lift_action(next)));
-            always_propagate_forwards::<T>(ex, lift_action(next), i);
-            always_propagate_forwards::<T>(ex.suffix(i), lift_action(next), witness_idx);
-            always_lift_action_unfold::<T>(ex.suffix(i).suffix(witness_idx), next);
-
-            always_propagate_forwards::<T>(ex.suffix(i), lift_state(asm), witness_idx);
-            always_lift_state_unfold::<T>(ex.suffix(i).suffix(witness_idx), asm);
-
-            assert forall |j| #[trigger] lift_state(q).satisfied_by(ex.suffix(i).suffix(witness_idx).suffix(j)) by {
-                assert forall |idx| q(#[trigger] ex.suffix(i).suffix(witness_idx).suffix(idx).head())
-                && next(ex.suffix(i).suffix(witness_idx).suffix(idx).head(), ex.suffix(i).suffix(witness_idx).suffix(idx).head_next())
-                && asm(ex.suffix(i).suffix(witness_idx).suffix(idx).head())
-                implies q(ex.suffix(i).suffix(witness_idx).suffix(idx).head_next()) by {
-                    assert(action_pred_call(next, ex.suffix(i).suffix(witness_idx).suffix(idx).head(), ex.suffix(i).suffix(witness_idx).suffix(idx).head_next()));
-                };
-                next_preserves_inv_assume_rec::<T>(ex.suffix(i).suffix(witness_idx), next, asm, q, j);
-            };
-
-            eventually_proved_by_witness::<T>(ex.suffix(i), always(lift_state(q)), witness_idx);
-        };
-    };
+    leads_to_stable_assume_temp::<T>(spec, lift_action(next), lift_state(asm), lift_state(p), lift_state(q));
 }
 
 /// Get leads_to always by assuming always p.
 /// pre:
-///     |= q /\ next /\ asm => q
+///     |= q /\ next /\ asm => q'
 ///     spec |= []next
 ///     spec |= []([]p => []asm)
 ///     spec |= p ~> q
@@ -1698,32 +1780,6 @@ pub proof fn leads_to_stable_assume_p<T>(spec: TempPred<T>, next: ActionPred<T>,
 
             implies_apply::<T>(ex, spec, lift_state(p).and(always(lift_state(asm))).leads_to(always(lift_state(q))));
             implies_apply::<T>(ex.suffix(i), lift_state(p).and(always(lift_state(asm))), eventually(always(lift_state(q))));
-        };
-    };
-}
-
-/// Get leads_to always if q is preserved by next.
-/// pre:
-///     |= q /\ next => q'
-///     spec |= []next
-///     spec |= p ~> q
-/// post:
-///     spec |= p ~> []q
-pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
-    requires
-        forall |s, s_prime: T| q(s) && action_pred_call(next, s, s_prime) ==> q(s_prime),
-        spec.entails(always(lift_action(next))),
-        spec.entails(lift_state(p).leads_to(lift_state(q))),
-    ensures
-        spec.entails(lift_state(p).leads_to(always(lift_state(q)))),
-{
-    let trivial = |s| true;
-    leads_to_stable_assume::<T>(spec, next, trivial, p, q);
-
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(p).leads_to(always(lift_state(q))).satisfied_by(ex) by {
-        assert forall |i| #[trigger] lift_state(p).satisfied_by(ex.suffix(i)) implies eventually(always(lift_state(q))).satisfied_by(ex.suffix(i)) by {
-            implies_apply::<T>(ex, spec, lift_state(p).and(always(lift_state(trivial))).leads_to(always(lift_state(q))));
-            always_unfold::<T>(ex, lift_state(p).and(always(lift_state(trivial))).implies(eventually(always(lift_state(q)))));
         };
     };
 }
