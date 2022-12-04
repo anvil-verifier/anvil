@@ -119,6 +119,12 @@ pub open spec fn eventually<T>(temp_pred: TempPred<T>) -> TempPred<T> {
     TempPred::new(|ex: Execution<T>| exists |i: nat| #[trigger] temp_pred.satisfied_by(ex.suffix(i)))
 }
 
+/// `'` (prime) for temporal predicates in TLA+.
+/// Returns a temporal predicate that is satisfied iff `temp_pred` is satisfied on the suffix execution starting from the next state.
+pub open spec fn later<T>(temp_pred: TempPred<T>) -> TempPred<T> {
+    TempPred::new(|ex: Execution<T>| temp_pred.satisfied_by(ex.suffix(1)))
+}
+
 /// `~` for temporal predicates in TLA+ (i.e., `!` in Verus).
 pub open spec fn not<T>(temp_pred: TempPred<T>) -> TempPred<T> {
     TempPred::new(|ex: Execution<T>| !temp_pred.satisfied_by(ex))
