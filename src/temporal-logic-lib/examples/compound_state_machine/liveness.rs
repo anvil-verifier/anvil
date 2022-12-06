@@ -178,22 +178,20 @@ proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(msg: Message)
             kind: ResourceKind::StatefulSetKind,
         }))))),
 {
-    let create_sts_req_msg = create_req_msg(ResourceKey{
+    let recv = Option::Some(msg);
+    let pre = distributed_system::controller_action_pre(controller::send_create_sts(), recv);
+    let post = message_sent(create_req_msg(ResourceKey{
         name: msg.get_CreateResponse_0().obj.key.name + sts_suffix(),
         kind: ResourceKind::StatefulSetKind
-    });
+    }));
 
-    leads_to_eq_auto::<State>(sm_spec());
-    use_tla_forall::<State, Option<Message>>(sm_spec(), |recv| weak_fairness(distributed_system::controller_next().forward(recv)), Option::Some(msg));
+    leads_to_weaken_auto::<State>(sm_spec());
+    use_tla_forall::<State, Option<Message>>(sm_spec(), |r| distributed_system::controller_next().weak_fairness(r), recv);
 
-    distributed_system::controller_action_enabled(controller::send_create_sts(), Option::Some(msg));
+    distributed_system::controller_action_pre_implies_next_pre(controller::send_create_sts(), recv);
+    distributed_system::controller_next().wf1(recv, sm_spec(), next(), post);
 
-    wf1::<State>(sm_spec(),
-        next(),
-        distributed_system::controller_next().forward(Option::Some(msg)),
-        distributed_system::controller_action_pre(controller::send_create_sts(), Option::Some(msg)),
-        message_sent(create_sts_req_msg),
-    );
+    assert(sm_spec().entails(lift_state(pre).leads_to(lift_state(post))));
 }
 
 }

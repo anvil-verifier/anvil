@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 use crate::pervasive::{option::*, set::*};
 use crate::temporal_logic::*;
+use crate::temporal_logic_rules;
 use builtin::*;
 use builtin_macros::*;
 
@@ -28,16 +29,23 @@ impl<State, Input, Output> Action<State, Input, Output> {
         }
     }
 
-    /// `pre_implies_forward_enabled` gives a generic proof showing that
-    /// if the precondition of a action is satisfied, the action is enabled
-    pub proof fn pre_implies_forward_enabled(self, input: Input)
+    /// `weak_fairness` assumption says that,
+    /// it is always true that, if `pre` is always true, `forward` eventually becomes true
+    pub open spec fn weak_fairness(self, input: Input) -> TempPred<State> {
+        always(lift_state(self.pre(input))).leads_to(lift_action(self.forward(input)))
+    }
+
+    /// `wf1` is a specialized version of temporal_logic_rules::wf1 for Action
+    pub proof fn wf1(self, input: Input, spec: TempPred<State>, next: ActionPred<State>, post: StatePred<State>)
+        requires
+            forall |s, s_prime: State| self.pre(input)(s) && action_pred_call(next, s, s_prime) ==> self.pre(input)(s_prime) || post(s_prime),
+            forall |s, s_prime: State| self.pre(input)(s) && action_pred_call(next, s, s_prime) && self.forward(input)(s, s_prime) ==> post(s_prime),
+            spec.entails(always(lift_action(next))),
+            spec.entails(self.weak_fairness(input)),
         ensures
-            forall |s| state_pred_call(self.pre(input), s) ==> enabled(self.forward(input))(s),
+            spec.entails(lift_state(self.pre(input)).leads_to(lift_state(post))),
     {
-        assert forall |s| state_pred_call(self.pre(input), s) implies enabled(self.forward(input))(s) by {
-            let s_prime = (self.transition)(input, s).0;
-            assert(action_pred_call(self.forward(input), s, s_prime));
-        };
+        temporal_logic_rules::wf1_variant_temp::<State>(spec, lift_action(next), lift_action(self.forward(input)), lift_state(self.pre(input)), lift_state(post));
     }
 }
 
