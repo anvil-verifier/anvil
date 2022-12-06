@@ -489,7 +489,7 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
 ///     spec |= []p ~> forward
 /// post:
 ///     spec |= p ~> q
-pub proof fn leads_to_by_forward_temp<T>(spec: TempPred<T>, next: TempPred<T>, forward: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+pub proof fn wf1_variant_temp<T>(spec: TempPred<T>, next: TempPred<T>, forward: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         spec.entails(always(p.and(next).implies(later(p).or(later(q))))),
         spec.entails(always(p.and(next).and(forward).implies(later(q)))),
@@ -532,7 +532,7 @@ pub proof fn leads_to_by_forward_temp<T>(spec: TempPred<T>, next: TempPred<T>, f
 ///     spec |= []p ~> forward
 /// post:
 ///     spec |= p /\ []asm ~> q
-pub proof fn leads_to_by_forward_assume_temp<T>(spec: TempPred<T>, next: TempPred<T>, forward: TempPred<T>, asm: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+pub proof fn wf1_variant_assume_temp<T>(spec: TempPred<T>, next: TempPred<T>, forward: TempPred<T>, asm: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         spec.entails(always(p.and(next).and(asm).implies(later(p).or(later(q))))),
         spec.entails(always(p.and(next).and(forward).implies(later(q)))),
@@ -575,10 +575,10 @@ pub proof fn leads_to_by_forward_assume_temp<T>(spec: TempPred<T>, next: TempPre
         };
     };
 
-    leads_to_by_forward_temp::<T>(spec, next, forward, p_and_always_asm, q);
+    wf1_variant_temp::<T>(spec, next, forward, p_and_always_asm, q);
 }
 
-/// Get the initial leads_to with a stronger wf assumption than leads_to_by_forward.
+/// Get the initial leads_to with a stronger wf assumption than wf1_variant.
 /// pre:
 ///     |= p /\ next => p' /\ q'
 ///     |= p /\ next /\ forward => q'
@@ -608,10 +608,10 @@ pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<
             implies_apply::<T>(ex.suffix(i), lift_state(enabled(forward)), eventually(lift_action(forward)));
         };
     };
-    leads_to_by_forward_temp::<T>(spec, lift_action(next), lift_action(forward), lift_state(p), lift_state(q));
+    wf1_variant_temp::<T>(spec, lift_action(next), lift_action(forward), lift_state(p), lift_state(q));
 }
 
-/// Get the initial leads_to by assuming (1) always asm and (2) a stronger wf assumption than leads_to_by_forward_assume.
+/// Get the initial leads_to by assuming (1) always asm and (2) a stronger wf assumption than wf1_variant_assume.
 /// pre:
 ///     |= p /\ next /\ asm => p' /\ q'
 ///     |= p /\ next /\ forward => q'
@@ -641,7 +641,7 @@ pub proof fn wf1_assume<T>(spec: TempPred<T>, next: ActionPred<T>, forward: Acti
             implies_apply::<T>(ex.suffix(i), lift_state(enabled(forward)), eventually(lift_action(forward)));
         };
     };
-    leads_to_by_forward_assume_temp::<T>(spec, lift_action(next), lift_action(forward), lift_state(asm), lift_state(p), lift_state(q));
+    wf1_variant_assume_temp::<T>(spec, lift_action(next), lift_action(forward), lift_state(asm), lift_state(p), lift_state(q));
 }
 
 /// Weaken entails by implies.

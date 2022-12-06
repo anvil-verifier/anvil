@@ -45,7 +45,7 @@ impl<State, Input, Output> Action<State, Input, Output> {
         ensures
             spec.entails(lift_state(self.pre(input)).leads_to(lift_state(post))),
     {
-        temporal_logic_rules::leads_to_by_forward_temp::<State>(spec, lift_action(next), lift_action(self.forward(input)), lift_state(self.pre(input)), lift_state(post));
+        temporal_logic_rules::wf1_variant_temp::<State>(spec, lift_action(next), lift_action(self.forward(input)), lift_state(self.pre(input)), lift_state(post));
     }
 }
 
