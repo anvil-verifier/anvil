@@ -31,10 +31,15 @@ pub proof fn lemma_msg_sent_leads_to_post_by_kubernetes_api(msg: Message, action
     let recv = Option::Some(msg);
     let pre = kubernetes_api_action_pre(kubernetes_api::handle_request(), recv);
 
+    // F:
+    assert(forall |s, s_prime: State| kubernetes_api_next().pre(recv)(s) && action_pred_call(next(), s, s_prime) ==> kubernetes_api_next().pre(recv)(s_prime) || post(s_prime));
+    assert(forall |s, s_prime: State| kubernetes_api_next().pre(recv)(s) && action_pred_call(next(), s, s_prime) && kubernetes_api_next().forward(recv)(s, s_prime) ==> post(s_prime));
+    kubernetes_api_action_pre_implies_next_pre(action, recv);
+
+    // temporal:
     leads_to_weaken_auto::<State>(sm_spec());
     use_tla_forall::<State, Option<Message>>(sm_spec(), |r| kubernetes_api_next().weak_fairness(r), recv);
 
-    kubernetes_api_action_pre_implies_next_pre(action, recv);
     kubernetes_api_next().wf1(recv, sm_spec(), next(), post);
 
     assert(sm_spec().entails(lift_state(pre).leads_to(lift_state(post))));
