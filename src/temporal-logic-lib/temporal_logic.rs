@@ -135,6 +135,11 @@ pub open spec fn tla_forall<T, A>(a_to_temp_pred: FnSpec(A) -> TempPred<T>) -> T
     TempPred::new(|ex: Execution<T>| forall |a: A| #[trigger] a_to_temp_pred(a).satisfied_by(ex))
 }
 
+/// `\E` for temporal predicates in TLA+ (i.e., `exists` in Verus).
+pub open spec fn tla_exists<T, A>(a_to_temp_pred: FnSpec(A) -> TempPred<T>) -> TempPred<T> {
+    TempPred::new(|ex: Execution<T>| exists |a: A| #[trigger] a_to_temp_pred(a).satisfied_by(ex))
+}
+
 /// Returns a state predicate that is satisfied
 /// iff `action_pred` can be satisfied by any possible following state and the current state
 ///
