@@ -793,6 +793,14 @@ pub proof fn wf1_assume<T>(spec: TempPred<T>, next: ActionPred<T>, forward: Acti
     wf1_variant_assume_temp::<T>(spec, lift_action(next), lift_action(forward), lift_state(asm), lift_state(p), lift_state(q));
 }
 
+/// Leads to q and r if q "waits for" r
+/// pre:
+///     spec |= [](q /\ ~r /\ next => q')
+///     spec |= p ~> q
+///     spec |= p ~> []r
+///     spec |= []next
+/// post:
+///     spec |= p ~> q /\ r
 pub proof fn leads_to_confluence_temp<T>(spec: TempPred<T>, next: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     requires
         spec.entails(always(q.and(not(r)).and(next).implies(later(q)))),
@@ -841,6 +849,7 @@ pub proof fn leads_to_confluence_temp<T>(spec: TempPred<T>, next: TempPred<T>, p
     };
 }
 
+/// StatePred version of leads_to_confluence_temp
 pub proof fn leads_to_confluence<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
         forall |s, s_prime: T| q(s) && !r(s) && action_pred_call(next, s, s_prime) ==> q(s_prime),
