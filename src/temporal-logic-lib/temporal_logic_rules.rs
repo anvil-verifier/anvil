@@ -8,19 +8,6 @@ use builtin_macros::*;
 
 verus! {
 
-/// This lemmas is unfortunately necessary when using tla_forall.
-pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, a_to_temp_pred: FnSpec(A) -> TempPred<T>, a: A)
-    requires
-        spec.entails(tla_forall(a_to_temp_pred)),
-    ensures
-        spec.entails(a_to_temp_pred(a)),
-{
-    entails_apply_auto::<T>();
-    assert forall |ex: Execution<T>| #[trigger] spec.implies(a_to_temp_pred(a)).satisfied_by(ex) by {
-        assert(spec.implies(tla_forall(a_to_temp_pred)).satisfied_by(ex));
-    };
-}
-
 proof fn execution_suffix_zero_merge<T>(ex: Execution<T>, p: TempPred<T>)
     requires
         p.satisfied_by(ex.suffix(0)),
@@ -227,6 +214,16 @@ proof fn always_to_current<T>(ex: Execution<T>, p: TempPred<T>)
         p.satisfied_by(ex),
 {
     execution_suffix_zero_merge::<T>(ex, p);
+}
+
+proof fn always_to_future<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
+    requires
+        always(p).satisfied_by(ex),
+    ensures
+        p.satisfied_by(ex.suffix(i))
+{
+    always_propagate_forwards::<T>(ex, p, i);
+    always_to_current::<T>(ex.suffix(i), p);
 }
 
 proof fn eventually_propagate_backwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
@@ -453,7 +450,159 @@ proof fn next_preserves_inv_rec<T>(ex: Execution<T>, next: TempPred<T>, inv: Tem
     }
 }
 
-/// Get the initial always by induction.
+proof fn p_is_preserved_before_t<T>(ex: Execution<T>, next: TempPred<T>, p: TempPred<T>, q: TempPred<T>, t: nat, i: nat)
+    requires
+        i <= t,
+        p.satisfied_by(ex),
+        forall |idx: nat| next.satisfied_by(#[trigger] ex.suffix(idx)),
+        forall |idx: nat| idx < t ==> !q.satisfied_by(#[trigger] ex.suffix(idx)),
+        forall |idx: nat| p.satisfied_by(ex.suffix(idx)) && !q.satisfied_by(ex.suffix(idx)) && next.satisfied_by(#[trigger] ex.suffix(idx))
+            ==> p.satisfied_by(ex.suffix(idx + 1)),
+    ensures
+        p.satisfied_by(ex.suffix(i)),
+    decreases
+        i,
+{
+    if i == 0 {
+        execution_suffix_zero_split::<T>(ex, p);
+    } else {
+        p_is_preserved_before_t::<T>(ex, next, p, q, t, (i-1) as nat);
+    }
+}
+
+proof fn confluence_at_some_point<T>(ex: Execution<T>, next: TempPred<T>, p: TempPred<T>, q: TempPred<T>, i: nat)
+    requires
+        p.satisfied_by(ex),
+        q.satisfied_by(ex.suffix(i)),
+        always(p.and(not(q)).and(next).implies(later(p))).satisfied_by(ex),
+        always(next).satisfied_by(ex),
+    ensures
+        exists |idx: nat| p.and(q).satisfied_by(#[trigger] ex.suffix(idx)),
+    decreases
+        i,
+{
+    if i === 0 {
+        execution_suffix_zero_split::<T>(ex, p);
+        assert(p.and(q).satisfied_by(ex.suffix(0)));
+    } else {
+        if exists |j: nat| {
+            &&& j < i
+            &&& q.satisfied_by(#[trigger] ex.suffix(j))
+        } {
+            let t = choose |j: nat| {
+                &&& j < i
+                &&& q.satisfied_by(#[trigger] ex.suffix(j))
+            };
+            confluence_at_some_point::<T>(ex, next, p, q, t);
+        } else {
+            assert forall |idx: nat| p.satisfied_by(ex.suffix(idx)) && !q.satisfied_by(ex.suffix(idx)) && next.satisfied_by(#[trigger] ex.suffix(idx))
+            implies p.satisfied_by(ex.suffix(idx + 1)) by {
+                always_unfold::<T>(ex, p.and(not(q)).and(next).implies(later(p)));
+                implies_apply::<T>(ex.suffix(idx), p.and(not(q)).and(next), later(p));
+                execution_suffix_merge::<T>(ex, p, idx, 1);
+            };
+            p_is_preserved_before_t::<T>(ex, next, p, q, i, i);
+            assert(p.and(q).satisfied_by(ex.suffix(i)));
+        }
+    }
+}
+
+/// All the lemmas above are used internally for proving the lemmas below
+/// The following lemmas are used by developers to simplify liveness/safety proof
+
+pub closed spec fn dummy_trigger<A>(x: A);
+
+#[verifier(external_body)]
+pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
+    requires
+        valid(p.equals(q)),
+    ensures
+        p === q,
+{}
+
+pub proof fn p_and_always_p_equals_always_p<T>(p: TempPred<T>)
+    ensures
+        p.and(always(p)) === always(p),
+{
+    assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies p.and(always(p)).satisfied_by(ex) by {
+        always_to_current::<T>(ex, p);
+    };
+    temp_pred_equality::<T>(p.and(always(p)), always(p));
+}
+
+/// How to prove the following equality lemmas?
+#[verifier(external_body)]
+pub proof fn tla_exists_and_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
+    ensures
+        tla_exists(|a: A| a_to_p(a).and(q)) === tla_exists(a_to_p).and(q),
+{}
+
+#[verifier(external_body)]
+pub proof fn tla_exists_or_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
+    ensures
+        tla_exists(|a: A| a_to_p(a).or(q)) === tla_exists(a_to_p).or(q),
+{}
+
+#[verifier(external_body)]
+pub proof fn tla_forall_and_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
+    ensures
+        tla_forall(|a: A| a_to_p(a).and(q)) === tla_forall(a_to_p).and(q),
+{}
+
+#[verifier(external_body)]
+pub proof fn tla_forall_or_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
+    ensures
+        tla_forall(|a: A| a_to_p(a).or(q)) === tla_forall(a_to_p).or(q),
+{}
+
+/// The following four are not very intuitive...
+/// Not super sure that they are correct
+// #[verifier(external_body)]
+// pub proof fn tla_forall_implies_equality1<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
+//     ensures
+//         tla_forall(|a: A| a_to_p(a).implies(q)) === tla_exists(a_to_p).implies(q),
+// {}
+
+// #[verifier(external_body)]
+// pub proof fn tla_forall_implies_equality2<T, A>(p: TempPred<T>, a_to_q: FnSpec(A) -> TempPred<T>)
+//     ensures
+//         tla_forall(|a: A| p.implies(a_to_q(a))) === p.implies(tla_forall(a_to_q)),
+// {}
+
+// #[verifier(external_body)]
+// pub proof fn tla_exists_implies_equality1<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
+//     ensures
+//         tla_exists(|a: A| a_to_p(a).implies(q)) === tla_forall(a_to_p).implies(q),
+// {}
+
+// #[verifier(external_body)]
+// pub proof fn tla_exists_implies_equality2<T, A>(p: TempPred<T>, a_to_q: FnSpec(A) -> TempPred<T>)
+//     ensures
+//         tla_exists(|a: A| p.implies(a_to_q(a))) === p.implies(tla_exists(a_to_q)),
+// {}
+
+#[verifier(external_body)]
+pub proof fn leads_to_exists_intro<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
+    requires
+        forall |a: A| #[trigger] spec.entails(a_to_p(a).leads_to(q)),
+    ensures
+        spec.entails(tla_exists(a_to_p).leads_to(q)),
+{}
+
+/// This lemmas instantiates tla_forall for a.
+pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPred<T>, a: A)
+    requires
+        spec.entails(tla_forall(a_to_p)),
+    ensures
+        spec.entails(a_to_p(a)),
+{
+    entails_apply_auto::<T>();
+    assert forall |ex: Execution<T>| #[trigger] spec.implies(a_to_p(a)).satisfied_by(ex) by {
+        assert(spec.implies(tla_forall(a_to_p)).satisfied_by(ex));
+    };
+}
+
+/// Prove safety by induction.
 /// pre:
 ///     |= init => inv
 ///     |= inv /\ next => inv'
@@ -644,6 +793,85 @@ pub proof fn wf1_assume<T>(spec: TempPred<T>, next: ActionPred<T>, forward: Acti
     wf1_variant_assume_temp::<T>(spec, lift_action(next), lift_action(forward), lift_state(asm), lift_state(p), lift_state(q));
 }
 
+pub proof fn leads_to_confluence_temp<T>(spec: TempPred<T>, next: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    requires
+        spec.entails(always(q.and(not(r)).and(next).implies(later(q)))),
+        spec.entails(p.leads_to(q)),
+        spec.entails(p.leads_to(always(r))),
+        spec.entails(always(next)),
+    ensures
+        spec.entails(p.leads_to(q.and(r))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(q.and(r)).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(q.and(r)).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, always(next));
+
+            implies_apply::<T>(ex, spec, always(q.and(not(r)).and(next).implies(later(q))));
+
+            implies_apply::<T>(ex, spec, p.leads_to(q));
+            leads_to_unfold::<T>(ex, p, q);
+            implies_apply::<T>(ex.suffix(i), p, eventually(q));
+            let q_idx = eventually_choose_witness::<T>(ex.suffix(i), q);
+
+            implies_apply::<T>(ex, spec, p.leads_to(always(r)));
+            leads_to_unfold::<T>(ex, p, always(r));
+            implies_apply::<T>(ex.suffix(i), p, eventually(always(r)));
+            let r_idx = eventually_choose_witness::<T>(ex.suffix(i), always(r));
+
+            if r_idx <= q_idx {
+                always_to_future::<T>(ex.suffix(i).suffix(r_idx), r, (q_idx - r_idx) as nat);
+                execution_suffix_merge::<T>(ex.suffix(i), r, r_idx, (q_idx - r_idx) as nat);
+                eventually_proved_by_witness::<T>(ex.suffix(i), q.and(r), q_idx);
+            } else {
+                always_to_current::<T>(ex.suffix(i).suffix(r_idx), r);
+                execution_suffix_split::<T>(ex.suffix(i), r, q_idx, (r_idx - q_idx) as nat);
+
+                always_propagate_forwards::<T>(ex, next, i + q_idx);
+                execution_suffix_split::<T>(ex, always(next), i, q_idx);
+
+                always_propagate_forwards::<T>(ex, q.and(not(r)).and(next).implies(later(q)), i + q_idx);
+                execution_suffix_split::<T>(ex, always(q.and(not(r)).and(next).implies(later(q))), i, q_idx);
+
+                confluence_at_some_point(ex.suffix(i).suffix(q_idx), next, q, r, (r_idx - q_idx) as nat);
+                let idx = choose |idx| q.and(r).satisfied_by(#[trigger] ex.suffix(i).suffix(q_idx).suffix(idx));
+                execution_suffix_merge::<T>(ex.suffix(i), q.and(r), q_idx, idx);
+                eventually_proved_by_witness::<T>(ex.suffix(i), q.and(r), q_idx + idx);
+            }
+        };
+    };
+}
+
+pub proof fn leads_to_confluence<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
+    requires
+        forall |s, s_prime: T| q(s) && !r(s) && action_pred_call(next, s, s_prime) ==> q(s_prime),
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
+        spec.entails(lift_state(p).leads_to(always(lift_state(r)))),
+        spec.entails(always(lift_action(next))),
+    ensures
+        spec.entails(lift_state(p).leads_to(lift_state(q).and(lift_state(r)))),
+{
+    leads_to_confluence_temp::<T>(spec, lift_action(next), lift_state(p), lift_state(q), lift_state(r));
+}
+
+/// Connects two valid implies.
+/// pre:
+///     |= p => q
+///     |= q => r
+/// post:
+///     |= p => r
+pub proof fn valid_implies_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    requires
+        valid(p.implies(q)),
+        valid(q.implies(r)),
+    ensures
+        valid(p.implies(r)),
+{
+    assert forall |ex| p.satisfied_by(ex) implies r.satisfied_by(ex) by {
+        implies_apply::<T>(ex, p, q);
+        implies_apply::<T>(ex, q, r);
+    };
+}
+
 /// Weaken entails by implies.
 /// pre:
 ///     |= p => q
@@ -674,21 +902,39 @@ pub proof fn entails_weaken_auto<T>(spec: TempPred<T>)
 
 /// Implies is preserved by and.
 /// pre:
-///     |= p1 => p2
-///     |= q1 => q2
+///     spec|= [](p1 => p2)
+///     spec|= [](q1 => q2)
 /// post:
-///     |= p1 /\ q1 => p2 /\ q2
-pub proof fn implies_preserved_by_and_temp<T>(p1: TempPred<T>, p2: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
+///     spec|= [](p1 /\ q1 => p2 /\ q2)
+pub proof fn implies_preserved_by_and_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
     requires
-        valid(p1.implies(p2)),
-        valid(q1.implies(q2)),
+        spec.entails(always(p1.implies(p2))),
+        spec.entails(always(q1.implies(q2))),
     ensures
-        valid(p1.and(q1).implies(p2.and(q2))),
+        spec.entails(always(p1.and(q1).implies(p2.and(q2)))),
 {
-    assert forall |ex| p1.and(q1).satisfied_by(ex) implies p2.and(q2).satisfied_by(ex) by {
-        implies_apply::<T>(ex, p1, p2);
-        implies_apply::<T>(ex, q1, q2);
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(p1.and(q1).implies(p2.and(q2))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p1.and(q1).satisfied_by(ex.suffix(i)) implies p2.and(q2).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, always(p1.implies(p2)));
+            implies_apply::<T>(ex, spec, always(q1.implies(q2)));
+            implies_apply::<T>(ex.suffix(i), p1, p2);
+            implies_apply::<T>(ex.suffix(i), q1, q2);
+        };
     };
+}
+
+/// Sandwich always implies with p.
+/// pre:
+///     spec |= [](q1 => q2)
+/// post:
+///     spec |= [](p /\ q1 => p /\ q2)
+pub proof fn sandwich_always_implies_temp<T>(spec: TempPred<T>, p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
+    requires
+        spec.entails(always(q1.implies(q2))),
+    ensures
+        spec.entails(always(p.and(q1).implies(p.and(q2)))),
+{
+    implies_preserved_by_and_temp::<T>(spec, p, p, q1, q2);
 }
 
 /// Introduce always to both sides of implies.
@@ -1155,6 +1401,26 @@ pub proof fn eventually_eq_auto<T>(spec: TempPred<T>)
     };
 }
 
+pub proof fn leads_to_self_temp<T>(p: TempPred<T>)
+    ensures
+        valid(p.leads_to(p)),
+{
+    assert forall |ex| #[trigger] always(p.implies(eventually(p))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(p).satisfied_by(ex.suffix(i)) by {
+            execution_suffix_zero_split::<T>(ex.suffix(i), p);
+            eventually_proved_by_witness::<T>(ex.suffix(i), p, 0);
+        };
+    };
+}
+
+
+pub proof fn leads_to_self<T>(p: StatePred<T>)
+    ensures
+        valid(lift_state(p).leads_to(lift_state(p))),
+{
+    leads_to_self_temp::<T>(lift_state(p));
+}
+
 /// Get eventually from leads_to.
 /// pre:
 ///     spec |= p
@@ -1611,7 +1877,7 @@ pub proof fn leads_to_always_combine_partially_weaken_temp<T>(spec: TempPred<T>,
     always_distributed_by_and::<T>(q, r);
     leads_to_weaken_temp::<T>(spec, p, always(q.and(r)), p, always(q).and(always(r)));
     always_implies_current::<T>(q);
-    implies_preserved_by_and_temp::<T>(always(q), q, always(r), always(r));
+    implies_preserved_by_and_temp::<T>(spec, always(q), q, always(r), always(r));
     leads_to_weaken_temp::<T>(spec, p, always(q).and(always(r)), p, q.and(always(r)));
 }
 
