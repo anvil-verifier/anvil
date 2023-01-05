@@ -79,27 +79,27 @@ pub open spec fn sm_spec() -> TempPred<SimpleState> {
 
 pub proof fn a_b_enabled()
     ensures
-        forall |s: SimpleState| #[trigger] state_pred_call(a(), s) ==> enabled(a_b())(s),
+        forall |s: SimpleState| #[trigger] a()(s) ==> enabled(a_b())(s),
 {
-    assert forall |s: SimpleState| #[trigger] state_pred_call(a(), s) implies enabled(a_b())(s) by {
+    assert forall |s: SimpleState| #[trigger] a()(s) implies enabled(a_b())(s) by {
         let witness_s_prime = SimpleState {
             x: ABC::B,
             happy: s.happy,
         };
-        assert(action_pred_call(a_b(), s, witness_s_prime));
+        assert(a_b()(s, witness_s_prime));
     };
 }
 
 pub proof fn b_c_enabled()
     ensures
-        forall |s: SimpleState| #[trigger] state_pred_call(b(), s) ==> enabled(b_c())(s),
+        forall |s: SimpleState| #[trigger] b()(s) ==> enabled(b_c())(s),
 {
-    assert forall |s: SimpleState| #[trigger] state_pred_call(b(), s) implies enabled(b_c())(s) by {
+    assert forall |s: SimpleState| #[trigger] b()(s) implies enabled(b_c())(s) by {
         let witness_s_prime = SimpleState {
             x: ABC::C,
             happy: s.happy,
         };
-        assert(action_pred_call(b_c(), s, witness_s_prime));
+        assert(b_c()(s, witness_s_prime));
     };
 }
 

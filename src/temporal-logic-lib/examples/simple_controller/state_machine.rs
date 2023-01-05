@@ -131,55 +131,55 @@ pub open spec fn sm_spec() -> TempPred<CState> {
 
 pub proof fn send1_enabled()
     ensures
-        forall |s: CState| state_pred_call(send1_pre(), s) ==> enabled(reconcile())(s),
+        forall |s: CState| #[trigger]  send1_pre()(s) ==> enabled(reconcile())(s),
 {
-    assert forall |s: CState| state_pred_call(send1_pre(), s) implies enabled(reconcile())(s) by {
+    assert forall |s: CState| #[trigger] send1_pre()(s) implies enabled(reconcile())(s) by {
         let witness_s_prime = CState {
             sent_1_create: true,
             messages: s.messages.insert(Message::CreateReq{id: 1}),
             ..s
         };
-        assert(action_pred_call(reconcile(), s, witness_s_prime));
+        assert(reconcile()(s, witness_s_prime));
     };
 }
 
 pub proof fn send2_enabled()
     ensures
-        forall |s: CState| state_pred_call(send2_pre(), s) ==> enabled(reconcile())(s),
+        forall |s: CState| #[trigger] send2_pre()(s) ==> enabled(reconcile())(s),
 {
-    assert forall |s: CState| state_pred_call(send2_pre(), s) implies enabled(reconcile())(s) by {
+    assert forall |s: CState| #[trigger] send2_pre()(s) implies enabled(reconcile())(s) by {
         let witness_s_prime = CState {
             sent_2_create: true,
             messages: s.messages.insert(Message::CreateReq{id: 2}),
             ..s
         };
-        assert(action_pred_call(reconcile(), s, witness_s_prime));
+        assert(reconcile()(s, witness_s_prime));
     };
 }
 
 pub proof fn create1_enabled()
     ensures
-        forall |s: CState| state_pred_call(create1_pre(), s) ==> enabled(create1())(s),
+        forall |s: CState| #[trigger] create1_pre()(s) ==> enabled(create1())(s),
 {
-    assert forall |s: CState| state_pred_call(create1_pre(), s) implies enabled(create1())(s) by {
+    assert forall |s: CState| #[trigger] create1_pre()(s) implies enabled(create1())(s) by {
         let witness_s_prime = CState {
             obj_1_exists: true,
             ..s
         };
-        assert(action_pred_call(create1(), s, witness_s_prime));
+        assert(create1()(s, witness_s_prime));
     };
 }
 
 pub proof fn create2_enabled()
     ensures
-        forall |s: CState| state_pred_call(create2_pre(), s) ==> enabled(create2())(s),
+        forall |s: CState| #[trigger] create2_pre()(s) ==> enabled(create2())(s),
 {
-    assert forall |s: CState| state_pred_call(create2_pre(), s) implies enabled(create2())(s) by {
+    assert forall |s: CState| #[trigger] create2_pre()(s) implies enabled(create2())(s) by {
         let witness_s_prime = CState {
             obj_2_exists: true,
             ..s
         };
-        assert(action_pred_call(create2(), s, witness_s_prime));
+        assert(create2()(s, witness_s_prime));
     };
 }
 

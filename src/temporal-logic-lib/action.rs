@@ -38,8 +38,8 @@ impl<State, Input, Output> Action<State, Input, Output> {
     /// `wf1` is a specialized version of temporal_logic_rules::wf1 for Action
     pub proof fn wf1(self, input: Input, spec: TempPred<State>, next: ActionPred<State>, pre: StatePred<State>, post: StatePred<State>)
         requires
-            forall |s, s_prime: State| pre(s) && action_pred_call(next, s, s_prime) ==> pre(s_prime) || post(s_prime),
-            forall |s, s_prime: State| pre(s) && action_pred_call(next, s, s_prime) && self.forward(input)(s, s_prime) ==> post(s_prime),
+            forall |s, s_prime: State| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
+            forall |s, s_prime: State| pre(s) && #[trigger] next(s, s_prime) && self.forward(input)(s, s_prime) ==> post(s_prime),
             spec.entails(always(lift_action(next))),
             spec.entails(always(lift_state(pre).implies(lift_state(self.pre(input))))),
             spec.entails(self.weak_fairness(input)),
@@ -54,8 +54,8 @@ impl<State, Input, Output> Action<State, Input, Output> {
     /// `wf1_assume` is a specialized version of temporal_logic_rules::wf1_assume for Action
     pub proof fn wf1_assume(self, input: Input, spec: TempPred<State>, next: ActionPred<State>, asm: StatePred<State>, pre: StatePred<State>, post: StatePred<State>)
         requires
-            forall |s, s_prime: State| pre(s) && action_pred_call(next, s, s_prime) && asm(s) ==> pre(s_prime) || post(s_prime),
-            forall |s, s_prime: State| pre(s) && action_pred_call(next, s, s_prime) && self.forward(input)(s, s_prime) ==> post(s_prime),
+            forall |s, s_prime: State| pre(s) && #[trigger] next(s, s_prime) && asm(s) ==> pre(s_prime) || post(s_prime),
+            forall |s, s_prime: State| pre(s) && #[trigger] next(s, s_prime) && self.forward(input)(s, s_prime) ==> post(s_prime),
             spec.entails(always(lift_action(next))),
             spec.entails(always(lift_state(pre).implies(lift_state(self.pre(input))))),
             spec.entails(self.weak_fairness(input)),

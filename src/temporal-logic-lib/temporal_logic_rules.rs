@@ -611,8 +611,8 @@ pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPr
 ///     spec |= []inv
 pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: ActionPred<T>, inv: StatePred<T>)
     requires
-        forall |s: T| state_pred_call(init, s) ==> inv(s),
-        forall |s, s_prime: T| inv(s) && action_pred_call(next, s, s_prime) ==> inv(s_prime),
+        forall |s: T| #[trigger] init(s) ==> inv(s),
+        forall |s, s_prime: T| inv(s) && #[trigger] next(s, s_prime) ==> inv(s_prime),
         spec.entails(lift_state(init).and(always(lift_action(next)))),
     ensures
         spec.entails(always(lift_state(inv))),
@@ -622,9 +622,6 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
         entails_apply(ex, spec, lift_state(init).and(always(lift_action(next))));
         always_unfold::<T>(ex, lift_action(next));
         assert forall |i: nat| inv(#[trigger] ex.suffix(i).head()) by {
-            assert forall |idx: nat| init(#[trigger] ex.suffix(idx).head()) implies inv(ex.suffix(idx).head()) by {
-                assert(state_pred_call(init, ex.suffix(idx).head()));
-            };
             init_invariant_rec(ex, init, next, inv, i);
         };
     };
@@ -738,9 +735,9 @@ pub proof fn wf1_variant_assume_temp<T>(spec: TempPred<T>, next: TempPred<T>, fo
 ///     spec |= p ~> q
 pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |s, s_prime: T| p(s) && action_pred_call(next, s, s_prime) ==> p(s_prime) || q(s_prime),
-        forall |s, s_prime: T| p(s) && action_pred_call(next, s, s_prime) && forward(s, s_prime) ==> q(s_prime),
-        forall |s: T| state_pred_call(p, s) ==> enabled(forward)(s),
+        forall |s, s_prime: T| p(s) && #[trigger] next(s, s_prime) ==> p(s_prime) || q(s_prime),
+        forall |s, s_prime: T| p(s) && #[trigger] next(s, s_prime) && forward(s, s_prime) ==> q(s_prime),
+        forall |s: T| #[trigger] p(s) ==> enabled(forward)(s),
         spec.entails(always(lift_action(next))),
         spec.entails(weak_fairness(forward)),
     ensures
@@ -771,9 +768,9 @@ pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<
 ///     spec |= p /\ []asm ~> q
 pub proof fn wf1_assume<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<T>, asm: StatePred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |s, s_prime: T| p(s) && action_pred_call(next, s, s_prime) && asm(s) ==> p(s_prime) || q(s_prime),
-        forall |s, s_prime: T| p(s) && action_pred_call(next, s, s_prime) && forward(s, s_prime) ==> q(s_prime),
-        forall |s: T| state_pred_call(p, s) ==> enabled(forward)(s),
+        forall |s, s_prime: T| p(s) && #[trigger] next(s, s_prime) && asm(s) ==> p(s_prime) || q(s_prime),
+        forall |s, s_prime: T| p(s) && #[trigger] next(s, s_prime) && forward(s, s_prime) ==> q(s_prime),
+        forall |s: T| #[trigger] p(s) ==> enabled(forward)(s),
         spec.entails(always(lift_action(next))),
         spec.entails(weak_fairness(forward)),
     ensures
@@ -852,7 +849,7 @@ pub proof fn leads_to_confluence_temp<T>(spec: TempPred<T>, next: TempPred<T>, p
 /// StatePred version of leads_to_confluence_temp
 pub proof fn leads_to_confluence<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        forall |s, s_prime: T| q(s) && !r(s) && action_pred_call(next, s, s_prime) ==> q(s_prime),
+        forall |s, s_prime: T| q(s) && !r(s) && #[trigger] next(s, s_prime) ==> q(s_prime),
         spec.entails(lift_state(p).leads_to(lift_state(q))),
         spec.entails(lift_state(p).leads_to(always(lift_state(r)))),
         spec.entails(always(lift_action(next))),
@@ -2008,7 +2005,7 @@ pub proof fn leads_to_stable_assume_temp<T>(spec: TempPred<T>, next: TempPred<T>
 /// StatePred version of leads_to_stable_temp.
 pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |s, s_prime: T| q(s) && action_pred_call(next, s, s_prime) ==> q(s_prime),
+        forall |s, s_prime: T| q(s) && #[trigger] next(s, s_prime) ==> q(s_prime),
         spec.entails(always(lift_action(next))),
         spec.entails(lift_state(p).leads_to(lift_state(q))),
     ensures
@@ -2020,7 +2017,7 @@ pub proof fn leads_to_stable<T>(spec: TempPred<T>, next: ActionPred<T>, p: State
 /// StatePred version of leads_to_stable_assume_temp.
 pub proof fn leads_to_stable_assume<T>(spec: TempPred<T>, next: ActionPred<T>, asm: StatePred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |s, s_prime: T| q(s) && action_pred_call(next, s, s_prime) && asm(s) ==> q(s_prime),
+        forall |s, s_prime: T| q(s) && #[trigger] next(s, s_prime) && asm(s) ==> q(s_prime),
         spec.entails(always(lift_action(next))),
         spec.entails(lift_state(p).leads_to(lift_state(q))),
     ensures
@@ -2039,7 +2036,7 @@ pub proof fn leads_to_stable_assume<T>(spec: TempPred<T>, next: ActionPred<T>, a
 ///     spec |= []p ~> []q
 pub proof fn leads_to_stable_assume_p<T>(spec: TempPred<T>, next: ActionPred<T>, asm: StatePred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
-        forall |s, s_prime: T| q(s) && action_pred_call(next, s, s_prime) && asm(s) ==> q(s_prime),
+        forall |s, s_prime: T| q(s) && #[trigger] next(s, s_prime) && asm(s) ==> q(s_prime),
         spec.entails(always(lift_action(next))),
         spec.entails(always(always(lift_state(p)).implies(always(lift_state(asm))))),
         spec.entails(lift_state(p).leads_to(lift_state(q))),
@@ -2064,8 +2061,8 @@ pub proof fn leads_to_stable_assume_p<T>(spec: TempPred<T>, next: ActionPred<T>,
 /// Combination of leads_to_stable_assume_p and leads_to_always_combine_temp.
 pub proof fn leads_to_stable_assume_p_combine<T>(spec: TempPred<T>, next: ActionPred<T>, asm: StatePred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        forall |s, s_prime: T| q(s) && #[trigger] action_pred_call(next, s, s_prime) && asm(s) ==> q(s_prime),
-        forall |s, s_prime: T| r(s) && #[trigger] action_pred_call(next, s, s_prime) && asm(s) ==> r(s_prime),
+        forall |s, s_prime: T| q(s) && #[trigger] next(s, s_prime) && asm(s) ==> q(s_prime),
+        forall |s, s_prime: T| r(s) && #[trigger] next(s, s_prime) && asm(s) ==> r(s_prime),
         spec.entails(always(lift_action(next))),
         spec.entails(always(always(lift_state(p)).implies(always(lift_state(asm))))),
         spec.entails(lift_state(p).leads_to(lift_state(q))),
@@ -2081,8 +2078,8 @@ pub proof fn leads_to_stable_assume_p_combine<T>(spec: TempPred<T>, next: Action
 /// Combination of leads_to_stable and leads_to_always_combine.
 pub proof fn leads_to_stable_combine<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r: StatePred<T>)
     requires
-        forall |s, s_prime: T| q(s) && action_pred_call(next, s, s_prime) ==> q(s_prime),
-        forall |s, s_prime: T| r(s) && action_pred_call(next, s, s_prime) ==> r(s_prime),
+        forall |s, s_prime: T| q(s) && #[trigger] next(s, s_prime) ==> q(s_prime),
+        forall |s, s_prime: T| r(s) && #[trigger] next(s, s_prime) ==> r(s_prime),
         spec.entails(always(lift_action(next))),
         spec.entails(lift_state(p).leads_to(lift_state(q))),
         spec.entails(lift_state(p).leads_to(lift_state(r))),

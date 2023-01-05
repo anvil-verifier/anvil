@@ -21,9 +21,9 @@ verus! {
 pub proof fn lemma_pre_leads_to_post_by_controller(input: ControllerActionInput, action: ControllerAction, pre: StatePred<State>, post: StatePred<State>)
     requires
         controller::controller().actions.contains(action),
-        forall |s, s_prime: State| pre(s) && action_pred_call(next(), s, s_prime) ==> pre(s_prime) || post(s_prime),
-        forall |s, s_prime: State| pre(s) && action_pred_call(next(), s, s_prime) && controller_next().forward(input)(s, s_prime) ==> post(s_prime),
-        forall |s: State| state_pred_call(pre, s) ==> controller_action_pre(action, input)(s),
+        forall |s, s_prime: State| pre(s) && #[trigger] next()(s, s_prime) ==> pre(s_prime) || post(s_prime),
+        forall |s, s_prime: State| pre(s) && #[trigger] next()(s, s_prime) && controller_next().forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s: State| #[trigger] pre(s) ==> controller_action_pre(action, input)(s),
     ensures
         sm_spec().entails(lift_state(pre).leads_to(lift_state(post))),
 {
@@ -38,9 +38,9 @@ pub proof fn lemma_pre_leads_to_post_by_controller(input: ControllerActionInput,
 pub proof fn lemma_pre_leads_to_post_with_asm_by_controller(input: ControllerActionInput, action: ControllerAction, asm: StatePred<State>, pre: StatePred<State>, post: StatePred<State>)
     requires
         controller::controller().actions.contains(action),
-        forall |s, s_prime: State| pre(s) && action_pred_call(next(), s, s_prime) && asm(s) ==> pre(s_prime) || post(s_prime),
-        forall |s, s_prime: State| pre(s) && action_pred_call(next(), s, s_prime) && controller_next().forward(input)(s, s_prime) ==> post(s_prime),
-        forall |s: State| state_pred_call(pre, s) ==> controller_action_pre(action, input)(s),
+        forall |s, s_prime: State| pre(s) && #[trigger] next()(s, s_prime) && asm(s) ==> pre(s_prime) || post(s_prime),
+        forall |s, s_prime: State| pre(s) && #[trigger] next()(s, s_prime) && controller_next().forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s: State| #[trigger] pre(s) ==> controller_action_pre(action, input)(s),
     ensures
         sm_spec().entails(lift_state(pre).and(always(lift_state(asm))).leads_to(lift_state(post))),
 {

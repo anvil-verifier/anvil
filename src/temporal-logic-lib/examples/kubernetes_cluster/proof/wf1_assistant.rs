@@ -24,8 +24,7 @@ pub proof fn kubernetes_api_action_pre_implies_next_pre(action: KubernetesAPIAct
     ensures
         valid(lift_state(kubernetes_api_action_pre(action, input)).implies(lift_state(kubernetes_api_next().pre(input)))),
 {
-    assert forall |s| #[trigger] state_pred_call(kubernetes_api_action_pre(action, input), s)
-    implies state_pred_call(kubernetes_api_next().pre(input), s) by {
+    assert forall |s| #[trigger] kubernetes_api_action_pre(action, input)(s) implies kubernetes_api_next().pre(input)(s) by {
         exists_next_kubernetes_api_step(action, input, s.kubernetes_api_state);
     };
 }
@@ -36,8 +35,7 @@ pub proof fn controller_action_pre_implies_next_pre(action: ControllerAction, in
     ensures
         valid(lift_state(controller_action_pre(action, input)).implies(lift_state(controller_next().pre(input)))),
 {
-    assert forall |s| #[trigger] state_pred_call(controller_action_pre(action, input), s)
-    implies state_pred_call(controller_next().pre(input), s) by {
+    assert forall |s| #[trigger] controller_action_pre(action, input)(s) implies controller_next().pre(input)(s) by {
         exists_next_controller_step(action, input, s.controller_state);
     };
 }

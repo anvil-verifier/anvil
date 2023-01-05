@@ -286,7 +286,7 @@ proof fn lemma_get_cr_done_leads_to_cm_exists(cr: ResourceObj)
     // It is quite obvious that get_cr_resp_msg_sent is stable since we never remove a message from the network sent set
     // But we still need to prove it by providing a witness because of "exists" in get_cr_resp_msg_sent
     // Note that we want to prove it is stable because we want to use leads_to_confluence later
-    assert forall |s, s_prime: State| get_cr_resp_msg_sent(s) && action_pred_call(next(), s, s_prime) implies get_cr_resp_msg_sent(s_prime) by {
+    assert forall |s, s_prime: State| get_cr_resp_msg_sent(s) && #[trigger] next()(s, s_prime) implies get_cr_resp_msg_sent(s_prime) by {
         let msg = choose |m: Message| {
             &&& #[trigger] s.message_sent(m)
             &&& resp_msg_matches_req_msg(m, get_cr_req_msg)
@@ -580,7 +580,7 @@ proof fn lemma_exists_get_resp_msg_sent_and_get_cr_leads_to_create_cm(cr_key: Re
 //         &&& #[trigger] s.message_sent(m)
 //         &&& resp_msg_matches_req_msg(m, form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
 //     };
-//     assert(forall |s, s_prime| p(s) && !q(s) && action_pred_call(next(), s, s_prime) ==> p(s_prime));
+//     assert(forall |s, s_prime| p(s) && !q(s) && #[trigger] next()(s, s_prime) ==> p(s_prime));
 // }
 
 // pub proof fn foo3() {

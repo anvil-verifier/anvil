@@ -328,62 +328,62 @@ pub open spec fn sm_spec() -> TempPred<CState> {
 
 pub proof fn controller_send_create_sts_enabled(msg: Message)
     ensures
-        forall |s| state_pred_call(controller_send_create_sts_pre(msg), s)
+        forall |s| #[trigger] controller_send_create_sts_pre(msg)(s)
             ==> enabled(controller_send_create_sts(msg))(s),
 {
-    assert forall |s| state_pred_call(controller_send_create_sts_pre(msg), s)
+    assert forall |s| #[trigger] controller_send_create_sts_pre(msg)(s)
     implies enabled(controller_send_create_sts(msg))(s) by {
         let witness_s_prime = CState {
             messages: s.messages.insert(create_req_msg(ResourceKey{name: msg.get_CreateResponse_0().obj.key.name + sts_suffix(), kind: ResourceKind::StatefulSetKind})),
             ..s
         };
-        assert(action_pred_call(controller_send_create_sts(msg), s, witness_s_prime));
+        assert(controller_send_create_sts(msg)(s, witness_s_prime));
     };
 }
 
 pub proof fn controller_send_delete_sts_enabled(msg: Message)
     ensures
-        forall |s| state_pred_call(controller_send_delete_sts_pre(msg), s)
+        forall |s| #[trigger] controller_send_delete_sts_pre(msg)(s)
             ==> enabled(controller_send_delete_sts(msg))(s),
 {
-    assert forall |s| state_pred_call(controller_send_delete_sts_pre(msg), s)
+    assert forall |s| #[trigger] controller_send_delete_sts_pre(msg)(s)
     implies enabled(controller_send_delete_sts(msg))(s) by {
         let witness_s_prime = CState {
             messages: s.messages.insert(delete_req_msg(ResourceKey{name: msg.get_DeleteResponse_0().key.name + sts_suffix(), kind: ResourceKind::StatefulSetKind})),
             ..s
         };
-        assert(action_pred_call(controller_send_delete_sts(msg), s, witness_s_prime));
+        assert(controller_send_delete_sts(msg)(s, witness_s_prime));
     };
 }
 
 pub proof fn k8s_handle_request_enabled(msg: Message)
     ensures
-        forall |s| state_pred_call(k8s_handle_request_pre(msg), s)
+        forall |s| #[trigger] k8s_handle_request_pre(msg)(s)
             ==> enabled(k8s_handle_request(msg))(s),
 {
-    assert forall |s| state_pred_call(k8s_handle_request_pre(msg), s)
+    assert forall |s| #[trigger] k8s_handle_request_pre(msg)(s)
     implies enabled(k8s_handle_request(msg))(s) by {
         let witness_s_prime = CState {
             resources: update_resources_with(s, msg),
             messages: update_messages_with(s, msg),
             ..s
         };
-        assert(action_pred_call(k8s_handle_request(msg), s, witness_s_prime));
+        assert(k8s_handle_request(msg)(s, witness_s_prime));
     };
 }
 
 pub proof fn k8s_attach_vol_to_pod_enabled(cr_name: Seq<char>)
     ensures
-        forall |s| state_pred_call(k8s_attach_vol_to_pod_pre(cr_name), s)
+        forall |s| #[trigger] k8s_attach_vol_to_pod_pre(cr_name)(s)
             ==> enabled(k8s_attach_vol_to_pod(cr_name))(s),
 {
-    assert forall |s| state_pred_call(k8s_attach_vol_to_pod_pre(cr_name), s)
+    assert forall |s| #[trigger] k8s_attach_vol_to_pod_pre(cr_name)(s)
     implies enabled(k8s_attach_vol_to_pod(cr_name))(s) by {
         let witness_s_prime = CState {
             attached: s.attached.insert(cr_name),
             ..s
         };
-        assert(action_pred_call(k8s_attach_vol_to_pod(cr_name), s, witness_s_prime));
+        assert(k8s_attach_vol_to_pod(cr_name)(s, witness_s_prime));
     };
 }
 

@@ -19,9 +19,9 @@ verus! {
 pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(input: KubernetesAPIActionInput, action: kubernetes_api::KubernetesAPIAction, pre: StatePred<State>, post: StatePred<State>)
     requires
         kubernetes_api::kubernetes_api().actions.contains(action),
-        forall |s, s_prime: State| pre(s) && action_pred_call(next(), s, s_prime) ==> pre(s_prime) || post(s_prime),
-        forall |s, s_prime: State| pre(s) && action_pred_call(next(), s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime) ==> post(s_prime),
-        forall |s: State| state_pred_call(pre, s) ==> kubernetes_api_action_pre(action, input)(s),
+        forall |s, s_prime: State| pre(s) && #[trigger] next()(s, s_prime) ==> pre(s_prime) || post(s_prime),
+        forall |s, s_prime: State| pre(s) && #[trigger] next()(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s: State| #[trigger] pre(s) ==> kubernetes_api_action_pre(action, input)(s),
     ensures
         sm_spec().entails(lift_state(pre).leads_to(lift_state(post))),
 {
@@ -36,9 +36,9 @@ pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(input: KubernetesAPIActio
 pub proof fn lemma_pre_leads_to_post_with_asm_by_kubernetes_api(input: KubernetesAPIActionInput, action: kubernetes_api::KubernetesAPIAction, asm: StatePred<State>, pre: StatePred<State>, post: StatePred<State>)
     requires
         kubernetes_api::kubernetes_api().actions.contains(action),
-        forall |s, s_prime: State| pre(s) && action_pred_call(next(), s, s_prime) && asm(s) ==> pre(s_prime) || post(s_prime),
-        forall |s, s_prime: State| pre(s) && action_pred_call(next(), s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime) ==> post(s_prime),
-        forall |s: State| state_pred_call(pre, s) ==> kubernetes_api_action_pre(action, input)(s),
+        forall |s, s_prime: State| pre(s) && #[trigger] next()(s, s_prime) && asm(s) ==> pre(s_prime) || post(s_prime),
+        forall |s, s_prime: State| pre(s) && #[trigger] next()(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s: State| #[trigger] pre(s) ==> kubernetes_api_action_pre(action, input)(s),
     ensures
         sm_spec().entails(lift_state(pre).and(always(lift_state(asm))).leads_to(lift_state(post))),
 {
@@ -120,7 +120,7 @@ pub proof fn lemma_get_req_leads_to_some_resp(msg: Message, key: ResourceKey)
         &&& #[trigger] s.message_sent(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
     };
-    assert forall |s, s_prime: State| pre(s) && action_pred_call(next(), s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime)
+    assert forall |s, s_prime: State| pre(s) && #[trigger] next()(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
         if s.resource_key_exists(key) {
             let ok_resp_msg = form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)));

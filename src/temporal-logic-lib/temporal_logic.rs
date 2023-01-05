@@ -83,24 +83,16 @@ impl<T> TempPred<T> {
     }
 }
 
-pub open spec fn state_pred_call<T>(state_pred: StatePred<T>, s: T) -> bool {
-    state_pred(s)
-}
-
-pub open spec fn action_pred_call<T>(action_pred: ActionPred<T>, s: T, s_prime: T) -> bool {
-    action_pred(s, s_prime)
-}
-
 pub open spec fn lift_state<T>(state_pred: StatePred<T>) -> TempPred<T> {
-    TempPred::new(|ex: Execution<T>| state_pred_call(state_pred, ex.head()))
+    TempPred::new(|ex: Execution<T>| state_pred(ex.head()))
 }
 
 pub open spec fn lift_state_prime<T>(state_pred: StatePred<T>) -> TempPred<T> {
-    TempPred::new(|ex: Execution<T>| state_pred_call(state_pred, ex.head_next()))
+    TempPred::new(|ex: Execution<T>| state_pred(ex.head_next()))
 }
 
 pub open spec fn lift_action<T>(action_pred: ActionPred<T>) -> TempPred<T> {
-    TempPred::new(|ex: Execution<T>| action_pred_call(action_pred, ex.head(), ex.head_next()))
+    TempPred::new(|ex: Execution<T>| action_pred(ex.head(), ex.head_next()))
 }
 
 /// `[]` for temporal predicates in TLA+.
@@ -147,7 +139,7 @@ pub open spec fn tla_exists<T, A>(a_to_temp_pred: FnSpec(A) -> TempPred<T>) -> T
 ///
 /// Note: it says whether the action *can possibly* happen, rather than whether the action *actually does* happen!
 pub open spec fn enabled<T>(action_pred: ActionPred<T>) -> StatePred<T> {
-    |s: T| exists |s_prime: T| #[trigger] action_pred_call(action_pred, s, s_prime)
+    |s: T| exists |s_prime: T| #[trigger] action_pred(s, s_prime)
 }
 
 /// Returns a temporal predicate that is satisfied
