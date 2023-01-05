@@ -116,6 +116,14 @@ proof fn implies_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
         q.satisfied_by(ex),
 {}
 
+proof fn implies_contraposition_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        p.implies(q).satisfied_by(ex),
+        not(q).satisfied_by(ex),
+    ensures
+        not(p).satisfied_by(ex),
+{}
+
 proof fn equals_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.equals(q).satisfied_by(ex),
@@ -510,15 +518,22 @@ proof fn confluence_at_some_point<T>(ex: Execution<T>, next: TempPred<T>, p: Tem
 /// All the lemmas above are used internally for proving the lemmas below
 /// The following lemmas are used by developers to simplify liveness/safety proof
 
-pub closed spec fn dummy_trigger<A>(x: A);
-
-#[verifier(external_body)]
 pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
     requires
         valid(p.equals(q)),
     ensures
         p === q,
-{}
+{
+    assert forall |ex: Execution<T>| #[trigger] (p.pred)(ex) === (q.pred)(ex) by {
+        valid_equals_to_valid_implies::<T>(p, q);
+        if (p.pred)(ex) {
+            implies_apply::<T>(ex, p, q);
+        } else {
+            implies_contraposition_apply::<T>(ex, q, p);
+        }
+    };
+    fun_ext::<Execution<T>, bool>(p.pred, q.pred);
+}
 
 pub proof fn p_and_always_p_equals_always_p<T>(p: TempPred<T>)
     ensures
