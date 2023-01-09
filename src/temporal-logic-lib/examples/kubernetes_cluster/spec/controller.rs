@@ -117,7 +117,8 @@ pub open spec fn create_sts_req(cr_key: ResourceKey) -> APIRequest
 }
 
 /// This is a highly simplified reconcile core spec:
-/// it sends requests to create a configmap and a statefulset for the cr.
+/// it sends requests to create a configmap for the cr.
+/// TODO: make the reconcile_core create more resources such as a statefulset
 pub open spec fn reconcile_core(cr_key: ResourceKey, step: ReconcileCoreStep, resp_o: Option<APIResponse>) -> (ReconcileCoreStep, Option<APIRequest>)
     recommends
         cr_key.kind.is_CustomResourceKind(),
