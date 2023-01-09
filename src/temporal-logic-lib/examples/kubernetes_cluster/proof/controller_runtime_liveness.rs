@@ -90,20 +90,6 @@ pub proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered(msg: Message
     lemma_pre_leads_to_post_by_controller(input, controller::trigger_reconcile(), pre, post);
 }
 
-pub proof fn lemma_always_cr_exists_implies_added_event_sent(cr: ResourceObj)
-    requires
-        cr.key.kind.is_CustomResourceKind(),
-    ensures
-        sm_spec().entails(always(
-            lift_state(|s: State| s.resource_obj_exists(cr))
-                .implies(lift_state(|s: State| {
-                    s.message_sent(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)))
-                }))
-        )),
-{
-    kubernetes_api_safety::lemma_always_res_exists_implies_added_event_sent(cr);
-}
-
 pub proof fn lemma_reconcile_ended_leads_to_reconcile_ended(cr_key: ResourceKey)
     requires
         cr_key.kind.is_CustomResourceKind(),

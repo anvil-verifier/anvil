@@ -45,7 +45,7 @@ proof fn liveness_proof(cr: ResourceObj)
         ),
 {
     leads_to_weaken_auto::<State>(sm_spec());
-    controller_runtime_liveness::lemma_always_cr_exists_implies_added_event_sent(cr);
+    kubernetes_api_safety::lemma_always_res_exists_implies_added_event_sent(cr);
     lemma_cr_added_event_msg_sent_leads_to_cm_exists(cr);
 }
 
