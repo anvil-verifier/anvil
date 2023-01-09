@@ -58,76 +58,62 @@ proof fn lemma_cr_added_event_msg_sent_leads_to_cm_exists(cr: ResourceObj)
                 .leads_to(lift_state(|s: State| s.resource_key_exists(controller::subresource_configmap(cr.key).key)))
         ),
 {
-    let cr_added_event_msg_sent_and_controller_in_reconcile = |s: State| {
-        &&& s.message_sent(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)))
-        &&& s.reconcile_state_contains(cr.key)
-    };
-    let cr_added_event_msg_sent_and_controller_not_in_reconcile = |s: State| {
-        &&& s.message_sent(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)))
-        &&& !s.reconcile_state_contains(cr.key)
-    };
+    let cr_added_event_msg_sent = |s: State| s.message_sent(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)));
+    let controller_in_reconcile = |s: State| s.reconcile_state_contains(cr.key);
     let cm_exists = |s: State| s.resource_key_exists(controller::subresource_configmap(cr.key).key);
 
     leads_to_weaken_auto::<State>(sm_spec());
 
-    // You might wonder why do we want to split the cases by whether s.reconcile_state_contains(cr.key) here
-    // The reason is that if !s.reconcile_state_contains(cr.key) then we can simply apply wf1 to make progress
-    // because cr_added_event_msg_sent_and_controller_not_in_reconcile is basically the precondition of
-    // controller's trigger_reconcile action as
-    // what lemma_cr_added_event_msg_sent_and_controller_not_in_reconcile_leads_to_cm_exists does
-    lemma_cr_added_event_msg_sent_and_controller_not_in_reconcile_leads_to_cm_exists(cr);
-    // However, if s.reconcile_state_contains(cr.key) then it becomes very complicated -- it means the controller
-    // is currently in reconcile and we need to reason about every reconcile step and prove each step leads to cm_exists
-    // which is lemma_cr_added_event_msg_sent_and_controller_in_reconcile_leads_to_cm_exists does
-    lemma_cr_added_event_msg_sent_and_controller_in_reconcile_leads_to_cm_exists(cr);
+    lemma_cr_added_event_msg_sent_leads_to_controller_in_reconcile(cr);
+    lemma_controller_in_reconcile_leads_to_cm_exists(cr);
 
-    or_leads_to_combine::<State>(sm_spec(), cr_added_event_msg_sent_and_controller_in_reconcile, cr_added_event_msg_sent_and_controller_not_in_reconcile, cm_exists);
+    leads_to_trans::<State>(sm_spec(), cr_added_event_msg_sent, controller_in_reconcile, cm_exists);
+
 }
 
-proof fn lemma_cr_added_event_msg_sent_and_controller_not_in_reconcile_leads_to_cm_exists(cr: ResourceObj)
+proof fn lemma_cr_added_event_msg_sent_leads_to_controller_in_reconcile(cr: ResourceObj)
     requires
         cr.key.kind.is_CustomResourceKind(),
     ensures
         sm_spec().entails(
-            lift_state(|s: State| {
-                &&& s.message_sent(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)))
-                &&& !s.reconcile_state_contains(cr.key)
-            }).leads_to(lift_state(|s: State| s.resource_key_exists(controller::subresource_configmap(cr.key).key)))
+            lift_state(|s: State| s.message_sent(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr))))
+                .leads_to(lift_state(|s: State| s.reconcile_state_contains(cr.key)))
         ),
 {
     let cm = controller::subresource_configmap(cr.key);
     let cr_added_event_msg = form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr));
 
-    let cr_added_event_msg_sent_and_not_in_reconcile = |s: State| {
+    let cr_added_event_msg_sent_and_controller_not_in_reconcile = |s: State| {
         &&& s.message_sent(cr_added_event_msg)
         &&& !s.reconcile_state_contains(cr.key)
     };
-    let reconcile_at_init = |s: State| {
+    let cr_added_event_msg_sent_and_controller_in_reconcile = |s: State| {
+        &&& s.message_sent(cr_added_event_msg)
         &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).reconcile_step === controller::ReconcileCoreStep::Init
     };
-    let cm_exists = |s: State| s.resource_key_exists(cm.key);
+    let controller_in_reconcile = |s: State| s.reconcile_state_contains(cr.key);
 
     leads_to_weaken_auto::<State>(sm_spec());
 
-    // This proof is rather simple compared to the next one
-    // It basically invokes wf1 to get cr_added_event_msg_sent_and_not_in_reconcile ~> reconcile_at_init
-    // and then combine it with reconcile_at_init ~> cm_exists from lemma_init_leads_to_cm_exists
-    // lemma_init_leads_to_cm_exists does the heavy lifting here
+    // It calls wf1 to get cr_added_event_msg_sent_and_controller_not_in_reconcile ~> reconcile_at_init
+    // which also gives us cr_added_event_msg_sent_and_controller_not_in_reconcile ~> controller_in_reconcile by weakening
     controller_runtime_liveness::lemma_relevant_event_sent_leads_to_reconcile_triggered(cr_added_event_msg, cr.key);
-    lemma_init_leads_to_cm_exists(cr);
-    leads_to_trans::<State>(sm_spec(), cr_added_event_msg_sent_and_not_in_reconcile, reconcile_at_init, cm_exists);
+
+    // This lemma gives controller_in_reconcile ~> controller_in_reconcile
+    // and also cr_added_event_msg_sent_and_controller_in_reconcile ~> controller_in_reconcile by weakening
+    leads_to_self::<State>(controller_in_reconcile);
+
+    // Combine the two leads-to above and we will get the postcondition
+    or_leads_to_combine::<State>(sm_spec(), cr_added_event_msg_sent_and_controller_not_in_reconcile, cr_added_event_msg_sent_and_controller_in_reconcile, controller_in_reconcile);
 }
 
-proof fn lemma_cr_added_event_msg_sent_and_controller_in_reconcile_leads_to_cm_exists(cr: ResourceObj)
+proof fn lemma_controller_in_reconcile_leads_to_cm_exists(cr: ResourceObj)
     requires
         cr.key.kind.is_CustomResourceKind(),
     ensures
         sm_spec().entails(
-            lift_state(|s: State| {
-                &&& s.message_sent(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)))
-                &&& s.reconcile_state_contains(cr.key)
-            }).leads_to(lift_state(|s: State| s.resource_key_exists(controller::subresource_configmap(cr.key).key)))
+            lift_state(|s: State| s.reconcile_state_contains(cr.key))
+                .leads_to(lift_state(|s: State| s.resource_key_exists(controller::subresource_configmap(cr.key).key)))
         ),
 {
     let cm = controller::subresource_configmap(cr.key);
@@ -174,9 +160,6 @@ proof fn lemma_cr_added_event_msg_sent_and_controller_in_reconcile_leads_to_cm_e
         },
         cm_exists
     );
-    // And leads_to_weaken_auto directly gives us the leads-to formula in the postcondition
-    // by prepending s.message_sent(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)))
-    // to s.reconcile_state_contains(cr.key) ~> cm_exists
 }
 
 proof fn lemma_init_leads_to_cm_exists(cr: ResourceObj)
