@@ -45,6 +45,8 @@ pub proof fn lemma_always_reconcile_get_cr_done_implies_pending_get_cr_req(cr_ke
     };
     init_invariant::<State>(sm_spec(), init(), next(), invariant);
 
+    // We intentionally write the safety property in a form that is friendly to liveness reasoning
+    // There is no need to do this if we only want to prove safety
     let invariant_temp_pred = lift_state(|s: State| {
         &&& s.reconcile_state_contains(cr_key)
         &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::GetCRDone
