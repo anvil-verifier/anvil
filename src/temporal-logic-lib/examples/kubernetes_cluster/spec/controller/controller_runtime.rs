@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::action::*;
-use crate::examples::kubernetes_cluster::spec::{
-    common::*, controller::common::*, controller::simple_controller::*,
-};
+use crate::examples::kubernetes_cluster::spec::{common::*, controller::common::*};
 use crate::pervasive::{map::*, option::*, seq::*, set::*};
 use crate::state_machine::*;
 use crate::temporal_logic::*;
@@ -16,14 +14,14 @@ verus! {
 /// This action specifies how the watcher triggers reconcile.
 /// It is highly simplified compared to the actual watcher implementation in kube-rs:
 /// (1) The triggering condition should come from the developer. Currently we hardcode it in
-/// relevant_cr_key.
+/// reconcile_trigger.
 /// (2) The watcher and reconciler run concurrently: the watcher can take incoming events while
 /// the reconciler is in reconcile. If the reconciler is working on object X, all the incoming
 /// events related to X will stay pending in a queue.
 /// (3) The watcher deduplicates triggering events for the same object: if an event for object X
 /// comes but there is already another pending event for the same object, the incoming event is
 /// discarded.
-pub open spec fn trigger_reconcile() -> ControllerAction {
+pub open spec fn trigger_reconcile(reconciler: Reconciler) -> ControllerAction {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState| {
             // TODO: we should have an action for requeued reconcile
@@ -33,11 +31,11 @@ pub open spec fn trigger_reconcile() -> ControllerAction {
             &&& input.recv.is_Some()
             &&& input.recv.get_Some_0().dst === HostId::CustomController
             &&& input.recv.get_Some_0().content.is_WatchEvent()
-            &&& relevant_cr_key(input.recv.get_Some_0()).is_Some()
-            &&& !s.ongoing_reconciles.dom().contains(relevant_cr_key(input.recv.get_Some_0()).get_Some_0())
+            &&& (reconciler.reconcile_trigger)(input.recv.get_Some_0()).is_Some()
+            &&& !s.ongoing_reconciles.dom().contains((reconciler.reconcile_trigger)(input.recv.get_Some_0()).get_Some_0())
         },
         transition: |input: ControllerActionInput, s: ControllerState| {
-            let cr_key = relevant_cr_key(input.recv.get_Some_0()).get_Some_0();
+            let cr_key = (reconciler.reconcile_trigger)(input.recv.get_Some_0()).get_Some_0();
             let initialized_reconcile_state = ReconcileState {
                 reconcile_step: ReconcileCoreStep::Init,
                 pending_req_msg: Option::None,
@@ -77,7 +75,7 @@ pub open spec fn run_scheduled_reconcile() -> ControllerAction {
     }
 }
 
-pub open spec fn continue_reconcile() -> ControllerAction {
+pub open spec fn continue_reconcile(reconciler: Reconciler) -> ControllerAction {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState| {
             if input.scheduled_cr_key.is_Some() {
@@ -106,7 +104,7 @@ pub open spec fn continue_reconcile() -> ControllerAction {
             let cr_key = input.scheduled_cr_key.get_Some_0();
             let reconcile_state = s.ongoing_reconciles[cr_key];
 
-            let (next_step, req_o) = reconcile_core(cr_key, reconcile_state.reconcile_step, resp_o);
+            let (next_step, req_o) = (reconciler.reconcile_core)(cr_key, reconcile_state.reconcile_step, resp_o);
 
             let pending_req_msg = if req_o.is_Some() {
                 Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req_o.get_Some_0())))

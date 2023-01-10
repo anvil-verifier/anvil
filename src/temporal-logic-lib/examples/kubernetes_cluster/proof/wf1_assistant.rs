@@ -6,7 +6,7 @@ use crate::examples::kubernetes_cluster::spec::{
     common::*,
     controller,
     controller::common::{
-        ControllerAction, ControllerActionInput, ControllerState, ControllerStep,
+        ControllerAction, ControllerActionInput, ControllerState, ControllerStep, Reconciler,
     },
     controller::controller_runtime::{
         continue_reconcile, end_reconcile, run_scheduled_reconcile, trigger_reconcile,
@@ -37,14 +37,14 @@ pub proof fn kubernetes_api_action_pre_implies_next_pre(action: KubernetesAPIAct
     };
 }
 
-pub proof fn controller_action_pre_implies_next_pre(action: ControllerAction, input: ControllerActionInput)
+pub proof fn controller_action_pre_implies_next_pre(reconciler: Reconciler, action: ControllerAction, input: ControllerActionInput)
     requires
-        controller().actions.contains(action),
+        controller(reconciler).actions.contains(action),
     ensures
-        valid(lift_state(controller_action_pre(action, input)).implies(lift_state(controller_next().pre(input)))),
+        valid(lift_state(controller_action_pre(reconciler, action, input)).implies(lift_state(controller_next(reconciler).pre(input)))),
 {
-    assert forall |s| #[trigger] controller_action_pre(action, input)(s) implies controller_next().pre(input)(s) by {
-        exists_next_controller_step(action, input, s.controller_state);
+    assert forall |s| #[trigger] controller_action_pre(reconciler, action, input)(s) implies controller_next(reconciler).pre(input)(s) by {
+        exists_next_controller_step(reconciler, action, input, s.controller_state);
     };
 }
 
@@ -58,25 +58,25 @@ pub proof fn exists_next_kubernetes_api_step(action: KubernetesAPIAction, input:
     assert(((kubernetes_api().step_to_action)(KubernetesAPIStep::HandleRequest).precondition)(input, s));
 }
 
-pub proof fn exists_next_controller_step(action: ControllerAction, input: ControllerActionInput, s: ControllerState)
+pub proof fn exists_next_controller_step(reconciler: Reconciler, action: ControllerAction, input: ControllerActionInput, s: ControllerState)
     requires
-        controller().actions.contains(action),
+        controller(reconciler).actions.contains(action),
         (action.precondition)(input, s),
     ensures
-        exists |step| (#[trigger] (controller().step_to_action)(step).precondition)(input, s),
+        exists |step| (#[trigger] (controller(reconciler).step_to_action)(step).precondition)(input, s),
 {
-    if action === trigger_reconcile() {
+    if action === trigger_reconcile(reconciler) {
         let step = ControllerStep::TriggerReconcile;
-        assert(((controller().step_to_action)(step).precondition)(input, s));
+        assert(((controller(reconciler).step_to_action)(step).precondition)(input, s));
     } else if action === run_scheduled_reconcile() {
         let step = ControllerStep::RunScheduledReconcile;
-        assert(((controller().step_to_action)(step).precondition)(input, s));
-    } else if action === continue_reconcile() {
+        assert(((controller(reconciler).step_to_action)(step).precondition)(input, s));
+    } else if action === continue_reconcile(reconciler) {
         let step = ControllerStep::ContinueReconcile;
-        assert(((controller().step_to_action)(step).precondition)(input, s));
+        assert(((controller(reconciler).step_to_action)(step).precondition)(input, s));
     } else {
         let step = ControllerStep::EndReconcile;
-        assert(((controller().step_to_action)(step).precondition)(input, s));
+        assert(((controller(reconciler).step_to_action)(step).precondition)(input, s));
     }
 }
 

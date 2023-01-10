@@ -6,8 +6,11 @@ use crate::examples::kubernetes_cluster::{
     spec::{
         common::*,
         controller,
-        controller::common::{ControllerAction, ControllerActionInput, ReconcileCoreStep},
+        controller::common::{
+            ControllerAction, ControllerActionInput, ReconcileCoreStep, Reconciler,
+        },
         distributed_system::*,
+        reconcilers::simple_reconciler::simple_reconciler,
     },
 };
 use crate::pervasive::{option::*, result::*};
@@ -20,7 +23,7 @@ verus! {
 
 pub proof fn lemma_always_reconcile_init_implies_no_pending_req(cr_key: ResourceKey)
     ensures
-        sm_spec().entails(always(
+        sm_spec(simple_reconciler()).entails(always(
             lift_state(|s: State| {
                 &&& s.reconcile_state_contains(cr_key)
                 &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::Init
@@ -32,9 +35,9 @@ pub proof fn lemma_always_reconcile_init_implies_no_pending_req(cr_key: Resource
             }))
         )),
 {
-    init_invariant::<State>(sm_spec(),
-        init(),
-        next(),
+    init_invariant::<State>(sm_spec(simple_reconciler()),
+        init(simple_reconciler()),
+        next(simple_reconciler()),
         |s: State| {
             s.reconcile_state_contains(cr_key)
             && s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::Init

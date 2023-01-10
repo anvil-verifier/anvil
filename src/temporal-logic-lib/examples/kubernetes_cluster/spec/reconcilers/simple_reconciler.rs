@@ -11,10 +11,17 @@ use builtin_macros::*;
 
 verus! {
 
+pub open spec fn simple_reconciler() -> Reconciler {
+    Reconciler {
+        reconcile_trigger: |msg: Message| reconcile_trigger(msg),
+        reconcile_core: |cr_key: ResourceKey, step: ReconcileCoreStep, resp_o: Option<APIResponse>| reconcile_core(cr_key, step, resp_o),
+    }
+}
+
 /// This is a highly simplified triggering condition
 /// which only considers creation/update to CR objects.
 /// TODO: Reason about ownership and other relationships.
-pub open spec fn relevant_cr_key(msg: Message) -> Option<ResourceKey>
+pub open spec fn reconcile_trigger(msg: Message) -> Option<ResourceKey>
     recommends
         msg.content.is_WatchEvent(),
 {

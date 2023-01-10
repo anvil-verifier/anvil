@@ -7,7 +7,7 @@ use crate::examples::kubernetes_cluster::spec::{
     client::{client, ClientActionInput},
     common::*,
     controller::common::{
-        ControllerAction, ControllerActionInput, ControllerState, ReconcileState,
+        ControllerAction, ControllerActionInput, ControllerState, ReconcileState, Reconciler,
     },
     controller::state_machine::controller,
     kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
@@ -66,10 +66,10 @@ impl State {
     }
 }
 
-pub open spec fn init() -> StatePred<State> {
+pub open spec fn init(reconciler: Reconciler) -> StatePred<State> {
     |s: State| {
         &&& (kubernetes_api().init)(s.kubernetes_api_state)
-        &&& (controller().init)(s.controller_state)
+        &&& (controller(reconciler).init)(s.controller_state)
         &&& (client().init)(s.client_state)
         &&& (network().init)(s.network_state)
     }
@@ -110,9 +110,9 @@ pub open spec fn kubernetes_api_next() -> Action<State, KubernetesAPIActionInput
     }
 }
 
-pub open spec fn controller_next() -> Action<State, ControllerActionInput, ()> {
+pub open spec fn controller_next(reconciler: Reconciler) -> Action<State, ControllerActionInput, ()> {
     let result = |input: ControllerActionInput, s: State| {
-        let host_result = controller().next_result(input, s.controller_state);
+        let host_result = controller(reconciler).next_result(input, s.controller_state);
         let msg_ops = MessageOps {
             recv: input.recv,
             send: host_result.get_Enabled_1(),
@@ -182,10 +182,10 @@ pub enum Step {
     StutterStep(Option<Message>),
 }
 
-pub open spec fn next_step(s: State, s_prime: State, step: Step) -> bool {
+pub open spec fn next_step(reconciler: Reconciler, s: State, s_prime: State, step: Step) -> bool {
     match step {
         Step::KubernetesAPIStep(input) => kubernetes_api_next().forward(input)(s, s_prime),
-        Step::ControllerStep(input) => controller_next().forward(input)(s, s_prime),
+        Step::ControllerStep(input) => controller_next(reconciler).forward(input)(s, s_prime),
         Step::ClientStep(input) => client_next().forward(input)(s, s_prime),
         Step::StutterStep(input) => stutter().forward(input)(s, s_prime),
     }
@@ -194,15 +194,15 @@ pub open spec fn next_step(s: State, s_prime: State, step: Step) -> bool {
 /// `next` chooses:
 /// * which host to take the next action (`Step`)
 /// * whether to deliver a message and which message to deliver (`Option<Message>` in `Step`)
-pub open spec fn next() -> ActionPred<State> {
-    |s: State, s_prime: State| exists |step: Step| next_step(s, s_prime, step)
+pub open spec fn next(reconciler: Reconciler) -> ActionPred<State> {
+    |s: State, s_prime: State| exists |step: Step| next_step(reconciler, s, s_prime, step)
 }
 
-pub open spec fn sm_spec() -> TempPred<State> {
-    lift_state(init())
-    .and(always(lift_action(next())))
+pub open spec fn sm_spec(reconciler: Reconciler) -> TempPred<State> {
+    lift_state(init(reconciler))
+    .and(always(lift_action(next(reconciler))))
     .and(tla_forall(|input| kubernetes_api_next().weak_fairness(input)))
-    .and(tla_forall(|input| controller_next().weak_fairness(input)))
+    .and(tla_forall(|input| controller_next(reconciler).weak_fairness(input)))
 }
 
 pub open spec fn kubernetes_api_action_pre(action: KubernetesAPIAction, input: KubernetesAPIActionInput) -> StatePred<State> {
@@ -220,9 +220,9 @@ pub open spec fn kubernetes_api_action_pre(action: KubernetesAPIAction, input: K
     }
 }
 
-pub open spec fn controller_action_pre(action: ControllerAction, input: ControllerActionInput) -> StatePred<State> {
+pub open spec fn controller_action_pre(reconciler: Reconciler, action: ControllerAction, input: ControllerActionInput) -> StatePred<State> {
     |s: State| {
-        let host_result = controller().next_action_result(action, input, s.controller_state);
+        let host_result = controller(reconciler).next_action_result(action, input, s.controller_state);
         let msg_ops = MessageOps {
             recv: input.recv,
             send: host_result.get_Enabled_1(),

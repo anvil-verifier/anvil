@@ -54,6 +54,15 @@ pub type ControllerAction = Action<ControllerState, ControllerActionInput, Set<M
 
 pub type ControllerActionResult = ActionResult<ControllerState, Set<Message>>;
 
+pub type ReconcileCore = FnSpec(ResourceKey, ReconcileCoreStep, Option<APIResponse>) -> (ReconcileCoreStep, Option<APIRequest>);
+
+pub type ReconcileTrigger = FnSpec(Message) -> Option<ResourceKey>;
+
+pub struct Reconciler {
+    pub reconcile_trigger: ReconcileTrigger,
+    pub reconcile_core: ReconcileCore,
+}
+
 pub open spec fn msg_to_kubernetes_api(msg_content: MessageContent) -> Message {
     form_msg(HostId::CustomController, HostId::KubernetesAPI, msg_content)
 }
