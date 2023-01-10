@@ -93,7 +93,7 @@ pub proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered(reconciler: 
     lemma_pre_leads_to_post_by_controller(reconciler, input, trigger_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_reconcile_ended_leads_to_reconcile_scheduled(reconciler: Reconciler, cr_key: ResourceKey)
+pub proof fn lemma_reconcile_done_leads_to_reconcile_scheduled(reconciler: Reconciler, cr_key: ResourceKey)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -155,7 +155,7 @@ pub proof fn lemma_scheduled_reconcile_leads_to_init(reconciler: Reconciler, cr_
     lemma_pre_leads_to_post_by_controller(reconciler, input, run_scheduled_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_reconcile_ended_leads_to_init(reconciler: Reconciler, cr_key: ResourceKey)
+pub proof fn lemma_reconcile_done_leads_to_reconcile_triggered(reconciler: Reconciler, cr_key: ResourceKey)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -171,7 +171,7 @@ pub proof fn lemma_reconcile_ended_leads_to_init(reconciler: Reconciler, cr_key:
                 }))
         ),
 {
-    lemma_reconcile_ended_leads_to_reconcile_scheduled(reconciler, cr_key);
+    lemma_reconcile_done_leads_to_reconcile_scheduled(reconciler, cr_key);
     lemma_scheduled_reconcile_leads_to_init(reconciler, cr_key);
     let reconcile_ended = |s: State| {
         &&& s.reconcile_state_contains(cr_key)
