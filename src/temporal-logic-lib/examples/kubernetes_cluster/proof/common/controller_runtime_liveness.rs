@@ -5,12 +5,13 @@ use crate::examples::kubernetes_cluster::{
     proof::common::{kubernetes_api_safety, wf1_assistant::controller_action_pre_implies_next_pre},
     spec::{
         common::*,
-        controller::common::{ControllerAction, ControllerActionInput, Reconciler},
+        controller::common::{ControllerAction, ControllerActionInput},
         controller::controller_runtime::{
             continue_reconcile, end_reconcile, run_scheduled_reconcile, trigger_reconcile,
         },
         controller::state_machine::controller,
         distributed_system::*,
+        reconciler::Reconciler,
     },
 };
 use crate::pervasive::{option::*, result::*};

@@ -6,7 +6,7 @@ use crate::examples::kubernetes_cluster::spec::{
     common::*,
     controller,
     controller::common::{
-        ControllerAction, ControllerActionInput, ControllerState, ControllerStep, Reconciler,
+        ControllerAction, ControllerActionInput, ControllerState, ControllerStep,
     },
     controller::controller_runtime::{
         continue_reconcile, end_reconcile, run_scheduled_reconcile, trigger_reconcile,
@@ -17,6 +17,7 @@ use crate::examples::kubernetes_cluster::spec::{
         KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState, KubernetesAPIStep,
     },
     kubernetes_api::state_machine::kubernetes_api,
+    reconciler::Reconciler,
 };
 use crate::pervasive::{option::*, seq::*, set::*};
 use crate::state_machine::*;

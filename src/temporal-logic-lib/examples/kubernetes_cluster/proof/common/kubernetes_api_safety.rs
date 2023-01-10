@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::common::*;
 use crate::examples::kubernetes_cluster::spec::{
-    common::*, controller::common::Reconciler, distributed_system::*,
+    common::*, distributed_system::*, reconciler::Reconciler,
 };
 use crate::pervasive::seq::*;
 use crate::temporal_logic::*;

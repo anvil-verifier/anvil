@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::action::*;
-use crate::examples::kubernetes_cluster::spec::{common::*, controller::common::*};
+use crate::examples::kubernetes_cluster::spec::{common::*, controller::common::*, reconciler::*};
 use crate::pervasive::{map::*, option::*, seq::*, set::*};
 use crate::state_machine::*;
 use crate::temporal_logic::*;

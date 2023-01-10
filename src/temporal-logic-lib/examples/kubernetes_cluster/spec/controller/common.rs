@@ -2,36 +2,13 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::action::*;
-use crate::examples::kubernetes_cluster::spec::common::*;
+use crate::examples::kubernetes_cluster::spec::{common::*, reconciler::*};
 use crate::pervasive::{map::*, option::*, seq::*, set::*};
 use crate::state_machine::*;
 use builtin::*;
 use builtin_macros::*;
 
 verus! {
-
-// TODO: Make it a trait
-// Different reconcilers should define different reconciler state
-pub struct ReconcileState {
-    pub reconcile_pc: nat,
-    // nat is not the idea way of representing pc, but we cannot use enum here
-    // because the enum type will be specific to the reconciler
-}
-
-pub type ReconcileInitState = FnSpec() -> ReconcileState;
-
-pub type ReconcileCore = FnSpec(ResourceKey, Option<APIResponse>, ReconcileState) -> (ReconcileState, Option<APIRequest>);
-
-pub type ReconcileTrigger = FnSpec(Message) -> Option<ResourceKey>;
-
-pub type ReconcileDone = FnSpec(ReconcileState) -> bool;
-
-pub struct Reconciler {
-    pub reconcile_init_state: ReconcileInitState,
-    pub reconcile_trigger: ReconcileTrigger,
-    pub reconcile_core: ReconcileCore,
-    pub reconcile_done: ReconcileDone,
-}
 
 pub struct OngoingReconcile {
     pub pending_req_msg: Option<Message>,

@@ -7,13 +7,14 @@ use crate::examples::kubernetes_cluster::spec::{
     client::{client, ClientActionInput, ClientState},
     common::*,
     controller::common::{
-        ControllerAction, ControllerActionInput, ControllerState, OngoingReconcile, Reconciler,
+        ControllerAction, ControllerActionInput, ControllerState, OngoingReconcile,
     },
     controller::state_machine::controller,
     kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
     kubernetes_api::state_machine::kubernetes_api,
     network,
     network::{network, NetworkState},
+    reconciler::Reconciler,
 };
 use crate::pervasive::{map::*, option::*, seq::*, set::*};
 use crate::state_machine::*;
@@ -198,6 +199,7 @@ pub open spec fn next(reconciler: Reconciler) -> ActionPred<State> {
     |s: State, s_prime: State| exists |step: Step| next_step(reconciler, s, s_prime, step)
 }
 
+/// We install the reconciler to the Kubernetes cluster state machine spec
 pub open spec fn sm_spec(reconciler: Reconciler) -> TempPred<State> {
     lift_state(init(reconciler))
     .and(always(lift_action(next(reconciler))))

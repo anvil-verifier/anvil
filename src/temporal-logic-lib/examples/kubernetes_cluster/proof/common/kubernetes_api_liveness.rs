@@ -5,10 +5,10 @@ use crate::examples::kubernetes_cluster::{
     proof::common::wf1_assistant::kubernetes_api_action_pre_implies_next_pre,
     spec::{
         common::*,
-        controller::common::Reconciler,
         distributed_system::*,
         kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput},
         kubernetes_api::state_machine::{handle_request, kubernetes_api},
+        reconciler::Reconciler,
     },
 };
 use crate::pervasive::{option::*, result::*};

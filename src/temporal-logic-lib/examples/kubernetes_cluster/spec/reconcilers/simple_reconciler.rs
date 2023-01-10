@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::action::*;
-use crate::examples::kubernetes_cluster::spec::{common::*, controller::common::*};
+use crate::examples::kubernetes_cluster::spec::{common::*, reconciler::*};
 use crate::pervasive::{map::*, option::*, seq::*, set::*};
 use crate::state_machine::*;
 use crate::temporal_logic::*;
@@ -11,6 +11,8 @@ use builtin_macros::*;
 
 verus! {
 
+/// We use Reconciler to pack up everything specific to the custom controller,
+/// including reconcile function (reconcile_core) and triggering conditions (reconcile_trigger)
 pub open spec fn simple_reconciler() -> Reconciler {
     Reconciler {
         reconcile_init_state: || reconcile_init_state(),

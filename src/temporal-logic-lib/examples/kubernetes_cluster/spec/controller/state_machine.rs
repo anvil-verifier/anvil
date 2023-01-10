@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::action::*;
 use crate::examples::kubernetes_cluster::spec::{
-    common::*, controller::common::*, controller::controller_runtime::*,
+    common::*, controller::common::*, controller::controller_runtime::*, reconciler::*,
 };
 use crate::pervasive::{map::*, option::*, seq::*, set::*, string::*};
 use crate::state_machine::*;
