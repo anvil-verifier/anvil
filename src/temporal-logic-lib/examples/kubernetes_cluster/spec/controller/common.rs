@@ -10,28 +10,36 @@ use builtin_macros::*;
 
 verus! {
 
-/// let's start from simple and forget about CreateStsDone for now
-pub enum ReconcileCoreStep {
-    Init,
-    GetCRDone,
-    CreateCMDone,
-    // CreateStsDone,
-    Done,
-    Error
-}
-
-pub open spec fn ending_step(step: ReconcileCoreStep) -> bool {
-    ||| step === ReconcileCoreStep::Done
-    ||| step === ReconcileCoreStep::Error
-}
-
+// TODO: Make it a trait
+// Different reconcilers should define different reconciler state
 pub struct ReconcileState {
-    pub reconcile_step: ReconcileCoreStep,
+    pub reconcile_pc: nat,
+    // nat is not the idea way of representing pc, but we cannot use enum here
+    // because the enum type will be specific to the reconciler
+}
+
+pub type ReconcileInitState = FnSpec() -> ReconcileState;
+
+pub type ReconcileCore = FnSpec(ResourceKey, Option<APIResponse>, ReconcileState) -> (ReconcileState, Option<APIRequest>);
+
+pub type ReconcileTrigger = FnSpec(Message) -> Option<ResourceKey>;
+
+pub type ReconcileDone = FnSpec(ReconcileState) -> bool;
+
+pub struct Reconciler {
+    pub reconcile_init_state: ReconcileInitState,
+    pub reconcile_trigger: ReconcileTrigger,
+    pub reconcile_core: ReconcileCore,
+    pub reconcile_done: ReconcileDone,
+}
+
+pub struct OngoingReconcile {
     pub pending_req_msg: Option<Message>,
+    pub local_state: ReconcileState,
 }
 
 pub struct ControllerState {
-    pub ongoing_reconciles: Map<ResourceKey, ReconcileState>,
+    pub ongoing_reconciles: Map<ResourceKey, OngoingReconcile>,
     pub scheduled_reconciles: Set<ResourceKey>,
 }
 
@@ -53,15 +61,6 @@ pub type ControllerStateMachine = StateMachine<ControllerState, ControllerAction
 pub type ControllerAction = Action<ControllerState, ControllerActionInput, Set<Message>>;
 
 pub type ControllerActionResult = ActionResult<ControllerState, Set<Message>>;
-
-pub type ReconcileCore = FnSpec(ResourceKey, ReconcileCoreStep, Option<APIResponse>) -> (ReconcileCoreStep, Option<APIRequest>);
-
-pub type ReconcileTrigger = FnSpec(Message) -> Option<ResourceKey>;
-
-pub struct Reconciler {
-    pub reconcile_trigger: ReconcileTrigger,
-    pub reconcile_core: ReconcileCore,
-}
 
 pub open spec fn msg_to_kubernetes_api(msg_content: MessageContent) -> Message {
     form_msg(HostId::CustomController, HostId::KubernetesAPI, msg_content)

@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::examples::kubernetes_cluster::{
-    proof::{
-        controller_runtime_liveness, controller_runtime_safety, kubernetes_api_liveness,
-        kubernetes_api_safety, reconcile_safety,
-    },
+    proof::common::{controller_runtime_liveness, kubernetes_api_liveness, kubernetes_api_safety},
+    proof::simple_reconciler::safety,
     spec::{
         common::*,
-        controller::common::{ending_step, ControllerActionInput, ReconcileCoreStep},
+        controller::common::ControllerActionInput,
         controller::controller_runtime::{continue_reconcile, end_reconcile, trigger_reconcile},
         controller::state_machine::controller,
         distributed_system::*,
@@ -105,7 +103,7 @@ proof fn lemma_cr_added_event_msg_sent_leads_to_controller_in_reconcile(cr: Reso
 
     // It calls wf1 to get cr_added_event_msg_sent_and_controller_not_in_reconcile ~> reconcile_at_init
     // which also gives us cr_added_event_msg_sent_and_controller_not_in_reconcile ~> controller_in_reconcile by weakening
-    lemma_relevant_event_sent_leads_to_reconcile_triggered(cr_added_event_msg, cr.key);
+    lemma_relevant_event_sent_leads_to_init_pc(cr_added_event_msg, cr.key);
 
     // This lemma gives controller_in_reconcile ~> controller_in_reconcile
     // and also cr_added_event_msg_sent_and_controller_in_reconcile ~> controller_in_reconcile by weakening
@@ -128,26 +126,26 @@ proof fn lemma_controller_in_reconcile_leads_to_cm_exists(cr: ResourceObj)
 
     let reconcile_at_init = |s: State| {
         &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::Init
+        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::init_pc()
     };
     let reconcile_at_get_cr_done = |s: State| {
         &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::GetCRDone
+        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
     };
     let reconcile_at_create_cm_done = |s: State| {
         &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::CreateCMDone
+        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
     };
     let reconcile_ended = |s: State| {
         &&& s.reconcile_state_contains(cr.key)
-        &&& ending_step(s.reconcile_state_of(cr.key).reconcile_step)
+        &&& (simple_reconciler().reconcile_done)(s.reconcile_state_of(cr.key).local_state)
     };
     let cm_exists = |s: State| s.resource_key_exists(cm.key);
 
     leads_to_weaken_auto::<State>(sm_spec(simple_reconciler()));
 
     // This proof is also straightforward once we have proved the four following lemmas
-    // The four lemmas cover all the possible values of controller:ReconcileCoreStep
+    // The four lemmas cover all the possible values of reconcile_pc
     lemma_init_leads_to_cm_exists(cr); // reconcile_at_init ~> cm_exists
     lemma_get_cr_done_leads_to_cm_exists(cr); // reconcile_at_get_cr_done ~> cm_exists
     lemma_create_cm_done_leads_to_cm_exists(cr); // reconcile_at_create_cm_done ~> cm_exists
@@ -177,7 +175,7 @@ proof fn lemma_init_leads_to_cm_exists(cr: ResourceObj)
         sm_spec(simple_reconciler()).entails(
             lift_state(|s: State| {
                 &&& s.reconcile_state_contains(cr.key)
-                &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::Init
+                &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::init_pc()
             }).leads_to(lift_state(|s: State| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key)))
         ),
 {
@@ -186,23 +184,23 @@ proof fn lemma_init_leads_to_cm_exists(cr: ResourceObj)
     // Just layout all the state predicates we are going to repeatedly use later since they are so long
     let reconcile_at_init = |s: State| {
         &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::Init
+        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::init_pc()
     };
     let reconcile_at_init_and_no_pending_req = |s: State| {
         &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::Init
+        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::init_pc()
         &&& s.reconcile_state_of(cr.key).pending_req_msg.is_None()
     };
     let reconcile_at_get_cr_done = |s: State| {
         &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::GetCRDone
+        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
     };
     let cm_exists = |s: State| s.resource_key_exists(cm.key);
 
     leads_to_weaken_auto::<State>(sm_spec(simple_reconciler()));
 
     leads_to_self::<State>(reconcile_at_init);
-    controller_runtime_safety::lemma_always_reconcile_init_implies_no_pending_req(cr.key);
+    safety::lemma_always_reconcile_init_implies_no_pending_req(cr.key);
     // We get the following asserted leads-to formula by auto weakening the one from leads_to_self
     // with the always-implies formula from lemma_always_reconcile_init_implies_no_pending_req
     // We have to write down this assertion to further trigger leads_to_weaken_auto
@@ -225,7 +223,7 @@ proof fn lemma_get_cr_done_leads_to_cm_exists(cr: ResourceObj)
         sm_spec(simple_reconciler()).entails(
             lift_state(|s: State| {
                 &&& s.reconcile_state_contains(cr.key)
-                &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::GetCRDone
+                &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
             }).leads_to(lift_state(|s: State| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key)))
         ),
 {
@@ -236,16 +234,16 @@ proof fn lemma_get_cr_done_leads_to_cm_exists(cr: ResourceObj)
     // Just layout all the state predicates we are going to repeatedly use later since they are so long
     let reconcile_at_get_cr_done = |s: State| {
         &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::GetCRDone
+        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
     };
     let reconcile_at_get_cr_done_and_pending_get_cr_req = |s: State| {
         &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::GetCRDone
+        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
         &&& s.reconcile_state_of(cr.key).pending_req_msg === Option::Some(get_cr_req_msg)
     };
     let reconcile_at_create_cm_done = |s: State| {
         &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::CreateCMDone
+        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
     };
     let get_cr_req_msg_sent = |s: State| s.message_sent(get_cr_req_msg);
     let get_cr_resp_msg_sent = |s: State| {
@@ -258,7 +256,7 @@ proof fn lemma_get_cr_done_leads_to_cm_exists(cr: ResourceObj)
 
     leads_to_weaken_auto::<State>(sm_spec(simple_reconciler()));
 
-    reconcile_safety::lemma_always_reconcile_get_cr_done_implies_pending_get_cr_req(cr.key);
+    safety::lemma_always_reconcile_get_cr_done_implies_pending_get_cr_req(cr.key);
     leads_to_self::<State>(reconcile_at_get_cr_done);
     // We get the following asserted leads-to formula by auto weakening the one from leads_to_self
     // with the always-implies formula from lemma_always_reconcile_get_cr_done_implies_pending_get_cr_req
@@ -267,7 +265,7 @@ proof fn lemma_get_cr_done_leads_to_cm_exists(cr: ResourceObj)
         lift_state(reconcile_at_get_cr_done)
             .leads_to(lift_state(|s: State| {
                 &&& s.reconcile_state_contains(cr.key)
-                &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::GetCRDone
+                &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
                 &&& s.reconcile_state_of(cr.key).pending_req_msg === Option::Some(get_cr_req_msg)
                 &&& s.message_sent(get_cr_req_msg)
             }))
@@ -314,7 +312,7 @@ proof fn lemma_create_cm_done_leads_to_cm_exists(cr: ResourceObj)
         sm_spec(simple_reconciler()).entails(
             lift_state(|s: State| {
                 &&& s.reconcile_state_contains(cr.key)
-                &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::CreateCMDone
+                &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
             }).leads_to(lift_state(|s: State| {
                 s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key)
             }))
@@ -326,7 +324,7 @@ proof fn lemma_create_cm_done_leads_to_cm_exists(cr: ResourceObj)
     // Just layout all the state predicates we are going to repeatedly use later since they are so long
     let reconcile_at_create_cm_done = |s: State| {
         &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::CreateCMDone
+        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
     };
     let create_cm_req_msg_sent = |s: State| s.message_sent(create_cm_req_msg);
     let cm_exists = |s: State| {
@@ -335,7 +333,7 @@ proof fn lemma_create_cm_done_leads_to_cm_exists(cr: ResourceObj)
 
     leads_to_weaken_auto::<State>(sm_spec(simple_reconciler()));
 
-    reconcile_safety::lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req(cr.key);
+    safety::lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req(cr.key);
     leads_to_self::<State>(reconcile_at_create_cm_done);
     // We get the following asserted leads-to formula by auto weakening the one from leads_to_self
     // with the always-implies formula from lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req
@@ -344,7 +342,7 @@ proof fn lemma_create_cm_done_leads_to_cm_exists(cr: ResourceObj)
         lift_state(reconcile_at_create_cm_done)
             .leads_to(lift_state(|s: State| {
                 &&& s.reconcile_state_contains(cr.key)
-                &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::CreateCMDone
+                &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
                 &&& s.reconcile_state_of(cr.key).pending_req_msg === Option::Some(create_cm_req_msg)
                 &&& s.message_sent(create_cm_req_msg)
             }))
@@ -362,7 +360,7 @@ proof fn lemma_reconcile_ended_leads_to_cm_exists(cr: ResourceObj)
         sm_spec(simple_reconciler()).entails(
             lift_state(|s: State| {
                 &&& s.reconcile_state_contains(cr.key)
-                &&& ending_step(s.reconcile_state_of(cr.key).reconcile_step)
+                &&& (simple_reconciler().reconcile_done)(s.reconcile_state_of(cr.key).local_state)
             }).leads_to(lift_state(|s: State| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key)))
         ),
 {
@@ -370,11 +368,11 @@ proof fn lemma_reconcile_ended_leads_to_cm_exists(cr: ResourceObj)
 
     let reconcile_ended = |s: State| {
         &&& s.reconcile_state_contains(cr.key)
-        &&& ending_step(s.reconcile_state_of(cr.key).reconcile_step)
+        &&& (simple_reconciler().reconcile_done)(s.reconcile_state_of(cr.key).local_state)
     };
     let reconcile_at_init = |s: State| {
         &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).reconcile_step === ReconcileCoreStep::Init
+        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::init_pc()
     };
     let cm_exists = |s: State| s.resource_key_exists(cm.key);
 
@@ -385,12 +383,12 @@ proof fn lemma_reconcile_ended_leads_to_cm_exists(cr: ResourceObj)
     // and is one compromise I did in the spec to make it easier to start),
     // and the rescheduled reconcile leads to the init reconcile state,
     // which we have proved leads to cm_exists
-    controller_runtime_liveness::lemma_reconcile_ended_leads_to_init(cr.key);
+    controller_runtime_liveness::lemma_reconcile_ended_leads_to_init(simple_reconciler(), cr.key);
     lemma_init_leads_to_cm_exists(cr);
     leads_to_trans::<State>(sm_spec(simple_reconciler()), reconcile_ended, reconcile_at_init, cm_exists);
 }
 
-proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered(msg: Message, cr_key: ResourceKey)
+proof fn lemma_relevant_event_sent_leads_to_init_pc(msg: Message, cr_key: ResourceKey)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -404,28 +402,29 @@ proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered(msg: Message, cr
             })
                 .leads_to(lift_state(|s: State| {
                     &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::Init
+                    &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
                     &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
                 }))
         ),
 {
-    let pre = |s: State| {
-        &&& s.message_sent(msg)
-        &&& msg.dst === HostId::CustomController
-        &&& msg.content.is_WatchEvent()
-        &&& simple_reconciler::reconcile_trigger(msg) === Option::Some(cr_key)
-        &&& !s.reconcile_state_contains(cr_key)
-    };
-    let post = |s: State| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::Init
-        &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-    };
-    let input = ControllerActionInput {
-        recv: Option::Some(msg),
-        scheduled_cr_key: Option::None,
-    };
-    controller_runtime_liveness::lemma_pre_leads_to_post_by_controller(simple_reconciler(), input, trigger_reconcile(simple_reconciler()), pre, post);
+    // let pre = |s: State| {
+    //     &&& s.message_sent(msg)
+    //     &&& msg.dst === HostId::CustomController
+    //     &&& msg.content.is_WatchEvent()
+    //     &&& simple_reconciler::reconcile_trigger(msg) === Option::Some(cr_key)
+    //     &&& !s.reconcile_state_contains(cr_key)
+    // };
+    // let post = |s: State| {
+    //     &&& s.reconcile_state_contains(cr_key)
+    //     &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
+    //     &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
+    // };
+    // let input = ControllerActionInput {
+    //     recv: Option::Some(msg),
+    //     scheduled_cr_key: Option::None,
+    // };
+    leads_to_weaken_auto::<State>(sm_spec(simple_reconciler()));
+    controller_runtime_liveness::lemma_relevant_event_sent_leads_to_reconcile_triggered(simple_reconciler(), msg, cr_key);
 }
 
 proof fn lemma_init_leads_to_get_cr_step(cr_key: ResourceKey)
@@ -435,11 +434,11 @@ proof fn lemma_init_leads_to_get_cr_step(cr_key: ResourceKey)
         sm_spec(simple_reconciler()).entails(
             lift_state(|s: State| {
                 &&& s.reconcile_state_contains(cr_key)
-                &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::Init
+                &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
                 &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
             }).leads_to(lift_state(|s: State| {
                     &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::GetCRDone
+                    &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
                     &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
                     &&& s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
                 }))
@@ -447,12 +446,12 @@ proof fn lemma_init_leads_to_get_cr_step(cr_key: ResourceKey)
 {
     let pre = |s: State| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::Init
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
     };
     let post = |s: State| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::GetCRDone
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
         &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
         &&& s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
     };
@@ -473,11 +472,11 @@ proof fn lemma_msg_sent_and_get_cr_leads_to_create_cm(msg: Message, cr_key: Reso
                 &&& resp_msg_matches_req_msg(m, form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
             }))(msg).and(lift_state(|s: State| {
                 &&& s.reconcile_state_contains(cr_key)
-                &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::GetCRDone
+                &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
                 &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
             })).leads_to(lift_state(|s: State| {
                     &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::CreateCMDone
+                    &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
                     &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
                     &&& s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
                 }))
@@ -487,12 +486,12 @@ proof fn lemma_msg_sent_and_get_cr_leads_to_create_cm(msg: Message, cr_key: Reso
         &&& s.message_sent(msg)
         &&& resp_msg_matches_req_msg(msg, form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::GetCRDone
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
         &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
     };
     let post = |s: State| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::CreateCMDone
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
         &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
         &&& s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
     };
@@ -508,7 +507,7 @@ proof fn lemma_msg_sent_and_get_cr_leads_to_create_cm(msg: Message, cr_key: Reso
     });
     let pre2 = lift_state(|s: State| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::GetCRDone
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
         &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
     });
     temp_pred_equality::<State>(lift_state(pre), m_to_pre1(msg).and(pre2));
@@ -524,11 +523,11 @@ proof fn lemma_tla_exists_get_resp_msg_sent_and_get_cr_leads_to_create_cm(cr_key
                 &&& resp_msg_matches_req_msg(m, form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
             })).and(lift_state(|s: State| {
                 &&& s.reconcile_state_contains(cr_key)
-                &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::GetCRDone
+                &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
                 &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
             })).leads_to(lift_state(|s: State| {
                     &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::CreateCMDone
+                    &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
                     &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
                     &&& s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
                 }))
@@ -540,12 +539,12 @@ proof fn lemma_tla_exists_get_resp_msg_sent_and_get_cr_leads_to_create_cm(cr_key
     });
     let pre2 = lift_state(|s: State| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::GetCRDone
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
         &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
     });
     let post = lift_state(|s: State| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::CreateCMDone
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
         &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
         &&& s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
     });
@@ -571,12 +570,12 @@ proof fn lemma_exists_get_resp_msg_sent_and_get_cr_leads_to_create_cm(cr_key: Re
                 }
             }).and(lift_state(|s: State| {
                 &&& s.reconcile_state_contains(cr_key)
-                &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::GetCRDone
+                &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
                 &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
             }))
                 .leads_to(lift_state(|s: State| {
                     &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::CreateCMDone
+                    &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
                     &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
                     &&& s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
                 }))
@@ -588,7 +587,7 @@ proof fn lemma_exists_get_resp_msg_sent_and_get_cr_leads_to_create_cm(cr_key: Re
 // {
 //     let p = lift_state(|s: State| {
 //         &&& s.reconcile_state_contains(cr_key)
-//         &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::GetCRDone
+// &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
 //         &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
 //     });
 //     let q = tla_exists(|m: Message| lift_state(|s: State| {
@@ -602,7 +601,7 @@ proof fn lemma_exists_get_resp_msg_sent_and_get_cr_leads_to_create_cm(cr_key: Re
 // {
 //     let p = |s: State| {
 //         &&& s.reconcile_state_contains(cr_key)
-//         &&& s.reconcile_state_of(cr_key).reconcile_step === ReconcileCoreStep::GetCRDone
+// &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
 //         &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
 //     };
 //     let q = |s: State| exists |m: Message| {

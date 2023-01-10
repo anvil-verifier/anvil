@@ -68,7 +68,7 @@ pub proof fn exists_next_controller_step(reconciler: Reconciler, action: Control
     if action === trigger_reconcile(reconciler) {
         let step = ControllerStep::TriggerReconcile;
         assert(((controller(reconciler).step_to_action)(step).precondition)(input, s));
-    } else if action === run_scheduled_reconcile() {
+    } else if action === run_scheduled_reconcile(reconciler) {
         let step = ControllerStep::RunScheduledReconcile;
         assert(((controller(reconciler).step_to_action)(step).precondition)(input, s));
     } else if action === continue_reconcile(reconciler) {

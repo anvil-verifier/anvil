@@ -24,7 +24,6 @@ verus! {
 pub open spec fn trigger_reconcile(reconciler: Reconciler) -> ControllerAction {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState| {
-            // TODO: we should have an action for requeued reconcile
             // TODO: We should have multiple queues for storing triggering events.
             // Each queue stores the event relates to the same cr key.
             &&& input.scheduled_cr_key.is_None()
@@ -36,12 +35,12 @@ pub open spec fn trigger_reconcile(reconciler: Reconciler) -> ControllerAction {
         },
         transition: |input: ControllerActionInput, s: ControllerState| {
             let cr_key = (reconciler.reconcile_trigger)(input.recv.get_Some_0()).get_Some_0();
-            let initialized_reconcile_state = ReconcileState {
-                reconcile_step: ReconcileCoreStep::Init,
+            let initialized_ongoing_reconcile = OngoingReconcile {
                 pending_req_msg: Option::None,
+                local_state: (reconciler.reconcile_init_state)(),
             };
             let s_prime = ControllerState {
-                ongoing_reconciles: s.ongoing_reconciles.insert(cr_key, initialized_reconcile_state),
+                ongoing_reconciles: s.ongoing_reconciles.insert(cr_key, initialized_ongoing_reconcile),
                 ..s
             };
             let send = Set::empty();
@@ -50,7 +49,7 @@ pub open spec fn trigger_reconcile(reconciler: Reconciler) -> ControllerAction {
     }
 }
 
-pub open spec fn run_scheduled_reconcile() -> ControllerAction {
+pub open spec fn run_scheduled_reconcile(reconciler: Reconciler) -> ControllerAction {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState| {
             &&& input.scheduled_cr_key.is_Some()
@@ -60,12 +59,12 @@ pub open spec fn run_scheduled_reconcile() -> ControllerAction {
         },
         transition: |input: ControllerActionInput, s: ControllerState| {
             let cr_key = input.scheduled_cr_key.get_Some_0();
-            let initialized_reconcile_state = ReconcileState {
-                reconcile_step: ReconcileCoreStep::Init,
+            let initialized_ongoing_reconcile = OngoingReconcile {
                 pending_req_msg: Option::None,
+                local_state: (reconciler.reconcile_init_state)(),
             };
             let s_prime = ControllerState {
-                ongoing_reconciles: s.ongoing_reconciles.insert(cr_key, initialized_reconcile_state),
+                ongoing_reconciles: s.ongoing_reconciles.insert(cr_key, initialized_ongoing_reconcile),
                 scheduled_reconciles: s.scheduled_reconciles.remove(cr_key),
                 ..s
             };
@@ -80,17 +79,16 @@ pub open spec fn continue_reconcile(reconciler: Reconciler) -> ControllerAction 
         precondition: |input: ControllerActionInput, s: ControllerState| {
             if input.scheduled_cr_key.is_Some() {
                 let cr_key = input.scheduled_cr_key.get_Some_0();
-                let reconcile_state = s.ongoing_reconciles[cr_key];
 
                 &&& s.ongoing_reconciles.dom().contains(cr_key)
+                &&& !(reconciler.reconcile_done)(s.ongoing_reconciles[cr_key].local_state)
                 &&& if input.recv.is_Some() {
                     &&& input.recv.get_Some_0().content.is_APIResponse()
-                    &&& reconcile_state.pending_req_msg.is_Some()
-                    &&& resp_msg_matches_req_msg(input.recv.get_Some_0(), reconcile_state.pending_req_msg.get_Some_0())
+                    &&& s.ongoing_reconciles[cr_key].pending_req_msg.is_Some()
+                    &&& resp_msg_matches_req_msg(input.recv.get_Some_0(), s.ongoing_reconciles[cr_key].pending_req_msg.get_Some_0())
                 } else {
-                    reconcile_state.pending_req_msg.is_None()
+                    s.ongoing_reconciles[cr_key].pending_req_msg.is_None()
                 }
-                &&& !ending_step(reconcile_state.reconcile_step)
             } else {
                 false
             }
@@ -104,16 +102,17 @@ pub open spec fn continue_reconcile(reconciler: Reconciler) -> ControllerAction 
             let cr_key = input.scheduled_cr_key.get_Some_0();
             let reconcile_state = s.ongoing_reconciles[cr_key];
 
-            let (next_step, req_o) = (reconciler.reconcile_core)(cr_key, reconcile_state.reconcile_step, resp_o);
+            let (local_state_prime, req_o) = (reconciler.reconcile_core)(cr_key, resp_o, reconcile_state.local_state);
 
             let pending_req_msg = if req_o.is_Some() {
                 Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req_o.get_Some_0())))
             } else {
                 Option::None
             };
-            let reconcile_state_prime = ReconcileState {
-                reconcile_step: next_step,
+
+            let reconcile_state_prime = OngoingReconcile {
                 pending_req_msg: pending_req_msg,
+                local_state: local_state_prime,
             };
             let s_prime = ControllerState {
                 ongoing_reconciles: s.ongoing_reconciles.insert(cr_key, reconcile_state_prime),
@@ -129,16 +128,15 @@ pub open spec fn continue_reconcile(reconciler: Reconciler) -> ControllerAction 
     }
 }
 
-pub open spec fn end_reconcile() -> ControllerAction {
+pub open spec fn end_reconcile(reconciler: Reconciler) -> ControllerAction {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState| {
             if input.scheduled_cr_key.is_Some() {
                 let cr_key = input.scheduled_cr_key.get_Some_0();
-                let reconcile_state = s.ongoing_reconciles[cr_key];
 
                 &&& s.ongoing_reconciles.dom().contains(cr_key)
+                &&& (reconciler.reconcile_done)(s.ongoing_reconciles[cr_key].local_state)
                 &&& input.recv.is_None()
-                &&& ending_step(reconcile_state.reconcile_step)
             } else {
                 false
             }

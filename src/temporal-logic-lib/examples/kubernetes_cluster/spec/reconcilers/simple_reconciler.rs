@@ -13,8 +13,16 @@ verus! {
 
 pub open spec fn simple_reconciler() -> Reconciler {
     Reconciler {
+        reconcile_init_state: || reconcile_init_state(),
         reconcile_trigger: |msg: Message| reconcile_trigger(msg),
-        reconcile_core: |cr_key: ResourceKey, step: ReconcileCoreStep, resp_o: Option<APIResponse>| reconcile_core(cr_key, step, resp_o),
+        reconcile_core: |cr_key: ResourceKey, resp_o: Option<APIResponse>, state: ReconcileState| reconcile_core(cr_key, resp_o, state),
+        reconcile_done: |state: ReconcileState| reconcile_done(state),
+    }
+}
+
+pub open spec fn reconcile_init_state() -> ReconcileState {
+    ReconcileState {
+        reconcile_pc: 0,
     }
 }
 
@@ -41,58 +49,38 @@ pub open spec fn reconcile_trigger(msg: Message) -> Option<ResourceKey>
 /// This is a highly simplified reconcile core spec:
 /// it sends requests to create a configmap for the cr.
 /// TODO: make the reconcile_core create more resources such as a statefulset
-pub open spec fn reconcile_core(cr_key: ResourceKey, step: ReconcileCoreStep, resp_o: Option<APIResponse>) -> (ReconcileCoreStep, Option<APIRequest>)
+pub open spec fn reconcile_core(cr_key: ResourceKey, resp_o: Option<APIResponse>, state: ReconcileState) -> (ReconcileState, Option<APIRequest>)
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
-    match step {
-        ReconcileCoreStep::Init => {
-            (ReconcileCoreStep::GetCRDone, Option::Some(APIRequest::GetRequest(GetRequest{key: cr_key})))
-        },
-        ReconcileCoreStep::GetCRDone => {
-            (ReconcileCoreStep::CreateCMDone, Option::Some(create_cm_req(cr_key)))
-            // if resp_o.is_None() {
-            //     (ReconcileCoreStep::Error, Option::None)
-            // } else {
-            //     if is_ok_resp(resp_o.get_Some_0()) {
-            //         (ReconcileCoreStep::CreateCMDone, Option::Some(create_cm_req(cr_key)))
-            //     } else {
-            //         (ReconcileCoreStep::Done, Option::None)
-            //     }
-            // }
-        },
-        ReconcileCoreStep::CreateCMDone => {
-            (ReconcileCoreStep::Done, Option::None)
-            // if resp_o.is_None() {
-            //     (ReconcileCoreStep::Error, Option::None)
-            // } else {
-            //     if is_ok_resp(resp_o.get_Some_0()) {
-            //         (ReconcileCoreStep::Done, Option::None)
-            //         // (ReconcileCoreStep::CreateStsDone, Option::Some(create_sts_req(cr_key)))
-            //     } else {
-            //         (ReconcileCoreStep::Error, Option::None)
-            //     }
-            // }
-        },
-        // ReconcileCoreStep::CreateStsDone => {
-        //     if resp_o.is_None() {
-        //         (ReconcileCoreStep::Error, Option::None)
-        //     } else {
-        //         if is_ok_resp(resp_o.get_Some_0()) {
-        //             (ReconcileCoreStep::Done, Option::None)
-        //         } else {
-        //             (ReconcileCoreStep::Error, Option::None)
-        //         }
-        //     }
-        // },
-        ReconcileCoreStep::Done => {
-            (ReconcileCoreStep::Done, Option::None)
-        },
-        ReconcileCoreStep::Error => {
-            (ReconcileCoreStep::Error, Option::None)
-        }
+    let pc = state.reconcile_pc;
+    if pc === init_pc() {
+        let state_prime = ReconcileState {
+            reconcile_pc: after_get_cr_pc(),
+        };
+        let req_o = Option::Some(APIRequest::GetRequest(GetRequest{key: cr_key}));
+        (state_prime, req_o)
+    } else if pc === after_get_cr_pc() {
+        let state_prime = ReconcileState {
+            reconcile_pc: after_create_cm_pc(),
+        };
+        let req_o = Option::Some(create_cm_req(cr_key));
+        (state_prime, req_o)
+    } else {
+        (state, Option::None)
     }
 }
+
+pub open spec fn reconcile_done(state: ReconcileState) -> bool {
+    &&& state.reconcile_pc !== init_pc()
+    &&& state.reconcile_pc !== after_get_cr_pc()
+}
+
+pub open spec fn init_pc() -> nat { 0 }
+
+pub open spec fn after_get_cr_pc() -> nat { 1 }
+
+pub open spec fn after_create_cm_pc() -> nat { 2 }
 
 pub open spec fn subresource_configmap(cr_key: ResourceKey) -> ResourceObj
     recommends

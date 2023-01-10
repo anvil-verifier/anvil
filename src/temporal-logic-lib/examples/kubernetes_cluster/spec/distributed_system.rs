@@ -7,7 +7,7 @@ use crate::examples::kubernetes_cluster::spec::{
     client::{client, ClientActionInput},
     common::*,
     controller::common::{
-        ControllerAction, ControllerActionInput, ControllerState, ReconcileState, Reconciler,
+        ControllerAction, ControllerActionInput, ControllerState, OngoingReconcile, Reconciler,
     },
     controller::state_machine::controller,
     kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
@@ -55,7 +55,7 @@ impl State {
         self.controller_state.ongoing_reconciles.dom().contains(key)
     }
 
-    pub open spec fn reconcile_state_of(self, key: ResourceKey) -> ReconcileState
+    pub open spec fn reconcile_state_of(self, key: ResourceKey) -> OngoingReconcile
         recommends self.reconcile_state_contains(key)
     {
         self.controller_state.ongoing_reconciles[key]
