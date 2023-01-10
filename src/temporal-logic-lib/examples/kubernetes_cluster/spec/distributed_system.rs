@@ -6,8 +6,10 @@ use crate::examples::kubernetes_cluster::spec::{
     client,
     client::{client, ClientActionInput},
     common::*,
-    controller,
-    controller::{controller, ControllerActionInput},
+    controller::common::{
+        ControllerAction, ControllerActionInput, ControllerState, ReconcileState,
+    },
+    controller::state_machine::controller,
     kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
     kubernetes_api::state_machine::kubernetes_api,
     network,
@@ -23,7 +25,7 @@ verus! {
 
 pub struct State {
     pub kubernetes_api_state: KubernetesAPIState,
-    pub controller_state: controller::State,
+    pub controller_state: ControllerState,
     pub client_state: client::State,
     pub network_state: network::State,
 }
@@ -53,7 +55,7 @@ impl State {
         self.controller_state.ongoing_reconciles.dom().contains(key)
     }
 
-    pub open spec fn reconcile_state_of(self, key: ResourceKey) -> controller::ReconcileState
+    pub open spec fn reconcile_state_of(self, key: ResourceKey) -> ReconcileState
         recommends self.reconcile_state_contains(key)
     {
         self.controller_state.ongoing_reconciles[key]
@@ -218,7 +220,7 @@ pub open spec fn kubernetes_api_action_pre(action: KubernetesAPIAction, input: K
     }
 }
 
-pub open spec fn controller_action_pre(action: controller::ControllerAction, input: ControllerActionInput) -> StatePred<State> {
+pub open spec fn controller_action_pre(action: ControllerAction, input: ControllerActionInput) -> StatePred<State> {
     |s: State| {
         let host_result = controller().next_action_result(action, input, s.controller_state);
         let msg_ops = MessageOps {

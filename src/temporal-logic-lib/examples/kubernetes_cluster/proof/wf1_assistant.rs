@@ -5,9 +5,14 @@ use crate::action::*;
 use crate::examples::kubernetes_cluster::spec::{
     common::*,
     controller,
-    controller::{controller, ControllerAction, ControllerActionInput},
+    controller::common::{
+        ControllerAction, ControllerActionInput, ControllerState, ControllerStep,
+    },
+    controller::controller_runtime::{
+        continue_reconcile, end_reconcile, run_scheduled_reconcile, trigger_reconcile,
+    },
+    controller::state_machine::controller,
     distributed_system::*,
-    kubernetes_api,
     kubernetes_api::common::{
         KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState, KubernetesAPIStep,
     },
@@ -53,24 +58,24 @@ pub proof fn exists_next_kubernetes_api_step(action: KubernetesAPIAction, input:
     assert(((kubernetes_api().step_to_action)(KubernetesAPIStep::HandleRequest).precondition)(input, s));
 }
 
-pub proof fn exists_next_controller_step(action: ControllerAction, input: ControllerActionInput, s: controller::State)
+pub proof fn exists_next_controller_step(action: ControllerAction, input: ControllerActionInput, s: ControllerState)
     requires
         controller().actions.contains(action),
         (action.precondition)(input, s),
     ensures
         exists |step| (#[trigger] (controller().step_to_action)(step).precondition)(input, s),
 {
-    if action === controller::trigger_reconcile() {
-        let step = controller::Step::TriggerReconcile;
+    if action === trigger_reconcile() {
+        let step = ControllerStep::TriggerReconcile;
         assert(((controller().step_to_action)(step).precondition)(input, s));
-    } else if action === controller::run_scheduled_reconcile() {
-        let step = controller::Step::RunScheduledReconcile;
+    } else if action === run_scheduled_reconcile() {
+        let step = ControllerStep::RunScheduledReconcile;
         assert(((controller().step_to_action)(step).precondition)(input, s));
-    } else if action === controller::continue_reconcile() {
-        let step = controller::Step::ContinueReconcile;
+    } else if action === continue_reconcile() {
+        let step = ControllerStep::ContinueReconcile;
         assert(((controller().step_to_action)(step).precondition)(input, s));
     } else {
-        let step = controller::Step::EndReconcile;
+        let step = ControllerStep::EndReconcile;
         assert(((controller().step_to_action)(step).precondition)(input, s));
     }
 }

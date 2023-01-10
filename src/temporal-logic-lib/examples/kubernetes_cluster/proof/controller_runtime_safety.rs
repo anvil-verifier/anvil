@@ -6,7 +6,7 @@ use crate::examples::kubernetes_cluster::{
     spec::{
         common::*,
         controller,
-        controller::{relevant_cr_key, ControllerAction, ControllerActionInput, ReconcileCoreStep},
+        controller::common::{ControllerAction, ControllerActionInput, ReconcileCoreStep},
         distributed_system::*,
     },
 };
