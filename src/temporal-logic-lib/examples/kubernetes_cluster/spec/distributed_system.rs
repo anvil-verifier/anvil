@@ -200,6 +200,8 @@ pub open spec fn next(reconciler: Reconciler) -> ActionPred<State> {
 }
 
 /// We install the reconciler to the Kubernetes cluster state machine spec
+/// TODO: develop a struct for the compound state machine and make reconciler its member
+/// so that we don't have to pass reconciler to init and next in the proof.
 pub open spec fn sm_spec(reconciler: Reconciler) -> TempPred<State> {
     lift_state(init(reconciler))
     .and(always(lift_action(next(reconciler))))
