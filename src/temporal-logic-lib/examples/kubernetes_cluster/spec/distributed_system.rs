@@ -4,7 +4,7 @@
 use crate::action::*;
 use crate::examples::kubernetes_cluster::spec::{
     client,
-    client::{client, ClientActionInput},
+    client::{client, ClientActionInput, ClientState},
     common::*,
     controller::common::{
         ControllerAction, ControllerActionInput, ControllerState, OngoingReconcile, Reconciler,
@@ -13,7 +13,7 @@ use crate::examples::kubernetes_cluster::spec::{
     kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
     kubernetes_api::state_machine::kubernetes_api,
     network,
-    network::network,
+    network::{network, NetworkState},
 };
 use crate::pervasive::{map::*, option::*, seq::*, set::*};
 use crate::state_machine::*;
@@ -26,8 +26,8 @@ verus! {
 pub struct State {
     pub kubernetes_api_state: KubernetesAPIState,
     pub controller_state: ControllerState,
-    pub client_state: client::State,
-    pub network_state: network::State,
+    pub client_state: ClientState,
+    pub network_state: NetworkState,
 }
 
 impl State {

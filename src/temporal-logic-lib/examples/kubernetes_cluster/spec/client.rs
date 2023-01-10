@@ -11,7 +11,7 @@ use builtin_macros::*;
 
 verus! {
 
-pub struct State {}
+pub struct ClientState {}
 
 pub struct ClientActionInput {
     pub recv: Option<Message>,
@@ -23,11 +23,11 @@ pub enum Step {
     SendDeleteCR,
 }
 
-pub type ClientStateMachine = StateMachine<State, ClientActionInput, ClientActionInput, Set<Message>, Step>;
+pub type ClientStateMachine = StateMachine<ClientState, ClientActionInput, ClientActionInput, Set<Message>, Step>;
 
-pub type ClientAction = Action<State, ClientActionInput, Set<Message>>;
+pub type ClientAction = Action<ClientState, ClientActionInput, Set<Message>>;
 
-pub type ClientActionResult = ActionResult<State, Set<Message>>;
+pub type ClientActionResult = ActionResult<ClientState, Set<Message>>;
 
 pub open spec fn msg_to_kubernetes_api(msg_content: MessageContent) -> Message {
     form_msg(HostId::Client, HostId::KubernetesAPI, msg_content)
@@ -59,7 +59,7 @@ pub open spec fn send_delete_cr() -> ClientAction {
 
 pub open spec fn client() -> ClientStateMachine {
     StateMachine {
-        init: |s: State| true,
+        init: |s: ClientState| true,
         actions: set![send_create_cr(), send_delete_cr()],
         step_to_action: |step: Step| {
             match step {
