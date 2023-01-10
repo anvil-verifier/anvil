@@ -8,12 +8,12 @@ use crate::examples::kubernetes_cluster::spec::{
     common::*,
     controller,
     controller::{controller, ControllerActionInput},
-    kubernetes_api,
-    kubernetes_api::{kubernetes_api, KubernetesAPIActionInput},
+    kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
+    kubernetes_api::state_machine::kubernetes_api,
     network,
     network::network,
 };
-use crate::pervasive::{map::*, option::*, seq::*, set::*, string::*};
+use crate::pervasive::{map::*, option::*, seq::*, set::*};
 use crate::state_machine::*;
 use crate::temporal_logic::*;
 use builtin::*;
@@ -22,7 +22,7 @@ use builtin_macros::*;
 verus! {
 
 pub struct State {
-    pub kubernetes_api_state: kubernetes_api::State,
+    pub kubernetes_api_state: KubernetesAPIState,
     pub controller_state: controller::State,
     pub client_state: client::State,
     pub network_state: network::State,
@@ -203,7 +203,7 @@ pub open spec fn sm_spec() -> TempPred<State> {
     .and(tla_forall(|input| controller_next().weak_fairness(input)))
 }
 
-pub open spec fn kubernetes_api_action_pre(action: kubernetes_api::KubernetesAPIAction, input: KubernetesAPIActionInput) -> StatePred<State> {
+pub open spec fn kubernetes_api_action_pre(action: KubernetesAPIAction, input: KubernetesAPIActionInput) -> StatePred<State> {
     |s: State| {
         let host_result = kubernetes_api().next_action_result(action, input, s.kubernetes_api_state);
         let msg_ops = MessageOps {

@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::action::*;
-use crate::examples::kubernetes_cluster::spec::common::*;
-use crate::pervasive::{map::*, option::*, result::*, seq::*, set::*, string::*};
+use crate::examples::kubernetes_cluster::spec::{
+    common::*,
+    kubernetes_api::{builtin_controllers::statefulset_controller, common::*},
+};
+use crate::pervasive::{map::*, option::*, result::*, seq::*, set::*};
 use crate::state_machine::*;
 use crate::temporal_logic::*;
 use builtin::*;
@@ -11,23 +14,9 @@ use builtin_macros::*;
 
 verus! {
 
-pub struct State {
-    pub resources: Map<ResourceKey, ResourceObj>,
-}
-
-pub enum Step {
-    HandleRequest,
-}
-
-pub type KubernetesAPIActionInput = Option<Message>;
-
-pub type KubernetesAPIStateMachine = StateMachine<State, KubernetesAPIActionInput, KubernetesAPIActionInput, Set<Message>, Step>;
-
-pub type KubernetesAPIAction = Action<State, KubernetesAPIActionInput, Set<Message>>;
-
-pub type KubernetesAPIActionResult = ActionResult<State, Set<Message>>;
-
-pub open spec fn transition_by_etcd(msg: Message, s: State) -> (State, Message, KubernetesAPIActionInput)
+// etcd is modeled as a centralized map that handles get/create/delete
+// TODO: support list/update/statusupdate
+pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (KubernetesAPIState, Message, KubernetesAPIActionInput)
     recommends
         msg.content.is_APIRequest(),
 {
@@ -50,6 +39,7 @@ pub open spec fn transition_by_etcd(msg: Message, s: State) -> (State, Message, 
         }
     } else if msg.is_list_request() {
         // TODO: implement list request handling
+        // currently it just returns error
         let req = msg.get_list_request();
         let s_prime = s;
         let result = Result::Err(APIError::ObjectNotFound);
@@ -65,7 +55,7 @@ pub open spec fn transition_by_etcd(msg: Message, s: State) -> (State, Message, 
             (s_prime, resp, Option::None)
         } else {
             // Creation succeeds
-            let s_prime = State{
+            let s_prime = KubernetesAPIState {
                 resources: s.resources.insert(req.obj.key, req.obj),
                 ..s
             };
@@ -88,7 +78,7 @@ pub open spec fn transition_by_etcd(msg: Message, s: State) -> (State, Message, 
         } else {
             // Path where deletion succeeds
             let obj_before_deletion = s.resources[req.key];
-            let s_prime = State{
+            let s_prime = KubernetesAPIState {
                 resources: s.resources.remove(req.key),
                 ..s
             };
@@ -102,69 +92,45 @@ pub open spec fn transition_by_etcd(msg: Message, s: State) -> (State, Message, 
     }
 }
 
-pub open spec fn transition_by_statefulset_controller(msg: Message, s: State) -> Set<Message>
+/// Collect the requests from the builtin controllers
+pub open spec fn transition_by_builtin_controllers(msg: Message, s: KubernetesAPIState) -> Set<Message>
     recommends
         msg.content.is_WatchEvent(),
 {
-    let src = HostId::KubernetesAPI;
-    // Here dst is also KubernetesAPI because etcd, apiserver and built-in controllers are all in the same state machine.
-    // In reality, the message is sent from the built-in controller to apiserver then to etcd.
-    let dst = HostId::KubernetesAPI;
-    if msg.is_watch_event_of_kind(ResourceKind::StatefulSetKind) {
-        if msg.is_added_event() {
-            let obj = msg.get_added_event().obj;
-            set![
-                form_msg(src, dst, create_req_msg(ResourceObj{key: ResourceKey{name: obj.key.name + pod_suffix(), namespace: obj.key.namespace, kind: ResourceKind::PodKind}})),
-                form_msg(src, dst, create_req_msg(ResourceObj{key: ResourceKey{name: obj.key.name + vol_suffix(), namespace: obj.key.namespace, kind: ResourceKind::VolumeKind}}))
-            ]
-        } else if msg.is_modified_event() {
-            set![]
-        } else {
-            let obj = msg.get_deleted_event().obj;
-            set![
-                    form_msg(src, dst, delete_req_msg(ResourceKey{name: obj.key.name + pod_suffix(), namespace: obj.key.namespace, kind: ResourceKind::PodKind})),
-                    form_msg(src, dst, delete_req_msg(ResourceKey{name: obj.key.name + vol_suffix(), namespace: obj.key.namespace, kind: ResourceKind::VolumeKind}))
-                ]
-        }
-    } else {
-        set![]
-    }
-}
-
-pub open spec fn transition_by_builtin_controllers(msg: Message, s: State) -> Set<Message>
-    recommends
-        msg.content.is_WatchEvent(),
-{
-    transition_by_statefulset_controller(msg, s)
+    // We only have spec of statefulset_controller for now
+    statefulset_controller::transition_by_statefulset_controller(msg, s)
 }
 
 pub open spec fn handle_request() -> KubernetesAPIAction {
     Action {
-        precondition: |input: KubernetesAPIActionInput, s: State| {
+        precondition: |input: KubernetesAPIActionInput, s: KubernetesAPIState| {
             &&& input.is_Some()
             &&& input.get_Some_0().content.is_APIRequest()
             // This dst check is redundant since the compound state machine has checked it
             &&& input.get_Some_0().dst === HostId::KubernetesAPI
         },
-        transition: |input: KubernetesAPIActionInput, s: State| {
-            // This transition stitches etcd, built-in controllers and apiserver together.
-            // In reality, apiserver receives the request from some controller,
-            // then forwards the request to etcd;
-            // etcd updates the cluster state and responds to apiserver;
-            // apiserver then forwards the response to the controller;
-            // Meanwhile, any updates of objects in the cluster state leads to a notification from etcd to apiserver.
-            // Apiserver streams the notification to all the (built-in or custom) controllers that subscribe
-            // for the particular kind (i.e., object resource type).
-            // The notification might activate reconciliation of controllers,
-            // which further leads to more requests.
+        transition: |input: KubernetesAPIActionInput, s: KubernetesAPIState| {
+            // This transition describes how Kubernetes API server handles requests,
+            // which consists of multiple steps in reality:
             //
-            // For example, the statefulset controller, when seeing a new statefulset is created,
-            // will send requests to create pods and volumes owned by this statefulset.
+            // (1) apiserver receives the request from some controller/client,
+            //  perform some validation (e.g., through webhook)
+            //  and forwards the request to the underlying datastore (e.g., etcd);
+            // (2) The datastore reads/writes the cluster state and replies to apiserver;
+            // (3) The datastore also sends a notification of state update caused by the request to apiserver;
+            // (4) apiserver replies to the controller/client that sent the request;
+            // (5) apiserver forwards the notification to any controllers/clients that subscribes for the updates.
             //
-            // Here we simplify the process by
-            // (1) removing apiserver and making etcd directly interacting with the request sender;
-            // (2) omitting the notification stream from etcd to apiserver to built-in controller)
-            // and making built-in controllers immediately activated by updates to cluster state.
+            // Note that built-in controllers often subscribes for updates to several kinds of resources.
+            // For example, the statefulset controller subscribes updates to all statefulset objects.
+            // When seeing a new statefulset is created,
+            // it will send requests to create pods and volumes owned by this statefulset.
+            //
+            // Here we simplify step (1) ~ (5) and make the following compromise in this specification:
+            // (a) making the apiserver directly forward requests to the datastore without validation;
+            // (b) omitting the notification stream from the datastore to apiserver then to built-in controller,
+            //  and making built-in controllers immediately activated by updates to cluster state;
+            // (c) baking them into one action, which makes them atomic.
             let (s_prime, etcd_resp, etcd_notify_o) = transition_by_etcd(input.get_Some_0(), s);
             if etcd_notify_o.is_Some() {
                 let controller_requests = transition_by_builtin_controllers(etcd_notify_o.get_Some_0(), s_prime);
@@ -178,16 +144,16 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
 
 pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine {
     StateMachine {
-        init: |s: State| s === State{
+        init: |s: KubernetesAPIState| s === KubernetesAPIState {
             resources: Map::empty(),
         },
         actions: set![handle_request()],
-        step_to_action: |step: Step| {
+        step_to_action: |step: KubernetesAPIStep| {
             match step {
-                Step::HandleRequest => handle_request(),
+                KubernetesAPIStep::HandleRequest => handle_request(),
             }
         },
-        action_input: |step: Step, input: KubernetesAPIActionInput| {
+        action_input: |step: KubernetesAPIStep, input: KubernetesAPIActionInput| {
             input
         }
     }

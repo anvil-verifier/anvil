@@ -8,7 +8,10 @@ use crate::examples::kubernetes_cluster::spec::{
     controller::{controller, ControllerAction, ControllerActionInput},
     distributed_system::*,
     kubernetes_api,
-    kubernetes_api::{kubernetes_api, KubernetesAPIAction, KubernetesAPIActionInput},
+    kubernetes_api::common::{
+        KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState, KubernetesAPIStep,
+    },
+    kubernetes_api::state_machine::kubernetes_api,
 };
 use crate::pervasive::{option::*, seq::*, set::*};
 use crate::state_machine::*;
@@ -40,14 +43,14 @@ pub proof fn controller_action_pre_implies_next_pre(action: ControllerAction, in
     };
 }
 
-pub proof fn exists_next_kubernetes_api_step(action: KubernetesAPIAction, input: KubernetesAPIActionInput, s: kubernetes_api::State)
+pub proof fn exists_next_kubernetes_api_step(action: KubernetesAPIAction, input: KubernetesAPIActionInput, s: KubernetesAPIState)
     requires
         kubernetes_api().actions.contains(action),
         (action.precondition)(input, s),
     ensures
         exists |step| (#[trigger] (kubernetes_api().step_to_action)(step).precondition)(input, s),
 {
-    assert(((kubernetes_api().step_to_action)(kubernetes_api::Step::HandleRequest).precondition)(input, s));
+    assert(((kubernetes_api().step_to_action)(KubernetesAPIStep::HandleRequest).precondition)(input, s));
 }
 
 pub proof fn exists_next_controller_step(action: ControllerAction, input: ControllerActionInput, s: controller::State)

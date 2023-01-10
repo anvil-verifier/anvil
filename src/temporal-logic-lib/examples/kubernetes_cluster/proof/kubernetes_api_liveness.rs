@@ -4,7 +4,10 @@
 use crate::examples::kubernetes_cluster::{
     proof::wf1_assistant::kubernetes_api_action_pre_implies_next_pre,
     spec::{
-        common::*, distributed_system::*, kubernetes_api, kubernetes_api::KubernetesAPIActionInput,
+        common::*,
+        distributed_system::*,
+        kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput},
+        kubernetes_api::state_machine::{handle_request, kubernetes_api},
     },
 };
 use crate::pervasive::{option::*, result::*};
@@ -16,9 +19,9 @@ use builtin_macros::*;
 
 verus! {
 
-pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(input: KubernetesAPIActionInput, action: kubernetes_api::KubernetesAPIAction, pre: StatePred<State>, post: StatePred<State>)
+pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(input: KubernetesAPIActionInput, action: KubernetesAPIAction, pre: StatePred<State>, post: StatePred<State>)
     requires
-        kubernetes_api::kubernetes_api().actions.contains(action),
+        kubernetes_api().actions.contains(action),
         forall |s, s_prime: State| pre(s) && #[trigger] next()(s, s_prime) ==> pre(s_prime) || post(s_prime),
         forall |s, s_prime: State| pre(s) && #[trigger] next()(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime) ==> post(s_prime),
         forall |s: State| #[trigger] pre(s) ==> kubernetes_api_action_pre(action, input)(s),
@@ -33,9 +36,9 @@ pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(input: KubernetesAPIActio
     kubernetes_api_next().wf1(input, sm_spec(), next(), pre, post);
 }
 
-pub proof fn lemma_pre_leads_to_post_with_asm_by_kubernetes_api(input: KubernetesAPIActionInput, action: kubernetes_api::KubernetesAPIAction, asm: StatePred<State>, pre: StatePred<State>, post: StatePred<State>)
+pub proof fn lemma_pre_leads_to_post_with_asm_by_kubernetes_api(input: KubernetesAPIActionInput, action: KubernetesAPIAction, asm: StatePred<State>, pre: StatePred<State>, post: StatePred<State>)
     requires
-        kubernetes_api::kubernetes_api().actions.contains(action),
+        kubernetes_api().actions.contains(action),
         forall |s, s_prime: State| pre(s) && #[trigger] next()(s, s_prime) && asm(s) ==> pre(s_prime) || post(s_prime),
         forall |s, s_prime: State| pre(s) && #[trigger] next()(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime) ==> post(s_prime),
         forall |s: State| #[trigger] pre(s) ==> kubernetes_api_action_pre(action, input)(s),
@@ -87,7 +90,7 @@ pub proof fn lemma_create_req_leads_to_ok_resp(msg: Message)
         &&& s.message_sent(form_msg(msg.dst, msg.src, create_resp_msg(Result::Ok(msg.get_create_request().obj), msg.get_create_request())))
         &&& s.resource_key_exists(msg.get_create_request().obj.key)
     };
-    lemma_pre_leads_to_post_with_asm_by_kubernetes_api(Option::Some(msg), kubernetes_api::handle_request(), asm, pre, post);
+    lemma_pre_leads_to_post_with_asm_by_kubernetes_api(Option::Some(msg), handle_request(), asm, pre, post);
 }
 
 pub proof fn lemma_get_req_leads_to_some_resp(msg: Message, key: ResourceKey)
@@ -132,7 +135,7 @@ pub proof fn lemma_get_req_leads_to_some_resp(msg: Message, key: ResourceKey)
             assert(resp_msg_matches_req_msg(err_resp_msg, msg));
         }
     };
-    lemma_pre_leads_to_post_by_kubernetes_api(input, kubernetes_api::handle_request(), pre, post);
+    lemma_pre_leads_to_post_by_kubernetes_api(input, handle_request(), pre, post);
 }
 
 pub proof fn lemma_get_req_leads_to_ok_or_err_resp(msg: Message, key: ResourceKey)
@@ -160,7 +163,7 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp(msg: Message, key: ResourceKe
         ||| s.message_sent(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key))))
         ||| s.message_sent(form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound)))
     };
-    lemma_pre_leads_to_post_by_kubernetes_api(Option::Some(msg), kubernetes_api::handle_request(), pre, post);
+    lemma_pre_leads_to_post_by_kubernetes_api(Option::Some(msg), handle_request(), pre, post);
     temp_pred_equality::<State>(
         lift_state(post),
         lift_state(|s: State| s.message_sent(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)))))
@@ -214,7 +217,7 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_never_delete(msg: Message, res: R
             msg.get_get_request()
         )
     ));
-    lemma_pre_leads_to_post_with_asm_by_kubernetes_api(Option::Some(msg), kubernetes_api::handle_request(), asm, pre, post);
+    lemma_pre_leads_to_post_with_asm_by_kubernetes_api(Option::Some(msg), handle_request(), asm, pre, post);
 }
 
 pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists(msg: Message, res: ResourceObj)
@@ -308,7 +311,7 @@ pub proof fn lemma_create_req_leads_to_res_exists(msg: Message, res: ResourceObj
     let post = |s: State| {
         s.resource_key_exists(res.key)
     };
-    lemma_pre_leads_to_post_by_kubernetes_api(Option::Some(msg), kubernetes_api::handle_request(), pre, post);
+    lemma_pre_leads_to_post_by_kubernetes_api(Option::Some(msg), handle_request(), pre, post);
 }
 
 pub proof fn lemma_delete_req_leads_to_res_not_exists(msg: Message, res: ResourceObj)
@@ -332,7 +335,7 @@ pub proof fn lemma_delete_req_leads_to_res_not_exists(msg: Message, res: Resourc
     let post = |s: State| {
         !s.resource_obj_exists(res)
     };
-    lemma_pre_leads_to_post_by_kubernetes_api(Option::Some(msg), kubernetes_api::handle_request(), pre, post);
+    lemma_pre_leads_to_post_by_kubernetes_api(Option::Some(msg), handle_request(), pre, post);
 }
 
 pub proof fn lemma_always_res_always_exists_implies_delete_never_sent(msg: Message, res: ResourceObj)
