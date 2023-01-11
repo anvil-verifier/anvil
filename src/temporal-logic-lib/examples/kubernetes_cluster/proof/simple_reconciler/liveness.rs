@@ -566,17 +566,4 @@ proof fn lemma_exists_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(c
         ),
 {}
 
-
-// pub proof fn foo() {
-//     let p = lift_state(|s: State| forall |msg: Message| s.message_sent(msg));
-//     let q = tla_forall(|msg: Message| lift_state(|s: State| s.message_sent(msg)));
-//     assert(valid(p.implies(q)));
-//     assert(valid(q.implies(p))); // failed
-
-//     let p2 = lift_state(|s: State| exists |msg: Message| s.message_sent(msg));
-//     let q2 = tla_exists(|msg: Message| lift_state(|s: State| s.message_sent(msg)));
-//     assert(valid(p2.implies(q2))); // failed
-//     assert(valid(q2.implies(p2)));
-// }
-
 }
