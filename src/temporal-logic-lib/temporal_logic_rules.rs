@@ -108,6 +108,13 @@ proof fn always_lift_action_unfold<T>(ex: Execution<T>, p: ActionPred<T>)
     always_unfold::<T>(ex, lift_action(p));
 }
 
+proof fn tla_forall_unfold<T, A>(ex: Execution<T>, a_to_p: FnSpec(A) -> TempPred<T>)
+    requires
+        tla_forall(a_to_p).satisfied_by(ex),
+    ensures
+        forall |a| #[trigger] a_to_p(a).satisfied_by(ex),
+{}
+
 proof fn implies_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.implies(q).satisfied_by(ex),
@@ -557,19 +564,53 @@ pub proof fn p_and_always_p_equals_always_p<T>(p: TempPred<T>)
     temp_pred_equality::<T>(p.and(always(p)), always(p));
 }
 
-/// How to prove the following equality lemmas?
-#[verifier(external_body)]
 pub proof fn tla_forall_always_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
     ensures
         tla_forall(|a: A| always(a_to_p(a))) === always(tla_forall(a_to_p)),
-{}
+{
+    let a_to_always_p = |a: A| always(a_to_p(a));
 
-#[verifier(external_body)]
+    assert forall |ex| #[trigger] tla_forall(a_to_always_p).satisfied_by(ex)
+    implies always(tla_forall(a_to_p)).satisfied_by(ex) by {
+        assert forall |i| #[trigger] tla_forall(a_to_p).satisfied_by(ex.suffix(i)) by {
+            assert forall |a| #[trigger] a_to_p(a).satisfied_by(ex.suffix(i)) by {
+                tla_forall_unfold::<T, A>(ex, a_to_always_p);
+                assert(a_to_always_p(a).satisfied_by(ex));
+                always_unfold::<T>(ex, a_to_p(a));
+            };
+        };
+    };
+
+    assert forall |ex| #[trigger] always(tla_forall(a_to_p)).satisfied_by(ex)
+    implies tla_forall(a_to_always_p).satisfied_by(ex) by {
+        assert forall |a| #[trigger] a_to_always_p(a).satisfied_by(ex) by {
+            assert forall |i| #[trigger] a_to_p(a).satisfied_by(ex.suffix(i)) by {
+                always_unfold::<T>(ex, tla_forall(a_to_p));
+                tla_forall_unfold::<T, A>(ex.suffix(i), a_to_p);
+            };
+        };
+    };
+
+    temp_pred_equality::<T>(tla_forall(|a: A| always(a_to_p(a))), always(tla_forall(a_to_p)));
+}
+
 pub proof fn tla_forall_not_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
     ensures
         tla_forall(|a: A| not(a_to_p(a))) === not(tla_exists(a_to_p)),
-{}
+{
+    let a_to_not_p = |a: A| not(a_to_p(a));
+    assert forall |ex| #[trigger] tla_forall(a_to_not_p).satisfied_by(ex)
+    implies not(tla_exists(a_to_p)).satisfied_by(ex) by {
+        assert forall |a| !#[trigger] a_to_p(a).satisfied_by(ex) by {
+            tla_forall_unfold::<T, A>(ex, a_to_not_p);
+            assert(a_to_not_p(a).satisfied_by(ex));
+        };
+    };
 
+    temp_pred_equality::<T>(tla_forall(|a: A| not(a_to_p(a))), not(tla_exists(a_to_p)));
+}
+
+/// How to prove the following equality lemmas?
 #[verifier(external_body)]
 pub proof fn tla_forall_and_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
     ensures
@@ -613,7 +654,6 @@ pub proof fn tla_forall_implies_equality2<T, A>(p: TempPred<T>, a_to_q: FnSpec(A
     a_to_temp_pred_equality::<T, A>(|a: A| p.implies(a_to_q(a)), |a: A| a_to_q(a).or(not(p)));
     temp_pred_equality::<T>(tla_forall(|a: A| p.implies(a_to_q(a))), tla_forall(|a: A| a_to_q(a).or(not(p))));
     tla_forall_or_equality::<T, A>(a_to_q, not(p));
-    assert(tla_forall(|a: A| p.implies(a_to_q(a))) === tla_forall(a_to_q).or(not(p)));
     temp_pred_equality::<T>(tla_forall(a_to_q).or(not(p)), p.implies(tla_forall(a_to_q)));
 }
 
@@ -634,13 +674,18 @@ pub proof fn tla_forall_leads_to_weaken<T, A>(ex: Execution<T>, a_to_p: FnSpec(A
     };
 }
 
-#[verifier(external_body)]
 proof fn spec_entails_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPred<T>)
     requires
-        forall |a: A| #[trigger] spec.entails(a_to_p(a)),
+        forall |a: A| spec.entails(#[trigger] a_to_p(a)),
     ensures
         spec.entails(tla_forall(a_to_p)),
-{}
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies tla_forall(a_to_p).satisfied_by(ex) by {
+        assert forall |a| #[trigger] a_to_p(a).satisfied_by(ex) by {
+            implies_apply::<T>(ex, spec, a_to_p(a));
+        };
+    };
+}
 
 pub proof fn leads_to_exists_intro<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
     requires
