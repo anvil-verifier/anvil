@@ -554,6 +554,25 @@ pub proof fn a_to_temp_pred_equality<T, A>(p: FnSpec(A) -> TempPred<T>, q: FnSpe
     fun_ext::<A, TempPred<T>>(p, q);
 }
 
+pub proof fn tla_exists_equality<T, A>(f: FnSpec(A, T) -> bool)
+    ensures
+        lift_state(|t| exists |a| #[trigger] f(a, t)) === tla_exists(|a| lift_state(|t| f(a, t))),
+{
+    let p = lift_state(|t| exists |a| #[trigger] f(a, t));
+    let q = tla_exists(|a| lift_state(|t| f(a, t)));
+
+    let partial_p = |t| exists |a| #[trigger] f(a, t);
+    let partial_q = |a| lift_state(|t| f(a, t));
+    assert forall |ex| p.satisfied_by(ex) implies q.satisfied_by(ex) by {
+        assert(partial_p(ex.head()));
+        assert(exists |a| #[trigger] f(a, ex.head()));
+        let witness_a = choose |a| #[trigger] f(a, ex.head());
+        assert(partial_q(witness_a).satisfied_by(ex));
+    };
+
+    temp_pred_equality::<T>(p, q);
+}
+
 pub proof fn p_and_always_p_equals_always_p<T>(p: TempPred<T>)
     ensures
         p.and(always(p)) === always(p),
