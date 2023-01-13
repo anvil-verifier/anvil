@@ -39,21 +39,21 @@ pub proof fn lemma_pre_leads_to_post_by_controller(reconciler: Reconciler, input
     controller_next(reconciler).wf1(input, sm_spec(reconciler), next(reconciler), pre, post);
 }
 
-pub proof fn lemma_pre_leads_to_post_with_asm_by_controller(reconciler: Reconciler, input: ControllerActionInput, action: ControllerAction, asm: StatePred<State>, pre: StatePred<State>, post: StatePred<State>)
+pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller(reconciler: Reconciler, input: ControllerActionInput, action: ControllerAction, assumption: StatePred<State>, pre: StatePred<State>, post: StatePred<State>)
     requires
         controller(reconciler).actions.contains(action),
-        forall |s, s_prime: State| pre(s) && #[trigger] next(reconciler)(s, s_prime) && asm(s) ==> pre(s_prime) || post(s_prime),
+        forall |s, s_prime: State| pre(s) && #[trigger] next(reconciler)(s, s_prime) && assumption(s) ==> pre(s_prime) || post(s_prime),
         forall |s, s_prime: State| pre(s) && #[trigger] next(reconciler)(s, s_prime) && controller_next(reconciler).forward(input)(s, s_prime) ==> post(s_prime),
         forall |s: State| #[trigger] pre(s) ==> controller_action_pre(reconciler, action, input)(s),
     ensures
-        sm_spec(reconciler).entails(lift_state(pre).and(always(lift_state(asm))).leads_to(lift_state(post))),
+        sm_spec(reconciler).entails(lift_state(pre).and(always(lift_state(assumption))).leads_to(lift_state(post))),
 {
     use_tla_forall::<State, ControllerActionInput>(sm_spec(reconciler), |i| controller_next(reconciler).weak_fairness(i), input);
 
     controller_action_pre_implies_next_pre(reconciler, action, input);
     valid_implies_trans::<State>(lift_state(pre), lift_state(controller_action_pre(reconciler, action, input)), lift_state(controller_next(reconciler).pre(input)));
 
-    controller_next(reconciler).wf1_assume(input, sm_spec(reconciler), next(reconciler), asm, pre, post);
+    controller_next(reconciler).wf1_assume(input, sm_spec(reconciler), next(reconciler), assumption, pre, post);
 }
 
 pub proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered(reconciler: Reconciler, msg: Message, cr_key: ResourceKey)
