@@ -12,12 +12,15 @@ You cannot compile the verifiable-controllers codebase with a standard rust comp
 
 * A Verus installation
 
-### Build & Run
+### Build and run
 
-Run the following command from the root of the verifiable-controllers project:
+To compile any body of verification code within this project, use the `rust_verify.sh` command from the Verus project and
+aim it at the required `main.rs` file.
+
+For example, to build and verify the temporal logic library and examples:
 
 ```
-$: <path-to-verus-source>/source/tools/rust-verify.sh src/spec/main.rs
+$: <path-to-verus-source>/source/tools/rust-verify.sh src/temporal-logic-lib/main.rs
 ```
 
 ## Documentation
