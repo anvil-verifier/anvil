@@ -14,7 +14,7 @@ You cannot compile the verifiable-controllers codebase with a standard rust comp
 
 ### Build & Run
 
-Next, from the root of the verifiable-controllers project:
+Run the following command from the root of the verifiable-controllers project:
 
 ```
 $: <path-to-verus-source>/source/tools/rust-verify.sh src/spec/main.rs
@@ -33,3 +33,4 @@ as an open-source patch. For more detailed information, refer to [CONTRIBUTING.m
 
 ## License
 
+This project is available under an [MIT License](LICENSE).
