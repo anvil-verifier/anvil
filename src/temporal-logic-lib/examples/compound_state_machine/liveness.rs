@@ -189,7 +189,8 @@ proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(msg: Message)
     use_tla_forall::<State, Option<Message>>(sm_spec(), |r| distributed_system::controller_next().weak_fairness(r), recv);
 
     distributed_system::controller_action_pre_implies_next_pre(controller::send_create_sts(), recv);
-    distributed_system::controller_next().wf1(recv, sm_spec(), next(), post);
+    valid_implies_trans::<State>(lift_state(message_sent(msg)), lift_state(distributed_system::controller_action_pre(controller::send_create_sts(), recv)), lift_state(distributed_system::controller_next().pre(recv)));
+    distributed_system::controller_next().wf1(recv, sm_spec(), next(), message_sent(msg), post);
 
     assert(sm_spec().entails(lift_state(pre).leads_to(lift_state(post))));
 }

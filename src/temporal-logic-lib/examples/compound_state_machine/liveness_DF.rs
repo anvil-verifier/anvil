@@ -64,8 +64,8 @@ proof fn liveness_proof(cr: ResourceObj)
     let vol_exists = resource_exists(ResourceKey{name: vol_name, kind: ResourceKind::VolumeKind});
 
     // F:
-    assert(forall |s, s_prime: State| pod_exists(s) && #[trigger] action_pred_call(next(), s, s_prime) && assumption(s) ==> pod_exists(s_prime));
-    assert(forall |s, s_prime: State| vol_exists(s) && #[trigger] action_pred_call(next(), s, s_prime) && assumption(s) ==> vol_exists(s_prime));
+    assert(forall |s, s_prime: State| pod_exists(s) && #[trigger] next()(s, s_prime) && assumption(s) ==> pod_exists(s_prime));
+    assert(forall |s, s_prime: State| vol_exists(s) && #[trigger] next()(s, s_prime) && assumption(s) ==> vol_exists(s_prime));
     lemma_cr_exists_leads_to_pod_exists_and_vol_exists(cr);
     lemma_always_cr_always_exists_implies_sub_resources_never_deleted(cr);
 
@@ -190,14 +190,15 @@ proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(msg: Message)
     }));
 
     // F:
-    assert(forall |s, s_prime: State| distributed_system::controller_next().pre(recv)(s) && action_pred_call(next(), s, s_prime) ==> distributed_system::controller_next().pre(recv)(s_prime) || post(s_prime));
-    assert(forall |s, s_prime: State| distributed_system::controller_next().pre(recv)(s) && action_pred_call(next(), s, s_prime) && distributed_system::controller_next().forward(recv)(s, s_prime) ==> post(s_prime));
+    assert(forall |s, s_prime: State| distributed_system::controller_next().pre(recv)(s) && #[trigger] next()(s, s_prime) ==> distributed_system::controller_next().pre(recv)(s_prime) || post(s_prime));
+    assert(forall |s, s_prime: State| distributed_system::controller_next().pre(recv)(s) && #[trigger] next()(s, s_prime) && distributed_system::controller_next().forward(recv)(s, s_prime) ==> post(s_prime));
     distributed_system::controller_action_pre_implies_next_pre(controller::send_create_sts(), recv);
 
     // temporal:
     leads_to_weaken_auto::<State>(sm_spec());
     use_tla_forall::<State, Option<Message>>(sm_spec(), |r| distributed_system::controller_next().weak_fairness(r), recv);
-    distributed_system::controller_next().wf1(recv, sm_spec(), next(), post);
+    valid_implies_trans::<State>(lift_state(message_sent(msg)), lift_state(distributed_system::controller_action_pre(controller::send_create_sts(), recv)), lift_state(distributed_system::controller_next().pre(recv)));
+    distributed_system::controller_next().wf1(recv, sm_spec(), next(), message_sent(msg), post);
     assert(sm_spec().entails(lift_state(pre).leads_to(lift_state(post))));
 }
 

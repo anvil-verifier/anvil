@@ -180,7 +180,7 @@ pub proof fn kubernetes_api_action_pre_implies_next_pre(action: kubernetes_api::
     ensures
         valid(lift_state(kubernetes_api_action_pre(action, recv)).implies(lift_state(kubernetes_api_next().pre(recv)))),
 {
-    assert forall |s| #[trigger] state_pred_call(kubernetes_api_action_pre(action, recv), s) implies state_pred_call(kubernetes_api_next().pre(recv), s) by {
+    assert forall |s| #[trigger] kubernetes_api_action_pre(action, recv)(s) implies kubernetes_api_next().pre(recv)(s) by {
         kubernetes_api::exists_next_step(action, recv, s.kubernetes_api_state);
     };
 }
@@ -191,7 +191,7 @@ pub proof fn controller_action_pre_implies_next_pre(action: controller::Controll
     ensures
         valid(lift_state(controller_action_pre(action, recv)).implies(lift_state(controller_next().pre(recv)))),
 {
-    assert forall |s| #[trigger] state_pred_call(controller_action_pre(action, recv), s) implies state_pred_call(controller_next().pre(recv), s) by {
+    assert forall |s| #[trigger] controller_action_pre(action, recv)(s) implies controller_next().pre(recv)(s) by {
         controller::exists_next_step(action, recv, s.controller_state);
     };
 }

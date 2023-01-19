@@ -36,16 +36,35 @@ impl<State, Input, Output> Action<State, Input, Output> {
     }
 
     /// `wf1` is a specialized version of temporal_logic_rules::wf1 for Action
-    pub proof fn wf1(self, input: Input, spec: TempPred<State>, next: ActionPred<State>, post: StatePred<State>)
+    pub proof fn wf1(self, input: Input, spec: TempPred<State>, next: ActionPred<State>, pre: StatePred<State>, post: StatePred<State>)
         requires
-            forall |s, s_prime: State| self.pre(input)(s) && action_pred_call(next, s, s_prime) ==> self.pre(input)(s_prime) || post(s_prime),
-            forall |s, s_prime: State| self.pre(input)(s) && action_pred_call(next, s, s_prime) && self.forward(input)(s, s_prime) ==> post(s_prime),
+            forall |s, s_prime: State| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
+            forall |s, s_prime: State| pre(s) && #[trigger] next(s, s_prime) && self.forward(input)(s, s_prime) ==> post(s_prime),
             spec.entails(always(lift_action(next))),
+            spec.entails(always(lift_state(pre).implies(lift_state(self.pre(input))))),
             spec.entails(self.weak_fairness(input)),
         ensures
-            spec.entails(lift_state(self.pre(input)).leads_to(lift_state(post))),
+            spec.entails(lift_state(pre).leads_to(lift_state(post))),
     {
-        temporal_logic_rules::wf1_variant_temp::<State>(spec, lift_action(next), lift_action(self.forward(input)), lift_state(self.pre(input)), lift_state(post));
+        temporal_logic_rules::always_implies_preserved_by_always_temp::<State>(spec, lift_state(pre), lift_state(self.pre(input)));
+        temporal_logic_rules::leads_to_weaken_temp::<State>(spec, always(lift_state(self.pre(input))), lift_action(self.forward(input)), always(lift_state(pre)), lift_action(self.forward(input)));
+        temporal_logic_rules::wf1_variant_temp::<State>(spec, lift_action(next), lift_action(self.forward(input)), lift_state(pre), lift_state(post));
+    }
+
+    /// `wf1_assume` is a specialized version of temporal_logic_rules::wf1_assume for Action
+    pub proof fn wf1_assume(self, input: Input, spec: TempPred<State>, next: ActionPred<State>, asm: StatePred<State>, pre: StatePred<State>, post: StatePred<State>)
+        requires
+            forall |s, s_prime: State| pre(s) && #[trigger] next(s, s_prime) && asm(s) ==> pre(s_prime) || post(s_prime),
+            forall |s, s_prime: State| pre(s) && #[trigger] next(s, s_prime) && self.forward(input)(s, s_prime) ==> post(s_prime),
+            spec.entails(always(lift_action(next))),
+            spec.entails(always(lift_state(pre).implies(lift_state(self.pre(input))))),
+            spec.entails(self.weak_fairness(input)),
+        ensures
+            spec.entails(lift_state(pre).and(always(lift_state(asm))).leads_to(lift_state(post))),
+    {
+        temporal_logic_rules::always_implies_preserved_by_always_temp::<State>(spec, lift_state(pre), lift_state(self.pre(input)));
+        temporal_logic_rules::leads_to_weaken_temp::<State>(spec, always(lift_state(self.pre(input))), lift_action(self.forward(input)), always(lift_state(pre)), lift_action(self.forward(input)));
+        temporal_logic_rules::wf1_variant_assume_temp::<State>(spec, lift_action(next), lift_action(self.forward(input)), lift_state(asm), lift_state(pre), lift_state(post));
     }
 }
 

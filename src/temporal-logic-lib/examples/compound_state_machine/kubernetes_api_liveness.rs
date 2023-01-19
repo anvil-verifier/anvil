@@ -22,20 +22,22 @@ verus! {
 pub proof fn lemma_msg_sent_leads_to_post_by_kubernetes_api(msg: Message, action: kubernetes_api::KubernetesAPIAction, post: StatePred<State>)
     requires
         kubernetes_api::kubernetes_api().actions.contains(action),
-        forall |s, s_prime: State| kubernetes_api_next().pre(Option::Some(msg))(s) && action_pred_call(next(), s, s_prime) ==> kubernetes_api_next().pre(Option::Some(msg))(s_prime) || post(s_prime),
-        forall |s, s_prime: State| kubernetes_api_next().pre(Option::Some(msg))(s) && action_pred_call(next(), s, s_prime) && kubernetes_api_next().forward(Option::Some(msg))(s, s_prime) ==> post(s_prime),
-        forall |s: State| state_pred_call(message_sent(msg), s) ==> kubernetes_api_action_pre(action, Option::Some(msg))(s),
+        forall |s, s_prime: State| kubernetes_api_next().pre(Option::Some(msg))(s) && #[trigger] next()(s, s_prime) ==> kubernetes_api_next().pre(Option::Some(msg))(s_prime) || post(s_prime),
+        forall |s, s_prime: State| kubernetes_api_next().pre(Option::Some(msg))(s) && #[trigger] next()(s, s_prime) && kubernetes_api_next().forward(Option::Some(msg))(s, s_prime) ==> post(s_prime),
+        forall |s: State| #[trigger] message_sent(msg)(s) ==> kubernetes_api_action_pre(action, Option::Some(msg))(s),
     ensures
         sm_spec().entails(lift_state(message_sent(msg)).leads_to(lift_state(post))),
 {
     let recv = Option::Some(msg);
-    let pre = kubernetes_api_action_pre(kubernetes_api::handle_request(), recv);
+    let pre = kubernetes_api_action_pre(action, recv);
 
     leads_to_weaken_auto::<State>(sm_spec());
     use_tla_forall::<State, Option<Message>>(sm_spec(), |r| kubernetes_api_next().weak_fairness(r), recv);
 
     kubernetes_api_action_pre_implies_next_pre(action, recv);
-    kubernetes_api_next().wf1(recv, sm_spec(), next(), post);
+    valid_implies_trans::<State>(lift_state(message_sent(msg)), lift_state(kubernetes_api_action_pre(action, recv)), lift_state(kubernetes_api_next().pre(recv)));
+
+    kubernetes_api_next().wf1(recv, sm_spec(), next(), message_sent(msg), post);
 
     assert(sm_spec().entails(lift_state(pre).leads_to(lift_state(post))));
 }
