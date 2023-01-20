@@ -1,12 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 
-pub mod action;
-pub mod common;
-pub mod examples;
+pub mod kubernetes_cluster;
 pub mod pervasive;
+pub mod pervasive_lemmas;
+pub mod simple_controller;
 pub mod state_machine;
 pub mod temporal_logic;
-pub mod temporal_logic_rules;
+pub mod tla_examples;
 
 fn main() {}
