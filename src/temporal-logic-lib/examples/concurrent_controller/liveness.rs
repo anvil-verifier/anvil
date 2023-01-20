@@ -179,7 +179,7 @@ proof fn lemma_controller_create_cr_resp_leads_to_create_sts_req(msg: Message)
 {
     let cr_name = msg.get_CreateResponse_0().obj.key.name;
 
-    leads_to_eq_auto::<CState>(sm_spec());
+    leads_to_weaken_auto::<CState>(sm_spec());
     use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(controller_send_create_sts(m)), msg);
 
     controller_send_create_sts_enabled(msg);
@@ -203,7 +203,7 @@ proof fn lemma_k8s_create_cr_req_leads_to_create_cr_resp(msg: Message)
             .entails(lift_state(|s| message_sent(s, msg))
                 .leads_to(lift_state(|s| message_sent(s, create_resp_msg(msg.get_CreateRequest_0().obj.key))))),
 {
-    leads_to_eq_auto::<CState>(sm_spec());
+    leads_to_weaken_auto::<CState>(sm_spec());
     use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_request(m)), msg);
 
     k8s_handle_request_enabled(msg);
@@ -224,7 +224,7 @@ proof fn lemma_k8s_delete_cr_req_leads_to_cr_not_exists(msg: Message)
             .entails(lift_state(|s| message_sent(s, msg))
                 .leads_to(lift_state(|s| !resource_exists(s, msg.get_DeleteRequest_0().key)))),
 {
-    leads_to_eq_auto::<CState>(sm_spec());
+    leads_to_weaken_auto::<CState>(sm_spec());
     use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_request(m)), msg);
 
     k8s_handle_request_enabled(msg);
@@ -266,7 +266,7 @@ proof fn lemma_k8s_create_sts_req_sent_leads_to(msg: Message, sub_res_msg: Messa
 {
     let sub_res_key = sub_res_msg.get_CreateRequest_0().obj.key;
 
-    leads_to_eq_auto::<CState>(sm_spec());
+    leads_to_weaken_auto::<CState>(sm_spec());
     use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_request(m)), msg);
     use_tla_forall::<CState, Message>(sm_spec(), |m| weak_fairness(k8s_handle_request(m)), sub_res_msg);
 

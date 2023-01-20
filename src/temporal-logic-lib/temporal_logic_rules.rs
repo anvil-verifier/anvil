@@ -733,6 +733,29 @@ pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPr
     };
 }
 
+/// Obviously p ~> p is valid
+/// post:
+///     |= p ~> p
+pub proof fn leads_to_self_temp<T>(p: TempPred<T>)
+    ensures
+        valid(p.leads_to(p)),
+{
+    assert forall |ex| #[trigger] always(p.implies(eventually(p))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(p).satisfied_by(ex.suffix(i)) by {
+            execution_suffix_zero_split::<T>(ex.suffix(i), p);
+            eventually_proved_by_witness::<T>(ex.suffix(i), p, 0);
+        };
+    };
+}
+
+/// StatePred version of leads_to_self_temp
+pub proof fn leads_to_self<T>(p: StatePred<T>)
+    ensures
+        valid(lift_state(p).leads_to(lift_state(p))),
+{
+    leads_to_self_temp::<T>(lift_state(p));
+}
+
 /// Prove safety by induction.
 /// pre:
 ///     |= init => inv
@@ -1116,46 +1139,6 @@ pub proof fn implies_preserved_by_always_auto<T>()
     };
 }
 
-/// Introduce always to both sides of equals.
-/// pre:
-///     |= p <=> q
-/// post:
-///     |= []p <=> []q
-pub proof fn eq_preserved_by_always_temp<T>(p: TempPred<T>, q: TempPred<T>)
-    requires
-        valid(p.equals(q)),
-    ensures
-        valid(always(p).equals(always(q))),
-{
-    valid_equals_to_valid_implies::<T>(p, q);
-    implies_preserved_by_always_temp::<T>(p, q);
-    implies_preserved_by_always_temp::<T>(q, p);
-    valid_implies_to_valid_equals::<T>(always(p), always(q));
-}
-
-/// StatePred version of eq_preserved_by_always_temp.
-pub proof fn eq_preserved_by_always<T>(p: StatePred<T>, q: StatePred<T>)
-    requires
-        valid(lift_state(p).equals(lift_state(q))),
-    ensures
-        valid(always(lift_state(p)).equals(always(lift_state(q)))),
-{
-    eq_preserved_by_always_temp::<T>(lift_state(p), lift_state(q))
-}
-
-/// Auto version of eq_preserved_by_always_temp.
-pub proof fn eq_preserved_by_always_auto<T>()
-    ensures
-        forall |p: TempPred<T>, q: TempPred<T>|
-        #![trigger always(p), always(q)]
-        valid(p.equals(q)) ==> valid(always(p).equals(always(q))),
-{
-    assert forall |p: TempPred<T>, q: TempPred<T>| #[trigger] valid(p.equals(q))
-    implies valid(always(p).equals(always(q))) by {
-        eq_preserved_by_always_temp::<T>(p, q);
-    };
-}
-
 /// Weaken always by implies.
 /// pre:
 ///     |= p => q
@@ -1185,49 +1168,6 @@ pub proof fn always_weaken<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T
         spec.entails(always(lift_state(q))),
 {
     always_weaken_temp::<T>(spec, lift_state(p), lift_state(q));
-}
-
-/// Get another always by equals.
-/// pre:
-///     |= p <=> q
-///     spec |= []p
-/// post:
-///     spec |= []q
-pub proof fn always_eq_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        valid(p.equals(q)),
-        spec.entails(always(p)),
-    ensures
-        spec.entails(always(q)),
-{
-    eq_preserved_by_always_temp::<T>(p, q);
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(q).satisfied_by(ex) by {
-        implies_apply::<T>(ex, spec, always(p));
-        equals_apply::<T>(ex, always(p), always(q));
-    };
-}
-
-/// StatePred version of always_eq_temp.
-pub proof fn always_eq<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
-    requires
-        valid(lift_state(p).equals(lift_state(q))),
-        spec.entails(always(lift_state(p))),
-    ensures
-        spec.entails(always(lift_state(q))),
-{
-    always_eq_temp::<T>(spec, lift_state(p), lift_state(q));
-}
-
-/// Auto version of always_eq_temp.
-pub proof fn always_eq_auto<T>(spec: TempPred<T>)
-    ensures
-        forall |p: TempPred<T>, q: TempPred<T>| valid(p.equals(q)) && spec.entails(#[trigger] always(p))
-        ==> spec.entails(#[trigger] always(q)),
-{
-    assert forall |p: TempPred<T>, q: TempPred<T>| valid(p.equals(q)) && spec.entails(#[trigger] always(p))
-    implies spec.entails(#[trigger] always(q)) by {
-        always_eq_temp::<T>(spec, p, q);
-    }
 }
 
 /// Merge an always and an eventually into an eventually.
@@ -1431,23 +1371,6 @@ pub proof fn implies_preserved_by_eventually_temp<T>(p: TempPred<T>, q: TempPred
     };
 }
 
-/// Introduce eventually to both sides of equals.
-/// pre:
-///     |= p <=> q
-/// post:
-///     |= <>p <=> <>q
-pub proof fn eq_preserved_by_eventually_temp<T>(p: TempPred<T>, q: TempPred<T>)
-    requires
-        valid(p.equals(q)),
-    ensures
-        valid(eventually(p).equals(eventually(q))),
-{
-    valid_equals_to_valid_implies::<T>(p, q);
-    implies_preserved_by_eventually_temp::<T>(p, q);
-    implies_preserved_by_eventually_temp::<T>(q, p);
-    valid_implies_to_valid_equals::<T>(eventually(p), eventually(q));
-}
-
 /// Weaken eventually by implies.
 /// pre:
 ///     |= p => q
@@ -1491,71 +1414,6 @@ pub proof fn eventually_weaken_auto<T>(spec: TempPred<T>)
     implies spec.entails(#[trigger] eventually(q)) by {
         eventually_weaken_temp(spec, p, q);
     };
-}
-
-/// Get another eventually by equals.
-/// pre:
-///     |= p <=> q
-///     spec |= <>p
-/// post:
-///     spec |= <>q
-pub proof fn eventually_eq_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
-    requires
-        valid(p.equals(q)),
-        spec.entails(eventually(p)),
-    ensures
-        spec.entails(eventually(q)),
-{
-    eq_preserved_by_eventually_temp::<T>(p, q);
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies eventually(q).satisfied_by(ex) by {
-        implies_apply::<T>(ex, spec, eventually(p));
-        equals_apply::<T>(ex, eventually(p), eventually(q));
-    };
-}
-
-/// StatePred version of eventually_eq_temp.
-pub proof fn eventually_eq<T>(spec: TempPred<T>, p: StatePred<T>, q: StatePred<T>)
-    requires
-        valid(lift_state(p).equals(lift_state(q))),
-        spec.entails(eventually(lift_state(p))),
-    ensures
-        spec.entails(eventually(lift_state(q))),
-{
-    eventually_eq_temp::<T>(spec, lift_state(p), lift_state(q));
-}
-
-/// Auto version of eventually_eq_temp.
-pub proof fn eventually_eq_auto<T>(spec: TempPred<T>)
-    ensures
-        forall |p: TempPred<T>, q: TempPred<T>|
-            valid(p.equals(q)) && spec.entails(#[trigger] eventually(p))
-            ==> spec.entails(#[trigger] eventually(q)),
-{
-    assert forall |p: TempPred<T>, q: TempPred<T>|
-    valid(p.equals(q)) && spec.entails(#[trigger] eventually(p))
-    implies spec.entails(#[trigger] eventually(q)) by {
-        eventually_eq_temp(spec, p, q);
-    };
-}
-
-pub proof fn leads_to_self_temp<T>(p: TempPred<T>)
-    ensures
-        valid(p.leads_to(p)),
-{
-    assert forall |ex| #[trigger] always(p.implies(eventually(p))).satisfied_by(ex) by {
-        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(p).satisfied_by(ex.suffix(i)) by {
-            execution_suffix_zero_split::<T>(ex.suffix(i), p);
-            eventually_proved_by_witness::<T>(ex.suffix(i), p, 0);
-        };
-    };
-}
-
-
-pub proof fn leads_to_self<T>(p: StatePred<T>)
-    ensures
-        valid(lift_state(p).leads_to(lift_state(p))),
-{
-    leads_to_self_temp::<T>(lift_state(p));
 }
 
 /// Get eventually from leads_to.
@@ -1716,69 +1574,6 @@ pub proof fn leads_to_weaken_auto<T>(spec: TempPred<T>)
     spec.entails(always(p2.implies(p1))) && spec.entails(always(q1.implies(q2))) && spec.entails(#[trigger] p1.leads_to(q1))
     implies spec.entails(#[trigger] p2.leads_to(q2)) by {
         leads_to_weaken_temp(spec, p1, q1, p2, q2);
-    };
-}
-
-/// Lite version of leads_to_weaken_auto.
-pub proof fn leads_to_weaken_lite_auto<T>(spec: TempPred<T>)
-    ensures
-        forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
-            valid(p2.implies(p1)) && valid(q1.implies(q2)) && spec.entails(#[trigger] p1.leads_to(q1))
-            ==> spec.entails(#[trigger] p2.leads_to(q2))
-{
-    assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
-    valid(p2.implies(p1)) && valid(q1.implies(q2)) && spec.entails(#[trigger] p1.leads_to(q1))
-    implies spec.entails(#[trigger] p2.leads_to(q2)) by {
-        leads_to_weaken_temp(spec, p1, q1, p2, q2);
-    };
-}
-
-/// Weaken another leads_to by equals.
-/// pre:
-///     |= p2 <=> p1
-///     |= q1 <=> q2
-///     spec |= p1 ~> q1
-/// post:
-///     spec |= p2 ~> q2
-proof fn leads_to_eq_temp<T>(spec: TempPred<T>, p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>)
-    requires
-        valid(p2.equals(p1)),
-        valid(q1.equals(q2)),
-        spec.entails(p1.leads_to(q1)),
-    ensures
-        spec.entails(p2.leads_to(q2)),
-{
-    valid_equals_to_valid_implies::<T>(p2, p1);
-    valid_equals_to_valid_implies::<T>(q1, q2);
-    implies_to_leads_to::<T>(spec, p2, p1);
-    implies_to_leads_to::<T>(spec, q1, q2);
-    leads_to_trans_temp::<T>(spec, p2, p1, q1);
-    leads_to_trans_temp::<T>(spec, p2, q1, q2);
-}
-
-/// StatePred version of leads_to_eq_temp.
-proof fn leads_to_eq<T>(spec: TempPred<T>, p1: StatePred<T>, q1: StatePred<T>, p2: StatePred<T>, q2: StatePred<T>)
-    requires
-        valid(lift_state(p2).equals(lift_state(p1))),
-        valid(lift_state(q1).equals(lift_state(q2))),
-        spec.entails(lift_state(p1).leads_to(lift_state(q1))),
-    ensures
-        spec.entails(lift_state(p2).leads_to(lift_state(q2))),
-{
-    leads_to_eq_temp::<T>(spec, lift_state(p1), lift_state(q1), lift_state(p2), lift_state(q2));
-}
-
-/// Auto version of leads_to_eq_temp.
-pub proof fn leads_to_eq_auto<T>(spec: TempPred<T>)
-    ensures
-        forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
-            valid(p2.equals(p1)) && valid(q1.equals(q2)) && spec.entails(#[trigger] p1.leads_to(q1))
-            ==> spec.entails(#[trigger] p2.leads_to(q2))
-{
-    assert forall |p1: TempPred<T>, q1: TempPred<T>, p2: TempPred<T>, q2: TempPred<T>|
-    valid(p2.equals(p1)) && valid(q1.equals(q2)) && spec.entails(#[trigger] p1.leads_to(q1))
-    implies spec.entails(#[trigger] p2.leads_to(q2)) by {
-        leads_to_eq_temp(spec, p1, q1, p2, q2);
     };
 }
 
