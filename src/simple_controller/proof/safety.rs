@@ -133,10 +133,20 @@ pub proof fn lemma_delete_cm_req_msg_never_sent(cr_key: ResourceKey)
         cr_key.kind.is_CustomResourceKind(),
     ensures
         sm_spec(simple_reconciler()).entails(always(
-            lift_state(|s: State| !s.message_sent(controller_req_msg(APIRequest::DeleteRequest(DeleteRequest{key: cr_key}))))
+            lift_state(|s: State| !exists |m: Message| {
+                &&& #[trigger] s.message_sent(m)
+                &&& m.dst === HostId::KubernetesAPI
+                &&& m.is_delete_request()
+                &&& m.get_delete_request().key === simple_reconciler::subresource_configmap(cr_key).key
+            })
         )),
 {
-    let invariant = |s: State| !s.message_sent(controller_req_msg(APIRequest::DeleteRequest(DeleteRequest{key: cr_key})));
+    let invariant = |s: State| !exists |m: Message| {
+        &&& #[trigger] s.message_sent(m)
+        &&& m.dst === HostId::KubernetesAPI
+        &&& m.is_delete_request()
+        &&& m.get_delete_request().key === simple_reconciler::subresource_configmap(cr_key).key
+    };
     init_invariant::<State>(sm_spec(simple_reconciler()), init(simple_reconciler()), next(simple_reconciler()), invariant);
 }
 

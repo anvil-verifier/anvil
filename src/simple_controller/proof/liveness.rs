@@ -20,23 +20,53 @@ use builtin_macros::*;
 
 verus! {
 
-spec fn liveness_property(cr: ResourceObj) -> TempPred<State>
+spec fn liveness_stability(cr: ResourceObj) -> TempPred<State>
     recommends
         cr.key.kind.is_CustomResourceKind(),
 {
-    // This liveness property is a quite simple as a start-off example
-    // I will work on stability later...
     lift_state(|s: State| s.resource_obj_exists(cr))
-        .leads_to(lift_state(|s: State| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key)))
+        .leads_to(always(lift_state(|s: State| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
 }
 
 proof fn liveness_proof_forall_cr()
     ensures
-        forall |cr: ResourceObj| cr.key.kind.is_CustomResourceKind() ==> #[trigger] sm_spec(simple_reconciler()).entails(liveness_property(cr)),
+        forall |cr: ResourceObj| cr.key.kind.is_CustomResourceKind() ==> #[trigger] sm_spec(simple_reconciler()).entails(liveness_stability(cr)),
 {
-    assert forall |cr: ResourceObj| cr.key.kind.is_CustomResourceKind() implies #[trigger] sm_spec(simple_reconciler()).entails(liveness_property(cr)) by {
-        liveness_proof(cr);
+    assert forall |cr: ResourceObj| cr.key.kind.is_CustomResourceKind() implies #[trigger] sm_spec(simple_reconciler()).entails(liveness_stability(cr)) by {
+        liveness_stability_proof(cr);
     };
+}
+
+proof fn liveness_stability_proof(cr: ResourceObj)
+    requires
+        cr.key.kind.is_CustomResourceKind(),
+    ensures
+        sm_spec(simple_reconciler()).entails(
+            lift_state(|s: State| s.resource_obj_exists(cr))
+                .leads_to(always(lift_state(|s: State| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
+        ),
+{
+    let cr_exists = |s: State| s.resource_obj_exists(cr);
+    let cm_exists = |s: State| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key);
+    let delete_cm_req_msg_not_sent = |s: State| !exists |m: Message| {
+        &&& #[trigger] s.message_sent(m)
+        &&& m.dst === HostId::KubernetesAPI
+        &&& m.is_delete_request()
+        &&& m.get_delete_request().key === simple_reconciler::subresource_configmap(cr.key).key
+    };
+
+    liveness_proof(cr);
+
+    safety::lemma_delete_cm_req_msg_never_sent(cr.key);
+    let next_and_invariant = |s: State, s_prime: State| {
+        &&& next(simple_reconciler())(s, s_prime)
+        &&& delete_cm_req_msg_not_sent(s)
+    };
+
+    entails_and_temp::<State>(sm_spec(simple_reconciler()), always(lift_action(next(simple_reconciler()))), always(lift_state(delete_cm_req_msg_not_sent)));
+    always_and_equality::<State>(lift_action(next(simple_reconciler())), lift_state(delete_cm_req_msg_not_sent));
+    temp_pred_equality::<State>(lift_action(next(simple_reconciler())).and(lift_state(delete_cm_req_msg_not_sent)), lift_action(next_and_invariant));
+    leads_to_stable::<State>(sm_spec(simple_reconciler()), next_and_invariant, cr_exists, cm_exists);
 }
 
 proof fn liveness_proof(cr: ResourceObj)

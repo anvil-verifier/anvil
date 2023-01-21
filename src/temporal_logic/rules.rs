@@ -542,6 +542,21 @@ pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
     fun_ext::<Execution<T>, bool>(p.pred, q.pred);
 }
 
+pub proof fn always_and_equality<T>(p: TempPred<T>, q: TempPred<T>)
+    ensures
+        always(p.and(q)) === always(p).and(always(q)),
+{}
+
+pub proof fn p_and_always_p_equals_always_p<T>(p: TempPred<T>)
+    ensures
+        p.and(always(p)) === always(p),
+{
+    assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies p.and(always(p)).satisfied_by(ex) by {
+        always_to_current::<T>(ex, p);
+    };
+    temp_pred_equality::<T>(p.and(always(p)), always(p));
+}
+
 pub proof fn a_to_temp_pred_equality<T, A>(p: FnSpec(A) -> TempPred<T>, q: FnSpec(A) -> TempPred<T>)
     requires
         forall |a: A| #[trigger] valid(p(a).equals(q(a))),
@@ -571,16 +586,6 @@ pub proof fn tla_exists_equality<T, A>(f: FnSpec(A, T) -> bool)
     };
 
     temp_pred_equality::<T>(p, q);
-}
-
-pub proof fn p_and_always_p_equals_always_p<T>(p: TempPred<T>)
-    ensures
-        p.and(always(p)) === always(p),
-{
-    assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies p.and(always(p)).satisfied_by(ex) by {
-        always_to_current::<T>(ex, p);
-    };
-    temp_pred_equality::<T>(p.and(always(p)), always(p));
 }
 
 pub proof fn tla_forall_always_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
@@ -2053,5 +2058,13 @@ pub proof fn leads_to_contraposition<T>(spec: TempPred<T>, p: StatePred<T>, q: S
 {
     leads_to_contraposition_temp::<T>(spec, lift_state(p), lift_state(q));
 }
+
+pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(p),
+        spec.entails(q),
+    ensures
+        spec.entails(p.and(q)),
+{}
 
 }
