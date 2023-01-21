@@ -128,4 +128,16 @@ pub proof fn lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req
     temp_pred_equality::<State>(lift_state(invariant), invariant_temp_pred);
 }
 
+pub proof fn lemma_delete_cm_req_msg_never_sent(cr_key: ResourceKey)
+    requires
+        cr_key.kind.is_CustomResourceKind(),
+    ensures
+        sm_spec(simple_reconciler()).entails(always(
+            lift_state(|s: State| !s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::DeleteRequest(DeleteRequest{key: cr_key})))))
+        )),
+{
+    let invariant = |s: State| !s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::DeleteRequest(DeleteRequest{key: cr_key}))));
+    init_invariant::<State>(sm_spec(simple_reconciler()), init(simple_reconciler()), next(simple_reconciler()), invariant);
+}
+
 }
