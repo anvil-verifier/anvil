@@ -1,9 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::state_machine::action::*;
 use crate::kubernetes_cluster::spec::{common::*, reconciler::*};
 use crate::pervasive::{map::*, option::*, seq::*, set::*};
+use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use builtin::*;
 use builtin_macros::*;
@@ -39,8 +39,8 @@ pub type ControllerAction = Action<ControllerState, ControllerActionInput, Set<M
 
 pub type ControllerActionResult = ActionResult<ControllerState, Set<Message>>;
 
-pub open spec fn msg_to_kubernetes_api(msg_content: MessageContent) -> Message {
-    form_msg(HostId::CustomController, HostId::KubernetesAPI, msg_content)
+pub open spec fn controller_req_msg(req: APIRequest) -> Message {
+    form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req))
 }
 
 }

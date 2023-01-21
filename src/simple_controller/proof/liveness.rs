@@ -5,7 +5,7 @@ use crate::kubernetes_cluster::{
     proof::{controller_runtime_liveness, kubernetes_api_liveness, kubernetes_api_safety},
     spec::{
         common::*,
-        controller::common::ControllerActionInput,
+        controller::common::{controller_req_msg, ControllerActionInput},
         controller::controller_runtime::{continue_reconcile, end_reconcile, trigger_reconcile},
         controller::state_machine::controller,
         distributed_system::*,
@@ -225,8 +225,8 @@ proof fn lemma_after_get_cr_pc_leads_to_cm_exists(cr: ResourceObj)
             }).leads_to(lift_state(|s: State| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key)))
         ),
 {
-    let get_cr_req_msg = form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr.key})));
-    let create_cm_req_msg = form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr.key)));
+    let get_cr_req_msg = controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr.key}));
+    let create_cm_req_msg = controller_req_msg(simple_reconciler::create_cm_req(cr.key));
     let cm = simple_reconciler::subresource_configmap(cr.key);
 
     // Just layout all the state predicates we are going to repeatedly use later since they are so long
@@ -316,7 +316,7 @@ proof fn lemma_after_create_cm_pc_leads_to_cm_exists(cr: ResourceObj)
             }))
         ),
 {
-    let create_cm_req_msg = form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr.key)));
+    let create_cm_req_msg = controller_req_msg(simple_reconciler::create_cm_req(cr.key));
     let cm = simple_reconciler::subresource_configmap(cr.key);
 
     // Just layout all the state predicates we are going to repeatedly use later since they are so long
@@ -421,8 +421,8 @@ proof fn lemma_init_pc_leads_to_after_get_cr_pc(cr_key: ResourceKey)
             }).leads_to(lift_state(|s: State| {
                     &&& s.reconcile_state_contains(cr_key)
                     &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-                    &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
-                    &&& s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
+                    &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
+                    &&& s.message_sent(controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
                 }))
         ),
 {
@@ -434,8 +434,8 @@ proof fn lemma_init_pc_leads_to_after_get_cr_pc(cr_key: ResourceKey)
     let post = |s: State| {
         &&& s.reconcile_state_contains(cr_key)
         &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
-        &&& s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
+        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
+        &&& s.message_sent(controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
     };
     let input = ControllerActionInput {
         recv: Option::None,
@@ -451,31 +451,31 @@ proof fn lemma_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(msg: Mes
         sm_spec(simple_reconciler()).entails(
             (|m: Message| lift_state(|s: State| {
                 &&& s.message_sent(m)
-                &&& resp_msg_matches_req_msg(m, form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
+                &&& resp_msg_matches_req_msg(m, controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
             }))(msg).and(lift_state(|s: State| {
                 &&& s.reconcile_state_contains(cr_key)
                 &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-                &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
+                &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
             })).leads_to(lift_state(|s: State| {
                     &&& s.reconcile_state_contains(cr_key)
                     &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-                    &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
-                    &&& s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
+                    &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(simple_reconciler::create_cm_req(cr_key)))
+                    &&& s.message_sent(controller_req_msg(simple_reconciler::create_cm_req(cr_key)))
                 }))
         ),
 {
     let pre = |s: State| {
         &&& s.message_sent(msg)
-        &&& resp_msg_matches_req_msg(msg, form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
+        &&& resp_msg_matches_req_msg(msg, controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
         &&& s.reconcile_state_contains(cr_key)
         &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
+        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
     };
     let post = |s: State| {
         &&& s.reconcile_state_contains(cr_key)
         &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
-        &&& s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
+        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(simple_reconciler::create_cm_req(cr_key)))
+        &&& s.message_sent(controller_req_msg(simple_reconciler::create_cm_req(cr_key)))
     };
     let input = ControllerActionInput {
         recv: Option::Some(msg),
@@ -485,12 +485,12 @@ proof fn lemma_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(msg: Mes
 
     let m_to_pre1 = |m: Message| lift_state(|s: State| {
         &&& s.message_sent(m)
-        &&& resp_msg_matches_req_msg(m, form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
+        &&& resp_msg_matches_req_msg(m, controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
     });
     let pre2 = lift_state(|s: State| {
         &&& s.reconcile_state_contains(cr_key)
         &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
+        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
     });
     temp_pred_equality::<State>(lift_state(pre), m_to_pre1(msg).and(pre2));
 }
@@ -502,33 +502,33 @@ proof fn lemma_tla_exists_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_
         sm_spec(simple_reconciler()).entails(
             tla_exists(|m: Message| lift_state(|s: State| {
                 &&& s.message_sent(m)
-                &&& resp_msg_matches_req_msg(m, form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
+                &&& resp_msg_matches_req_msg(m, controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
             })).and(lift_state(|s: State| {
                 &&& s.reconcile_state_contains(cr_key)
                 &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-                &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
+                &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
             })).leads_to(lift_state(|s: State| {
                     &&& s.reconcile_state_contains(cr_key)
                     &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-                    &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
-                    &&& s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
+                    &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(simple_reconciler::create_cm_req(cr_key)))
+                    &&& s.message_sent(controller_req_msg(simple_reconciler::create_cm_req(cr_key)))
                 }))
         ),
 {
     let m_to_pre1 = |m: Message| lift_state(|s: State| {
         &&& s.message_sent(m)
-        &&& resp_msg_matches_req_msg(m, form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
+        &&& resp_msg_matches_req_msg(m, controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
     });
     let pre2 = lift_state(|s: State| {
         &&& s.reconcile_state_contains(cr_key)
         &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
+        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
     });
     let post = lift_state(|s: State| {
         &&& s.reconcile_state_contains(cr_key)
         &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
-        &&& s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
+        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(simple_reconciler::create_cm_req(cr_key)))
+        &&& s.message_sent(controller_req_msg(simple_reconciler::create_cm_req(cr_key)))
     });
     assert forall |m: Message| #[trigger] sm_spec(simple_reconciler()).entails(m_to_pre1(m).and(pre2).leads_to(post)) by {
         lemma_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(m, cr_key);
@@ -548,18 +548,18 @@ proof fn lemma_exists_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(c
             lift_state(|s: State| {
                 exists |m: Message| {
                     &&& #[trigger] s.message_sent(m)
-                    &&& resp_msg_matches_req_msg(m, form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
+                    &&& resp_msg_matches_req_msg(m, controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
                 }
             }).and(lift_state(|s: State| {
                 &&& s.reconcile_state_contains(cr_key)
                 &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-                &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{key: cr_key}))))
+                &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
             }))
                 .leads_to(lift_state(|s: State| {
                     &&& s.reconcile_state_contains(cr_key)
                     &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-                    &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
-                    &&& s.message_sent(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(simple_reconciler::create_cm_req(cr_key))))
+                    &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(simple_reconciler::create_cm_req(cr_key)))
+                    &&& s.message_sent(controller_req_msg(simple_reconciler::create_cm_req(cr_key)))
                 }))
         ),
 {}

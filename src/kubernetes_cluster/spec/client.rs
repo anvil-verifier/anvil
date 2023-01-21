@@ -1,9 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::state_machine::action::*;
 use crate::kubernetes_cluster::spec::common::*;
 use crate::pervasive::{option::*, seq::*, set::*};
+use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
 use builtin::*;
@@ -29,8 +29,8 @@ pub type ClientAction = Action<ClientState, ClientActionInput, Set<Message>>;
 
 pub type ClientActionResult = ActionResult<ClientState, Set<Message>>;
 
-pub open spec fn msg_to_kubernetes_api(msg_content: MessageContent) -> Message {
-    form_msg(HostId::Client, HostId::KubernetesAPI, msg_content)
+pub open spec fn client_req_msg(req: APIRequest) -> Message {
+    form_msg(HostId::Client, HostId::KubernetesAPI, MessageContent::APIRequest(req))
 }
 
 pub open spec fn send_create_cr() -> ClientAction {
@@ -40,7 +40,7 @@ pub open spec fn send_create_cr() -> ClientAction {
             &&& input.recv.is_None()
         },
         transition: |input: ClientActionInput, s| {
-            (s, set![msg_to_kubernetes_api(create_req_msg(ResourceObj{key: input.cr.key}))])
+            (s, set![client_req_msg(create_req(ResourceObj{key: input.cr.key}))])
         },
     }
 }
@@ -52,7 +52,7 @@ pub open spec fn send_delete_cr() -> ClientAction {
             &&& input.recv.is_None()
         },
         transition: |input: ClientActionInput, s| {
-            (s, set![msg_to_kubernetes_api(delete_req_msg(input.cr.key))])
+            (s, set![client_req_msg(delete_req(input.cr.key))])
         },
     }
 }
