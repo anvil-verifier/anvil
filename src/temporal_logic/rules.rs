@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::pervasive::function::*;
+use crate::pervasive::*;
 use crate::temporal_logic::defs::*;
 use builtin::*;
 use builtin_macros::*;
@@ -114,6 +115,28 @@ proof fn tla_forall_unfold<T, A>(ex: Execution<T>, a_to_p: FnSpec(A) -> TempPred
     ensures
         forall |a| #[trigger] a_to_p(a).satisfied_by(ex),
 {}
+
+proof fn tla_exists_unfold<T, A>(ex: Execution<T>, a_to_p: FnSpec(A) -> TempPred<T>)
+    requires
+        tla_exists(a_to_p).satisfied_by(ex),
+    ensures
+        exists |a| #[trigger] a_to_p(a).satisfied_by(ex),
+{}
+
+proof fn tla_exists_proved_by_witness<T, A>(ex: Execution<T>, a_to_p: FnSpec(A) -> TempPred<T>, witness_a: A)
+    requires
+        a_to_p(witness_a).satisfied_by(ex),
+    ensures
+        tla_exists(a_to_p).satisfied_by(ex)
+{}
+
+spec fn tla_exists_choose_witness<T, A>(ex: Execution<T>, a_to_p: FnSpec(A) -> TempPred<T>) -> A
+    recommends
+        exists |a| #[trigger] a_to_p(a).satisfied_by(ex),
+{
+    let witness = choose |a| #[trigger] a_to_p(a).satisfied_by(ex);
+    witness
+}
 
 proof fn implies_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
@@ -261,7 +284,7 @@ proof fn eventually_proved_by_witness<T>(ex: Execution<T>, p: TempPred<T>, witne
 
 spec fn eventually_choose_witness<T>(ex: Execution<T>, p: TempPred<T>) -> nat
     recommends
-        exists |i: nat| p.satisfied_by(#[trigger] ex.suffix(i)),
+        exists |i| p.satisfied_by(#[trigger] ex.suffix(i)),
 {
     let witness = choose |i| p.satisfied_by(#[trigger] ex.suffix(i));
     witness
@@ -646,30 +669,76 @@ pub proof fn tla_forall_not_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
     temp_pred_equality::<T>(tla_forall(|a: A| not(a_to_p(a))), not(tla_exists(a_to_p)));
 }
 
-/// How to prove the following equality lemmas?
-#[verifier(external_body)]
 pub proof fn tla_forall_and_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
     ensures
         tla_forall(|a: A| a_to_p(a).and(q)) === tla_forall(a_to_p).and(q),
-{}
+{
+    let a_to_p_and_q = |a: A| a_to_p(a).and(q);
+    assert forall |ex| #[trigger] tla_forall(a_to_p_and_q).satisfied_by(ex)
+    implies (tla_forall(a_to_p).and(q)).satisfied_by(ex) by {
+        tla_forall_unfold::<T, A>(ex, a_to_p_and_q);
+        // Now we unfold it to:
+        // forall |a| a_to_p(a).and(q).satisfied_by(ex)
+        // Use assert forall block to prove tla_forall(a_to_p).satisfied_by(ex)
+        assert forall |a| #[trigger] a_to_p(a).satisfied_by(ex) by {
+            assert(a_to_p_and_q(a).satisfied_by(ex));
+        };
+        // Use arbitrary() to instantiate the above forall to prove q.satisfied_by(ex)
+        assert(a_to_p_and_q(arbitrary()).satisfied_by(ex));
+    };
 
-#[verifier(external_body)]
+    temp_pred_equality::<T>(tla_forall(|a: A| a_to_p(a).and(q)), tla_forall(a_to_p).and(q));
+}
+
 pub proof fn tla_forall_or_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
     ensures
         tla_forall(|a: A| a_to_p(a).or(q)) === tla_forall(a_to_p).or(q),
-{}
+{
+    let a_to_p_or_q = |a: A| a_to_p(a).or(q);
+    assert forall |ex| #[trigger] tla_forall(a_to_p_or_q).satisfied_by(ex)
+    implies (tla_forall(a_to_p).or(q)).satisfied_by(ex) by {
+        tla_forall_unfold::<T, A>(ex, a_to_p_or_q);
+        if !q.satisfied_by(ex) {
+            assert forall |a| #[trigger] a_to_p(a).satisfied_by(ex) by {
+                assert(a_to_p_or_q(a).satisfied_by(ex));
+            };
+        }
+    };
 
-#[verifier(external_body)]
+    temp_pred_equality::<T>(tla_forall(|a: A| a_to_p(a).or(q)), tla_forall(a_to_p).or(q));
+}
+
 pub proof fn tla_exists_and_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
     ensures
         tla_exists(|a: A| a_to_p(a).and(q)) === tla_exists(a_to_p).and(q),
-{}
+{
+    let a_to_p_and_q = |a: A| a_to_p(a).and(q);
+    assert forall |ex| #[trigger] (tla_exists(a_to_p).and(q)).satisfied_by(ex)
+    implies tla_exists(a_to_p_and_q).satisfied_by(ex) by {
+        let witness_a = tla_exists_choose_witness::<T, A>(ex, a_to_p);
+        tla_exists_proved_by_witness::<T, A>(ex, a_to_p_and_q, witness_a);
+    };
 
-#[verifier(external_body)]
+    temp_pred_equality::<T>(tla_exists(|a: A| a_to_p(a).and(q)), tla_exists(a_to_p).and(q));
+}
+
 pub proof fn tla_exists_or_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
     ensures
         tla_exists(|a: A| a_to_p(a).or(q)) === tla_exists(a_to_p).or(q),
-{}
+{
+    let a_to_p_or_q = |a: A| a_to_p(a).or(q);
+    assert forall |ex| #[trigger] (tla_exists(a_to_p).or(q)).satisfied_by(ex)
+    implies tla_exists(a_to_p_or_q).satisfied_by(ex) by {
+        if !q.satisfied_by(ex) {
+            let witness_a = tla_exists_choose_witness::<T, A>(ex, a_to_p);
+            tla_exists_proved_by_witness::<T, A>(ex, a_to_p_or_q, witness_a);
+        } else {
+            assert(a_to_p_or_q(arbitrary()).satisfied_by(ex));
+        }
+    };
+
+    temp_pred_equality::<T>(tla_exists(|a: A| a_to_p(a).or(q)), tla_exists(a_to_p).or(q));
+}
 
 pub proof fn tla_forall_implies_equality1<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
     ensures
