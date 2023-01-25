@@ -381,16 +381,24 @@ pub open spec fn list_req_msg(kind: ResourceKind) -> MessageContent {
     }))
 }
 
-pub open spec fn create_req_msg(obj: ResourceObj) -> MessageContent {
-    MessageContent::APIRequest(APIRequest::CreateRequest(CreateRequest{
+pub open spec fn create_req(obj: ResourceObj) -> APIRequest {
+    APIRequest::CreateRequest(CreateRequest{
         obj: obj,
-    }))
+    })
+}
+
+pub open spec fn create_req_msg(obj: ResourceObj) -> MessageContent {
+    MessageContent::APIRequest(create_req(obj))
+}
+
+pub open spec fn delete_req(key: ResourceKey) -> APIRequest {
+    APIRequest::DeleteRequest(DeleteRequest{
+        key: key,
+    })
 }
 
 pub open spec fn delete_req_msg(key: ResourceKey) -> MessageContent {
-    MessageContent::APIRequest(APIRequest::DeleteRequest(DeleteRequest{
-        key: key,
-    }))
+    MessageContent::APIRequest(delete_req(key))
 }
 
 pub open spec fn get_resp_msg(res: Result<ResourceObj, APIError>, req: GetRequest) -> MessageContent {

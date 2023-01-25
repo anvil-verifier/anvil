@@ -1,9 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::state_machine::action::*;
 use crate::kubernetes_cluster::spec::{common::*, controller::common::*, reconciler::*};
 use crate::pervasive::{map::*, option::*, seq::*, set::*};
+use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
 use builtin::*;
@@ -105,7 +105,7 @@ pub open spec fn continue_reconcile(reconciler: Reconciler) -> ControllerAction 
             let (local_state_prime, req_o) = (reconciler.reconcile_core)(cr_key, resp_o, reconcile_state.local_state);
 
             let pending_req_msg = if req_o.is_Some() {
-                Option::Some(form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req_o.get_Some_0())))
+                Option::Some(controller_req_msg(req_o.get_Some_0()))
             } else {
                 Option::None
             };
