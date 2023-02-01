@@ -762,24 +762,31 @@ pub proof fn tla_forall_implies_equality2<T, A>(p: TempPred<T>, a_to_q: FnSpec(A
     temp_pred_equality::<T>(tla_forall(a_to_q).or(not(p)), p.implies(tla_forall(a_to_q)));
 }
 
-pub proof fn tla_forall_leads_to_weaken<T, A>(ex: Execution<T>, a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
-    requires
-        tla_forall(|a: A| a_to_p(a).leads_to(q)).satisfied_by(ex)
+pub proof fn tla_forall_leads_to_equality1<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
     ensures
-        tla_exists(a_to_p).leads_to(q).satisfied_by(ex),
+        tla_forall(|a: A| a_to_p(a).leads_to(q)) === tla_exists(a_to_p).leads_to(q),
 {
     let a_to_p_implies_eventually_q = |a: A| a_to_p(a).implies(eventually(q));
     a_to_temp_pred_equality::<T, A>(|a: A| a_to_p(a).leads_to(q), |a: A| always(a_to_p_implies_eventually_q(a)));
     temp_pred_equality::<T>(tla_forall(|a: A| a_to_p(a).leads_to(q)), tla_forall(|a: A| always(a_to_p_implies_eventually_q(a))));
     tla_forall_always_equality::<T, A>(|a: A| a_to_p(a).implies(eventually(q)));
 
-    assert forall |i| #[trigger] tla_exists(a_to_p).implies(eventually(q)).satisfied_by(ex.suffix(i)) by {
-        always_unfold::<T>(ex, tla_forall(|a: A| a_to_p(a).implies(eventually(q))));
-        tla_forall_implies_equality1::<T, A>(a_to_p, eventually(q));
-    };
+    tla_forall_implies_equality1::<T, A>(a_to_p, eventually(q));
 }
 
-proof fn spec_entails_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPred<T>)
+pub proof fn tla_forall_always_implies_equality2<T, A>(p: TempPred<T>, a_to_q: FnSpec(A) -> TempPred<T>)
+    ensures
+        tla_forall(|a: A| always(p.implies(a_to_q(a)))) === always(p.implies(tla_forall(a_to_q))),
+{
+    let a_to_p_implies_q = |a: A| p.implies(a_to_q(a));
+    a_to_temp_pred_equality::<T, A>(|a: A| always(p.implies(a_to_q(a))), |a: A| always(a_to_p_implies_q(a)));
+    temp_pred_equality::<T>(tla_forall(|a: A| always(p.implies(a_to_q(a)))), tla_forall(|a: A| always(a_to_p_implies_q(a))));
+    tla_forall_always_equality::<T, A>(a_to_p_implies_q);
+
+    tla_forall_implies_equality2::<T, A>(p, a_to_q);
+}
+
+pub proof fn spec_entails_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPred<T>)
     requires
         forall |a: A| spec.entails(#[trigger] a_to_p(a)),
     ensures
@@ -789,6 +796,20 @@ proof fn spec_entails_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> T
         assert forall |a| #[trigger] a_to_p(a).satisfied_by(ex) by {
             implies_apply::<T>(ex, spec, a_to_p(a));
         };
+    };
+}
+
+pub proof fn always_implies_forall_intro<T, A>(spec: TempPred<T>, p: TempPred<T>, a_to_q: FnSpec(A) -> TempPred<T>)
+    requires
+        forall |a: A| #[trigger] spec.entails(always(p.implies(a_to_q(a)))),
+    ensures
+        spec.entails(always(p.implies(tla_forall(a_to_q)))),
+{
+    let a_to_always_p_implies_q = |a: A| always(p.implies(a_to_q(a)));
+    spec_entails_tla_forall::<T, A>(spec, a_to_always_p_implies_q);
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(p.implies(tla_forall(a_to_q))).satisfied_by(ex) by {
+        implies_apply::<T>(ex, spec, tla_forall(a_to_always_p_implies_q));
+        tla_forall_always_implies_equality2::<T, A>(p, a_to_q)
     };
 }
 
@@ -802,7 +823,7 @@ pub proof fn leads_to_exists_intro<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) ->
     spec_entails_tla_forall::<T, A>(spec, a_to_p_leads_to_q);
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies tla_exists(a_to_p).leads_to(q).satisfied_by(ex) by {
         implies_apply::<T>(ex, spec, tla_forall(a_to_p_leads_to_q));
-        tla_forall_leads_to_weaken::<T, A>(ex, a_to_p, q);
+        tla_forall_leads_to_equality1::<T, A>(a_to_p, q);
     };
 }
 

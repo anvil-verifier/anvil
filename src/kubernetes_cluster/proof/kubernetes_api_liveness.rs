@@ -342,14 +342,14 @@ pub proof fn lemma_always_res_always_exists_implies_delete_never_sent(reconciler
     ensures
         sm_spec(reconciler).entails(always(
             always(lift_state(|s: State| s.resource_obj_exists(res)))
-                .implies(always((|m: Message| lift_state(|s: State| {
+                .implies(always(lift_state(|s: State| {
                     !{
-                        &&& s.message_sent(m)
-                        &&& m.dst === HostId::KubernetesAPI
-                        &&& m.is_delete_request()
-                        &&& m.get_delete_request().key === res.key
+                        &&& s.message_sent(msg)
+                        &&& msg.dst === HostId::KubernetesAPI
+                        &&& msg.is_delete_request()
+                        &&& msg.get_delete_request().key === res.key
                     }
-                }))(msg)))
+                })))
         )),
 {
     lemma_delete_req_leads_to_res_not_exists(reconciler, msg, res);
@@ -373,19 +373,18 @@ pub proof fn lemma_always_res_always_exists_implies_delete_never_sent(reconciler
             &&& msg.is_delete_request()
             &&& msg.get_delete_request().key === res.key
         })),
-        (|m: Message| lift_state(|s: State| {
+        lift_state(|s: State| {
             !{
-                &&& s.message_sent(m)
-                &&& m.dst === HostId::KubernetesAPI
-                &&& m.is_delete_request()
-                &&& m.get_delete_request().key === res.key
+                &&& s.message_sent(msg)
+                &&& msg.dst === HostId::KubernetesAPI
+                &&& msg.is_delete_request()
+                &&& msg.get_delete_request().key === res.key
             }
-        }))(msg)
+        })
     );
 }
 
 /// How to prove this? It is obvious according to lemma_always_res_always_exists_implies_delete_never_sent
-#[verifier(external_body)]
 pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent(reconciler: Reconciler, res: ResourceObj)
     ensures
         sm_spec(reconciler).entails(always(
@@ -400,6 +399,59 @@ pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent(rec
                     }
                 })))
         )),
-{}
+{
+    let pre = always(lift_state(|s: State| s.resource_obj_exists(res)));
+    let m_to_post = |msg: Message| always(lift_state(|s: State| {
+        !{
+            &&& s.message_sent(msg)
+            &&& msg.dst === HostId::KubernetesAPI
+            &&& msg.is_delete_request()
+            &&& msg.get_delete_request().key === res.key
+        }
+    }));
+    assert forall |msg: Message| sm_spec(reconciler).entails(#[trigger] always(pre.implies(m_to_post(msg)))) by {
+        lemma_always_res_always_exists_implies_delete_never_sent(reconciler, msg, res);
+    };
+    always_implies_forall_intro::<State, Message>(sm_spec(reconciler), pre, m_to_post);
+
+    let m_to_m_not_sent = |msg: Message| lift_state(|s: State| {
+        !{
+            &&& s.message_sent(msg)
+            &&& msg.dst === HostId::KubernetesAPI
+            &&& msg.is_delete_request()
+            &&& msg.get_delete_request().key === res.key
+        }
+    });
+    a_to_temp_pred_equality::<State, Message>(m_to_post, |m: Message| always(m_to_m_not_sent(m)));
+    temp_pred_equality::<State>(tla_forall(m_to_post), tla_forall(|m: Message| always(m_to_m_not_sent(m))));
+    tla_forall_always_equality::<State, Message>(m_to_m_not_sent);
+    // assert(sm_spec(reconciler).entails(always(
+    //     always(lift_state(|s: State| s.resource_obj_exists(res)))
+    //         .implies(always(tla_forall(m_to_m_not_sent)))
+    // )));
+
+    let forall_m_to_m_not_sent = lift_state(|s: State| {
+        forall |msg: Message|
+        !{
+            &&& #[trigger] s.message_sent(msg)
+            &&& msg.dst === HostId::KubernetesAPI
+            &&& msg.is_delete_request()
+            &&& msg.get_delete_request().key === res.key
+        }
+    });
+    assert forall |ex| #[trigger] tla_forall(m_to_m_not_sent).satisfied_by(ex) implies forall_m_to_m_not_sent.satisfied_by(ex) by {
+        assert forall |msg: Message|
+            !{
+                &&& #[trigger] ex.head().message_sent(msg)
+                &&& msg.dst === HostId::KubernetesAPI
+                &&& msg.is_delete_request()
+                &&& msg.get_delete_request().key === res.key
+            }
+        by {
+            assert(m_to_m_not_sent(msg).satisfied_by(ex));
+        };
+    };
+    temp_pred_equality::<State>(tla_forall(m_to_m_not_sent), forall_m_to_m_not_sent);
+}
 
 }
