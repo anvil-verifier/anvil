@@ -9,42 +9,6 @@ use builtin_macros::*;
 
 verus! {
 
-proof fn execution_suffix_zero_merge<T>(ex: Execution<T>, p: TempPred<T>)
-    requires
-        p.satisfied_by(ex.suffix(0)),
-    ensures
-        p.satisfied_by(ex),
-{
-    fun_ext::<nat, T>(ex.suffix(0).nat_to_state, ex.nat_to_state);
-}
-
-proof fn execution_suffix_zero_split<T>(ex: Execution<T>, p: TempPred<T>)
-    requires
-        p.satisfied_by(ex),
-    ensures
-        p.satisfied_by(ex.suffix(0)),
-{
-    fun_ext::<nat, T>(ex.nat_to_state, ex.suffix(0).nat_to_state);
-}
-
-proof fn execution_suffix_merge<T>(ex: Execution<T>, p: TempPred<T>, i: nat, j: nat)
-    requires
-        p.satisfied_by(ex.suffix(i).suffix(j)),
-    ensures
-        p.satisfied_by(ex.suffix(i + j)),
-{
-    fun_ext::<nat, T>(ex.suffix(i).suffix(j).nat_to_state, ex.suffix(i + j).nat_to_state);
-}
-
-proof fn execution_suffix_split<T>(ex: Execution<T>, p: TempPred<T>, i: nat, j: nat)
-    requires
-        p.satisfied_by(ex.suffix(i + j)),
-    ensures
-        p.satisfied_by(ex.suffix(i).suffix(j)),
-{
-    fun_ext::<nat, T>(ex.suffix(i + j).nat_to_state, ex.suffix(i).suffix(j).nat_to_state);
-}
-
 proof fn later_unfold<T>(ex: Execution<T>, p: TempPred<T>)
     requires
         later(p).satisfied_by(ex),
@@ -229,7 +193,7 @@ proof fn always_propagate_forwards<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
 {
     always_unfold::<T>(ex, p);
     assert forall |j| p.satisfied_by(#[trigger] ex.suffix(i).suffix(j)) by {
-        execution_suffix_split::<T>(ex, p, i, j);
+        execution_equality::<T>(ex.suffix(i + j), ex.suffix(i).suffix(j));
     };
 }
 
@@ -251,7 +215,7 @@ proof fn always_to_current<T>(ex: Execution<T>, p: TempPred<T>)
     ensures
         p.satisfied_by(ex),
 {
-    execution_suffix_zero_merge::<T>(ex, p);
+    execution_equality::<T>(ex, ex.suffix(0));
 }
 
 proof fn always_to_future<T>(ex: Execution<T>, p: TempPred<T>, i: nat)
@@ -272,7 +236,7 @@ proof fn eventually_propagate_backwards<T>(ex: Execution<T>, p: TempPred<T>, i: 
 {
     eventually_unfold::<T>(ex.suffix(i), p);
     let witness_idx = eventually_choose_witness(ex.suffix(i), p);
-    execution_suffix_merge::<T>(ex, p, i, witness_idx);
+    execution_equality::<T>(ex.suffix(i).suffix(witness_idx), ex.suffix(i + witness_idx));
 }
 
 proof fn eventually_proved_by_witness<T>(ex: Execution<T>, p: TempPred<T>, witness_idx: nat)
@@ -359,7 +323,7 @@ proof fn implies_to_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T
         assert forall |i: nat| p.satisfied_by(#[trigger] ex.suffix(i))
         implies eventually(q).satisfied_by(ex.suffix(i)) by {
             implies_apply(ex.suffix(i), p, q);
-            execution_suffix_zero_split(ex.suffix(i), q);
+            execution_equality::<T>(ex.suffix(i), ex.suffix(i).suffix(0));
         };
     };
 }
@@ -383,7 +347,7 @@ proof fn always_implies_current<T>(p: TempPred<T>)
 {
     assert forall |ex| always(p).satisfied_by(ex) implies #[trigger] p.satisfied_by(ex) by {
         always_unfold(ex, p);
-        execution_suffix_zero_merge(ex, p);
+        execution_equality::<T>(ex, ex.suffix(0));
     };
 }
 
@@ -428,8 +392,7 @@ proof fn always_p_or_eventually_q_rec<T>(ex: Execution<T>, next: TempPred<T>, p:
         i,
 {
     if i == 0 {
-        execution_suffix_zero_split::<T>(ex, p);
-        assert(p.satisfied_by(ex.suffix(0)));
+        execution_equality::<T>(ex, ex.suffix(0));
     } else {
         always_p_or_eventually_q_rec::<T>(ex, next, p, q, (i-1) as nat);
     }
@@ -454,10 +417,10 @@ proof fn always_p_or_eventually_q<T>(ex: Execution<T>, next: TempPred<T>, p: Tem
             implies_apply::<T>(ex.suffix(i).suffix(idx), p.and(next), later(p).or(later(q)));
             if later(p).satisfied_by(ex.suffix(i).suffix(idx)) {
                 later_unfold::<T>(ex.suffix(i).suffix(idx), p);
-                execution_suffix_merge::<T>(ex.suffix(i), p, idx, 1);
+                execution_equality::<T>(ex.suffix(i).suffix(idx).suffix(1), ex.suffix(i).suffix(idx + 1));
             } else {
                 later_unfold::<T>(ex.suffix(i).suffix(idx), q);
-                execution_suffix_merge::<T>(ex.suffix(i), q, idx, 1);
+                execution_equality::<T>(ex.suffix(i).suffix(idx).suffix(1), ex.suffix(i).suffix(idx + 1));
             }
         };
 
@@ -482,7 +445,7 @@ proof fn next_preserves_inv_rec<T>(ex: Execution<T>, next: TempPred<T>, inv: Tem
         i,
 {
     if i == 0 {
-        execution_suffix_zero_split::<T>(ex, inv);
+        execution_equality::<T>(ex, ex.suffix(0));
     } else {
         next_preserves_inv_rec::<T>(ex, next, inv, (i-1) as nat);
     }
@@ -502,7 +465,7 @@ proof fn p_is_preserved_before_t<T>(ex: Execution<T>, next: TempPred<T>, p: Temp
         i,
 {
     if i == 0 {
-        execution_suffix_zero_split::<T>(ex, p);
+        execution_equality::<T>(ex, ex.suffix(0));
     } else {
         p_is_preserved_before_t::<T>(ex, next, p, q, t, (i-1) as nat);
     }
@@ -520,7 +483,7 @@ proof fn confluence_at_some_point<T>(ex: Execution<T>, next: TempPred<T>, p: Tem
         i,
 {
     if i === 0 {
-        execution_suffix_zero_split::<T>(ex, p);
+        execution_equality::<T>(ex, ex.suffix(0));
         assert(p.and(q).satisfied_by(ex.suffix(0)));
     } else {
         if exists |j: nat| {
@@ -537,7 +500,7 @@ proof fn confluence_at_some_point<T>(ex: Execution<T>, next: TempPred<T>, p: Tem
             implies p.satisfied_by(ex.suffix(idx + 1)) by {
                 always_unfold::<T>(ex, p.and(not(q)).and(next).implies(later(p)));
                 implies_apply::<T>(ex.suffix(idx), p.and(not(q)).and(next), later(p));
-                execution_suffix_merge::<T>(ex, p, idx, 1);
+                execution_equality::<T>(ex.suffix(idx).suffix(1), ex.suffix(idx + 1));
             };
             p_is_preserved_before_t::<T>(ex, next, p, q, i, i);
             assert(p.and(q).satisfied_by(ex.suffix(i)));
@@ -547,6 +510,15 @@ proof fn confluence_at_some_point<T>(ex: Execution<T>, next: TempPred<T>, p: Tem
 
 /// All the lemmas above are used internally for proving the lemmas below
 /// The following lemmas are used by developers to simplify liveness/safety proof
+
+pub proof fn execution_equality<T>(ex1: Execution<T>, ex2: Execution<T>)
+    requires
+        forall |i: nat| #[trigger] (ex1.nat_to_state)(i) === (ex2.nat_to_state)(i),
+    ensures
+        ex1 === ex2,
+{
+    fun_ext::<nat, T>(ex1.nat_to_state, ex2.nat_to_state);
+}
 
 pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
     requires
@@ -852,7 +824,7 @@ pub proof fn leads_to_self_temp<T>(p: TempPred<T>)
 {
     assert forall |ex| #[trigger] always(p.implies(eventually(p))).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(p).satisfied_by(ex.suffix(i)) by {
-            execution_suffix_zero_split::<T>(ex.suffix(i), p);
+            execution_equality::<T>(ex.suffix(i), ex.suffix(i).suffix(0));
             eventually_proved_by_witness::<T>(ex.suffix(i), p, 0);
         };
     };
@@ -945,7 +917,7 @@ pub proof fn wf1_variant_temp<T>(spec: TempPred<T>, next: TempPred<T>, forward: 
                 always_propagate_forwards::<T>(ex, next, i);
                 always_propagate_forwards::<T>(ex, p.and(next).and(forward).implies(later(q)), i);
                 implies_apply::<T>(ex.suffix(i).suffix(witness_idx), p.and(next).and(forward), later(q));
-                execution_suffix_merge::<T>(ex.suffix(i), q, witness_idx, 1);
+                execution_equality::<T>(ex.suffix(i).suffix(witness_idx).suffix(1), ex.suffix(i).suffix(witness_idx + 1));
 
                 eventually_proved_by_witness::<T>(ex.suffix(i), q, witness_idx+1);
             }
@@ -978,7 +950,7 @@ pub proof fn wf1_variant_assume_temp<T>(spec: TempPred<T>, next: TempPred<T>, fo
         assert forall |i| #[trigger] p_and_always_asm.and(next).satisfied_by(ex.suffix(i))
         implies later(p_and_always_asm).or(later(q)).satisfied_by(ex.suffix(i)) by {
             always_unfold::<T>(ex.suffix(i), asm);
-            execution_suffix_zero_merge::<T>(ex.suffix(i), asm);
+            execution_equality::<T>(ex.suffix(i), ex.suffix(i).suffix(0));
             implies_apply::<T>(ex.suffix(i), p.and(next).and(asm), later(p).or(later(q)));
             always_propagate_forwards::<T>(ex.suffix(i), asm, 1);
         };
@@ -1030,7 +1002,7 @@ pub proof fn wf1<T>(spec: TempPred<T>, next: ActionPred<T>, forward: ActionPred<
         assert forall |i| #[trigger] always(lift_state(p)).satisfied_by(ex.suffix(i)) implies eventually(lift_action(forward)).satisfied_by(ex.suffix(i)) by {
             assert(always(lift_state(p).implies(lift_state(enabled(forward)))).satisfied_by(ex.suffix(i)));
             implies_apply_with_always::<T>(ex.suffix(i), lift_state(p), lift_state(enabled(forward)));
-            execution_suffix_merge::<T>(ex, lift_state(enabled(forward)), i, 0);
+            execution_equality::<T>(ex.suffix(i).suffix(0), ex.suffix(i));
 
             implies_apply::<T>(ex, spec, weak_fairness(forward));
             weak_fairness_unfold::<T>(ex, forward);
@@ -1063,7 +1035,7 @@ pub proof fn wf1_assume<T>(spec: TempPred<T>, next: ActionPred<T>, forward: Acti
         assert forall |i| #[trigger] always(lift_state(p)).satisfied_by(ex.suffix(i)) implies eventually(lift_action(forward)).satisfied_by(ex.suffix(i)) by {
             assert(always(lift_state(p).implies(lift_state(enabled(forward)))).satisfied_by(ex.suffix(i)));
             implies_apply_with_always::<T>(ex.suffix(i), lift_state(p), lift_state(enabled(forward)));
-            execution_suffix_merge::<T>(ex, lift_state(enabled(forward)), i, 0);
+            execution_equality::<T>(ex.suffix(i).suffix(0), ex.suffix(i));
 
             implies_apply::<T>(ex, spec, weak_fairness(forward));
             weak_fairness_unfold::<T>(ex, forward);
@@ -1108,21 +1080,22 @@ pub proof fn leads_to_confluence_temp<T>(spec: TempPred<T>, next: TempPred<T>, p
 
             if r_idx <= q_idx {
                 always_to_future::<T>(ex.suffix(i).suffix(r_idx), r, (q_idx - r_idx) as nat);
-                execution_suffix_merge::<T>(ex.suffix(i), r, r_idx, (q_idx - r_idx) as nat);
+                execution_equality::<T>(ex.suffix(i).suffix(q_idx), ex.suffix(i).suffix(r_idx).suffix((q_idx - r_idx) as nat));
                 eventually_proved_by_witness::<T>(ex.suffix(i), q.and(r), q_idx);
             } else {
                 always_to_current::<T>(ex.suffix(i).suffix(r_idx), r);
-                execution_suffix_split::<T>(ex.suffix(i), r, q_idx, (r_idx - q_idx) as nat);
+                execution_equality::<T>(ex.suffix(i).suffix(r_idx), ex.suffix(i).suffix(q_idx).suffix((r_idx - q_idx) as nat));
+
 
                 always_propagate_forwards::<T>(ex, next, i + q_idx);
-                execution_suffix_split::<T>(ex, always(next), i, q_idx);
+                execution_equality::<T>(ex.suffix(i + q_idx), ex.suffix(i).suffix(q_idx));
 
                 always_propagate_forwards::<T>(ex, q.and(not(r)).and(next).implies(later(q)), i + q_idx);
-                execution_suffix_split::<T>(ex, always(q.and(not(r)).and(next).implies(later(q))), i, q_idx);
+                execution_equality::<T>(ex.suffix(i + q_idx), ex.suffix(i).suffix(q_idx));
 
                 confluence_at_some_point(ex.suffix(i).suffix(q_idx), next, q, r, (r_idx - q_idx) as nat);
                 let idx = choose |idx| q.and(r).satisfied_by(#[trigger] ex.suffix(i).suffix(q_idx).suffix(idx));
-                execution_suffix_merge::<T>(ex.suffix(i), q.and(r), q_idx, idx);
+                execution_equality::<T>(ex.suffix(i).suffix(q_idx + idx), ex.suffix(i).suffix(q_idx).suffix(idx));
                 eventually_proved_by_witness::<T>(ex.suffix(i), q.and(r), q_idx + idx);
             }
         };
@@ -1379,7 +1352,7 @@ pub proof fn always_implies_preserved_by_always_temp<T>(spec: TempPred<T>, p: Te
             assert forall |j| #[trigger] q.satisfied_by(ex.suffix(i).suffix(j)) by {
                 implies_apply::<T>(ex, spec, always(p.implies(q)));
                 always_unfold::<T>(ex, p.implies(q));
-                execution_suffix_split::<T>(ex, p.implies(q), i, j);
+                execution_equality::<T>(ex.suffix(i + j), ex.suffix(i).suffix(j));
 
                 always_unfold::<T>(ex.suffix(i), p);
 
@@ -1561,7 +1534,8 @@ pub proof fn leads_to_apply_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPr
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies eventually(q).satisfied_by(ex) by {
         implies_apply::<T>(ex, spec, p);
         implies_apply::<T>(ex, spec, p.leads_to(q));
-        execution_suffix_zero_merge::<T>(ex, p.implies(eventually(q)));
+        leads_to_unfold::<T>(ex, p, q);
+        execution_equality::<T>(ex, ex.suffix(0));
         implies_apply::<T>(ex, p, eventually(q));
     };
 }
@@ -1599,12 +1573,12 @@ pub proof fn leads_to_trans_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPr
             implies_apply(ex.suffix(i), p, eventually(q));
             eventually_unfold(ex.suffix(i), q);
             let q_witness_idx = eventually_choose_witness(ex.suffix(i), q);
-            execution_suffix_merge(ex, q, i, q_witness_idx);
+            execution_equality::<T>(ex.suffix(i + q_witness_idx), ex.suffix(i).suffix(q_witness_idx));
 
             entails_apply(ex, spec, q.leads_to(r));
             always_unfold(ex, q.implies(eventually(r)));
             implies_apply(ex.suffix(i + q_witness_idx), q, eventually(r));
-            execution_suffix_split(ex, eventually(r), i, q_witness_idx);
+            execution_equality::<T>(ex.suffix(i + q_witness_idx), ex.suffix(i).suffix(q_witness_idx));
 
             eventually_propagate_backwards(ex.suffix(i), r, q_witness_idx);
         }
@@ -1827,7 +1801,7 @@ pub proof fn leads_to_assume_not_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: T
             if not(q).satisfied_by(ex.suffix(i)) {
                 implies_apply::<T>(ex.suffix(i), p.and(not(q)), eventually(q));
             } else {
-                execution_suffix_zero_split::<T>(ex.suffix(i), q);
+                execution_equality::<T>(ex.suffix(i), ex.suffix(i).suffix(0));
             }
         };
     };
@@ -1869,11 +1843,11 @@ pub proof fn leads_to_always_combine_temp<T>(spec: TempPred<T>, p: TempPred<T>, 
 
             if witness_q_idx < witness_r_idx {
                 always_propagate_forwards::<T>(ex.suffix(i).suffix(witness_q_idx), q, (witness_r_idx - witness_q_idx) as nat);
-                execution_suffix_merge::<T>(ex.suffix(i), always(q), witness_q_idx, (witness_r_idx - witness_q_idx) as nat);
+                execution_equality::<T>(ex.suffix(i).suffix(witness_r_idx), ex.suffix(i).suffix(witness_q_idx).suffix((witness_r_idx - witness_q_idx) as nat));
                 eventually_proved_by_witness(ex.suffix(i), always(q.and(r)), witness_r_idx);
             } else {
                 always_propagate_forwards::<T>(ex.suffix(i).suffix(witness_r_idx), r, (witness_q_idx - witness_r_idx) as nat);
-                execution_suffix_merge::<T>(ex.suffix(i), always(r), witness_r_idx, (witness_q_idx - witness_r_idx) as nat);
+                execution_equality::<T>(ex.suffix(i).suffix(witness_q_idx), ex.suffix(i).suffix(witness_r_idx).suffix((witness_q_idx - witness_r_idx) as nat));
                 eventually_proved_by_witness(ex.suffix(i), always(q.and(r)), witness_q_idx);
             }
         };
@@ -1988,7 +1962,7 @@ pub proof fn leads_to_stable_temp<T>(spec: TempPred<T>, next: TempPred<T>, p: Te
                 && next.satisfied_by(ex.suffix(i).suffix(witness_idx).suffix(idx))
                 implies q.satisfied_by(ex.suffix(i).suffix(witness_idx).suffix(idx + 1)) by {
                     implies_apply::<T>(ex.suffix(i).suffix(witness_idx).suffix(idx), q.and(next), later(q));
-                    execution_suffix_merge::<T>(ex.suffix(i).suffix(witness_idx), q, idx, 1);
+                    execution_equality::<T>(ex.suffix(i).suffix(witness_idx).suffix(idx + 1), ex.suffix(i).suffix(witness_idx).suffix(idx).suffix(1));
                 };
                 next_preserves_inv_rec::<T>(ex.suffix(i).suffix(witness_idx), next, q, j);
             };
@@ -2162,7 +2136,7 @@ pub proof fn leads_to_contraposition_temp<T>(spec: TempPred<T>, p: TempPred<T>, 
             assert forall |j| #[trigger] not(p).satisfied_by(ex.suffix(i).suffix(j)) by {
                 implies_apply::<T>(ex, spec, p.leads_to(q));
                 leads_to_unfold::<T>(ex, p, q);
-                execution_suffix_split::<T>(ex, p.implies(eventually(q)), i, j);
+                execution_equality::<T>(ex.suffix(i + j), ex.suffix(i).suffix(j));
 
                 always_propagate_forwards::<T>(ex.suffix(i), not(q), j);
                 not_eventually_by_always_not::<T>(ex.suffix(i).suffix(j), q);
