@@ -653,6 +653,17 @@ pub proof fn tla_forall_always_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
     temp_pred_equality::<T>(tla_forall(|a: A| always(a_to_p(a))), always(tla_forall(a_to_p)));
 }
 
+pub proof fn tla_forall_always_equality_variant<T, A>(a_to_always: FnSpec(A) -> TempPred<T>, a_to_p: FnSpec(A) -> TempPred<T>)
+    requires
+        forall |a: A| #![trigger a_to_always(a)] valid(a_to_always(a).equals((|a: A| always(a_to_p(a)))(a))),
+    ensures
+        tla_forall(a_to_always) === always(tla_forall(a_to_p)),
+{
+    a_to_temp_pred_equality::<T, A>(a_to_always, |a: A| always(a_to_p(a)));
+    temp_pred_equality::<T>(tla_forall(a_to_always), tla_forall(|a: A| always(a_to_p(a))));
+    tla_forall_always_equality::<T, A>(a_to_p);
+}
+
 pub proof fn tla_forall_not_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
     ensures
         tla_forall(|a: A| not(a_to_p(a))) === not(tla_exists(a_to_p)),
@@ -766,11 +777,7 @@ pub proof fn tla_forall_leads_to_equality1<T, A>(a_to_p: FnSpec(A) -> TempPred<T
     ensures
         tla_forall(|a: A| a_to_p(a).leads_to(q)) === tla_exists(a_to_p).leads_to(q),
 {
-    let a_to_p_implies_eventually_q = |a: A| a_to_p(a).implies(eventually(q));
-    a_to_temp_pred_equality::<T, A>(|a: A| a_to_p(a).leads_to(q), |a: A| always(a_to_p_implies_eventually_q(a)));
-    temp_pred_equality::<T>(tla_forall(|a: A| a_to_p(a).leads_to(q)), tla_forall(|a: A| always(a_to_p_implies_eventually_q(a))));
-    tla_forall_always_equality::<T, A>(|a: A| a_to_p(a).implies(eventually(q)));
-
+    tla_forall_always_equality_variant::<T, A>(|a: A| a_to_p(a).leads_to(q), |a: A| a_to_p(a).implies(eventually(q)));
     tla_forall_implies_equality1::<T, A>(a_to_p, eventually(q));
 }
 
@@ -778,11 +785,7 @@ pub proof fn tla_forall_always_implies_equality2<T, A>(p: TempPred<T>, a_to_q: F
     ensures
         tla_forall(|a: A| always(p.implies(a_to_q(a)))) === always(p.implies(tla_forall(a_to_q))),
 {
-    let a_to_p_implies_q = |a: A| p.implies(a_to_q(a));
-    a_to_temp_pred_equality::<T, A>(|a: A| always(p.implies(a_to_q(a))), |a: A| always(a_to_p_implies_q(a)));
-    temp_pred_equality::<T>(tla_forall(|a: A| always(p.implies(a_to_q(a)))), tla_forall(|a: A| always(a_to_p_implies_q(a))));
-    tla_forall_always_equality::<T, A>(a_to_p_implies_q);
-
+    tla_forall_always_equality_variant::<T, A>(|a: A| always(p.implies(a_to_q(a))), |a: A| p.implies(a_to_q(a)));
     tla_forall_implies_equality2::<T, A>(p, a_to_q);
 }
 

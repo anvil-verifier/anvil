@@ -486,14 +486,13 @@ proof fn lemma_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(msg: Mes
         cr_key.kind.is_CustomResourceKind(),
     ensures
         sm_spec(simple_reconciler()).entails(
-            (|m: Message| lift_state(|s: State| {
-                &&& s.message_sent(m)
-                &&& resp_msg_matches_req_msg(m, controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
-            }))(msg).and(lift_state(|s: State| {
+            lift_state(|s: State| {
+                &&& s.message_sent(msg)
+                &&& resp_msg_matches_req_msg(msg, controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
                 &&& s.reconcile_state_contains(cr_key)
                 &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
                 &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
-            })).leads_to(lift_state(|s: State| {
+            }).leads_to(lift_state(|s: State| {
                     &&& s.reconcile_state_contains(cr_key)
                     &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
                     &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(simple_reconciler::create_cm_req(cr_key)))
@@ -519,17 +518,6 @@ proof fn lemma_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(msg: Mes
         scheduled_cr_key: Option::Some(cr_key),
     };
     controller_runtime_liveness::lemma_pre_leads_to_post_by_controller(simple_reconciler(), input, continue_reconcile(simple_reconciler()), pre, post);
-
-    let m_to_pre1 = |m: Message| lift_state(|s: State| {
-        &&& s.message_sent(m)
-        &&& resp_msg_matches_req_msg(m, controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
-    });
-    let pre2 = lift_state(|s: State| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
-    });
-    temp_pred_equality::<State>(lift_state(pre), m_to_pre1(msg).and(pre2));
 }
 
 proof fn lemma_exists_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(cr_key: ResourceKey)
@@ -569,8 +557,16 @@ proof fn lemma_exists_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(c
         &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(simple_reconciler::create_cm_req(cr_key)))
         &&& s.message_sent(controller_req_msg(simple_reconciler::create_cm_req(cr_key)))
     });
-    assert forall |m: Message| #[trigger] sm_spec(simple_reconciler()).entails(m_to_pre1(m).and(pre2).leads_to(post)) by {
-        lemma_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(m, cr_key);
+    assert forall |msg: Message| #[trigger] sm_spec(simple_reconciler()).entails(m_to_pre1(msg).and(pre2).leads_to(post)) by {
+        lemma_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(msg, cr_key);
+        let pre = lift_state(|s: State| {
+            &&& s.message_sent(msg)
+            &&& resp_msg_matches_req_msg(msg, controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
+            &&& s.reconcile_state_contains(cr_key)
+            &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
+            &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key})))
+        });
+        temp_pred_equality::<State>(pre, m_to_pre1(msg).and(pre2));
     };
     leads_to_exists_intro::<State, Message>(sm_spec(simple_reconciler()), |m| m_to_pre1(m).and(pre2), post);
     tla_exists_and_equality::<State, Message>(m_to_pre1, pre2);

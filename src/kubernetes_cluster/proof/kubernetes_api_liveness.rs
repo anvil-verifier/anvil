@@ -401,7 +401,7 @@ pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent(rec
         )),
 {
     let pre = always(lift_state(|s: State| s.resource_obj_exists(res)));
-    let m_to_post = |msg: Message| always(lift_state(|s: State| {
+    let m_to_always_m_not_sent = |msg: Message| always(lift_state(|s: State| {
         !{
             &&& s.message_sent(msg)
             &&& msg.dst === HostId::KubernetesAPI
@@ -409,10 +409,10 @@ pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent(rec
             &&& msg.get_delete_request().key === res.key
         }
     }));
-    assert forall |msg: Message| sm_spec(reconciler).entails(#[trigger] always(pre.implies(m_to_post(msg)))) by {
+    assert forall |msg: Message| sm_spec(reconciler).entails(#[trigger] always(pre.implies(m_to_always_m_not_sent(msg)))) by {
         lemma_always_res_always_exists_implies_delete_never_sent(reconciler, msg, res);
     };
-    always_implies_forall_intro::<State, Message>(sm_spec(reconciler), pre, m_to_post);
+    always_implies_forall_intro::<State, Message>(sm_spec(reconciler), pre, m_to_always_m_not_sent);
 
     let m_to_m_not_sent = |msg: Message| lift_state(|s: State| {
         !{
@@ -422,13 +422,7 @@ pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent(rec
             &&& msg.get_delete_request().key === res.key
         }
     });
-    a_to_temp_pred_equality::<State, Message>(m_to_post, |m: Message| always(m_to_m_not_sent(m)));
-    temp_pred_equality::<State>(tla_forall(m_to_post), tla_forall(|m: Message| always(m_to_m_not_sent(m))));
-    tla_forall_always_equality::<State, Message>(m_to_m_not_sent);
-    // assert(sm_spec(reconciler).entails(always(
-    //     always(lift_state(|s: State| s.resource_obj_exists(res)))
-    //         .implies(always(tla_forall(m_to_m_not_sent)))
-    // )));
+    tla_forall_always_equality_variant::<State, Message>(m_to_always_m_not_sent, m_to_m_not_sent);
 
     let forall_m_to_m_not_sent = lift_state(|s: State| {
         forall |msg: Message|
