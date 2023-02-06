@@ -106,19 +106,19 @@ pub open spec fn create_cm_req(cr_key: ResourceKey) -> APIRequest
     })
 }
 
-pub open spec fn create_sts_req(cr_key: ResourceKey) -> APIRequest
-    recommends
-        cr_key.kind.is_CustomResourceKind(),
-{
-    APIRequest::CreateRequest(CreateRequest{
-        obj: ResourceObj {
-            key: ResourceKey {
-                name: cr_key.name + sts_suffix(),
-                namespace: cr_key.namespace,
-                kind: ResourceKind::StatefulSetKind
-            },
-        },
-    })
-}
+// pub open spec fn create_sts_req(cr_key: ResourceKey) -> APIRequest
+//     recommends
+//         cr_key.kind.is_CustomResourceKind(),
+// {
+//     APIRequest::CreateRequest(CreateRequest{
+//         obj: ResourceObj {
+//             key: ResourceKey {
+//                 name: cr_key.name + sts_suffix(),
+//                 namespace: cr_key.namespace,
+//                 kind: ResourceKind::StatefulSetKind
+//             },
+//         },
+//     })
+// }
 
 }
