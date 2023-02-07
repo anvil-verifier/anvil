@@ -15,8 +15,6 @@ verus! {
 pub struct SimpleReconcileState {
     // reconcile_pc, like a program counter, is used to track the progress of reconcile_core
     // since reconcile_core is frequently "trapped" into the controller_runtime spec.
-    // nat is not the idea way of representing pc, but we cannot use enum here
-    // because the enum type will be specific to the reconciler.
     pub reconcile_pc: nat,
 }
 
