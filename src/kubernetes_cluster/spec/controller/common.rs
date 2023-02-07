@@ -10,13 +10,13 @@ use builtin_macros::*;
 
 verus! {
 
-pub struct OngoingReconcile {
+pub struct OngoingReconcile<RS> {
     pub pending_req_msg: Option<Message>,
-    pub local_state: ReconcileState,
+    pub local_state: RS,
 }
 
-pub struct ControllerState {
-    pub ongoing_reconciles: Map<ResourceKey, OngoingReconcile>,
+pub struct ControllerState<RS> {
+    pub ongoing_reconciles: Map<ResourceKey, OngoingReconcile<RS>>,
     pub scheduled_reconciles: Set<ResourceKey>,
 }
 
@@ -33,11 +33,11 @@ pub enum ControllerStep {
     EndReconcile,
 }
 
-pub type ControllerStateMachine = StateMachine<ControllerState, ControllerActionInput, ControllerActionInput, Set<Message>, ControllerStep>;
+pub type ControllerStateMachine<RS> = StateMachine<ControllerState<RS>, ControllerActionInput, ControllerActionInput, Set<Message>, ControllerStep>;
 
-pub type ControllerAction = Action<ControllerState, ControllerActionInput, Set<Message>>;
+pub type ControllerAction<RS> = Action<ControllerState<RS>, ControllerActionInput, Set<Message>>;
 
-pub type ControllerActionResult = ActionResult<ControllerState, Set<Message>>;
+pub type ControllerActionResult<RS> = ActionResult<ControllerState<RS>, Set<Message>>;
 
 pub open spec fn controller_req_msg(req: APIRequest) -> Message {
     form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req))
