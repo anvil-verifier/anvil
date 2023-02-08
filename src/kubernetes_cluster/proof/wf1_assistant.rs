@@ -27,18 +27,18 @@ use builtin_macros::*;
 
 verus! {
 
-pub proof fn kubernetes_api_action_pre_implies_next_pre<RS>(action: KubernetesAPIAction, input: KubernetesAPIActionInput)
+pub proof fn kubernetes_api_action_pre_implies_next_pre<T>(action: KubernetesAPIAction, input: KubernetesAPIActionInput)
     requires
         kubernetes_api().actions.contains(action),
     ensures
-        valid(lift_state(kubernetes_api_action_pre::<RS>(action, input)).implies(lift_state(kubernetes_api_next().pre(input)))),
+        valid(lift_state(kubernetes_api_action_pre::<T>(action, input)).implies(lift_state(kubernetes_api_next().pre(input)))),
 {
-    assert forall |s: State<RS>| #[trigger] kubernetes_api_action_pre(action, input)(s) implies kubernetes_api_next().pre(input)(s) by {
+    assert forall |s: State<T>| #[trigger] kubernetes_api_action_pre(action, input)(s) implies kubernetes_api_next().pre(input)(s) by {
         exists_next_kubernetes_api_step(action, input, s.kubernetes_api_state);
     };
 }
 
-pub proof fn controller_action_pre_implies_next_pre<RS>(reconciler: Reconciler<RS>, action: ControllerAction<RS>, input: ControllerActionInput)
+pub proof fn controller_action_pre_implies_next_pre<T>(reconciler: Reconciler<T>, action: ControllerAction<T>, input: ControllerActionInput)
     requires
         controller(reconciler).actions.contains(action),
     ensures
@@ -59,7 +59,7 @@ pub proof fn exists_next_kubernetes_api_step(action: KubernetesAPIAction, input:
     assert(((kubernetes_api().step_to_action)(KubernetesAPIStep::HandleRequest).precondition)(input, s));
 }
 
-pub proof fn exists_next_controller_step<RS>(reconciler: Reconciler<RS>, action: ControllerAction<RS>, input: ControllerActionInput, s: ControllerState<RS>)
+pub proof fn exists_next_controller_step<T>(reconciler: Reconciler<T>, action: ControllerAction<T>, input: ControllerActionInput, s: ControllerState<T>)
     requires
         controller(reconciler).actions.contains(action),
         (action.precondition)(input, s),

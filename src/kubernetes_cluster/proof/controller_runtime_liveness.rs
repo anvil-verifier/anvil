@@ -22,67 +22,67 @@ use builtin_macros::*;
 
 verus! {
 
-pub proof fn lemma_pre_leads_to_post_by_controller<RS>(reconciler: Reconciler<RS>, input: ControllerActionInput, action: ControllerAction<RS>, pre: StatePred<State<RS>>, post: StatePred<State<RS>>)
+pub proof fn lemma_pre_leads_to_post_by_controller<T>(reconciler: Reconciler<T>, input: ControllerActionInput, action: ControllerAction<T>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         controller(reconciler).actions.contains(action),
-        forall |s, s_prime: State<RS>| pre(s) && #[trigger] next(reconciler)(s, s_prime) ==> pre(s_prime) || post(s_prime),
-        forall |s, s_prime: State<RS>| pre(s) && #[trigger] next(reconciler)(s, s_prime) && controller_next(reconciler).forward(input)(s, s_prime) ==> post(s_prime),
-        forall |s: State<RS>| #[trigger] pre(s) ==> controller_action_pre(reconciler, action, input)(s),
+        forall |s, s_prime: State<T>| pre(s) && #[trigger] next(reconciler)(s, s_prime) ==> pre(s_prime) || post(s_prime),
+        forall |s, s_prime: State<T>| pre(s) && #[trigger] next(reconciler)(s, s_prime) && controller_next(reconciler).forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s: State<T>| #[trigger] pre(s) ==> controller_action_pre(reconciler, action, input)(s),
     ensures
         sm_spec(reconciler).entails(lift_state(pre).leads_to(lift_state(post))),
 {
-    use_tla_forall::<State<RS>, ControllerActionInput>(sm_spec(reconciler), |i| controller_next(reconciler).weak_fairness(i), input);
+    use_tla_forall::<State<T>, ControllerActionInput>(sm_spec(reconciler), |i| controller_next(reconciler).weak_fairness(i), input);
 
-    controller_action_pre_implies_next_pre::<RS>(reconciler, action, input);
-    valid_implies_trans::<State<RS>>(lift_state(pre), lift_state(controller_action_pre(reconciler, action, input)), lift_state(controller_next(reconciler).pre(input)));
+    controller_action_pre_implies_next_pre::<T>(reconciler, action, input);
+    valid_implies_trans::<State<T>>(lift_state(pre), lift_state(controller_action_pre(reconciler, action, input)), lift_state(controller_next(reconciler).pre(input)));
 
     controller_next(reconciler).wf1(input, sm_spec(reconciler), next(reconciler), pre, post);
 }
 
-pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<RS>(reconciler: Reconciler<RS>, input: ControllerActionInput, action: ControllerAction<RS>, assumption: StatePred<State<RS>>, pre: StatePred<State<RS>>, post: StatePred<State<RS>>)
+pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<T>(reconciler: Reconciler<T>, input: ControllerActionInput, action: ControllerAction<T>, assumption: StatePred<State<T>>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         controller(reconciler).actions.contains(action),
-        forall |s, s_prime: State<RS>| pre(s) && #[trigger] next(reconciler)(s, s_prime) && assumption(s) ==> pre(s_prime) || post(s_prime),
-        forall |s, s_prime: State<RS>| pre(s) && #[trigger] next(reconciler)(s, s_prime) && controller_next(reconciler).forward(input)(s, s_prime) ==> post(s_prime),
-        forall |s: State<RS>| #[trigger] pre(s) ==> controller_action_pre(reconciler, action, input)(s),
+        forall |s, s_prime: State<T>| pre(s) && #[trigger] next(reconciler)(s, s_prime) && assumption(s) ==> pre(s_prime) || post(s_prime),
+        forall |s, s_prime: State<T>| pre(s) && #[trigger] next(reconciler)(s, s_prime) && controller_next(reconciler).forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s: State<T>| #[trigger] pre(s) ==> controller_action_pre(reconciler, action, input)(s),
     ensures
         sm_spec(reconciler).entails(lift_state(pre).and(always(lift_state(assumption))).leads_to(lift_state(post))),
 {
-    use_tla_forall::<State<RS>, ControllerActionInput>(sm_spec(reconciler), |i| controller_next(reconciler).weak_fairness(i), input);
+    use_tla_forall::<State<T>, ControllerActionInput>(sm_spec(reconciler), |i| controller_next(reconciler).weak_fairness(i), input);
 
-    controller_action_pre_implies_next_pre::<RS>(reconciler, action, input);
-    valid_implies_trans::<State<RS>>(lift_state(pre), lift_state(controller_action_pre(reconciler, action, input)), lift_state(controller_next(reconciler).pre(input)));
+    controller_action_pre_implies_next_pre::<T>(reconciler, action, input);
+    valid_implies_trans::<State<T>>(lift_state(pre), lift_state(controller_action_pre(reconciler, action, input)), lift_state(controller_next(reconciler).pre(input)));
 
     controller_next(reconciler).wf1_assume(input, sm_spec(reconciler), next(reconciler), assumption, pre, post);
 }
 
-pub proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered<RS>(reconciler: Reconciler<RS>, msg: Message, cr_key: ResourceKey)
+pub proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered<T>(reconciler: Reconciler<T>, msg: Message, cr_key: ResourceKey)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
         sm_spec(reconciler).entails(
-            lift_state(|s: State<RS>| {
+            lift_state(|s: State<T>| {
                 &&& s.message_sent(msg)
                 &&& msg.dst === HostId::CustomController
                 &&& msg.content.is_WatchEvent()
                 &&& (reconciler.reconcile_trigger)(msg) === Option::Some(cr_key)
                 &&& !s.reconcile_state_contains(cr_key)
             })
-                .leads_to(lift_state(|s: State<RS>| {
+                .leads_to(lift_state(|s: State<T>| {
                     &&& s.reconcile_state_contains(cr_key)
                     &&& s.reconcile_state_of(cr_key).local_state === (reconciler.reconcile_init_state)()
                     &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
                 }))
         ),
 {
-    let pre = |s: State<RS>| {
+    let pre = |s: State<T>| {
         &&& s.message_sent(msg)
         &&& msg.dst === HostId::CustomController
         &&& msg.content.is_WatchEvent()
         &&& (reconciler.reconcile_trigger)(msg) === Option::Some(cr_key)
         &&& !s.reconcile_state_contains(cr_key)
     };
-    let post = |s: State<RS>| {
+    let post = |s: State<T>| {
         &&& s.reconcile_state_contains(cr_key)
         &&& s.reconcile_state_of(cr_key).local_state === (reconciler.reconcile_init_state)()
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
@@ -91,29 +91,29 @@ pub proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered<RS>(reconcil
         recv: Option::Some(msg),
         scheduled_cr_key: Option::None,
     };
-    lemma_pre_leads_to_post_by_controller::<RS>(reconciler, input, trigger_reconcile(reconciler), pre, post);
+    lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, trigger_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_reconcile_done_leads_to_reconcile_scheduled<RS>(reconciler: Reconciler<RS>, cr_key: ResourceKey)
+pub proof fn lemma_reconcile_done_leads_to_reconcile_scheduled<T>(reconciler: Reconciler<T>, cr_key: ResourceKey)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
         sm_spec(reconciler).entails(
-            lift_state(|s: State<RS>| {
+            lift_state(|s: State<T>| {
                 &&& s.reconcile_state_contains(cr_key)
                 &&& (reconciler.reconcile_done)(s.reconcile_state_of(cr_key).local_state)
             })
-                .leads_to(lift_state(|s: State<RS>| {
+                .leads_to(lift_state(|s: State<T>| {
                     &&& !s.reconcile_state_contains(cr_key)
                     &&& s.reconcile_scheduled_for(cr_key)
                 }))
         ),
 {
-    let pre = |s: State<RS>| {
+    let pre = |s: State<T>| {
         &&& s.reconcile_state_contains(cr_key)
         &&& (reconciler.reconcile_done)(s.reconcile_state_of(cr_key).local_state)
     };
-    let post = |s: State<RS>| {
+    let post = |s: State<T>| {
         &&& !s.reconcile_state_contains(cr_key)
         &&& s.reconcile_scheduled_for(cr_key)
     };
@@ -121,30 +121,30 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_scheduled<RS>(reconciler: R
         recv: Option::None,
         scheduled_cr_key: Option::Some(cr_key),
     };
-    lemma_pre_leads_to_post_by_controller::<RS>(reconciler, input, end_reconcile(reconciler), pre, post);
+    lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, end_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_scheduled_reconcile_leads_to_init<RS>(reconciler: Reconciler<RS>, cr_key: ResourceKey)
+pub proof fn lemma_scheduled_reconcile_leads_to_init<T>(reconciler: Reconciler<T>, cr_key: ResourceKey)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
         sm_spec(reconciler).entails(
-            lift_state(|s: State<RS>| {
+            lift_state(|s: State<T>| {
                 &&& !s.reconcile_state_contains(cr_key)
                 &&& s.reconcile_scheduled_for(cr_key)
             })
-                .leads_to(lift_state(|s: State<RS>| {
+                .leads_to(lift_state(|s: State<T>| {
                     &&& s.reconcile_state_contains(cr_key)
                     &&& s.reconcile_state_of(cr_key).local_state === (reconciler.reconcile_init_state)()
                     &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
                 }))
         ),
 {
-    let pre = |s: State<RS>| {
+    let pre = |s: State<T>| {
         &&& !s.reconcile_state_contains(cr_key)
         &&& s.reconcile_scheduled_for(cr_key)
     };
-    let post = |s: State<RS>| {
+    let post = |s: State<T>| {
         &&& s.reconcile_state_contains(cr_key)
         &&& s.reconcile_state_of(cr_key).local_state === (reconciler.reconcile_init_state)()
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
@@ -153,41 +153,41 @@ pub proof fn lemma_scheduled_reconcile_leads_to_init<RS>(reconciler: Reconciler<
         recv: Option::None,
         scheduled_cr_key: Option::Some(cr_key),
     };
-    lemma_pre_leads_to_post_by_controller::<RS>(reconciler, input, run_scheduled_reconcile(reconciler), pre, post);
+    lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, run_scheduled_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_reconcile_done_leads_to_reconcile_triggered<RS>(reconciler: Reconciler<RS>, cr_key: ResourceKey)
+pub proof fn lemma_reconcile_done_leads_to_reconcile_triggered<T>(reconciler: Reconciler<T>, cr_key: ResourceKey)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
         sm_spec(reconciler).entails(
-            lift_state(|s: State<RS>| {
+            lift_state(|s: State<T>| {
                 &&& s.reconcile_state_contains(cr_key)
                 &&& (reconciler.reconcile_done)(s.reconcile_state_of(cr_key).local_state)
             })
-                .leads_to(lift_state(|s: State<RS>| {
+                .leads_to(lift_state(|s: State<T>| {
                     &&& s.reconcile_state_contains(cr_key)
                     &&& s.reconcile_state_of(cr_key).local_state === (reconciler.reconcile_init_state)()
                     &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
                 }))
         ),
 {
-    lemma_reconcile_done_leads_to_reconcile_scheduled::<RS>(reconciler, cr_key);
-    lemma_scheduled_reconcile_leads_to_init::<RS>(reconciler, cr_key);
-    let reconcile_ended = |s: State<RS>| {
+    lemma_reconcile_done_leads_to_reconcile_scheduled::<T>(reconciler, cr_key);
+    lemma_scheduled_reconcile_leads_to_init::<T>(reconciler, cr_key);
+    let reconcile_ended = |s: State<T>| {
         &&& s.reconcile_state_contains(cr_key)
         &&& (reconciler.reconcile_done)(s.reconcile_state_of(cr_key).local_state)
     };
-    let reconcile_rescheduled = |s: State<RS>| {
+    let reconcile_rescheduled = |s: State<T>| {
         &&& !s.reconcile_state_contains(cr_key)
         &&& s.reconcile_scheduled_for(cr_key)
     };
-    let reconcile_at_init = |s: State<RS>| {
+    let reconcile_at_init = |s: State<T>| {
         &&& s.reconcile_state_contains(cr_key)
         &&& s.reconcile_state_of(cr_key).local_state === (reconciler.reconcile_init_state)()
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
     };
-    leads_to_trans::<State<RS>>(sm_spec(reconciler), reconcile_ended, reconcile_rescheduled, reconcile_at_init);
+    leads_to_trans::<State<T>>(sm_spec(reconciler), reconcile_ended, reconcile_rescheduled, reconcile_at_init);
 }
 
 }

@@ -21,9 +21,9 @@ verus! {
 /// (3) The watcher deduplicates triggering events for the same object: if an event for object X
 /// comes but there is already another pending event for the same object, the incoming event is
 /// discarded.
-pub open spec fn trigger_reconcile<RS>(reconciler: Reconciler<RS>) -> ControllerAction<RS> {
+pub open spec fn trigger_reconcile<T>(reconciler: Reconciler<T>) -> ControllerAction<T> {
     Action {
-        precondition: |input: ControllerActionInput, s: ControllerState<RS>| {
+        precondition: |input: ControllerActionInput, s: ControllerState<T>| {
             // TODO: We should have multiple queues for storing triggering events.
             // Each queue stores the event relates to the same cr key.
             &&& input.scheduled_cr_key.is_None()
@@ -33,7 +33,7 @@ pub open spec fn trigger_reconcile<RS>(reconciler: Reconciler<RS>) -> Controller
             &&& (reconciler.reconcile_trigger)(input.recv.get_Some_0()).is_Some()
             &&& !s.ongoing_reconciles.dom().contains((reconciler.reconcile_trigger)(input.recv.get_Some_0()).get_Some_0())
         },
-        transition: |input: ControllerActionInput, s: ControllerState<RS>| {
+        transition: |input: ControllerActionInput, s: ControllerState<T>| {
             let cr_key = (reconciler.reconcile_trigger)(input.recv.get_Some_0()).get_Some_0();
             let initialized_ongoing_reconcile = OngoingReconcile {
                 pending_req_msg: Option::None,
@@ -49,15 +49,15 @@ pub open spec fn trigger_reconcile<RS>(reconciler: Reconciler<RS>) -> Controller
     }
 }
 
-pub open spec fn run_scheduled_reconcile<RS>(reconciler: Reconciler<RS>) -> ControllerAction<RS> {
+pub open spec fn run_scheduled_reconcile<T>(reconciler: Reconciler<T>) -> ControllerAction<T> {
     Action {
-        precondition: |input: ControllerActionInput, s: ControllerState<RS>| {
+        precondition: |input: ControllerActionInput, s: ControllerState<T>| {
             &&& input.scheduled_cr_key.is_Some()
             &&& s.scheduled_reconciles.contains(input.scheduled_cr_key.get_Some_0())
             &&& input.recv.is_None()
             &&& !s.ongoing_reconciles.dom().contains(input.scheduled_cr_key.get_Some_0())
         },
-        transition: |input: ControllerActionInput, s: ControllerState<RS>| {
+        transition: |input: ControllerActionInput, s: ControllerState<T>| {
             let cr_key = input.scheduled_cr_key.get_Some_0();
             let initialized_ongoing_reconcile = OngoingReconcile {
                 pending_req_msg: Option::None,
@@ -74,9 +74,9 @@ pub open spec fn run_scheduled_reconcile<RS>(reconciler: Reconciler<RS>) -> Cont
     }
 }
 
-pub open spec fn continue_reconcile<RS>(reconciler: Reconciler<RS>) -> ControllerAction<RS> {
+pub open spec fn continue_reconcile<T>(reconciler: Reconciler<T>) -> ControllerAction<T> {
     Action {
-        precondition: |input: ControllerActionInput, s: ControllerState<RS>| {
+        precondition: |input: ControllerActionInput, s: ControllerState<T>| {
             if input.scheduled_cr_key.is_Some() {
                 let cr_key = input.scheduled_cr_key.get_Some_0();
 
@@ -93,7 +93,7 @@ pub open spec fn continue_reconcile<RS>(reconciler: Reconciler<RS>) -> Controlle
                 false
             }
         },
-        transition: |input: ControllerActionInput, s: ControllerState<RS>| {
+        transition: |input: ControllerActionInput, s: ControllerState<T>| {
             let resp_o = if input.recv.is_Some() {
                 Option::Some(input.recv.get_Some_0().content.get_APIResponse_0())
             } else {
@@ -128,9 +128,9 @@ pub open spec fn continue_reconcile<RS>(reconciler: Reconciler<RS>) -> Controlle
     }
 }
 
-pub open spec fn end_reconcile<RS>(reconciler: Reconciler<RS>) -> ControllerAction<RS> {
+pub open spec fn end_reconcile<T>(reconciler: Reconciler<T>) -> ControllerAction<T> {
     Action {
-        precondition: |input: ControllerActionInput, s: ControllerState<RS>| {
+        precondition: |input: ControllerActionInput, s: ControllerState<T>| {
             if input.scheduled_cr_key.is_Some() {
                 let cr_key = input.scheduled_cr_key.get_Some_0();
 
@@ -141,7 +141,7 @@ pub open spec fn end_reconcile<RS>(reconciler: Reconciler<RS>) -> ControllerActi
                 false
             }
         },
-        transition: |input: ControllerActionInput, s: ControllerState<RS>| {
+        transition: |input: ControllerActionInput, s: ControllerState<T>| {
             let cr_key = input.scheduled_cr_key.get_Some_0();
             let s_prime = ControllerState {
                 ongoing_reconciles: s.ongoing_reconciles.remove(cr_key),

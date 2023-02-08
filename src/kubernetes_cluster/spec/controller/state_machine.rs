@@ -13,9 +13,9 @@ use builtin_macros::*;
 
 verus! {
 
-pub open spec fn controller<RS>(reconciler: Reconciler<RS>) -> ControllerStateMachine<RS> {
+pub open spec fn controller<T>(reconciler: Reconciler<T>) -> ControllerStateMachine<T> {
     StateMachine {
-        init: |s: ControllerState<RS>| {
+        init: |s: ControllerState<T>| {
             s === ControllerState {
                 ongoing_reconciles: Map::empty(),
                 scheduled_reconciles: Set::empty(),

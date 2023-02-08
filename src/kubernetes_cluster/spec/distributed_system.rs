@@ -24,14 +24,14 @@ use builtin_macros::*;
 
 verus! {
 
-pub struct State<RS> {
+pub struct State<T> {
     pub kubernetes_api_state: KubernetesAPIState,
-    pub controller_state: ControllerState<RS>,
+    pub controller_state: ControllerState<T>,
     pub client_state: ClientState,
     pub network_state: NetworkState,
 }
 
-impl<RS> State<RS> {
+impl<T> State<T> {
     #[verifier(inline)]
     pub open spec fn message_sent(self, msg: Message) -> bool {
         self.network_state.sent_messages.contains(msg)
@@ -56,7 +56,7 @@ impl<RS> State<RS> {
         self.controller_state.ongoing_reconciles.dom().contains(key)
     }
 
-    pub open spec fn reconcile_state_of(self, key: ResourceKey) -> OngoingReconcile<RS>
+    pub open spec fn reconcile_state_of(self, key: ResourceKey) -> OngoingReconcile<T>
         recommends self.reconcile_state_contains(key)
     {
         self.controller_state.ongoing_reconciles[key]
@@ -67,8 +67,8 @@ impl<RS> State<RS> {
     }
 }
 
-pub open spec fn init<RS>(reconciler: Reconciler<RS>) -> StatePred<State<RS>> {
-    |s: State<RS>| {
+pub open spec fn init<T>(reconciler: Reconciler<T>) -> StatePred<State<T>> {
+    |s: State<T>| {
         &&& (kubernetes_api().init)(s.kubernetes_api_state)
         &&& (controller(reconciler).init)(s.controller_state)
         &&& (client().init)(s.client_state)
@@ -84,8 +84,8 @@ pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostI
     }
 }
 
-pub open spec fn kubernetes_api_next<RS>() -> Action<State<RS>, KubernetesAPIActionInput, ()> {
-    let result = |input: KubernetesAPIActionInput, s: State<RS>| {
+pub open spec fn kubernetes_api_next<T>() -> Action<State<T>, KubernetesAPIActionInput, ()> {
+    let result = |input: KubernetesAPIActionInput, s: State<T>| {
         let host_result = kubernetes_api().next_result(input, s.kubernetes_api_state);
         let msg_ops = MessageOps {
             recv: input,
@@ -96,12 +96,12 @@ pub open spec fn kubernetes_api_next<RS>() -> Action<State<RS>, KubernetesAPIAct
         (host_result, network_result)
     };
     Action {
-        precondition: |input: KubernetesAPIActionInput, s: State<RS>| {
+        precondition: |input: KubernetesAPIActionInput, s: State<T>| {
             &&& received_msg_destined_for(input, HostId::KubernetesAPI)
             &&& result(input, s).0.is_Enabled()
             &&& result(input, s).1.is_Enabled()
         },
-        transition: |input: KubernetesAPIActionInput, s: State<RS>| {
+        transition: |input: KubernetesAPIActionInput, s: State<T>| {
             (State {
                 kubernetes_api_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
@@ -111,8 +111,8 @@ pub open spec fn kubernetes_api_next<RS>() -> Action<State<RS>, KubernetesAPIAct
     }
 }
 
-pub open spec fn controller_next<RS>(reconciler: Reconciler<RS>) -> Action<State<RS>, ControllerActionInput, ()> {
-    let result = |input: ControllerActionInput, s: State<RS>| {
+pub open spec fn controller_next<T>(reconciler: Reconciler<T>) -> Action<State<T>, ControllerActionInput, ()> {
+    let result = |input: ControllerActionInput, s: State<T>| {
         let host_result = controller(reconciler).next_result(input, s.controller_state);
         let msg_ops = MessageOps {
             recv: input.recv,
@@ -123,12 +123,12 @@ pub open spec fn controller_next<RS>(reconciler: Reconciler<RS>) -> Action<State
         (host_result, network_result)
     };
     Action {
-        precondition: |input: ControllerActionInput, s: State<RS>| {
+        precondition: |input: ControllerActionInput, s: State<T>| {
             &&& received_msg_destined_for(input.recv, HostId::CustomController)
             &&& result(input, s).0.is_Enabled()
             &&& result(input, s).1.is_Enabled()
         },
-        transition: |input: ControllerActionInput, s: State<RS>| {
+        transition: |input: ControllerActionInput, s: State<T>| {
             (State {
                 controller_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
@@ -138,8 +138,8 @@ pub open spec fn controller_next<RS>(reconciler: Reconciler<RS>) -> Action<State
     }
 }
 
-pub open spec fn client_next<RS>() -> Action<State<RS>, ClientActionInput, ()> {
-    let result = |input: ClientActionInput, s: State<RS>| {
+pub open spec fn client_next<T>() -> Action<State<T>, ClientActionInput, ()> {
+    let result = |input: ClientActionInput, s: State<T>| {
         let host_result = client().next_result(input, s.client_state);
         let msg_ops = MessageOps {
             recv: input.recv,
@@ -150,12 +150,12 @@ pub open spec fn client_next<RS>() -> Action<State<RS>, ClientActionInput, ()> {
         (host_result, network_result)
     };
     Action {
-        precondition: |input: ClientActionInput, s: State<RS>| {
+        precondition: |input: ClientActionInput, s: State<T>| {
             &&& received_msg_destined_for(input.recv, HostId::Client)
             &&& result(input, s).0.is_Enabled()
             &&& result(input, s).1.is_Enabled()
         },
-        transition: |input: ClientActionInput, s: State<RS>| {
+        transition: |input: ClientActionInput, s: State<T>| {
             (State {
                 client_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
@@ -165,12 +165,12 @@ pub open spec fn client_next<RS>() -> Action<State<RS>, ClientActionInput, ()> {
     }
 }
 
-pub open spec fn stutter<RS>() -> Action<State<RS>, Option<Message>, ()> {
+pub open spec fn stutter<T>() -> Action<State<T>, Option<Message>, ()> {
     Action {
-        precondition: |input: Option<Message>, s: State<RS>| {
+        precondition: |input: Option<Message>, s: State<T>| {
             input.is_None()
         },
-        transition: |input: Option<Message>, s: State<RS>| {
+        transition: |input: Option<Message>, s: State<T>| {
             (s, ())
         },
     }
@@ -183,7 +183,7 @@ pub enum Step {
     StutterStep(Option<Message>),
 }
 
-pub open spec fn next_step<RS>(reconciler: Reconciler<RS>, s: State<RS>, s_prime: State<RS>, step: Step) -> bool {
+pub open spec fn next_step<T>(reconciler: Reconciler<T>, s: State<T>, s_prime: State<T>, step: Step) -> bool {
     match step {
         Step::KubernetesAPIStep(input) => kubernetes_api_next().forward(input)(s, s_prime),
         Step::ControllerStep(input) => controller_next(reconciler).forward(input)(s, s_prime),
@@ -195,22 +195,22 @@ pub open spec fn next_step<RS>(reconciler: Reconciler<RS>, s: State<RS>, s_prime
 /// `next` chooses:
 /// * which host to take the next action (`Step`)
 /// * whether to deliver a message and which message to deliver (`Option<Message>` in `Step`)
-pub open spec fn next<RS>(reconciler: Reconciler<RS>) -> ActionPred<State<RS>> {
-    |s: State<RS>, s_prime: State<RS>| exists |step: Step| next_step(reconciler, s, s_prime, step)
+pub open spec fn next<T>(reconciler: Reconciler<T>) -> ActionPred<State<T>> {
+    |s: State<T>, s_prime: State<T>| exists |step: Step| next_step(reconciler, s, s_prime, step)
 }
 
 /// We install the reconciler to the Kubernetes cluster state machine spec
 /// TODO: develop a struct for the compound state machine and make reconciler its member
 /// so that we don't have to pass reconciler to init and next in the proof.
-pub open spec fn sm_spec<RS>(reconciler: Reconciler<RS>) -> TempPred<State<RS>> {
+pub open spec fn sm_spec<T>(reconciler: Reconciler<T>) -> TempPred<State<T>> {
     lift_state(init(reconciler))
     .and(always(lift_action(next(reconciler))))
     .and(tla_forall(|input| kubernetes_api_next().weak_fairness(input)))
     .and(tla_forall(|input| controller_next(reconciler).weak_fairness(input)))
 }
 
-pub open spec fn kubernetes_api_action_pre<RS>(action: KubernetesAPIAction, input: KubernetesAPIActionInput) -> StatePred<State<RS>> {
-    |s: State<RS>| {
+pub open spec fn kubernetes_api_action_pre<T>(action: KubernetesAPIAction, input: KubernetesAPIActionInput) -> StatePred<State<T>> {
+    |s: State<T>| {
         let host_result = kubernetes_api().next_action_result(action, input, s.kubernetes_api_state);
         let msg_ops = MessageOps {
             recv: input,
@@ -224,8 +224,8 @@ pub open spec fn kubernetes_api_action_pre<RS>(action: KubernetesAPIAction, inpu
     }
 }
 
-pub open spec fn controller_action_pre<RS>(reconciler: Reconciler<RS>, action: ControllerAction<RS>, input: ControllerActionInput) -> StatePred<State<RS>> {
-    |s: State<RS>| {
+pub open spec fn controller_action_pre<T>(reconciler: Reconciler<T>, action: ControllerAction<T>, input: ControllerActionInput) -> StatePred<State<T>> {
+    |s: State<T>| {
         let host_result = controller(reconciler).next_action_result(action, input, s.controller_state);
         let msg_ops = MessageOps {
             recv: input.recv,
