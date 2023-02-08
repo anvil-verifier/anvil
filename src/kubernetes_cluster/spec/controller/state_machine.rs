@@ -1,11 +1,11 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::state_machine::action::*;
 use crate::kubernetes_cluster::spec::{
     common::*, controller::common::*, controller::controller_runtime::*, reconciler::*,
 };
 use crate::pervasive::{map::*, option::*, seq::*, set::*, string::*};
+use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
 use builtin::*;
@@ -13,9 +13,9 @@ use builtin_macros::*;
 
 verus! {
 
-pub open spec fn controller(reconciler: Reconciler) -> ControllerStateMachine {
+pub open spec fn controller<T>(reconciler: Reconciler<T>) -> ControllerStateMachine<T> {
     StateMachine {
-        init: |s: ControllerState| {
+        init: |s: ControllerState<T>| {
             s === ControllerState {
                 ongoing_reconciles: Map::empty(),
                 scheduled_reconciles: Set::empty(),

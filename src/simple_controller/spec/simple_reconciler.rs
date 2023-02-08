@@ -11,19 +11,26 @@ use builtin_macros::*;
 
 verus! {
 
+/// SimpleReconcileState describes the local state with which the reconcile functions makes decisions.
+pub struct SimpleReconcileState {
+    // reconcile_pc, like a program counter, is used to track the progress of reconcile_core
+    // since reconcile_core is frequently "trapped" into the controller_runtime spec.
+    pub reconcile_pc: nat,
+}
+
 /// We use Reconciler to pack up everything specific to the custom controller,
 /// including reconcile function (reconcile_core) and triggering conditions (reconcile_trigger)
-pub open spec fn simple_reconciler() -> Reconciler {
+pub open spec fn simple_reconciler() -> Reconciler<SimpleReconcileState> {
     Reconciler {
         reconcile_init_state: || reconcile_init_state(),
         reconcile_trigger: |msg: Message| reconcile_trigger(msg),
-        reconcile_core: |cr_key: ResourceKey, resp_o: Option<APIResponse>, state: ReconcileState| reconcile_core(cr_key, resp_o, state),
-        reconcile_done: |state: ReconcileState| reconcile_done(state),
+        reconcile_core: |cr_key: ResourceKey, resp_o: Option<APIResponse>, state: SimpleReconcileState| reconcile_core(cr_key, resp_o, state),
+        reconcile_done: |state: SimpleReconcileState| reconcile_done(state),
     }
 }
 
-pub open spec fn reconcile_init_state() -> ReconcileState {
-    ReconcileState {
+pub open spec fn reconcile_init_state() -> SimpleReconcileState {
+    SimpleReconcileState {
         reconcile_pc: 0,
     }
 }
@@ -51,19 +58,19 @@ pub open spec fn reconcile_trigger(msg: Message) -> Option<ResourceKey>
 /// This is a highly simplified reconcile core spec:
 /// it sends requests to create a configmap for the cr.
 /// TODO: make the reconcile_core create more resources such as a statefulset
-pub open spec fn reconcile_core(cr_key: ResourceKey, resp_o: Option<APIResponse>, state: ReconcileState) -> (ReconcileState, Option<APIRequest>)
+pub open spec fn reconcile_core(cr_key: ResourceKey, resp_o: Option<APIResponse>, state: SimpleReconcileState) -> (SimpleReconcileState, Option<APIRequest>)
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
     let pc = state.reconcile_pc;
     if pc === init_pc() {
-        let state_prime = ReconcileState {
+        let state_prime = SimpleReconcileState {
             reconcile_pc: after_get_cr_pc(),
         };
         let req_o = Option::Some(APIRequest::GetRequest(GetRequest{key: cr_key}));
         (state_prime, req_o)
     } else if pc === after_get_cr_pc() {
-        let state_prime = ReconcileState {
+        let state_prime = SimpleReconcileState {
             reconcile_pc: after_create_cm_pc(),
         };
         let req_o = Option::Some(create_cm_req(cr_key));
@@ -73,7 +80,7 @@ pub open spec fn reconcile_core(cr_key: ResourceKey, resp_o: Option<APIResponse>
     }
 }
 
-pub open spec fn reconcile_done(state: ReconcileState) -> bool {
+pub open spec fn reconcile_done(state: SimpleReconcileState) -> bool {
     &&& state.reconcile_pc !== init_pc()
     &&& state.reconcile_pc !== after_get_cr_pc()
 }

@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::state_machine::action::*;
 use crate::kubernetes_cluster::spec::{
     common::*,
     controller,
@@ -20,6 +19,7 @@ use crate::kubernetes_cluster::spec::{
     reconciler::Reconciler,
 };
 use crate::pervasive::{option::*, seq::*, set::*};
+use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
 use builtin::*;
@@ -27,18 +27,18 @@ use builtin_macros::*;
 
 verus! {
 
-pub proof fn kubernetes_api_action_pre_implies_next_pre(action: KubernetesAPIAction, input: KubernetesAPIActionInput)
+pub proof fn kubernetes_api_action_pre_implies_next_pre<T>(action: KubernetesAPIAction, input: KubernetesAPIActionInput)
     requires
         kubernetes_api().actions.contains(action),
     ensures
-        valid(lift_state(kubernetes_api_action_pre(action, input)).implies(lift_state(kubernetes_api_next().pre(input)))),
+        valid(lift_state(kubernetes_api_action_pre::<T>(action, input)).implies(lift_state(kubernetes_api_next().pre(input)))),
 {
-    assert forall |s| #[trigger] kubernetes_api_action_pre(action, input)(s) implies kubernetes_api_next().pre(input)(s) by {
+    assert forall |s: State<T>| #[trigger] kubernetes_api_action_pre(action, input)(s) implies kubernetes_api_next().pre(input)(s) by {
         exists_next_kubernetes_api_step(action, input, s.kubernetes_api_state);
     };
 }
 
-pub proof fn controller_action_pre_implies_next_pre(reconciler: Reconciler, action: ControllerAction, input: ControllerActionInput)
+pub proof fn controller_action_pre_implies_next_pre<T>(reconciler: Reconciler<T>, action: ControllerAction<T>, input: ControllerActionInput)
     requires
         controller(reconciler).actions.contains(action),
     ensures
@@ -59,7 +59,7 @@ pub proof fn exists_next_kubernetes_api_step(action: KubernetesAPIAction, input:
     assert(((kubernetes_api().step_to_action)(KubernetesAPIStep::HandleRequest).precondition)(input, s));
 }
 
-pub proof fn exists_next_controller_step(reconciler: Reconciler, action: ControllerAction, input: ControllerActionInput, s: ControllerState)
+pub proof fn exists_next_controller_step<T>(reconciler: Reconciler<T>, action: ControllerAction<T>, input: ControllerActionInput, s: ControllerState<T>)
     requires
         controller(reconciler).actions.contains(action),
         (action.precondition)(input, s),
