@@ -1,12 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::state_machine::action::*;
 use crate::kubernetes_cluster::spec::{
     common::*,
     kubernetes_api::{builtin_controllers::statefulset_controller, common::*},
 };
 use crate::pervasive::{map::*, option::*, result::*, seq::*, set::*};
+use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
 use builtin::*;
@@ -22,19 +22,20 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Kub
 {
     let src = msg.dst;
     let dst = msg.src;
+    let req_id = msg.get_req_id();
     if msg.is_get_request() {
         let req = msg.get_get_request();
         if !s.resources.dom().contains(req.key) {
             // Get fails
             let s_prime = s;
             let result = Result::Err(APIError::ObjectNotFound);
-            let resp = form_get_resp_msg(msg, result);
+            let resp = form_get_resp_msg(msg, result, req_id);
             (s_prime, resp, Option::None)
         } else {
             // Get succeeds
             let s_prime = s;
             let result = Result::Ok(s.resources[req.key]);
-            let resp = form_get_resp_msg(msg, result);
+            let resp = form_get_resp_msg(msg, result, req_id);
             (s_prime, resp, Option::None)
         }
     } else if msg.is_list_request() {
@@ -43,7 +44,7 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Kub
         let req = msg.get_list_request();
         let s_prime = s;
         let result = Result::Err(APIError::ObjectNotFound);
-        let resp = form_msg(src, dst, list_resp_msg(result, req));
+        let resp = form_msg(src, dst, list_resp_msg(result, req, req_id));
         (s_prime, resp, Option::None)
     } else if msg.is_create_request() {
         let req = msg.get_create_request();
@@ -51,7 +52,7 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Kub
             // Creation fails
             let s_prime = s;
             let result = Result::Err(APIError::ObjectAlreadyExists);
-            let resp = form_msg(src, dst, create_resp_msg(result, req));
+            let resp = form_msg(src, dst, create_resp_msg(result, req, req_id));
             (s_prime, resp, Option::None)
         } else {
             // Creation succeeds
@@ -60,7 +61,7 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Kub
                 ..s
             };
             let result = Result::Ok(req.obj);
-            let resp = form_msg(src, dst, create_resp_msg(result, req));
+            let resp = form_msg(src, dst, create_resp_msg(result, req, req_id));
             // The cluster state is updated, so we send a notification to the custom controller
             // TODO: notification should be sent to custom controller selectively
             let notify = form_msg(src, HostId::CustomController, added_event_msg(req.obj));
@@ -73,7 +74,7 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Kub
             // Deletion fails
             let s_prime = s;
             let result = Result::Err(APIError::ObjectNotFound);
-            let resp = form_msg(src, dst, delete_resp_msg(result, req));
+            let resp = form_msg(src, dst, delete_resp_msg(result, req, req_id));
             (s_prime, resp, Option::None)
         } else {
             // Path where deletion succeeds
@@ -85,7 +86,7 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Kub
             // The cluster state is updated, so we send a notification to the custom controller
             // TODO: watch event should be sent to custom controller selectively
             let result = Result::Ok(obj_before_deletion);
-            let resp = form_msg(src, dst, delete_resp_msg(result, req));
+            let resp = form_msg(src, dst, delete_resp_msg(result, req, req_id));
             let notify = form_msg(src, HostId::CustomController, deleted_event_msg(obj_before_deletion));
             (s_prime, resp, Option::Some(notify))
         }

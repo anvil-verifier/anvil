@@ -105,7 +105,7 @@ pub open spec fn continue_reconcile<T>(reconciler: Reconciler<T>) -> ControllerA
             let (local_state_prime, req_o) = (reconciler.reconcile_core)(cr_key, resp_o, reconcile_state.local_state);
 
             let pending_req_msg = if req_o.is_Some() {
-                Option::Some(controller_req_msg(req_o.get_Some_0()))
+                Option::Some(controller_req_msg(req_o.get_Some_0(), s.req_id))
             } else {
                 Option::None
             };
@@ -116,6 +116,7 @@ pub open spec fn continue_reconcile<T>(reconciler: Reconciler<T>) -> ControllerA
             };
             let s_prime = ControllerState {
                 ongoing_reconciles: s.ongoing_reconciles.insert(cr_key, reconcile_state_prime),
+                req_id: s.req_id + 1,
                 ..s
             };
             let send = if pending_req_msg.is_Some() {
