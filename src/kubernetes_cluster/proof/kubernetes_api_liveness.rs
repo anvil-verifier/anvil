@@ -64,12 +64,15 @@ pub proof fn lemma_create_req_leads_to_ok_resp<T>(reconciler: Reconciler<T>, msg
             })
             .and(always(lift_state(|s: State<T>| {
                 forall |other: Message|
-                    #[trigger] s.message_sent(other) && other.content === msg.content && other.dst === msg.dst
+                    #[trigger] s.message_sent(other)
+                    && other.is_create_request()
+                    && other.get_create_request() === msg.get_create_request()
+                    && other.dst === msg.dst
                         ==> other === msg
             })))
                 .leads_to(
                     lift_state(|s: State<T>| {
-                        &&& s.message_sent(form_msg(msg.dst, msg.src, create_resp_msg(Result::Ok(msg.get_create_request().obj), msg.get_create_request())))
+                        &&& s.message_sent(form_msg(msg.dst, msg.src, create_resp_msg(Result::Ok(msg.get_create_request().obj), msg.get_create_request(), msg.get_req_id())))
                         &&& s.resource_key_exists(msg.get_create_request().obj.key)
                     })
                 )
@@ -77,7 +80,10 @@ pub proof fn lemma_create_req_leads_to_ok_resp<T>(reconciler: Reconciler<T>, msg
 {
     let assumption = |s: State<T>| {
         forall |other: Message|
-            #[trigger] s.message_sent(other) && other.content === msg.content && other.dst === msg.dst
+            #[trigger] s.message_sent(other)
+            && other.is_create_request()
+            && other.get_create_request() === msg.get_create_request()
+            && other.dst === msg.dst
                 ==> other === msg
     };
     let pre = |s: State<T>| {
@@ -87,7 +93,7 @@ pub proof fn lemma_create_req_leads_to_ok_resp<T>(reconciler: Reconciler<T>, msg
         &&& !s.resource_key_exists(msg.get_create_request().obj.key)
     };
     let post = |s: State<T>| {
-        &&& s.message_sent(form_msg(msg.dst, msg.src, create_resp_msg(Result::Ok(msg.get_create_request().obj), msg.get_create_request())))
+        &&& s.message_sent(form_msg(msg.dst, msg.src, create_resp_msg(Result::Ok(msg.get_create_request().obj), msg.get_create_request(), msg.get_req_id())))
         &&& s.resource_key_exists(msg.get_create_request().obj.key)
     };
     lemma_pre_leads_to_post_with_assumption_by_kubernetes_api::<T>(reconciler, Option::Some(msg), handle_request(), assumption, pre, post);
@@ -126,11 +132,11 @@ pub proof fn lemma_get_req_leads_to_some_resp<T>(reconciler: Reconciler<T>, msg:
     assert forall |s, s_prime: State<T>| pre(s) && #[trigger] next(reconciler)(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
         if s.resource_key_exists(key) {
-            let ok_resp_msg = form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)));
+            let ok_resp_msg = form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)), msg.get_req_id());
             assert(s_prime.message_sent(ok_resp_msg));
             assert(resp_msg_matches_req_msg(ok_resp_msg, msg));
         } else {
-            let err_resp_msg = form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound));
+            let err_resp_msg = form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound), msg.get_req_id());
             assert(s_prime.message_sent(err_resp_msg));
             assert(resp_msg_matches_req_msg(err_resp_msg, msg));
         }
@@ -148,8 +154,8 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp<T>(reconciler: Reconciler<T>,
                 &&& msg.get_get_request().key === key
             })
                 .leads_to(
-                    lift_state(|s: State<T>| s.message_sent(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)))))
-                    .or(lift_state(|s: State<T>| s.message_sent(form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound)))))
+                    lift_state(|s: State<T>| s.message_sent(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)), msg.get_req_id())))
+                    .or(lift_state(|s: State<T>| s.message_sent(form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound), msg.get_req_id()))))
                 )
         ),
 {
@@ -160,14 +166,14 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp<T>(reconciler: Reconciler<T>,
         &&& msg.get_get_request().key === key
     };
     let post = |s: State<T>| {
-        ||| s.message_sent(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key))))
-        ||| s.message_sent(form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound)))
+        ||| s.message_sent(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)), msg.get_req_id()))
+        ||| s.message_sent(form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound), msg.get_req_id()))
     };
     lemma_pre_leads_to_post_by_kubernetes_api::<T>(reconciler, Option::Some(msg), handle_request(), pre, post);
     temp_pred_equality::<State<T>>(
         lift_state(post),
-        lift_state(|s: State<T>| s.message_sent(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)))))
-        .or(lift_state(|s: State<T>| s.message_sent(form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound)))))
+        lift_state(|s: State<T>| s.message_sent(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)), msg.get_req_id())))
+        .or(lift_state(|s: State<T>| s.message_sent(form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound), msg.get_req_id()))))
     );
 }
 
@@ -190,7 +196,7 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_never_delete<T>(reconciler: Recon
                     &&& other.get_delete_request().key === res.key
                 }
             })))
-                .leads_to(lift_state(|s: State<T>| s.message_sent(form_get_resp_msg(msg, Result::Ok(res)))))
+                .leads_to(lift_state(|s: State<T>| s.message_sent(form_get_resp_msg(msg, Result::Ok(res), msg.get_req_id()))))
         ),
 {
     let pre = |s: State<T>| {
@@ -209,14 +215,7 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_never_delete<T>(reconciler: Recon
                 &&& other.get_delete_request().key === res.key
             }
     };
-    let post = |s: State<T>| s.message_sent(form_msg(
-        msg.dst,
-        msg.src,
-        get_resp_msg(
-            Result::Ok(res),
-            msg.get_get_request()
-        )
-    ));
+    let post = |s: State<T>| s.message_sent(form_get_resp_msg(msg, Result::Ok(res), msg.get_req_id()));
     lemma_pre_leads_to_post_with_assumption_by_kubernetes_api::<T>(reconciler, Option::Some(msg), handle_request(), assumption, pre, post);
 }
 
@@ -230,7 +229,7 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(reconciler: 
                 &&& msg.get_get_request().key === res.key
             })
             .and(always(lift_state(|s: State<T>| s.resource_obj_exists(res))))
-                .leads_to(lift_state(|s: State<T>| s.message_sent(form_get_resp_msg(msg, Result::Ok(res)))))
+                .leads_to(lift_state(|s: State<T>| s.message_sent(form_get_resp_msg(msg, Result::Ok(res), msg.get_req_id()))))
         ),
 {
     leads_to_weaken_auto::<State<T>>(sm_spec(reconciler));
@@ -258,7 +257,7 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(reconciler: 
             &&& other.get_delete_request().key === res.key
         }
     };
-    let ok_resp_msg_sent = |s: State<T>| s.message_sent(form_get_resp_msg(msg, Result::Ok(res)));
+    let ok_resp_msg_sent = |s: State<T>| s.message_sent(form_get_resp_msg(msg, Result::Ok(res), msg.get_req_id()));
 
     lemma_always_res_always_exists_implies_forall_delete_never_sent::<T>(reconciler, res);
     // Now we have spec.entails(always(always(lift_state(res_exists)).implies(always(lift_state(delete_req_never_sent)))))
