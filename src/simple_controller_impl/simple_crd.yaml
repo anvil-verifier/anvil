@@ -7,8 +7,6 @@ spec:
   names:
     kind: SimpleCR
     plural: simplecrs
-    shortNames:
-    - cmg
     singular: simplecr
   scope: Namespaced
   versions:
