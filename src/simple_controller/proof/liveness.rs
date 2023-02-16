@@ -191,13 +191,13 @@ proof fn lemma_after_get_cr_pc_leads_to_cm_always_exists(cr: ResourceObj)
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
     always_implies_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
 
-    let safety_invariant = safety::lemma_always_reconcile_get_cr_done_implies_pending_get_cr_req(cr.key);
+    let reconciler_at_after_get_cr_pc_implies_pending_req_and_req_sent = safety::lemma_always_reconcile_get_cr_done_implies_pending_get_cr_req(cr.key);
 
     assert forall |ex| #[trigger] sm_spec(simple_reconciler()).satisfied_by(ex) implies lift_state(reconciler_at_after_get_cr_pc(cr.key)).leads_to(lift_state(reconciler_at_after_create_cm_pc(cr.key))).satisfied_by(ex) by {
         assert forall |i| #[trigger] lift_state(reconciler_at_after_get_cr_pc(cr.key)).satisfied_by(ex.suffix(i)) implies eventually(lift_state(reconciler_at_after_create_cm_pc(cr.key))).satisfied_by(ex.suffix(i)) by {
             let pre = |req_msg: Message| reconciler_at_after_get_cr_pc_and_pending_req_and_req_sent(req_msg, cr.key);
 
-            instantiate_entailed_always::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), safety_invariant);
+            instantiate_entailed_always::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), reconciler_at_after_get_cr_pc_implies_pending_req_and_req_sent);
 
             let get_cr_req_msg = choose |m: Message| {
                 &&& is_controller_get_cr_request_msg(m, cr.key)
@@ -228,13 +228,13 @@ proof fn lemma_after_create_cm_pc_leads_to_cm_always_exists(cr: ResourceObj)
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
     always_implies_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
 
-    let cm = simple_reconciler::subresource_configmap(cr.key);
-    let safety_invariant = safety::lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req(cr.key);
+    let reconciler_at_after_create_cm_pc_implies_pending_req_and_req_sent = safety::lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req(cr.key);
 
     assert forall |ex| #[trigger] sm_spec(simple_reconciler()).satisfied_by(ex) implies lift_state(reconciler_at_after_create_cm_pc(cr.key)).leads_to(lift_state(cm_exists(cr.key))).satisfied_by(ex) by {
         assert forall |i| #[trigger] lift_state(reconciler_at_after_create_cm_pc(cr.key)).satisfied_by(ex.suffix(i)) implies eventually(lift_state(cm_exists(cr.key))).satisfied_by(ex.suffix(i)) by {
             let pre = |msg: Message| reconciler_at_after_create_cm_pc_and_pending_req_and_req_sent(msg, cr.key);
-            instantiate_entailed_always::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), safety_invariant);
+
+            instantiate_entailed_always::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), reconciler_at_after_create_cm_pc_implies_pending_req_and_req_sent);
 
             let create_cm_req_msg = choose |m: Message| {
                 &&& is_controller_create_cm_request_msg(m, cr.key)
@@ -243,6 +243,7 @@ proof fn lemma_after_create_cm_pc_leads_to_cm_always_exists(cr: ResourceObj)
             };
             assert(lift_state(pre(create_cm_req_msg)).satisfied_by(ex.suffix(i)));
 
+            let cm = simple_reconciler::subresource_configmap(cr.key);
             kubernetes_api_liveness::lemma_create_req_leads_to_res_exists::<SimpleReconcileState>(simple_reconciler(), create_cm_req_msg, cm);
             instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(pre(create_cm_req_msg)), lift_state(cm_exists(cr.key)));
         };
@@ -277,11 +278,11 @@ proof fn lemma_p_leads_to_cm_always_exists(cr: ResourceObj, p: TempPred<State<Si
     requires
         cr.key.kind.is_CustomResourceKind(),
         sm_spec(simple_reconciler()).entails(
-            p.leads_to(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key)))
+            p.leads_to(lift_state(cm_exists(cr.key)))
         ),
     ensures
         sm_spec(simple_reconciler()).entails(
-            p.leads_to(always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
+            p.leads_to(always(lift_state(cm_exists(cr.key))))
         ),
 {
     let delete_cm_req_msg_not_sent = |s: State<SimpleReconcileState>| !exists |m: Message| {

@@ -130,16 +130,4 @@ pub open spec fn is_controller_create_cm_request_msg(msg: Message, cr_key: Resou
     &&& msg.get_create_request().obj === simple_reconciler::subresource_configmap(cr_key)
 }
 
-pub type ChosenMessage = FnSpec(State<SimpleReconcileState>) -> Message;
-
-pub open spec fn choose_pending_controller_get_cr_request_msg(cr_key: ResourceKey) -> ChosenMessage {
-    |s: State<SimpleReconcileState>| {
-        choose |m| {
-            &&& is_controller_get_cr_request_msg(m, cr_key)
-            &&& #[trigger] s.message_sent(m)
-            &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
-        }
-    }
-}
-
 }
