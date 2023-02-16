@@ -19,15 +19,15 @@ use builtin_macros::*;
 verus! {
 
 pub proof fn lemma_always_reconcile_init_implies_no_pending_req(cr_key: ResourceKey)
+    requires
+        cr_key.kind.is_CustomResourceKind(),
     ensures
         sm_spec(simple_reconciler()).entails(always(
-            lift_state(|s: State<SimpleReconcileState>| {
+            lift_state(reconciler_at_init_pc(cr_key))
+            .implies(lift_state(|s: State<SimpleReconcileState>| {
                 &&& s.reconcile_state_contains(cr_key)
                 &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
-            }).implies(lift_state(|s: State<SimpleReconcileState>| {
-                    &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
-                    &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
+                &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
             }))
         )),
 {
@@ -42,10 +42,8 @@ pub proof fn lemma_always_reconcile_init_implies_no_pending_req(cr_key: Resource
 
     // We intentionally write the safety property in a form that is friendly to liveness reasoning
     // There is no need to do this if we only want to prove safety
-    let invariant_temp_pred = lift_state(|s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
-    }).implies(lift_state(|s: State<SimpleReconcileState>| {
+    let invariant_temp_pred = lift_state(reconciler_at_init_pc(cr_key))
+    .implies(lift_state(|s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr_key)
         &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
@@ -58,10 +56,8 @@ pub proof fn lemma_always_reconcile_get_cr_done_implies_pending_get_cr_req(cr_ke
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
-        inv === lift_state(|s: State<SimpleReconcileState>| {
-            &&& s.reconcile_state_contains(cr_key)
-            &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-        }).implies(lift_state(|s: State<SimpleReconcileState>| {
+        inv === lift_state(reconciler_at_after_get_cr_pc(cr_key))
+        .implies(lift_state(|s: State<SimpleReconcileState>| {
             exists |m| {
                 &&& is_controller_get_cr_request_msg(m, cr_key)
                 &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
@@ -123,10 +119,8 @@ pub proof fn lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
-        inv === lift_state(|s: State<SimpleReconcileState>| {
-            &&& s.reconcile_state_contains(cr_key)
-            &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-        }).implies(lift_state(|s: State<SimpleReconcileState>| {
+        inv === lift_state(reconciler_at_after_create_cm_pc(cr_key))
+        .implies(lift_state(|s: State<SimpleReconcileState>| {
             exists |m| {
                 &&& is_controller_create_cm_request_msg(m, cr_key)
                 &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
@@ -136,8 +130,7 @@ pub proof fn lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req
         sm_spec(simple_reconciler()).entails(always(inv)),
 {
     let invariant = |s: State<SimpleReconcileState>| {
-        s.reconcile_state_contains(cr_key)
-        && s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
+        s.reconcile_state_contains(cr_key) && s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
         ==> exists |m| {
                 is_controller_create_cm_request_msg(m, cr_key)
                 && s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
@@ -169,10 +162,8 @@ pub proof fn lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req
 
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), next(simple_reconciler()), invariant);
 
-    let invariant_temp_pred = lift_state(|s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-    }).implies(lift_state(|s: State<SimpleReconcileState>| {
+    let invariant_temp_pred = lift_state(reconciler_at_after_create_cm_pc(cr_key))
+    .implies(lift_state(|s: State<SimpleReconcileState>| {
         exists |m| {
             &&& is_controller_create_cm_request_msg(m, cr_key)
             &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)

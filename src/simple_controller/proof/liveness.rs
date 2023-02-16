@@ -68,19 +68,18 @@ proof fn lemma_cr_added_event_msg_sent_leads_to_cm_always_exists(cr: ResourceObj
     ensures
         sm_spec(simple_reconciler()).entails(
             lift_state(|s: State<SimpleReconcileState>| s.message_sent(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr))))
-                .leads_to(always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
+                .leads_to(always(lift_state(cm_exists(cr.key))))
         ),
 {
     let cr_added_event_msg_sent = |s: State<SimpleReconcileState>| s.message_sent(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)));
     let controller_in_reconcile = |s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.key);
-    let cm_exists = |s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key);
 
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
 
     lemma_cr_added_event_msg_sent_leads_to_controller_in_reconcile(cr);
     lemma_controller_in_reconcile_leads_to_cm_always_exists(cr);
 
-    leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(cr_added_event_msg_sent), lift_state(controller_in_reconcile), always(lift_state(cm_exists)));
+    leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(cr_added_event_msg_sent), lift_state(controller_in_reconcile), always(lift_state(cm_exists(cr.key))));
 
 }
 
@@ -126,29 +125,9 @@ proof fn lemma_controller_in_reconcile_leads_to_cm_always_exists(cr: ResourceObj
     ensures
         sm_spec(simple_reconciler()).entails(
             lift_state(|s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.key))
-                .leads_to(always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
+                .leads_to(always(lift_state(cm_exists(cr.key))))
         ),
 {
-    let cm = simple_reconciler::subresource_configmap(cr.key);
-
-    let reconcile_at_init_pc = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::init_pc()
-    };
-    let reconciler_at_after_get_cr_pc = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-    };
-    let reconciler_at_after_create_cm_pc = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-    };
-    let reconciler_reconcile_done = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr.key)
-        &&& (simple_reconciler().reconcile_done)(s.reconcile_state_of(cr.key).local_state)
-    };
-    let cm_exists = |s: State<SimpleReconcileState>| s.resource_key_exists(cm.key);
-
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
 
     // This proof is also straightforward once we have proved the four following lemmas
@@ -160,18 +139,18 @@ proof fn lemma_controller_in_reconcile_leads_to_cm_always_exists(cr: ResourceObj
 
     // Now we combine the four cases together
     // and we will get s.reconcile_state_contains(cr.key) ~> []cm_exists
-    or_leads_to_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconcile_at_init_pc), lift_state(reconciler_at_after_get_cr_pc), always(lift_state(cm_exists)));
-    or_leads_to_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconciler_at_after_create_cm_pc), lift_state(reconciler_reconcile_done), always(lift_state(cm_exists)));
+    or_leads_to_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconciler_at_init_pc(cr.key)), lift_state(reconciler_at_after_get_cr_pc(cr.key)), always(lift_state(cm_exists(cr.key))));
+    or_leads_to_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconciler_at_after_create_cm_pc(cr.key)), lift_state(reconciler_reconcile_done(cr.key)), always(lift_state(cm_exists(cr.key))));
     or_leads_to_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()),
         lift_state(|s: State<SimpleReconcileState>| {
-            ||| reconcile_at_init_pc(s)
-            ||| reconciler_at_after_get_cr_pc(s)
+            ||| reconciler_at_init_pc(cr.key)(s)
+            ||| reconciler_at_after_get_cr_pc(cr.key)(s)
         }),
         lift_state(|s: State<SimpleReconcileState>| {
-            ||| reconciler_at_after_create_cm_pc(s)
-            ||| reconciler_reconcile_done(s)
+            ||| reconciler_at_after_create_cm_pc(cr.key)(s)
+            ||| reconciler_reconcile_done(cr.key)(s)
         }),
-        always(lift_state(cm_exists))
+        always(lift_state(cm_exists(cr.key)))
     );
 }
 
@@ -180,47 +159,24 @@ proof fn lemma_init_pc_leads_to_cm_always_exists(cr: ResourceObj)
         cr.key.kind.is_CustomResourceKind(),
     ensures
         sm_spec(simple_reconciler()).entails(
-            lift_state(|s: State<SimpleReconcileState>| {
-                &&& s.reconcile_state_contains(cr.key)
-                &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::init_pc()
-            }).leads_to(always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
+            lift_state(reconciler_at_init_pc(cr.key))
+            .leads_to(always(lift_state(cm_exists(cr.key))))
         ),
 {
-    let cm = simple_reconciler::subresource_configmap(cr.key);
-
-    // Just layout all the state predicates we are going to repeatedly use later since they are so long
-    let reconcile_at_init_pc = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::init_pc()
-    };
-    let reconcile_at_init_pc_and_no_pending_req = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::init_pc()
-        &&& s.reconcile_state_of(cr.key).pending_req_msg.is_None()
-    };
-    let reconciler_at_after_get_cr_pc = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-    };
-    let cm_exists = |s: State<SimpleReconcileState>| s.resource_key_exists(cm.key);
-
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
 
-    leads_to_self::<State<SimpleReconcileState>>(reconcile_at_init_pc);
+    leads_to_self::<State<SimpleReconcileState>>(reconciler_at_init_pc(cr.key));
     safety::lemma_always_reconcile_init_implies_no_pending_req(cr.key);
     // We get the following asserted leads-to formula by auto weakening the one from leads_to_self
     // with the always-implies formula from lemma_always_reconcile_init_implies_no_pending_req
     // We have to write down this assertion to further trigger leads_to_weaken_auto
-    assert(sm_spec(simple_reconciler()).entails(
-        lift_state(reconcile_at_init_pc)
-            .leads_to(lift_state(reconcile_at_init_pc_and_no_pending_req))
-    ));
+    assert(sm_spec(simple_reconciler()).entails(lift_state(reconciler_at_init_pc(cr.key)).leads_to(lift_state(reconciler_at_init_pc_and_no_pending_req(cr.key)))));
     // Get the leads-to formula from lemma_init_pc_leads_to_after_get_cr_pc and connect it with the above asserted one
     lemma_init_pc_leads_to_after_get_cr_pc(cr.key);
-    leads_to_trans::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), reconcile_at_init_pc, reconcile_at_init_pc_and_no_pending_req, reconciler_at_after_get_cr_pc);
+    leads_to_trans::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), reconciler_at_init_pc(cr.key), reconciler_at_init_pc_and_no_pending_req(cr.key), reconciler_at_after_get_cr_pc(cr.key));
     // Since we have prove that spec |= reconciler_at_after_get_cr_pc ~> []cm_exists, we will just take a shortcut here
     lemma_after_get_cr_pc_leads_to_cm_always_exists(cr);
-    leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconcile_at_init_pc), lift_state(reconciler_at_after_get_cr_pc), always(lift_state(cm_exists)));
+    leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconciler_at_init_pc(cr.key)), lift_state(reconciler_at_after_get_cr_pc(cr.key)), always(lift_state(cm_exists(cr.key))));
 }
 
 proof fn lemma_after_get_cr_pc_leads_to_cm_always_exists(cr: ResourceObj)
@@ -228,41 +184,18 @@ proof fn lemma_after_get_cr_pc_leads_to_cm_always_exists(cr: ResourceObj)
         cr.key.kind.is_CustomResourceKind(),
     ensures
         sm_spec(simple_reconciler()).entails(
-            lift_state(|s: State<SimpleReconcileState>| {
-                &&& s.reconcile_state_contains(cr.key)
-                &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-            }).leads_to(always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
+            lift_state(reconciler_at_after_get_cr_pc(cr.key))
+                .leads_to(always(lift_state(cm_exists(cr.key))))
         ),
 {
-    let cm = simple_reconciler::subresource_configmap(cr.key);
-
-    let reconciler_at_after_get_cr_pc = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-    };
-    let reconciler_at_after_create_cm_pc = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-    };
-
-    let cm_exists = |s: State<SimpleReconcileState>| s.resource_key_exists(cm.key);
-
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
     always_implies_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
 
     let safety_invariant = safety::lemma_always_reconcile_get_cr_done_implies_pending_get_cr_req(cr.key);
 
-    assert forall |ex| #[trigger] sm_spec(simple_reconciler()).satisfied_by(ex) implies lift_state(reconciler_at_after_get_cr_pc).leads_to(lift_state(reconciler_at_after_create_cm_pc)).satisfied_by(ex) by {
-        assert forall |i| #[trigger] lift_state(reconciler_at_after_get_cr_pc).satisfied_by(ex.suffix(i)) implies eventually(lift_state(reconciler_at_after_create_cm_pc)).satisfied_by(ex.suffix(i)) by {
-            let pre = |req_msg: Message| {
-                |s: State<SimpleReconcileState>| {
-                    &&& s.reconcile_state_contains(cr.key)
-                    &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-                    &&& s.reconcile_state_of(cr.key).pending_req_msg === Option::Some(req_msg)
-                    &&& is_controller_get_cr_request_msg(req_msg, cr.key)
-                    &&& s.message_sent(req_msg)
-                }
-            };
+    assert forall |ex| #[trigger] sm_spec(simple_reconciler()).satisfied_by(ex) implies lift_state(reconciler_at_after_get_cr_pc(cr.key)).leads_to(lift_state(reconciler_at_after_create_cm_pc(cr.key))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] lift_state(reconciler_at_after_get_cr_pc(cr.key)).satisfied_by(ex.suffix(i)) implies eventually(lift_state(reconciler_at_after_create_cm_pc(cr.key))).satisfied_by(ex.suffix(i)) by {
+            let pre = |req_msg: Message| reconciler_at_after_get_cr_pc_and_pending_req_and_req_sent(req_msg, cr.key);
 
             instantiate_entailed_always::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), safety_invariant);
 
@@ -274,13 +207,13 @@ proof fn lemma_after_get_cr_pc_leads_to_cm_always_exists(cr: ResourceObj)
             assert(lift_state(pre(get_cr_req_msg)).satisfied_by(ex.suffix(i)));
 
             lemma_req_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(get_cr_req_msg, cr.key);
-            instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(pre(get_cr_req_msg)), lift_state(reconciler_at_after_create_cm_pc));
+            instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(pre(get_cr_req_msg)), lift_state(reconciler_at_after_create_cm_pc(cr.key)));
         };
     };
 
     // Since we have prove that spec |= reconciler_at_after_create_cm_pc ~> []cm_exists, we will just take a shortcut here
     lemma_after_create_cm_pc_leads_to_cm_always_exists(cr);
-    leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconciler_at_after_get_cr_pc), lift_state(reconciler_at_after_create_cm_pc), always(lift_state(cm_exists)));
+    leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconciler_at_after_get_cr_pc(cr.key)), lift_state(reconciler_at_after_create_cm_pc(cr.key)), always(lift_state(cm_exists(cr.key))));
 }
 
 proof fn lemma_after_create_cm_pc_leads_to_cm_always_exists(cr: ResourceObj)
@@ -288,37 +221,19 @@ proof fn lemma_after_create_cm_pc_leads_to_cm_always_exists(cr: ResourceObj)
         cr.key.kind.is_CustomResourceKind(),
     ensures
         sm_spec(simple_reconciler()).entails(
-            lift_state(|s: State<SimpleReconcileState>| {
-                &&& s.reconcile_state_contains(cr.key)
-                &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-            }).leads_to(always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
+            lift_state(reconciler_at_after_create_cm_pc(cr.key))
+                .leads_to(always(lift_state(cm_exists(cr.key))))
         ),
 {
-    let cm = simple_reconciler::subresource_configmap(cr.key);
-
-    let reconciler_at_after_create_cm_pc = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-    };
-
-    let cm_exists = |s: State<SimpleReconcileState>| {
-        s.resource_key_exists(cm.key)
-    };
-
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
     always_implies_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
 
+    let cm = simple_reconciler::subresource_configmap(cr.key);
     let safety_invariant = safety::lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req(cr.key);
 
-    assert forall |ex| #[trigger] sm_spec(simple_reconciler()).satisfied_by(ex) implies lift_state(reconciler_at_after_create_cm_pc).leads_to(lift_state(cm_exists)).satisfied_by(ex) by {
-        assert forall |i| #[trigger] lift_state(reconciler_at_after_create_cm_pc).satisfied_by(ex.suffix(i)) implies eventually(lift_state(cm_exists)).satisfied_by(ex.suffix(i)) by {
-            let create_cm_req_msg_sent = |msg: Message| {
-                |s: State<SimpleReconcileState>| {
-                    &&& is_controller_create_cm_request_msg(msg, cr.key)
-                    &&& s.reconcile_state_of(cr.key).pending_req_msg === Option::Some(msg)
-                    &&& s.message_sent(msg)
-                }
-            };
+    assert forall |ex| #[trigger] sm_spec(simple_reconciler()).satisfied_by(ex) implies lift_state(reconciler_at_after_create_cm_pc(cr.key)).leads_to(lift_state(cm_exists(cr.key))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] lift_state(reconciler_at_after_create_cm_pc(cr.key)).satisfied_by(ex.suffix(i)) implies eventually(lift_state(cm_exists(cr.key))).satisfied_by(ex.suffix(i)) by {
+            let pre = |msg: Message| reconciler_at_after_create_cm_pc_and_pending_req_and_req_sent(msg, cr.key);
             instantiate_entailed_always::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), safety_invariant);
 
             let create_cm_req_msg = choose |m: Message| {
@@ -326,15 +241,15 @@ proof fn lemma_after_create_cm_pc_leads_to_cm_always_exists(cr: ResourceObj)
                 &&& ex.suffix(i).head().reconcile_state_of(cr.key).pending_req_msg === Option::Some(m)
                 &&& #[trigger] ex.suffix(i).head().message_sent(m)
             };
-            assert(lift_state(create_cm_req_msg_sent(create_cm_req_msg)).satisfied_by(ex.suffix(i)));
+            assert(lift_state(pre(create_cm_req_msg)).satisfied_by(ex.suffix(i)));
 
             kubernetes_api_liveness::lemma_create_req_leads_to_res_exists::<SimpleReconcileState>(simple_reconciler(), create_cm_req_msg, cm);
-            instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(create_cm_req_msg_sent(create_cm_req_msg)), lift_state(cm_exists));
+            instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(pre(create_cm_req_msg)), lift_state(cm_exists(cr.key)));
         };
     };
 
     // finally prove stability: spec |= reconciler_at_after_create_cm_pc ~> []cm_exists
-    lemma_p_leads_to_cm_always_exists(cr, lift_state(reconciler_at_after_create_cm_pc));
+    lemma_p_leads_to_cm_always_exists(cr, lift_state(reconciler_at_after_create_cm_pc(cr.key)));
 }
 
 proof fn lemma_reconcile_done_leads_to_cm_always_exists(cr: ResourceObj)
@@ -342,24 +257,10 @@ proof fn lemma_reconcile_done_leads_to_cm_always_exists(cr: ResourceObj)
         cr.key.kind.is_CustomResourceKind(),
     ensures
         sm_spec(simple_reconciler()).entails(
-            lift_state(|s: State<SimpleReconcileState>| {
-                &&& s.reconcile_state_contains(cr.key)
-                &&& (simple_reconciler().reconcile_done)(s.reconcile_state_of(cr.key).local_state)
-            }).leads_to(always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
+            lift_state(reconciler_reconcile_done(cr.key))
+            .leads_to(always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
         ),
 {
-    let cm = simple_reconciler::subresource_configmap(cr.key);
-
-    let reconciler_reconcile_done = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr.key)
-        &&& (simple_reconciler().reconcile_done)(s.reconcile_state_of(cr.key).local_state)
-    };
-    let reconcile_at_init_pc = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr.key)
-        &&& s.reconcile_state_of(cr.key).local_state.reconcile_pc === simple_reconciler::init_pc()
-    };
-    let cm_exists = |s: State<SimpleReconcileState>| s.resource_key_exists(cm.key);
-
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
 
     // The key of this proof is that ending step label (Done or Error) will make the reconcile rescheduled
@@ -369,7 +270,7 @@ proof fn lemma_reconcile_done_leads_to_cm_always_exists(cr: ResourceObj)
     // which we have proved leads to cm_exists
     controller_runtime_liveness::lemma_reconcile_done_leads_to_reconcile_triggered::<SimpleReconcileState>(simple_reconciler(), cr.key);
     lemma_init_pc_leads_to_cm_always_exists(cr);
-    leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconciler_reconcile_done), lift_state(reconcile_at_init_pc), always(lift_state(cm_exists)));
+    leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconciler_reconcile_done(cr.key)), lift_state(reconciler_at_init_pc(cr.key)), always(lift_state(cm_exists(cr.key))));
 }
 
 proof fn lemma_p_leads_to_cm_always_exists(cr: ResourceObj, p: TempPred<State<SimpleReconcileState>>)
@@ -383,9 +284,6 @@ proof fn lemma_p_leads_to_cm_always_exists(cr: ResourceObj, p: TempPred<State<Si
             p.leads_to(always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
         ),
 {
-    let cm = simple_reconciler::subresource_configmap(cr.key);
-
-    let cm_exists = |s: State<SimpleReconcileState>| s.resource_key_exists(cm.key);
     let delete_cm_req_msg_not_sent = |s: State<SimpleReconcileState>| !exists |m: Message| {
         &&& #[trigger] s.message_sent(m)
         &&& m.dst === HostId::KubernetesAPI
@@ -401,7 +299,7 @@ proof fn lemma_p_leads_to_cm_always_exists(cr: ResourceObj, p: TempPred<State<Si
     entails_and_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(lift_action(next(simple_reconciler()))), always(lift_state(delete_cm_req_msg_not_sent)));
     always_and_equality::<State<SimpleReconcileState>>(lift_action(next(simple_reconciler())), lift_state(delete_cm_req_msg_not_sent));
     temp_pred_equality::<State<SimpleReconcileState>>(lift_action(next(simple_reconciler())).and(lift_state(delete_cm_req_msg_not_sent)), lift_action(next_and_invariant));
-    leads_to_stable_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_action(next_and_invariant), p, lift_state(cm_exists));
+    leads_to_stable_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_action(next_and_invariant), p, lift_state(cm_exists(cr.key)));
 }
 
 proof fn lemma_relevant_event_sent_leads_to_init_pc(msg: Message, cr_key: ResourceKey)
@@ -416,11 +314,7 @@ proof fn lemma_relevant_event_sent_leads_to_init_pc(msg: Message, cr_key: Resour
                 &&& simple_reconciler::reconcile_trigger(msg) === Option::Some(cr_key)
                 &&& !s.reconcile_state_contains(cr_key)
             })
-                .leads_to(lift_state(|s: State<SimpleReconcileState>| {
-                    &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
-                    &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-                }))
+                .leads_to(lift_state(reconciler_at_init_pc_and_no_pending_req(cr_key)))
         ),
 {
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
@@ -432,25 +326,11 @@ proof fn lemma_init_pc_leads_to_after_get_cr_pc(cr_key: ResourceKey)
         cr_key.kind.is_CustomResourceKind(),
     ensures
         sm_spec(simple_reconciler()).entails(
-            lift_state(|s: State<SimpleReconcileState>| {
-                &&& s.reconcile_state_contains(cr_key)
-                &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
-                &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-            }).leads_to(lift_state(|s: State<SimpleReconcileState>| {
-                    &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-                }))
+            lift_state(reconciler_at_init_pc_and_no_pending_req(cr_key)).leads_to(lift_state(reconciler_at_after_get_cr_pc(cr_key)))
         ),
 {
-    let pre = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-    };
-    let post = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-    };
+    let pre = reconciler_at_init_pc_and_no_pending_req(cr_key);
+    let post = reconciler_at_after_get_cr_pc(cr_key);
     let input = ControllerActionInput {
         recv: Option::None,
         scheduled_cr_key: Option::Some(cr_key),
@@ -463,41 +343,18 @@ proof fn lemma_req_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(req_
         cr_key.kind.is_CustomResourceKind(),
     ensures
         sm_spec(simple_reconciler()).entails(
-            lift_state(|s: State<SimpleReconcileState>| {
-                &&& s.reconcile_state_contains(cr_key)
-                &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-                &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg)
-                &&& is_controller_get_cr_request_msg(req_msg, cr_key)
-                &&& s.message_sent(req_msg)
-            }).leads_to(lift_state(|s: State<SimpleReconcileState>| {
-                &&& s.reconcile_state_contains(cr_key)
-                &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-            }))
+            lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_req_sent(req_msg, cr_key))
+                .leads_to(lift_state(reconciler_at_after_create_cm_pc(cr_key)))
         ),
 {
-    let pre = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg)
-        &&& is_controller_get_cr_request_msg(req_msg, cr_key)
-        &&& s.message_sent(req_msg)
-    };
-    let reconciler_at_after_get_cr_pc_and_pending_get_cr_req = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg)
-        &&& is_controller_get_cr_request_msg(req_msg, cr_key)
-    };
+    let pre = reconciler_at_after_get_cr_pc_and_pending_req_and_req_sent(req_msg, cr_key);
     let get_cr_resp_msg_sent = |s: State<SimpleReconcileState>| {
         exists |resp_msg: Message| {
             &&& #[trigger] s.message_sent(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
         }
     };
-    let reconciler_at_after_create_cm_pc = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-    };
+    let reconciler_at_after_create_cm_pc = reconciler_at_after_create_cm_pc(cr_key);
 
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
 
@@ -516,18 +373,18 @@ proof fn lemma_req_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(req_
     };
     leads_to_stable::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), next(simple_reconciler()), pre, get_cr_resp_msg_sent);
     // Now we have:
-    //  spec |= reconciler_at_after_get_cr_pc ~> reconciler_at_after_get_cr_pc_and_pending_get_cr_req
+    //  spec |= reconciler_at_after_get_cr_pc ~> reconciler_at_after_get_cr_pc_and_pending_req
     //  spec |= reconciler_at_after_get_cr_pc ~> []get_cr_resp_msg_sent
-    // And to make more progress, we need to make reconciler_at_after_get_cr_pc_and_pending_get_cr_req and get_cr_resp_msg_sent
+    // And to make more progress, we need to make reconciler_at_after_get_cr_pc_and_pending_req and get_cr_resp_msg_sent
     // both true at the same time
     // This is why we use leads_to_confluence here
-    leads_to_confluence::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), next(simple_reconciler()), pre, reconciler_at_after_get_cr_pc_and_pending_get_cr_req, get_cr_resp_msg_sent);
+    leads_to_confluence::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), next(simple_reconciler()), pre, reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr_key), get_cr_resp_msg_sent);
     // Now we have all the premise to fire the leads-to formula from lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc
     lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(req_msg, cr_key);
     leads_to_trans::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()),
         pre,
         |s| {
-            &&& reconciler_at_after_get_cr_pc_and_pending_get_cr_req(s)
+            &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr_key)(s)
             &&& get_cr_resp_msg_sent(s)
         },
         reconciler_at_after_create_cm_pc
@@ -542,28 +399,16 @@ proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(res
             lift_state(|s: State<SimpleReconcileState>| {
                 &&& s.message_sent(resp_msg)
                 &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                &&& is_controller_get_cr_request_msg(req_msg, cr_key)
-                &&& s.reconcile_state_contains(cr_key)
-                &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-                &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg)
-            }).leads_to(lift_state(|s: State<SimpleReconcileState>| {
-                    &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-                }))
+                &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr_key)(s)
+            }).leads_to(lift_state(reconciler_at_after_create_cm_pc(cr_key)))
         ),
 {
     let pre = |s: State<SimpleReconcileState>| {
         &&& s.message_sent(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& is_controller_get_cr_request_msg(req_msg, cr_key)
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg)
+        &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr_key)(s)
     };
-    let post = |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-    };
+    let post = reconciler_at_after_create_cm_pc(cr_key);
     let input = ControllerActionInput {
         recv: Option::Some(resp_msg),
         scheduled_cr_key: Option::Some(cr_key),
@@ -581,40 +426,22 @@ proof fn lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm
                     &&& #[trigger] s.message_sent(m)
                     &&& resp_msg_matches_req_msg(m, req_msg)
                 }
-            }).and(lift_state(|s: State<SimpleReconcileState>| {
-                &&& is_controller_get_cr_request_msg(req_msg, cr_key)
-                &&& s.reconcile_state_contains(cr_key)
-                &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-                &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg)
-            })).leads_to(lift_state(|s: State<SimpleReconcileState>| {
-                    &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-                }))
+            }).and(lift_state(reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr_key)))
+            .leads_to(lift_state(reconciler_at_after_create_cm_pc(cr_key)))
         ),
 {
     let m_to_pre1 = |m: Message| lift_state(|s: State<SimpleReconcileState>| {
         &&& s.message_sent(m)
         &&& resp_msg_matches_req_msg(m, req_msg)
     });
-    let pre2 = lift_state(|s: State<SimpleReconcileState>| {
-        &&& is_controller_get_cr_request_msg(req_msg, cr_key)
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg)
-    });
-    let post = lift_state(|s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
-    });
+    let pre2 = lift_state(reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr_key));
+    let post = lift_state(reconciler_at_after_create_cm_pc(cr_key));
     assert forall |msg: Message| #[trigger] sm_spec(simple_reconciler()).entails(m_to_pre1(msg).and(pre2).leads_to(post)) by {
         lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(msg, req_msg, cr_key);
         let pre = lift_state(|s: State<SimpleReconcileState>| {
             &&& s.message_sent(msg)
             &&& resp_msg_matches_req_msg(msg, req_msg)
-            &&& is_controller_get_cr_request_msg(req_msg, cr_key)
-            &&& s.reconcile_state_contains(cr_key)
-            &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-            &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg)
+            &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr_key)(s)
         });
         temp_pred_equality::<State<SimpleReconcileState>>(pre, m_to_pre1(msg).and(pre2));
     };
