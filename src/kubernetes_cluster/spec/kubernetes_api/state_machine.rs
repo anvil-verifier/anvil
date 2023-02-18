@@ -16,7 +16,7 @@ verus! {
 
 // etcd is modeled as a centralized map that handles get/create/delete
 // TODO: support list/update/statusupdate
-pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (KubernetesAPIState, Message, KubernetesAPIActionInput)
+pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, KubernetesAPIActionInput)
     recommends
         msg.content.is_APIRequest(),
 {
@@ -27,68 +27,55 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Kub
         let req = msg.get_get_request();
         if !s.resources.dom().contains(req.key) {
             // Get fails
-            let s_prime = s;
             let result = Result::Err(APIError::ObjectNotFound);
             let resp = form_get_resp_msg(msg, result, req_id);
-            (s_prime, resp, Option::None)
+            (s.resources, resp, Option::None)
         } else {
             // Get succeeds
-            let s_prime = s;
             let result = Result::Ok(s.resources[req.key]);
             let resp = form_get_resp_msg(msg, result, req_id);
-            (s_prime, resp, Option::None)
+            (s.resources, resp, Option::None)
         }
     } else if msg.is_list_request() {
         // TODO: implement list request handling
         // currently it just returns error
         let req = msg.get_list_request();
-        let s_prime = s;
         let result = Result::Err(APIError::ObjectNotFound);
         let resp = form_msg(src, dst, list_resp_msg(result, req, req_id));
-        (s_prime, resp, Option::None)
+        (s.resources, resp, Option::None)
     } else if msg.is_create_request() {
         let req = msg.get_create_request();
         if s.resources.dom().contains(req.obj.key) {
             // Creation fails
-            let s_prime = s;
             let result = Result::Err(APIError::ObjectAlreadyExists);
             let resp = form_msg(src, dst, create_resp_msg(result, req, req_id));
-            (s_prime, resp, Option::None)
+            (s.resources, resp, Option::None)
         } else {
             // Creation succeeds
-            let s_prime = KubernetesAPIState {
-                resources: s.resources.insert(req.obj.key, req.obj),
-                ..s
-            };
             let result = Result::Ok(req.obj);
             let resp = form_msg(src, dst, create_resp_msg(result, req, req_id));
             // The cluster state is updated, so we send a notification to the custom controller
             // TODO: notification should be sent to custom controller selectively
             let notify = form_msg(src, HostId::CustomController, added_event_msg(req.obj));
-            (s_prime, resp, Option::Some(notify))
+            (s.resources.insert(req.obj.key, req.obj), resp, Option::Some(notify))
         }
     } else {
         // content is DeleteRequest
         let req = msg.get_delete_request();
         if !s.resources.dom().contains(req.key) {
             // Deletion fails
-            let s_prime = s;
             let result = Result::Err(APIError::ObjectNotFound);
             let resp = form_msg(src, dst, delete_resp_msg(result, req, req_id));
-            (s_prime, resp, Option::None)
+            (s.resources, resp, Option::None)
         } else {
             // Path where deletion succeeds
             let obj_before_deletion = s.resources[req.key];
-            let s_prime = KubernetesAPIState {
-                resources: s.resources.remove(req.key),
-                ..s
-            };
             // The cluster state is updated, so we send a notification to the custom controller
             // TODO: watch event should be sent to custom controller selectively
             let result = Result::Ok(obj_before_deletion);
             let resp = form_msg(src, dst, delete_resp_msg(result, req, req_id));
             let notify = form_msg(src, HostId::CustomController, deleted_event_msg(obj_before_deletion));
-            (s_prime, resp, Option::Some(notify))
+            (s.resources.remove(req.key), resp, Option::Some(notify))
         }
     }
 }
@@ -132,11 +119,20 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
             // (b) omitting the notification stream from the datastore to apiserver then to built-in controller,
             //  and making built-in controllers immediately activated by updates to cluster state;
             // (c) baking them into one action, which makes them atomic.
-            let (s_prime, etcd_resp, etcd_notify_o) = transition_by_etcd(input.get_Some_0(), s);
+            let (etcd_state, etcd_resp, etcd_notify_o) = transition_by_etcd(input.get_Some_0(), s);
+            let s_after_etcd_transition = KubernetesAPIState {
+                resources: etcd_state,
+                ..s
+            };
             if etcd_notify_o.is_Some() {
-                let controller_requests = transition_by_builtin_controllers(etcd_notify_o.get_Some_0(), s_prime);
+                let controller_requests = transition_by_builtin_controllers(etcd_notify_o.get_Some_0(), s_after_etcd_transition);
+                let s_prime = KubernetesAPIState {
+                    req_id: s_after_etcd_transition.req_id + controller_requests.len(),
+                    ..s_after_etcd_transition
+                };
                 (s_prime, set![etcd_resp, etcd_notify_o.get_Some_0()] + controller_requests)
             } else {
+                let s_prime = s_after_etcd_transition;
                 (s_prime, set![etcd_resp])
             }
         },
@@ -146,6 +142,7 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
 pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine {
     StateMachine {
         init: |s: KubernetesAPIState| s === KubernetesAPIState {
+            req_id: 0,
             resources: Map::empty(),
         },
         actions: set![handle_request()],

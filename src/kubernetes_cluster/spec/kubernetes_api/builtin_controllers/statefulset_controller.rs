@@ -16,22 +16,21 @@ pub open spec fn transition_by_statefulset_controller(msg: Message, s: Kubernete
     // Here dst is also KubernetesAPI because etcd, apiserver and built-in controllers are all in the same state machine.
     // In reality, the message is sent from the built-in controller to apiserver then to etcd.
 
-    // TODO: assign req id to the requests
     let dst = HostId::KubernetesAPI;
     if msg.is_watch_event_of_kind(ResourceKind::StatefulSetKind) {
         if msg.is_added_event() {
             let obj = msg.get_added_event().obj;
             set![
-                form_msg(src, dst, create_req_msg(ResourceObj{key: ResourceKey{name: obj.key.name + pod_suffix(), namespace: obj.key.namespace, kind: ResourceKind::PodKind}}, 0)),
-                form_msg(src, dst, create_req_msg(ResourceObj{key: ResourceKey{name: obj.key.name + vol_suffix(), namespace: obj.key.namespace, kind: ResourceKind::VolumeKind}}, 0))
+                form_msg(src, dst, create_req_msg(ResourceObj{key: ResourceKey{name: obj.key.name + pod_suffix(), namespace: obj.key.namespace, kind: ResourceKind::PodKind}}, s.req_id)),
+                form_msg(src, dst, create_req_msg(ResourceObj{key: ResourceKey{name: obj.key.name + vol_suffix(), namespace: obj.key.namespace, kind: ResourceKind::VolumeKind}}, s.req_id + 1))
             ]
         } else if msg.is_modified_event() {
             set![]
         } else {
             let obj = msg.get_deleted_event().obj;
             set![
-                    form_msg(src, dst, delete_req_msg(ResourceKey{name: obj.key.name + pod_suffix(), namespace: obj.key.namespace, kind: ResourceKind::PodKind}, 0)),
-                    form_msg(src, dst, delete_req_msg(ResourceKey{name: obj.key.name + vol_suffix(), namespace: obj.key.namespace, kind: ResourceKind::VolumeKind}, 0))
+                    form_msg(src, dst, delete_req_msg(ResourceKey{name: obj.key.name + pod_suffix(), namespace: obj.key.namespace, kind: ResourceKind::PodKind}, s.req_id)),
+                    form_msg(src, dst, delete_req_msg(ResourceKey{name: obj.key.name + vol_suffix(), namespace: obj.key.namespace, kind: ResourceKind::VolumeKind}, s.req_id + 1))
                 ]
         }
     } else {
