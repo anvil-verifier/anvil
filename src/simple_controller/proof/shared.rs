@@ -109,6 +109,16 @@ pub open spec fn reconciler_reconcile_done(cr_key: ResourceKey) -> StatePred<Sta
     }
 }
 
+pub open spec fn reconciler_reconcile_error(cr_key: ResourceKey) -> StatePred<State<SimpleReconcileState>>
+    recommends
+        cr_key.kind.is_CustomResourceKind(),
+{
+    |s: State<SimpleReconcileState>| {
+        &&& s.reconcile_state_contains(cr_key)
+        &&& (simple_reconciler().reconcile_error)(s.reconcile_state_of(cr_key).local_state)
+    }
+}
+
 pub open spec fn cm_exists(cr_key: ResourceKey) -> StatePred<State<SimpleReconcileState>>
     recommends
         cr_key.kind.is_CustomResourceKind(),

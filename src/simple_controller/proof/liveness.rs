@@ -136,6 +136,7 @@ proof fn lemma_controller_in_reconcile_leads_to_cm_always_exists(cr: ResourceObj
     lemma_after_get_cr_pc_leads_to_cm_always_exists(cr); // reconciler_at_after_get_cr_pc ~> []cm_exists
     lemma_after_create_cm_pc_leads_to_cm_always_exists(cr); // reconciler_at_after_create_cm_pc ~> []cm_exists
     lemma_reconcile_done_leads_to_cm_always_exists(cr); // reconciler_reconcile_done ~> []cm_exists
+    lemma_reconcile_error_leads_to_cm_always_exists(cr); // reconciler_reconcile_done ~> []cm_exists
 
     // Now we combine the four cases together
     // and we will get s.reconcile_state_contains(cr.key) ~> []cm_exists
@@ -150,6 +151,16 @@ proof fn lemma_controller_in_reconcile_leads_to_cm_always_exists(cr: ResourceObj
             ||| reconciler_at_after_create_cm_pc(cr.key)(s)
             ||| reconciler_reconcile_done(cr.key)(s)
         }),
+        always(lift_state(cm_exists(cr.key)))
+    );
+    or_leads_to_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()),
+        lift_state(|s: State<SimpleReconcileState>| {
+            ||| reconciler_at_init_pc(cr.key)(s)
+            ||| reconciler_at_after_get_cr_pc(cr.key)(s)
+            ||| reconciler_at_after_create_cm_pc(cr.key)(s)
+            ||| reconciler_reconcile_done(cr.key)(s)
+        }),
+        lift_state(reconciler_reconcile_error(cr.key)),
         always(lift_state(cm_exists(cr.key)))
     );
 }
@@ -272,6 +283,22 @@ proof fn lemma_reconcile_done_leads_to_cm_always_exists(cr: ResourceObj)
     controller_runtime_liveness::lemma_reconcile_done_leads_to_reconcile_triggered::<SimpleReconcileState>(simple_reconciler(), cr.key);
     lemma_init_pc_leads_to_cm_always_exists(cr);
     leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconciler_reconcile_done(cr.key)), lift_state(reconciler_at_init_pc(cr.key)), always(lift_state(cm_exists(cr.key))));
+}
+
+proof fn lemma_reconcile_error_leads_to_cm_always_exists(cr: ResourceObj)
+    requires
+        cr.key.kind.is_CustomResourceKind(),
+    ensures
+        sm_spec(simple_reconciler()).entails(
+            lift_state(reconciler_reconcile_error(cr.key))
+            .leads_to(always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
+        ),
+{
+    leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
+
+    controller_runtime_liveness::lemma_reconcile_error_leads_to_reconcile_triggered::<SimpleReconcileState>(simple_reconciler(), cr.key);
+    lemma_init_pc_leads_to_cm_always_exists(cr);
+    leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconciler_reconcile_error(cr.key)), lift_state(reconciler_at_init_pc(cr.key)), always(lift_state(cm_exists(cr.key))));
 }
 
 proof fn lemma_p_leads_to_cm_always_exists(cr: ResourceObj, p: TempPred<State<SimpleReconcileState>>)

@@ -26,6 +26,7 @@ pub open spec fn simple_reconciler() -> Reconciler<SimpleReconcileState> {
         reconcile_trigger: |msg: Message| reconcile_trigger(msg),
         reconcile_core: |cr_key: ResourceKey, resp_o: Option<APIResponse>, state: SimpleReconcileState| reconcile_core(cr_key, resp_o, state),
         reconcile_done: |state: SimpleReconcileState| reconcile_done(state),
+        reconcile_error: |state: SimpleReconcileState| reconcile_error(state),
     }
 }
 
@@ -81,8 +82,13 @@ pub open spec fn reconcile_core(cr_key: ResourceKey, resp_o: Option<APIResponse>
 }
 
 pub open spec fn reconcile_done(state: SimpleReconcileState) -> bool {
+    state.reconcile_pc === after_create_cm_pc()
+}
+
+pub open spec fn reconcile_error(state: SimpleReconcileState) -> bool {
     &&& state.reconcile_pc !== init_pc()
     &&& state.reconcile_pc !== after_get_cr_pc()
+    &&& state.reconcile_pc !== after_create_cm_pc()
 }
 
 pub open spec fn init_pc() -> nat { 0 }

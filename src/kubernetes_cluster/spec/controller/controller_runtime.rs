@@ -82,6 +82,7 @@ pub open spec fn continue_reconcile<T>(reconciler: Reconciler<T>) -> ControllerA
 
                 &&& s.ongoing_reconciles.dom().contains(cr_key)
                 &&& !(reconciler.reconcile_done)(s.ongoing_reconciles[cr_key].local_state)
+                &&& !(reconciler.reconcile_error)(s.ongoing_reconciles[cr_key].local_state)
                 &&& if input.recv.is_Some() {
                     &&& input.recv.get_Some_0().content.is_APIResponse()
                     &&& s.ongoing_reconciles[cr_key].pending_req_msg.is_Some()
@@ -136,7 +137,7 @@ pub open spec fn end_reconcile<T>(reconciler: Reconciler<T>) -> ControllerAction
                 let cr_key = input.scheduled_cr_key.get_Some_0();
 
                 &&& s.ongoing_reconciles.dom().contains(cr_key)
-                &&& (reconciler.reconcile_done)(s.ongoing_reconciles[cr_key].local_state)
+                &&& ((reconciler.reconcile_done)(s.ongoing_reconciles[cr_key].local_state) || (reconciler.reconcile_error)(s.ongoing_reconciles[cr_key].local_state))
                 &&& input.recv.is_None()
             } else {
                 false
