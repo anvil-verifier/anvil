@@ -204,6 +204,7 @@ proof fn lemma_after_get_cr_pc_leads_to_cm_always_exists(cr: ResourceObj)
 
     let reconciler_at_after_get_cr_pc_implies_pending_req_and_req_sent = safety::lemma_always_reconcile_get_cr_done_implies_pending_get_cr_req(cr.key);
 
+    // TODO: there should be a way to avoid unfolding here using some lemma. Will investigate later
     assert forall |ex| #[trigger] sm_spec(simple_reconciler()).satisfied_by(ex) implies lift_state(reconciler_at_after_get_cr_pc(cr.key)).leads_to(lift_state(reconciler_at_after_create_cm_pc(cr.key))).satisfied_by(ex) by {
         assert forall |i| #[trigger] lift_state(reconciler_at_after_get_cr_pc(cr.key)).satisfied_by(ex.suffix(i)) implies eventually(lift_state(reconciler_at_after_create_cm_pc(cr.key))).satisfied_by(ex.suffix(i)) by {
             let pre = |req_msg: Message| reconciler_at_after_get_cr_pc_and_pending_req_and_req_sent(req_msg, cr.key);
