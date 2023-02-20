@@ -5,20 +5,31 @@ metadata:
 spec:
   group: anvil.dev
   names:
+    categories: []
     kind: SimpleCR
     plural: simplecrs
+    shortNames:
+      - cr
     singular: simplecr
   scope: Namespaced
   versions:
-  - name: v1
-    served: true
-    storage: true
-    schema:
-      openAPIV3Schema:
-        type: object
-        properties:
-          spec:
-            type: object
-            properties:
-              content:
-                type: string
+    - additionalPrinterColumns: []
+      name: v1
+      schema:
+        openAPIV3Schema:
+          description: "Auto-generated derived type for SimpleCRSpec via `CustomResource`"
+          properties:
+            spec:
+              properties:
+                content:
+                  type: string
+              required:
+                - content
+              type: object
+          required:
+            - spec
+          title: SimpleCR
+          type: object
+      served: true
+      storage: true
+      subresources: {}

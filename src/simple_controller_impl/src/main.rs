@@ -7,7 +7,7 @@ use k8s_openapi::api::core::v1::ConfigMap;
 use kube::{
     api::{Api, ListParams, ObjectMeta, PostParams},
     runtime::controller::{Action, Controller},
-    Client, CustomResource,
+    Client, CustomResource, CustomResourceExt,
 };
 use kube_client;
 use schemars::JsonSchema;
@@ -26,7 +26,9 @@ enum Error {
 #[derive(CustomResource, Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[kube(group = "anvil.dev", version = "v1", kind = "SimpleCR")]
 #[kube(shortname = "cr", namespaced)]
-struct SimpleCRSpec {}
+struct SimpleCRSpec {
+    pub content: String,
+}
 
 // The local state used in each reconcile core invocation
 // It is very simple and only has a pc
@@ -186,6 +188,11 @@ async fn main() -> Result<()> {
     let client = Client::try_default().await?;
 
     let crs = Api::<SimpleCR>::all(client.clone());
+
+    println!(
+        "Simple CRD:\n{}\n",
+        serde_yaml::to_string(&SimpleCR::crd())?
+    );
 
     info!("starting simple-controller");
 
