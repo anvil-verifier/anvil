@@ -364,7 +364,7 @@ proof fn lemma_init_pc_leads_to_after_get_cr_pc(cr_key: ResourceKey)
         recv: Option::None,
         scheduled_cr_key: Option::Some(cr_key),
     };
-    controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(simple_reconciler(), input, continue_reconcile(simple_reconciler()), pre, post);
+    controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(simple_reconciler(), input, next(simple_reconciler()), continue_reconcile(simple_reconciler()), pre, post);
 }
 
 proof fn lemma_req_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(req_msg: Message, cr_key: ResourceKey)
@@ -442,7 +442,7 @@ proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(res
         recv: Option::Some(resp_msg),
         scheduled_cr_key: Option::Some(cr_key),
     };
-    controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(simple_reconciler(), input, continue_reconcile(simple_reconciler()), pre, post);
+    controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(simple_reconciler(), input, next(simple_reconciler()), continue_reconcile(simple_reconciler()), pre, post);
 }
 
 proof fn lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(req_msg: Message, cr_key: ResourceKey)

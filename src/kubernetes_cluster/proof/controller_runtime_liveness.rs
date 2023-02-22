@@ -22,12 +22,13 @@ use builtin_macros::*;
 
 verus! {
 
-pub proof fn lemma_pre_leads_to_post_by_controller<T>(reconciler: Reconciler<T>, input: ControllerActionInput, action: ControllerAction<T>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
+pub proof fn lemma_pre_leads_to_post_by_controller<T>(reconciler: Reconciler<T>, input: ControllerActionInput, next: ActionPred<State<T>>, action: ControllerAction<T>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         controller(reconciler).actions.contains(action),
-        forall |s, s_prime: State<T>| pre(s) && #[trigger] next(reconciler)(s, s_prime) ==> pre(s_prime) || post(s_prime),
-        forall |s, s_prime: State<T>| pre(s) && #[trigger] next(reconciler)(s, s_prime) && controller_next(reconciler).forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
+        forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) && controller_next(reconciler).forward(input)(s, s_prime) ==> post(s_prime),
         forall |s: State<T>| #[trigger] pre(s) ==> controller_action_pre(reconciler, action, input)(s),
+        sm_spec(reconciler).entails(always(lift_action(next))),
     ensures
         sm_spec(reconciler).entails(lift_state(pre).leads_to(lift_state(post))),
 {
@@ -36,15 +37,16 @@ pub proof fn lemma_pre_leads_to_post_by_controller<T>(reconciler: Reconciler<T>,
     controller_action_pre_implies_next_pre::<T>(reconciler, action, input);
     valid_implies_trans::<State<T>>(lift_state(pre), lift_state(controller_action_pre(reconciler, action, input)), lift_state(controller_next(reconciler).pre(input)));
 
-    controller_next(reconciler).wf1(input, sm_spec(reconciler), next(reconciler), pre, post);
+    controller_next(reconciler).wf1(input, sm_spec(reconciler), next, pre, post);
 }
 
-pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<T>(reconciler: Reconciler<T>, input: ControllerActionInput, action: ControllerAction<T>, assumption: StatePred<State<T>>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
+pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<T>(reconciler: Reconciler<T>, input: ControllerActionInput, next: ActionPred<State<T>>, action: ControllerAction<T>, assumption: StatePred<State<T>>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         controller(reconciler).actions.contains(action),
-        forall |s, s_prime: State<T>| pre(s) && #[trigger] next(reconciler)(s, s_prime) && assumption(s) ==> pre(s_prime) || post(s_prime),
-        forall |s, s_prime: State<T>| pre(s) && #[trigger] next(reconciler)(s, s_prime) && controller_next(reconciler).forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) && assumption(s) ==> pre(s_prime) || post(s_prime),
+        forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) && controller_next(reconciler).forward(input)(s, s_prime) ==> post(s_prime),
         forall |s: State<T>| #[trigger] pre(s) ==> controller_action_pre(reconciler, action, input)(s),
+        sm_spec(reconciler).entails(always(lift_action(next))),
     ensures
         sm_spec(reconciler).entails(lift_state(pre).and(always(lift_state(assumption))).leads_to(lift_state(post))),
 {
@@ -53,7 +55,7 @@ pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<T>(reconciler
     controller_action_pre_implies_next_pre::<T>(reconciler, action, input);
     valid_implies_trans::<State<T>>(lift_state(pre), lift_state(controller_action_pre(reconciler, action, input)), lift_state(controller_next(reconciler).pre(input)));
 
-    controller_next(reconciler).wf1_assume(input, sm_spec(reconciler), next(reconciler), assumption, pre, post);
+    controller_next(reconciler).wf1_assume(input, sm_spec(reconciler), next, assumption, pre, post);
 }
 
 pub proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered<T>(reconciler: Reconciler<T>, msg: Message, cr_key: ResourceKey)
@@ -91,7 +93,7 @@ pub proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered<T>(reconcile
         recv: Option::Some(msg),
         scheduled_cr_key: Option::None,
     };
-    lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, trigger_reconcile(reconciler), pre, post);
+    lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, next(reconciler), trigger_reconcile(reconciler), pre, post);
 }
 
 pub proof fn lemma_reconcile_done_leads_to_reconcile_scheduled<T>(reconciler: Reconciler<T>, cr_key: ResourceKey)
@@ -121,7 +123,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_scheduled<T>(reconciler: Re
         recv: Option::None,
         scheduled_cr_key: Option::Some(cr_key),
     };
-    lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, end_reconcile(reconciler), pre, post);
+    lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, next(reconciler), end_reconcile(reconciler), pre, post);
 }
 
 pub proof fn lemma_reconcile_error_leads_to_reconcile_scheduled<T>(reconciler: Reconciler<T>, cr_key: ResourceKey)
@@ -151,7 +153,7 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_scheduled<T>(reconciler: R
         recv: Option::None,
         scheduled_cr_key: Option::Some(cr_key),
     };
-    lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, end_reconcile(reconciler), pre, post);
+    lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, next(reconciler), end_reconcile(reconciler), pre, post);
 }
 
 pub proof fn lemma_scheduled_reconcile_leads_to_init<T>(reconciler: Reconciler<T>, cr_key: ResourceKey)
@@ -183,7 +185,7 @@ pub proof fn lemma_scheduled_reconcile_leads_to_init<T>(reconciler: Reconciler<T
         recv: Option::None,
         scheduled_cr_key: Option::Some(cr_key),
     };
-    lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, run_scheduled_reconcile(reconciler), pre, post);
+    lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, next(reconciler), run_scheduled_reconcile(reconciler), pre, post);
 }
 
 pub proof fn lemma_reconcile_done_leads_to_reconcile_triggered<T>(reconciler: Reconciler<T>, cr_key: ResourceKey)
