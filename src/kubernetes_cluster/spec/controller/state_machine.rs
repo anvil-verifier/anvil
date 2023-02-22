@@ -17,6 +17,7 @@ pub open spec fn controller<T>(reconciler: Reconciler<T>) -> ControllerStateMach
     StateMachine {
         init: |s: ControllerState<T>| {
             s === ControllerState {
+                req_id: 0,
                 ongoing_reconciles: Map::empty(),
                 scheduled_reconciles: Set::empty(),
             }

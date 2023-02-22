@@ -29,9 +29,13 @@ pub struct Reconciler<#[verifier(maybe_negative)] T> {
     // and outputs the next local state and the request to send to Kubernetes API (if any).
     pub reconcile_core: ReconcileCore<T>,
 
-    // reconcile_done is used to tell the controller_runtime whether the reconcile function finishes.
-    // If it is true, controller_runtime will cleans up its local state and probably requeue the reconcile.
+    // reconcile_done is used to tell the controller_runtime whether this reconcile round is done.
+    // If it is true, controller_runtime will probably requeue the reconcile.
     pub reconcile_done: ReconcileDone<T>,
+
+    // reconcile_error is used to tell the controller_runtime whether this reconcile round returns with error.
+    // If it is true, controller_runtime will requeue the reconcile.
+    pub reconcile_error: ReconcileError<T>,
 }
 
 pub type ReconcileInitState<T> = FnSpec() -> T;
@@ -41,5 +45,7 @@ pub type ReconcileTrigger = FnSpec(Message) -> Option<ResourceKey>;
 pub type ReconcileCore<T> = FnSpec(ResourceKey, Option<APIResponse>, T) -> (T, Option<APIRequest>);
 
 pub type ReconcileDone<T> = FnSpec(T) -> bool;
+
+pub type ReconcileError<T> = FnSpec(T) -> bool;
 
 }

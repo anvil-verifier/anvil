@@ -16,6 +16,7 @@ pub struct OngoingReconcile<T> {
 }
 
 pub struct ControllerState<T> {
+    pub req_id: nat,
     pub ongoing_reconciles: Map<ResourceKey, OngoingReconcile<T>>,
     pub scheduled_reconciles: Set<ResourceKey>,
 }
@@ -39,8 +40,8 @@ pub type ControllerAction<T> = Action<ControllerState<T>, ControllerActionInput,
 
 pub type ControllerActionResult<T> = ActionResult<ControllerState<T>, Set<Message>>;
 
-pub open spec fn controller_req_msg(req: APIRequest) -> Message {
-    form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req))
+pub open spec fn controller_req_msg(req: APIRequest, req_id: nat) -> Message {
+    form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req, req_id))
 }
 
 }

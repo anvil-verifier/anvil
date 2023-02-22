@@ -107,8 +107,8 @@ pub enum WatchEvent {
 
 #[is_variant]
 pub enum MessageContent {
-    APIRequest(APIRequest),
-    APIResponse(APIResponse),
+    APIRequest(APIRequest, nat),
+    APIResponse(APIResponse, nat),
     WatchEvent(WatchEvent),
 }
 
@@ -193,6 +193,13 @@ impl Message {
         self.content.get_APIRequest_0().get_DeleteRequest_0()
     }
 
+    pub open spec fn get_req_id(self) -> nat
+        recommends
+            self.content.is_APIRequest()
+    {
+        self.content.get_APIRequest_1()
+    }
+
     pub open spec fn is_get_response(self) -> bool {
         &&& self.content.is_APIResponse()
         &&& self.content.get_APIResponse_0().is_GetResponse()
@@ -227,6 +234,13 @@ impl Message {
             self.is_delete_response()
     {
         self.content.get_APIResponse_0().get_DeleteResponse_0()
+    }
+
+    pub open spec fn get_resp_id(self) -> nat
+        recommends
+            self.content.is_APIResponse()
+    {
+        self.content.get_APIResponse_1()
     }
 
     pub open spec fn is_watch_event_of_kind(self, kind: ResourceKind) -> bool {
@@ -315,6 +329,7 @@ pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -
     &&& resp_msg.dst === req_msg.src
     &&& resp_msg.src === req_msg.dst
     &&& resp_matches_req(resp_msg.content.get_APIResponse_0(), req_msg.content.get_APIRequest_0())
+    &&& resp_msg.content.get_APIResponse_1() === req_msg.content.get_APIRequest_1()
 }
 
 pub open spec fn cm_suffix() -> Seq<char> {
@@ -345,10 +360,10 @@ pub open spec fn form_msg(src: HostId, dst: HostId, msg_content: MessageContent)
     }
 }
 
-pub open spec fn form_get_resp_msg(req_msg: Message, result: Result<ResourceObj, APIError>) -> Message
+pub open spec fn form_get_resp_msg(req_msg: Message, result: Result<ResourceObj, APIError>, resp_id: nat) -> Message
     recommends req_msg.is_get_request(),
 {
-    form_msg(req_msg.dst, req_msg.src, get_resp_msg(result, req_msg.get_get_request()))
+    form_msg(req_msg.dst, req_msg.src, get_resp_msg(result, req_msg.get_get_request(), resp_id))
 }
 
 pub open spec fn added_event_msg(obj: ResourceObj) -> MessageContent {
@@ -369,16 +384,16 @@ pub open spec fn deleted_event_msg(obj: ResourceObj) -> MessageContent {
     }))
 }
 
-pub open spec fn get_req_msg(key: ResourceKey) -> MessageContent {
+pub open spec fn get_req_msg(key: ResourceKey, req_id: nat) -> MessageContent {
     MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{
         key: key,
-    }))
+    }), req_id)
 }
 
-pub open spec fn list_req_msg(kind: ResourceKind) -> MessageContent {
+pub open spec fn list_req_msg(kind: ResourceKind, req_id: nat) -> MessageContent {
     MessageContent::APIRequest(APIRequest::ListRequest(ListRequest{
         kind: kind,
-    }))
+    }), req_id)
 }
 
 pub open spec fn create_req(obj: ResourceObj) -> APIRequest {
@@ -387,8 +402,8 @@ pub open spec fn create_req(obj: ResourceObj) -> APIRequest {
     })
 }
 
-pub open spec fn create_req_msg(obj: ResourceObj) -> MessageContent {
-    MessageContent::APIRequest(create_req(obj))
+pub open spec fn create_req_msg(obj: ResourceObj, req_id: nat) -> MessageContent {
+    MessageContent::APIRequest(create_req(obj), req_id)
 }
 
 pub open spec fn delete_req(key: ResourceKey) -> APIRequest {
@@ -397,36 +412,36 @@ pub open spec fn delete_req(key: ResourceKey) -> APIRequest {
     })
 }
 
-pub open spec fn delete_req_msg(key: ResourceKey) -> MessageContent {
-    MessageContent::APIRequest(delete_req(key))
+pub open spec fn delete_req_msg(key: ResourceKey, req_id: nat) -> MessageContent {
+    MessageContent::APIRequest(delete_req(key), req_id)
 }
 
-pub open spec fn get_resp_msg(res: Result<ResourceObj, APIError>, req: GetRequest) -> MessageContent {
+pub open spec fn get_resp_msg(res: Result<ResourceObj, APIError>, req: GetRequest, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::GetResponse(GetResponse{
         res: res,
         req: req,
-    }))
+    }), resp_id)
 }
 
-pub open spec fn list_resp_msg(res: Result<Seq<ResourceObj>, APIError>, req: ListRequest) -> MessageContent {
+pub open spec fn list_resp_msg(res: Result<Seq<ResourceObj>, APIError>, req: ListRequest, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::ListResponse(ListResponse{
         res: res,
         req: req,
-    }))
+    }), resp_id)
 }
 
-pub open spec fn create_resp_msg(res: Result<ResourceObj, APIError>, req: CreateRequest) -> MessageContent {
+pub open spec fn create_resp_msg(res: Result<ResourceObj, APIError>, req: CreateRequest, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::CreateResponse(CreateResponse{
         res: res,
         req: req,
-    }))
+    }), resp_id)
 }
 
-pub open spec fn delete_resp_msg(res: Result<ResourceObj, APIError>, req: DeleteRequest) -> MessageContent {
+pub open spec fn delete_resp_msg(res: Result<ResourceObj, APIError>, req: DeleteRequest, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::DeleteResponse(DeleteResponse{
         res: res,
         req: req,
-    }))
+    }), resp_id)
 }
 
 pub open spec fn msg_pred_call(msg_pred: FnSpec(Message) -> bool, m: Message) -> bool {

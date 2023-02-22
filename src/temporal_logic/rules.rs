@@ -511,6 +511,28 @@ proof fn confluence_at_some_point<T>(ex: Execution<T>, next: TempPred<T>, p: Tem
 /// All the lemmas above are used internally for proving the lemmas below
 /// The following lemmas are used by developers to simplify liveness/safety proof
 
+pub proof fn instantiate_entailed_always<T>(ex: Execution<T>, i: nat, spec: TempPred<T>, p: TempPred<T>)
+    requires
+        spec.satisfied_by(ex),
+        spec.implies(always(p)).satisfied_by(ex),
+    ensures
+        p.satisfied_by(ex.suffix(i)),
+{
+    implies_apply::<T>(ex, spec, always(p));
+    always_unfold::<T>(ex, p);
+}
+
+pub proof fn instantiate_entailed_leads_to<T>(ex: Execution<T>, i: nat, spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.satisfied_by(ex),
+        spec.implies(p.leads_to(q)).satisfied_by(ex),
+    ensures
+        p.implies(eventually(q)).satisfied_by(ex.suffix(i)),
+{
+    implies_apply::<T>(ex, spec, p.leads_to(q));
+    leads_to_unfold::<T>(ex, p, q);
+}
+
 pub proof fn execution_equality<T>(ex1: Execution<T>, ex2: Execution<T>)
     requires
         forall |i: nat| #[trigger] (ex1.nat_to_state)(i) === (ex2.nat_to_state)(i),
@@ -743,6 +765,16 @@ pub proof fn tla_forall_implies_equality2<T, A>(p: TempPred<T>, a_to_q: FnSpec(A
     temp_pred_equality::<T>(tla_forall(|a: A| p.implies(a_to_q(a))), tla_forall(|a: A| a_to_q(a).or(not(p))));
     tla_forall_or_equality::<T, A>(a_to_q, not(p));
     temp_pred_equality::<T>(tla_forall(a_to_q).or(not(p)), p.implies(tla_forall(a_to_q)));
+}
+
+pub proof fn tla_exists_implies_equality1<T, A>(p: TempPred<T>, a_to_q: FnSpec(A) -> TempPred<T>)
+    ensures
+        tla_exists(|a: A| p.implies(a_to_q(a))) === p.implies(tla_exists(a_to_q)),
+{
+    a_to_temp_pred_equality::<T, A>(|a: A| p.implies(a_to_q(a)), |a: A| a_to_q(a).or(not(p)));
+    temp_pred_equality::<T>(tla_exists(|a: A| p.implies(a_to_q(a))), tla_exists(|a: A| a_to_q(a).or(not(p))));
+    tla_exists_or_equality::<T, A>(a_to_q, not(p));
+    temp_pred_equality::<T>(tla_exists(a_to_q).or(not(p)), p.implies(tla_exists(a_to_q)));
 }
 
 pub proof fn tla_forall_leads_to_equality1<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
