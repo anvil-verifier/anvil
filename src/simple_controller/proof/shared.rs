@@ -76,6 +76,16 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_req_sent(msg:
     }
 }
 
+pub open spec fn get_cr_req_sent(msg: Message, cr_key: ResourceKey) -> StatePred<State<SimpleReconcileState>>
+    recommends
+        cr_key.kind.is_CustomResourceKind(),
+{
+    |s: State<SimpleReconcileState>| {
+        &&& is_controller_get_cr_request_msg(msg, cr_key)
+        &&& s.message_sent(msg)
+    }
+}
+
 pub open spec fn reconciler_at_after_create_cm_pc(cr_key: ResourceKey) -> StatePred<State<SimpleReconcileState>>
     recommends
         cr_key.kind.is_CustomResourceKind(),

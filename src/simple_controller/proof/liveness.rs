@@ -390,24 +390,12 @@ proof fn lemma_req_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(req_
     leads_to_self::<State<SimpleReconcileState>>(pre);
 
     kubernetes_api_liveness::lemma_get_req_leads_to_some_resp::<SimpleReconcileState>(simple_reconciler(), req_msg, cr_key);
-    // It is quite obvious that get_cr_resp_msg_sent is stable since we never remove a message from the network sent set
-    // But we still need to prove it by providing a witness because of "exists" in get_cr_resp_msg_sent
-    // Note that we want to prove it is stable because we want to use leads_to_confluence later
-    assert forall |s, s_prime: State<SimpleReconcileState>| get_cr_resp_msg_sent(s) && !reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr_key)(s) && #[trigger] next(simple_reconciler())(s, s_prime)
-    implies get_cr_resp_msg_sent(s_prime) by {
-        let msg = choose |m: Message| {
-            &&& #[trigger] s.message_sent(m)
-            &&& resp_msg_matches_req_msg(m, req_msg)
-        };
-        assert(s_prime.message_sent(msg));
-    };
+
     // Now we have:
-    //  spec |= reconciler_at_after_get_cr_pc ~> reconciler_at_after_get_cr_pc_and_pending_req
-    //  spec |= reconciler_at_after_get_cr_pc ~> []get_cr_resp_msg_sent
-    // And to make more progress, we need to make reconciler_at_after_get_cr_pc_and_pending_req and get_cr_resp_msg_sent
-    // both true at the same time
-    // This is why we use leads_to_confluence here
-    leads_to_confluence::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), next(simple_reconciler()), pre, reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr_key), get_cr_resp_msg_sent);
+    //  spec |= pre ~> reconciler_at_after_get_cr_pc_and_pending_req /\ get_cr_req_sent
+    //  spec |= get_cr_req_sent ~> get_cr_resp_msg_sent
+    // By applying leads_to_partial_confluence, we will get spec |= pre ~> reconciler_at_after_get_cr_pc_and_pending_req /\ get_cr_resp_msg_sent
+    leads_to_partial_confluence::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), next(simple_reconciler()), pre, reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr_key), get_cr_req_sent(req_msg, cr_key), get_cr_resp_msg_sent);
     // Now we have all the premise to fire the leads-to formula from lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc
     lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(req_msg, cr_key);
     leads_to_trans::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()),

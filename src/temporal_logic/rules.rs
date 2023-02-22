@@ -1077,7 +1077,7 @@ pub proof fn wf1_assume<T>(spec: TempPred<T>, next: ActionPred<T>, forward: Acti
     wf1_variant_assume_temp::<T>(spec, lift_action(next), lift_action(forward), lift_state(asm), lift_state(p), lift_state(q));
 }
 
-/// Leads to q and r if q and r wait for each other
+/// Leads to q and r if (1) p leads to q, (2) p leads to r, (3) ~r and next preserve q and (4) ~q and next preserve r
 /// pre:
 ///     spec |= [](q /\ ~r /\ next => q')
 ///     spec |= [](r /\ ~q /\ next => r')
@@ -1156,6 +1156,68 @@ pub proof fn leads_to_confluence<T>(spec: TempPred<T>, next: ActionPred<T>, p: S
         spec.entails(lift_state(p).leads_to(lift_state(q).and(lift_state(r)))),
 {
     leads_to_confluence_temp::<T>(spec, lift_action(next), lift_state(p), lift_state(q), lift_state(r));
+}
+
+/// Leads to q and r2 if (1) p leads to q and r1, (2) r1 leads to r2 and (3) ~r2 and next preserve q
+/// pre:
+///     spec |= [](q /\ ~r2 /\ next => q')
+///     spec |= p ~> q /\ r1
+///     spec |= r1 ~> r2
+///     spec |= []next
+/// post:
+///     spec |= p ~> q /\ r2
+pub proof fn leads_to_partial_confluence_temp<T>(spec: TempPred<T>, next: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r1: TempPred<T>, r2: TempPred<T>)
+    requires
+        spec.entails(always(q.and(not(r2)).and(next).implies(later(q)))),
+        spec.entails(p.leads_to(q.and(r1))),
+        spec.entails(r1.leads_to(r2)),
+        spec.entails(always(next)),
+    ensures
+        spec.entails(p.leads_to(q.and(r2))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(q.and(r2)).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(q.and(r2)).satisfied_by(ex.suffix(i)) by {
+            implies_apply::<T>(ex, spec, always(next));
+
+            implies_apply::<T>(ex, spec, always(q.and(not(r2)).and(next).implies(later(q))));
+
+            implies_apply::<T>(ex, spec, p.leads_to(q.and(r1)));
+            leads_to_unfold::<T>(ex, p, q.and(r1));
+            implies_apply::<T>(ex.suffix(i), p, eventually(q.and(r1)));
+            let q_and_r1_idx = eventually_choose_witness::<T>(ex.suffix(i), q.and(r1));
+
+            execution_equality::<T>(ex.suffix(i).suffix(q_and_r1_idx), ex.suffix(i + q_and_r1_idx));
+
+            implies_apply::<T>(ex, spec, r1.leads_to(r2));
+            leads_to_unfold::<T>(ex, r1, r2);
+            implies_apply::<T>(ex.suffix(i + q_and_r1_idx), r1, eventually(r2));
+            let r2_idx = eventually_choose_witness::<T>(ex.suffix(i + q_and_r1_idx), r2);
+
+            always_propagate_forwards::<T>(ex, next, i + q_and_r1_idx);
+            execution_equality::<T>(ex.suffix(i + q_and_r1_idx), ex.suffix(i).suffix(q_and_r1_idx));
+
+            always_propagate_forwards::<T>(ex, q.and(not(r2)).and(next).implies(later(q)), i + q_and_r1_idx);
+            execution_equality::<T>(ex.suffix(i + q_and_r1_idx), ex.suffix(i).suffix(q_and_r1_idx));
+
+            confluence_at_some_point(ex.suffix(i).suffix(q_and_r1_idx), next, q, r2, r2_idx);
+            let idx = choose |idx| q.and(r2).satisfied_by(#[trigger] ex.suffix(i).suffix(q_and_r1_idx).suffix(idx));
+            execution_equality::<T>(ex.suffix(i).suffix(q_and_r1_idx + idx), ex.suffix(i).suffix(q_and_r1_idx).suffix(idx));
+            eventually_proved_by_witness::<T>(ex.suffix(i), q.and(r2), q_and_r1_idx + idx);
+        }
+    }
+}
+
+/// StatePred version of leads_to_partial_confluence_temp
+pub proof fn leads_to_partial_confluence<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>, r1: StatePred<T>, r2: StatePred<T>)
+    requires
+        forall |s, s_prime: T| q(s) && !r2(s) && #[trigger] next(s, s_prime) ==> q(s_prime),
+        spec.entails(lift_state(p).leads_to(lift_state(q).and(lift_state(r1)))),
+        spec.entails(lift_state(r1).leads_to(lift_state(r2))),
+        spec.entails(always(lift_action(next))),
+    ensures
+        spec.entails(lift_state(p).leads_to(lift_state(q).and(lift_state(r2)))),
+{
+    leads_to_partial_confluence_temp::<T>(spec, lift_action(next), lift_state(p), lift_state(q), lift_state(r1), lift_state(r2));
 }
 
 /// Connects two valid implies.
