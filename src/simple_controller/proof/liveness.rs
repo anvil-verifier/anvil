@@ -393,14 +393,14 @@ proof fn lemma_req_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(req_
     // It is quite obvious that get_cr_resp_msg_sent is stable since we never remove a message from the network sent set
     // But we still need to prove it by providing a witness because of "exists" in get_cr_resp_msg_sent
     // Note that we want to prove it is stable because we want to use leads_to_confluence later
-    assert forall |s, s_prime: State<SimpleReconcileState>| get_cr_resp_msg_sent(s) && #[trigger] next(simple_reconciler())(s, s_prime) implies get_cr_resp_msg_sent(s_prime) by {
+    assert forall |s, s_prime: State<SimpleReconcileState>| get_cr_resp_msg_sent(s) && !reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr_key)(s) && #[trigger] next(simple_reconciler())(s, s_prime)
+    implies get_cr_resp_msg_sent(s_prime) by {
         let msg = choose |m: Message| {
             &&& #[trigger] s.message_sent(m)
             &&& resp_msg_matches_req_msg(m, req_msg)
         };
         assert(s_prime.message_sent(msg));
     };
-    leads_to_stable::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), next(simple_reconciler()), pre, get_cr_resp_msg_sent);
     // Now we have:
     //  spec |= reconciler_at_after_get_cr_pc ~> reconciler_at_after_get_cr_pc_and_pending_req
     //  spec |= reconciler_at_after_get_cr_pc ~> []get_cr_resp_msg_sent
