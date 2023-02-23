@@ -61,7 +61,7 @@ pub proof fn lemma_always_reconcile_get_cr_done_implies_pending_get_cr_req(cr_ke
             exists |m| {
                 &&& is_controller_get_cr_request_msg(m, cr_key)
                 &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
-                &&& #[trigger] s.message_sent(m)
+                &&& #[trigger] s.message_in_flight(m)
             }
         })),
         sm_spec(simple_reconciler()).entails(always(inv)),
@@ -72,7 +72,7 @@ pub proof fn lemma_always_reconcile_get_cr_done_implies_pending_get_cr_req(cr_ke
         ==> exists |m| {
                 is_controller_get_cr_request_msg(m, cr_key)
                 && s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
-                && #[trigger] s.message_sent(m)
+                && #[trigger] s.message_in_flight(m)
             }
     };
 
@@ -81,10 +81,10 @@ pub proof fn lemma_always_reconcile_get_cr_done_implies_pending_get_cr_req(cr_ke
             if s_prime.reconcile_state_contains(cr_key) && s_prime.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc() {
                 let m = choose |m| is_controller_get_cr_request_msg(m, cr_key)
                     && s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
-                    && #[trigger] s.message_sent(m);
+                    && #[trigger] s.message_in_flight(m);
                 assert(is_controller_get_cr_request_msg(m, cr_key)
                     && s_prime.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
-                    && s_prime.message_sent(m)
+                    && s_prime.message_in_flight(m)
                 );
             }
         } else {
@@ -92,7 +92,7 @@ pub proof fn lemma_always_reconcile_get_cr_done_implies_pending_get_cr_req(cr_ke
                 let m = controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key}), s.controller_state.req_id);
                 assert(is_controller_get_cr_request_msg(m, cr_key)
                     && s_prime.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
-                    && s_prime.message_sent(m)
+                    && s_prime.message_in_flight(m)
                 );
             }
         }
@@ -107,7 +107,7 @@ pub proof fn lemma_always_reconcile_get_cr_done_implies_pending_get_cr_req(cr_ke
         exists |m| {
             &&& is_controller_get_cr_request_msg(m, cr_key)
             &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
-            &&& #[trigger] s.message_sent(m)
+            &&& #[trigger] s.message_in_flight(m)
         }
     }));
     temp_pred_equality::<State<SimpleReconcileState>>(lift_state(invariant), invariant_temp_pred);
@@ -124,7 +124,7 @@ pub proof fn lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req
             exists |m| {
                 &&& is_controller_create_cm_request_msg(m, cr_key)
                 &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
-                &&& #[trigger] s.message_sent(m)
+                &&& #[trigger] s.message_in_flight(m)
             }
         })),
         sm_spec(simple_reconciler()).entails(always(inv)),
@@ -134,7 +134,7 @@ pub proof fn lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req
         ==> exists |m| {
                 is_controller_create_cm_request_msg(m, cr_key)
                 && s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
-                && #[trigger] s.message_sent(m)
+                && #[trigger] s.message_in_flight(m)
             }
     };
 
@@ -143,10 +143,10 @@ pub proof fn lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req
             if s_prime.reconcile_state_contains(cr_key) && s_prime.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc() {
                 let m = choose |m| is_controller_create_cm_request_msg(m, cr_key)
                     && s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
-                    && #[trigger] s.message_sent(m);
+                    && #[trigger] s.message_in_flight(m);
                 assert(is_controller_create_cm_request_msg(m, cr_key)
                     && s_prime.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
-                    && s_prime.message_sent(m)
+                    && s_prime.message_in_flight(m)
                 );
             }
         } else {
@@ -154,7 +154,7 @@ pub proof fn lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req
                 let m = controller_req_msg(simple_reconciler::create_cm_req(cr_key), s.controller_state.req_id);
                 assert(is_controller_create_cm_request_msg(m, cr_key)
                     && s_prime.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
-                    && s_prime.message_sent(m)
+                    && s_prime.message_in_flight(m)
                 );
             }
         }
@@ -167,7 +167,7 @@ pub proof fn lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req
         exists |m| {
             &&& is_controller_create_cm_request_msg(m, cr_key)
             &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(m)
-            &&& #[trigger] s.message_sent(m)
+            &&& #[trigger] s.message_in_flight(m)
         }
     }));
     temp_pred_equality::<State<SimpleReconcileState>>(lift_state(invariant), invariant_temp_pred);
@@ -181,7 +181,7 @@ pub proof fn lemma_delete_cm_req_msg_never_sent(cr_key: ResourceKey)
     ensures
         sm_spec(simple_reconciler()).entails(always(
             lift_state(|s: State<SimpleReconcileState>| !exists |m: Message| {
-                &&& #[trigger] s.message_sent(m)
+                &&& #[trigger] s.message_in_flight(m)
                 &&& m.dst === HostId::KubernetesAPI
                 &&& m.is_delete_request()
                 &&& m.get_delete_request().key === simple_reconciler::subresource_configmap(cr_key).key
@@ -189,7 +189,7 @@ pub proof fn lemma_delete_cm_req_msg_never_sent(cr_key: ResourceKey)
         )),
 {
     let invariant = |s: State<SimpleReconcileState>| !exists |m: Message| {
-        &&& #[trigger] s.message_sent(m)
+        &&& #[trigger] s.message_in_flight(m)
         &&& m.dst === HostId::KubernetesAPI
         &&& m.is_delete_request()
         &&& m.get_delete_request().key === simple_reconciler::subresource_configmap(cr_key).key

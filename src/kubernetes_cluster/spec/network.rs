@@ -12,23 +12,23 @@ use builtin_macros::*;
 verus! {
 
 pub struct NetworkState {
-    pub sent_messages: Set<Message>,
+    pub in_flight: Set<Message>,
 }
 
 pub open spec fn deliver() -> Action<NetworkState, MessageOps<Message>, ()> {
     Action {
         precondition: |msg_ops: MessageOps<Message>, s: NetworkState| {
-            msg_ops.recv.is_Some() ==> s.sent_messages.contains(msg_ops.recv.get_Some_0())
+            msg_ops.recv.is_Some() ==> s.in_flight.contains(msg_ops.recv.get_Some_0())
         },
         transition: |msg_ops: MessageOps<Message>, s: NetworkState| {
             if msg_ops.recv.is_Some() {
                 let s_prime = NetworkState {
-                    sent_messages: s.sent_messages.remove(msg_ops.recv.get_Some_0()) + msg_ops.send
+                    in_flight: s.in_flight.remove(msg_ops.recv.get_Some_0()) + msg_ops.send
                 };
                 (s_prime, ())
             } else {
                 let s_prime = NetworkState {
-                    sent_messages: s.sent_messages + msg_ops.send
+                    in_flight: s.in_flight + msg_ops.send
                 };
                 (s_prime, ())
             }
@@ -38,7 +38,7 @@ pub open spec fn deliver() -> Action<NetworkState, MessageOps<Message>, ()> {
 
 pub open spec fn network() -> NetworkStateMachine<NetworkState, Message> {
     NetworkStateMachine {
-        init: |s: NetworkState| s.sent_messages === Set::empty(),
+        init: |s: NetworkState| s.in_flight === Set::empty(),
         deliver: deliver(),
     }
 }

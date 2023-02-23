@@ -64,7 +64,7 @@ pub proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered<T>(reconcile
     ensures
         sm_spec(reconciler).entails(
             lift_state(|s: State<T>| {
-                &&& s.message_sent(msg)
+                &&& s.message_in_flight(msg)
                 &&& msg.dst === HostId::CustomController
                 &&& msg.content.is_WatchEvent()
                 &&& (reconciler.reconcile_trigger)(msg) === Option::Some(cr_key)
@@ -78,7 +78,7 @@ pub proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered<T>(reconcile
         ),
 {
     let pre = |s: State<T>| {
-        &&& s.message_sent(msg)
+        &&& s.message_in_flight(msg)
         &&& msg.dst === HostId::CustomController
         &&& msg.content.is_WatchEvent()
         &&& (reconciler.reconcile_trigger)(msg) === Option::Some(cr_key)

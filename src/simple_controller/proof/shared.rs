@@ -63,7 +63,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req(msg: Message, cr_
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_req_sent(msg: Message, cr_key: ResourceKey) -> StatePred<State<SimpleReconcileState>>
+pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight(msg: Message, cr_key: ResourceKey) -> StatePred<State<SimpleReconcileState>>
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
@@ -72,17 +72,17 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_req_sent(msg:
         &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
         &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(msg)
         &&& is_controller_get_cr_request_msg(msg, cr_key)
-        &&& s.message_sent(msg)
+        &&& s.message_in_flight(msg)
     }
 }
 
-pub open spec fn get_cr_req_sent(msg: Message, cr_key: ResourceKey) -> StatePred<State<SimpleReconcileState>>
+pub open spec fn get_cr_req_in_flight(msg: Message, cr_key: ResourceKey) -> StatePred<State<SimpleReconcileState>>
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
     |s: State<SimpleReconcileState>| {
         &&& is_controller_get_cr_request_msg(msg, cr_key)
-        &&& s.message_sent(msg)
+        &&& s.message_in_flight(msg)
     }
 }
 
@@ -96,7 +96,7 @@ pub open spec fn reconciler_at_after_create_cm_pc(cr_key: ResourceKey) -> StateP
     }
 }
 
-pub open spec fn reconciler_at_after_create_cm_pc_and_pending_req_and_req_sent(msg: Message, cr_key: ResourceKey) -> StatePred<State<SimpleReconcileState>>
+pub open spec fn reconciler_at_after_create_cm_pc_and_pending_req_and_req_in_flight(msg: Message, cr_key: ResourceKey) -> StatePred<State<SimpleReconcileState>>
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
@@ -105,7 +105,7 @@ pub open spec fn reconciler_at_after_create_cm_pc_and_pending_req_and_req_sent(m
         &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
         &&& is_controller_create_cm_request_msg(msg, cr_key)
         &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(msg)
-        &&& s.message_sent(msg)
+        &&& s.message_in_flight(msg)
     }
 }
 
