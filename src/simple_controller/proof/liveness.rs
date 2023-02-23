@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_cluster::{
-    proof::{controller_runtime_liveness, kubernetes_api_liveness, kubernetes_api_safety},
+    proof::{
+        controller_runtime_liveness, controller_runtime_safety, kubernetes_api_liveness,
+        kubernetes_api_safety,
+    },
     spec::{
         common::*,
         controller::common::{controller_req_msg, ControllerActionInput},
@@ -430,7 +433,17 @@ proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(res
         recv: Option::Some(resp_msg),
         scheduled_cr_key: Option::Some(cr_key),
     };
-    controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(simple_reconciler(), input, next(simple_reconciler()), continue_reconcile(simple_reconciler()), pre, post);
+
+    let inv = controller_runtime_safety::resp_matches_at_most_one_pending_req(resp_msg, cr_key);
+    controller_runtime_safety::lemma_always_resp_matches_at_most_one_pending_req::<SimpleReconcileState>(simple_reconciler(), resp_msg, cr_key);
+    let inv_and_next = |s, s_prime: State<SimpleReconcileState>| {
+        &&& inv(s)
+        &&& next(simple_reconciler())(s, s_prime)
+    };
+    temp_pred_equality::<State<SimpleReconcileState>>(lift_action(inv_and_next), lift_state(inv).and(lift_action(next(simple_reconciler()))));
+    always_and_equality::<State<SimpleReconcileState>>(lift_state(inv), lift_action(next(simple_reconciler())));
+    entails_and_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(lift_state(inv)), always(lift_action(next(simple_reconciler()))));
+    controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(simple_reconciler(), input, inv_and_next, continue_reconcile(simple_reconciler()), pre, post);
 }
 
 proof fn lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(req_msg: Message, cr_key: ResourceKey)

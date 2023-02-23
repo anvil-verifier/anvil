@@ -52,6 +52,7 @@ impl<T> State<T> {
         self.kubernetes_api_state.resources[key]
     }
 
+    #[verifier(inline)]
     pub open spec fn reconcile_state_contains(self, key: ResourceKey) -> bool {
         self.controller_state.ongoing_reconciles.dom().contains(key)
     }
