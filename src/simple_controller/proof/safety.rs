@@ -194,6 +194,13 @@ pub proof fn lemma_delete_cm_req_msg_never_sent(cr_key: ResourceKey)
         &&& m.is_delete_request()
         &&& m.get_delete_request().key === simple_reconciler::subresource_configmap(cr_key).key
     };
+    assert forall |s, s_prime: State<SimpleReconcileState>| invariant(s) && #[trigger] next(simple_reconciler())(s, s_prime) implies invariant(s_prime) by {
+        assert(!exists |m: Message| s.message_in_flight(m)
+            && m.dst === HostId::KubernetesAPI
+            && #[trigger] m.is_delete_request()
+            && m.get_delete_request().key === simple_reconciler::subresource_configmap(cr_key).key
+        );
+    };
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), next(simple_reconciler()), invariant);
 }
 
