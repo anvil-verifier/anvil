@@ -9,10 +9,6 @@ use builtin_macros::*;
 
 verus! {
 
-pub open spec fn multiset_contains_msg(mset: Multiset<Message>, m: Message) -> bool {
-    mset.count(m) > 0
-}
-
 #[is_variant]
 pub enum ResourceKind {
     CustomResourceKind,

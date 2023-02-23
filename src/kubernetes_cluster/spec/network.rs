@@ -11,6 +11,11 @@ use builtin_macros::*;
 
 verus! {
 
+// TODO: this can be better replaced by a Multiset::contains() method with some axioms
+pub open spec fn multiset_contains_msg(mset: Multiset<Message>, m: Message) -> bool {
+    mset.count(m) > 0
+}
+
 pub struct NetworkState {
     pub in_flight: Multiset<Message>,
 }
