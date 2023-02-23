@@ -34,7 +34,7 @@ pub struct State<T> {
 impl<T> State<T> {
     #[verifier(inline)]
     pub open spec fn message_in_flight(self, msg: Message) -> bool {
-        self.network_state.in_flight.contains(msg)
+        multiset_contains_msg(self.network_state.in_flight, msg)
     }
 
     pub open spec fn resource_key_exists(self, key: ResourceKey) -> bool {

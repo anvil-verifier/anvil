@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::pervasive::function::*;
-use crate::pervasive::{option::*, result::*, seq::*, set::*, string::*};
+use crate::pervasive::{multiset::*, option::*, result::*, seq::*, set::*, string::*};
 use crate::temporal_logic::defs::*;
 use builtin::*;
 use builtin_macros::*;
 
 verus! {
+
+pub open spec fn multiset_contains_msg(mset: Multiset<Message>, m: Message) -> bool {
+    mset.count(m) > 0
+}
 
 #[is_variant]
 pub enum ResourceKind {

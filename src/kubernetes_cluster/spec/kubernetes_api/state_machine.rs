@@ -5,7 +5,7 @@ use crate::kubernetes_cluster::spec::{
     common::*,
     kubernetes_api::{builtin_controllers::statefulset_controller, common::*},
 };
-use crate::pervasive::{map::*, option::*, result::*, seq::*, set::*};
+use crate::pervasive::{map::*, multiset::*, option::*, result::*, seq::*, set::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
@@ -81,7 +81,7 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Etc
 }
 
 /// Collect the requests from the builtin controllers
-pub open spec fn transition_by_builtin_controllers(msg: Message, s: KubernetesAPIState) -> Set<Message>
+pub open spec fn transition_by_builtin_controllers(msg: Message, s: KubernetesAPIState) -> Multiset<Message>
     recommends
         msg.content.is_WatchEvent(),
 {
@@ -130,10 +130,10 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
                     req_id: s_after_etcd_transition.req_id + controller_requests.len(),
                     ..s_after_etcd_transition
                 };
-                (s_prime, set![etcd_resp, etcd_notify_o.get_Some_0()] + controller_requests)
+                (s_prime, Multiset::empty().insert(etcd_resp).insert(etcd_notify_o.get_Some_0()).add(controller_requests))
             } else {
                 let s_prime = s_after_etcd_transition;
-                (s_prime, set![etcd_resp])
+                (s_prime, Multiset::singleton(etcd_resp))
             }
         },
     }

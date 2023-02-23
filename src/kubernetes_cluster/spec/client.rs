@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_cluster::spec::common::*;
-use crate::pervasive::{option::*, seq::*, set::*};
+use crate::pervasive::{multiset::*, option::*, seq::*, set::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
@@ -25,11 +25,11 @@ pub enum Step {
     SendDeleteCR,
 }
 
-pub type ClientStateMachine = StateMachine<ClientState, ClientActionInput, ClientActionInput, Set<Message>, Step>;
+pub type ClientStateMachine = StateMachine<ClientState, ClientActionInput, ClientActionInput, Multiset<Message>, Step>;
 
-pub type ClientAction = Action<ClientState, ClientActionInput, Set<Message>>;
+pub type ClientAction = Action<ClientState, ClientActionInput, Multiset<Message>>;
 
-pub type ClientActionResult = ActionResult<ClientState, Set<Message>>;
+pub type ClientActionResult = ActionResult<ClientState, Multiset<Message>>;
 
 pub open spec fn client_req_msg(req: APIRequest, req_id: nat) -> Message {
     form_msg(HostId::Client, HostId::KubernetesAPI, MessageContent::APIRequest(req, req_id))
@@ -42,7 +42,7 @@ pub open spec fn send_create_cr() -> ClientAction {
             &&& input.recv.is_None()
         },
         transition: |input: ClientActionInput, s: ClientState| {
-            (ClientState {req_id: s.req_id + 1}, set![client_req_msg(create_req(ResourceObj{key: input.cr.key}), s.req_id)])
+            (ClientState {req_id: s.req_id + 1}, Multiset::singleton(client_req_msg(create_req(ResourceObj{key: input.cr.key}), s.req_id)))
         },
     }
 }
@@ -54,7 +54,7 @@ pub open spec fn send_delete_cr() -> ClientAction {
             &&& input.recv.is_None()
         },
         transition: |input: ClientActionInput, s: ClientState| {
-            (ClientState {req_id: s.req_id + 1}, set![client_req_msg(delete_req(input.cr.key), s.req_id)])
+            (ClientState {req_id: s.req_id + 1}, Multiset::singleton(client_req_msg(delete_req(input.cr.key), s.req_id)))
         },
     }
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_cluster::spec::common::*;
-use crate::pervasive::{map::*, option::*, result::*, seq::*, set::*, string::*};
+use crate::pervasive::{map::*, multiset::*, option::*, result::*, seq::*, string::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
@@ -24,10 +24,10 @@ pub enum KubernetesAPIStep {
 
 pub type KubernetesAPIActionInput = Option<Message>;
 
-pub type KubernetesAPIStateMachine = StateMachine<KubernetesAPIState, KubernetesAPIActionInput, KubernetesAPIActionInput, Set<Message>, KubernetesAPIStep>;
+pub type KubernetesAPIStateMachine = StateMachine<KubernetesAPIState, KubernetesAPIActionInput, KubernetesAPIActionInput, Multiset<Message>, KubernetesAPIStep>;
 
-pub type KubernetesAPIAction = Action<KubernetesAPIState, KubernetesAPIActionInput, Set<Message>>;
+pub type KubernetesAPIAction = Action<KubernetesAPIState, KubernetesAPIActionInput, Multiset<Message>>;
 
-pub type KubernetesAPIActionResult = ActionResult<KubernetesAPIState, Set<Message>>;
+pub type KubernetesAPIActionResult = ActionResult<KubernetesAPIState, Multiset<Message>>;
 
 }

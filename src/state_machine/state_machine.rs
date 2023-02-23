@@ -1,8 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::pervasive::{multiset::*, option::*, set::*};
 use crate::state_machine::action::*;
-use crate::pervasive::{option::*, set::*};
 use builtin::*;
 use builtin_macros::*;
 
@@ -67,7 +67,7 @@ impl<State, Input, ActionInput, Output, Step> StateMachine<State, Input, ActionI
 
 pub struct MessageOps<#[verifier(maybe_negative)] M> {
     pub recv: Option<M>,
-    pub send: Set<M>,
+    pub send: Multiset<M>,
 }
 
 /// `NetworkStateMachine` is similar to `StateMachine` except that it has only one action `deliver`

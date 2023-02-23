@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_cluster::spec::{common::*, kubernetes_api::common::*};
-use crate::pervasive::{map::*, option::*, result::*, seq::*, set::*};
+use crate::pervasive::{map::*, multiset::*, option::*, result::*, seq::*};
 use builtin::*;
 use builtin_macros::*;
 
 verus! {
 
-pub open spec fn transition_by_statefulset_controller(msg: Message, s: KubernetesAPIState) -> Set<Message>
+pub open spec fn transition_by_statefulset_controller(msg: Message, s: KubernetesAPIState) -> Multiset<Message>
     recommends
         msg.content.is_WatchEvent(),
 {
@@ -20,21 +20,19 @@ pub open spec fn transition_by_statefulset_controller(msg: Message, s: Kubernete
     if msg.is_watch_event_of_kind(ResourceKind::StatefulSetKind) {
         if msg.is_added_event() {
             let obj = msg.get_added_event().obj;
-            set![
-                form_msg(src, dst, create_req_msg(ResourceObj{key: ResourceKey{name: obj.key.name + pod_suffix(), namespace: obj.key.namespace, kind: ResourceKind::PodKind}}, s.req_id)),
-                form_msg(src, dst, create_req_msg(ResourceObj{key: ResourceKey{name: obj.key.name + vol_suffix(), namespace: obj.key.namespace, kind: ResourceKind::VolumeKind}}, s.req_id + 1))
-            ]
+            Multiset::empty()
+                .insert(form_msg(src, dst, create_req_msg(ResourceObj{key: ResourceKey{name: obj.key.name + pod_suffix(), namespace: obj.key.namespace, kind: ResourceKind::PodKind}}, s.req_id)))
+                .insert(form_msg(src, dst, create_req_msg(ResourceObj{key: ResourceKey{name: obj.key.name + vol_suffix(), namespace: obj.key.namespace, kind: ResourceKind::VolumeKind}}, s.req_id + 1)))
         } else if msg.is_modified_event() {
-            set![]
+            Multiset::empty()
         } else {
             let obj = msg.get_deleted_event().obj;
-            set![
-                    form_msg(src, dst, delete_req_msg(ResourceKey{name: obj.key.name + pod_suffix(), namespace: obj.key.namespace, kind: ResourceKind::PodKind}, s.req_id)),
-                    form_msg(src, dst, delete_req_msg(ResourceKey{name: obj.key.name + vol_suffix(), namespace: obj.key.namespace, kind: ResourceKind::VolumeKind}, s.req_id + 1))
-                ]
+            Multiset::empty()
+                .insert(form_msg(src, dst, delete_req_msg(ResourceKey{name: obj.key.name + pod_suffix(), namespace: obj.key.namespace, kind: ResourceKind::PodKind}, s.req_id)))
+                .insert(form_msg(src, dst, delete_req_msg(ResourceKey{name: obj.key.name + vol_suffix(), namespace: obj.key.namespace, kind: ResourceKind::VolumeKind}, s.req_id + 1)))
         }
     } else {
-        set![]
+        Multiset::empty()
     }
 }
 

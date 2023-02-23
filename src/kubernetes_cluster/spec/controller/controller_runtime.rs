@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_cluster::spec::{common::*, controller::common::*, reconciler::*};
-use crate::pervasive::{map::*, option::*, seq::*, set::*};
+use crate::pervasive::{map::*, multiset::*, option::*, seq::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
@@ -43,7 +43,7 @@ pub open spec fn trigger_reconcile<T>(reconciler: Reconciler<T>) -> ControllerAc
                 ongoing_reconciles: s.ongoing_reconciles.insert(cr_key, initialized_ongoing_reconcile),
                 ..s
             };
-            let send = Set::empty();
+            let send = Multiset::empty();
             (s_prime, send)
         },
     }
@@ -68,7 +68,7 @@ pub open spec fn run_scheduled_reconcile<T>(reconciler: Reconciler<T>) -> Contro
                 scheduled_reconciles: s.scheduled_reconciles.remove(cr_key),
                 ..s
             };
-            let send = Set::empty();
+            let send = Multiset::empty();
             (s_prime, send)
         },
     }
@@ -121,9 +121,9 @@ pub open spec fn continue_reconcile<T>(reconciler: Reconciler<T>) -> ControllerA
                 ..s
             };
             let send = if pending_req_msg.is_Some() {
-                set![pending_req_msg.get_Some_0()]
+                Multiset::singleton(pending_req_msg.get_Some_0())
             } else {
-                Set::empty()
+                Multiset::empty()
             };
             (s_prime, send)
         }
@@ -150,7 +150,7 @@ pub open spec fn end_reconcile<T>(reconciler: Reconciler<T>) -> ControllerAction
                 scheduled_reconciles: s.scheduled_reconciles.insert(cr_key),
                 ..s
             };
-            (s_prime, Set::empty())
+            (s_prime, Multiset::empty())
         }
     }
 }
