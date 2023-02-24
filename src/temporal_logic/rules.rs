@@ -900,13 +900,15 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
     requires
         forall |s: T| #[trigger] init(s) ==> inv(s),
         forall |s, s_prime: T| inv(s) && #[trigger] next(s, s_prime) ==> inv(s_prime),
-        spec.entails(lift_state(init).and(always(lift_action(next)))),
+        spec.entails(lift_state(init)),
+        spec.entails(always(lift_action(next))),
     ensures
         spec.entails(always(lift_state(inv))),
 {
     assert forall |ex: Execution<T>| spec.satisfied_by(ex)
     implies #[trigger] always(lift_state(inv)).satisfied_by(ex) by {
-        entails_apply(ex, spec, lift_state(init).and(always(lift_action(next))));
+        implies_apply(ex, spec, lift_state(init));
+        implies_apply(ex, spec, always(lift_action(next)));
         always_unfold::<T>(ex, lift_action(next));
         assert forall |i: nat| inv(#[trigger] ex.suffix(i).head()) by {
             init_invariant_rec(ex, init, next, inv, i);

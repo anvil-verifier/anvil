@@ -76,6 +76,23 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight
     }
 }
 
+pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_flight(msg: Message, cr_key: ResourceKey) -> StatePred<State<SimpleReconcileState>>
+    recommends
+        cr_key.kind.is_CustomResourceKind(),
+{
+    |s: State<SimpleReconcileState>| {
+        &&& s.reconcile_state_contains(cr_key)
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
+        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(msg)
+        &&& is_controller_get_cr_request_msg(msg, cr_key)
+        &&& exists |resp_msg: Message| {
+            &&& #[trigger] s.message_in_flight(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, msg)
+        }
+    }
+}
+
+
 pub open spec fn get_cr_req_in_flight(msg: Message, cr_key: ResourceKey) -> StatePred<State<SimpleReconcileState>>
     recommends
         cr_key.kind.is_CustomResourceKind(),

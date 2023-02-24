@@ -319,11 +319,8 @@ pub open spec fn resp_matches_req(resp: APIResponse, req: APIRequest) -> bool {
     }
 }
 
-pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -> bool
-    recommends
-        resp_msg.content.is_APIResponse(),
-        req_msg.content.is_APIRequest(),
-{
+// TODO: maybe the predicate should not check if resp_msg is a response message
+pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -> bool {
     &&& resp_msg.content.is_APIResponse()
     &&& req_msg.content.is_APIRequest()
     &&& resp_msg.dst === req_msg.src

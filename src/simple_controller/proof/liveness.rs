@@ -205,24 +205,36 @@ proof fn lemma_after_get_cr_pc_leads_to_cm_always_exists(cr: ResourceObj)
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
     always_implies_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
 
-    let reconciler_at_after_get_cr_pc_implies_pending_req_and_req_in_flight = safety::lemma_always_reconcile_get_cr_done_implies_pending_get_cr_req(cr.key);
+    safety::lemma_always_reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr.key);
 
     // TODO: there should be a way to avoid unfolding here using some lemma. Will investigate later
     assert forall |ex| #[trigger] sm_spec(simple_reconciler()).satisfied_by(ex) implies lift_state(reconciler_at_after_get_cr_pc(cr.key)).leads_to(lift_state(reconciler_at_after_create_cm_pc(cr.key))).satisfied_by(ex) by {
         assert forall |i| #[trigger] lift_state(reconciler_at_after_get_cr_pc(cr.key)).satisfied_by(ex.suffix(i)) implies eventually(lift_state(reconciler_at_after_create_cm_pc(cr.key))).satisfied_by(ex.suffix(i)) by {
-            let pre = |req_msg: Message| reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight(req_msg, cr.key);
+            instantiate_entailed_always::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(safety::reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr.key)));
 
-            instantiate_entailed_always::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), reconciler_at_after_get_cr_pc_implies_pending_req_and_req_in_flight);
-
-            let get_cr_req_msg = choose |m: Message| {
-                &&& is_controller_get_cr_request_msg(m, cr.key)
-                &&& ex.suffix(i).head().reconcile_state_of(cr.key).pending_req_msg === Option::Some(m)
-                &&& #[trigger] ex.suffix(i).head().message_in_flight(m)
+            let get_cr_req_msg = choose |req_msg: Message| {
+                &&& is_controller_get_cr_request_msg(req_msg, cr.key)
+                &&& ex.suffix(i).head().reconcile_state_of(cr.key).pending_req_msg === Option::Some(req_msg)
+                &&& {
+                    ||| #[trigger] ex.suffix(i).head().message_in_flight(req_msg)
+                    ||| exists |resp_msg: Message| {
+                        &&& #[trigger] ex.suffix(i).head().message_in_flight(resp_msg)
+                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                    }
+                }
             };
-            assert(lift_state(pre(get_cr_req_msg)).satisfied_by(ex.suffix(i)));
 
-            lemma_req_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(get_cr_req_msg, cr.key);
-            instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(pre(get_cr_req_msg)), lift_state(reconciler_at_after_create_cm_pc(cr.key)));
+            if ex.suffix(i).head().message_in_flight(get_cr_req_msg) {
+                let pre = |req_msg: Message| reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight(req_msg, cr.key);
+                assert(lift_state(pre(get_cr_req_msg)).satisfied_by(ex.suffix(i)));
+                lemma_req_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(get_cr_req_msg, cr.key);
+                instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(pre(get_cr_req_msg)), lift_state(reconciler_at_after_create_cm_pc(cr.key)));
+            } else {
+                let pre = |req_msg: Message| reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_flight(req_msg, cr.key);
+                assert(lift_state(pre(get_cr_req_msg)).satisfied_by(ex.suffix(i)));
+                lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(get_cr_req_msg, cr.key);
+                instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(pre(get_cr_req_msg)), lift_state(reconciler_at_after_create_cm_pc(cr.key)));
+            }
         };
     };
 
@@ -243,24 +255,28 @@ proof fn lemma_after_create_cm_pc_leads_to_cm_always_exists(cr: ResourceObj)
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
     always_implies_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
 
-    let reconciler_at_after_create_cm_pc_implies_pending_req_and_req_in_flight = safety::lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req(cr.key);
+    safety::lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr.key);
 
     assert forall |ex| #[trigger] sm_spec(simple_reconciler()).satisfied_by(ex) implies lift_state(reconciler_at_after_create_cm_pc(cr.key)).leads_to(lift_state(cm_exists(cr.key))).satisfied_by(ex) by {
         assert forall |i| #[trigger] lift_state(reconciler_at_after_create_cm_pc(cr.key)).satisfied_by(ex.suffix(i)) implies eventually(lift_state(cm_exists(cr.key))).satisfied_by(ex.suffix(i)) by {
-            let pre = |msg: Message| reconciler_at_after_create_cm_pc_and_pending_req_and_req_in_flight(msg, cr.key);
-
-            instantiate_entailed_always::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), reconciler_at_after_create_cm_pc_implies_pending_req_and_req_in_flight);
+            instantiate_entailed_always::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(safety::reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr.key)));
 
             let create_cm_req_msg = choose |m: Message| {
-                &&& is_controller_create_cm_request_msg(m, cr.key)
-                &&& ex.suffix(i).head().reconcile_state_of(cr.key).pending_req_msg === Option::Some(m)
-                &&& #[trigger] ex.suffix(i).head().message_in_flight(m)
+                #[trigger] is_controller_create_cm_request_msg(m, cr.key)
+                && ex.suffix(i).head().reconcile_state_of(cr.key).pending_req_msg === Option::Some(m)
+                && (ex.suffix(i).head().message_in_flight(m) || ex.suffix(i).head().resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))
             };
-            assert(lift_state(pre(create_cm_req_msg)).satisfied_by(ex.suffix(i)));
 
-            let cm = simple_reconciler::subresource_configmap(cr.key);
-            kubernetes_api_liveness::lemma_create_req_leads_to_res_exists::<SimpleReconcileState>(simple_reconciler(), create_cm_req_msg, cm);
-            instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(pre(create_cm_req_msg)), lift_state(cm_exists(cr.key)));
+            if ex.suffix(i).head().message_in_flight(create_cm_req_msg) {
+                let pre = |msg: Message| reconciler_at_after_create_cm_pc_and_pending_req_and_req_in_flight(msg, cr.key);
+                assert(lift_state(pre(create_cm_req_msg)).satisfied_by(ex.suffix(i)));
+                let cm = simple_reconciler::subresource_configmap(cr.key);
+                kubernetes_api_liveness::lemma_create_req_leads_to_res_exists::<SimpleReconcileState>(simple_reconciler(), create_cm_req_msg, cm);
+                instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(pre(create_cm_req_msg)), lift_state(cm_exists(cr.key)));
+            } else {
+                leads_to_self(cm_exists(cr.key));
+                instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(cm_exists(cr.key)), lift_state(cm_exists(cr.key)));
+            }
         };
     };
 
@@ -316,21 +332,16 @@ proof fn lemma_p_leads_to_cm_always_exists(cr: ResourceObj, p: TempPred<State<Si
             p.leads_to(always(lift_state(cm_exists(cr.key))))
         ),
 {
-    let delete_cm_req_msg_not_sent = |s: State<SimpleReconcileState>| !exists |m: Message| {
-        &&& #[trigger] s.message_in_flight(m)
-        &&& m.dst === HostId::KubernetesAPI
-        &&& m.is_delete_request()
-        &&& m.get_delete_request().key === simple_reconciler::subresource_configmap(cr.key).key
-    };
-    safety::lemma_delete_cm_req_msg_never_sent(cr.key);
+    let delete_cm_req_msg_not_in_flight = safety::delete_cm_req_msg_not_in_flight(cr.key);
     let next_and_invariant = |s: State<SimpleReconcileState>, s_prime: State<SimpleReconcileState>| {
         &&& next(simple_reconciler())(s, s_prime)
-        &&& delete_cm_req_msg_not_sent(s)
+        &&& delete_cm_req_msg_not_in_flight(s)
     };
 
-    entails_and_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(lift_action(next(simple_reconciler()))), always(lift_state(delete_cm_req_msg_not_sent)));
-    always_and_equality::<State<SimpleReconcileState>>(lift_action(next(simple_reconciler())), lift_state(delete_cm_req_msg_not_sent));
-    temp_pred_equality::<State<SimpleReconcileState>>(lift_action(next(simple_reconciler())).and(lift_state(delete_cm_req_msg_not_sent)), lift_action(next_and_invariant));
+    safety::lemma_delete_cm_req_msg_never_in_flight(cr.key);
+    entails_and_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(lift_action(next(simple_reconciler()))), always(lift_state(delete_cm_req_msg_not_in_flight)));
+    always_and_equality::<State<SimpleReconcileState>>(lift_action(next(simple_reconciler())), lift_state(delete_cm_req_msg_not_in_flight));
+    temp_pred_equality::<State<SimpleReconcileState>>(lift_action(next(simple_reconciler())).and(lift_state(delete_cm_req_msg_not_in_flight)), lift_action(next_and_invariant));
     leads_to_stable_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_action(next_and_invariant), p, lift_state(cm_exists(cr.key)));
 }
 
