@@ -61,8 +61,33 @@ proof fn liveness_proof(cr: ResourceObj)
         ),
 {
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
-    kubernetes_api_safety::lemma_always_res_exists_implies_added_event_sent::<SimpleReconcileState>(simple_reconciler(), cr);
+    // kubernetes_api_safety::lemma_always_res_exists_implies_added_event_sent::<SimpleReconcileState>(simple_reconciler(), cr);
+    kubernetes_api_safety::always_res_exists_implies_added_in_flight_or_controller_in_reconcile_or_reconcile_scheduled::<SimpleReconcileState>(simple_reconciler(), cr);
     lemma_cr_added_event_msg_sent_leads_to_cm_always_exists(cr);
+    lemma_controller_in_reconcile_leads_to_cm_always_exists(cr);
+    lemma_reconcile_rescheduled_leads_to_cm_always_exists(cr);
+
+    let added_event_in_flight = |s: State<SimpleReconcileState>| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)));
+    let controller_in_reconcile = |s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.key);
+    let reconcile_rescheduled = |s: State<SimpleReconcileState>| {
+        &&& !s.reconcile_state_contains(cr.key)
+        &&& s.reconcile_scheduled_for(cr.key)
+    };
+    let in_reconcile_or_rescheduled = |s: State<SimpleReconcileState>| {
+        ||| s.reconcile_state_contains(cr.key)
+        ||| s.reconcile_scheduled_for(cr.key)
+    };
+
+    or_leads_to_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(controller_in_reconcile), lift_state(reconcile_rescheduled), always(lift_state(cm_exists(cr.key))));
+    or_leads_to_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(in_reconcile_or_rescheduled), lift_state(added_event_in_flight), always(lift_state(cm_exists(cr.key))));
+
+    assert(sm_spec(simple_reconciler()).entails(
+        lift_state(|s: State<SimpleReconcileState>| {
+            ||| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)))
+            ||| s.reconcile_state_contains(cr.key)
+            ||| s.reconcile_scheduled_for(cr.key)
+        }).leads_to(always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
+    ));
 }
 
 proof fn lemma_cr_added_event_msg_sent_leads_to_cm_always_exists(cr: ResourceObj)
@@ -319,6 +344,29 @@ proof fn lemma_reconcile_error_leads_to_cm_always_exists(cr: ResourceObj)
     controller_runtime_liveness::lemma_reconcile_error_leads_to_reconcile_triggered::<SimpleReconcileState>(simple_reconciler(), cr.key);
     lemma_init_pc_leads_to_cm_always_exists(cr);
     leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconciler_reconcile_error(cr.key)), lift_state(reconciler_at_init_pc(cr.key)), always(lift_state(cm_exists(cr.key))));
+}
+
+proof fn lemma_reconcile_rescheduled_leads_to_cm_always_exists(cr: ResourceObj)
+    requires
+        cr.key.kind.is_CustomResourceKind(),
+    ensures
+        sm_spec(simple_reconciler()).entails(
+            lift_state(|s: State<SimpleReconcileState>| {
+                &&& !s.reconcile_state_contains(cr.key)
+                &&& s.reconcile_scheduled_for(cr.key)
+            }).leads_to(always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
+        ),
+{
+    let reconcile_rescheduled = |s: State<SimpleReconcileState>| {
+        &&& !s.reconcile_state_contains(cr.key)
+        &&& s.reconcile_scheduled_for(cr.key)
+    };
+
+    leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
+
+    controller_runtime_liveness::lemma_scheduled_reconcile_leads_to_init::<SimpleReconcileState>(simple_reconciler(), cr.key);
+    lemma_init_pc_leads_to_cm_always_exists(cr);
+    leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconcile_rescheduled), lift_state(reconciler_at_init_pc(cr.key)), always(lift_state(cm_exists(cr.key))));
 }
 
 proof fn lemma_p_leads_to_cm_always_exists(cr: ResourceObj, p: TempPred<State<SimpleReconcileState>>)

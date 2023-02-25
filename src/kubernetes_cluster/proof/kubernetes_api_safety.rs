@@ -10,47 +10,37 @@ use builtin_macros::*;
 
 verus! {
 
-pub proof fn lemma_always_res_exists_implies_added_event_sent<T>(reconciler: Reconciler<T>, res: ResourceObj)
+pub open spec fn added_event_msg_to_controller(res: ResourceObj) -> Message {
+    form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(res))
+}
+
+pub proof fn always_res_exists_implies_added_in_flight_or_controller_in_reconcile_or_reconcile_scheduled<T>(reconciler: Reconciler<T>, res: ResourceObj)
+    requires
+        (reconciler.reconcile_trigger)(added_event_msg_to_controller(res)).is_Some(),
     ensures
         sm_spec(reconciler).entails(
             always(
-                lift_state(|s: State<T>| s.resource_obj_exists(res))
-                    .implies(lift_state(|s: State<T>| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(res)))))
+                lift_state(|s: State<T>| s.resource_obj_exists(res)).implies(lift_state(|s: State<T>| {
+                    ||| s.message_in_flight(added_event_msg_to_controller(res))
+                    ||| s.reconcile_state_contains((reconciler.reconcile_trigger)(added_event_msg_to_controller(res)).get_Some_0())
+                    ||| s.reconcile_scheduled_for((reconciler.reconcile_trigger)(added_event_msg_to_controller(res)).get_Some_0())
+                }))
             )
         ),
 {
-    init_invariant::<State<T>>(sm_spec(reconciler),
-        init(reconciler),
-        next(reconciler),
-        |s: State<T>| s.resource_obj_exists(res) ==> s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(res)))
-    );
-    temp_pred_equality::<State<T>>(
-        lift_state(|s: State<T>| s.resource_obj_exists(res) ==> s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(res)))),
-        lift_state(|s: State<T>| s.resource_obj_exists(res)).implies(lift_state(|s: State<T>| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(res)))))
-    );
-}
-
-pub proof fn lemma_always_req_not_sent_implies_resp_not_sent<T>(reconciler: Reconciler<T>, req_msg: Message, resp_msg: Message)
-    requires
-        req_msg.dst === HostId::KubernetesAPI,
-        req_msg.content.is_APIRequest(),
-        resp_msg.content.is_APIResponse(),
-        resp_msg_matches_req_msg(resp_msg, req_msg),
-    ensures
-        sm_spec(reconciler).entails(always(
-            lift_state(|s: State<T>| !s.message_in_flight(req_msg))
-                .implies(lift_state(|s: State<T>| !s.message_in_flight(resp_msg)))
-        )),
-{
-    init_invariant::<State<T>>(sm_spec(reconciler),
-        init(reconciler),
-        next(reconciler),
-        |s: State<T>| !s.message_in_flight(req_msg) ==> !s.message_in_flight(resp_msg)
-    );
-    temp_pred_equality::<State<T>>(
-        lift_state(|s: State<T>| !s.message_in_flight(req_msg) ==> !s.message_in_flight(resp_msg)),
-        lift_state(|s: State<T>| !s.message_in_flight(req_msg)).implies(lift_state(|s: State<T>| !s.message_in_flight(resp_msg)))
-    );
+    let invariant = |s: State<T>| {
+        s.resource_obj_exists(res)
+        ==> s.message_in_flight(added_event_msg_to_controller(res))
+            || s.reconcile_state_contains((reconciler.reconcile_trigger)(added_event_msg_to_controller(res)).get_Some_0())
+            || s.reconcile_scheduled_for((reconciler.reconcile_trigger)(added_event_msg_to_controller(res)).get_Some_0())
+    };
+    init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), next(reconciler), invariant);
+    let invariant_temp_pred = lift_state(|s: State<T>| s.resource_obj_exists(res)).implies(lift_state(|s: State<T>| {
+        ||| s.message_in_flight(added_event_msg_to_controller(res))
+        ||| s.reconcile_state_contains((reconciler.reconcile_trigger)(added_event_msg_to_controller(res)).get_Some_0())
+        ||| s.reconcile_scheduled_for((reconciler.reconcile_trigger)(added_event_msg_to_controller(res)).get_Some_0())
+    }));
+    temp_pred_equality::<State<T>>(lift_state(invariant), invariant_temp_pred);
 }
 
 }
