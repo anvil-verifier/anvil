@@ -14,7 +14,7 @@ pub open spec fn added_event_msg_to_controller(res: ResourceObj) -> Message {
     form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(res))
 }
 
-pub proof fn always_res_exists_implies_added_in_flight_or_controller_in_reconcile_or_reconcile_scheduled<T>(reconciler: Reconciler<T>, res: ResourceObj)
+pub proof fn always_res_exists_implies_added_in_flight_or_reconcile_ongoing_or_reconcile_scheduled<T>(reconciler: Reconciler<T>, res: ResourceObj)
     requires
         (reconciler.reconcile_trigger)(added_event_msg_to_controller(res)).is_Some(),
     ensures

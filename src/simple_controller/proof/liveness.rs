@@ -61,25 +61,24 @@ proof fn liveness_proof(cr: ResourceObj)
         ),
 {
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
-    // kubernetes_api_safety::lemma_always_res_exists_implies_added_event_sent::<SimpleReconcileState>(simple_reconciler(), cr);
-    kubernetes_api_safety::always_res_exists_implies_added_in_flight_or_controller_in_reconcile_or_reconcile_scheduled::<SimpleReconcileState>(simple_reconciler(), cr);
+    kubernetes_api_safety::always_res_exists_implies_added_in_flight_or_reconcile_ongoing_or_reconcile_scheduled::<SimpleReconcileState>(simple_reconciler(), cr);
     lemma_cr_added_event_msg_sent_leads_to_cm_always_exists(cr);
-    lemma_controller_in_reconcile_leads_to_cm_always_exists(cr);
-    lemma_reconcile_rescheduled_leads_to_cm_always_exists(cr);
+    lemma_reconcile_ongoing_leads_to_cm_always_exists(cr);
+    lemma_reconcile_idle_and_scheduled_leads_to_cm_always_exists(cr);
 
     let added_event_in_flight = |s: State<SimpleReconcileState>| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)));
-    let controller_in_reconcile = |s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.key);
-    let reconcile_rescheduled = |s: State<SimpleReconcileState>| {
+    let reconcile_ongoing = |s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.key);
+    let reconcile_idle_and_scheduled = |s: State<SimpleReconcileState>| {
         &&& !s.reconcile_state_contains(cr.key)
         &&& s.reconcile_scheduled_for(cr.key)
     };
-    let in_reconcile_or_rescheduled = |s: State<SimpleReconcileState>| {
+    let reconcile_ongoing_or_scheduled = |s: State<SimpleReconcileState>| {
         ||| s.reconcile_state_contains(cr.key)
         ||| s.reconcile_scheduled_for(cr.key)
     };
 
-    or_leads_to_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(controller_in_reconcile), lift_state(reconcile_rescheduled), always(lift_state(cm_exists(cr.key))));
-    or_leads_to_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(in_reconcile_or_rescheduled), lift_state(added_event_in_flight), always(lift_state(cm_exists(cr.key))));
+    or_leads_to_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconcile_ongoing), lift_state(reconcile_idle_and_scheduled), always(lift_state(cm_exists(cr.key))));
+    or_leads_to_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconcile_ongoing_or_scheduled), lift_state(added_event_in_flight), always(lift_state(cm_exists(cr.key))));
 
     assert(sm_spec(simple_reconciler()).entails(
         lift_state(|s: State<SimpleReconcileState>| {
@@ -100,18 +99,18 @@ proof fn lemma_cr_added_event_msg_sent_leads_to_cm_always_exists(cr: ResourceObj
         ),
 {
     let cr_added_event_msg_sent = |s: State<SimpleReconcileState>| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)));
-    let controller_in_reconcile = |s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.key);
+    let reconcile_ongoing = |s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.key);
 
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
 
-    lemma_cr_added_event_msg_sent_leads_to_controller_in_reconcile(cr);
-    lemma_controller_in_reconcile_leads_to_cm_always_exists(cr);
+    lemma_cr_added_event_msg_sent_leads_to_reconcile_ongoing(cr);
+    lemma_reconcile_ongoing_leads_to_cm_always_exists(cr);
 
-    leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(cr_added_event_msg_sent), lift_state(controller_in_reconcile), always(lift_state(cm_exists(cr.key))));
+    leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(cr_added_event_msg_sent), lift_state(reconcile_ongoing), always(lift_state(cm_exists(cr.key))));
 
 }
 
-proof fn lemma_cr_added_event_msg_sent_leads_to_controller_in_reconcile(cr: ResourceObj)
+proof fn lemma_cr_added_event_msg_sent_leads_to_reconcile_ongoing(cr: ResourceObj)
     requires
         cr.key.kind.is_CustomResourceKind(),
     ensures
@@ -127,27 +126,27 @@ proof fn lemma_cr_added_event_msg_sent_leads_to_controller_in_reconcile(cr: Reso
         &&& s.message_in_flight(cr_added_event_msg)
         &&& !s.reconcile_state_contains(cr.key)
     };
-    let cr_added_event_msg_sent_and_controller_in_reconcile = |s: State<SimpleReconcileState>| {
+    let cr_added_event_msg_sent_and_reconcile_ongoing = |s: State<SimpleReconcileState>| {
         &&& s.message_in_flight(cr_added_event_msg)
         &&& s.reconcile_state_contains(cr.key)
     };
-    let controller_in_reconcile = |s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.key);
+    let reconcile_ongoing = |s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.key);
 
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
 
     // It calls wf1 to get cr_added_event_msg_sent_and_controller_not_in_reconcile ~> reconcile_at_init_pc
-    // which also gives us cr_added_event_msg_sent_and_controller_not_in_reconcile ~> controller_in_reconcile by weakening
+    // which also gives us cr_added_event_msg_sent_and_controller_not_in_reconcile ~> reconcile_ongoing by weakening
     lemma_relevant_event_sent_leads_to_init_pc(cr_added_event_msg, cr.key);
 
-    // This lemma gives controller_in_reconcile ~> controller_in_reconcile
-    // and also cr_added_event_msg_sent_and_controller_in_reconcile ~> controller_in_reconcile by weakening
-    leads_to_self::<State<SimpleReconcileState>>(controller_in_reconcile);
+    // This lemma gives reconcile_ongoing ~> reconcile_ongoing
+    // and also cr_added_event_msg_sent_and_reconcile_ongoing ~> reconcile_ongoing by weakening
+    leads_to_self::<State<SimpleReconcileState>>(reconcile_ongoing);
 
     // Combine the two leads-to above and we will get the postcondition
-    or_leads_to_combine::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), cr_added_event_msg_sent_and_controller_not_in_reconcile, cr_added_event_msg_sent_and_controller_in_reconcile, controller_in_reconcile);
+    or_leads_to_combine::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), cr_added_event_msg_sent_and_controller_not_in_reconcile, cr_added_event_msg_sent_and_reconcile_ongoing, reconcile_ongoing);
 }
 
-proof fn lemma_controller_in_reconcile_leads_to_cm_always_exists(cr: ResourceObj)
+proof fn lemma_reconcile_ongoing_leads_to_cm_always_exists(cr: ResourceObj)
     requires
         cr.key.kind.is_CustomResourceKind(),
     ensures
@@ -325,7 +324,7 @@ proof fn lemma_reconcile_done_leads_to_cm_always_exists(cr: ResourceObj)
     // and is one compromise I did in the spec to make it easier to start),
     // and the rescheduled reconcile leads to the init reconcile state,
     // which we have proved leads to cm_exists
-    controller_runtime_liveness::lemma_reconcile_done_leads_to_reconcile_triggered::<SimpleReconcileState>(simple_reconciler(), cr.key);
+    controller_runtime_liveness::lemma_reconcile_done_leads_to_reconcile_init::<SimpleReconcileState>(simple_reconciler(), cr.key);
     lemma_init_pc_leads_to_cm_always_exists(cr);
     leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconciler_reconcile_done(cr.key)), lift_state(reconciler_at_init_pc(cr.key)), always(lift_state(cm_exists(cr.key))));
 }
@@ -341,12 +340,12 @@ proof fn lemma_reconcile_error_leads_to_cm_always_exists(cr: ResourceObj)
 {
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
 
-    controller_runtime_liveness::lemma_reconcile_error_leads_to_reconcile_triggered::<SimpleReconcileState>(simple_reconciler(), cr.key);
+    controller_runtime_liveness::lemma_reconcile_error_leads_to_reconcile_init::<SimpleReconcileState>(simple_reconciler(), cr.key);
     lemma_init_pc_leads_to_cm_always_exists(cr);
     leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconciler_reconcile_error(cr.key)), lift_state(reconciler_at_init_pc(cr.key)), always(lift_state(cm_exists(cr.key))));
 }
 
-proof fn lemma_reconcile_rescheduled_leads_to_cm_always_exists(cr: ResourceObj)
+proof fn lemma_reconcile_idle_and_scheduled_leads_to_cm_always_exists(cr: ResourceObj)
     requires
         cr.key.kind.is_CustomResourceKind(),
     ensures
@@ -357,16 +356,16 @@ proof fn lemma_reconcile_rescheduled_leads_to_cm_always_exists(cr: ResourceObj)
             }).leads_to(always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
         ),
 {
-    let reconcile_rescheduled = |s: State<SimpleReconcileState>| {
+    let reconcile_idle_and_scheduled = |s: State<SimpleReconcileState>| {
         &&& !s.reconcile_state_contains(cr.key)
         &&& s.reconcile_scheduled_for(cr.key)
     };
 
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
 
-    controller_runtime_liveness::lemma_scheduled_reconcile_leads_to_init::<SimpleReconcileState>(simple_reconciler(), cr.key);
+    controller_runtime_liveness::lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init::<SimpleReconcileState>(simple_reconciler(), cr.key);
     lemma_init_pc_leads_to_cm_always_exists(cr);
-    leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconcile_rescheduled), lift_state(reconciler_at_init_pc(cr.key)), always(lift_state(cm_exists(cr.key))));
+    leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconcile_idle_and_scheduled), lift_state(reconciler_at_init_pc(cr.key)), always(lift_state(cm_exists(cr.key))));
 }
 
 proof fn lemma_p_leads_to_cm_always_exists(cr: ResourceObj, p: TempPred<State<SimpleReconcileState>>)
