@@ -14,6 +14,12 @@ pub open spec fn added_event_msg_to_controller(res: ResourceObj) -> Message {
     form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(res))
 }
 
+/// If res exists and res can trigger reconcile, then
+/// (1) its added event message is in flight, or
+/// (2) the controller is running reconcile, or
+/// (3) the reconcile is scheduled.
+///
+/// This is based on an assumption that controller always re-queues the reconcile when reconcile finishes in the controller spec.
 pub proof fn always_res_exists_implies_added_in_flight_or_reconcile_ongoing_or_reconcile_scheduled<T>(reconciler: Reconciler<T>, res: ResourceObj)
     requires
         (reconciler.reconcile_trigger)(added_event_msg_to_controller(res)).is_Some(),

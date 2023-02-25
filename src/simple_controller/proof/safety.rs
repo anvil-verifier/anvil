@@ -72,6 +72,7 @@ pub open spec fn reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_
     }
 }
 
+/// If the reconcile is at get_cr_done_pc, then (1) a get cr request message is sent or (2) the corresponding response is sent.
 pub proof fn lemma_always_reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr_key: ResourceKey)
     requires
         cr_key.kind.is_CustomResourceKind(),
@@ -148,6 +149,7 @@ pub open spec fn reconcile_create_cm_done_implies_pending_create_cm_req_in_fligh
     }
 }
 
+/// If the reconcile is at create_cm_done_pc, then (1) a create cm request message is sent or (2) the corresponding response is sent.
 pub proof fn lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr_key: ResourceKey)
     requires
         cr_key.kind.is_CustomResourceKind(),
@@ -209,7 +211,6 @@ proof fn next_preserves_reconcile_create_cm_done_implies_pending_create_cm_req_i
         }
     }
 }
-
 
 pub open spec fn delete_cm_req_msg_not_in_flight(cr_key: ResourceKey) -> StatePred<State<SimpleReconcileState>>
     recommends

@@ -62,6 +62,9 @@ proof fn liveness_proof(cr: ResourceObj)
 {
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
     kubernetes_api_safety::always_res_exists_implies_added_in_flight_or_reconcile_ongoing_or_reconcile_scheduled::<SimpleReconcileState>(simple_reconciler(), cr);
+
+    // Now we have [](cr_exists => cr_added_event_msg_sent \/ reconcile_ongoing \/ reconcile_scheduled)
+    // and we need to prove each conclusion leads to []cm_exists
     lemma_cr_added_event_msg_sent_leads_to_cm_always_exists(cr);
     lemma_reconcile_ongoing_leads_to_cm_always_exists(cr);
     lemma_reconcile_idle_and_scheduled_leads_to_cm_always_exists(cr);
@@ -77,9 +80,11 @@ proof fn liveness_proof(cr: ResourceObj)
         ||| s.reconcile_scheduled_for(cr.key)
     };
 
+    // Use or_leads_to_combine_temp to combine the three leads-to formulas
     or_leads_to_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconcile_ongoing), lift_state(reconcile_idle_and_scheduled), always(lift_state(cm_exists(cr.key))));
     or_leads_to_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconcile_ongoing_or_scheduled), lift_state(added_event_in_flight), always(lift_state(cm_exists(cr.key))));
 
+    // This assertion triggers leads_to_weaken_auto
     assert(sm_spec(simple_reconciler()).entails(
         lift_state(|s: State<SimpleReconcileState>| {
             ||| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)))
