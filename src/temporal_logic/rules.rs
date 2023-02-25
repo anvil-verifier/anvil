@@ -916,6 +916,26 @@ pub proof fn init_invariant<T>(spec: TempPred<T>, init: StatePred<T>, next: Acti
     };
 }
 
+/// Strengthen next with inv.
+/// pre:
+///     spec |= []next
+///     spec |= []inv
+///     |= next /\ inv <=> next_and_inv
+/// post:
+///     spec |= []next_and_inv
+pub proof fn strengthen_next<T>(spec: TempPred<T>, next: ActionPred<T>, inv: StatePred<T>, next_and_inv: ActionPred<T>)
+    requires
+        spec.entails(always(lift_action(next))),
+        spec.entails(always(lift_state(inv))),
+        valid(lift_action(next_and_inv).equals(lift_action(next).and(lift_state(inv)))),
+    ensures
+        spec.entails(always(lift_action(next_and_inv))),
+{
+    entails_and_temp::<T>(spec, always(lift_action(next)), always(lift_state(inv)));
+    always_and_equality::<T>(lift_action(next), lift_state(inv));
+    temp_pred_equality::<T>(lift_action(next_and_inv), lift_action(next).and(lift_state(inv)));
+}
+
 /// Get the initial leads_to.
 /// pre:
 ///     spec |= [](p /\ next => p' /\ q')

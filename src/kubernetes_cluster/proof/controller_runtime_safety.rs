@@ -97,10 +97,7 @@ pub proof fn lemma_always_resp_matches_at_most_one_pending_req<T>(reconciler: Re
 
     lemma_always_pending_req_has_lower_req_id::<T>(reconciler);
 
-    entails_and_temp::<State<T>>(sm_spec(reconciler), always(lift_action(next(reconciler))), always(lift_state(pending_req_has_lower_req_id())));
-    always_and_equality::<State<T>>(lift_action(next(reconciler)), lift_state(pending_req_has_lower_req_id()));
-    temp_pred_equality::<State<T>>(lift_action(next(reconciler)).and(lift_state(pending_req_has_lower_req_id())), lift_action(stronger_next));
-
+    strengthen_next::<State<T>>(sm_spec(reconciler), next(reconciler), pending_req_has_lower_req_id(), stronger_next);
     init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), stronger_next, invariant);
 }
 
@@ -137,10 +134,7 @@ pub proof fn lemma_always_each_resp_matches_at_most_one_pending_req<T>(reconcile
 
     lemma_always_pending_req_has_lower_req_id::<T>(reconciler);
 
-    entails_and_temp::<State<T>>(sm_spec(reconciler), always(lift_action(next(reconciler))), always(lift_state(pending_req_has_lower_req_id())));
-    always_and_equality::<State<T>>(lift_action(next(reconciler)), lift_state(pending_req_has_lower_req_id()));
-    temp_pred_equality::<State<T>>(lift_action(next(reconciler)).and(lift_state(pending_req_has_lower_req_id())), lift_action(stronger_next));
-
+    strengthen_next::<State<T>>(sm_spec(reconciler), next(reconciler), pending_req_has_lower_req_id(), stronger_next);
     init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), stronger_next, invariant);
 }
 

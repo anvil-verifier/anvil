@@ -384,16 +384,14 @@ proof fn lemma_p_leads_to_cm_always_exists(cr: ResourceObj, p: TempPred<State<Si
             p.leads_to(always(lift_state(cm_exists(cr.key))))
         ),
 {
-    let delete_cm_req_msg_not_in_flight = safety::delete_cm_req_msg_not_in_flight(cr.key);
     let next_and_invariant = |s: State<SimpleReconcileState>, s_prime: State<SimpleReconcileState>| {
         &&& next(simple_reconciler())(s, s_prime)
-        &&& delete_cm_req_msg_not_in_flight(s)
+        &&& safety::delete_cm_req_msg_not_in_flight(cr.key)(s)
     };
 
     safety::lemma_delete_cm_req_msg_never_in_flight(cr.key);
-    entails_and_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(lift_action(next(simple_reconciler()))), always(lift_state(delete_cm_req_msg_not_in_flight)));
-    always_and_equality::<State<SimpleReconcileState>>(lift_action(next(simple_reconciler())), lift_state(delete_cm_req_msg_not_in_flight));
-    temp_pred_equality::<State<SimpleReconcileState>>(lift_action(next(simple_reconciler())).and(lift_state(delete_cm_req_msg_not_in_flight)), lift_action(next_and_invariant));
+
+    strengthen_next::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), next(simple_reconciler()), safety::delete_cm_req_msg_not_in_flight(cr.key), next_and_invariant);
     leads_to_stable_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_action(next_and_invariant), p, lift_state(cm_exists(cr.key)));
 }
 
@@ -497,16 +495,15 @@ proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(res
         scheduled_cr_key: Option::Some(cr_key),
     };
 
-    let inv = controller_runtime_safety::resp_matches_at_most_one_pending_req(resp_msg, cr_key);
-    controller_runtime_safety::lemma_always_resp_matches_at_most_one_pending_req::<SimpleReconcileState>(simple_reconciler(), resp_msg, cr_key);
-    let inv_and_next = |s, s_prime: State<SimpleReconcileState>| {
-        &&& inv(s)
+    let next_and_invariant = |s, s_prime: State<SimpleReconcileState>| {
         &&& next(simple_reconciler())(s, s_prime)
+        &&& controller_runtime_safety::resp_matches_at_most_one_pending_req(resp_msg, cr_key)(s)
     };
-    temp_pred_equality::<State<SimpleReconcileState>>(lift_action(inv_and_next), lift_state(inv).and(lift_action(next(simple_reconciler()))));
-    always_and_equality::<State<SimpleReconcileState>>(lift_state(inv), lift_action(next(simple_reconciler())));
-    entails_and_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(lift_state(inv)), always(lift_action(next(simple_reconciler()))));
-    controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(simple_reconciler(), input, inv_and_next, continue_reconcile(simple_reconciler()), pre, post);
+
+    controller_runtime_safety::lemma_always_resp_matches_at_most_one_pending_req::<SimpleReconcileState>(simple_reconciler(), resp_msg, cr_key);
+
+    strengthen_next::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), next(simple_reconciler()), controller_runtime_safety::resp_matches_at_most_one_pending_req(resp_msg, cr_key), next_and_invariant);
+    controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(simple_reconciler(), input, next_and_invariant, continue_reconcile(simple_reconciler()), pre, post);
 }
 
 proof fn lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(req_msg: Message, cr_key: ResourceKey)

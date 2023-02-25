@@ -92,10 +92,7 @@ pub proof fn lemma_always_reconcile_get_cr_done_implies_pending_req_in_flight_or
 
     controller_runtime_safety::lemma_always_each_resp_matches_at_most_one_pending_req::<SimpleReconcileState>(simple_reconciler(), cr_key);
 
-    entails_and_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(lift_action(next(simple_reconciler()))), always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req::<SimpleReconcileState>(cr_key))));
-    always_and_equality::<State<SimpleReconcileState>>(lift_action(next(simple_reconciler())), lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req::<SimpleReconcileState>(cr_key)));
-    temp_pred_equality::<State<SimpleReconcileState>>(lift_action(next(simple_reconciler())).and(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req::<SimpleReconcileState>(cr_key))), lift_action(stronger_next));
-
+    strengthen_next::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), next(simple_reconciler()), controller_runtime_safety::each_resp_matches_at_most_one_pending_req::<SimpleReconcileState>(cr_key), stronger_next);
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), stronger_next, invariant);
 }
 
@@ -169,10 +166,7 @@ pub proof fn lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req
 
     lemma_delete_cm_req_msg_never_in_flight(cr_key);
 
-    entails_and_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(lift_action(next(simple_reconciler()))), always(lift_state(delete_cm_req_msg_not_in_flight(cr_key))));
-    always_and_equality::<State<SimpleReconcileState>>(lift_action(next(simple_reconciler())), lift_state(delete_cm_req_msg_not_in_flight(cr_key)));
-    temp_pred_equality::<State<SimpleReconcileState>>(lift_action(next(simple_reconciler())).and(lift_state(delete_cm_req_msg_not_in_flight(cr_key))), lift_action(stronger_next));
-
+    strengthen_next::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), next(simple_reconciler()), delete_cm_req_msg_not_in_flight(cr_key), stronger_next);
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), stronger_next, invariant);
 }
 
