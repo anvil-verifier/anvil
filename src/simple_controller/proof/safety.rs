@@ -96,6 +96,7 @@ pub proof fn lemma_always_reconcile_get_cr_done_implies_pending_req_in_flight_or
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), stronger_next, invariant);
 }
 
+// next (and each_resp_matches_at_most_one_pending_req) preserves reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight
 proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr_key: ResourceKey, s: State<SimpleReconcileState>, s_prime: State<SimpleReconcileState>)
     requires
         cr_key.kind.is_CustomResourceKind(),
@@ -105,11 +106,15 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
     ensures
         reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr_key)(s_prime),
 {
+    // We only care about the case where reconcile state is at after_get_cr_pc at s_prime
     if s_prime.reconcile_state_contains(cr_key) && s_prime.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc() {
+        // Depending on whether reconcile state is at after_get_cr_pc, we need to reason about different transitions
         if s.reconcile_state_contains(cr_key) && s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc() {
             let req_msg = choose |req_msg| #[trigger] is_controller_get_cr_request_msg(req_msg, cr_key) && s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg);
             assert(is_controller_get_cr_request_msg(req_msg, cr_key) && s_prime.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg));
+            // If req_msg is in flight at s...
             if s.message_in_flight(req_msg) {
+                // ... then either (1) the req_msg is still in flight at s_prime, or (2) req_msg is handled by k8s and the resp is in flight
                 if s_prime.message_in_flight(req_msg) {
                     assert(s_prime.message_in_flight(req_msg)); // providing witness for exists |req_msg| ...
                 } else {
@@ -117,11 +122,18 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
                     assert(s_prime.message_in_flight(resp_msg) && resp_msg_matches_req_msg(resp_msg, req_msg)); // providing witness for exists |resp_msg| ...
                 }
             } else {
+                // If req_msg is not in flight at s, then the corresponding resp_msg is in flight at s
                 let resp_msg = choose |resp_msg| #[trigger] s.message_in_flight(resp_msg) && resp_msg_matches_req_msg(resp_msg, req_msg);
+                // The key here is to use the safety invariant: resp_matches_at_most_one_pending_req
+                // It says each response message can match only one pending request message, so req_msg is the only message that can match resp_msg
+                // In other words, if resp_msg is delivered to the controller in this transition, then the reconcile state of cr_key will be advanced to the next pc at s_prime
+                // By contraposition, since the reconcile state is still after_get_cr_pc at s_prime, we can show that resp_msg is still in flight in s_prime
                 assert(controller_runtime_safety::resp_matches_at_most_one_pending_req::<SimpleReconcileState>(resp_msg, cr_key)(s));
                 assert(s_prime.message_in_flight(resp_msg) && resp_msg_matches_req_msg(resp_msg, req_msg)); // providing witness for exists |resp_msg| ...
             }
         } else {
+            // If reconcile state is not at after_get_cr_pc for s, then this in transition reconcile_core advances the reconcile state to after_get_cr_pc
+            // which means the req_msg is just sent to the network, so of course it is in flight
             let req_msg = controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key}), s.controller_state.req_id);
             assert(is_controller_get_cr_request_msg(req_msg, cr_key)
                 && s_prime.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg)
