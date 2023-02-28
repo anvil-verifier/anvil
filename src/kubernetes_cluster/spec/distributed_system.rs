@@ -12,7 +12,7 @@ use crate::kubernetes_cluster::spec::{
     kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
     kubernetes_api::state_machine::kubernetes_api,
     network,
-    network::{network, NetworkState},
+    network::{multiset_contains_msg, network, NetworkState},
     reconciler::Reconciler,
 };
 use crate::pervasive::{map::*, option::*, seq::*, set::*};
@@ -33,8 +33,8 @@ pub struct State<T> {
 
 impl<T> State<T> {
     #[verifier(inline)]
-    pub open spec fn message_sent(self, msg: Message) -> bool {
-        self.network_state.sent_messages.contains(msg)
+    pub open spec fn message_in_flight(self, msg: Message) -> bool {
+        multiset_contains_msg(self.network_state.in_flight, msg)
     }
 
     pub open spec fn resource_key_exists(self, key: ResourceKey) -> bool {
@@ -52,6 +52,7 @@ impl<T> State<T> {
         self.kubernetes_api_state.resources[key]
     }
 
+    #[verifier(inline)]
     pub open spec fn reconcile_state_contains(self, key: ResourceKey) -> bool {
         self.controller_state.ongoing_reconciles.dom().contains(key)
     }

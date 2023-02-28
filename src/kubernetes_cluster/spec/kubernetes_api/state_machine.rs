@@ -5,7 +5,7 @@ use crate::kubernetes_cluster::spec::{
     common::*,
     kubernetes_api::{builtin_controllers::statefulset_controller, common::*},
 };
-use crate::pervasive::{map::*, option::*, result::*, seq::*, set::*};
+use crate::pervasive::{map::*, multiset::*, option::*, result::*, seq::*, set::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
@@ -14,9 +14,30 @@ use builtin_macros::*;
 
 verus! {
 
+pub open spec fn handle_get_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<Message>)
+    recommends
+        msg.is_get_request(),
+{
+    let src = msg.dst;
+    let dst = msg.src;
+    let req_id = msg.get_req_id();
+    let req = msg.get_get_request();
+    if !s.resources.dom().contains(req.key) {
+        // Get fails
+        let result = Result::Err(APIError::ObjectNotFound);
+        let resp = form_get_resp_msg(msg, result, req_id);
+        (s.resources, resp, Option::None)
+    } else {
+        // Get succeeds
+        let result = Result::Ok(s.resources[req.key]);
+        let resp = form_get_resp_msg(msg, result, req_id);
+        (s.resources, resp, Option::None)
+    }
+}
+
 // etcd is modeled as a centralized map that handles get/create/delete
 // TODO: support list/update/statusupdate
-pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, KubernetesAPIActionInput)
+pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<Message>)
     recommends
         msg.content.is_APIRequest(),
 {
@@ -24,18 +45,19 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Etc
     let dst = msg.src;
     let req_id = msg.get_req_id();
     if msg.is_get_request() {
-        let req = msg.get_get_request();
-        if !s.resources.dom().contains(req.key) {
-            // Get fails
-            let result = Result::Err(APIError::ObjectNotFound);
-            let resp = form_get_resp_msg(msg, result, req_id);
-            (s.resources, resp, Option::None)
-        } else {
-            // Get succeeds
-            let result = Result::Ok(s.resources[req.key]);
-            let resp = form_get_resp_msg(msg, result, req_id);
-            (s.resources, resp, Option::None)
-        }
+        // let req = msg.get_get_request();
+        // if !s.resources.dom().contains(req.key) {
+        //     // Get fails
+        //     let result = Result::Err(APIError::ObjectNotFound);
+        //     let resp = form_get_resp_msg(msg, result, req_id);
+        //     (s.resources, resp, Option::None)
+        // } else {
+        //     // Get succeeds
+        //     let result = Result::Ok(s.resources[req.key]);
+        //     let resp = form_get_resp_msg(msg, result, req_id);
+        //     (s.resources, resp, Option::None)
+        // }
+        handle_get_request(msg, s)
     } else if msg.is_list_request() {
         // TODO: implement list request handling
         // currently it just returns error
@@ -81,7 +103,7 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Etc
 }
 
 /// Collect the requests from the builtin controllers
-pub open spec fn transition_by_builtin_controllers(msg: Message, s: KubernetesAPIState) -> Set<Message>
+pub open spec fn transition_by_builtin_controllers(msg: Message, s: KubernetesAPIState) -> Multiset<Message>
     recommends
         msg.content.is_WatchEvent(),
 {
@@ -130,10 +152,10 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
                     req_id: s_after_etcd_transition.req_id + controller_requests.len(),
                     ..s_after_etcd_transition
                 };
-                (s_prime, set![etcd_resp, etcd_notify_o.get_Some_0()] + controller_requests)
+                (s_prime, Multiset::empty().insert(etcd_resp).insert(etcd_notify_o.get_Some_0()).add(controller_requests))
             } else {
                 let s_prime = s_after_etcd_transition;
-                (s_prime, set![etcd_resp])
+                (s_prime, Multiset::singleton(etcd_resp))
             }
         },
     }

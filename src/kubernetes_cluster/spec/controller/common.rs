@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_cluster::spec::{common::*, reconciler::*};
-use crate::pervasive::{map::*, option::*, seq::*, set::*};
+use crate::pervasive::{map::*, multiset::*, option::*, seq::*, set::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use builtin::*;
@@ -34,11 +34,11 @@ pub enum ControllerStep {
     EndReconcile,
 }
 
-pub type ControllerStateMachine<T> = StateMachine<ControllerState<T>, ControllerActionInput, ControllerActionInput, Set<Message>, ControllerStep>;
+pub type ControllerStateMachine<T> = StateMachine<ControllerState<T>, ControllerActionInput, ControllerActionInput, Multiset<Message>, ControllerStep>;
 
-pub type ControllerAction<T> = Action<ControllerState<T>, ControllerActionInput, Set<Message>>;
+pub type ControllerAction<T> = Action<ControllerState<T>, ControllerActionInput, Multiset<Message>>;
 
-pub type ControllerActionResult<T> = ActionResult<ControllerState<T>, Set<Message>>;
+pub type ControllerActionResult<T> = ActionResult<ControllerState<T>, Multiset<Message>>;
 
 pub open spec fn controller_req_msg(req: APIRequest, req_id: nat) -> Message {
     form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req, req_id))
