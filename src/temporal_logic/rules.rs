@@ -482,7 +482,7 @@ proof fn confluence_at_some_point<T>(ex: Execution<T>, next: TempPred<T>, p: Tem
     decreases
         i,
 {
-    if i === 0 {
+    if i == 0 {
         execution_equality::<T>(ex, ex.suffix(0));
         assert(p.and(q).satisfied_by(ex.suffix(0)));
     } else {
@@ -535,9 +535,9 @@ pub proof fn instantiate_entailed_leads_to<T>(ex: Execution<T>, i: nat, spec: Te
 
 pub proof fn execution_equality<T>(ex1: Execution<T>, ex2: Execution<T>)
     requires
-        forall |i: nat| #[trigger] (ex1.nat_to_state)(i) === (ex2.nat_to_state)(i),
+        forall |i: nat| #[trigger] (ex1.nat_to_state)(i) == (ex2.nat_to_state)(i),
     ensures
-        ex1 === ex2,
+        ex1 == ex2,
 {
     fun_ext::<nat, T>(ex1.nat_to_state, ex2.nat_to_state);
 }
@@ -546,9 +546,9 @@ pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
     requires
         valid(p.equals(q)),
     ensures
-        p === q,
+        p == q,
 {
-    assert forall |ex: Execution<T>| #[trigger] (p.pred)(ex) === (q.pred)(ex) by {
+    assert forall |ex: Execution<T>| #[trigger] (p.pred)(ex) == (q.pred)(ex) by {
         valid_equals_to_valid_implies::<T>(p, q);
         if (p.pred)(ex) {
             implies_apply::<T>(ex, p, q);
@@ -561,7 +561,7 @@ pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
 
 pub proof fn always_and_equality<T>(p: TempPred<T>, q: TempPred<T>)
     ensures
-        always(p.and(q)) === always(p).and(always(q)),
+        always(p.and(q)) == always(p).and(always(q)),
 {
     assert forall |ex| #[trigger] always(p.and(q)).satisfied_by(ex) implies always(p).and(always(q)).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) by {
@@ -578,7 +578,7 @@ pub proof fn always_and_equality<T>(p: TempPred<T>, q: TempPred<T>)
 
 pub proof fn p_and_always_p_equals_always_p<T>(p: TempPred<T>)
     ensures
-        p.and(always(p)) === always(p),
+        p.and(always(p)) == always(p),
 {
     assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies p.and(always(p)).satisfied_by(ex) by {
         always_to_current::<T>(ex, p);
@@ -590,9 +590,9 @@ pub proof fn a_to_temp_pred_equality<T, A>(p: FnSpec(A) -> TempPred<T>, q: FnSpe
     requires
         forall |a: A| #[trigger] valid(p(a).equals(q(a))),
     ensures
-        p === q,
+        p == q,
 {
-    assert forall |a: A| #[trigger] p(a) === q(a) by {
+    assert forall |a: A| #[trigger] p(a) == q(a) by {
         temp_pred_equality::<T>(p(a), q(a));
     };
     fun_ext::<A, TempPred<T>>(p, q);
@@ -600,7 +600,7 @@ pub proof fn a_to_temp_pred_equality<T, A>(p: FnSpec(A) -> TempPred<T>, q: FnSpe
 
 pub proof fn tla_exists_equality<T, A>(f: FnSpec(A, T) -> bool)
     ensures
-        lift_state(|t| exists |a| #[trigger] f(a, t)) === tla_exists(|a| lift_state(|t| f(a, t))),
+        lift_state(|t| exists |a| #[trigger] f(a, t)) == tla_exists(|a| lift_state(|t| f(a, t))),
 {
     let p = lift_state(|t| exists |a| #[trigger] f(a, t));
     let q = tla_exists(|a| lift_state(|t| f(a, t)));
@@ -619,7 +619,7 @@ pub proof fn tla_exists_equality<T, A>(f: FnSpec(A, T) -> bool)
 
 pub proof fn tla_forall_always_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
     ensures
-        tla_forall(|a: A| always(a_to_p(a))) === always(tla_forall(a_to_p)),
+        tla_forall(|a: A| always(a_to_p(a))) == always(tla_forall(a_to_p)),
 {
     let a_to_always_p = |a: A| always(a_to_p(a));
 
@@ -651,7 +651,7 @@ pub proof fn tla_forall_always_equality_variant<T, A>(a_to_always: FnSpec(A) -> 
     requires
         forall |a: A| #![trigger a_to_always(a)] valid(a_to_always(a).equals((|a: A| always(a_to_p(a)))(a))),
     ensures
-        tla_forall(a_to_always) === always(tla_forall(a_to_p)),
+        tla_forall(a_to_always) == always(tla_forall(a_to_p)),
 {
     a_to_temp_pred_equality::<T, A>(a_to_always, |a: A| always(a_to_p(a)));
     temp_pred_equality::<T>(tla_forall(a_to_always), tla_forall(|a: A| always(a_to_p(a))));
@@ -660,7 +660,7 @@ pub proof fn tla_forall_always_equality_variant<T, A>(a_to_always: FnSpec(A) -> 
 
 pub proof fn tla_forall_not_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
     ensures
-        tla_forall(|a: A| not(a_to_p(a))) === not(tla_exists(a_to_p)),
+        tla_forall(|a: A| not(a_to_p(a))) == not(tla_exists(a_to_p)),
 {
     let a_to_not_p = |a: A| not(a_to_p(a));
     assert forall |ex| #[trigger] tla_forall(a_to_not_p).satisfied_by(ex)
@@ -676,7 +676,7 @@ pub proof fn tla_forall_not_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
 
 pub proof fn tla_forall_and_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
     ensures
-        tla_forall(|a: A| a_to_p(a).and(q)) === tla_forall(a_to_p).and(q),
+        tla_forall(|a: A| a_to_p(a).and(q)) == tla_forall(a_to_p).and(q),
 {
     let a_to_p_and_q = |a: A| a_to_p(a).and(q);
     assert forall |ex| #[trigger] tla_forall(a_to_p_and_q).satisfied_by(ex)
@@ -697,7 +697,7 @@ pub proof fn tla_forall_and_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: 
 
 pub proof fn tla_forall_or_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
     ensures
-        tla_forall(|a: A| a_to_p(a).or(q)) === tla_forall(a_to_p).or(q),
+        tla_forall(|a: A| a_to_p(a).or(q)) == tla_forall(a_to_p).or(q),
 {
     let a_to_p_or_q = |a: A| a_to_p(a).or(q);
     assert forall |ex| #[trigger] tla_forall(a_to_p_or_q).satisfied_by(ex)
@@ -715,7 +715,7 @@ pub proof fn tla_forall_or_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: T
 
 pub proof fn tla_exists_and_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
     ensures
-        tla_exists(|a: A| a_to_p(a).and(q)) === tla_exists(a_to_p).and(q),
+        tla_exists(|a: A| a_to_p(a).and(q)) == tla_exists(a_to_p).and(q),
 {
     let a_to_p_and_q = |a: A| a_to_p(a).and(q);
     assert forall |ex| #[trigger] (tla_exists(a_to_p).and(q)).satisfied_by(ex)
@@ -729,7 +729,7 @@ pub proof fn tla_exists_and_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: 
 
 pub proof fn tla_exists_or_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
     ensures
-        tla_exists(|a: A| a_to_p(a).or(q)) === tla_exists(a_to_p).or(q),
+        tla_exists(|a: A| a_to_p(a).or(q)) == tla_exists(a_to_p).or(q),
 {
     let a_to_p_or_q = |a: A| a_to_p(a).or(q);
     assert forall |ex| #[trigger] (tla_exists(a_to_p).or(q)).satisfied_by(ex)
@@ -747,7 +747,7 @@ pub proof fn tla_exists_or_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: T
 
 pub proof fn tla_forall_implies_equality1<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
     ensures
-        tla_forall(|a: A| a_to_p(a).implies(q)) === tla_exists(a_to_p).implies(q),
+        tla_forall(|a: A| a_to_p(a).implies(q)) == tla_exists(a_to_p).implies(q),
 {
     let a_to_not_p = |a: A| not(a_to_p(a));
     a_to_temp_pred_equality::<T, A>(|a: A| a_to_p(a).implies(q), |a: A| a_to_not_p(a).or(q));
@@ -759,7 +759,7 @@ pub proof fn tla_forall_implies_equality1<T, A>(a_to_p: FnSpec(A) -> TempPred<T>
 
 pub proof fn tla_forall_implies_equality2<T, A>(p: TempPred<T>, a_to_q: FnSpec(A) -> TempPred<T>)
     ensures
-        tla_forall(|a: A| p.implies(a_to_q(a))) === p.implies(tla_forall(a_to_q)),
+        tla_forall(|a: A| p.implies(a_to_q(a))) == p.implies(tla_forall(a_to_q)),
 {
     a_to_temp_pred_equality::<T, A>(|a: A| p.implies(a_to_q(a)), |a: A| a_to_q(a).or(not(p)));
     temp_pred_equality::<T>(tla_forall(|a: A| p.implies(a_to_q(a))), tla_forall(|a: A| a_to_q(a).or(not(p))));
@@ -769,7 +769,7 @@ pub proof fn tla_forall_implies_equality2<T, A>(p: TempPred<T>, a_to_q: FnSpec(A
 
 pub proof fn tla_exists_implies_equality1<T, A>(p: TempPred<T>, a_to_q: FnSpec(A) -> TempPred<T>)
     ensures
-        tla_exists(|a: A| p.implies(a_to_q(a))) === p.implies(tla_exists(a_to_q)),
+        tla_exists(|a: A| p.implies(a_to_q(a))) == p.implies(tla_exists(a_to_q)),
 {
     a_to_temp_pred_equality::<T, A>(|a: A| p.implies(a_to_q(a)), |a: A| a_to_q(a).or(not(p)));
     temp_pred_equality::<T>(tla_exists(|a: A| p.implies(a_to_q(a))), tla_exists(|a: A| a_to_q(a).or(not(p))));
@@ -779,7 +779,7 @@ pub proof fn tla_exists_implies_equality1<T, A>(p: TempPred<T>, a_to_q: FnSpec(A
 
 pub proof fn tla_forall_leads_to_equality1<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
     ensures
-        tla_forall(|a: A| a_to_p(a).leads_to(q)) === tla_exists(a_to_p).leads_to(q),
+        tla_forall(|a: A| a_to_p(a).leads_to(q)) == tla_exists(a_to_p).leads_to(q),
 {
     tla_forall_always_equality_variant::<T, A>(|a: A| a_to_p(a).leads_to(q), |a: A| a_to_p(a).implies(eventually(q)));
     tla_forall_implies_equality1::<T, A>(a_to_p, eventually(q));
@@ -787,7 +787,7 @@ pub proof fn tla_forall_leads_to_equality1<T, A>(a_to_p: FnSpec(A) -> TempPred<T
 
 pub proof fn tla_forall_always_implies_equality2<T, A>(p: TempPred<T>, a_to_q: FnSpec(A) -> TempPred<T>)
     ensures
-        tla_forall(|a: A| always(p.implies(a_to_q(a)))) === always(p.implies(tla_forall(a_to_q))),
+        tla_forall(|a: A| always(p.implies(a_to_q(a)))) == always(p.implies(tla_forall(a_to_q))),
 {
     tla_forall_always_equality_variant::<T, A>(|a: A| always(p.implies(a_to_q(a))), |a: A| p.implies(a_to_q(a)));
     tla_forall_implies_equality2::<T, A>(p, a_to_q);

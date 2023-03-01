@@ -139,8 +139,8 @@ impl Message {
     pub open spec fn is_write_request_of_kind(self, kind: ResourceKind) -> bool {
         &&& self.is_write_request()
         &&& match self.content.get_APIRequest_0() {
-            APIRequest::CreateRequest(req) => req.obj.key.kind === kind,
-            APIRequest::DeleteRequest(req) => req.key.kind === kind,
+            APIRequest::CreateRequest(req) => req.obj.key.kind == kind,
+            APIRequest::DeleteRequest(req) => req.key.kind == kind,
             _ => false,
         }
     }
@@ -246,9 +246,9 @@ impl Message {
     pub open spec fn is_watch_event_of_kind(self, kind: ResourceKind) -> bool {
         &&& self.content.is_WatchEvent()
         &&& match self.content.get_WatchEvent_0() {
-            WatchEvent::AddedEvent(added) => added.obj.key.kind === kind,
-            WatchEvent::ModifiedEvent(modified) => modified.obj.key.kind === kind,
-            WatchEvent::DeletedEvent(deleted) => deleted.obj.key.kind === kind,
+            WatchEvent::AddedEvent(added) => added.obj.key.kind == kind,
+            WatchEvent::ModifiedEvent(modified) => modified.obj.key.kind == kind,
+            WatchEvent::DeletedEvent(deleted) => deleted.obj.key.kind == kind,
         }
     }
 
@@ -307,19 +307,19 @@ pub open spec fn resp_matches_req(resp: APIResponse, req: APIRequest) -> bool {
     match resp {
         APIResponse::GetResponse(get_resp) => {
             &&& req.is_GetRequest()
-            &&& get_resp.req === req.get_GetRequest_0()
+            &&& get_resp.req == req.get_GetRequest_0()
         },
         APIResponse::ListResponse(list_resp) => {
             &&& req.is_ListRequest()
-            &&& list_resp.req === req.get_ListRequest_0()
+            &&& list_resp.req == req.get_ListRequest_0()
         },
         APIResponse::CreateResponse(create_resp) => {
             &&& req.is_CreateRequest()
-            &&& create_resp.req === req.get_CreateRequest_0()
+            &&& create_resp.req == req.get_CreateRequest_0()
         },
         APIResponse::DeleteResponse(delete_resp) => {
             &&& req.is_DeleteRequest()
-            &&& delete_resp.req === req.get_DeleteRequest_0()
+            &&& delete_resp.req == req.get_DeleteRequest_0()
         },
     }
 }
@@ -328,10 +328,10 @@ pub open spec fn resp_matches_req(resp: APIResponse, req: APIRequest) -> bool {
 pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -> bool {
     &&& resp_msg.content.is_APIResponse()
     &&& req_msg.content.is_APIRequest()
-    &&& resp_msg.dst === req_msg.src
-    &&& resp_msg.src === req_msg.dst
+    &&& resp_msg.dst == req_msg.src
+    &&& resp_msg.src == req_msg.dst
     &&& resp_matches_req(resp_msg.content.get_APIResponse_0(), req_msg.content.get_APIRequest_0())
-    &&& resp_msg.content.get_APIResponse_1() === req_msg.content.get_APIRequest_1()
+    &&& resp_msg.content.get_APIResponse_1() == req_msg.content.get_APIRequest_1()
 }
 
 pub open spec fn cm_suffix() -> Seq<char> {

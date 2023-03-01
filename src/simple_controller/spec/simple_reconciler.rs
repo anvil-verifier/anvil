@@ -64,13 +64,13 @@ pub open spec fn reconcile_core(cr_key: ResourceKey, resp_o: Option<APIResponse>
         cr_key.kind.is_CustomResourceKind(),
 {
     let pc = state.reconcile_pc;
-    if pc === init_pc() {
+    if pc == init_pc() {
         let state_prime = SimpleReconcileState {
             reconcile_pc: after_get_cr_pc(),
         };
         let req_o = Option::Some(APIRequest::GetRequest(GetRequest{key: cr_key}));
         (state_prime, req_o)
-    } else if pc === after_get_cr_pc() {
+    } else if pc == after_get_cr_pc() {
         let state_prime = SimpleReconcileState {
             reconcile_pc: after_create_cm_pc(),
         };
@@ -82,7 +82,7 @@ pub open spec fn reconcile_core(cr_key: ResourceKey, resp_o: Option<APIResponse>
 }
 
 pub open spec fn reconcile_done(state: SimpleReconcileState) -> bool {
-    state.reconcile_pc === after_create_cm_pc()
+    state.reconcile_pc == after_create_cm_pc()
 }
 
 pub open spec fn reconcile_error(state: SimpleReconcileState) -> bool {

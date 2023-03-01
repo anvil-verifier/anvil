@@ -26,7 +26,7 @@ pub open spec fn init() -> StatePred<CState> {
         &&& !s.sent_2_create
         &&& !s.obj_1_exists
         &&& !s.obj_2_exists
-        &&& s.messages === Set::empty()
+        &&& s.messages == Set::<Message>::empty()
     }
 }
 
@@ -40,7 +40,7 @@ pub open spec fn send1_pre() -> StatePred<CState> {
 pub open spec fn send1() -> ActionPred<CState> {
     |s, s_prime: CState| {
         &&& send1_pre()(s)
-        &&& s_prime === CState {
+        &&& s_prime == CState {
             sent_1_create: true,
             messages: s.messages.insert(Message::CreateReq{id: 1}),
             ..s
@@ -59,7 +59,7 @@ pub open spec fn send2_pre() -> StatePred<CState> {
 pub open spec fn send2() -> ActionPred<CState> {
     |s, s_prime: CState| {
         &&& send2_pre()(s)
-        &&& s_prime === CState {
+        &&& s_prime == CState {
             sent_2_create: true,
             messages: s.messages.insert(Message::CreateReq{id: 2}),
             ..s
@@ -81,7 +81,7 @@ pub open spec fn create1_pre() -> StatePred<CState> {
 pub open spec fn create1() -> ActionPred<CState> {
     |s, s_prime: CState| {
         &&& create1_pre()(s)
-        &&& s_prime === CState {
+        &&& s_prime == CState {
             obj_1_exists: true,
             ..s
         }
@@ -95,7 +95,7 @@ pub open spec fn create2_pre() -> StatePred<CState> {
 pub open spec fn create2() -> ActionPred<CState> {
     |s, s_prime: CState| {
         &&& create2_pre()(s)
-        &&& s_prime === CState {
+        &&& s_prime == CState {
             obj_2_exists: true,
             ..s
         }
@@ -110,7 +110,7 @@ pub open spec fn cluster() -> ActionPred<CState> {
 }
 
 pub open spec fn stutter() -> ActionPred<CState> {
-    |s, s_prime: CState| s === s_prime
+    |s, s_prime: CState| s == s_prime
 }
 
 pub open spec fn next() -> ActionPred<CState> {

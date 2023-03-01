@@ -28,7 +28,7 @@ pub open spec fn trigger_reconcile<T>(reconciler: Reconciler<T>) -> ControllerAc
             // Each queue stores the event relates to the same cr key.
             &&& input.scheduled_cr_key.is_None()
             &&& input.recv.is_Some()
-            &&& input.recv.get_Some_0().dst === HostId::CustomController
+            &&& input.recv.get_Some_0().dst == HostId::CustomController
             &&& input.recv.get_Some_0().content.is_WatchEvent()
             &&& (reconciler.reconcile_trigger)(input.recv.get_Some_0()).is_Some()
             &&& !s.ongoing_reconciles.dom().contains((reconciler.reconcile_trigger)(input.recv.get_Some_0()).get_Some_0())

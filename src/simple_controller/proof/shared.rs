@@ -26,7 +26,7 @@ pub open spec fn reconciler_at_init_pc(cr_key: ResourceKey) -> StatePred<State<S
 {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::init_pc()
     }
 }
 
@@ -36,7 +36,7 @@ pub open spec fn reconciler_at_init_pc_and_no_pending_req(cr_key: ResourceKey) -
 {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::init_pc()
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
     }
 }
@@ -47,7 +47,7 @@ pub open spec fn reconciler_at_after_get_cr_pc(cr_key: ResourceKey) -> StatePred
 {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::after_get_cr_pc()
     }
 }
 
@@ -57,8 +57,8 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req(msg: Message, cr_
 {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(msg)
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::after_get_cr_pc()
+        &&& s.reconcile_state_of(cr_key).pending_req_msg == Option::Some(msg)
         &&& is_controller_get_cr_request_msg(msg, cr_key)
     }
 }
@@ -69,8 +69,8 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight
 {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(msg)
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::after_get_cr_pc()
+        &&& s.reconcile_state_of(cr_key).pending_req_msg == Option::Some(msg)
         &&& is_controller_get_cr_request_msg(msg, cr_key)
         &&& s.message_in_flight(msg)
     }
@@ -82,8 +82,8 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_fligh
 {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(msg)
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::after_get_cr_pc()
+        &&& s.reconcile_state_of(cr_key).pending_req_msg == Option::Some(msg)
         &&& is_controller_get_cr_request_msg(msg, cr_key)
         &&& exists |resp_msg: Message| {
             &&& #[trigger] s.message_in_flight(resp_msg)
@@ -109,7 +109,7 @@ pub open spec fn reconciler_at_after_create_cm_pc(cr_key: ResourceKey) -> StateP
 {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::after_create_cm_pc()
     }
 }
 
@@ -119,9 +119,9 @@ pub open spec fn reconciler_at_after_create_cm_pc_and_pending_req_and_req_in_fli
 {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::after_create_cm_pc()
         &&& is_controller_create_cm_request_msg(msg, cr_key)
-        &&& s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(msg)
+        &&& s.reconcile_state_of(cr_key).pending_req_msg == Option::Some(msg)
         &&& s.message_in_flight(msg)
     }
 }
@@ -154,17 +154,17 @@ pub open spec fn cm_exists(cr_key: ResourceKey) -> StatePred<State<SimpleReconci
 }
 
 pub open spec fn is_controller_get_cr_request_msg(msg: Message, cr_key: ResourceKey) -> bool {
-    &&& msg.src === HostId::CustomController
-    &&& msg.dst === HostId::KubernetesAPI
+    &&& msg.src == HostId::CustomController
+    &&& msg.dst == HostId::KubernetesAPI
     &&& msg.is_get_request()
-    &&& msg.get_get_request().key === cr_key
+    &&& msg.get_get_request().key == cr_key
 }
 
 pub open spec fn is_controller_create_cm_request_msg(msg: Message, cr_key: ResourceKey) -> bool {
-    &&& msg.src === HostId::CustomController
-    &&& msg.dst === HostId::KubernetesAPI
+    &&& msg.src == HostId::CustomController
+    &&& msg.dst == HostId::KubernetesAPI
     &&& msg.is_create_request()
-    &&& msg.get_create_request().obj === simple_reconciler::subresource_configmap(cr_key)
+    &&& msg.get_create_request().obj == simple_reconciler::subresource_configmap(cr_key)
 }
 
 }

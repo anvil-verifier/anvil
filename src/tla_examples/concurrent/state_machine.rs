@@ -143,16 +143,16 @@ pub open spec fn delete_resp_msg(key: ResourceKey) -> Message {
 
 pub open spec fn init() -> StatePred<CState> {
     |s: CState| {
-        &&& s.resources === Map::empty()
-        &&& s.messages === Set::empty()
-        &&& s.attached === Set::empty()
+        &&& s.resources == Map::<ResourceKey, ResourceObj>::empty()
+        &&& s.messages == Set::<Message>::empty()
+        &&& s.attached == Set::<Seq<char>>::empty()
     }
 }
 
 pub open spec fn external_send_create_cr(res: ResourceObj) -> ActionPred<CState> {
     |s: CState, s_prime: CState| {
         &&& res.key.kind.is_CustomResourceKind()
-        &&& s_prime === CState {
+        &&& s_prime == CState {
             messages: s.messages.insert(create_req_msg(res.key)),
             ..s
         }
@@ -162,7 +162,7 @@ pub open spec fn external_send_create_cr(res: ResourceObj) -> ActionPred<CState>
 pub open spec fn external_send_delete_cr(res: ResourceObj) -> ActionPred<CState> {
     |s: CState, s_prime: CState| {
         &&& res.key.kind.is_CustomResourceKind()
-        &&& s_prime === CState {
+        &&& s_prime == CState {
             messages: s.messages.insert(delete_req_msg(res.key)),
             ..s
         }
@@ -180,7 +180,7 @@ pub open spec fn controller_send_create_sts_pre(msg: Message) -> StatePred<CStat
 pub open spec fn controller_send_create_sts(msg: Message) -> ActionPred<CState> {
     |s, s_prime| {
         &&& controller_send_create_sts_pre(msg)(s)
-        &&& s_prime === CState {
+        &&& s_prime == CState {
             messages: s.messages.insert(create_req_msg(ResourceKey{name: msg.get_CreateResponse_0().obj.key.name + sts_suffix(), kind: ResourceKind::StatefulSetKind})),
             ..s
         }
@@ -198,7 +198,7 @@ pub open spec fn controller_send_delete_sts_pre(msg: Message) -> StatePred<CStat
 pub open spec fn controller_send_delete_sts(msg: Message) -> ActionPred<CState> {
     |s, s_prime| {
         &&& controller_send_delete_sts_pre(msg)(s)
-        &&& s_prime === CState {
+        &&& s_prime == CState {
             messages: s.messages.insert(delete_req_msg(ResourceKey{name: msg.get_DeleteResponse_0().key.name + sts_suffix(), kind: ResourceKind::StatefulSetKind})),
             ..s
         }
@@ -257,7 +257,7 @@ pub open spec fn update_messages_with(s: CState, msg: Message) -> Set<Message>
 pub open spec fn k8s_handle_request(msg: Message) -> ActionPred<CState> {
     |s, s_prime| {
         &&& k8s_handle_request_pre(msg)(s)
-        &&& s_prime === CState {
+        &&& s_prime == CState {
             resources: update_resources_with(s, msg),
             messages: update_messages_with(s, msg),
             ..s
@@ -280,7 +280,7 @@ pub open spec fn k8s_attach_vol_to_pod_pre(sts_name: Seq<char>) -> StatePred<CSt
 pub open spec fn k8s_attach_vol_to_pod(sts_name: Seq<char>) -> ActionPred<CState> {
     |s, s_prime| {
         &&& k8s_attach_vol_to_pod_pre(sts_name)(s)
-        &&& s_prime === CState {
+        &&& s_prime == CState {
             attached: s.attached.insert(sts_name),
             ..s
         }
@@ -288,7 +288,7 @@ pub open spec fn k8s_attach_vol_to_pod(sts_name: Seq<char>) -> ActionPred<CState
 }
 
 pub open spec fn stutter() -> ActionPred<CState> {
-    |s, s_prime| s === s_prime
+    |s, s_prime| s == s_prime
 }
 
 pub enum ActionLabel {

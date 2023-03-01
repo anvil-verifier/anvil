@@ -30,7 +30,7 @@ pub open spec fn deliver() -> Action<State, MessageOps, ()> {
 
 pub open spec fn network() -> NetworkStateMachine<State, MessageOps> {
     NetworkStateMachine {
-        init: |s: State| s.sent_messages === Set::empty(),
+        init: |s: State| s.sent_messages == Set::<Message>::empty(),
         deliver: deliver(),
     }
 }

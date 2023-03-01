@@ -43,7 +43,7 @@ impl<T> State<T> {
 
     pub open spec fn resource_obj_exists(self, obj: ResourceObj) -> bool {
         &&& self.kubernetes_api_state.resources.dom().contains(obj.key)
-        &&& self.kubernetes_api_state.resources[obj.key] === obj
+        &&& self.kubernetes_api_state.resources[obj.key] == obj
     }
 
     pub open spec fn resource_obj_of(self, key: ResourceKey) -> ResourceObj
@@ -79,7 +79,7 @@ pub open spec fn init<T>(reconciler: Reconciler<T>) -> StatePred<State<T>> {
 
 pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostId) -> bool {
     if recv.is_Some() {
-        recv.get_Some_0().dst === host_id
+        recv.get_Some_0().dst == host_id
     } else {
         true
     }

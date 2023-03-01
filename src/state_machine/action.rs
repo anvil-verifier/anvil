@@ -25,7 +25,7 @@ impl<State, Input, Output> Action<State, Input, Output> {
     pub open spec fn forward(self, input: Input) -> ActionPred<State> {
         |s: State, s_prime: State| {
             &&& (self.precondition)(input, s)
-            &&& s_prime === (self.transition)(input, s).0
+            &&& s_prime == (self.transition)(input, s).0
         }
     }
 

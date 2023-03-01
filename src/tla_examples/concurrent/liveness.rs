@@ -257,8 +257,8 @@ proof fn lemma_k8s_create_sts_req_sent_leads_to(msg: Message, sub_res_msg: Messa
         msg.is_CreateRequest(),
         msg.get_CreateRequest_0().obj.key.kind.is_StatefulSetKind(),
         sub_res_msg.is_CreateRequest(),
-        sub_res_msg.get_CreateRequest_0().obj.key === (ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + pod_suffix(), kind: ResourceKind::PodKind})
-        || sub_res_msg.get_CreateRequest_0().obj.key === (ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + vol_suffix(), kind: ResourceKind::VolumeKind}),
+        sub_res_msg.get_CreateRequest_0().obj.key == (ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + pod_suffix(), kind: ResourceKind::PodKind})
+        || sub_res_msg.get_CreateRequest_0().obj.key == (ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + vol_suffix(), kind: ResourceKind::VolumeKind}),
     ensures
         sm_spec()
             .entails(lift_state(|s| message_sent(s, msg))

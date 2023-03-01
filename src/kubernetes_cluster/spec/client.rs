@@ -62,7 +62,7 @@ pub open spec fn send_delete_cr() -> ClientAction {
 pub open spec fn client() -> ClientStateMachine {
     StateMachine {
         init: |s: ClientState| {
-            s === ClientState {
+            s == ClientState {
                 req_id: 0,
             }
         },

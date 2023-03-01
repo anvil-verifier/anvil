@@ -20,28 +20,28 @@ pub struct SimpleState {
 
 pub open spec fn init() -> StatePred<SimpleState> {
     |s: SimpleState| {
-        &&& s.x === ABC::A
+        &&& s.x == ABC::A
         &&& s.happy
     }
 }
 
 pub open spec fn a() -> StatePred<SimpleState> {
-    |s: SimpleState| s.x === ABC::A
+    |s: SimpleState| s.x == ABC::A
 }
 
 
 pub open spec fn b() -> StatePred<SimpleState> {
-    |s: SimpleState| s.x === ABC::B
+    |s: SimpleState| s.x == ABC::B
 }
 
 pub open spec fn c() -> StatePred<SimpleState> {
-    |s: SimpleState| s.x === ABC::C
+    |s: SimpleState| s.x == ABC::C
 }
 
 pub open spec fn a_b() -> ActionPred<SimpleState> {
     |s, s_prime: SimpleState| {
         &&& a()(s)
-        &&& s_prime === SimpleState{
+        &&& s_prime == SimpleState{
             x: ABC::B,
             happy: s.happy
         }
@@ -51,7 +51,7 @@ pub open spec fn a_b() -> ActionPred<SimpleState> {
 pub open spec fn b_c() -> ActionPred<SimpleState> {
     |s, s_prime: SimpleState| {
         &&& b()(s)
-        &&& s_prime === SimpleState{
+        &&& s_prime == SimpleState{
             x: ABC::C,
             happy: s.happy
         }
@@ -59,7 +59,7 @@ pub open spec fn b_c() -> ActionPred<SimpleState> {
 }
 
 pub open spec fn stutter() -> ActionPred<SimpleState> {
-    |s, s_prime: SimpleState| s === s_prime
+    |s, s_prime: SimpleState| s == s_prime
 }
 
 pub open spec fn next() -> ActionPred<SimpleState> {
