@@ -1,0 +1,7 @@
+apiVersion: anvil.dev/v1
+kind: SimpleCR
+metadata:
+  name: foo
+  namespace: default
+spec:
+  content: Hey!
