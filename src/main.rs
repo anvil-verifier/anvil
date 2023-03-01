@@ -9,4 +9,8 @@ pub mod state_machine;
 pub mod temporal_logic;
 pub mod tla_examples;
 
-fn main() {}
+pub mod resources;
+
+#[verifier(external_body)]
+fn main() {
+}
