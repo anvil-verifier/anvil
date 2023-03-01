@@ -20,12 +20,12 @@ pub struct NetworkState {
     pub in_flight: Multiset<Message>,
 }
 
-pub open spec fn deliver() -> Action<NetworkState, MessageOps<Message>, ()> {
+pub open spec fn deliver() -> Action<NetworkState, MessageOps, ()> {
     Action {
-        precondition: |msg_ops: MessageOps<Message>, s: NetworkState| {
+        precondition: |msg_ops: MessageOps, s: NetworkState| {
             msg_ops.recv.is_Some() ==> multiset_contains_msg(s.in_flight, msg_ops.recv.get_Some_0())
         },
-        transition: |msg_ops: MessageOps<Message>, s: NetworkState| {
+        transition: |msg_ops: MessageOps, s: NetworkState| {
             if msg_ops.recv.is_Some() {
                 let s_prime = NetworkState {
                     in_flight: s.in_flight.remove(msg_ops.recv.get_Some_0()).add(msg_ops.send)
@@ -41,7 +41,7 @@ pub open spec fn deliver() -> Action<NetworkState, MessageOps<Message>, ()> {
     }
 }
 
-pub open spec fn network() -> NetworkStateMachine<NetworkState, Message> {
+pub open spec fn network() -> NetworkStateMachine<NetworkState, MessageOps> {
     NetworkStateMachine {
         init: |s: NetworkState| s.in_flight === Multiset::empty(),
         deliver: deliver(),

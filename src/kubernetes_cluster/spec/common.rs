@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::pervasive::function::*;
-use crate::pervasive::{multiset::*, option::*, result::*, seq::*, set::*, string::*};
+use crate::pervasive::{multiset::*, multiset::*, option::*, result::*, seq::*, set::*, string::*};
 use crate::temporal_logic::defs::*;
 use builtin::*;
 use builtin_macros::*;
@@ -287,6 +287,11 @@ impl Message {
     {
         self.content.get_WatchEvent_0().get_DeletedEvent_0()
     }
+}
+
+pub struct MessageOps {
+    pub recv: Option<Message>,
+    pub send: Multiset<Message>,
 }
 
 pub open spec fn is_ok_resp(resp: APIResponse) -> bool {

@@ -65,26 +65,21 @@ impl<State, Input, ActionInput, Output, Step> StateMachine<State, Input, ActionI
     }
 }
 
-pub struct MessageOps<#[verifier(maybe_negative)] M> {
-    pub recv: Option<M>,
-    pub send: Multiset<M>,
-}
-
 /// `NetworkStateMachine` is similar to `StateMachine` except that it has only one action `deliver`
 /// and there is no need for `step_to_action` or `action_input`.
-pub struct NetworkStateMachine <#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] Message> {
+pub struct NetworkStateMachine <#[verifier(maybe_negative)] State, #[verifier(maybe_negative)] MessageOps> {
     /// Check if it is the initial internal state.
     pub init: FnSpec(State) -> bool,
 
     /// The deliver action that (1) sends zero or one message to a host and (2) takes any number of messages from a host.
-    pub deliver: Action<State, MessageOps<Message>, ()>,
+    pub deliver: Action<State, MessageOps, ()>,
 }
 
-impl<State, Message> NetworkStateMachine<State, Message> {
+impl<State, MessageOps> NetworkStateMachine<State, MessageOps> {
 
     /// `next_result` is the interface that the network state machine exposes to the compound state machine.
     /// It returns whether deliver is enabled or not, and the new internal state if deliver is enabled.
-    pub open spec fn next_result(self, msg_ops: MessageOps<Message>, s: State) -> ActionResult<State, ()> {
+    pub open spec fn next_result(self, msg_ops: MessageOps, s: State) -> ActionResult<State, ()> {
         if (self.deliver.precondition)(msg_ops, s) {
             ActionResult::Enabled((self.deliver.transition)(msg_ops, s).0, (self.deliver.transition)(msg_ops, s).1)
         } else {
