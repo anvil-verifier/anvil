@@ -49,6 +49,7 @@ struct ResourceKey {
 // I did not find a way to encode the type into the enum
 // so each request operation is hardcoded to one type
 // This is a big limitation and we should work on it
+// TODO: have a unified representation of APIRequest for all types
 enum APIRequest {
     GetCRReq(ResourceKey),
     CreateConfigMapReq(ConfigMap),
@@ -196,6 +197,7 @@ async fn main() -> Result<()> {
 
     info!("starting simple-controller");
 
+    // TODO: How to connect the informer set up to the reconcile_trigger in spec?
     Controller::new(crs, ListParams::default()) // The controller's reconcile is triggered when a CR is created/updated
         .shutdown_on_signal()
         .run(reconcile, error_policy, Arc::new(Data { client })) // The reconcile function is registered
