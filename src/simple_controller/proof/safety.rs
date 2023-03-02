@@ -29,16 +29,16 @@ pub proof fn lemma_always_reconcile_init_implies_no_pending_req(cr_key: Resource
         sm_spec(simple_reconciler()).entails(always(
             lift_state(reconciler_at_init_pc(cr_key)).implies(lift_state(|s: State<SimpleReconcileState>| {
                 &&& s.reconcile_state_contains(cr_key)
-                &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
+                &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::init_pc()
                 &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
             }))
         )),
 {
     let invariant = |s: State<SimpleReconcileState>| {
         s.reconcile_state_contains(cr_key)
-        && s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
+        && s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::init_pc()
         ==> s.reconcile_state_contains(cr_key)
-            && s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
+            && s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::init_pc()
             && s.reconcile_state_of(cr_key).pending_req_msg.is_None()
     };
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), next(simple_reconciler()), invariant);
@@ -47,7 +47,7 @@ pub proof fn lemma_always_reconcile_init_implies_no_pending_req(cr_key: Resource
     // There is no need to do this if we only want to prove safety
     let invariant_temp_pred = lift_state(reconciler_at_init_pc(cr_key)).implies(lift_state(|s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::init_pc()
+        &&& s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::init_pc()
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
     }));
     temp_pred_equality::<State<SimpleReconcileState>>(lift_state(invariant), invariant_temp_pred);
@@ -59,10 +59,10 @@ pub open spec fn reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_
 {
     |s: State<SimpleReconcileState>| {
         s.reconcile_state_contains(cr_key)
-        && s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc()
+        && s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::after_get_cr_pc()
         ==> exists |req_msg| {
                 #[trigger] is_controller_get_cr_request_msg(req_msg, cr_key)
-                && s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg)
+                && s.reconcile_state_of(cr_key).pending_req_msg == Option::Some(req_msg)
                 && (s.message_in_flight(req_msg)
                     || exists |resp_msg: Message| {
                         #[trigger] s.message_in_flight(resp_msg)
@@ -107,11 +107,11 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
         reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr_key)(s_prime),
 {
     // We only care about the case where reconcile state is at after_get_cr_pc at s_prime
-    if s_prime.reconcile_state_contains(cr_key) && s_prime.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc() {
+    if s_prime.reconcile_state_contains(cr_key) && s_prime.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::after_get_cr_pc() {
         // Depending on whether reconcile state is at after_get_cr_pc, we need to reason about different transitions
-        if s.reconcile_state_contains(cr_key) && s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_get_cr_pc() {
-            let req_msg = choose |req_msg| #[trigger] is_controller_get_cr_request_msg(req_msg, cr_key) && s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg);
-            assert(is_controller_get_cr_request_msg(req_msg, cr_key) && s_prime.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg));
+        if s.reconcile_state_contains(cr_key) && s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::after_get_cr_pc() {
+            let req_msg = choose |req_msg| #[trigger] is_controller_get_cr_request_msg(req_msg, cr_key) && s.reconcile_state_of(cr_key).pending_req_msg == Option::Some(req_msg);
+            assert(is_controller_get_cr_request_msg(req_msg, cr_key) && s_prime.reconcile_state_of(cr_key).pending_req_msg == Option::Some(req_msg));
             // If req_msg is in flight at s...
             if s.message_in_flight(req_msg) {
                 // ... then either (1) the req_msg is still in flight at s_prime, or (2) req_msg is handled by k8s and the resp is in flight
@@ -136,7 +136,7 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
             // which means the req_msg is just sent to the network, so of course it is in flight
             let req_msg = controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr_key}), s.controller_state.req_id);
             assert(is_controller_get_cr_request_msg(req_msg, cr_key)
-                && s_prime.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg)
+                && s_prime.reconcile_state_of(cr_key).pending_req_msg == Option::Some(req_msg)
                 && s_prime.message_in_flight(req_msg)
             ); // providing witness for exists |req_msg| ...
         }
@@ -149,10 +149,10 @@ pub open spec fn reconcile_create_cm_done_implies_pending_create_cm_req_in_fligh
 {
     |s: State<SimpleReconcileState>| {
         s.reconcile_state_contains(cr_key)
-        && s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc()
+        && s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::after_create_cm_pc()
         ==> exists |req_msg| {
                 #[trigger] is_controller_create_cm_request_msg(req_msg, cr_key)
-                && s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg)
+                && s.reconcile_state_of(cr_key).pending_req_msg == Option::Some(req_msg)
                 && (s.message_in_flight(req_msg) || s.resource_key_exists(simple_reconciler::subresource_configmap(cr_key).key))
             }
     }
@@ -191,10 +191,10 @@ proof fn next_preserves_reconcile_create_cm_done_implies_pending_create_cm_req_i
     ensures
         reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr_key)(s_prime),
 {
-    if s_prime.reconcile_state_contains(cr_key) && s_prime.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc() {
-        if s.reconcile_state_contains(cr_key) && s.reconcile_state_of(cr_key).local_state.reconcile_pc === simple_reconciler::after_create_cm_pc() {
-            let req_msg = choose |req_msg| #[trigger] is_controller_create_cm_request_msg(req_msg, cr_key) && s.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg);
-            assert(is_controller_create_cm_request_msg(req_msg, cr_key) && s_prime.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg));
+    if s_prime.reconcile_state_contains(cr_key) && s_prime.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::after_create_cm_pc() {
+        if s.reconcile_state_contains(cr_key) && s.reconcile_state_of(cr_key).local_state.reconcile_pc == simple_reconciler::after_create_cm_pc() {
+            let req_msg = choose |req_msg| #[trigger] is_controller_create_cm_request_msg(req_msg, cr_key) && s.reconcile_state_of(cr_key).pending_req_msg == Option::Some(req_msg);
+            assert(is_controller_create_cm_request_msg(req_msg, cr_key) && s_prime.reconcile_state_of(cr_key).pending_req_msg == Option::Some(req_msg));
             if s.message_in_flight(req_msg) {
                 if s.resource_key_exists(simple_reconciler::subresource_configmap(cr_key).key) {
                     assert(s_prime.resource_key_exists(simple_reconciler::subresource_configmap(cr_key).key));
@@ -211,7 +211,7 @@ proof fn next_preserves_reconcile_create_cm_done_implies_pending_create_cm_req_i
         } else {
             let req_msg = controller_req_msg(simple_reconciler::create_cm_req(cr_key), s.controller_state.req_id);
             assert(is_controller_create_cm_request_msg(req_msg, cr_key)
-                && s_prime.reconcile_state_of(cr_key).pending_req_msg === Option::Some(req_msg)
+                && s_prime.reconcile_state_of(cr_key).pending_req_msg == Option::Some(req_msg)
                 && s_prime.message_in_flight(req_msg)
             );
         }
@@ -225,9 +225,9 @@ pub open spec fn delete_cm_req_msg_not_in_flight(cr_key: ResourceKey) -> StatePr
     |s: State<SimpleReconcileState>| {
         !exists |m: Message| {
             &&& #[trigger] s.message_in_flight(m)
-            &&& m.dst === HostId::KubernetesAPI
+            &&& m.dst == HostId::KubernetesAPI
             &&& m.is_delete_request()
-            &&& m.get_delete_request().key === simple_reconciler::subresource_configmap(cr_key).key
+            &&& m.get_delete_request().key == simple_reconciler::subresource_configmap(cr_key).key
         }
     }
 }
@@ -241,9 +241,9 @@ pub proof fn lemma_delete_cm_req_msg_never_in_flight(cr_key: ResourceKey)
     let invariant = delete_cm_req_msg_not_in_flight(cr_key);
     assert forall |s, s_prime: State<SimpleReconcileState>| invariant(s) && #[trigger] next(simple_reconciler())(s, s_prime) implies invariant(s_prime) by {
         assert(!exists |m: Message| s.message_in_flight(m)
-            && m.dst === HostId::KubernetesAPI
+            && m.dst == HostId::KubernetesAPI
             && #[trigger] m.is_delete_request()
-            && m.get_delete_request().key === simple_reconciler::subresource_configmap(cr_key).key
+            && m.get_delete_request().key == simple_reconciler::subresource_configmap(cr_key).key
         );
     };
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), next(simple_reconciler()), invariant);

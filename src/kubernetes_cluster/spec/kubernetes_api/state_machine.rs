@@ -117,7 +117,7 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
             &&& input.is_Some()
             &&& input.get_Some_0().content.is_APIRequest()
             // This dst check is redundant since the compound state machine has checked it
-            &&& input.get_Some_0().dst === HostId::KubernetesAPI
+            &&& input.get_Some_0().dst == HostId::KubernetesAPI
         },
         transition: |input: KubernetesAPIActionInput, s: KubernetesAPIState| {
             // This transition describes how Kubernetes API server handles requests,
@@ -163,7 +163,7 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
 
 pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine {
     StateMachine {
-        init: |s: KubernetesAPIState| s === KubernetesAPIState {
+        init: |s: KubernetesAPIState| s == KubernetesAPIState {
             req_id: 0,
             resources: Map::empty(),
         },

@@ -15,7 +15,7 @@ pub proof fn seq_unequal_preserved_by_add<A>(s1: Seq<A>, s2: Seq<A>, suffix: Seq
         s1 + suffix !== s2 + suffix
 {
     assert(!s1.ext_equal(s2));
-    if s1.len() === s2.len() {
+    if s1.len() == s2.len() {
         let witness_idx = choose |i: int| 0 <= i < s1.len() && s1[i] !== s2[i];
         assert((s1 + suffix)[witness_idx] !== (s2 + suffix)[witness_idx]);
     } else {

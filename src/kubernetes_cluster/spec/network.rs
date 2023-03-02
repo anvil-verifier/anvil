@@ -43,7 +43,7 @@ pub open spec fn deliver() -> Action<NetworkState, MessageOps, ()> {
 
 pub open spec fn network() -> NetworkStateMachine<NetworkState, MessageOps> {
     NetworkStateMachine {
-        init: |s: NetworkState| s.in_flight === Multiset::empty(),
+        init: |s: NetworkState| s.in_flight == Multiset::<Message>::empty(),
         deliver: deliver(),
     }
 }

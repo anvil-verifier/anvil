@@ -85,7 +85,7 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
 
 pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine {
     StateMachine {
-        init: |s: State| s.resources === Map::empty(),
+        init: |s: State| s.resources == Map::<ResourceKey, ResourceObj>::empty(),
         actions: set![handle_request()],
         step_to_action: |step: Step| {
             match step {

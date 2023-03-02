@@ -120,7 +120,7 @@ pub open spec fn next_step(s: State, s_prime: State, step: Step) -> bool {
         Step::KubernetesAPIStep(recv) => kubernetes_api_next().forward(recv)(s, s_prime),
         Step::ControllerStep(recv) => controller_next().forward(recv)(s, s_prime),
         Step::ClientStep(recv) => client_next().forward(recv)(s, s_prime),
-        Step::StutterStep => s === s_prime,
+        Step::StutterStep => s == s_prime,
     }
 }
 

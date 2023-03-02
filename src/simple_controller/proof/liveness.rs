@@ -243,7 +243,7 @@ proof fn lemma_after_get_cr_pc_leads_to_cm_always_exists(cr: ResourceObj)
 
             let get_cr_req_msg = choose |req_msg: Message| {
                 &&& is_controller_get_cr_request_msg(req_msg, cr.key)
-                &&& ex.suffix(i).head().reconcile_state_of(cr.key).pending_req_msg === Option::Some(req_msg)
+                &&& ex.suffix(i).head().reconcile_state_of(cr.key).pending_req_msg == Option::Some(req_msg)
                 &&& {
                     ||| #[trigger] ex.suffix(i).head().message_in_flight(req_msg)
                     ||| exists |resp_msg: Message| {
@@ -292,7 +292,7 @@ proof fn lemma_after_create_cm_pc_leads_to_cm_always_exists(cr: ResourceObj)
 
             let create_cm_req_msg = choose |m: Message| {
                 #[trigger] is_controller_create_cm_request_msg(m, cr.key)
-                && ex.suffix(i).head().reconcile_state_of(cr.key).pending_req_msg === Option::Some(m)
+                && ex.suffix(i).head().reconcile_state_of(cr.key).pending_req_msg == Option::Some(m)
                 && (ex.suffix(i).head().message_in_flight(m) || ex.suffix(i).head().resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))
             };
 
@@ -402,9 +402,9 @@ proof fn lemma_relevant_event_sent_leads_to_init_pc(msg: Message, cr_key: Resour
         sm_spec(simple_reconciler()).entails(
             lift_state(|s: State<SimpleReconcileState>| {
                 &&& s.message_in_flight(msg)
-                &&& msg.dst === HostId::CustomController
+                &&& msg.dst == HostId::CustomController
                 &&& msg.content.is_WatchEvent()
-                &&& simple_reconciler::reconcile_trigger(msg) === Option::Some(cr_key)
+                &&& simple_reconciler::reconcile_trigger(msg) == Option::Some(cr_key)
                 &&& !s.reconcile_state_contains(cr_key)
             })
                 .leads_to(lift_state(reconciler_at_init_pc_and_no_pending_req(cr_key)))
@@ -538,7 +538,7 @@ proof fn lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm
     leads_to_exists_intro::<State<SimpleReconcileState>, Message>(sm_spec(simple_reconciler()), |m| m_to_pre1(m).and(pre2), post);
     tla_exists_and_equality::<State<SimpleReconcileState>, Message>(m_to_pre1, pre2);
 
-    // This is very tedious proof to show exists_m_to_pre1 === tla_exists(m_to_pre1)
+    // This is very tedious proof to show exists_m_to_pre1 == tla_exists(m_to_pre1)
     // I hope we can encapsulate this as a lemma
     let exists_m_to_pre1 = lift_state(|s: State<SimpleReconcileState>| {
         exists |m: Message| {

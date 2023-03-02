@@ -65,28 +65,28 @@ pub proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered<T>(reconcile
         sm_spec(reconciler).entails(
             lift_state(|s: State<T>| {
                 &&& s.message_in_flight(msg)
-                &&& msg.dst === HostId::CustomController
+                &&& msg.dst == HostId::CustomController
                 &&& msg.content.is_WatchEvent()
-                &&& (reconciler.reconcile_trigger)(msg) === Option::Some(cr_key)
+                &&& (reconciler.reconcile_trigger)(msg) == Option::Some(cr_key)
                 &&& !s.reconcile_state_contains(cr_key)
             })
                 .leads_to(lift_state(|s: State<T>| {
                     &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).local_state === (reconciler.reconcile_init_state)()
+                    &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
                     &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
                 }))
         ),
 {
     let pre = |s: State<T>| {
         &&& s.message_in_flight(msg)
-        &&& msg.dst === HostId::CustomController
+        &&& msg.dst == HostId::CustomController
         &&& msg.content.is_WatchEvent()
-        &&& (reconciler.reconcile_trigger)(msg) === Option::Some(cr_key)
+        &&& (reconciler.reconcile_trigger)(msg) == Option::Some(cr_key)
         &&& !s.reconcile_state_contains(cr_key)
     };
     let post = |s: State<T>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state === (reconciler.reconcile_init_state)()
+        &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
     };
     let input = ControllerActionInput {
@@ -167,7 +167,7 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<T>(recon
             })
                 .leads_to(lift_state(|s: State<T>| {
                     &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).local_state === (reconciler.reconcile_init_state)()
+                    &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
                     &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
                 }))
         ),
@@ -178,7 +178,7 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<T>(recon
     };
     let post = |s: State<T>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state === (reconciler.reconcile_init_state)()
+        &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
     };
     let input = ControllerActionInput {
@@ -199,7 +199,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_init<T>(reconciler: Reconci
             })
                 .leads_to(lift_state(|s: State<T>| {
                     &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).local_state === (reconciler.reconcile_init_state)()
+                    &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
                     &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
                 }))
         ),
@@ -216,7 +216,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_init<T>(reconciler: Reconci
     };
     let reconcile_at_init = |s: State<T>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state === (reconciler.reconcile_init_state)()
+        &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
     };
     leads_to_trans::<State<T>>(sm_spec(reconciler), reconcile_ended, reconcile_idle_and_scheduled, reconcile_at_init);
@@ -233,7 +233,7 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_init<T>(reconciler: Reconc
             })
                 .leads_to(lift_state(|s: State<T>| {
                     &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).local_state === (reconciler.reconcile_init_state)()
+                    &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
                     &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
                 }))
         ),
@@ -250,7 +250,7 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_init<T>(reconciler: Reconc
     };
     let reconcile_at_init = |s: State<T>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state === (reconciler.reconcile_init_state)()
+        &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
     };
     leads_to_trans::<State<T>>(sm_spec(reconciler), reconcile_ended, reconcile_idle_and_scheduled, reconcile_at_init);
