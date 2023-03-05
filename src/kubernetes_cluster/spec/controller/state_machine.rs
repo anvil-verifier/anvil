@@ -20,6 +20,10 @@ pub open spec fn controller<T>(reconciler: Reconciler<T>) -> ControllerStateMach
                 req_id: 0,
                 ongoing_reconciles: Map::empty(),
                 scheduled_reconciles: Set::empty(),
+                self_watcher: Watcher {
+                    state: WatcherState::Empty,
+                    pending_req_msg: Option::None,
+                }
             }
         },
         actions: set![trigger_reconcile(reconciler), run_scheduled_reconcile(reconciler), continue_reconcile(reconciler), end_reconcile(reconciler)],
