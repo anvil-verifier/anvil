@@ -58,7 +58,7 @@ pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<T>(reconciler
     controller_next(reconciler).wf1_assume(input, sm_spec(reconciler), next, assumption, pre, post);
 }
 
-pub proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered<T>(reconciler: Reconciler<T>, msg: Message, cr_key: ResourceKey)
+pub proof fn lemma_relevant_event_sent_leads_to_reconcile_scheduled<T>(reconciler: Reconciler<T>, msg: Message, cr_key: ResourceKey)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -68,12 +68,10 @@ pub proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered<T>(reconcile
                 &&& msg.dst == HostId::CustomController
                 &&& msg.content.is_WatchEvent()
                 &&& (reconciler.reconcile_trigger)(msg) == Option::Some(cr_key)
-                &&& !s.reconcile_state_contains(cr_key)
+                &&& s.controller_state.self_watcher.state.is_Watching()
             })
                 .leads_to(lift_state(|s: State<T>| {
-                    &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
-                    &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
+                    s.reconcile_scheduled_for(cr_key)
                 }))
         ),
 {
@@ -82,12 +80,10 @@ pub proof fn lemma_relevant_event_sent_leads_to_reconcile_triggered<T>(reconcile
         &&& msg.dst == HostId::CustomController
         &&& msg.content.is_WatchEvent()
         &&& (reconciler.reconcile_trigger)(msg) == Option::Some(cr_key)
-        &&& !s.reconcile_state_contains(cr_key)
+        &&& s.controller_state.self_watcher.state.is_Watching()
     };
     let post = |s: State<T>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
+        s.reconcile_scheduled_for(cr_key)
     };
     let input = ControllerActionInput {
         recv: Option::Some(msg),
