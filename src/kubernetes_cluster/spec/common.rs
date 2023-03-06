@@ -236,6 +236,18 @@ impl Message {
         self.content.get_APIResponse_0().get_DeleteResponse_0()
     }
 
+    pub open spec fn is_list_response(self) -> bool {
+        &&& self.content.is_APIResponse()
+        &&& self.content.get_APIResponse_0().is_ListResponse()
+    }
+
+    pub open spec fn get_list_response(self) -> ListResponse
+        recommends
+            self.is_list_response()
+    {
+        self.content.get_APIResponse_0().get_ListResponse_0()
+    }
+
     pub open spec fn get_resp_id(self) -> nat
         recommends
             self.content.is_APIResponse()
@@ -366,6 +378,12 @@ pub open spec fn form_get_resp_msg(req_msg: Message, result: Result<ResourceObj,
     recommends req_msg.is_get_request(),
 {
     form_msg(req_msg.dst, req_msg.src, get_resp_msg(result, req_msg.get_get_request(), resp_id))
+}
+
+pub open spec fn form_list_resp_msg(req_msg: Message, result: Result<Seq<ResourceObj>, APIError>, resp_id: nat) -> Message
+    recommends req_msg.is_list_request(),
+{
+    form_msg(req_msg.dst, req_msg.src, list_resp_msg(result, req_msg.get_list_request(), resp_id))
 }
 
 pub open spec fn added_event_msg(obj: ResourceObj) -> MessageContent {

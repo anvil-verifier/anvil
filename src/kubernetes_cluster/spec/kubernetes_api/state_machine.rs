@@ -18,8 +18,6 @@ pub open spec fn handle_get_request(msg: Message, s: KubernetesAPIState) -> (Etc
     recommends
         msg.is_get_request(),
 {
-    let src = msg.dst;
-    let dst = msg.src;
     let req_id = msg.get_req_id();
     let req = msg.get_get_request();
     if !s.resources.dom().contains(req.key) {
@@ -35,6 +33,22 @@ pub open spec fn handle_get_request(msg: Message, s: KubernetesAPIState) -> (Etc
     }
 }
 
+pub open spec fn list_query(list_req: ListRequest, s: KubernetesAPIState) -> Seq<ResourceObj> {
+    // TODO: the returned seq should contain all the objects of the resource kind in the resources map
+    Seq::empty()
+}
+
+pub open spec fn handle_list_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<Message>)
+    recommends
+        msg.is_list_request(),
+{
+    let req_id = msg.get_req_id();
+    let req = msg.get_list_request();
+    let result = Result::Ok(list_query(req, s));
+    let resp = form_list_resp_msg(msg, result, req_id);
+    (s.resources, resp, Option::None)
+}
+
 // etcd is modeled as a centralized map that handles get/create/delete
 // TODO: support list/update/statusupdate
 pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<Message>)
@@ -45,26 +59,9 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Etc
     let dst = msg.src;
     let req_id = msg.get_req_id();
     if msg.is_get_request() {
-        // let req = msg.get_get_request();
-        // if !s.resources.dom().contains(req.key) {
-        //     // Get fails
-        //     let result = Result::Err(APIError::ObjectNotFound);
-        //     let resp = form_get_resp_msg(msg, result, req_id);
-        //     (s.resources, resp, Option::None)
-        // } else {
-        //     // Get succeeds
-        //     let result = Result::Ok(s.resources[req.key]);
-        //     let resp = form_get_resp_msg(msg, result, req_id);
-        //     (s.resources, resp, Option::None)
-        // }
         handle_get_request(msg, s)
     } else if msg.is_list_request() {
-        // TODO: implement list request handling
-        // currently it just returns error
-        let req = msg.get_list_request();
-        let result = Result::Err(APIError::ObjectNotFound);
-        let resp = form_msg(src, dst, list_resp_msg(result, req, req_id));
-        (s.resources, resp, Option::None)
+        handle_list_request(msg, s)
     } else if msg.is_create_request() {
         let req = msg.get_create_request();
         if s.resources.dom().contains(req.obj.key) {

@@ -10,15 +10,22 @@ use builtin_macros::*;
 
 verus! {
 
+pub struct ControllerState<T> {
+    pub req_id: nat,
+    pub ongoing_reconciles: Map<ResourceKey, OngoingReconcile<T>>,
+    pub scheduled_reconciles: Set<ResourceKey>,
+    pub self_watcher: Watcher,
+    // TODO: there should be watchers for `owns_with` and `watches_with`
+}
+
 pub struct OngoingReconcile<T> {
     pub pending_req_msg: Option<Message>,
     pub local_state: T,
 }
 
-pub struct ControllerState<T> {
-    pub req_id: nat,
-    pub ongoing_reconciles: Map<ResourceKey, OngoingReconcile<T>>,
-    pub scheduled_reconciles: Set<ResourceKey>,
+pub struct Watcher {
+    pub state: WatcherState,
+    pub pending_req_msg: Option<Message>, // This should either the initial list or the watch
 }
 
 pub struct ControllerActionInput {
@@ -27,7 +34,17 @@ pub struct ControllerActionInput {
 }
 
 #[is_variant]
+pub enum WatcherState {
+    Empty,
+    InitListed,
+    Watching,
+}
+
+#[is_variant]
 pub enum ControllerStep {
+    IssueInitialList,
+    TriggerReconcileWithListResp,
+    StartWatching,
     TriggerReconcile,
     RunScheduledReconcile,
     ContinueReconcile,

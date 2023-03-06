@@ -8,7 +8,8 @@ use crate::kubernetes_cluster::spec::{
         ControllerAction, ControllerActionInput, ControllerState, ControllerStep,
     },
     controller::controller_runtime::{
-        continue_reconcile, end_reconcile, run_scheduled_reconcile, trigger_reconcile,
+        continue_reconcile, end_reconcile, issue_initial_list, run_scheduled_reconcile,
+        start_watching, trigger_reconcile, trigger_reconcile_with_list_resp,
     },
     controller::state_machine::controller,
     distributed_system::*,
@@ -74,6 +75,15 @@ pub proof fn exists_next_controller_step<T>(reconciler: Reconciler<T>, action: C
         assert(((controller(reconciler).step_to_action)(step).precondition)(input, s));
     } else if action == continue_reconcile(reconciler) {
         let step = ControllerStep::ContinueReconcile;
+        assert(((controller(reconciler).step_to_action)(step).precondition)(input, s));
+    } else if action == issue_initial_list(reconciler) {
+        let step = ControllerStep::IssueInitialList;
+        assert(((controller(reconciler).step_to_action)(step).precondition)(input, s));
+    } else if action == trigger_reconcile_with_list_resp(reconciler) {
+        let step = ControllerStep::TriggerReconcileWithListResp;
+        assert(((controller(reconciler).step_to_action)(step).precondition)(input, s));
+    } else if action == start_watching(reconciler) {
+        let step = ControllerStep::StartWatching;
         assert(((controller(reconciler).step_to_action)(step).precondition)(input, s));
     } else {
         let step = ControllerStep::EndReconcile;
