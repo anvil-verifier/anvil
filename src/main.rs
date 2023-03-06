@@ -4,7 +4,7 @@
 pub mod kubernetes_cluster;
 pub mod pervasive;
 pub mod pervasive_lemmas;
-pub mod simple_controller;
+// pub mod simple_controller;
 pub mod state_machine;
 pub mod temporal_logic;
 pub mod tla_examples;
