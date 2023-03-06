@@ -42,6 +42,9 @@ pub enum WatcherState {
 
 #[is_variant]
 pub enum ControllerStep {
+    IssueInitialList,
+    TriggerReconcileWithListResp,
+    StartWatching,
     TriggerReconcile,
     RunScheduledReconcile,
     ContinueReconcile,

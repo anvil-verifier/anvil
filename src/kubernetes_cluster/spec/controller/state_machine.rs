@@ -26,9 +26,20 @@ pub open spec fn controller<T>(reconciler: Reconciler<T>) -> ControllerStateMach
                 }
             }
         },
-        actions: set![trigger_reconcile(reconciler), run_scheduled_reconcile(reconciler), continue_reconcile(reconciler), end_reconcile(reconciler)],
+        actions: set![
+            issue_initial_list(reconciler),
+            trigger_reconcile_with_list_resp(reconciler),
+            start_watching(reconciler),
+            trigger_reconcile(reconciler),
+            run_scheduled_reconcile(reconciler),
+            continue_reconcile(reconciler),
+            end_reconcile(reconciler)
+        ],
         step_to_action: |step: ControllerStep| {
             match step {
+                ControllerStep::IssueInitialList => issue_initial_list(reconciler),
+                ControllerStep::TriggerReconcileWithListResp => trigger_reconcile_with_list_resp(reconciler),
+                ControllerStep::StartWatching => start_watching(reconciler),
                 ControllerStep::TriggerReconcile => trigger_reconcile(reconciler),
                 ControllerStep::RunScheduledReconcile => run_scheduled_reconcile(reconciler),
                 ControllerStep::ContinueReconcile => continue_reconcile(reconciler),
