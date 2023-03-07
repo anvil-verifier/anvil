@@ -43,7 +43,7 @@ pub open spec fn pending_req_has_unique_id<T>(cr_key: ResourceKey) -> StatePred<
                 #[trigger] s.reconcile_state_contains(other_key)
                 && s.reconcile_state_of(other_key).pending_req_msg.is_Some()
                 && other_key !== cr_key
-                ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().get_req_id() !== s.reconcile_state_of(other_key).pending_req_msg.get_Some_0().get_req_id()
+                ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_req_id() !== s.reconcile_state_of(other_key).pending_req_msg.get_Some_0().content.get_req_id()
             )
     }
 }
@@ -53,7 +53,7 @@ pub open spec fn pending_req_has_lower_req_id<T>() -> StatePred<State<T>> {
         forall |cr_key: ResourceKey|
             #[trigger] s.reconcile_state_contains(cr_key)
             && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
-            ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().get_req_id() < s.controller_state.req_id
+            ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_req_id() < s.controller_state.req_id
     }
 }
 

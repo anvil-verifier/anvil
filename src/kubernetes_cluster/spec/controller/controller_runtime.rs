@@ -48,13 +48,13 @@ pub open spec fn trigger_reconcile_with_list_resp<T>(reconciler: Reconciler<T>) 
             &&& input.scheduled_cr_key.is_None()
             &&& input.recv.is_Some()
             &&& input.recv.get_Some_0().dst == HostId::CustomController
-            &&& input.recv.get_Some_0().is_list_response()
+            &&& input.recv.get_Some_0().content.is_list_response()
             &&& s.self_watcher.state.is_Empty() // Only issue the initial list at Empty state
             &&& s.self_watcher.pending_req_msg.is_Some() // and the initial list is already issued
             &&& resp_msg_matches_req_msg(input.recv.get_Some_0(), s.self_watcher.pending_req_msg.get_Some_0()) // and, of course, the resp matches the request
         },
         transition: |input: ControllerActionInput, s: ControllerState<T>| {
-            let list_resp = input.recv.get_Some_0().get_list_response();
+            let list_resp = input.recv.get_Some_0().content.get_list_response();
             if list_resp.res.is_Ok() {
                 let s_prime = ControllerState {
                     self_watcher: Watcher {

@@ -16,10 +16,10 @@ verus! {
 
 pub open spec fn handle_get_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<Message>)
     recommends
-        msg.is_get_request(),
+        msg.content.is_get_request(),
 {
-    let req_id = msg.get_req_id();
-    let req = msg.get_get_request();
+    let req_id = msg.content.get_req_id();
+    let req = msg.content.get_get_request();
     if !s.resources.dom().contains(req.key) {
         // Get fails
         let result = Result::Err(APIError::ObjectNotFound);
@@ -40,10 +40,10 @@ pub open spec fn list_query(list_req: ListRequest, s: KubernetesAPIState) -> Seq
 
 pub open spec fn handle_list_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<Message>)
     recommends
-        msg.is_list_request(),
+        msg.content.is_list_request(),
 {
-    let req_id = msg.get_req_id();
-    let req = msg.get_list_request();
+    let req_id = msg.content.get_req_id();
+    let req = msg.content.get_list_request();
     let result = Result::Ok(list_query(req, s));
     let resp = form_list_resp_msg(msg, result, req_id);
     (s.resources, resp, Option::None)
@@ -57,13 +57,13 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Etc
 {
     let src = msg.dst;
     let dst = msg.src;
-    let req_id = msg.get_req_id();
-    if msg.is_get_request() {
+    let req_id = msg.content.get_req_id();
+    if msg.content.is_get_request() {
         handle_get_request(msg, s)
-    } else if msg.is_list_request() {
+    } else if msg.content.is_list_request() {
         handle_list_request(msg, s)
-    } else if msg.is_create_request() {
-        let req = msg.get_create_request();
+    } else if msg.content.is_create_request() {
+        let req = msg.content.get_create_request();
         if s.resources.dom().contains(req.obj.key) {
             // Creation fails
             let result = Result::Err(APIError::ObjectAlreadyExists);
@@ -80,7 +80,7 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Etc
         }
     } else {
         // content is DeleteRequest
-        let req = msg.get_delete_request();
+        let req = msg.content.get_delete_request();
         if !s.resources.dom().contains(req.key) {
             // Deletion fails
             let result = Result::Err(APIError::ObjectNotFound);
