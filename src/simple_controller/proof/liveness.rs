@@ -69,7 +69,7 @@ proof fn liveness_proof(cr: ResourceObj)
     lemma_reconcile_ongoing_leads_to_cm_always_exists(cr);
     lemma_reconcile_idle_and_scheduled_leads_to_cm_always_exists(cr);
 
-    let added_event_in_flight = |s: State<SimpleReconcileState>| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)));
+    let added_event_in_flight = |s: State<SimpleReconcileState>| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg_content(cr)));
     let reconcile_ongoing = |s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.key);
     let reconcile_idle_and_scheduled = |s: State<SimpleReconcileState>| {
         &&& !s.reconcile_state_contains(cr.key)
@@ -87,7 +87,7 @@ proof fn liveness_proof(cr: ResourceObj)
     // This assertion triggers leads_to_weaken_auto
     assert(sm_spec(simple_reconciler()).entails(
         lift_state(|s: State<SimpleReconcileState>| {
-            ||| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)))
+            ||| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg_content(cr)))
             ||| s.reconcile_state_contains(cr.key)
             ||| s.reconcile_scheduled_for(cr.key)
         }).leads_to(always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(simple_reconciler::subresource_configmap(cr.key).key))))
@@ -99,11 +99,11 @@ proof fn lemma_cr_added_event_msg_sent_leads_to_cm_always_exists(cr: ResourceObj
         cr.key.kind.is_CustomResourceKind(),
     ensures
         sm_spec(simple_reconciler()).entails(
-            lift_state(|s: State<SimpleReconcileState>| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr))))
+            lift_state(|s: State<SimpleReconcileState>| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg_content(cr))))
                 .leads_to(always(lift_state(cm_exists(cr.key))))
         ),
 {
-    let cr_added_event_msg_sent = |s: State<SimpleReconcileState>| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr)));
+    let cr_added_event_msg_sent = |s: State<SimpleReconcileState>| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg_content(cr)));
     let reconcile_ongoing = |s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.key);
 
     leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
@@ -120,12 +120,12 @@ proof fn lemma_cr_added_event_msg_sent_leads_to_reconcile_ongoing(cr: ResourceOb
         cr.key.kind.is_CustomResourceKind(),
     ensures
         sm_spec(simple_reconciler()).entails(
-            lift_state(|s: State<SimpleReconcileState>| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr))))
+            lift_state(|s: State<SimpleReconcileState>| s.message_in_flight(form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg_content(cr))))
                 .leads_to(lift_state(|s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.key)))
         ),
 {
     let cm = simple_reconciler::subresource_configmap(cr.key);
-    let cr_added_event_msg = form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(cr));
+    let cr_added_event_msg = form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg_content(cr));
 
     let cr_added_event_msg_sent_and_controller_not_in_reconcile = |s: State<SimpleReconcileState>| {
         &&& s.message_in_flight(cr_added_event_msg)

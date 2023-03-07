@@ -31,8 +31,8 @@ pub type ClientAction = Action<ClientState, ClientActionInput, Multiset<Message>
 
 pub type ClientActionResult = ActionResult<ClientState, Multiset<Message>>;
 
-pub open spec fn client_req_msg(req: APIRequest, req_id: nat) -> Message {
-    form_msg(HostId::Client, HostId::KubernetesAPI, MessageContent::APIRequest(req, req_id))
+pub open spec fn client_req_msg(msg_content: MessageContent) -> Message {
+    form_msg(HostId::Client, HostId::KubernetesAPI, msg_content)
 }
 
 pub open spec fn send_create_cr() -> ClientAction {
@@ -42,7 +42,7 @@ pub open spec fn send_create_cr() -> ClientAction {
             &&& input.recv.is_None()
         },
         transition: |input: ClientActionInput, s: ClientState| {
-            (ClientState {req_id: s.req_id + 1}, Multiset::singleton(client_req_msg(create_req(ResourceObj{key: input.cr.key}), s.req_id)))
+            (ClientState {req_id: s.req_id + 1}, Multiset::singleton(client_req_msg(create_req_msg_content(ResourceObj{key: input.cr.key}, s.req_id))))
         },
     }
 }
@@ -54,7 +54,7 @@ pub open spec fn send_delete_cr() -> ClientAction {
             &&& input.recv.is_None()
         },
         transition: |input: ClientActionInput, s: ClientState| {
-            (ClientState {req_id: s.req_id + 1}, Multiset::singleton(client_req_msg(delete_req(input.cr.key), s.req_id)))
+            (ClientState {req_id: s.req_id + 1}, Multiset::singleton(client_req_msg(delete_req_msg_content(input.cr.key, s.req_id))))
         },
     }
 }

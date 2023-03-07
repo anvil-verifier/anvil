@@ -74,7 +74,7 @@ pub proof fn lemma_create_req_leads_to_ok_resp<T>(reconciler: Reconciler<T>, msg
             })))
                 .leads_to(
                     lift_state(|s: State<T>| {
-                        &&& s.message_in_flight(form_msg(msg.dst, msg.src, create_resp_msg(Result::Ok(msg.get_create_request().obj), msg.get_req_id())))
+                        &&& s.message_in_flight(form_msg(msg.dst, msg.src, create_resp_msg_content(Result::Ok(msg.get_create_request().obj), msg.get_req_id())))
                         &&& s.resource_key_exists(msg.get_create_request().obj.key)
                     })
                 )
@@ -95,7 +95,7 @@ pub proof fn lemma_create_req_leads_to_ok_resp<T>(reconciler: Reconciler<T>, msg
         &&& !s.resource_key_exists(msg.get_create_request().obj.key)
     };
     let post = |s: State<T>| {
-        &&& s.message_in_flight(form_msg(msg.dst, msg.src, create_resp_msg(Result::Ok(msg.get_create_request().obj), msg.get_req_id())))
+        &&& s.message_in_flight(form_msg(msg.dst, msg.src, create_resp_msg_content(Result::Ok(msg.get_create_request().obj), msg.get_req_id())))
         &&& s.resource_key_exists(msg.get_create_request().obj.key)
     };
     lemma_pre_leads_to_post_with_assumption_by_kubernetes_api::<T>(reconciler, Option::Some(msg), next(reconciler), handle_request(), assumption, pre, post);

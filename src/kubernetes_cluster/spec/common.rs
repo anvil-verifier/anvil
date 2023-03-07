@@ -351,91 +351,79 @@ pub open spec fn form_msg(src: HostId, dst: HostId, msg_content: MessageContent)
 pub open spec fn form_get_resp_msg(req_msg: Message, result: Result<ResourceObj, APIError>, resp_id: nat) -> Message
     recommends req_msg.is_get_request(),
 {
-    form_msg(req_msg.dst, req_msg.src, get_resp_msg(result, resp_id))
+    form_msg(req_msg.dst, req_msg.src, get_resp_msg_content(result, resp_id))
 }
 
 pub open spec fn form_list_resp_msg(req_msg: Message, result: Result<Seq<ResourceObj>, APIError>, resp_id: nat) -> Message
     recommends req_msg.is_list_request(),
 {
-    form_msg(req_msg.dst, req_msg.src, list_resp_msg(result, resp_id))
+    form_msg(req_msg.dst, req_msg.src, list_resp_msg_content(result, resp_id))
 }
 
-pub open spec fn added_event_msg(obj: ResourceObj) -> MessageContent {
+pub open spec fn added_event_msg_content(obj: ResourceObj) -> MessageContent {
     MessageContent::WatchEvent(WatchEvent::AddedEvent(AddedEvent{
         obj: obj
     }))
 }
 
-pub open spec fn modified_event_msg(obj: ResourceObj) -> MessageContent {
+pub open spec fn modified_event_msg_content(obj: ResourceObj) -> MessageContent {
     MessageContent::WatchEvent(WatchEvent::ModifiedEvent(ModifiedEvent{
         obj: obj
     }))
 }
 
-pub open spec fn deleted_event_msg(obj: ResourceObj) -> MessageContent {
+pub open spec fn deleted_event_msg_content(obj: ResourceObj) -> MessageContent {
     MessageContent::WatchEvent(WatchEvent::DeletedEvent(DeletedEvent{
         obj: obj
     }))
 }
 
-pub open spec fn get_req_msg(key: ResourceKey, req_id: nat) -> MessageContent {
+pub open spec fn get_req_msg_content(key: ResourceKey, req_id: nat) -> MessageContent {
     MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{
         key: key,
     }), req_id)
 }
 
-pub open spec fn list_req_msg(kind: ResourceKind, req_id: nat) -> MessageContent {
+pub open spec fn list_req_msg_content(kind: ResourceKind, req_id: nat) -> MessageContent {
     MessageContent::APIRequest(APIRequest::ListRequest(ListRequest{
         kind: kind,
     }), req_id)
 }
 
-pub open spec fn create_req(obj: ResourceObj) -> APIRequest {
-    APIRequest::CreateRequest(CreateRequest{
+pub open spec fn create_req_msg_content(obj: ResourceObj, req_id: nat) -> MessageContent {
+    MessageContent::APIRequest(APIRequest::CreateRequest(CreateRequest{
         obj: obj,
-    })
+    }), req_id)
 }
 
-pub open spec fn create_req_msg(obj: ResourceObj, req_id: nat) -> MessageContent {
-    MessageContent::APIRequest(create_req(obj), req_id)
-}
-
-pub open spec fn delete_req(key: ResourceKey) -> APIRequest {
-    APIRequest::DeleteRequest(DeleteRequest{
+pub open spec fn delete_req_msg_content(key: ResourceKey, req_id: nat) -> MessageContent {
+    MessageContent::APIRequest(APIRequest::DeleteRequest(DeleteRequest{
         key: key,
-    })
+    }), req_id)
 }
 
-pub open spec fn delete_req_msg(key: ResourceKey, req_id: nat) -> MessageContent {
-    MessageContent::APIRequest(delete_req(key), req_id)
-}
-
-pub open spec fn get_resp_msg(res: Result<ResourceObj, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn get_resp_msg_content(res: Result<ResourceObj, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::GetResponse(GetResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn list_resp_msg(res: Result<Seq<ResourceObj>, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn list_resp_msg_content(res: Result<Seq<ResourceObj>, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::ListResponse(ListResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn create_resp_msg(res: Result<ResourceObj, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn create_resp_msg_content(res: Result<ResourceObj, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::CreateResponse(CreateResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn delete_resp_msg(res: Result<ResourceObj, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn delete_resp_msg_content(res: Result<ResourceObj, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::DeleteResponse(DeleteResponse{
         res: res,
     }), resp_id)
-}
-
-pub open spec fn msg_pred_call(msg_pred: FnSpec(Message) -> bool, m: Message) -> bool {
-    msg_pred(m)
 }
 
 }

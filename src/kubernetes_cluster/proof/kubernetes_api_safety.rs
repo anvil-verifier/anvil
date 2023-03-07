@@ -11,7 +11,7 @@ use builtin_macros::*;
 verus! {
 
 pub open spec fn added_event_msg_to_controller(res: ResourceObj) -> Message {
-    form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg(res))
+    form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg_content(res))
 }
 
 /// If res exists and res can trigger reconcile, then
