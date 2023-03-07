@@ -60,22 +60,18 @@ pub enum APIRequest {
 
 pub struct GetResponse {
     pub res: Result<ResourceObj, APIError>,
-    pub req: GetRequest,
 }
 
 pub struct ListResponse {
     pub res: Result<Seq<ResourceObj>, APIError>,
-    pub req: ListRequest,
 }
 
 pub struct CreateResponse {
     pub res: Result<ResourceObj, APIError>,
-    pub req: CreateRequest,
 }
 
 pub struct DeleteResponse {
     pub res: Result<ResourceObj, APIError>,
-    pub req: DeleteRequest,
 }
 
 #[is_variant]
@@ -315,34 +311,12 @@ pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
     }
 }
 
-pub open spec fn resp_matches_req(resp: APIResponse, req: APIRequest) -> bool {
-    match resp {
-        APIResponse::GetResponse(get_resp) => {
-            &&& req.is_GetRequest()
-            &&& get_resp.req == req.get_GetRequest_0()
-        },
-        APIResponse::ListResponse(list_resp) => {
-            &&& req.is_ListRequest()
-            &&& list_resp.req == req.get_ListRequest_0()
-        },
-        APIResponse::CreateResponse(create_resp) => {
-            &&& req.is_CreateRequest()
-            &&& create_resp.req == req.get_CreateRequest_0()
-        },
-        APIResponse::DeleteResponse(delete_resp) => {
-            &&& req.is_DeleteRequest()
-            &&& delete_resp.req == req.get_DeleteRequest_0()
-        },
-    }
-}
-
 // TODO: maybe the predicate should not check if resp_msg is a response message
 pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -> bool {
     &&& resp_msg.content.is_APIResponse()
     &&& req_msg.content.is_APIRequest()
     &&& resp_msg.dst == req_msg.src
     &&& resp_msg.src == req_msg.dst
-    &&& resp_matches_req(resp_msg.content.get_APIResponse_0(), req_msg.content.get_APIRequest_0())
     &&& resp_msg.content.get_APIResponse_1() == req_msg.content.get_APIRequest_1()
 }
 
@@ -377,13 +351,13 @@ pub open spec fn form_msg(src: HostId, dst: HostId, msg_content: MessageContent)
 pub open spec fn form_get_resp_msg(req_msg: Message, result: Result<ResourceObj, APIError>, resp_id: nat) -> Message
     recommends req_msg.is_get_request(),
 {
-    form_msg(req_msg.dst, req_msg.src, get_resp_msg(result, req_msg.get_get_request(), resp_id))
+    form_msg(req_msg.dst, req_msg.src, get_resp_msg(result, resp_id))
 }
 
 pub open spec fn form_list_resp_msg(req_msg: Message, result: Result<Seq<ResourceObj>, APIError>, resp_id: nat) -> Message
     recommends req_msg.is_list_request(),
 {
-    form_msg(req_msg.dst, req_msg.src, list_resp_msg(result, req_msg.get_list_request(), resp_id))
+    form_msg(req_msg.dst, req_msg.src, list_resp_msg(result, resp_id))
 }
 
 pub open spec fn added_event_msg(obj: ResourceObj) -> MessageContent {
@@ -436,31 +410,27 @@ pub open spec fn delete_req_msg(key: ResourceKey, req_id: nat) -> MessageContent
     MessageContent::APIRequest(delete_req(key), req_id)
 }
 
-pub open spec fn get_resp_msg(res: Result<ResourceObj, APIError>, req: GetRequest, resp_id: nat) -> MessageContent {
+pub open spec fn get_resp_msg(res: Result<ResourceObj, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::GetResponse(GetResponse{
         res: res,
-        req: req,
     }), resp_id)
 }
 
-pub open spec fn list_resp_msg(res: Result<Seq<ResourceObj>, APIError>, req: ListRequest, resp_id: nat) -> MessageContent {
+pub open spec fn list_resp_msg(res: Result<Seq<ResourceObj>, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::ListResponse(ListResponse{
         res: res,
-        req: req,
     }), resp_id)
 }
 
-pub open spec fn create_resp_msg(res: Result<ResourceObj, APIError>, req: CreateRequest, resp_id: nat) -> MessageContent {
+pub open spec fn create_resp_msg(res: Result<ResourceObj, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::CreateResponse(CreateResponse{
         res: res,
-        req: req,
     }), resp_id)
 }
 
-pub open spec fn delete_resp_msg(res: Result<ResourceObj, APIError>, req: DeleteRequest, resp_id: nat) -> MessageContent {
+pub open spec fn delete_resp_msg(res: Result<ResourceObj, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::DeleteResponse(DeleteResponse{
         res: res,
-        req: req,
     }), resp_id)
 }
 

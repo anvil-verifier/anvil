@@ -67,12 +67,12 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Etc
         if s.resources.dom().contains(req.obj.key) {
             // Creation fails
             let result = Result::Err(APIError::ObjectAlreadyExists);
-            let resp = form_msg(src, dst, create_resp_msg(result, req, req_id));
+            let resp = form_msg(src, dst, create_resp_msg(result, req_id));
             (s.resources, resp, Option::None)
         } else {
             // Creation succeeds
             let result = Result::Ok(req.obj);
-            let resp = form_msg(src, dst, create_resp_msg(result, req, req_id));
+            let resp = form_msg(src, dst, create_resp_msg(result, req_id));
             // The cluster state is updated, so we send a notification to the custom controller
             // TODO: notification should be sent to custom controller selectively
             let notify = form_msg(src, HostId::CustomController, added_event_msg(req.obj));
@@ -84,7 +84,7 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Etc
         if !s.resources.dom().contains(req.key) {
             // Deletion fails
             let result = Result::Err(APIError::ObjectNotFound);
-            let resp = form_msg(src, dst, delete_resp_msg(result, req, req_id));
+            let resp = form_msg(src, dst, delete_resp_msg(result, req_id));
             (s.resources, resp, Option::None)
         } else {
             // Path where deletion succeeds
@@ -92,7 +92,7 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Etc
             // The cluster state is updated, so we send a notification to the custom controller
             // TODO: watch event should be sent to custom controller selectively
             let result = Result::Ok(obj_before_deletion);
-            let resp = form_msg(src, dst, delete_resp_msg(result, req, req_id));
+            let resp = form_msg(src, dst, delete_resp_msg(result, req_id));
             let notify = form_msg(src, HostId::CustomController, deleted_event_msg(obj_before_deletion));
             (s.resources.remove(req.key), resp, Option::Some(notify))
         }
