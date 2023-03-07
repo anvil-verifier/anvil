@@ -341,6 +341,18 @@ pub open spec fn form_list_resp_msg(req_msg: Message, result: Result<Seq<Resourc
     form_msg(req_msg.dst, req_msg.src, list_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
+pub open spec fn form_create_resp_msg(req_msg: Message, result: Result<ResourceObj, APIError>) -> Message
+    recommends req_msg.content.is_create_request(),
+{
+    form_msg(req_msg.dst, req_msg.src, create_resp_msg_content(result, req_msg.content.get_req_id()))
+}
+
+pub open spec fn form_delete_resp_msg(req_msg: Message, result: Result<ResourceObj, APIError>) -> Message
+    recommends req_msg.content.is_delete_request(),
+{
+    form_msg(req_msg.dst, req_msg.src, delete_resp_msg_content(result, req_msg.content.get_req_id()))
+}
+
 pub open spec fn added_event_msg_content(obj: ResourceObj) -> MessageContent {
     MessageContent::WatchEvent(WatchEvent::AddedEvent(AddedEvent{
         obj: obj

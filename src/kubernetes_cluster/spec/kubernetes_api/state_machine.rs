@@ -47,53 +47,63 @@ pub open spec fn handle_list_request(msg: Message, s: KubernetesAPIState) -> (Et
     (s.resources, resp, Option::None)
 }
 
+pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<Message>)
+    recommends
+        msg.content.is_create_request(),
+{
+    let req = msg.content.get_create_request();
+    if s.resources.dom().contains(req.obj.key) {
+        // Creation fails
+        let result = Result::Err(APIError::ObjectAlreadyExists);
+        let resp = form_create_resp_msg(msg, result);
+        (s.resources, resp, Option::None)
+    } else {
+        // Creation succeeds
+        let result = Result::Ok(req.obj);
+        let resp = form_create_resp_msg(msg, result);
+        // The cluster state is updated, so we send a notification to the custom controller
+        // TODO: notification should be sent to custom controller selectively
+        let notify = form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg_content(req.obj));
+        (s.resources.insert(req.obj.key, req.obj), resp, Option::Some(notify))
+    }
+}
+
+pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<Message>)
+    recommends
+        msg.content.is_delete_request(),
+{
+    let req = msg.content.get_delete_request();
+    if !s.resources.dom().contains(req.key) {
+        // Deletion fails
+        let result = Result::Err(APIError::ObjectNotFound);
+        let resp = form_delete_resp_msg(msg, result);
+        (s.resources, resp, Option::None)
+    } else {
+        // Path where deletion succeeds
+        let obj_before_deletion = s.resources[req.key];
+        // The cluster state is updated, so we send a notification to the custom controller
+        // TODO: watch event should be sent to custom controller selectively
+        let result = Result::Ok(obj_before_deletion);
+        let resp = form_delete_resp_msg(msg, result);
+        let notify = form_msg(HostId::KubernetesAPI, HostId::CustomController, deleted_event_msg_content(obj_before_deletion));
+        (s.resources.remove(req.key), resp, Option::Some(notify))
+    }
+}
+
 // etcd is modeled as a centralized map that handles get/create/delete
 // TODO: support list/update/statusupdate
 pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<Message>)
     recommends
         msg.content.is_APIRequest(),
 {
-    let src = msg.dst;
-    let dst = msg.src;
-    let req_id = msg.content.get_req_id();
     if msg.content.is_get_request() {
         handle_get_request(msg, s)
     } else if msg.content.is_list_request() {
         handle_list_request(msg, s)
     } else if msg.content.is_create_request() {
-        let req = msg.content.get_create_request();
-        if s.resources.dom().contains(req.obj.key) {
-            // Creation fails
-            let result = Result::Err(APIError::ObjectAlreadyExists);
-            let resp = form_msg(src, dst, create_resp_msg_content(result, req_id));
-            (s.resources, resp, Option::None)
-        } else {
-            // Creation succeeds
-            let result = Result::Ok(req.obj);
-            let resp = form_msg(src, dst, create_resp_msg_content(result, req_id));
-            // The cluster state is updated, so we send a notification to the custom controller
-            // TODO: notification should be sent to custom controller selectively
-            let notify = form_msg(src, HostId::CustomController, added_event_msg_content(req.obj));
-            (s.resources.insert(req.obj.key, req.obj), resp, Option::Some(notify))
-        }
+        handle_create_request(msg, s)
     } else {
-        // content is DeleteRequest
-        let req = msg.content.get_delete_request();
-        if !s.resources.dom().contains(req.key) {
-            // Deletion fails
-            let result = Result::Err(APIError::ObjectNotFound);
-            let resp = form_msg(src, dst, delete_resp_msg_content(result, req_id));
-            (s.resources, resp, Option::None)
-        } else {
-            // Path where deletion succeeds
-            let obj_before_deletion = s.resources[req.key];
-            // The cluster state is updated, so we send a notification to the custom controller
-            // TODO: watch event should be sent to custom controller selectively
-            let result = Result::Ok(obj_before_deletion);
-            let resp = form_msg(src, dst, delete_resp_msg_content(result, req_id));
-            let notify = form_msg(src, HostId::CustomController, deleted_event_msg_content(obj_before_deletion));
-            (s.resources.remove(req.key), resp, Option::Some(notify))
-        }
+        handle_delete_request(msg, s)
     }
 }
 
