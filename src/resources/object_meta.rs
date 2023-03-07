@@ -60,6 +60,15 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn set_name(&mut self, name: String)
+        ensures
+            self@.name.is_Some(),
+            name@ == self@.name.get_Some_0(),
+    {
+        todo!()
+    }
+
+    #[verifier(external_body)]
     pub fn namespace(&self) -> (namespace: Option<String>)
         ensures
             self@.namespace.is_Some() == namespace.is_Some(),

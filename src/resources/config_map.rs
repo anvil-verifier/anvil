@@ -48,6 +48,15 @@ impl ConfigMap {
     {
         todo!()
     }
+
+    #[verifier(external_body)]
+    pub fn set_data(&mut self, data: string_map::StringMap)
+        ensures
+            self@.data.is_Some(),
+            data@ == self@.data.get_Some_0(),
+    {
+        todo!()
+    }
 }
 
 impl ConfigMapView {
