@@ -23,6 +23,16 @@ impl ConfigMap {
     pub spec fn view(&self) -> ConfigMapView;
 
     #[verifier(external_body)]
+    pub fn default() -> (config_map: ConfigMap)
+        ensures
+            config_map@.is_default(),
+    {
+        ConfigMap {
+            inner: K8SConfigMap::default(),
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures
             metadata@ == self@.metadata,
@@ -37,6 +47,13 @@ impl ConfigMap {
             data.is_Some() ==> data.get_Some_0()@ == self@.data.get_Some_0(),
     {
         todo!()
+    }
+}
+
+impl ConfigMapView {
+    pub open spec fn is_default(self) -> bool {
+        &&& self.metadata.is_default()
+        &&& self.data.is_None()
     }
 }
 

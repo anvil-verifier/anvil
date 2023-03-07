@@ -24,8 +24,31 @@ pub struct ObjectMetaView {
     pub labels: Option<Map<StringView, StringView>>,
 }
 
+impl ObjectMetaView {
+
+    pub open spec fn is_default(self) -> bool {
+        &&& self.name.is_None()
+        &&& self.namespace.is_None()
+        &&& self.resource_version.is_None()
+        &&& self.uid.is_None()
+        &&& self.deletion_timestamp.is_None()
+        &&& self.finalizers.is_None()
+        &&& self.labels.is_None()
+    }
+}
+
 impl ObjectMeta {
     pub spec fn view(&self) -> ObjectMetaView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (object_meta: ObjectMeta)
+        ensures
+            object_meta@.is_default(),
+    {
+        ObjectMeta {
+            inner: K8SObjectMeta::default(),
+        }
+    }
 
     #[verifier(external_body)]
     pub fn name(&self) -> (name: Option<String>)
