@@ -18,17 +18,16 @@ pub open spec fn handle_get_request(msg: Message, s: KubernetesAPIState) -> (Etc
     recommends
         msg.content.is_get_request(),
 {
-    let req_id = msg.content.get_req_id();
     let req = msg.content.get_get_request();
     if !s.resources.dom().contains(req.key) {
         // Get fails
         let result = Result::Err(APIError::ObjectNotFound);
-        let resp = form_get_resp_msg(msg, result, req_id);
+        let resp = form_get_resp_msg(msg, result);
         (s.resources, resp, Option::None)
     } else {
         // Get succeeds
         let result = Result::Ok(s.resources[req.key]);
-        let resp = form_get_resp_msg(msg, result, req_id);
+        let resp = form_get_resp_msg(msg, result);
         (s.resources, resp, Option::None)
     }
 }
@@ -42,10 +41,9 @@ pub open spec fn handle_list_request(msg: Message, s: KubernetesAPIState) -> (Et
     recommends
         msg.content.is_list_request(),
 {
-    let req_id = msg.content.get_req_id();
     let req = msg.content.get_list_request();
     let result = Result::Ok(list_query(req, s));
-    let resp = form_list_resp_msg(msg, result, req_id);
+    let resp = form_list_resp_msg(msg, result);
     (s.resources, resp, Option::None)
 }
 

@@ -329,16 +329,16 @@ pub open spec fn form_msg(src: HostId, dst: HostId, msg_content: MessageContent)
     }
 }
 
-pub open spec fn form_get_resp_msg(req_msg: Message, result: Result<ResourceObj, APIError>, resp_id: nat) -> Message
+pub open spec fn form_get_resp_msg(req_msg: Message, result: Result<ResourceObj, APIError>) -> Message
     recommends req_msg.content.is_get_request(),
 {
-    form_msg(req_msg.dst, req_msg.src, get_resp_msg_content(result, resp_id))
+    form_msg(req_msg.dst, req_msg.src, get_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
-pub open spec fn form_list_resp_msg(req_msg: Message, result: Result<Seq<ResourceObj>, APIError>, resp_id: nat) -> Message
+pub open spec fn form_list_resp_msg(req_msg: Message, result: Result<Seq<ResourceObj>, APIError>) -> Message
     recommends req_msg.content.is_list_request(),
 {
-    form_msg(req_msg.dst, req_msg.src, list_resp_msg_content(result, resp_id))
+    form_msg(req_msg.dst, req_msg.src, list_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
 pub open spec fn added_event_msg_content(obj: ResourceObj) -> MessageContent {
