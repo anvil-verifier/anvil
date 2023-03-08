@@ -169,4 +169,8 @@ pub open spec fn valid<T>(temp_pred: TempPred<T>) -> bool {
     forall |ex: Execution<T>| temp_pred.satisfied_by(ex)
 }
 
+pub open spec fn true_pred<T>() -> TempPred<T> {
+    lift_state(|s: T| true)
+}
+
 }
