@@ -156,15 +156,15 @@ pub open spec fn cm_exists(cr_key: ResourceKey) -> StatePred<State<SimpleReconci
 pub open spec fn is_controller_get_cr_request_msg(msg: Message, cr_key: ResourceKey) -> bool {
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI
-    &&& msg.is_get_request()
-    &&& msg.get_get_request().key == cr_key
+    &&& msg.content.is_get_request()
+    &&& msg.content.get_get_request().key == cr_key
 }
 
 pub open spec fn is_controller_create_cm_request_msg(msg: Message, cr_key: ResourceKey) -> bool {
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI
-    &&& msg.is_create_request()
-    &&& msg.get_create_request().obj == simple_reconciler::subresource_configmap(cr_key)
+    &&& msg.content.is_create_request()
+    &&& msg.content.get_create_request().obj == simple_reconciler::subresource_configmap(cr_key)
 }
 
 }

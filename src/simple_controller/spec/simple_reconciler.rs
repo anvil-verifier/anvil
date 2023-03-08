@@ -43,10 +43,10 @@ pub open spec fn reconcile_trigger(msg: Message) -> Option<ResourceKey>
     recommends
         msg.content.is_WatchEvent(),
 {
-    if msg.is_watch_event_of_kind(ResourceKind::CustomResourceKind) {
-        if msg.is_added_event() {
-            Option::Some(msg.get_added_event().obj.key)
-        } else if msg.is_modified_event() {
+    if msg.content.is_watch_event_of_kind(ResourceKind::CustomResourceKind) {
+        if msg.content.is_added_event() {
+            Option::Some(msg.content.get_added_event().obj.key)
+        } else if msg.content.is_modified_event() {
             Option::Some(msg.get_modified_event().obj.key)
         } else {
             Option::None
