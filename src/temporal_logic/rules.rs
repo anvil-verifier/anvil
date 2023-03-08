@@ -37,6 +37,13 @@ proof fn not_eventually_unfold<T>(ex: Execution<T>, p: TempPred<T>)
         forall |i| !p.satisfied_by(#[trigger] ex.suffix(i))
 {}
 
+proof fn stable_unfold<T>(ex: Execution<T>, p: TempPred<T>)
+    requires
+        stable(p).satisfied_by(ex),
+    ensures
+        p.satisfied_by(ex) ==> forall |i| p.satisfied_by(#[trigger] ex.suffix(i)),
+{}
+
 proof fn leads_to_unfold<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.leads_to(q).satisfied_by(ex),
@@ -891,19 +898,21 @@ pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
 
 /// Unpack the assumption from left to the right side of |=
 /// pre:
-///     []next /\ asm |= True ~> p
+///     |= stable(partial_spec)
+///     partial_spec /\ asm |= True ~> p
 /// post:
-///     init /\ []next |= asm ~> p
-pub proof fn unpack_assumption<T>(init: TempPred<T>, next: TempPred<T>, asm: TempPred<T>, p: TempPred<T>)
+///     init /\ partial_spec |= asm ~> p
+pub proof fn unpack_assumption_from_spec<T>(init: TempPred<T>, partial_spec: TempPred<T>, asm: TempPred<T>, p: TempPred<T>)
     requires
-        always(next).and(asm).entails(true_pred().leads_to(p)),
+        valid(stable(partial_spec)),
+        partial_spec.and(asm).entails(true_pred().leads_to(p)),
     ensures
-        init.and(always(next)).entails(asm.leads_to(p)),
+        init.and(partial_spec).entails(asm.leads_to(p)),
 {
-    assert forall |ex| #[trigger] init.and(always(next)).satisfied_by(ex) implies asm.leads_to(p).satisfied_by(ex) by {
+    assert forall |ex| #[trigger] init.and(partial_spec).satisfied_by(ex) implies asm.leads_to(p).satisfied_by(ex) by {
         assert forall |i| #[trigger] asm.satisfied_by(ex.suffix(i)) implies eventually(p).satisfied_by(ex.suffix(i)) by {
-            always_propagate_forwards::<T>(ex, next, i);
-            implies_apply::<T>(ex.suffix(i), always(next).and(asm), true_pred().leads_to(p));
+            stable_unfold::<T>(ex, partial_spec);
+            implies_apply::<T>(ex.suffix(i), partial_spec.and(asm), true_pred().leads_to(p));
             leads_to_unfold::<T>(ex.suffix(i), true_pred(), p);
             execution_equality::<T>(ex.suffix(i), ex.suffix(i).suffix(0));
             implies_apply::<T>(ex.suffix(i), true_pred(), eventually(p));
