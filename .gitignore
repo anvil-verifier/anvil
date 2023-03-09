@@ -1,3 +1,5 @@
 # Except this file
 !.gitignore
 .vscode/
+main
+src/.verus-log/

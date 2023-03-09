@@ -9,6 +9,8 @@ use builtin_macros::*;
 
 verus! {
 
+pub type StringView = Seq<char>;
+
 #[is_variant]
 pub enum ResourceKind {
     CustomResourceKind,
