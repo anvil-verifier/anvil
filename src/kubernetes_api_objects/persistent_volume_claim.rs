@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::object_meta::*;
 use crate::pervasive::prelude::*;
-use crate::resources::object_meta::*;
 
 use k8s_openapi::api::core::v1::PersistentVolumeClaim as K8SPersistentVolumeClaim;
 use k8s_openapi::api::core::v1::PersistentVolumeClaimSpec as K8SPersistentVolumeClaimSpec;

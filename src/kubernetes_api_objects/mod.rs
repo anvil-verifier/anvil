@@ -6,4 +6,3 @@ pub mod persistent_volume_claim;
 pub mod pod;
 pub mod service;
 pub mod stateful_set;
-pub mod string_map;

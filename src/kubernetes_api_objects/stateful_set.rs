@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::object_meta::*;
 use crate::pervasive::prelude::*;
-use crate::resources::object_meta::*;
 
 use k8s_openapi::api::apps::v1::StatefulSet as K8SStatefulSet;
 use k8s_openapi::api::apps::v1::StatefulSetSpec as K8SStatefulSetSpec;

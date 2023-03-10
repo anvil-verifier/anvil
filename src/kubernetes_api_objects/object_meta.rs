@@ -1,9 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_cluster::spec::common::StringView;
 use crate::pervasive::prelude::*;
 use crate::pervasive::string::*;
-use crate::resources::string_map;
+use crate::pervasive_ext::string_map;
+use crate::pervasive_ext::StringView;
 
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
 

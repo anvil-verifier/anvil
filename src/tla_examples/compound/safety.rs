@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::pervasive::seq::*;
-use crate::pervasive_lemmas::seq_lemmas::*;
+use crate::pervasive_ext::seq_lemmas::*;
 use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
 use crate::tla_examples::compound::{

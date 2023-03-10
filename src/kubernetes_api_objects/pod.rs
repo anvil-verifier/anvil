@@ -1,35 +1,35 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::object_meta::*;
 use crate::pervasive::prelude::*;
-use crate::resources::object_meta::*;
 
-use k8s_openapi::api::core::v1::Service as K8SService;
-use k8s_openapi::api::core::v1::ServiceSpec as K8SServiceSpec;
-use k8s_openapi::api::core::v1::ServiceStatus as K8SServiceStatus;
+use k8s_openapi::api::core::v1::Pod as K8SPod;
+use k8s_openapi::api::core::v1::PodSpec as K8SPodSpec;
+use k8s_openapi::api::core::v1::PodStatus as K8SPodStatus;
 
 verus! {
 
 #[verifier(external_body)]
-pub struct Service {
-    inner: K8SService,
+pub struct Pod {
+    inner: K8SPod,
 }
 
-pub struct ServiceView {
+pub struct PodView {
     pub metadata: ObjectMetaView,
-    pub spec: Option<ServiceSpecView>,
-    pub status: Option<ServiceStatusView>,
+    pub spec: Option<PodSpecView>,
+    pub status: Option<PodStatusView>,
 }
 
-impl Service {
-    pub spec fn view(&self) -> ServiceView;
+impl Pod {
+    pub spec fn view(&self) -> PodView;
 
     #[verifier(external_body)]
-    pub fn default() -> (pod: Service)
+    pub fn default() -> (pod: Pod)
         ensures
             pod@.is_default(),
     {
-        Service {
-            inner: K8SService::default(),
+        Pod {
+            inner: K8SPod::default(),
         }
     }
 
@@ -43,7 +43,7 @@ impl Service {
 
     // is it OK to name it spec?
     #[verifier(external_body)]
-    pub fn spec(&self) -> (spec: Option<ServiceSpec>)
+    pub fn spec(&self) -> (spec: Option<PodSpec>)
         ensures
             self@.spec.is_Some() == spec.is_Some(),
             spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
@@ -52,7 +52,7 @@ impl Service {
     }
 
     #[verifier(external_body)]
-    pub fn status(&self) -> (status: Option<ServiceStatus>)
+    pub fn status(&self) -> (status: Option<PodStatus>)
         ensures
             self@.status.is_Some() == status.is_Some(),
             status.is_Some() ==> status.get_Some_0()@ == self@.status.get_Some_0(),
@@ -61,7 +61,7 @@ impl Service {
     }
 }
 
-impl ServiceView {
+impl PodView {
     pub open spec fn is_default(self) -> bool {
         &&& self.metadata.is_default()
         &&& self.spec.is_None()
@@ -70,29 +70,29 @@ impl ServiceView {
 }
 
 #[verifier(external_body)]
-pub struct ServiceSpec {
-    inner: K8SServiceSpec,
+pub struct PodSpec {
+    inner: K8SPodSpec,
 }
 
-pub struct ServiceSpecView {
+pub struct PodSpecView {
     // A lot more fields to specify...
 }
 
-impl ServiceSpec {
-    pub spec fn view(&self) -> ServiceSpecView;
+impl PodSpec {
+    pub spec fn view(&self) -> PodSpecView;
 
     #[verifier(external_body)]
-    pub fn default() -> (pod_spec: ServiceSpec)
+    pub fn default() -> (pod_spec: PodSpec)
         ensures
             pod_spec@.is_default(),
     {
-        ServiceSpec {
-            inner: K8SServiceSpec::default(),
+        PodSpec {
+            inner: K8SPodSpec::default(),
         }
     }
 }
 
-impl ServiceSpecView {
+impl PodSpecView {
     pub open spec fn is_default(self) -> bool {
        true
        // The condition depends on how default() is implemented
@@ -100,29 +100,29 @@ impl ServiceSpecView {
 }
 
 #[verifier(external_body)]
-pub struct ServiceStatus {
-    inner: K8SServiceStatus,
+pub struct PodStatus {
+    inner: K8SPodStatus,
 }
 
-pub struct ServiceStatusView {
+pub struct PodStatusView {
     // A lot more fields to specify...
 }
 
-impl ServiceStatus {
-    pub spec fn view(&self) -> ServiceStatusView;
+impl PodStatus {
+    pub spec fn view(&self) -> PodStatusView;
 
     #[verifier(external_body)]
-    pub fn default() -> (pod_status: ServiceStatus)
+    pub fn default() -> (pod_status: PodStatus)
         ensures
             pod_status@.is_default(),
     {
-        ServiceStatus {
-            inner: K8SServiceStatus::default(),
+        PodStatus {
+            inner: K8SPodStatus::default(),
         }
     }
 }
 
-impl ServiceStatusView {
+impl PodStatusView {
     pub open spec fn is_default(self) -> bool {
        true
        // The condition depends on how default() is implemented
