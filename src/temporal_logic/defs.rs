@@ -132,6 +132,10 @@ pub open spec fn tla_exists<T, A>(a_to_temp_pred: FnSpec(A) -> TempPred<T>) -> T
     TempPred::new(|ex: Execution<T>| exists |a: A| #[trigger] a_to_temp_pred(a).satisfied_by(ex))
 }
 
+pub open spec fn stable<T>(temp_pred: TempPred<T>) -> TempPred<T> {
+    TempPred::new(|ex: Execution<T>| temp_pred.implies(always(temp_pred)).satisfied_by(ex))
+}
+
 /// Returns a state predicate that is satisfied
 /// iff `action_pred` can be satisfied by any possible following state and the current state
 ///
@@ -167,6 +171,10 @@ pub open spec fn weak_fairness<T>(action_pred: ActionPred<T>) -> TempPred<T> {
 /// Defined in 3.3.
 pub open spec fn valid<T>(temp_pred: TempPred<T>) -> bool {
     forall |ex: Execution<T>| temp_pred.satisfied_by(ex)
+}
+
+pub open spec fn true_pred<T>() -> TempPred<T> {
+    lift_state(|s: T| true)
 }
 
 }
