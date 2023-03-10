@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::kubernetes_api_objects::{custom_resource::*, object::*};
 use crate::kubernetes_cluster::spec::common::*;
 use crate::pervasive::{multiset::*, option::*, seq::*, set::*};
 use crate::state_machine::action::*;
@@ -17,7 +18,7 @@ pub struct ClientState {
 
 pub struct ClientActionInput {
     pub recv: Option<Message>,
-    pub cr: ResourceObj,
+    pub cr: CustomResourceView,
 }
 
 pub enum Step {
@@ -38,11 +39,10 @@ pub open spec fn client_req_msg(msg_content: MessageContent) -> Message {
 pub open spec fn send_create_cr() -> ClientAction {
     Action {
         precondition: |input: ClientActionInput, s: ClientState| {
-            &&& input.cr.key.kind.is_CustomResourceKind()
             &&& input.recv.is_None()
         },
         transition: |input: ClientActionInput, s: ClientState| {
-            (ClientState {req_id: s.req_id + 1}, Multiset::singleton(client_req_msg(create_req_msg_content(ResourceObj{key: input.cr.key}, s.req_id))))
+            (ClientState {req_id: s.req_id + 1}, Multiset::singleton(client_req_msg(create_req_msg_content(KubernetesObject::CustomResource(input.cr), s.req_id))))
         },
     }
 }
@@ -50,11 +50,10 @@ pub open spec fn send_create_cr() -> ClientAction {
 pub open spec fn send_delete_cr() -> ClientAction {
     Action {
         precondition: |input: ClientActionInput, s: ClientState| {
-            &&& input.cr.key.kind.is_CustomResourceKind()
             &&& input.recv.is_None()
         },
         transition: |input: ClientActionInput, s: ClientState| {
-            (ClientState {req_id: s.req_id + 1}, Multiset::singleton(client_req_msg(delete_req_msg_content(input.cr.key, s.req_id))))
+            (ClientState {req_id: s.req_id + 1}, Multiset::singleton(client_req_msg(delete_req_msg_content(input.cr.object_ref(), s.req_id))))
         },
     }
 }

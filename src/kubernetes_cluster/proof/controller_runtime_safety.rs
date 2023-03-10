@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_cluster::{
     proof::{kubernetes_api_safety, wf1_assistant::controller_action_pre_implies_next_pre},
     spec::{
@@ -24,14 +25,14 @@ verus! {
 
 pub open spec fn pending_msg_is_req_msg<T>() -> StatePred<State<T>> {
     |s: State<T>| {
-        forall |cr_key: ResourceKey|
+        forall |cr_key: ObjectRef|
             #[trigger] s.reconcile_state_contains(cr_key)
             && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
             ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.is_APIRequest()
     }
 }
 
-pub open spec fn pending_req_has_unique_id<T>(cr_key: ResourceKey) -> StatePred<State<T>>
+pub open spec fn pending_req_has_unique_id<T>(cr_key: ObjectRef) -> StatePred<State<T>>
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
@@ -39,7 +40,7 @@ pub open spec fn pending_req_has_unique_id<T>(cr_key: ResourceKey) -> StatePred<
         s.reconcile_state_contains(cr_key)
         && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
         ==> (
-            forall |other_key: ResourceKey|
+            forall |other_key: ObjectRef|
                 #[trigger] s.reconcile_state_contains(other_key)
                 && s.reconcile_state_of(other_key).pending_req_msg.is_Some()
                 && other_key !== cr_key
@@ -50,7 +51,7 @@ pub open spec fn pending_req_has_unique_id<T>(cr_key: ResourceKey) -> StatePred<
 
 pub open spec fn pending_req_has_lower_req_id<T>() -> StatePred<State<T>> {
     |s: State<T>| {
-        forall |cr_key: ResourceKey|
+        forall |cr_key: ObjectRef|
             #[trigger] s.reconcile_state_contains(cr_key)
             && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
             ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_req_id() < s.controller_state.req_id
@@ -65,7 +66,7 @@ pub proof fn lemma_always_pending_req_has_lower_req_id<T>(reconciler: Reconciler
     init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), next(reconciler), invariant);
 }
 
-pub open spec fn resp_matches_at_most_one_pending_req<T>(resp_msg: Message, cr_key: ResourceKey) -> StatePred<State<T>>
+pub open spec fn resp_matches_at_most_one_pending_req<T>(resp_msg: Message, cr_key: ObjectRef) -> StatePred<State<T>>
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
@@ -74,7 +75,7 @@ pub open spec fn resp_matches_at_most_one_pending_req<T>(resp_msg: Message, cr_k
         && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
         && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
         ==> (
-            forall |other_key: ResourceKey|
+            forall |other_key: ObjectRef|
                 #[trigger] s.reconcile_state_contains(other_key)
                 && s.reconcile_state_of(other_key).pending_req_msg.is_Some()
                 && other_key !== cr_key
@@ -83,7 +84,7 @@ pub open spec fn resp_matches_at_most_one_pending_req<T>(resp_msg: Message, cr_k
     }
 }
 
-pub proof fn lemma_always_resp_matches_at_most_one_pending_req<T>(reconciler: Reconciler<T>, resp_msg: Message, cr_key: ResourceKey)
+pub proof fn lemma_always_resp_matches_at_most_one_pending_req<T>(reconciler: Reconciler<T>, resp_msg: Message, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -101,7 +102,7 @@ pub proof fn lemma_always_resp_matches_at_most_one_pending_req<T>(reconciler: Re
     init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), stronger_next, invariant);
 }
 
-pub open spec fn each_resp_matches_at_most_one_pending_req<T>(cr_key: ResourceKey) -> StatePred<State<T>>
+pub open spec fn each_resp_matches_at_most_one_pending_req<T>(cr_key: ObjectRef) -> StatePred<State<T>>
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
@@ -111,7 +112,7 @@ pub open spec fn each_resp_matches_at_most_one_pending_req<T>(cr_key: ResourceKe
             && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
             && #[trigger] resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
             ==> (
-                forall |other_key: ResourceKey|
+                forall |other_key: ObjectRef|
                     #[trigger] s.reconcile_state_contains(other_key)
                     && s.reconcile_state_of(other_key).pending_req_msg.is_Some()
                     && other_key !== cr_key
@@ -120,7 +121,7 @@ pub open spec fn each_resp_matches_at_most_one_pending_req<T>(cr_key: ResourceKe
     }
 }
 
-pub proof fn lemma_always_each_resp_matches_at_most_one_pending_req<T>(reconciler: Reconciler<T>, cr_key: ResourceKey)
+pub proof fn lemma_always_each_resp_matches_at_most_one_pending_req<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures

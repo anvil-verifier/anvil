@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_cluster::spec::common::*;
 use crate::pervasive::option::*;
 use builtin::*;
@@ -40,9 +41,9 @@ pub struct Reconciler<#[verifier(maybe_negative)] T> {
 
 pub type ReconcileInitState<T> = FnSpec() -> T;
 
-pub type ReconcileTrigger = FnSpec(Message) -> Option<ResourceKey>;
+pub type ReconcileTrigger = FnSpec(Message) -> Option<ObjectRef>;
 
-pub type ReconcileCore<T> = FnSpec(ResourceKey, Option<APIResponse>, T) -> (T, Option<APIRequest>);
+pub type ReconcileCore<T> = FnSpec(ObjectRef, Option<APIResponse>, T) -> (T, Option<APIRequest>);
 
 pub type ReconcileDone<T> = FnSpec(T) -> bool;
 

@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_cluster::{
     proof::{kubernetes_api_safety, wf1_assistant::controller_action_pre_implies_next_pre},
     spec::{
@@ -58,7 +59,7 @@ pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<T>(reconciler
     controller_next(reconciler).wf1_assume(input, sm_spec(reconciler), next, assumption, pre, post);
 }
 
-pub proof fn lemma_relevant_event_sent_leads_to_reconcile_scheduled<T>(reconciler: Reconciler<T>, msg: Message, cr_key: ResourceKey)
+pub proof fn lemma_relevant_event_sent_leads_to_reconcile_scheduled<T>(reconciler: Reconciler<T>, msg: Message, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -92,7 +93,7 @@ pub proof fn lemma_relevant_event_sent_leads_to_reconcile_scheduled<T>(reconcile
     lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, next(reconciler), trigger_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_reconcile_done_leads_to_reconcile_idle_and_scheduled<T>(reconciler: Reconciler<T>, cr_key: ResourceKey)
+pub proof fn lemma_reconcile_done_leads_to_reconcile_idle_and_scheduled<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -122,7 +123,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle_and_scheduled<T>(recon
     lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, next(reconciler), end_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_reconcile_error_leads_to_reconcile_idle_and_scheduled<T>(reconciler: Reconciler<T>, cr_key: ResourceKey)
+pub proof fn lemma_reconcile_error_leads_to_reconcile_idle_and_scheduled<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -152,7 +153,7 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle_and_scheduled<T>(reco
     lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, next(reconciler), end_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<T>(reconciler: Reconciler<T>, cr_key: ResourceKey)
+pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -184,7 +185,7 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<T>(recon
     lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, next(reconciler), run_scheduled_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_reconcile_done_leads_to_reconcile_init<T>(reconciler: Reconciler<T>, cr_key: ResourceKey)
+pub proof fn lemma_reconcile_done_leads_to_reconcile_init<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -218,7 +219,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_init<T>(reconciler: Reconci
     leads_to_trans::<State<T>>(sm_spec(reconciler), reconcile_ended, reconcile_idle_and_scheduled, reconcile_at_init);
 }
 
-pub proof fn lemma_reconcile_error_leads_to_reconcile_init<T>(reconciler: Reconciler<T>, cr_key: ResourceKey)
+pub proof fn lemma_reconcile_error_leads_to_reconcile_init<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures

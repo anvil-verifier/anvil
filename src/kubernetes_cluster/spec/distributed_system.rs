@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::kubernetes_api_objects::{common::*, object::*};
 use crate::kubernetes_cluster::spec::{
     client,
     client::{client, ClientActionInput, ClientState},
@@ -37,33 +38,33 @@ impl<T> State<T> {
         multiset_contains_msg(self.network_state.in_flight, msg)
     }
 
-    pub open spec fn resource_key_exists(self, key: ResourceKey) -> bool {
+    pub open spec fn resource_key_exists(self, key: ObjectRef) -> bool {
         self.kubernetes_api_state.resources.dom().contains(key)
     }
 
-    pub open spec fn resource_obj_exists(self, obj: ResourceObj) -> bool {
-        &&& self.kubernetes_api_state.resources.dom().contains(obj.key)
-        &&& self.kubernetes_api_state.resources[obj.key] == obj
+    pub open spec fn resource_obj_exists(self, obj: KubernetesObject) -> bool {
+        &&& self.kubernetes_api_state.resources.dom().contains(obj.object_ref())
+        &&& self.kubernetes_api_state.resources[obj.object_ref()] == obj
     }
 
-    pub open spec fn resource_obj_of(self, key: ResourceKey) -> ResourceObj
+    pub open spec fn resource_obj_of(self, key: ObjectRef) -> KubernetesObject
         recommends self.resource_key_exists(key)
     {
         self.kubernetes_api_state.resources[key]
     }
 
     #[verifier(inline)]
-    pub open spec fn reconcile_state_contains(self, key: ResourceKey) -> bool {
+    pub open spec fn reconcile_state_contains(self, key: ObjectRef) -> bool {
         self.controller_state.ongoing_reconciles.dom().contains(key)
     }
 
-    pub open spec fn reconcile_state_of(self, key: ResourceKey) -> OngoingReconcile<T>
+    pub open spec fn reconcile_state_of(self, key: ObjectRef) -> OngoingReconcile<T>
         recommends self.reconcile_state_contains(key)
     {
         self.controller_state.ongoing_reconciles[key]
     }
 
-    pub open spec fn reconcile_scheduled_for(self, key: ResourceKey) -> bool {
+    pub open spec fn reconcile_scheduled_for(self, key: ObjectRef) -> bool {
         self.controller_state.scheduled_reconciles.contains(key)
     }
 }

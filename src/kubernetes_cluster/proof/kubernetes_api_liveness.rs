@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::kubernetes_api_objects::{common::*, object::*};
 use crate::kubernetes_cluster::{
     proof::wf1_assistant::kubernetes_api_action_pre_implies_next_pre,
     spec::{
@@ -55,53 +56,7 @@ pub proof fn lemma_pre_leads_to_post_with_assumption_by_kubernetes_api<T>(reconc
     kubernetes_api_next().wf1_assume(input, sm_spec(reconciler), next, assumption, pre, post);
 }
 
-pub proof fn lemma_create_req_leads_to_ok_resp<T>(reconciler: Reconciler<T>, msg: Message)
-    ensures
-        sm_spec(reconciler).entails(
-            lift_state(|s: State<T>| {
-                &&& s.message_in_flight(msg)
-                &&& msg.dst == HostId::KubernetesAPI
-                &&& msg.content.is_create_request()
-                &&& !s.resource_key_exists(msg.content.get_create_request().obj.key)
-            })
-            .and(always(lift_state(|s: State<T>| {
-                forall |other: Message|
-                    #[trigger] s.message_in_flight(other)
-                    && other.content.is_create_request()
-                    && other.content.get_create_request() == msg.content.get_create_request()
-                    && other.dst == msg.dst
-                        ==> other == msg
-            })))
-                .leads_to(
-                    lift_state(|s: State<T>| {
-                        &&& s.message_in_flight(form_msg(msg.dst, msg.src, create_resp_msg_content(Result::Ok(msg.content.get_create_request().obj), msg.content.get_req_id())))
-                        &&& s.resource_key_exists(msg.content.get_create_request().obj.key)
-                    })
-                )
-        ),
-{
-    let assumption = |s: State<T>| {
-        forall |other: Message|
-            #[trigger] s.message_in_flight(other)
-            && other.content.is_create_request()
-            && other.content.get_create_request() == msg.content.get_create_request()
-            && other.dst == msg.dst
-                ==> other == msg
-    };
-    let pre = |s: State<T>| {
-        &&& s.message_in_flight(msg)
-        &&& msg.dst == HostId::KubernetesAPI
-        &&& msg.content.is_create_request()
-        &&& !s.resource_key_exists(msg.content.get_create_request().obj.key)
-    };
-    let post = |s: State<T>| {
-        &&& s.message_in_flight(form_msg(msg.dst, msg.src, create_resp_msg_content(Result::Ok(msg.content.get_create_request().obj), msg.content.get_req_id())))
-        &&& s.resource_key_exists(msg.content.get_create_request().obj.key)
-    };
-    lemma_pre_leads_to_post_with_assumption_by_kubernetes_api::<T>(reconciler, Option::Some(msg), next(reconciler), handle_request(), assumption, pre, post);
-}
-
-pub proof fn lemma_get_req_leads_to_some_resp<T>(reconciler: Reconciler<T>, msg: Message, key: ResourceKey)
+pub proof fn lemma_get_req_leads_to_some_resp<T>(reconciler: Reconciler<T>, msg: Message, key: ObjectRef)
     ensures
         sm_spec(reconciler).entails(
             lift_state(|s: State<T>| {
@@ -146,7 +101,7 @@ pub proof fn lemma_get_req_leads_to_some_resp<T>(reconciler: Reconciler<T>, msg:
     lemma_pre_leads_to_post_by_kubernetes_api::<T>(reconciler, input, next(reconciler), handle_request(), pre, post);
 }
 
-pub proof fn lemma_get_req_leads_to_ok_or_err_resp<T>(reconciler: Reconciler<T>, msg: Message, key: ResourceKey)
+pub proof fn lemma_get_req_leads_to_ok_or_err_resp<T>(reconciler: Reconciler<T>, msg: Message, key: ObjectRef)
     ensures
         sm_spec(reconciler).entails(
             lift_state(|s: State<T>| {
@@ -179,14 +134,14 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp<T>(reconciler: Reconciler<T>,
     );
 }
 
-pub proof fn lemma_get_req_leads_to_ok_resp_if_never_delete<T>(reconciler: Reconciler<T>, msg: Message, res: ResourceObj)
+pub proof fn lemma_get_req_leads_to_ok_resp_if_never_delete<T>(reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
     ensures
         sm_spec(reconciler).entails(
             lift_state(|s: State<T>| {
                 &&& s.message_in_flight(msg)
                 &&& msg.dst == HostId::KubernetesAPI
                 &&& msg.content.is_get_request()
-                &&& msg.content.get_get_request().key == res.key
+                &&& msg.content.get_get_request().key == res.object_ref()
                 &&& s.resource_obj_exists(res)
             })
             .and(always(lift_state(|s: State<T>| {
@@ -195,7 +150,7 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_never_delete<T>(reconciler: Recon
                     &&& #[trigger] s.message_in_flight(other)
                     &&& other.dst == HostId::KubernetesAPI
                     &&& other.content.is_delete_request()
-                    &&& other.content.get_delete_request().key == res.key
+                    &&& other.content.get_delete_request().key == res.object_ref()
                 }
             })))
                 .leads_to(lift_state(|s: State<T>| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(res)))))
@@ -205,7 +160,7 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_never_delete<T>(reconciler: Recon
         &&& s.message_in_flight(msg)
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_get_request()
-        &&& msg.content.get_get_request().key == res.key
+        &&& msg.content.get_get_request().key == res.object_ref()
         &&& s.resource_obj_exists(res)
     };
     let assumption = |s: State<T>| {
@@ -214,21 +169,21 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_never_delete<T>(reconciler: Recon
                 &&& #[trigger] s.message_in_flight(other)
                 &&& other.dst == HostId::KubernetesAPI
                 &&& other.content.is_delete_request()
-                &&& other.content.get_delete_request().key == res.key
+                &&& other.content.get_delete_request().key == res.object_ref()
             }
     };
     let post = |s: State<T>| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(res)));
     lemma_pre_leads_to_post_with_assumption_by_kubernetes_api::<T>(reconciler, Option::Some(msg), next(reconciler), handle_request(), assumption, pre, post);
 }
 
-pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(reconciler: Reconciler<T>, msg: Message, res: ResourceObj)
+pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
     ensures
         sm_spec(reconciler).entails(
             lift_state(|s: State<T>| {
                 &&& s.message_in_flight(msg)
                 &&& msg.dst == HostId::KubernetesAPI
                 &&& msg.content.is_get_request()
-                &&& msg.content.get_get_request().key == res.key
+                &&& msg.content.get_get_request().key == res.object_ref()
             })
             .and(always(lift_state(|s: State<T>| s.resource_obj_exists(res))))
                 .leads_to(lift_state(|s: State<T>| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(res)))))
@@ -240,14 +195,14 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(reconciler: 
         &&& s.message_in_flight(msg)
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_get_request()
-        &&& msg.content.get_get_request().key == res.key
+        &&& msg.content.get_get_request().key == res.object_ref()
     };
     let res_exists = |s: State<T>| s.resource_obj_exists(res);
     let get_req_msg_sent_and_res_exists = |s: State<T>| {
         &&& s.message_in_flight(msg)
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_get_request()
-        &&& msg.content.get_get_request().key == res.key
+        &&& msg.content.get_get_request().key == res.object_ref()
         &&& s.resource_obj_exists(res)
     };
     let delete_req_never_sent = |s: State<T>| {
@@ -256,7 +211,7 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(reconciler: 
             &&& #[trigger] s.message_in_flight(other)
             &&& other.dst == HostId::KubernetesAPI
             &&& other.content.is_delete_request()
-            &&& other.content.get_delete_request().key == res.key
+            &&& other.content.get_delete_request().key == res.object_ref()
         }
     };
     let ok_resp_msg_sent = |s: State<T>| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(res)));
@@ -291,7 +246,7 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(reconciler: 
     p_and_always_p_equals_always_p::<State<T>>(lift_state(res_exists));
 }
 
-pub proof fn lemma_create_req_leads_to_res_exists<T>(reconciler: Reconciler<T>, msg: Message, res: ResourceObj)
+pub proof fn lemma_create_req_leads_to_res_exists<T>(reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
     ensures
         sm_spec(reconciler).entails(
             lift_state(|s: State<T>| {
@@ -300,7 +255,7 @@ pub proof fn lemma_create_req_leads_to_res_exists<T>(reconciler: Reconciler<T>, 
                 &&& msg.content.is_create_request()
                 &&& msg.content.get_create_request().obj == res
             })
-                .leads_to(lift_state(|s: State<T>| s.resource_key_exists(res.key)))
+                .leads_to(lift_state(|s: State<T>| s.resource_key_exists(res.object_ref())))
         ),
 {
     let pre = |s: State<T>| {
@@ -310,19 +265,19 @@ pub proof fn lemma_create_req_leads_to_res_exists<T>(reconciler: Reconciler<T>, 
         &&& msg.content.get_create_request().obj == res
     };
     let post = |s: State<T>| {
-        s.resource_key_exists(res.key)
+        s.resource_key_exists(res.object_ref())
     };
     lemma_pre_leads_to_post_by_kubernetes_api::<T>(reconciler, Option::Some(msg), next(reconciler), handle_request(), pre, post);
 }
 
-pub proof fn lemma_delete_req_leads_to_res_not_exists<T>(reconciler: Reconciler<T>, msg: Message, res: ResourceObj)
+pub proof fn lemma_delete_req_leads_to_res_not_exists<T>(reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
     ensures
         sm_spec(reconciler).entails(
             lift_state(|s: State<T>| {
                 &&& s.message_in_flight(msg)
                 &&& msg.dst == HostId::KubernetesAPI
                 &&& msg.content.is_delete_request()
-                &&& msg.content.get_delete_request().key == res.key
+                &&& msg.content.get_delete_request().key == res.object_ref()
             })
                 .leads_to(lift_state(|s: State<T>| !s.resource_obj_exists(res)))
         ),
@@ -331,7 +286,7 @@ pub proof fn lemma_delete_req_leads_to_res_not_exists<T>(reconciler: Reconciler<
         &&& s.message_in_flight(msg)
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_delete_request()
-        &&& msg.content.get_delete_request().key == res.key
+        &&& msg.content.get_delete_request().key == res.object_ref()
     };
     let post = |s: State<T>| {
         !s.resource_obj_exists(res)
@@ -339,7 +294,7 @@ pub proof fn lemma_delete_req_leads_to_res_not_exists<T>(reconciler: Reconciler<
     lemma_pre_leads_to_post_by_kubernetes_api::<T>(reconciler, Option::Some(msg), next(reconciler), handle_request(), pre, post);
 }
 
-pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<T>(reconciler: Reconciler<T>, msg: Message, res: ResourceObj)
+pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<T>(reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
     ensures
         sm_spec(reconciler).entails(always(
             always(lift_state(|s: State<T>| s.resource_obj_exists(res)))
@@ -348,7 +303,7 @@ pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<T>(reconci
                         &&& s.message_in_flight(msg)
                         &&& msg.dst == HostId::KubernetesAPI
                         &&& msg.content.is_delete_request()
-                        &&& msg.content.get_delete_request().key == res.key
+                        &&& msg.content.get_delete_request().key == res.object_ref()
                     }
                 })))
         )),
@@ -359,7 +314,7 @@ pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<T>(reconci
             &&& s.message_in_flight(msg)
             &&& msg.dst == HostId::KubernetesAPI
             &&& msg.content.is_delete_request()
-            &&& msg.content.get_delete_request().key == res.key
+            &&& msg.content.get_delete_request().key == res.object_ref()
         },
         |s: State<T>| !s.resource_obj_exists(res)
     );
@@ -372,21 +327,21 @@ pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<T>(reconci
             &&& s.message_in_flight(msg)
             &&& msg.dst == HostId::KubernetesAPI
             &&& msg.content.is_delete_request()
-            &&& msg.content.get_delete_request().key == res.key
+            &&& msg.content.get_delete_request().key == res.object_ref()
         })),
         lift_state(|s: State<T>| {
             !{
                 &&& s.message_in_flight(msg)
                 &&& msg.dst == HostId::KubernetesAPI
                 &&& msg.content.is_delete_request()
-                &&& msg.content.get_delete_request().key == res.key
+                &&& msg.content.get_delete_request().key == res.object_ref()
             }
         })
     );
 }
 
 /// How to prove this? It is obvious according to lemma_always_res_always_exists_implies_delete_never_sent
-pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent<T>(reconciler: Reconciler<T>, res: ResourceObj)
+pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent<T>(reconciler: Reconciler<T>, res: KubernetesObject)
     ensures
         sm_spec(reconciler).entails(always(
             always(lift_state(|s: State<T>| s.resource_obj_exists(res)))
@@ -396,7 +351,7 @@ pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent<T>(
                         &&& #[trigger] s.message_in_flight(msg)
                         &&& msg.dst == HostId::KubernetesAPI
                         &&& msg.content.is_delete_request()
-                        &&& msg.content.get_delete_request().key == res.key
+                        &&& msg.content.get_delete_request().key == res.object_ref()
                     }
                 })))
         )),
@@ -407,7 +362,7 @@ pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent<T>(
             &&& s.message_in_flight(msg)
             &&& msg.dst == HostId::KubernetesAPI
             &&& msg.content.is_delete_request()
-            &&& msg.content.get_delete_request().key == res.key
+            &&& msg.content.get_delete_request().key == res.object_ref()
         }
     }));
     assert forall |msg: Message| sm_spec(reconciler).entails(#[trigger] always(pre.implies(m_to_always_m_not_sent(msg)))) by {
@@ -420,7 +375,7 @@ pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent<T>(
             &&& s.message_in_flight(msg)
             &&& msg.dst == HostId::KubernetesAPI
             &&& msg.content.is_delete_request()
-            &&& msg.content.get_delete_request().key == res.key
+            &&& msg.content.get_delete_request().key == res.object_ref()
         }
     });
     tla_forall_always_equality_variant::<State<T>, Message>(m_to_always_m_not_sent, m_to_m_not_sent);
@@ -431,7 +386,7 @@ pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent<T>(
             &&& #[trigger] s.message_in_flight(msg)
             &&& msg.dst == HostId::KubernetesAPI
             &&& msg.content.is_delete_request()
-            &&& msg.content.get_delete_request().key == res.key
+            &&& msg.content.get_delete_request().key == res.object_ref()
         }
     });
     assert forall |ex| #[trigger] tla_forall(m_to_m_not_sent).satisfied_by(ex) implies forall_m_to_m_not_sent.satisfied_by(ex) by {
@@ -440,7 +395,7 @@ pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent<T>(
                 &&& #[trigger] ex.head().message_in_flight(msg)
                 &&& msg.dst == HostId::KubernetesAPI
                 &&& msg.content.is_delete_request()
-                &&& msg.content.get_delete_request().key == res.key
+                &&& msg.content.get_delete_request().key == res.object_ref()
             }
         by {
             assert(m_to_m_not_sent(msg).satisfied_by(ex));

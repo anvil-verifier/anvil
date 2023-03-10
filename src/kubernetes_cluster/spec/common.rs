@@ -1,32 +1,14 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::kubernetes_api_objects::{common::*, object::*};
 use crate::pervasive::function::*;
 use crate::pervasive::{multiset::*, multiset::*, option::*, result::*, seq::*, set::*, string::*};
-use crate::temporal_logic::defs::*;
+use crate::pervasive_ext::*;
 use builtin::*;
 use builtin_macros::*;
 
 verus! {
-
-#[is_variant]
-pub enum ResourceKind {
-    CustomResourceKind,
-    ConfigMapKind,
-    StatefulSetKind,
-    PodKind,
-    VolumeKind,
-}
-
-pub struct ResourceKey {
-    pub name: Seq<char>,
-    pub namespace: Seq<char>,
-    pub kind: ResourceKind,
-}
-
-pub struct ResourceObj {
-    pub key: ResourceKey,
-}
 
 #[is_variant]
 pub enum APIError {
@@ -35,19 +17,19 @@ pub enum APIError {
 }
 
 pub struct GetRequest {
-    pub key: ResourceKey,
+    pub key: ObjectRef,
 }
 
 pub struct ListRequest {
-    pub kind: ResourceKind,
+    pub kind: Kind,
 }
 
 pub struct CreateRequest {
-    pub obj: ResourceObj,
+    pub obj: KubernetesObject,
 }
 
 pub struct DeleteRequest {
-    pub key: ResourceKey,
+    pub key: ObjectRef,
 }
 
 #[is_variant]
@@ -59,19 +41,19 @@ pub enum APIRequest {
 }
 
 pub struct GetResponse {
-    pub res: Result<ResourceObj, APIError>,
+    pub res: Result<KubernetesObject, APIError>,
 }
 
 pub struct ListResponse {
-    pub res: Result<Seq<ResourceObj>, APIError>,
+    pub res: Result<Seq<KubernetesObject>, APIError>,
 }
 
 pub struct CreateResponse {
-    pub res: Result<ResourceObj, APIError>,
+    pub res: Result<KubernetesObject, APIError>,
 }
 
 pub struct DeleteResponse {
-    pub res: Result<ResourceObj, APIError>,
+    pub res: Result<KubernetesObject, APIError>,
 }
 
 #[is_variant]
@@ -83,15 +65,15 @@ pub enum APIResponse {
 }
 
 pub struct AddedEvent {
-    pub obj: ResourceObj,
+    pub obj: KubernetesObject,
 }
 
 pub struct ModifiedEvent {
-    pub obj: ResourceObj,
+    pub obj: KubernetesObject,
 }
 
 pub struct DeletedEvent {
-    pub obj: ResourceObj,
+    pub obj: KubernetesObject,
 }
 
 #[is_variant]
@@ -232,12 +214,12 @@ impl MessageContent {
         self.get_APIResponse_1()
     }
 
-    pub open spec fn is_watch_event_of_kind(self, kind: ResourceKind) -> bool {
+    pub open spec fn is_watch_event_of_kind(self, kind: Kind) -> bool {
         &&& self.is_WatchEvent()
         &&& match self.get_WatchEvent_0() {
-            WatchEvent::AddedEvent(added) => added.obj.key.kind == kind,
-            WatchEvent::ModifiedEvent(modified) => modified.obj.key.kind == kind,
-            WatchEvent::DeletedEvent(deleted) => deleted.obj.key.kind == kind,
+            WatchEvent::AddedEvent(added) => added.obj.object_ref().kind == kind,
+            WatchEvent::ModifiedEvent(modified) => modified.obj.object_ref().kind == kind,
+            WatchEvent::DeletedEvent(deleted) => deleted.obj.object_ref().kind == kind,
         }
     }
 
@@ -301,23 +283,23 @@ pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -
     &&& resp_msg.content.get_APIResponse_1() == req_msg.content.get_APIRequest_1()
 }
 
-pub open spec fn cm_suffix() -> Seq<char> {
+pub open spec fn cm_suffix() -> StringView {
     new_strlit("_cm")@
 }
 
-pub open spec fn sts_suffix() -> Seq<char> {
+pub open spec fn sts_suffix() -> StringView {
     new_strlit("_sts")@
 }
 
-pub open spec fn pod_suffix() -> Seq<char> {
+pub open spec fn pod_suffix() -> StringView {
     new_strlit("_pod")@
 }
 
-pub open spec fn vol_suffix() -> Seq<char> {
+pub open spec fn vol_suffix() -> StringView {
     new_strlit("_vol")@
 }
 
-pub open spec fn default_ns() -> Seq<char> {
+pub open spec fn default_ns() -> StringView {
     new_strlit("default")@
 }
 
@@ -329,91 +311,91 @@ pub open spec fn form_msg(src: HostId, dst: HostId, msg_content: MessageContent)
     }
 }
 
-pub open spec fn form_get_resp_msg(req_msg: Message, result: Result<ResourceObj, APIError>) -> Message
+pub open spec fn form_get_resp_msg(req_msg: Message, result: Result<KubernetesObject, APIError>) -> Message
     recommends req_msg.content.is_get_request(),
 {
     form_msg(req_msg.dst, req_msg.src, get_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
-pub open spec fn form_list_resp_msg(req_msg: Message, result: Result<Seq<ResourceObj>, APIError>) -> Message
+pub open spec fn form_list_resp_msg(req_msg: Message, result: Result<Seq<KubernetesObject>, APIError>) -> Message
     recommends req_msg.content.is_list_request(),
 {
     form_msg(req_msg.dst, req_msg.src, list_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
-pub open spec fn form_create_resp_msg(req_msg: Message, result: Result<ResourceObj, APIError>) -> Message
+pub open spec fn form_create_resp_msg(req_msg: Message, result: Result<KubernetesObject, APIError>) -> Message
     recommends req_msg.content.is_create_request(),
 {
     form_msg(req_msg.dst, req_msg.src, create_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
-pub open spec fn form_delete_resp_msg(req_msg: Message, result: Result<ResourceObj, APIError>) -> Message
+pub open spec fn form_delete_resp_msg(req_msg: Message, result: Result<KubernetesObject, APIError>) -> Message
     recommends req_msg.content.is_delete_request(),
 {
     form_msg(req_msg.dst, req_msg.src, delete_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
-pub open spec fn added_event_msg_content(obj: ResourceObj) -> MessageContent {
+pub open spec fn added_event_msg_content(obj: KubernetesObject) -> MessageContent {
     MessageContent::WatchEvent(WatchEvent::AddedEvent(AddedEvent{
         obj: obj
     }))
 }
 
-pub open spec fn modified_event_msg_content(obj: ResourceObj) -> MessageContent {
+pub open spec fn modified_event_msg_content(obj: KubernetesObject) -> MessageContent {
     MessageContent::WatchEvent(WatchEvent::ModifiedEvent(ModifiedEvent{
         obj: obj
     }))
 }
 
-pub open spec fn deleted_event_msg_content(obj: ResourceObj) -> MessageContent {
+pub open spec fn deleted_event_msg_content(obj: KubernetesObject) -> MessageContent {
     MessageContent::WatchEvent(WatchEvent::DeletedEvent(DeletedEvent{
         obj: obj
     }))
 }
 
-pub open spec fn get_req_msg_content(key: ResourceKey, req_id: nat) -> MessageContent {
+pub open spec fn get_req_msg_content(key: ObjectRef, req_id: nat) -> MessageContent {
     MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{
         key: key,
     }), req_id)
 }
 
-pub open spec fn list_req_msg_content(kind: ResourceKind, req_id: nat) -> MessageContent {
+pub open spec fn list_req_msg_content(kind: Kind, req_id: nat) -> MessageContent {
     MessageContent::APIRequest(APIRequest::ListRequest(ListRequest{
         kind: kind,
     }), req_id)
 }
 
-pub open spec fn create_req_msg_content(obj: ResourceObj, req_id: nat) -> MessageContent {
+pub open spec fn create_req_msg_content(obj: KubernetesObject, req_id: nat) -> MessageContent {
     MessageContent::APIRequest(APIRequest::CreateRequest(CreateRequest{
         obj: obj,
     }), req_id)
 }
 
-pub open spec fn delete_req_msg_content(key: ResourceKey, req_id: nat) -> MessageContent {
+pub open spec fn delete_req_msg_content(key: ObjectRef, req_id: nat) -> MessageContent {
     MessageContent::APIRequest(APIRequest::DeleteRequest(DeleteRequest{
         key: key,
     }), req_id)
 }
 
-pub open spec fn get_resp_msg_content(res: Result<ResourceObj, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn get_resp_msg_content(res: Result<KubernetesObject, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::GetResponse(GetResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn list_resp_msg_content(res: Result<Seq<ResourceObj>, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn list_resp_msg_content(res: Result<Seq<KubernetesObject>, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::ListResponse(ListResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn create_resp_msg_content(res: Result<ResourceObj, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn create_resp_msg_content(res: Result<KubernetesObject, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::CreateResponse(CreateResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn delete_resp_msg_content(res: Result<ResourceObj, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn delete_resp_msg_content(res: Result<KubernetesObject, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::DeleteResponse(DeleteResponse{
         res: res,
     }), resp_id)

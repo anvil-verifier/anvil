@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_cluster::spec::{common::*, reconciler::*};
 use crate::pervasive::{map::*, multiset::*, option::*, seq::*, set::*};
 use crate::state_machine::action::*;
@@ -12,8 +13,8 @@ verus! {
 
 pub struct ControllerState<T> {
     pub req_id: nat,
-    pub ongoing_reconciles: Map<ResourceKey, OngoingReconcile<T>>,
-    pub scheduled_reconciles: Set<ResourceKey>,
+    pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile<T>>,
+    pub scheduled_reconciles: Set<ObjectRef>,
     pub self_watcher: Watcher,
     // TODO: there should be watchers for `owns_with` and `watches_with`
 }
@@ -30,7 +31,7 @@ pub struct Watcher {
 
 pub struct ControllerActionInput {
     pub recv: Option<Message>,
-    pub scheduled_cr_key: Option<ResourceKey>,
+    pub scheduled_cr_key: Option<ObjectRef>,
 }
 
 #[is_variant]
