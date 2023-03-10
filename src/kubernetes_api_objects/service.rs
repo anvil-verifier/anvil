@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::pervasive::prelude::*;
 
@@ -24,9 +25,9 @@ impl Service {
     pub spec fn view(&self) -> ServiceView;
 
     #[verifier(external_body)]
-    pub fn default() -> (pod: Service)
+    pub fn default() -> (service: Service)
         ensures
-            pod@.is_default(),
+            service@.is_default(),
     {
         Service {
             inner: K8SService::default(),
@@ -62,6 +63,22 @@ impl Service {
 }
 
 impl ServiceView {
+    pub open spec fn kind(self) -> Kind {
+        Kind::ServiceKind
+    }
+
+    pub open spec fn object_ref(self) -> ObjectRef
+        recommends
+            self.metadata.name.is_Some(),
+            self.metadata.namespace.is_Some(),
+    {
+        ObjectRef {
+            kind: self.kind(),
+            name: self.metadata.name.get_Some_0(),
+            namespace: self.metadata.namespace.get_Some_0(),
+        }
+    }
+
     pub open spec fn is_default(self) -> bool {
         &&& self.metadata.is_default()
         &&& self.spec.is_None()
@@ -82,9 +99,9 @@ impl ServiceSpec {
     pub spec fn view(&self) -> ServiceSpecView;
 
     #[verifier(external_body)]
-    pub fn default() -> (pod_spec: ServiceSpec)
+    pub fn default() -> (service_spec: ServiceSpec)
         ensures
-            pod_spec@.is_default(),
+            service_spec@.is_default(),
     {
         ServiceSpec {
             inner: K8SServiceSpec::default(),
@@ -112,9 +129,9 @@ impl ServiceStatus {
     pub spec fn view(&self) -> ServiceStatusView;
 
     #[verifier(external_body)]
-    pub fn default() -> (pod_status: ServiceStatus)
+    pub fn default() -> (service_status: ServiceStatus)
         ensures
-            pod_status@.is_default(),
+            service_status@.is_default(),
     {
         ServiceStatus {
             inner: K8SServiceStatus::default(),

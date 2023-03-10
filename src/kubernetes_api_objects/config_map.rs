@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::pervasive::prelude::*;
 use crate::pervasive_ext::string_map;
@@ -60,6 +61,22 @@ impl ConfigMap {
 }
 
 impl ConfigMapView {
+    pub open spec fn kind(self) -> Kind {
+        Kind::ConfigMapKind
+    }
+
+    pub open spec fn object_ref(self) -> ObjectRef
+        recommends
+            self.metadata.name.is_Some(),
+            self.metadata.namespace.is_Some(),
+    {
+        ObjectRef {
+            kind: self.kind(),
+            name: self.metadata.name.get_Some_0(),
+            namespace: self.metadata.namespace.get_Some_0(),
+        }
+    }
+
     pub open spec fn is_default(self) -> bool {
         &&& self.metadata.is_default()
         &&& self.data.is_None()
