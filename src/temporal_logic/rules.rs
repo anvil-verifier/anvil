@@ -902,6 +902,7 @@ pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
 ///     partial_spec /\ asm |= True ~> p
 /// post:
 ///     init /\ partial_spec |= asm ~> p
+/// TODO: discuss how to prove "safety" invariants that depend on asm
 pub proof fn unpack_assumption_from_spec<T>(init: TempPred<T>, partial_spec: TempPred<T>, asm: TempPred<T>, p: TempPred<T>)
     requires
         valid(stable(partial_spec)),
