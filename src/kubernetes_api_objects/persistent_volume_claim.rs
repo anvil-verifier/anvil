@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::pervasive::prelude::*;
 
@@ -24,9 +25,9 @@ impl PersistentVolumeClaim {
     pub spec fn view(&self) -> PersistentVolumeClaimView;
 
     #[verifier(external_body)]
-    pub fn default() -> (pod: PersistentVolumeClaim)
+    pub fn default() -> (pvc: PersistentVolumeClaim)
         ensures
-            pod@.is_default(),
+            pvc@.is_default(),
     {
         PersistentVolumeClaim {
             inner: K8SPersistentVolumeClaim::default(),
@@ -62,6 +63,22 @@ impl PersistentVolumeClaim {
 }
 
 impl PersistentVolumeClaimView {
+    pub open spec fn kind(self) -> Kind {
+        Kind::PersistentVolumeClaimKind
+    }
+
+    pub open spec fn object_ref(self) -> ObjectRef
+        recommends
+            self.metadata.name.is_Some(),
+            self.metadata.namespace.is_Some(),
+    {
+        ObjectRef {
+            kind: self.kind(),
+            name: self.metadata.name.get_Some_0(),
+            namespace: self.metadata.namespace.get_Some_0(),
+        }
+    }
+
     pub open spec fn is_default(self) -> bool {
         &&& self.metadata.is_default()
         &&& self.spec.is_None()
@@ -82,9 +99,9 @@ impl PersistentVolumeClaimSpec {
     pub spec fn view(&self) -> PersistentVolumeClaimSpecView;
 
     #[verifier(external_body)]
-    pub fn default() -> (pod_spec: PersistentVolumeClaimSpec)
+    pub fn default() -> (pvc_spec: PersistentVolumeClaimSpec)
         ensures
-            pod_spec@.is_default(),
+            pvc_spec@.is_default(),
     {
         PersistentVolumeClaimSpec {
             inner: K8SPersistentVolumeClaimSpec::default(),
@@ -112,9 +129,9 @@ impl PersistentVolumeClaimStatus {
     pub spec fn view(&self) -> PersistentVolumeClaimStatusView;
 
     #[verifier(external_body)]
-    pub fn default() -> (pod_status: PersistentVolumeClaimStatus)
+    pub fn default() -> (pvc_status: PersistentVolumeClaimStatus)
         ensures
-            pod_status@.is_default(),
+            pvc_status@.is_default(),
     {
         PersistentVolumeClaimStatus {
             inner: K8SPersistentVolumeClaimStatus::default(),

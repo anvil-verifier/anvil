@@ -4,34 +4,29 @@ use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::pervasive::prelude::*;
 
-use k8s_openapi::api::apps::v1::StatefulSet as K8SStatefulSet;
-use k8s_openapi::api::apps::v1::StatefulSetSpec as K8SStatefulSetSpec;
-use k8s_openapi::api::apps::v1::StatefulSetStatus as K8SStatefulSetStatus;
-
 verus! {
 
+// TODO: CustomResource should be a generic type
 #[verifier(external_body)]
-pub struct StatefulSet {
-    inner: K8SStatefulSet,
+pub struct CustomResource {
+    // the content is specific to the controller
 }
 
-pub struct StatefulSetView {
+pub struct CustomResourceView {
     pub metadata: ObjectMetaView,
-    pub spec: Option<StatefulSetSpecView>,
-    pub status: Option<StatefulSetStatusView>,
+    pub spec: Option<CustomResourceSpecView>,
+    pub status: Option<CustomResourceStatusView>,
 }
 
-impl StatefulSet {
-    pub spec fn view(&self) -> StatefulSetView;
+impl CustomResource {
+    pub spec fn view(&self) -> CustomResourceView;
 
     #[verifier(external_body)]
-    pub fn default() -> (stateful_set: StatefulSet)
+    pub fn default() -> (cr: CustomResource)
         ensures
-            stateful_set@.is_default(),
+            cr@.is_default(),
     {
-        StatefulSet {
-            inner: K8SStatefulSet::default(),
-        }
+        CustomResource {}
     }
 
     #[verifier(external_body)]
@@ -44,7 +39,7 @@ impl StatefulSet {
 
     // is it OK to name it spec?
     #[verifier(external_body)]
-    pub fn spec(&self) -> (spec: Option<StatefulSetSpec>)
+    pub fn spec(&self) -> (spec: Option<CustomResourceSpec>)
         ensures
             self@.spec.is_Some() == spec.is_Some(),
             spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
@@ -53,7 +48,7 @@ impl StatefulSet {
     }
 
     #[verifier(external_body)]
-    pub fn status(&self) -> (status: Option<StatefulSetStatus>)
+    pub fn status(&self) -> (status: Option<CustomResourceStatus>)
         ensures
             self@.status.is_Some() == status.is_Some(),
             status.is_Some() ==> status.get_Some_0()@ == self@.status.get_Some_0(),
@@ -62,9 +57,9 @@ impl StatefulSet {
     }
 }
 
-impl StatefulSetView {
+impl CustomResourceView {
     pub open spec fn kind(self) -> Kind {
-        Kind::StatefulSetKind
+        Kind::CustomResourceKind
     }
 
     pub open spec fn object_ref(self) -> ObjectRef
@@ -87,29 +82,27 @@ impl StatefulSetView {
 }
 
 #[verifier(external_body)]
-pub struct StatefulSetSpec {
-    inner: K8SStatefulSetSpec,
+pub struct CustomResourceSpec {
+    // the content is specific to the controller
 }
 
-pub struct StatefulSetSpecView {
+pub struct CustomResourceSpecView {
     // A lot more fields to specify...
 }
 
-impl StatefulSetSpec {
-    pub spec fn view(&self) -> StatefulSetSpecView;
+impl CustomResourceSpec {
+    pub spec fn view(&self) -> CustomResourceSpecView;
 
     #[verifier(external_body)]
-    pub fn default() -> (stateful_set_spec: StatefulSetSpec)
+    pub fn default() -> (cr_spec: CustomResourceSpec)
         ensures
-            stateful_set_spec@.is_default(),
+            cr_spec@.is_default(),
     {
-        StatefulSetSpec {
-            inner: K8SStatefulSetSpec::default(),
-        }
+        CustomResourceSpec {}
     }
 }
 
-impl StatefulSetSpecView {
+impl CustomResourceSpecView {
     pub open spec fn is_default(self) -> bool {
        true
        // The condition depends on how default() is implemented
@@ -117,29 +110,27 @@ impl StatefulSetSpecView {
 }
 
 #[verifier(external_body)]
-pub struct StatefulSetStatus {
-    inner: K8SStatefulSetStatus,
+pub struct CustomResourceStatus {
+    // the content is specific to the controller
 }
 
-pub struct StatefulSetStatusView {
+pub struct CustomResourceStatusView {
     // A lot more fields to specify...
 }
 
-impl StatefulSetStatus {
-    pub spec fn view(&self) -> StatefulSetStatusView;
+impl CustomResourceStatus {
+    pub spec fn view(&self) -> CustomResourceStatusView;
 
     #[verifier(external_body)]
-    pub fn default() -> (stateful_set_status: StatefulSetStatus)
+    pub fn default() -> (cr_status: CustomResourceStatus)
         ensures
-            stateful_set_status@.is_default(),
+            cr_status@.is_default(),
     {
-        StatefulSetStatus {
-            inner: K8SStatefulSetStatus::default(),
-        }
+        CustomResourceStatus {}
     }
 }
 
-impl StatefulSetStatusView {
+impl CustomResourceStatusView {
     pub open spec fn is_default(self) -> bool {
        true
        // The condition depends on how default() is implemented

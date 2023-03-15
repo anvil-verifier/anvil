@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::kubernetes_api_objects::{common::*, object::*};
 use crate::kubernetes_cluster::spec::{
     common::*,
     kubernetes_api::{builtin_controllers::statefulset_controller, common::*},
@@ -32,7 +33,7 @@ pub open spec fn handle_get_request(msg: Message, s: KubernetesAPIState) -> (Etc
     }
 }
 
-pub open spec fn list_query(list_req: ListRequest, s: KubernetesAPIState) -> Seq<ResourceObj> {
+pub open spec fn list_query(list_req: ListRequest, s: KubernetesAPIState) -> Seq<KubernetesObject> {
     // TODO: the returned seq should contain all the objects of the resource kind in the resources map
     Seq::empty()
 }
@@ -52,7 +53,7 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
         msg.content.is_create_request(),
 {
     let req = msg.content.get_create_request();
-    if s.resources.dom().contains(req.obj.key) {
+    if s.resources.dom().contains(req.obj.object_ref()) {
         // Creation fails
         let result = Result::Err(APIError::ObjectAlreadyExists);
         let resp = form_create_resp_msg(msg, result);
@@ -64,7 +65,7 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
         // The cluster state is updated, so we send a notification to the custom controller
         // TODO: notification should be sent to custom controller selectively
         let notify = form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg_content(req.obj));
-        (s.resources.insert(req.obj.key, req.obj), resp, Option::Some(notify))
+        (s.resources.insert(req.obj.object_ref(), req.obj), resp, Option::Some(notify))
     }
 }
 

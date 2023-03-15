@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::kubernetes_api_objects::{common::*, object::*};
 use crate::kubernetes_cluster::spec::common::*;
 use crate::pervasive::{map::*, multiset::*, option::*, result::*, seq::*, string::*};
 use crate::state_machine::action::*;
@@ -11,7 +12,7 @@ use builtin_macros::*;
 
 verus! {
 
-pub type EtcdState = Map<ResourceKey, ResourceObj>;
+pub type EtcdState = Map<ObjectRef, KubernetesObject>;
 
 pub struct KubernetesAPIState {
     pub req_id: nat,

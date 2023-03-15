@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::kubernetes_api_objects::{common::*, object::*};
 use crate::kubernetes_cluster::spec::{common::*, controller::common::*, reconciler::*};
 use crate::pervasive::{map::*, multiset::*, option::*, seq::*, set::*};
 use crate::state_machine::action::*;
@@ -21,7 +22,7 @@ pub open spec fn issue_initial_list<T>(reconciler: Reconciler<T>) -> ControllerA
         },
         transition: |input: ControllerActionInput, s: ControllerState<T>| {
             let list_req_msg = controller_req_msg(APIRequest::ListRequest(ListRequest {
-                kind: ResourceKind::CustomResourceKind,
+                kind: Kind::CustomResourceKind,
             }), s.req_id);
             let s_prime = ControllerState {
                 self_watcher: Watcher{
@@ -37,7 +38,7 @@ pub open spec fn issue_initial_list<T>(reconciler: Reconciler<T>) -> ControllerA
     }
 }
 
-pub open spec fn get_key_set_from_list_result(list: Seq<ResourceObj>) -> Set<ResourceKey> {
+pub open spec fn get_key_set_from_list_result(list: Seq<KubernetesObject>) -> Set<ObjectRef> {
     // TODO: the returned set should contain all the keys of objects in the list
     Set::empty()
 }
