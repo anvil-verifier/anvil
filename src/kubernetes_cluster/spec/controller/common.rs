@@ -15,18 +15,11 @@ pub struct ControllerState<T> {
     pub req_id: nat,
     pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile<T>>,
     pub scheduled_reconciles: Set<ObjectRef>,
-    pub self_watcher: Watcher,
-    // TODO: there should be watchers for `owns_with` and `watches_with`
 }
 
 pub struct OngoingReconcile<T> {
     pub pending_req_msg: Option<Message>,
     pub local_state: T,
-}
-
-pub struct Watcher {
-    pub state: WatcherState,
-    pub pending_req_msg: Option<Message>, // This should either the initial list or the watch
 }
 
 pub struct ControllerActionInput {
@@ -35,18 +28,7 @@ pub struct ControllerActionInput {
 }
 
 #[is_variant]
-pub enum WatcherState {
-    Empty,
-    InitListed,
-    Watching,
-}
-
-#[is_variant]
 pub enum ControllerStep {
-    IssueInitialList,
-    TriggerReconcileWithListResp,
-    StartWatching,
-    TriggerReconcile,
     RunScheduledReconcile,
     ContinueReconcile,
     EndReconcile,
@@ -60,6 +42,16 @@ pub type ControllerActionResult<T> = ActionResult<ControllerState<T>, Multiset<M
 
 pub open spec fn controller_req_msg(req: APIRequest, req_id: nat) -> Message {
     form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req, req_id))
+}
+
+pub open spec fn insert_scheduled_reconcile<T>(s: ControllerState<T>, key: ObjectRef) -> ControllerState<T>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    ControllerState {
+        scheduled_reconciles: s.scheduled_reconciles.insert(key),
+        ..s
+    }
 }
 
 }

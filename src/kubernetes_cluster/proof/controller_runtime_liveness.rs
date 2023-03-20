@@ -8,7 +8,7 @@ use crate::kubernetes_cluster::{
         common::*,
         controller::common::{ControllerAction, ControllerActionInput},
         controller::controller_runtime::{
-            continue_reconcile, end_reconcile, run_scheduled_reconcile, trigger_reconcile,
+            continue_reconcile, end_reconcile, run_scheduled_reconcile,
         },
         controller::state_machine::controller,
         distributed_system::*,
@@ -59,41 +59,7 @@ pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<T>(reconciler
     controller_next(reconciler).wf1_assume(input, sm_spec(reconciler), next, assumption, pre, post);
 }
 
-pub proof fn lemma_relevant_event_sent_leads_to_reconcile_scheduled<T>(reconciler: Reconciler<T>, msg: Message, cr_key: ObjectRef)
-    requires
-        cr_key.kind.is_CustomResourceKind(),
-    ensures
-        sm_spec(reconciler).entails(
-            lift_state(|s: State<T>| {
-                &&& s.message_in_flight(msg)
-                &&& msg.dst == HostId::CustomController
-                &&& msg.content.is_WatchEvent()
-                &&& (reconciler.reconcile_trigger)(msg) == Option::Some(cr_key)
-                &&& s.controller_state.self_watcher.state.is_Watching()
-            })
-                .leads_to(lift_state(|s: State<T>| {
-                    s.reconcile_scheduled_for(cr_key)
-                }))
-        ),
-{
-    let pre = |s: State<T>| {
-        &&& s.message_in_flight(msg)
-        &&& msg.dst == HostId::CustomController
-        &&& msg.content.is_WatchEvent()
-        &&& (reconciler.reconcile_trigger)(msg) == Option::Some(cr_key)
-        &&& s.controller_state.self_watcher.state.is_Watching()
-    };
-    let post = |s: State<T>| {
-        s.reconcile_scheduled_for(cr_key)
-    };
-    let input = ControllerActionInput {
-        recv: Option::Some(msg),
-        scheduled_cr_key: Option::None,
-    };
-    lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, next(reconciler), trigger_reconcile(reconciler), pre, post);
-}
-
-pub proof fn lemma_reconcile_done_leads_to_reconcile_idle_and_scheduled<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
+pub proof fn lemma_reconcile_done_leads_to_reconcile_idle<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -104,7 +70,6 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle_and_scheduled<T>(recon
             })
                 .leads_to(lift_state(|s: State<T>| {
                     &&& !s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_scheduled_for(cr_key)
                 }))
         ),
 {
@@ -114,7 +79,6 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle_and_scheduled<T>(recon
     };
     let post = |s: State<T>| {
         &&& !s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_scheduled_for(cr_key)
     };
     let input = ControllerActionInput {
         recv: Option::None,
@@ -123,7 +87,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle_and_scheduled<T>(recon
     lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, next(reconciler), end_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_reconcile_error_leads_to_reconcile_idle_and_scheduled<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
+pub proof fn lemma_reconcile_error_leads_to_reconcile_idle<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -134,7 +98,6 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle_and_scheduled<T>(reco
             })
                 .leads_to(lift_state(|s: State<T>| {
                     &&& !s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_scheduled_for(cr_key)
                 }))
         ),
 {
@@ -144,7 +107,6 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle_and_scheduled<T>(reco
     };
     let post = |s: State<T>| {
         &&& !s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_scheduled_for(cr_key)
     };
     let input = ControllerActionInput {
         recv: Option::None,
@@ -185,72 +147,6 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<T>(recon
     lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, next(reconciler), run_scheduled_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_reconcile_done_leads_to_reconcile_init<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
-    requires
-        cr_key.kind.is_CustomResourceKind(),
-    ensures
-        sm_spec(reconciler).entails(
-            lift_state(|s: State<T>| {
-                &&& s.reconcile_state_contains(cr_key)
-                &&& (reconciler.reconcile_done)(s.reconcile_state_of(cr_key).local_state)
-            })
-                .leads_to(lift_state(|s: State<T>| {
-                    &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
-                    &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-                }))
-        ),
-{
-    lemma_reconcile_done_leads_to_reconcile_idle_and_scheduled::<T>(reconciler, cr_key);
-    lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init::<T>(reconciler, cr_key);
-    let reconcile_ended = |s: State<T>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& (reconciler.reconcile_done)(s.reconcile_state_of(cr_key).local_state)
-    };
-    let reconcile_idle_and_scheduled = |s: State<T>| {
-        &&& !s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_scheduled_for(cr_key)
-    };
-    let reconcile_at_init = |s: State<T>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-    };
-    leads_to_trans::<State<T>>(sm_spec(reconciler), reconcile_ended, reconcile_idle_and_scheduled, reconcile_at_init);
-}
-
-pub proof fn lemma_reconcile_error_leads_to_reconcile_init<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
-    requires
-        cr_key.kind.is_CustomResourceKind(),
-    ensures
-        sm_spec(reconciler).entails(
-            lift_state(|s: State<T>| {
-                &&& s.reconcile_state_contains(cr_key)
-                &&& (reconciler.reconcile_error)(s.reconcile_state_of(cr_key).local_state)
-            })
-                .leads_to(lift_state(|s: State<T>| {
-                    &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
-                    &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-                }))
-        ),
-{
-    lemma_reconcile_error_leads_to_reconcile_idle_and_scheduled::<T>(reconciler, cr_key);
-    lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init::<T>(reconciler, cr_key);
-    let reconcile_ended = |s: State<T>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& (reconciler.reconcile_error)(s.reconcile_state_of(cr_key).local_state)
-    };
-    let reconcile_idle_and_scheduled = |s: State<T>| {
-        &&& !s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_scheduled_for(cr_key)
-    };
-    let reconcile_at_init = |s: State<T>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-    };
-    leads_to_trans::<State<T>>(sm_spec(reconciler), reconcile_ended, reconcile_idle_and_scheduled, reconcile_at_init);
-}
+// TODO: we need a lemma that says with the assumption that cr always exists, true ~> reconcile_scheduled_for_cr
 
 }

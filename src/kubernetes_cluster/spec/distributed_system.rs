@@ -7,7 +7,8 @@ use crate::kubernetes_cluster::spec::{
     client::{client, ClientActionInput, ClientState},
     common::*,
     controller::common::{
-        ControllerAction, ControllerActionInput, ControllerState, OngoingReconcile,
+        insert_scheduled_reconcile, ControllerAction, ControllerActionInput, ControllerState,
+        OngoingReconcile,
     },
     controller::state_machine::controller,
     kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
@@ -140,6 +141,27 @@ pub open spec fn controller_next<T>(reconciler: Reconciler<T>) -> Action<State<T
     }
 }
 
+/// This is action checks whether a custom resource exists in the Kubernetes API and if so schedule a controller reconcile for it.
+/// It is used to set up the assumption for liveness proof: for a existing cr, the reconcile is infinitely frequently invoked for it.
+/// The assumption that cr always exists and the weak fairness assumption on this action allow us to prove reconcile is always eventually scheduled.
+///
+/// Note this action abstracts away a lot of implementation details in the Kubernetes API and controller runtime framework,
+/// such as the list-then-watch pattern.
+pub open spec fn schedule_controller_reconcile<T>(reconciler: Reconciler<T>) -> Action<State<T>, ObjectRef, ()> {
+    Action {
+        precondition: |input: ObjectRef, s: State<T>| {
+            &&& s.kubernetes_api_state.resources.dom().contains(input)
+            &&& input.kind.is_CustomResourceKind()
+        },
+        transition: |input: ObjectRef, s: State<T>| {
+            (State {
+                controller_state: insert_scheduled_reconcile(s.controller_state, input),
+                ..s
+            }, ())
+        }
+    }
+}
+
 pub open spec fn client_next<T>() -> Action<State<T>, ClientActionInput, ()> {
     let result = |input: ClientActionInput, s: State<T>| {
         let host_result = client().next_result(input, s.client_state);
@@ -167,6 +189,7 @@ pub open spec fn client_next<T>() -> Action<State<T>, ClientActionInput, ()> {
     }
 }
 
+// TODO: stutter does not need input
 pub open spec fn stutter<T>() -> Action<State<T>, Option<Message>, ()> {
     Action {
         precondition: |input: Option<Message>, s: State<T>| {
@@ -181,6 +204,7 @@ pub open spec fn stutter<T>() -> Action<State<T>, Option<Message>, ()> {
 pub enum Step {
     KubernetesAPIStep(KubernetesAPIActionInput),
     ControllerStep(ControllerActionInput),
+    ScheduleControllerReconcileStep(ObjectRef),
     ClientStep(ClientActionInput),
     StutterStep(Option<Message>),
 }
@@ -189,6 +213,7 @@ pub open spec fn next_step<T>(reconciler: Reconciler<T>, s: State<T>, s_prime: S
     match step {
         Step::KubernetesAPIStep(input) => kubernetes_api_next().forward(input)(s, s_prime),
         Step::ControllerStep(input) => controller_next(reconciler).forward(input)(s, s_prime),
+        Step::ScheduleControllerReconcileStep(input) => schedule_controller_reconcile(reconciler).forward(input)(s, s_prime),
         Step::ClientStep(input) => client_next().forward(input)(s, s_prime),
         Step::StutterStep(input) => stutter().forward(input)(s, s_prime),
     }
@@ -209,6 +234,7 @@ pub open spec fn sm_spec<T>(reconciler: Reconciler<T>) -> TempPred<State<T>> {
     .and(always(lift_action(next(reconciler))))
     .and(tla_forall(|input| kubernetes_api_next().weak_fairness(input)))
     .and(tla_forall(|input| controller_next(reconciler).weak_fairness(input)))
+    .and(tla_forall(|input| schedule_controller_reconcile(reconciler).weak_fairness(input)))
 }
 
 pub open spec fn kubernetes_api_action_pre<T>(action: KubernetesAPIAction, input: KubernetesAPIActionInput) -> StatePred<State<T>> {
