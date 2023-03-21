@@ -9,10 +9,7 @@ use builtin_macros::*;
 verus! {
 
 // TODO: complete the statefulset controller spec
-pub open spec fn transition_by_statefulset_controller(msg: Message, s: KubernetesAPIState) -> Multiset<Message>
-    recommends
-        msg.content.is_WatchEvent(),
-{
+pub open spec fn transition_by_statefulset_controller(event: WatchEvent, s: KubernetesAPIState) -> Multiset<Message> {
     let src = HostId::KubernetesAPI;
     // Here dst is also KubernetesAPI because etcd, apiserver and built-in controllers are all in the same state machine.
     // In reality, the message is sent from the built-in controller to apiserver then to etcd.

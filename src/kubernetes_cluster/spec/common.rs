@@ -87,7 +87,6 @@ pub enum WatchEvent {
 pub enum MessageContent {
     APIRequest(APIRequest, nat),
     APIResponse(APIResponse, nat),
-    WatchEvent(WatchEvent),
 }
 
 #[is_variant]
@@ -213,51 +212,6 @@ impl MessageContent {
     {
         self.get_APIResponse_1()
     }
-
-    pub open spec fn is_watch_event_of_kind(self, kind: Kind) -> bool {
-        &&& self.is_WatchEvent()
-        &&& match self.get_WatchEvent_0() {
-            WatchEvent::AddedEvent(added) => added.obj.object_ref().kind == kind,
-            WatchEvent::ModifiedEvent(modified) => modified.obj.object_ref().kind == kind,
-            WatchEvent::DeletedEvent(deleted) => deleted.obj.object_ref().kind == kind,
-        }
-    }
-
-    pub open spec fn is_added_event(self) -> bool {
-        &&& self.is_WatchEvent()
-        &&& self.get_WatchEvent_0().is_AddedEvent()
-    }
-
-    pub open spec fn get_added_event(self) -> AddedEvent
-        recommends
-            self.is_added_event()
-    {
-        self.get_WatchEvent_0().get_AddedEvent_0()
-    }
-
-    pub open spec fn is_modified_event(self) -> bool {
-        &&& self.is_WatchEvent()
-        &&& self.get_WatchEvent_0().is_ModifiedEvent()
-    }
-
-    pub open spec fn get_modified_event(self) -> ModifiedEvent
-        recommends
-            self.is_modified_event()
-    {
-        self.get_WatchEvent_0().get_ModifiedEvent_0()
-    }
-
-    pub open spec fn is_deleted_event(self) -> bool {
-        &&& self.is_WatchEvent()
-        &&& self.get_WatchEvent_0().is_DeletedEvent()
-    }
-
-    pub open spec fn get_deleted_event(self) -> DeletedEvent
-        recommends
-            self.is_deleted_event()
-    {
-        self.get_WatchEvent_0().get_DeletedEvent_0()
-    }
 }
 
 pub struct MessageOps {
@@ -335,22 +289,22 @@ pub open spec fn form_delete_resp_msg(req_msg: Message, result: Result<Kubernete
     form_msg(req_msg.dst, req_msg.src, delete_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
-pub open spec fn added_event_msg_content(obj: KubernetesObject) -> MessageContent {
-    MessageContent::WatchEvent(WatchEvent::AddedEvent(AddedEvent{
+pub open spec fn added_event(obj: KubernetesObject) -> WatchEvent {
+    WatchEvent::AddedEvent(AddedEvent{
         obj: obj
-    }))
+    })
 }
 
-pub open spec fn modified_event_msg_content(obj: KubernetesObject) -> MessageContent {
-    MessageContent::WatchEvent(WatchEvent::ModifiedEvent(ModifiedEvent{
+pub open spec fn modified_event(obj: KubernetesObject) -> WatchEvent {
+    WatchEvent::ModifiedEvent(ModifiedEvent{
         obj: obj
-    }))
+    })
 }
 
-pub open spec fn deleted_event_msg_content(obj: KubernetesObject) -> MessageContent {
-    MessageContent::WatchEvent(WatchEvent::DeletedEvent(DeletedEvent{
+pub open spec fn deleted_event(obj: KubernetesObject) -> WatchEvent {
+    WatchEvent::DeletedEvent(DeletedEvent{
         obj: obj
-    }))
+    })
 }
 
 pub open spec fn get_req_msg_content(key: ObjectRef, req_id: nat) -> MessageContent {

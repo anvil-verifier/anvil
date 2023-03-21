@@ -15,7 +15,7 @@ use builtin_macros::*;
 
 verus! {
 
-pub open spec fn handle_get_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<Message>)
+pub open spec fn handle_get_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<WatchEvent>)
     recommends
         msg.content.is_get_request(),
 {
@@ -38,7 +38,7 @@ pub open spec fn list_query(list_req: ListRequest, s: KubernetesAPIState) -> Seq
     Seq::empty()
 }
 
-pub open spec fn handle_list_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<Message>)
+pub open spec fn handle_list_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<WatchEvent>)
     recommends
         msg.content.is_list_request(),
 {
@@ -48,7 +48,7 @@ pub open spec fn handle_list_request(msg: Message, s: KubernetesAPIState) -> (Et
     (s.resources, resp, Option::None)
 }
 
-pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<Message>)
+pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<WatchEvent>)
     recommends
         msg.content.is_create_request(),
 {
@@ -64,12 +64,12 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
         let resp = form_create_resp_msg(msg, result);
         // The cluster state is updated, so we send a notification to the custom controller
         // TODO: notification should be sent to custom controller selectively
-        let notify = form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg_content(req.obj));
+        let notify = added_event(req.obj);
         (s.resources.insert(req.obj.object_ref(), req.obj), resp, Option::Some(notify))
     }
 }
 
-pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<Message>)
+pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<WatchEvent>)
     recommends
         msg.content.is_delete_request(),
 {
@@ -86,14 +86,14 @@ pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (
         // TODO: watch event should be sent to custom controller selectively
         let result = Result::Ok(obj_before_deletion);
         let resp = form_delete_resp_msg(msg, result);
-        let notify = form_msg(HostId::KubernetesAPI, HostId::CustomController, deleted_event_msg_content(obj_before_deletion));
+        let notify = deleted_event(obj_before_deletion);
         (s.resources.remove(req.key), resp, Option::Some(notify))
     }
 }
 
 // etcd is modeled as a centralized map that handles get/create/delete
 // TODO: support list/update/statusupdate
-pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<Message>)
+pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<WatchEvent>)
     recommends
         msg.content.is_APIRequest(),
 {
@@ -109,12 +109,9 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Etc
 }
 
 /// Collect the requests from the builtin controllers
-pub open spec fn transition_by_builtin_controllers(msg: Message, s: KubernetesAPIState) -> Multiset<Message>
-    recommends
-        msg.content.is_WatchEvent(),
-{
+pub open spec fn transition_by_builtin_controllers(event: WatchEvent, s: KubernetesAPIState) -> Multiset<Message> {
     // We only have spec of statefulset_controller for now
-    statefulset_controller::transition_by_statefulset_controller(msg, s)
+    statefulset_controller::transition_by_statefulset_controller(event, s)
 }
 
 pub open spec fn handle_request() -> KubernetesAPIAction {

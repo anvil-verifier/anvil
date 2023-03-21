@@ -36,26 +36,6 @@ pub open spec fn reconcile_init_state() -> SimpleReconcileState {
     }
 }
 
-/// This is a highly simplified triggering condition
-/// which only considers creation/update to CR objects.
-/// TODO: Reason about ownership and other relationships.
-pub open spec fn reconcile_trigger(msg: Message) -> Option<ResourceKey>
-    recommends
-        msg.content.is_WatchEvent(),
-{
-    if msg.content.is_watch_event_of_kind(ResourceKind::CustomResourceKind) {
-        if msg.content.is_added_event() {
-            Option::Some(msg.content.get_added_event().obj.key)
-        } else if msg.content.is_modified_event() {
-            Option::Some(msg.get_modified_event().obj.key)
-        } else {
-            Option::None
-        }
-    } else {
-        Option::None
-    }
-}
-
 /// This is a highly simplified reconcile core spec:
 /// it sends requests to create a configmap for the cr.
 /// TODO: make the reconcile_core create more resources such as a statefulset

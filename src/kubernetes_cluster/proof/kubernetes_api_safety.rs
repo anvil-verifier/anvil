@@ -9,10 +9,4 @@ use crate::temporal_logic::rules::*;
 use builtin::*;
 use builtin_macros::*;
 
-verus! {
-
-pub open spec fn added_event_msg_to_controller(res: KubernetesObject) -> Message {
-    form_msg(HostId::KubernetesAPI, HostId::CustomController, added_event_msg_content(res))
-}
-
-}
+verus! {}
