@@ -27,7 +27,7 @@ impl StatefulSet {
     #[verifier(external_body)]
     pub fn default() -> (stateful_set: StatefulSet)
         ensures
-            stateful_set@.is_default(),
+            stateful_set@ == StatefulSetView::default(),
     {
         StatefulSet {
             inner: K8SStatefulSet::default(),
@@ -79,10 +79,12 @@ impl StatefulSetView {
         }
     }
 
-    pub open spec fn is_default(self) -> bool {
-        &&& self.metadata.is_default()
-        &&& self.spec.is_None()
-        &&& self.status.is_None()
+    pub open spec fn default() -> StatefulSetView {
+        StatefulSetView {
+            metadata: ObjectMetaView::default(),
+            spec: Option::None,
+            status: Option::None,
+        }
     }
 }
 
@@ -101,7 +103,7 @@ impl StatefulSetSpec {
     #[verifier(external_body)]
     pub fn default() -> (stateful_set_spec: StatefulSetSpec)
         ensures
-            stateful_set_spec@.is_default(),
+            stateful_set_spec@ == StatefulSetSpecView::default(),
     {
         StatefulSetSpec {
             inner: K8SStatefulSetSpec::default(),
@@ -110,9 +112,8 @@ impl StatefulSetSpec {
 }
 
 impl StatefulSetSpecView {
-    pub open spec fn is_default(self) -> bool {
-       true
-       // The condition depends on how default() is implemented
+    pub open spec fn default() -> StatefulSetSpecView {
+       StatefulSetSpecView {}
     }
 }
 
@@ -131,7 +132,7 @@ impl StatefulSetStatus {
     #[verifier(external_body)]
     pub fn default() -> (stateful_set_status: StatefulSetStatus)
         ensures
-            stateful_set_status@.is_default(),
+            stateful_set_status@ == StatefulSetStatusView::default(),
     {
         StatefulSetStatus {
             inner: K8SStatefulSetStatus::default(),
@@ -140,9 +141,8 @@ impl StatefulSetStatus {
 }
 
 impl StatefulSetStatusView {
-    pub open spec fn is_default(self) -> bool {
-       true
-       // The condition depends on how default() is implemented
+    pub open spec fn default() -> StatefulSetStatusView {
+       StatefulSetStatusView {}
     }
 }
 

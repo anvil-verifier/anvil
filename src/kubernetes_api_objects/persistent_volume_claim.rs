@@ -27,7 +27,7 @@ impl PersistentVolumeClaim {
     #[verifier(external_body)]
     pub fn default() -> (pvc: PersistentVolumeClaim)
         ensures
-            pvc@.is_default(),
+            pvc@ == PersistentVolumeClaimView::default(),
     {
         PersistentVolumeClaim {
             inner: K8SPersistentVolumeClaim::default(),
@@ -63,6 +63,14 @@ impl PersistentVolumeClaim {
 }
 
 impl PersistentVolumeClaimView {
+    pub open spec fn default() -> PersistentVolumeClaimView {
+        PersistentVolumeClaimView {
+            metadata: ObjectMetaView::default(),
+            spec: Option::None,
+            status: Option::None,
+        }
+    }
+
     pub open spec fn kind(self) -> Kind {
         Kind::PersistentVolumeClaimKind
     }
@@ -77,12 +85,6 @@ impl PersistentVolumeClaimView {
             name: self.metadata.name.get_Some_0(),
             namespace: self.metadata.namespace.get_Some_0(),
         }
-    }
-
-    pub open spec fn is_default(self) -> bool {
-        &&& self.metadata.is_default()
-        &&& self.spec.is_None()
-        &&& self.status.is_None()
     }
 }
 
@@ -101,7 +103,7 @@ impl PersistentVolumeClaimSpec {
     #[verifier(external_body)]
     pub fn default() -> (pvc_spec: PersistentVolumeClaimSpec)
         ensures
-            pvc_spec@.is_default(),
+            pvc_spec@ == PersistentVolumeClaimSpecView::default(),
     {
         PersistentVolumeClaimSpec {
             inner: K8SPersistentVolumeClaimSpec::default(),
@@ -110,9 +112,8 @@ impl PersistentVolumeClaimSpec {
 }
 
 impl PersistentVolumeClaimSpecView {
-    pub open spec fn is_default(self) -> bool {
-       true
-       // The condition depends on how default() is implemented
+    pub open spec fn default() -> PersistentVolumeClaimSpecView {
+       PersistentVolumeClaimSpecView {}
     }
 }
 
@@ -131,7 +132,7 @@ impl PersistentVolumeClaimStatus {
     #[verifier(external_body)]
     pub fn default() -> (pvc_status: PersistentVolumeClaimStatus)
         ensures
-            pvc_status@.is_default(),
+            pvc_status@ == PersistentVolumeClaimStatusView::default(),
     {
         PersistentVolumeClaimStatus {
             inner: K8SPersistentVolumeClaimStatus::default(),
@@ -140,9 +141,8 @@ impl PersistentVolumeClaimStatus {
 }
 
 impl PersistentVolumeClaimStatusView {
-    pub open spec fn is_default(self) -> bool {
-       true
-       // The condition depends on how default() is implemented
+    pub open spec fn default() -> PersistentVolumeClaimStatusView {
+       PersistentVolumeClaimStatusView {}
     }
 }
 

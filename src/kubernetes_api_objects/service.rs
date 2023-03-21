@@ -27,7 +27,7 @@ impl Service {
     #[verifier(external_body)]
     pub fn default() -> (service: Service)
         ensures
-            service@.is_default(),
+            service@ == ServiceView::default(),
     {
         Service {
             inner: K8SService::default(),
@@ -63,6 +63,14 @@ impl Service {
 }
 
 impl ServiceView {
+    pub open spec fn default() -> ServiceView {
+        ServiceView {
+            metadata: ObjectMetaView::default(),
+            spec: Option::None,
+            status: Option::None,
+        }
+    }
+
     pub open spec fn kind(self) -> Kind {
         Kind::ServiceKind
     }
@@ -77,12 +85,6 @@ impl ServiceView {
             name: self.metadata.name.get_Some_0(),
             namespace: self.metadata.namespace.get_Some_0(),
         }
-    }
-
-    pub open spec fn is_default(self) -> bool {
-        &&& self.metadata.is_default()
-        &&& self.spec.is_None()
-        &&& self.status.is_None()
     }
 }
 
@@ -101,7 +103,7 @@ impl ServiceSpec {
     #[verifier(external_body)]
     pub fn default() -> (service_spec: ServiceSpec)
         ensures
-            service_spec@.is_default(),
+            service_spec@ == ServiceSpecView::default(),
     {
         ServiceSpec {
             inner: K8SServiceSpec::default(),
@@ -110,9 +112,8 @@ impl ServiceSpec {
 }
 
 impl ServiceSpecView {
-    pub open spec fn is_default(self) -> bool {
-       true
-       // The condition depends on how default() is implemented
+    pub open spec fn default() -> ServiceSpecView {
+       ServiceSpecView {}
     }
 }
 
@@ -131,7 +132,7 @@ impl ServiceStatus {
     #[verifier(external_body)]
     pub fn default() -> (service_status: ServiceStatus)
         ensures
-            service_status@.is_default(),
+            service_status@ == ServiceStatusView::default(),
     {
         ServiceStatus {
             inner: K8SServiceStatus::default(),
@@ -140,9 +141,8 @@ impl ServiceStatus {
 }
 
 impl ServiceStatusView {
-    pub open spec fn is_default(self) -> bool {
-       true
-       // The condition depends on how default() is implemented
+    pub open spec fn default() -> ServiceStatusView {
+       ServiceStatusView {}
     }
 }
 

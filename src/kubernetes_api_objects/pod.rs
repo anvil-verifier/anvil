@@ -27,7 +27,7 @@ impl Pod {
     #[verifier(external_body)]
     pub fn default() -> (pod: Pod)
         ensures
-            pod@.is_default(),
+            pod@ == PodView::default(),
     {
         Pod {
             inner: K8SPod::default(),
@@ -63,6 +63,14 @@ impl Pod {
 }
 
 impl PodView {
+    pub open spec fn default() -> PodView {
+        PodView {
+            metadata: ObjectMetaView::default(),
+            spec: Option::None,
+            status: Option::None,
+        }
+    }
+
     pub open spec fn kind(self) -> Kind {
         Kind::PodKind
     }
@@ -77,12 +85,6 @@ impl PodView {
             name: self.metadata.name.get_Some_0(),
             namespace: self.metadata.namespace.get_Some_0(),
         }
-    }
-
-    pub open spec fn is_default(self) -> bool {
-        &&& self.metadata.is_default()
-        &&& self.spec.is_None()
-        &&& self.status.is_None()
     }
 }
 
@@ -101,7 +103,7 @@ impl PodSpec {
     #[verifier(external_body)]
     pub fn default() -> (pod_spec: PodSpec)
         ensures
-            pod_spec@.is_default(),
+            pod_spec@ == PodSpecView::default(),
     {
         PodSpec {
             inner: K8SPodSpec::default(),
@@ -110,9 +112,8 @@ impl PodSpec {
 }
 
 impl PodSpecView {
-    pub open spec fn is_default(self) -> bool {
-       true
-       // The condition depends on how default() is implemented
+    pub open spec fn default() -> PodSpecView {
+        PodSpecView {}
     }
 }
 
@@ -131,7 +132,7 @@ impl PodStatus {
     #[verifier(external_body)]
     pub fn default() -> (pod_status: PodStatus)
         ensures
-            pod_status@.is_default(),
+            pod_status@ == PodStatusView::default(),
     {
         PodStatus {
             inner: K8SPodStatus::default(),
@@ -140,9 +141,8 @@ impl PodStatus {
 }
 
 impl PodStatusView {
-    pub open spec fn is_default(self) -> bool {
-       true
-       // The condition depends on how default() is implemented
+    pub open spec fn default() -> PodStatusView {
+       PodStatusView {}
     }
 }
 

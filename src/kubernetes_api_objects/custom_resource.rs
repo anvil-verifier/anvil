@@ -24,7 +24,7 @@ impl CustomResource {
     #[verifier(external_body)]
     pub fn default() -> (cr: CustomResource)
         ensures
-            cr@.is_default(),
+            cr@ == CustomResourceView::default(),
     {
         CustomResource {}
     }
@@ -58,6 +58,14 @@ impl CustomResource {
 }
 
 impl CustomResourceView {
+    pub open spec fn default() -> CustomResourceView {
+        CustomResourceView {
+            metadata: ObjectMetaView::default(),
+            spec: Option::Some(CustomResourceSpecView::default()),
+            status: Option::Some(CustomResourceStatusView::default()),
+        }
+    }
+
     pub open spec fn kind(self) -> Kind {
         Kind::CustomResourceKind
     }
@@ -72,12 +80,6 @@ impl CustomResourceView {
             name: self.metadata.name.get_Some_0(),
             namespace: self.metadata.namespace.get_Some_0(),
         }
-    }
-
-    pub open spec fn is_default(self) -> bool {
-        &&& self.metadata.is_default()
-        &&& self.spec.is_None()
-        &&& self.status.is_None()
     }
 }
 
@@ -96,16 +98,15 @@ impl CustomResourceSpec {
     #[verifier(external_body)]
     pub fn default() -> (cr_spec: CustomResourceSpec)
         ensures
-            cr_spec@.is_default(),
+            cr_spec@ == CustomResourceSpecView::default(),
     {
         CustomResourceSpec {}
     }
 }
 
 impl CustomResourceSpecView {
-    pub open spec fn is_default(self) -> bool {
-       true
-       // The condition depends on how default() is implemented
+    pub open spec fn default() -> CustomResourceSpecView {
+       CustomResourceSpecView {}
     }
 }
 
@@ -124,16 +125,15 @@ impl CustomResourceStatus {
     #[verifier(external_body)]
     pub fn default() -> (cr_status: CustomResourceStatus)
         ensures
-            cr_status@.is_default(),
+            cr_status@ == CustomResourceStatusView::default(),
     {
         CustomResourceStatus {}
     }
 }
 
 impl CustomResourceStatusView {
-    pub open spec fn is_default(self) -> bool {
-       true
-       // The condition depends on how default() is implemented
+    pub open spec fn default() -> CustomResourceStatusView {
+        CustomResourceStatusView {}
     }
 }
 

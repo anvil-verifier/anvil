@@ -24,26 +24,13 @@ pub struct ObjectMetaView {
     pub labels: Option<Map<StringView, StringView>>,
 }
 
-impl ObjectMetaView {
-
-    pub open spec fn is_default(self) -> bool {
-        &&& self.name.is_None()
-        &&& self.namespace.is_None()
-        &&& self.resource_version.is_None()
-        &&& self.uid.is_None()
-        &&& self.deletion_timestamp.is_None()
-        &&& self.finalizers.is_None()
-        &&& self.labels.is_None()
-    }
-}
-
 impl ObjectMeta {
     pub spec fn view(&self) -> ObjectMetaView;
 
     #[verifier(external_body)]
     pub fn default() -> (object_meta: ObjectMeta)
         ensures
-            object_meta@.is_default(),
+            object_meta@ == ObjectMetaView::default(),
     {
         ObjectMeta {
             inner: K8SObjectMeta::default(),
@@ -113,6 +100,30 @@ impl ObjectMeta {
             labels.is_Some() ==> labels.get_Some_0()@ == self@.labels.get_Some_0(),
     {
         todo!()
+    }
+}
+
+impl ObjectMetaView {
+    pub open spec fn default() -> ObjectMetaView {
+        ObjectMetaView {
+            name: Option::None,
+            namespace: Option::None,
+            resource_version: Option::None,
+            uid: Option::None,
+            deletion_timestamp: Option::None,
+            finalizers: Option::None,
+            labels: Option::None,
+        }
+    }
+
+    pub open spec fn is_default(self) -> bool {
+        &&& self.name.is_None()
+        &&& self.namespace.is_None()
+        &&& self.resource_version.is_None()
+        &&& self.uid.is_None()
+        &&& self.deletion_timestamp.is_None()
+        &&& self.finalizers.is_None()
+        &&& self.labels.is_None()
     }
 }
 
