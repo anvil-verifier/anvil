@@ -3,8 +3,9 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{common::*, object::*};
 use crate::kubernetes_cluster::spec::{
-    common::*,
+    error::*,
     kubernetes_api::{builtin_controllers::statefulset_controller, common::*},
+    message::*,
 };
 use crate::pervasive::{map::*, multiset::*, option::*, result::*, seq::*, set::*};
 use crate::state_machine::action::*;

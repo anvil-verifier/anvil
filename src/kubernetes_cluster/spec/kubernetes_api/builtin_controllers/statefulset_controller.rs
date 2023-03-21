@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_cluster::spec::{common::*, kubernetes_api::common::*};
+use crate::kubernetes_cluster::spec::{kubernetes_api::common::*, message::*};
 use crate::pervasive::{map::*, multiset::*, option::*, result::*, seq::*};
 use builtin::*;
 use builtin_macros::*;

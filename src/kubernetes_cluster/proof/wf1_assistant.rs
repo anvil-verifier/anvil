@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_cluster::spec::{
-    common::*,
     controller,
     controller::common::{
         ControllerAction, ControllerActionInput, ControllerState, ControllerStep,
@@ -14,6 +13,7 @@ use crate::kubernetes_cluster::spec::{
         KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState, KubernetesAPIStep,
     },
     kubernetes_api::state_machine::kubernetes_api,
+    message::*,
     reconciler::Reconciler,
 };
 use crate::pervasive::{option::*, seq::*, set::*};

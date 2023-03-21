@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{common::*, object::*};
-use crate::kubernetes_cluster::spec::common::*;
+use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive::{map::*, multiset::*, option::*, result::*, seq::*, string::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;

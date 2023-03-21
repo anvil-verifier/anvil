@@ -3,7 +3,7 @@
 use crate::pervasive::prelude::*;
 use crate::pervasive::string::*;
 use crate::pervasive_ext::string_map;
-use crate::pervasive_ext::StringView;
+use crate::pervasive_ext::string_view::*;
 
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
 

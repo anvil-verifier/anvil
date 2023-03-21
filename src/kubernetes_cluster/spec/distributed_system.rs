@@ -5,7 +5,6 @@ use crate::kubernetes_api_objects::{common::*, object::*};
 use crate::kubernetes_cluster::spec::{
     client,
     client::{client, ClientActionInput, ClientState},
-    common::*,
     controller::common::{
         insert_scheduled_reconcile, ControllerAction, ControllerActionInput, ControllerState,
         OngoingReconcile,
@@ -13,6 +12,7 @@ use crate::kubernetes_cluster::spec::{
     controller::state_machine::controller,
     kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
     kubernetes_api::state_machine::kubernetes_api,
+    message::*,
     network,
     network::{multiset_contains_msg, network, NetworkState},
     reconciler::Reconciler,

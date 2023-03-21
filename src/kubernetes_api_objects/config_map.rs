@@ -4,7 +4,7 @@ use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::pervasive::prelude::*;
 use crate::pervasive_ext::string_map;
-use crate::pervasive_ext::StringView;
+use crate::pervasive_ext::string_view::*;
 
 use k8s_openapi::api::core::v1::ConfigMap as K8SConfigMap;
 

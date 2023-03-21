@@ -2,18 +2,38 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{common::*, object::*};
-use crate::pervasive::function::*;
-use crate::pervasive::{multiset::*, multiset::*, option::*, result::*, seq::*, set::*, string::*};
+use crate::kubernetes_cluster::spec::error::*;
+use crate::pervasive::{multiset::*, prelude::*};
 use crate::pervasive_ext::*;
 use builtin::*;
 use builtin_macros::*;
 
 verus! {
 
+pub struct MessageOps {
+    pub recv: Option<Message>,
+    pub send: Multiset<Message>,
+}
+
+pub struct Message {
+    pub src: HostId,
+    pub dst: HostId,
+    pub content: MessageContent,
+}
+
 #[is_variant]
-pub enum APIError {
-    ObjectNotFound,
-    ObjectAlreadyExists,
+pub enum HostId {
+    KubernetesAPI,
+    CustomController,
+    Client,
+}
+
+// Each MessageContent is a request/response and a nat number that represents the channel id
+// TODO: revisit this design
+#[is_variant]
+pub enum MessageContent {
+    APIRequest(APIRequest, nat),
+    APIResponse(APIResponse, nat),
 }
 
 pub struct GetRequest {
@@ -64,6 +84,17 @@ pub enum APIResponse {
     DeleteResponse(DeleteResponse),
 }
 
+
+// WatchEvent is actually also a type of message
+// but since we don't reason about the message flows inside k8s API for now
+// so we don't include it into MessageContent
+#[is_variant]
+pub enum WatchEvent {
+    AddedEvent(AddedEvent),
+    ModifiedEvent(ModifiedEvent),
+    DeletedEvent(DeletedEvent),
+}
+
 pub struct AddedEvent {
     pub obj: KubernetesObject,
 }
@@ -76,32 +107,7 @@ pub struct DeletedEvent {
     pub obj: KubernetesObject,
 }
 
-#[is_variant]
-pub enum WatchEvent {
-    AddedEvent(AddedEvent),
-    ModifiedEvent(ModifiedEvent),
-    DeletedEvent(DeletedEvent),
-}
-
-#[is_variant]
-pub enum MessageContent {
-    APIRequest(APIRequest, nat),
-    APIResponse(APIResponse, nat),
-}
-
-#[is_variant]
-pub enum HostId {
-    KubernetesAPI,
-    CustomController,
-    Client,
-}
-
-pub struct Message {
-    pub src: HostId,
-    pub dst: HostId,
-    pub content: MessageContent,
-}
-
+// We implement some handy methods for pattern matching and retrieving information from MessageContent
 impl MessageContent {
     pub open spec fn is_get_request(self) -> bool {
         &&& self.is_APIRequest()
@@ -214,11 +220,6 @@ impl MessageContent {
     }
 }
 
-pub struct MessageOps {
-    pub recv: Option<Message>,
-    pub send: Multiset<Message>,
-}
-
 pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
     match resp {
         APIResponse::GetResponse(get_resp) => get_resp.res.is_Ok(),
@@ -235,26 +236,6 @@ pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -
     &&& resp_msg.dst == req_msg.src
     &&& resp_msg.src == req_msg.dst
     &&& resp_msg.content.get_APIResponse_1() == req_msg.content.get_APIRequest_1()
-}
-
-pub open spec fn cm_suffix() -> StringView {
-    new_strlit("_cm")@
-}
-
-pub open spec fn sts_suffix() -> StringView {
-    new_strlit("_sts")@
-}
-
-pub open spec fn pod_suffix() -> StringView {
-    new_strlit("_pod")@
-}
-
-pub open spec fn vol_suffix() -> StringView {
-    new_strlit("_vol")@
-}
-
-pub open spec fn default_ns() -> StringView {
-    new_strlit("default")@
 }
 
 pub open spec fn form_msg(src: HostId, dst: HostId, msg_content: MessageContent) -> Message {
