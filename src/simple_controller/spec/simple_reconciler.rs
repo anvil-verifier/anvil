@@ -1,10 +1,11 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::kubernetes_api_objects::{common::*, config_map::*, object::*};
 use crate::kubernetes_cluster::spec::{message::*, reconciler::*};
-use crate::pervasive::{map::*, option::*, seq::*, set::*};
-use crate::state_machine::action::*;
-use crate::state_machine::state_machine::*;
+use crate::pervasive::prelude::*;
+use crate::pervasive_ext::string_const::*;
+use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use builtin::*;
 use builtin_macros::*;
@@ -23,8 +24,7 @@ pub struct SimpleReconcileState {
 pub open spec fn simple_reconciler() -> Reconciler<SimpleReconcileState> {
     Reconciler {
         reconcile_init_state: || reconcile_init_state(),
-        reconcile_trigger: |msg: Message| reconcile_trigger(msg),
-        reconcile_core: |cr_key: ResourceKey, resp_o: Option<APIResponse>, state: SimpleReconcileState| reconcile_core(cr_key, resp_o, state),
+        reconcile_core: |cr_key: ObjectRef, resp_o: Option<APIResponse>, state: SimpleReconcileState| reconcile_core(cr_key, resp_o, state),
         reconcile_done: |state: SimpleReconcileState| reconcile_done(state),
         reconcile_error: |state: SimpleReconcileState| reconcile_error(state),
     }
@@ -39,7 +39,7 @@ pub open spec fn reconcile_init_state() -> SimpleReconcileState {
 /// This is a highly simplified reconcile core spec:
 /// it sends requests to create a configmap for the cr.
 /// TODO: make the reconcile_core create more resources such as a statefulset
-pub open spec fn reconcile_core(cr_key: ResourceKey, resp_o: Option<APIResponse>, state: SimpleReconcileState) -> (SimpleReconcileState, Option<APIRequest>)
+pub open spec fn reconcile_core(cr_key: ObjectRef, resp_o: Option<APIResponse>, state: SimpleReconcileState) -> (SimpleReconcileState, Option<APIRequest>)
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
@@ -77,20 +77,15 @@ pub open spec fn after_get_cr_pc() -> nat { 1 }
 
 pub open spec fn after_create_cm_pc() -> nat { 2 }
 
-pub open spec fn subresource_configmap(cr_key: ResourceKey) -> ResourceObj
+pub open spec fn subresource_configmap(cr_key: ObjectRef) -> KubernetesObject
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
-    ResourceObj {
-        key: ResourceKey {
-            name: cr_key.name + cm_suffix(),
-            namespace: cr_key.namespace,
-            kind: ResourceKind::ConfigMapKind
-        },
-    }
+    let config_map = ConfigMapView::default().set_name(cr_key.name + cm_suffix()).set_namespace(cr_key.namespace);
+    KubernetesObject::ConfigMap(config_map)
 }
 
-pub open spec fn create_cm_req(cr_key: ResourceKey) -> APIRequest
+pub open spec fn create_cm_req(cr_key: ObjectRef) -> APIRequest
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
@@ -98,20 +93,5 @@ pub open spec fn create_cm_req(cr_key: ResourceKey) -> APIRequest
         obj: subresource_configmap(cr_key),
     })
 }
-
-// pub open spec fn create_sts_req(cr_key: ResourceKey) -> APIRequest
-//     recommends
-//         cr_key.kind.is_CustomResourceKind(),
-// {
-//     APIRequest::CreateRequest(CreateRequest{
-//         obj: ResourceObj {
-//             key: ResourceKey {
-//                 name: cr_key.name + sts_suffix(),
-//                 namespace: cr_key.namespace,
-//                 kind: ResourceKind::StatefulSetKind
-//             },
-//         },
-//     })
-// }
 
 }

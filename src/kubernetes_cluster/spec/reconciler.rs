@@ -19,12 +19,6 @@ pub struct Reconciler<#[verifier(maybe_negative)] T> {
     // can also be more flexible.
     pub reconcile_init_state: ReconcileInitState<T>,
 
-    // reconcile_trigger decides whether the reconcile function should be triggered by an incoming event
-    // The trigger condition can be as simple as "trigger only when the CR gets changed".
-    // It can also be more complex and checks ownership and other relationships
-    // so the reconcile function is also triggered when sub-resources gets changed.
-    pub reconcile_trigger: ReconcileTrigger,
-
     // reconcile_core describes the logic of reconcile function and is the key logic we want to verify.
     // Each reconcile_core should take the local state and a response of the previous request (if any) as input
     // and outputs the next local state and the request to send to Kubernetes API (if any).
