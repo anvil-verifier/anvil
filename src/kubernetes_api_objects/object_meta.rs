@@ -46,14 +46,14 @@ impl ObjectMeta {
         todo!()
     }
 
-    #[verifier(external_body)]
-    pub fn set_name(&mut self, name: String)
-        ensures
-            self@.name.is_Some(),
-            name@ == self@.name.get_Some_0(),
-    {
-        todo!()
-    }
+    // Verus crashes here
+    // #[verifier(external_body)]
+    // pub fn set_name(&mut self, name: String)
+    //     ensures
+    //         self == old(self)@.set_name(name@),
+    // {
+    //     todo!()
+    // }
 
     #[verifier(external_body)]
     pub fn namespace(&self) -> (namespace: Option<String>)
@@ -63,6 +63,15 @@ impl ObjectMeta {
     {
         todo!()
     }
+
+    // Verus crashes here
+    // #[verifier(external_body)]
+    // pub fn set_namespace(&mut self, namespace: String)
+    //     ensures
+    //         self == old(self)@.set_namespace(namespace@),
+    // {
+    //     todo!()
+    // }
 
     #[verifier(external_body)]
     pub fn resource_version(&self) -> (resource_version: Option<u64>)
@@ -116,14 +125,18 @@ impl ObjectMetaView {
         }
     }
 
-    pub open spec fn is_default(self) -> bool {
-        &&& self.name.is_None()
-        &&& self.namespace.is_None()
-        &&& self.resource_version.is_None()
-        &&& self.uid.is_None()
-        &&& self.deletion_timestamp.is_None()
-        &&& self.finalizers.is_None()
-        &&& self.labels.is_None()
+    pub open spec fn set_name(self, name: StringView) -> ObjectMetaView {
+        ObjectMetaView {
+            name: Option::Some(name),
+            ..self
+        }
+    }
+
+    pub open spec fn set_namespace(self, namespace: StringView) -> ObjectMetaView {
+        ObjectMetaView {
+            namespace: Option::Some(namespace),
+            ..self
+        }
     }
 }
 

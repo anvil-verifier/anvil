@@ -83,6 +83,20 @@ impl ConfigMapView {
             namespace: self.metadata.namespace.get_Some_0(),
         }
     }
+
+    pub open spec fn set_name(self, name: StringView) -> ConfigMapView {
+        ConfigMapView {
+            metadata: self.metadata.set_name(name),
+            ..self
+        }
+    }
+
+    pub open spec fn set_namespace(self, namespace: StringView) -> ConfigMapView {
+        ConfigMapView {
+            metadata: self.metadata.set_namespace(namespace),
+            ..self
+        }
+    }
 }
 
 }
