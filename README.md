@@ -14,13 +14,14 @@ You cannot compile the verifiable-controllers codebase with a standard rust comp
 
 ### Build and run
 
-To compile any body of verification code within this project, use the `rust_verify.sh` command from the Verus project and
-aim it at the required `main.rs` file.
-
-For example, to build and verify the temporal logic library and examples:
-
+To build and verify the controller examples:
 ```
-$: <path-to-verus-source>/source/tools/rust-verify.sh src/temporal-logic-lib/main.rs
+$: VERUS_DIR=<path-to-verus> bash build.sh
+```
+
+To verify the tla toy examples:
+```
+$: <path-to-verus>/source/tools/rust-verify.sh src/temporal_logic_examples.rs
 ```
 
 ## Documentation
