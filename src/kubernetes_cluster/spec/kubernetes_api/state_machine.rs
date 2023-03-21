@@ -158,7 +158,7 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
                     req_id: s_after_etcd_transition.req_id + controller_requests.len(),
                     ..s_after_etcd_transition
                 };
-                (s_prime, Multiset::empty().insert(etcd_resp).insert(etcd_notify_o.get_Some_0()).add(controller_requests))
+                (s_prime, Multiset::empty().insert(etcd_resp).add(controller_requests))
             } else {
                 let s_prime = s_after_etcd_transition;
                 (s_prime, Multiset::singleton(etcd_resp))
