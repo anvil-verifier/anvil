@@ -46,14 +46,13 @@ impl ObjectMeta {
         todo!()
     }
 
-    // Verus crashes here
-    // #[verifier(external_body)]
-    // pub fn set_name(&mut self, name: String)
-    //     ensures
-    //         self == old(self)@.set_name(name@),
-    // {
-    //     todo!()
-    // }
+    #[verifier(external_body)]
+    pub fn set_name(&mut self, name: String)
+        ensures
+            self@ == old(self)@.set_name(name@),
+    {
+        todo!()
+    }
 
     #[verifier(external_body)]
     pub fn namespace(&self) -> (namespace: Option<String>)
@@ -64,14 +63,13 @@ impl ObjectMeta {
         todo!()
     }
 
-    // Verus crashes here
-    // #[verifier(external_body)]
-    // pub fn set_namespace(&mut self, namespace: String)
-    //     ensures
-    //         self == old(self)@.set_namespace(namespace@),
-    // {
-    //     todo!()
-    // }
+    #[verifier(external_body)]
+    pub fn set_namespace(&mut self, namespace: String)
+        ensures
+            self@ == old(self)@.set_namespace(namespace@),
+    {
+        todo!()
+    }
 
     #[verifier(external_body)]
     pub fn resource_version(&self) -> (resource_version: Option<u64>)
