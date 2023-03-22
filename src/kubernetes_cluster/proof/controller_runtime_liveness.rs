@@ -164,9 +164,9 @@ pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption<T>(reconciler
         &&& cr_key_exists(s)
     };
     strengthen_next::<State<T>>(spec, next(reconciler), cr_key_exists, next_and_cr_exists);
-    temp_pred_equality::<State<T>>(lift_state(cr_key_exists), lift_state(schedule_controller_reconcile(reconciler).pre(cr_key)));
-    use_tla_forall::<State<T>, ObjectRef>(spec, |key| schedule_controller_reconcile(reconciler).weak_fairness(key), cr_key);
-    schedule_controller_reconcile(reconciler).wf1(cr_key, spec, next_and_cr_exists, pre, post);
+    temp_pred_equality::<State<T>>(lift_state(cr_key_exists), lift_state(schedule_controller_reconcile().pre(cr_key)));
+    use_tla_forall::<State<T>, ObjectRef>(spec, |key| schedule_controller_reconcile().weak_fairness(key), cr_key);
+    schedule_controller_reconcile().wf1(cr_key, spec, next_and_cr_exists, pre, post);
 }
 
 }
