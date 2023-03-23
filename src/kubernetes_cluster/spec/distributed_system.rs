@@ -147,10 +147,10 @@ pub open spec fn controller_next<T>(reconciler: Reconciler<T>) -> Action<State<T
 ///
 /// Note this action abstracts away a lot of implementation details in the Kubernetes API and controller runtime framework,
 /// such as the list-then-watch pattern.
-pub open spec fn schedule_controller_reconcile<T>(reconciler: Reconciler<T>) -> Action<State<T>, ObjectRef, ()> {
+pub open spec fn schedule_controller_reconcile<T>() -> Action<State<T>, ObjectRef, ()> {
     Action {
         precondition: |input: ObjectRef, s: State<T>| {
-            &&& s.kubernetes_api_state.resources.dom().contains(input)
+            &&& s.resource_key_exists(input)
             &&& input.kind.is_CustomResourceKind()
         },
         transition: |input: ObjectRef, s: State<T>| {
@@ -213,7 +213,7 @@ pub open spec fn next_step<T>(reconciler: Reconciler<T>, s: State<T>, s_prime: S
     match step {
         Step::KubernetesAPIStep(input) => kubernetes_api_next().forward(input)(s, s_prime),
         Step::ControllerStep(input) => controller_next(reconciler).forward(input)(s, s_prime),
-        Step::ScheduleControllerReconcileStep(input) => schedule_controller_reconcile(reconciler).forward(input)(s, s_prime),
+        Step::ScheduleControllerReconcileStep(input) => schedule_controller_reconcile().forward(input)(s, s_prime),
         Step::ClientStep(input) => client_next().forward(input)(s, s_prime),
         Step::StutterStep(input) => stutter().forward(input)(s, s_prime),
     }
@@ -230,11 +230,14 @@ pub open spec fn next<T>(reconciler: Reconciler<T>) -> ActionPred<State<T>> {
 /// TODO: develop a struct for the compound state machine and make reconciler its member
 /// so that we don't have to pass reconciler to init and next in the proof.
 pub open spec fn sm_spec<T>(reconciler: Reconciler<T>) -> TempPred<State<T>> {
-    lift_state(init(reconciler))
-    .and(always(lift_action(next(reconciler))))
+    lift_state(init(reconciler)).and(sm_partial_spec(reconciler))
+}
+
+pub open spec fn sm_partial_spec<T>(reconciler: Reconciler<T>) -> TempPred<State<T>> {
+    always(lift_action(next(reconciler)))
     .and(tla_forall(|input| kubernetes_api_next().weak_fairness(input)))
     .and(tla_forall(|input| controller_next(reconciler).weak_fairness(input)))
-    .and(tla_forall(|input| schedule_controller_reconcile(reconciler).weak_fairness(input)))
+    .and(tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)))
 }
 
 pub open spec fn kubernetes_api_action_pre<T>(action: KubernetesAPIAction, input: KubernetesAPIActionInput) -> StatePred<State<T>> {

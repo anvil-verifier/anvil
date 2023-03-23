@@ -147,6 +147,26 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<T>(recon
     lemma_pre_leads_to_post_by_controller::<T>(reconciler, input, next(reconciler), run_scheduled_reconcile(reconciler), pre, post);
 }
 
-// TODO: we need a lemma that says with the assumption that cr always exists, true ~> reconcile_scheduled_for_cr
+pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
+    requires
+        cr_key.kind.is_CustomResourceKind(),
+    ensures
+        sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))).entails(
+            true_pred().leads_to(lift_state(|s: State<T>| s.reconcile_scheduled_for(cr_key)))
+        ),
+{
+    let cr_key_exists = |s: State<T>| s.resource_key_exists(cr_key);
+    let spec = sm_partial_spec(reconciler).and(always(lift_state(cr_key_exists)));
+    let pre = |s: State<T>| true;
+    let post = |s: State<T>| s.reconcile_scheduled_for(cr_key);
+    let next_and_cr_exists = |s, s_prime: State<T>| {
+        &&& next(reconciler)(s, s_prime)
+        &&& cr_key_exists(s)
+    };
+    strengthen_next::<State<T>>(spec, next(reconciler), cr_key_exists, next_and_cr_exists);
+    temp_pred_equality::<State<T>>(lift_state(cr_key_exists), lift_state(schedule_controller_reconcile().pre(cr_key)));
+    use_tla_forall::<State<T>, ObjectRef>(spec, |key| schedule_controller_reconcile().weak_fairness(key), cr_key);
+    schedule_controller_reconcile().wf1(cr_key, spec, next_and_cr_exists, pre, post);
+}
 
 }
