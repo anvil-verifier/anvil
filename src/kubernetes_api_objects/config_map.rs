@@ -42,6 +42,22 @@ impl ConfigMap {
     }
 
     #[verifier(external_body)]
+    pub fn set_name(&mut self, name: String)
+        ensures
+            self@ == old(self)@.set_name(name@),
+    {
+        self.inner.metadata.name = std::option::Option::Some(name.into_rust_string());
+    }
+
+    #[verifier(external_body)]
+    pub fn set_namespace(&mut self, namespace: String)
+        ensures
+            self@ == old(self)@.set_namespace(namespace@),
+    {
+        self.inner.metadata.namespace = std::option::Option::Some(namespace.into_rust_string());
+    }
+
+    #[verifier(external_body)]
     pub fn data(&self) -> (data: Option<string_map::StringMap>)
         ensures
             self@.data.is_Some() == data.is_Some(),

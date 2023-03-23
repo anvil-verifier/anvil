@@ -43,7 +43,10 @@ impl ObjectMeta {
             self@.name.is_Some() == name.is_Some(),
             name.is_Some() ==> name.get_Some_0()@ == self@.name.get_Some_0(),
     {
-        todo!()
+        match &self.inner.name {
+            std::option::Option::Some(n) => Option::Some(String::from_rust_string(n.to_string())),
+            std::option::Option::None => Option::None,
+        }
     }
 
     #[verifier(external_body)]
@@ -51,7 +54,7 @@ impl ObjectMeta {
         ensures
             self@ == old(self)@.set_name(name@),
     {
-        todo!()
+        self.inner.name = std::option::Option::Some(name.into_rust_string());
     }
 
     #[verifier(external_body)]
@@ -60,7 +63,10 @@ impl ObjectMeta {
             self@.namespace.is_Some() == namespace.is_Some(),
             namespace.is_Some() ==> namespace.get_Some_0()@ == self@.namespace.get_Some_0(),
     {
-        todo!()
+        match &self.inner.namespace {
+            std::option::Option::Some(n) => Option::Some(String::from_rust_string(n.to_string())),
+            std::option::Option::None => Option::None,
+        }
     }
 
     #[verifier(external_body)]
@@ -68,7 +74,7 @@ impl ObjectMeta {
         ensures
             self@ == old(self)@.set_namespace(namespace@),
     {
-        todo!()
+        self.inner.namespace = std::option::Option::Some(namespace.into_rust_string());
     }
 
     #[verifier(external_body)]
