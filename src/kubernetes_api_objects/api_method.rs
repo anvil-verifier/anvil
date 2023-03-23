@@ -12,8 +12,6 @@ use crate::pervasive_ext::string_view::*;
 
 verus! {
 
-// TODO: remove the redundant definitions in kubernetes_cluster::error and kubernetes_cluster::message
-
 #[is_variant]
 pub enum APIError {
     ObjectNotFound,

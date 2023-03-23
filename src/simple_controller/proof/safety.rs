@@ -1,7 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{common::*, config_map::*, custom_resource::*, object::*};
+use crate::kubernetes_api_objects::{
+    api_method::*, common::*, config_map::*, custom_resource::*, object::*,
+};
 use crate::kubernetes_cluster::{
     proof::{controller_runtime_safety, kubernetes_api_safety},
     spec::{

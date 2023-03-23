@@ -1,10 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{common::*, object::*};
-use crate::kubernetes_cluster::spec::error::*;
+use crate::kubernetes_api_objects::{api_method::*, common::*, object::*};
 use crate::pervasive::{multiset::*, prelude::*};
-use crate::pervasive_ext::*;
+use crate::pervasive_ext::string_view::*;
 use builtin::*;
 use builtin_macros::*;
 
@@ -35,55 +34,6 @@ pub enum MessageContent {
     APIRequest(APIRequest, nat),
     APIResponse(APIResponse, nat),
 }
-
-pub struct GetRequest {
-    pub key: ObjectRef,
-}
-
-pub struct ListRequest {
-    pub kind: Kind,
-}
-
-pub struct CreateRequest {
-    pub obj: KubernetesObject,
-}
-
-pub struct DeleteRequest {
-    pub key: ObjectRef,
-}
-
-#[is_variant]
-pub enum APIRequest {
-    GetRequest(GetRequest),
-    ListRequest(ListRequest),
-    CreateRequest(CreateRequest),
-    DeleteRequest(DeleteRequest),
-}
-
-pub struct GetResponse {
-    pub res: Result<KubernetesObject, APIError>,
-}
-
-pub struct ListResponse {
-    pub res: Result<Seq<KubernetesObject>, APIError>,
-}
-
-pub struct CreateResponse {
-    pub res: Result<KubernetesObject, APIError>,
-}
-
-pub struct DeleteResponse {
-    pub res: Result<KubernetesObject, APIError>,
-}
-
-#[is_variant]
-pub enum APIResponse {
-    GetResponse(GetResponse),
-    ListResponse(ListResponse),
-    CreateResponse(CreateResponse),
-    DeleteResponse(DeleteResponse),
-}
-
 
 // WatchEvent is actually also a type of message
 // but since we don't reason about the message flows inside k8s API for now
@@ -294,9 +244,10 @@ pub open spec fn get_req_msg_content(key: ObjectRef, req_id: nat) -> MessageCont
     }), req_id)
 }
 
-pub open spec fn list_req_msg_content(kind: Kind, req_id: nat) -> MessageContent {
+pub open spec fn list_req_msg_content(kind: Kind, namespace: StringView, req_id: nat) -> MessageContent {
     MessageContent::APIRequest(APIRequest::ListRequest(ListRequest{
         kind: kind,
+        namespace: namespace,
     }), req_id)
 }
 
