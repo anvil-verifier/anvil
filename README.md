@@ -16,7 +16,7 @@ You cannot compile the verifiable-controllers codebase with a standard rust comp
 
 To build and verify the controller examples:
 ```
-$: VERUS_DIR=<path-to-verus> bash build.sh
+$: VERUS_DIR=<path-to-verus> ./build.sh
 ```
 
 To verify the tla toy examples:
