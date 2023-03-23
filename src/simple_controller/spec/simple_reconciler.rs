@@ -77,12 +77,12 @@ pub open spec fn after_get_cr_pc() -> nat { 1 }
 
 pub open spec fn after_create_cm_pc() -> nat { 2 }
 
-pub open spec fn subresource_configmap(cr_key: ObjectRef) -> KubernetesObject
+pub open spec fn subresource_configmap(cr_key: ObjectRef) -> ConfigMapView
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
     let config_map = ConfigMapView::default().set_name(cr_key.name + cm_suffix()).set_namespace(cr_key.namespace);
-    KubernetesObject::ConfigMap(config_map)
+    config_map
 }
 
 pub open spec fn create_cm_req(cr_key: ObjectRef) -> APIRequest
@@ -90,7 +90,7 @@ pub open spec fn create_cm_req(cr_key: ObjectRef) -> APIRequest
         cr_key.kind.is_CustomResourceKind(),
 {
     APIRequest::CreateRequest(CreateRequest{
-        obj: subresource_configmap(cr_key),
+        obj: KubernetesObject::ConfigMap(subresource_configmap(cr_key)),
     })
 }
 
