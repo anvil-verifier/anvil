@@ -11,6 +11,9 @@ use builtin_macros::*;
 
 verus! {
 
+/// SimpleReconcileState has the local variables used in one invocation
+/// of reconcile() (i.e., multiple calls to reconcile_core()).
+/// Its view is SimpleReconcileStateView.
 pub struct SimpleReconcileState {
     pub reconcile_pc: u64,
 }
@@ -23,8 +26,14 @@ impl SimpleReconcileState {
     }
 }
 
-// TODO: Maybe we should make state a mutable reference; revisit it later
-// TODO: Maybe we should just clone the String to APIRequest instead of passing a reference; revisit it later
+/// reconcile_core is the exec implementation of the core reconciliation logic.
+/// It will be called by the reconcile() function in a loop in our shim layer, and reconcile()
+/// will be called by kube-rs framework when related events happen.
+/// The postcondition ensures that it conforms to the spec of reconciliation logic.
+///
+/// TODO: Maybe we should make state a mutable reference; revisit it later
+/// TODO: Maybe we should just clone the String to APIRequest instead of passing a reference; revisit it later
+/// TODO: Use the view of resp_o, instead of Option::None, when we need to check the response result to decide the next step
 pub fn reconcile_core<'a>(cr_key: &'a KubeObjectRef, resp_o: &'a Option<KubeAPIResponse>, state: &'a SimpleReconcileState) -> (res: (SimpleReconcileState, Option<KubeAPIRequest<'a>>))
     requires
         cr_key.kind.is_CustomResourceKind(),
