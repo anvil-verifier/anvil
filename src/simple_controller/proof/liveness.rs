@@ -94,15 +94,43 @@ proof fn lemma_after_get_cr_pc_leads_to_cm_always_exists(cr: CustomResourceView)
         ),
 {}
 
-// @Wenjie: You can start from here
-#[verifier(external_body)]
 proof fn lemma_after_create_cm_pc_leads_to_cm_always_exists(cr: CustomResourceView)
     ensures
         sm_spec(simple_reconciler()).entails(
             lift_state(reconciler_at_after_create_cm_pc(cr))
                 .leads_to(always(lift_state(cm_exists(cr))))
         ),
-{}
+{
+    assert forall |ex| #[trigger] sm_spec(simple_reconciler()).satisfied_by(ex) implies
+    lift_state(reconciler_at_after_create_cm_pc(cr)).leads_to(lift_state(cm_exists(cr))).satisfied_by(ex) by {
+        safety::lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr);
+        assert forall |i| #[trigger] lift_state(reconciler_at_after_create_cm_pc(cr)).satisfied_by(ex.suffix(i))
+        implies eventually(lift_state(cm_exists(cr))).satisfied_by(ex.suffix(i)) by {
+            instantiate_entailed_always::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(safety::reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr)));
+            let s = ex.suffix(i).head();
+            let req_msg = choose |m: Message| {
+                (#[trigger] is_controller_create_cm_request_msg(m, cr)
+                && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(m)
+                && s.message_in_flight(m))
+                || s.resource_key_exists(simple_reconciler::subresource_configmap(cr.object_ref()).object_ref())
+            };
+            if (s.resource_key_exists(simple_reconciler::subresource_configmap(cr.object_ref()).object_ref())) {
+                assert(lift_state(cm_exists(cr)).satisfied_by(ex.suffix(i).suffix(0)));
+            }
+            else {
+                let cm = KubernetesObject::ConfigMap(simple_reconciler::subresource_configmap(cr.object_ref()));
+                let pre = |s: State<SimpleReconcileState>| {
+                    &&& s.message_in_flight(req_msg) &&& req_msg.dst == HostId::KubernetesAPI &&& req_msg.content.is_create_request() 
+                    &&& req_msg.content.get_create_request().obj == cm
+                };
+                kubernetes_api_liveness::lemma_create_req_leads_to_res_exists::<SimpleReconcileState>(simple_reconciler(), req_msg, cm);
+                instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(pre), lift_state(cm_exists(cr)));
+            }
+        };
+    };
+    // finally prove stability: spec |= reconciler_at_after_create_cm_pc ~> []cm_exists
+    lemma_p_leads_to_cm_always_exists(cr, lift_state(reconciler_at_after_create_cm_pc(cr)));
+}
 
 proof fn lemma_reconcile_idle_and_scheduled_leads_to_cm_always_exists(cr: CustomResourceView)
     ensures
