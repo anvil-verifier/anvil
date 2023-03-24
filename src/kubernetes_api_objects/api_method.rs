@@ -1,7 +1,5 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-extern crate alloc;
-
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::config_map::*;
 use crate::kubernetes_api_objects::custom_resource::*;
@@ -43,9 +41,9 @@ pub enum APIRequest {
     DeleteRequest(DeleteRequest),
 }
 
-pub struct KubeGetRequest {
-    pub name: String,
-    pub namespace: String,
+pub struct KubeGetRequest<'a> {
+    pub name: &'a String,
+    pub namespace: &'a String,
 }
 
 pub struct KubeListRequest {
@@ -62,26 +60,26 @@ pub struct KubeDeleteRequest {
     pub namespace: String,
 }
 
-pub enum KubeCustomResourceRequest {
-    GetRequest(KubeGetRequest),
+pub enum KubeCustomResourceRequest<'a> {
+    GetRequest(KubeGetRequest<'a>),
     ListRequest(KubeListRequest),
     CreateRequest(KubeCreateRequest<CustomResource>),
     DeleteRequest(KubeDeleteRequest),
 }
 
-pub enum KubeConfigMapRequest {
-    GetRequest(KubeGetRequest),
+pub enum KubeConfigMapRequest<'a> {
+    GetRequest(KubeGetRequest<'a>),
     ListRequest(KubeListRequest),
     CreateRequest(KubeCreateRequest<ConfigMap>),
     DeleteRequest(KubeDeleteRequest),
 }
 
-pub enum KubeAPIRequest {
-    CustomResourceRequest(KubeCustomResourceRequest),
-    ConfigMapRequest(KubeConfigMapRequest),
+pub enum KubeAPIRequest<'a> {
+    CustomResourceRequest(KubeCustomResourceRequest<'a>),
+    ConfigMapRequest(KubeConfigMapRequest<'a>),
 }
 
-impl KubeAPIRequest {
+impl KubeAPIRequest<'_> {
     pub open spec fn to_view(&self) -> APIRequest {
         match self {
             KubeAPIRequest::CustomResourceRequest(req) => match req {
@@ -130,6 +128,15 @@ impl KubeAPIRequest {
                     }
                 }),
             },
+        }
+    }
+}
+
+impl Option<KubeAPIRequest<'_>> {
+    pub open spec fn to_view(&self) -> Option<APIRequest> {
+        match self {
+            Option::Some(req) => Option::Some(req.to_view()),
+            Option::None => Option::None,
         }
     }
 }
@@ -196,10 +203,8 @@ pub enum APIResponse {
 //     DeleteResponse(KubeDeleteResponse),
 // }
 
-// #[verifier(external_body)]
-// pub enum KubeAPIResponse {
-//     CustomResourceResponse(KubeCustomResourceResponse),
-//     ConfigMapResponse(KubeConfigMapResponse),
-// }
+pub enum KubeAPIResponse {
+    WillAddSomething,
+}
 
 }
