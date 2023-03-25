@@ -116,8 +116,7 @@ proof fn lemma_after_create_cm_pc_leads_to_cm_always_exists(cr: CustomResourceVi
             };
             if (s.resource_key_exists(simple_reconciler::subresource_configmap(cr.object_ref()).object_ref())) {
                 assert(lift_state(cm_exists(cr)).satisfied_by(ex.suffix(i).suffix(0)));
-            }
-            else {
+            } else {
                 let cm = KubernetesObject::ConfigMap(simple_reconciler::subresource_configmap(cr.object_ref()));
                 let pre = |s: State<SimpleReconcileState>| {
                     &&& s.message_in_flight(req_msg) &&& req_msg.dst == HostId::KubernetesAPI &&& req_msg.content.is_create_request() 
