@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{common::*, object::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, object::*};
 use crate::kubernetes_cluster::spec::{controller::common::*, message::*, reconciler::*};
 use crate::pervasive::{map::*, multiset::*, option::*, seq::*, set::*};
 use crate::state_machine::action::*;

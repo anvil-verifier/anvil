@@ -3,7 +3,6 @@
 pub mod client;
 pub mod controller;
 pub mod distributed_system;
-pub mod error;
 pub mod kubernetes_api;
 pub mod message;
 pub mod network;
