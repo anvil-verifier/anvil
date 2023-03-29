@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{custom_resource::*, object::*};
-use crate::kubernetes_cluster::spec::message::*;
+use crate::kubernetes_cluster::spec::{channel::*, message::*};
 use crate::pervasive::{multiset::*, option::*, seq::*, set::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -13,7 +13,7 @@ use builtin_macros::*;
 verus! {
 
 pub struct ClientState {
-    pub req_id: nat
+    pub chan_manager: ChannelManager
 }
 
 pub struct ClientActionInput {
@@ -42,7 +42,7 @@ pub open spec fn send_create_cr() -> ClientAction {
             &&& input.recv.is_None()
         },
         transition: |input: ClientActionInput, s: ClientState| {
-            (ClientState {req_id: s.req_id + 1}, Multiset::singleton(client_req_msg(create_req_msg_content(KubernetesObject::CustomResource(input.cr), s.req_id))))
+            (ClientState {chan_manager: s.chan_manager.allocate().0}, Multiset::singleton(client_req_msg(create_req_msg_content(KubernetesObject::CustomResource(input.cr), s.chan_manager.allocate().1))))
         },
     }
 }
@@ -53,7 +53,7 @@ pub open spec fn send_delete_cr() -> ClientAction {
             &&& input.recv.is_None()
         },
         transition: |input: ClientActionInput, s: ClientState| {
-            (ClientState {req_id: s.req_id + 1}, Multiset::singleton(client_req_msg(delete_req_msg_content(input.cr.object_ref(), s.req_id))))
+            (ClientState {chan_manager: s.chan_manager.allocate().0}, Multiset::singleton(client_req_msg(delete_req_msg_content(input.cr.object_ref(), s.chan_manager.allocate().1))))
         },
     }
 }
@@ -62,7 +62,7 @@ pub open spec fn client() -> ClientStateMachine {
     StateMachine {
         init: |s: ClientState| {
             s == ClientState {
-                req_id: 0,
+                chan_manager: ChannelManager::init(),
             }
         },
         actions: set![send_create_cr(), send_delete_cr()],
