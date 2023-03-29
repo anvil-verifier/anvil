@@ -85,14 +85,44 @@ proof fn lemma_init_pc_leads_to_cm_always_exists(cr: CustomResourceView)
         ),
 {}
 
-#[verifier(external_body)]
 proof fn lemma_after_get_cr_pc_leads_to_cm_always_exists(cr: CustomResourceView)
     ensures
         sm_spec(simple_reconciler()).entails(
             lift_state(reconciler_at_after_get_cr_pc(cr))
                 .leads_to(always(lift_state(cm_exists(cr))))
         ),
-{}
+{
+    assert forall |ex| #[trigger] sm_spec(simple_reconciler()).satisfied_by(ex) implies lift_state(reconciler_at_after_get_cr_pc(cr)).leads_to(lift_state(reconciler_at_after_create_cm_pc(cr))).satisfied_by(ex) by {
+        safety::lemma_always_reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr);
+        assert forall |i| #[trigger] lift_state(reconciler_at_after_get_cr_pc(cr)).satisfied_by(ex.suffix(i)) implies eventually(lift_state(reconciler_at_after_create_cm_pc(cr))).satisfied_by(ex.suffix(i)) by {
+            instantiate_entailed_always::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(safety::reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr)));
+            let s = ex.suffix(i).head();
+            let req_msg = choose |req_msg: Message| {
+                #[trigger] is_controller_get_cr_request_msg(req_msg, cr)
+                && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
+                && (s.message_in_flight(req_msg)
+                    || exists |resp_msg: Message| {
+                        #[trigger] s.message_in_flight(resp_msg)
+                        && resp_msg_matches_req_msg(resp_msg, req_msg)
+                    })
+            };
+            if (s.message_in_flight(req_msg)) {
+                lemma_req_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(req_msg, cr);
+                instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight(req_msg, cr)), lift_state(reconciler_at_after_create_cm_pc(cr)));
+            } else {
+                lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(req_msg, cr);
+                instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_spec(simple_reconciler()), lift_state(|s: State<SimpleReconcileState>| {
+                    exists |m: Message| {
+                        &&& #[trigger] s.message_in_flight(m)
+                        &&& resp_msg_matches_req_msg(m, req_msg)
+                    }
+                }).and(lift_state(reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr))), lift_state(reconciler_at_after_create_cm_pc(cr)));
+            }
+        }
+    }
+    lemma_after_create_cm_pc_leads_to_cm_always_exists(cr);
+    leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), lift_state(reconciler_at_after_get_cr_pc(cr)), lift_state(reconciler_at_after_create_cm_pc(cr)), always(lift_state(cm_exists(cr))));
+}
 
 proof fn lemma_after_create_cm_pc_leads_to_cm_always_exists(cr: CustomResourceView)
     ensures
