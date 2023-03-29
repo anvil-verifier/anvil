@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*};
-use crate::kubernetes_cluster::spec::{message::*, reconciler::*};
+use crate::kubernetes_cluster::spec::{channel::*, message::*, reconciler::*};
 use crate::pervasive::{map::*, multiset::*, option::*, seq::*, set::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -12,7 +12,7 @@ use builtin_macros::*;
 verus! {
 
 pub struct ControllerState<T> {
-    pub req_id: nat,
+    pub chan_manager: ChannelManager,
     pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile<T>>,
     pub scheduled_reconciles: Set<ObjectRef>,
 }

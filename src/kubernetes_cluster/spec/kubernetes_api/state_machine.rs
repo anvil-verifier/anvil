@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, object::*};
 use crate::kubernetes_cluster::spec::{
+    channel::*,
     kubernetes_api::{builtin_controllers::statefulset_controller, common::*},
     message::*,
 };
@@ -109,7 +110,7 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Etc
 }
 
 /// Collect the requests from the builtin controllers
-pub open spec fn transition_by_builtin_controllers(event: WatchEvent, s: KubernetesAPIState) -> Multiset<Message> {
+pub open spec fn transition_by_builtin_controllers(event: WatchEvent, s: KubernetesAPIState) -> (ChannelManager, Multiset<Message>) {
     // We only have spec of statefulset_controller for now
     statefulset_controller::transition_by_statefulset_controller(event, s)
 }
@@ -150,9 +151,9 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
                 ..s
             };
             if etcd_notify_o.is_Some() {
-                let controller_requests = transition_by_builtin_controllers(etcd_notify_o.get_Some_0(), s_after_etcd_transition);
+                let (chan_manager_prime, controller_requests) = transition_by_builtin_controllers(etcd_notify_o.get_Some_0(), s_after_etcd_transition);
                 let s_prime = KubernetesAPIState {
-                    req_id: s_after_etcd_transition.req_id + controller_requests.len(),
+                    chan_manager: chan_manager_prime,
                     ..s_after_etcd_transition
                 };
                 (s_prime, Multiset::empty().insert(etcd_resp).add(controller_requests))
@@ -167,7 +168,7 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
 pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine {
     StateMachine {
         init: |s: KubernetesAPIState| s == KubernetesAPIState {
-            req_id: 0,
+            chan_manager: ChannelManager::init(),
             resources: Map::empty(),
         },
         actions: set![handle_request()],

@@ -129,7 +129,7 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
         } else {
             // If reconcile state is not at after_get_cr_pc for s, then this in transition reconcile_core advances the reconcile state to after_get_cr_pc
             // which means the req_msg is just sent to the network, so of course it is in flight
-            let req_msg = controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr.object_ref()}), s.controller_state.req_id);
+            let req_msg = controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr.object_ref()}), s.controller_state.chan_manager.cur_chan_id);
             assert(is_controller_get_cr_request_msg(req_msg, cr)
                 && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
                 && s_prime.message_in_flight(req_msg)
@@ -198,7 +198,7 @@ proof fn next_preserves_reconcile_create_cm_done_implies_pending_create_cm_req_i
                 assert(s_prime.resource_key_exists(simple_reconciler::subresource_configmap(cr.object_ref()).object_ref()));
             }
         } else {
-            let req_msg = controller_req_msg(simple_reconciler::create_cm_req(cr.object_ref()), s.controller_state.req_id);
+            let req_msg = controller_req_msg(simple_reconciler::create_cm_req(cr.object_ref()), s.controller_state.chan_manager.cur_chan_id);
             assert(is_controller_create_cm_request_msg(req_msg, cr)
                 && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
                 && s_prime.message_in_flight(req_msg)
