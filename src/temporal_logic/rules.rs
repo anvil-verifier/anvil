@@ -896,6 +896,39 @@ pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
     };
 }
 
+/// An always predicate is stable.
+/// post:
+///     |= stable(always(p))
+pub proof fn always_p_stable<T>(p: TempPred<T>)
+    ensures
+        valid(stable(always(p))),
+{
+    assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies always(always(p)).satisfied_by(ex) by {
+        assert forall |i| #[trigger] always(p).satisfied_by(ex.suffix(i)) by {
+            always_propagate_forwards::<T>(ex, p, i);
+        }
+    }
+}
+
+/// p and q is stable if both p and q are stable.
+/// pre:
+///     |= stable(p)
+///     |= stable(q)
+/// post:
+///     |= stable(p /\ q)
+pub proof fn stable_and_temp<T>(p: TempPred<T>, q: TempPred<T>)
+    requires
+        valid(stable(p)),
+        valid(stable(q)),
+    ensures
+        valid(stable(p.and(q))),
+{
+    assert forall |ex| #[trigger] p.and(q).satisfied_by(ex) implies always(p.and(q)).satisfied_by(ex) by {
+        stable_unfold::<T>(ex, p);
+        stable_unfold::<T>(ex, q);
+    }
+}
+
 /// Unpack the assumption from left to the right side of |=
 /// pre:
 ///     |= stable(partial_spec)
