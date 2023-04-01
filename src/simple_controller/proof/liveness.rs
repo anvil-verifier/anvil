@@ -101,15 +101,6 @@ proof fn lemma_reconcile_scheduled_leads_to_cm_always_exists(cr: CustomResourceV
 }
 
 #[verifier(external_body)]
-proof fn lemma_reconcile_not_ongoing_leads_to_cm_always_exists(cr: CustomResourceView)
-    ensures
-        sm_spec(simple_reconciler()).entails(
-            lift_state(|s: State<SimpleReconcileState>| !s.reconcile_state_contains(cr.object_ref()))
-                .leads_to(always(lift_state(cm_exists(cr))))
-        ),
-{}
-
-#[verifier(external_body)]
 proof fn lemma_reconcile_ongoing_leads_to_cm_always_exists(cr: CustomResourceView)
     ensures
         sm_spec(simple_reconciler()).entails(
