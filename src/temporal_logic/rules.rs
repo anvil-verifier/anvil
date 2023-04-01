@@ -317,6 +317,17 @@ proof fn valid_implies_to_valid_equals<T>(p: TempPred<T>, q: TempPred<T>)
     };
 }
 
+proof fn valid_p_implies_always_p<T>(p: TempPred<T>)
+    requires
+        valid(p),
+    ensures
+        valid(always(p)),
+{
+    assert forall |ex| #[trigger] always(p).satisfied_by(ex) by {
+        assert(forall |i| #[trigger] p.satisfied_by(ex.suffix(i)));
+    };
+}
+
 proof fn implies_to_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         spec.entails(always(p.implies(q))),
@@ -896,6 +907,39 @@ pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
     };
 }
 
+/// An always predicate is stable.
+/// post:
+///     |= stable(always(p))
+pub proof fn always_p_stable<T>(p: TempPred<T>)
+    ensures
+        valid(stable(always(p))),
+{
+    assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies always(always(p)).satisfied_by(ex) by {
+        assert forall |i| #[trigger] always(p).satisfied_by(ex.suffix(i)) by {
+            always_propagate_forwards::<T>(ex, p, i);
+        }
+    }
+}
+
+/// p and q is stable if both p and q are stable.
+/// pre:
+///     |= stable(p)
+///     |= stable(q)
+/// post:
+///     |= stable(p /\ q)
+pub proof fn stable_and_temp<T>(p: TempPred<T>, q: TempPred<T>)
+    requires
+        valid(stable(p)),
+        valid(stable(q)),
+    ensures
+        valid(stable(p.and(q))),
+{
+    assert forall |ex| #[trigger] p.and(q).satisfied_by(ex) implies always(p.and(q)).satisfied_by(ex) by {
+        stable_unfold::<T>(ex, p);
+        stable_unfold::<T>(ex, q);
+    }
+}
+
 /// Unpack the assumption from left to the right side of |=
 /// pre:
 ///     |= stable(partial_spec)
@@ -1291,6 +1335,22 @@ pub proof fn valid_implies_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<
         implies_apply::<T>(ex, p, q);
         implies_apply::<T>(ex, q, r);
     };
+}
+
+/// If p implies q for all executions, p will leads to q anyway.
+/// pre:
+///     |= p => q
+/// post:
+///     spec |= p ~> q
+/// Note: there is no constraint on spec, it can be true_pred().
+pub proof fn valid_implies_implies_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        valid(p.implies(q)),
+    ensures
+        spec.entails(p.leads_to(q)),
+{
+    valid_p_implies_always_p(p.implies(q));
+    implies_to_leads_to(spec, p, q);
 }
 
 /// Weaken entails by implies.

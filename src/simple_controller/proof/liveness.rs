@@ -6,6 +6,7 @@ use crate::kubernetes_cluster::{
     proof::{
         controller_runtime_liveness, controller_runtime_safety, kubernetes_api_liveness,
         kubernetes_api_safety,
+        cluster::*,
     },
     spec::{
         controller::common::{controller_req_msg, ControllerActionInput},
@@ -50,22 +51,54 @@ proof fn liveness_proof_forall_cr()
     };
 }
 
-#[verifier(external_body)]
 proof fn liveness_proof(cr: CustomResourceView)
     ensures
         sm_spec(simple_reconciler()).entails(
             always(cr_exists(cr)).leads_to(always(cr_matched(cr)))
         ),
-{}
+{
+    lemma_cr_always_exists_leads_to_reconcile_scheduled(cr);
+    lemma_reconcile_scheduled_leads_to_cm_always_exists(cr);
+    leads_to_trans_temp(sm_spec(simple_reconciler()), always(cr_exists(cr)), lift_state(|s: State<SimpleReconcileState>| s.reconcile_scheduled_for(cr.object_ref())), always(cr_matched(cr)));
+}
 
-#[verifier(external_body)]
-proof fn lemma_reconcile_not_ongoing_leads_to_cm_always_exists(cr: CustomResourceView)
+proof fn lemma_cr_always_exists_leads_to_reconcile_scheduled(cr: CustomResourceView)
     ensures
         sm_spec(simple_reconciler()).entails(
-            lift_state(|s: State<SimpleReconcileState>| !s.reconcile_state_contains(cr.object_ref()))
-                .leads_to(always(lift_state(cm_exists(cr))))
+            always(cr_exists(cr)).leads_to(lift_state(|s: State<SimpleReconcileState>| s.reconcile_scheduled_for(cr.object_ref())))
         ),
-{}
+{
+    let scheduled = lift_state(|s: State<SimpleReconcileState>| s.reconcile_scheduled_for(cr.object_ref()));
+    let cr_key_exists = lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(cr.object_ref()));
+    valid_stable_sm_partial_spec::<SimpleReconcileState>(simple_reconciler());
+    controller_runtime_liveness::lemma_true_leads_to_reconcile_scheduled_by_assumption::<SimpleReconcileState>(simple_reconciler(), cr.object_ref());
+    unpack_assumption_from_spec::<State<SimpleReconcileState>>(lift_state(init(simple_reconciler())), sm_partial_spec(simple_reconciler()), always(cr_key_exists), scheduled);
+    implies_preserved_by_always_temp::<State<SimpleReconcileState>>(cr_exists(cr), cr_key_exists);
+    valid_implies_implies_leads_to::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(cr_exists(cr)), always(cr_key_exists));
+    leads_to_trans_auto(sm_spec(simple_reconciler()));
+}
+
+proof fn lemma_reconcile_scheduled_leads_to_cm_always_exists(cr: CustomResourceView)
+    ensures
+        sm_spec(simple_reconciler()).entails(
+            lift_state(|s: State<SimpleReconcileState>| s.reconcile_scheduled_for(cr.object_ref())).leads_to(always(lift_state(cm_exists(cr))))
+        ),
+{
+    lemma_reconcile_idle_and_scheduled_leads_to_cm_always_exists(cr);
+    let reconcile_idle_and_scheduled = lift_state(|s: State<SimpleReconcileState>| {
+        &&& !s.reconcile_state_contains(cr.object_ref())
+        &&& s.reconcile_scheduled_for(cr.object_ref())
+    });
+    let reconcile_ongoing_and_scheduled = lift_state(|s: State<SimpleReconcileState>| {
+        &&& s.reconcile_state_contains(cr.object_ref())
+        &&& s.reconcile_scheduled_for(cr.object_ref())
+    });
+    valid_implies_implies_leads_to(sm_spec(simple_reconciler()), reconcile_ongoing_and_scheduled, lift_state(|s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.object_ref())));
+    lemma_reconcile_ongoing_leads_to_cm_always_exists(cr);
+    leads_to_trans_temp(sm_spec(simple_reconciler()), reconcile_ongoing_and_scheduled, lift_state(|s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.object_ref())), always(lift_state(cm_exists(cr))));
+    temp_pred_equality(reconcile_idle_and_scheduled.or(reconcile_ongoing_and_scheduled), lift_state(|s: State<SimpleReconcileState>| s.reconcile_scheduled_for(cr.object_ref())));
+    or_leads_to_combine_temp(sm_spec(simple_reconciler()), reconcile_idle_and_scheduled, reconcile_ongoing_and_scheduled, always(lift_state(cm_exists(cr))));
+}
 
 #[verifier(external_body)]
 proof fn lemma_reconcile_ongoing_leads_to_cm_always_exists(cr: CustomResourceView)
@@ -74,16 +107,25 @@ proof fn lemma_reconcile_ongoing_leads_to_cm_always_exists(cr: CustomResourceVie
             lift_state(|s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.object_ref()))
                 .leads_to(always(lift_state(cm_exists(cr))))
         ),
-{}
+{
+    lemma_init_pc_leads_to_cm_always_exists(cr);
+    lemma_after_get_cr_pc_leads_to_cm_always_exists(cr);
+    lemma_after_create_cm_pc_leads_to_cm_always_exists(cr);
+}
 
-#[verifier(external_body)]
 proof fn lemma_init_pc_leads_to_cm_always_exists(cr: CustomResourceView)
     ensures
         sm_spec(simple_reconciler()).entails(
             lift_state(reconciler_at_init_pc(cr))
             .leads_to(always(lift_state(cm_exists(cr))))
         ),
-{}
+{
+    safety::lemma_always_reconcile_init_implies_no_pending_req(cr);
+    lemma_init_pc_leads_to_after_get_cr_pc(cr);
+    lemma_after_get_cr_pc_leads_to_cm_always_exists(cr);
+    leads_to_trans_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
+    leads_to_weaken_auto::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()));
+}
 
 proof fn lemma_after_get_cr_pc_leads_to_cm_always_exists(cr: CustomResourceView)
     ensures
