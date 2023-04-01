@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_cluster::spec::{kubernetes_api::common::*, message::*};
+use crate::kubernetes_cluster::spec::{channel::*, kubernetes_api::common::*, message::*};
 use crate::pervasive::{map::*, multiset::*, option::*, result::*, seq::*};
 use builtin::*;
 use builtin_macros::*;
@@ -9,7 +9,7 @@ use builtin_macros::*;
 verus! {
 
 // TODO: complete the statefulset controller spec
-pub open spec fn transition_by_statefulset_controller(event: WatchEvent, s: KubernetesAPIState) -> Multiset<Message> {
+pub open spec fn transition_by_statefulset_controller(event: WatchEvent, s: KubernetesAPIState) -> (ChannelManager, Multiset<Message>) {
     let src = HostId::KubernetesAPI;
     // Here dst is also KubernetesAPI because etcd, apiserver and built-in controllers are all in the same state machine.
     // In reality, the message is sent from the built-in controller to apiserver then to etcd.
@@ -32,7 +32,7 @@ pub open spec fn transition_by_statefulset_controller(event: WatchEvent, s: Kube
     // } else {
     //     Multiset::empty()
     // }
-    Multiset::empty()
+    (s.chan_manager, Multiset::empty())
 }
 
 }

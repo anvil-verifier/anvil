@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_cluster::spec::{
-    controller::common::*, controller::controller_runtime::*, message::*, reconciler::*,
+    channel::*, controller::common::*, controller::controller_runtime::*, message::*, reconciler::*,
 };
 use crate::pervasive::{map::*, option::*, seq::*, set::*, string::*};
 use crate::state_machine::action::*;
@@ -17,7 +17,7 @@ pub open spec fn controller<T>(reconciler: Reconciler<T>) -> ControllerStateMach
     StateMachine {
         init: |s: ControllerState<T>| {
             s == ControllerState::<T> {
-                req_id: 0,
+                chan_manager: ChannelManager::init(),
                 ongoing_reconciles: Map::empty(),
                 scheduled_reconciles: Set::empty(),
             }
