@@ -32,7 +32,7 @@ pub open spec fn simple_reconciler() -> Reconciler<SimpleReconcileState> {
 
 pub open spec fn reconcile_init_state() -> SimpleReconcileState {
     SimpleReconcileState {
-        reconcile_pc: 0,
+        reconcile_pc: init_pc(),
     }
 }
 

@@ -25,14 +25,18 @@ use builtin_macros::*;
 
 verus! {
 
-pub proof fn lemma_always_reconcile_init_implies_no_pending_req(cr: CustomResourceView)
+pub open spec fn reconcile_init_pc_and_no_pending_req(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+    |s: State<SimpleReconcileState>| {
+        &&& s.reconcile_state_contains(cr.object_ref())
+        &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == simple_reconciler::init_pc()
+        &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_None()
+    }
+}
+
+pub proof fn lemma_always_reconcile_init_pc_and_no_pending_req(cr: CustomResourceView)
     ensures
         sm_spec(simple_reconciler()).entails(always(
-            lift_state(reconciler_at_init_pc(cr)).implies(lift_state(|s: State<SimpleReconcileState>| {
-                &&& s.reconcile_state_contains(cr.object_ref())
-                &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == simple_reconciler::init_pc()
-                &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_None()
-            }))
+            lift_state(reconciler_at_init_pc(cr)).implies(lift_state(reconcile_init_pc_and_no_pending_req(cr)))
         )),
 {
     let invariant = |s: State<SimpleReconcileState>| {

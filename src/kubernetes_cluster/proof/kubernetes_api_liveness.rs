@@ -20,45 +20,50 @@ use builtin_macros::*;
 
 verus! {
 
-pub proof fn lemma_pre_leads_to_post_by_kubernetes_api<T>(reconciler: Reconciler<T>, input: KubernetesAPIActionInput, next: ActionPred<State<T>>, action: KubernetesAPIAction, pre: StatePred<State<T>>, post: StatePred<State<T>>)
+pub proof fn lemma_pre_leads_to_post_by_kubernetes_api<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, input: KubernetesAPIActionInput, next: ActionPred<State<T>>, action: KubernetesAPIAction, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         kubernetes_api().actions.contains(action),
         forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
         forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime) ==> post(s_prime),
         forall |s: State<T>| #[trigger] pre(s) ==> kubernetes_api_action_pre(action, input)(s),
-        sm_spec(reconciler).entails(always(lift_action(next))),
+        spec.entails(always(lift_action(next))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
-        sm_spec(reconciler).entails(lift_state(pre).leads_to(lift_state(post))),
+        spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
-    use_tla_forall::<State<T>, KubernetesAPIActionInput>(sm_spec(reconciler), |i| kubernetes_api_next().weak_fairness(i), input);
+    use_tla_forall::<State<T>, KubernetesAPIActionInput>(spec, |i| kubernetes_api_next().weak_fairness(i), input);
 
     kubernetes_api_action_pre_implies_next_pre::<T>(action, input);
     valid_implies_trans::<State<T>>(lift_state(pre), lift_state(kubernetes_api_action_pre(action, input)), lift_state(kubernetes_api_next().pre(input)));
 
-    kubernetes_api_next().wf1(input, sm_spec(reconciler), next, pre, post);
+    kubernetes_api_next().wf1(input, spec, next, pre, post);
 }
 
-pub proof fn lemma_pre_leads_to_post_with_assumption_by_kubernetes_api<T>(reconciler: Reconciler<T>, input: KubernetesAPIActionInput, next: ActionPred<State<T>>, action: KubernetesAPIAction, assumption: StatePred<State<T>>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
+pub proof fn lemma_pre_leads_to_post_with_assumption_by_kubernetes_api<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, input: KubernetesAPIActionInput, next: ActionPred<State<T>>, action: KubernetesAPIAction, assumption: StatePred<State<T>>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         kubernetes_api().actions.contains(action),
         forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) && assumption(s) ==> pre(s_prime) || post(s_prime),
         forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime) ==> post(s_prime),
         forall |s: State<T>| #[trigger] pre(s) ==> kubernetes_api_action_pre(action, input)(s),
-        sm_spec(reconciler).entails(always(lift_action(next))),
+        spec.entails(always(lift_action(next))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
-        sm_spec(reconciler).entails(lift_state(pre).and(always(lift_state(assumption))).leads_to(lift_state(post))),
+        spec.entails(lift_state(pre).and(always(lift_state(assumption))).leads_to(lift_state(post))),
 {
-    use_tla_forall::<State<T>, KubernetesAPIActionInput>(sm_spec(reconciler), |i| kubernetes_api_next().weak_fairness(i), input);
+    use_tla_forall::<State<T>, KubernetesAPIActionInput>(spec, |i| kubernetes_api_next().weak_fairness(i), input);
 
     kubernetes_api_action_pre_implies_next_pre::<T>(action, input);
     valid_implies_trans::<State<T>>(lift_state(pre), lift_state(kubernetes_api_action_pre(action, input)), lift_state(kubernetes_api_next().pre(input)));
 
-    kubernetes_api_next().wf1_assume(input, sm_spec(reconciler), next, assumption, pre, post);
+    kubernetes_api_next().wf1_assume(input, spec, next, assumption, pre, post);
 }
 
-pub proof fn lemma_get_req_leads_to_some_resp<T>(reconciler: Reconciler<T>, msg: Message, key: ObjectRef)
+pub proof fn lemma_get_req_leads_to_some_resp<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, key: ObjectRef)
+    requires
+        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
-        sm_spec(reconciler).entails(
+        spec.entails(
             lift_state(|s: State<T>| {
                     &&& s.message_in_flight(msg)
                     &&& msg.dst == HostId::KubernetesAPI
@@ -98,12 +103,15 @@ pub proof fn lemma_get_req_leads_to_some_resp<T>(reconciler: Reconciler<T>, msg:
             assert(resp_msg_matches_req_msg(err_resp_msg, msg));
         }
     };
-    lemma_pre_leads_to_post_by_kubernetes_api::<T>(reconciler, input, next(reconciler), handle_request(), pre, post);
+    lemma_pre_leads_to_post_by_kubernetes_api::<T>(spec, reconciler, input, next(reconciler), handle_request(), pre, post);
 }
 
-pub proof fn lemma_get_req_leads_to_ok_or_err_resp<T>(reconciler: Reconciler<T>, msg: Message, key: ObjectRef)
+pub proof fn lemma_get_req_leads_to_ok_or_err_resp<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, key: ObjectRef)
+    requires
+        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
-        sm_spec(reconciler).entails(
+        spec.entails(
             lift_state(|s: State<T>| {
                 &&& s.message_in_flight(msg)
                 &&& msg.dst == HostId::KubernetesAPI
@@ -126,7 +134,7 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp<T>(reconciler: Reconciler<T>,
         ||| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key))))
         ||| s.message_in_flight(form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound)))
     };
-    lemma_pre_leads_to_post_by_kubernetes_api::<T>(reconciler, Option::Some(msg), next(reconciler), handle_request(), pre, post);
+    lemma_pre_leads_to_post_by_kubernetes_api::<T>(spec, reconciler, Option::Some(msg), next(reconciler), handle_request(), pre, post);
     temp_pred_equality::<State<T>>(
         lift_state(post),
         lift_state(|s: State<T>| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)))))
@@ -134,9 +142,12 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp<T>(reconciler: Reconciler<T>,
     );
 }
 
-pub proof fn lemma_get_req_leads_to_ok_resp_if_never_delete<T>(reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
+pub proof fn lemma_get_req_leads_to_ok_resp_if_never_delete<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
+    requires
+        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
-        sm_spec(reconciler).entails(
+        spec.entails(
             lift_state(|s: State<T>| {
                 &&& s.message_in_flight(msg)
                 &&& msg.dst == HostId::KubernetesAPI
@@ -173,12 +184,15 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_never_delete<T>(reconciler: Recon
             }
     };
     let post = |s: State<T>| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(res)));
-    lemma_pre_leads_to_post_with_assumption_by_kubernetes_api::<T>(reconciler, Option::Some(msg), next(reconciler), handle_request(), assumption, pre, post);
+    lemma_pre_leads_to_post_with_assumption_by_kubernetes_api::<T>(spec, reconciler, Option::Some(msg), next(reconciler), handle_request(), assumption, pre, post);
 }
 
-pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
+pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
+    requires
+        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
-        sm_spec(reconciler).entails(
+        spec.entails(
             lift_state(|s: State<T>| {
                 &&& s.message_in_flight(msg)
                 &&& msg.dst == HostId::KubernetesAPI
@@ -189,7 +203,7 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(reconciler: 
                 .leads_to(lift_state(|s: State<T>| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(res)))))
         ),
 {
-    leads_to_weaken_auto::<State<T>>(sm_spec(reconciler));
+    leads_to_weaken_auto::<State<T>>(spec);
 
     let get_req_msg_sent = |s: State<T>| {
         &&& s.message_in_flight(msg)
@@ -216,19 +230,19 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(reconciler: 
     };
     let ok_resp_msg_sent = |s: State<T>| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(res)));
 
-    lemma_always_res_always_exists_implies_forall_delete_never_sent::<T>(reconciler, res);
+    lemma_always_res_always_exists_implies_forall_delete_never_sent::<T>(spec, reconciler, res);
     // Now we have spec.entails(always(always(lift_state(res_exists)).implies(always(lift_state(delete_req_never_sent)))))
     // We want to add get_req_msg_sent_and_res_exists to both ends by using sandwich_always_implies_temp
-    sandwich_always_implies_temp::<State<T>>(sm_spec(reconciler),
+    sandwich_always_implies_temp::<State<T>>(spec,
         lift_state(get_req_msg_sent_and_res_exists),
         always(lift_state(res_exists)),
         always(lift_state(delete_req_never_sent))
     );
 
-    lemma_get_req_leads_to_ok_resp_if_never_delete::<T>(reconciler, msg, res);
+    lemma_get_req_leads_to_ok_resp_if_never_delete::<T>(spec, reconciler, msg, res);
     // Use the assert to trigger leads_to_weaken_auto
     // The always-implies formula required by leads_to_weaken_auto is given by the above sandwich_always_implies_temp
-    assert(sm_spec(reconciler).entails(
+    assert(spec.entails(
         lift_state(get_req_msg_sent_and_res_exists).and(always(lift_state(res_exists)))
             .leads_to(lift_state(ok_resp_msg_sent))
     ));
@@ -238,7 +252,7 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(reconciler: 
         lift_state(get_req_msg_sent).and(lift_state(res_exists).and(always(lift_state(res_exists))))
     );
 
-    assert(sm_spec(reconciler).entails(
+    assert(spec.entails(
         lift_state(get_req_msg_sent).and(lift_state(res_exists)).and(always(lift_state(res_exists)))
             .leads_to(lift_state(ok_resp_msg_sent))
     ));
@@ -246,9 +260,12 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(reconciler: 
     p_and_always_p_equals_always_p::<State<T>>(lift_state(res_exists));
 }
 
-pub proof fn lemma_create_req_leads_to_res_exists<T>(reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
+pub proof fn lemma_create_req_leads_to_res_exists<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
+    requires
+        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
-        sm_spec(reconciler).entails(
+        spec.entails(
             lift_state(|s: State<T>| {
                 &&& s.message_in_flight(msg)
                 &&& msg.dst == HostId::KubernetesAPI
@@ -267,12 +284,15 @@ pub proof fn lemma_create_req_leads_to_res_exists<T>(reconciler: Reconciler<T>, 
     let post = |s: State<T>| {
         s.resource_key_exists(res.object_ref())
     };
-    lemma_pre_leads_to_post_by_kubernetes_api::<T>(reconciler, Option::Some(msg), next(reconciler), handle_request(), pre, post);
+    lemma_pre_leads_to_post_by_kubernetes_api::<T>(spec, reconciler, Option::Some(msg), next(reconciler), handle_request(), pre, post);
 }
 
-pub proof fn lemma_delete_req_leads_to_res_not_exists<T>(reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
+pub proof fn lemma_delete_req_leads_to_res_not_exists<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
+    requires
+        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
-        sm_spec(reconciler).entails(
+        spec.entails(
             lift_state(|s: State<T>| {
                 &&& s.message_in_flight(msg)
                 &&& msg.dst == HostId::KubernetesAPI
@@ -291,12 +311,15 @@ pub proof fn lemma_delete_req_leads_to_res_not_exists<T>(reconciler: Reconciler<
     let post = |s: State<T>| {
         !s.resource_obj_exists(res)
     };
-    lemma_pre_leads_to_post_by_kubernetes_api::<T>(reconciler, Option::Some(msg), next(reconciler), handle_request(), pre, post);
+    lemma_pre_leads_to_post_by_kubernetes_api::<T>(spec, reconciler, Option::Some(msg), next(reconciler), handle_request(), pre, post);
 }
 
-pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<T>(reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
+pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
+    requires
+        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
-        sm_spec(reconciler).entails(always(
+        spec.entails(always(
             always(lift_state(|s: State<T>| s.resource_obj_exists(res)))
                 .implies(always(lift_state(|s: State<T>| {
                     !{
@@ -308,8 +331,8 @@ pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<T>(reconci
                 })))
         )),
 {
-    lemma_delete_req_leads_to_res_not_exists::<T>(reconciler, msg, res);
-    leads_to_contraposition::<State<T>>(sm_spec(reconciler),
+    lemma_delete_req_leads_to_res_not_exists::<T>(spec, reconciler, msg, res);
+    leads_to_contraposition::<State<T>>(spec,
         |s: State<T>| {
             &&& s.message_in_flight(msg)
             &&& msg.dst == HostId::KubernetesAPI
@@ -341,9 +364,12 @@ pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<T>(reconci
 }
 
 /// How to prove this? It is obvious according to lemma_always_res_always_exists_implies_delete_never_sent
-pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent<T>(reconciler: Reconciler<T>, res: KubernetesObject)
+pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, res: KubernetesObject)
+    requires
+        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
-        sm_spec(reconciler).entails(always(
+        spec.entails(always(
             always(lift_state(|s: State<T>| s.resource_obj_exists(res)))
                 .implies(always(lift_state(|s: State<T>| {
                     forall |msg: Message|
@@ -365,10 +391,10 @@ pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent<T>(
             &&& msg.content.get_delete_request().key == res.object_ref()
         }
     }));
-    assert forall |msg: Message| sm_spec(reconciler).entails(#[trigger] always(pre.implies(m_to_always_m_not_sent(msg)))) by {
-        lemma_always_res_always_exists_implies_delete_never_sent(reconciler, msg, res);
+    assert forall |msg: Message| spec.entails(#[trigger] always(pre.implies(m_to_always_m_not_sent(msg)))) by {
+        lemma_always_res_always_exists_implies_delete_never_sent(spec, reconciler, msg, res);
     };
-    always_implies_forall_intro::<State<T>, Message>(sm_spec(reconciler), pre, m_to_always_m_not_sent);
+    always_implies_forall_intro::<State<T>, Message>(spec, pre, m_to_always_m_not_sent);
 
     let m_to_m_not_sent = |msg: Message| lift_state(|s: State<T>| {
         !{
