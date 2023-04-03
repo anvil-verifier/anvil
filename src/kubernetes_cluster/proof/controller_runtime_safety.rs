@@ -51,7 +51,7 @@ pub open spec fn pending_req_has_lower_req_id<T>() -> StatePred<State<T>> {
         forall |cr_key: ObjectRef|
             #[trigger] s.reconcile_state_contains(cr_key)
             && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
-            ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_req_id() < s.controller_state.chan_manager.cur_chan_id
+            ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_req_id() < s.channel_manager.cur_chan_id
     }
 }
 

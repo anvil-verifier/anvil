@@ -5,7 +5,7 @@ use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_cluster::{
     proof::{kubernetes_api_safety, wf1_assistant::controller_action_pre_implies_next_pre},
     spec::{
-        controller::common::{ControllerAction, ControllerActionInput},
+        controller::common::ControllerAction,
         controller::controller_runtime::{
             continue_reconcile, end_reconcile, run_scheduled_reconcile,
         },
@@ -212,7 +212,7 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_in
 {
     lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption::<T>(reconciler, cr_key);
     lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init::<T>(sm_partial_spec(reconciler), reconciler, cr_key);
-    strengthen_spec::<State<T>>(sm_partial_spec(reconciler), always(lift_state(|s: State<T>| s.resource_key_exists(cr_key))), 
+    strengthen_spec::<State<T>>(sm_partial_spec(reconciler), always(lift_state(|s: State<T>| s.resource_key_exists(cr_key))),
         lift_state(|s: State<T>| {
             &&& !s.reconcile_state_contains(cr_key)
             &&& s.reconcile_scheduled_for(cr_key)
@@ -253,7 +253,7 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
         })));
     lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption::<T>(reconciler, cr_key);
     lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init::<T>(sm_partial_spec(reconciler), reconciler, cr_key);
-    strengthen_spec::<State<T>>(sm_partial_spec(reconciler), always(lift_state(|s: State<T>| s.resource_key_exists(cr_key))), 
+    strengthen_spec::<State<T>>(sm_partial_spec(reconciler), always(lift_state(|s: State<T>| s.resource_key_exists(cr_key))),
     lift_state(|s: State<T>| {
         &&& !s.reconcile_state_contains(cr_key)
         &&& s.reconcile_scheduled_for(cr_key)
@@ -263,7 +263,7 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
             &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
             &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
         })));
-    
+
     leads_to_trans_auto::<State<T>>(sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))));
 }
 

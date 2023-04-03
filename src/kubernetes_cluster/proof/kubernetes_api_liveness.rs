@@ -6,7 +6,7 @@ use crate::kubernetes_cluster::{
     proof::wf1_assistant::kubernetes_api_action_pre_implies_next_pre,
     spec::{
         distributed_system::*,
-        kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput},
+        kubernetes_api::common::KubernetesAPIAction,
         kubernetes_api::state_machine::{handle_request, kubernetes_api},
         message::*,
         reconciler::Reconciler,
