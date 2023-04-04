@@ -916,6 +916,31 @@ pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
     };
 }
 
+pub proof fn entails_and_3_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
+    requires
+        spec.entails(p1),
+        spec.entails(p2),
+        spec.entails(p3),
+    ensures
+        spec.entails(p1.and(p2).and(p3)),
+{
+    entails_and_temp::<T>(spec, p1, p2);
+    entails_and_temp::<T>(spec, p1.and(p2), p3);
+}
+
+pub proof fn entails_and_4_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>)
+    requires
+        spec.entails(p1),
+        spec.entails(p2),
+        spec.entails(p3),
+        spec.entails(p4),
+    ensures
+        spec.entails(p1.and(p2).and(p3).and(p4)),
+{
+    entails_and_3_temp::<T>(spec, p1, p2, p3);
+    entails_and_temp::<T>(spec, p1.and(p2).and(p3), p4);
+}
+
 pub proof fn entails_and_different_temp<T>(spec1: TempPred<T>, spec2: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         spec1.entails(p),
@@ -960,6 +985,31 @@ pub proof fn stable_and_temp<T>(p: TempPred<T>, q: TempPred<T>)
         stable_unfold::<T>(ex, p);
         stable_unfold::<T>(ex, q);
     }
+}
+
+pub proof fn stable_and_3_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
+    requires
+        valid(stable(p1)),
+        valid(stable(p2)),
+        valid(stable(p3)),
+    ensures
+        valid(stable(p1.and(p2).and(p3))),
+{
+    stable_and_temp::<T>(p1, p2);
+    stable_and_temp::<T>(p1.and(p2), p3);
+}
+
+pub proof fn stable_and_4_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>)
+    requires
+        valid(stable(p1)),
+        valid(stable(p2)),
+        valid(stable(p3)),
+        valid(stable(p4)),
+    ensures
+        valid(stable(p1.and(p2).and(p3).and(p4))),
+{
+    stable_and_temp::<T>(p1, p2);
+    stable_and_3_temp::<T>(p1.and(p2), p3, p4);
 }
 
 /// Unpack the assumption from left to the right side of |=
