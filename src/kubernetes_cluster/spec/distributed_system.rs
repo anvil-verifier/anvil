@@ -33,7 +33,7 @@ pub struct State<T> {
     pub controller_state: ControllerState<T>,
     pub client_state: ClientState,
     pub network_state: NetworkState,
-    pub channel_manager: ChannelManager,
+    pub chan_manager: ChannelManager,
 }
 
 impl<T> State<T> {
@@ -79,7 +79,7 @@ pub open spec fn init<T>(reconciler: Reconciler<T>) -> StatePred<State<T>> {
         &&& (controller(reconciler).init)(s.controller_state)
         &&& (client().init)(s.client_state)
         &&& (network().init)(s.network_state)
-        &&& s.channel_manager == ChannelManager::init()
+        &&& s.chan_manager == ChannelManager::init()
     }
 }
 
@@ -94,7 +94,7 @@ pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostI
 pub open spec fn kubernetes_api_next<T>() -> Action<State<T>, Option<Message>, ()> {
     let result = |input: Option<Message>, s: State<T>| {
         let host_result = kubernetes_api().next_result(
-            KubernetesAPIActionInput{recv: input, chan_manager: s.channel_manager},
+            KubernetesAPIActionInput{recv: input, chan_manager: s.chan_manager},
             s.kubernetes_api_state
         );
         let msg_ops = MessageOps {
@@ -115,7 +115,7 @@ pub open spec fn kubernetes_api_next<T>() -> Action<State<T>, Option<Message>, (
             (State {
                 kubernetes_api_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
-                channel_manager: result(input, s).0.get_Enabled_1().1,
+                chan_manager: result(input, s).0.get_Enabled_1().1,
                 ..s
             }, ())
         },
@@ -125,7 +125,7 @@ pub open spec fn kubernetes_api_next<T>() -> Action<State<T>, Option<Message>, (
 pub open spec fn controller_next<T>(reconciler: Reconciler<T>) -> Action<State<T>, (Option<Message>, Option<ObjectRef>), ()> {
     let result = |input: (Option<Message>, Option<ObjectRef>), s: State<T>| {
         let host_result = controller(reconciler).next_result(
-            ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.channel_manager},
+            ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager},
             s.controller_state
         );
         let msg_ops = MessageOps {
@@ -146,7 +146,7 @@ pub open spec fn controller_next<T>(reconciler: Reconciler<T>) -> Action<State<T
             (State {
                 controller_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
-                channel_manager: result(input, s).0.get_Enabled_1().1,
+                chan_manager: result(input, s).0.get_Enabled_1().1,
                 ..s
             }, ())
         },
@@ -177,7 +177,7 @@ pub open spec fn schedule_controller_reconcile<T>() -> Action<State<T>, ObjectRe
 pub open spec fn client_next<T>() -> Action<State<T>, (Option<Message>, CustomResourceView), ()> {
     let result = |input: (Option<Message>, CustomResourceView), s: State<T>| {
         let host_result = client().next_result(
-            ClientActionInput{recv: input.0, cr: input.1, chan_manager: s.channel_manager},
+            ClientActionInput{recv: input.0, cr: input.1, chan_manager: s.chan_manager},
             s.client_state
         );
         let msg_ops = MessageOps {
@@ -198,7 +198,7 @@ pub open spec fn client_next<T>() -> Action<State<T>, (Option<Message>, CustomRe
             (State {
                 client_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
-                channel_manager: result(input, s).0.get_Enabled_1().1,
+                chan_manager: result(input, s).0.get_Enabled_1().1,
                 ..s
             }, ())
         },
@@ -260,7 +260,7 @@ pub open spec fn kubernetes_api_action_pre<T>(action: KubernetesAPIAction, input
     |s: State<T>| {
         let host_result = kubernetes_api().next_action_result(
             action,
-            KubernetesAPIActionInput{recv: input, chan_manager: s.channel_manager},
+            KubernetesAPIActionInput{recv: input, chan_manager: s.chan_manager},
             s.kubernetes_api_state
         );
         let msg_ops = MessageOps {
@@ -279,7 +279,7 @@ pub open spec fn controller_action_pre<T>(reconciler: Reconciler<T>, action: Con
     |s: State<T>| {
         let host_result = controller(reconciler).next_action_result(
             action,
-            ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.channel_manager},
+            ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager},
             s.controller_state
         );
         let msg_ops = MessageOps {

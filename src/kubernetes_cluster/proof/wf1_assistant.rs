@@ -33,7 +33,7 @@ pub proof fn kubernetes_api_action_pre_implies_next_pre<T>(action: KubernetesAPI
         valid(lift_state(kubernetes_api_action_pre::<T>(action, input)).implies(lift_state(kubernetes_api_next().pre(input)))),
 {
     assert forall |s: State<T>| #[trigger] kubernetes_api_action_pre(action, input)(s) implies kubernetes_api_next().pre(input)(s) by {
-        exists_next_kubernetes_api_step(action, KubernetesAPIActionInput{recv: input, chan_manager: s.channel_manager}, s.kubernetes_api_state);
+        exists_next_kubernetes_api_step(action, KubernetesAPIActionInput{recv: input, chan_manager: s.chan_manager}, s.kubernetes_api_state);
     };
 }
 
@@ -44,7 +44,7 @@ pub proof fn controller_action_pre_implies_next_pre<T>(reconciler: Reconciler<T>
         valid(lift_state(controller_action_pre(reconciler, action, input)).implies(lift_state(controller_next(reconciler).pre(input)))),
 {
     assert forall |s| #[trigger] controller_action_pre(reconciler, action, input)(s) implies controller_next(reconciler).pre(input)(s) by {
-        exists_next_controller_step(reconciler, action, ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.channel_manager}, s.controller_state);
+        exists_next_controller_step(reconciler, action, ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager}, s.controller_state);
     };
 }
 
