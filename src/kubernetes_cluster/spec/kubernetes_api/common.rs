@@ -22,7 +22,10 @@ pub enum KubernetesAPIStep {
     HandleRequest,
 }
 
-pub type KubernetesAPIActionInput = (Option<Message>, ChannelManager);
+pub struct KubernetesAPIActionInput {
+    pub recv: Option<Message>,
+    pub chan_manager: ChannelManager,
+}
 
 pub type KubernetesAPIActionOutput = (Multiset<Message>, ChannelManager);
 

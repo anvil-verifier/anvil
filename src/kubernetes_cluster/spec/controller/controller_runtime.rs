@@ -15,13 +15,13 @@ verus! {
 pub open spec fn run_scheduled_reconcile<T>(reconciler: Reconciler<T>) -> ControllerAction<T> {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState<T>| {
-            &&& input.1.is_Some()
-            &&& s.scheduled_reconciles.contains(input.1.get_Some_0())
-            &&& input.0.is_None()
-            &&& !s.ongoing_reconciles.dom().contains(input.1.get_Some_0())
+            &&& input.scheduled_cr_key.is_Some()
+            &&& s.scheduled_reconciles.contains(input.scheduled_cr_key.get_Some_0())
+            &&& input.recv.is_None()
+            &&& !s.ongoing_reconciles.dom().contains(input.scheduled_cr_key.get_Some_0())
         },
         transition: |input: ControllerActionInput, s: ControllerState<T>| {
-            let cr_key = input.1.get_Some_0();
+            let cr_key = input.scheduled_cr_key.get_Some_0();
             let initialized_ongoing_reconcile = OngoingReconcile {
                 pending_req_msg: Option::None,
                 local_state: (reconciler.reconcile_init_state)(),
@@ -32,7 +32,7 @@ pub open spec fn run_scheduled_reconcile<T>(reconciler: Reconciler<T>) -> Contro
                 ..s
             };
             let send = Multiset::empty();
-            (s_prime, (send, input.2))
+            (s_prime, (send, input.chan_manager))
         },
     }
 }
@@ -40,16 +40,16 @@ pub open spec fn run_scheduled_reconcile<T>(reconciler: Reconciler<T>) -> Contro
 pub open spec fn continue_reconcile<T>(reconciler: Reconciler<T>) -> ControllerAction<T> {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState<T>| {
-            if input.1.is_Some() {
-                let cr_key = input.1.get_Some_0();
+            if input.scheduled_cr_key.is_Some() {
+                let cr_key = input.scheduled_cr_key.get_Some_0();
 
                 &&& s.ongoing_reconciles.dom().contains(cr_key)
                 &&& !(reconciler.reconcile_done)(s.ongoing_reconciles[cr_key].local_state)
                 &&& !(reconciler.reconcile_error)(s.ongoing_reconciles[cr_key].local_state)
-                &&& if input.0.is_Some() {
-                    &&& input.0.get_Some_0().content.is_APIResponse()
+                &&& if input.recv.is_Some() {
+                    &&& input.recv.get_Some_0().content.is_APIResponse()
                     &&& s.ongoing_reconciles[cr_key].pending_req_msg.is_Some()
-                    &&& resp_msg_matches_req_msg(input.0.get_Some_0(), s.ongoing_reconciles[cr_key].pending_req_msg.get_Some_0())
+                    &&& resp_msg_matches_req_msg(input.recv.get_Some_0(), s.ongoing_reconciles[cr_key].pending_req_msg.get_Some_0())
                 } else {
                     s.ongoing_reconciles[cr_key].pending_req_msg.is_None()
                 }
@@ -58,20 +58,20 @@ pub open spec fn continue_reconcile<T>(reconciler: Reconciler<T>) -> ControllerA
             }
         },
         transition: |input: ControllerActionInput, s: ControllerState<T>| {
-            let resp_o = if input.0.is_Some() {
-                Option::Some(input.0.get_Some_0().content.get_APIResponse_0())
+            let resp_o = if input.recv.is_Some() {
+                Option::Some(input.recv.get_Some_0().content.get_APIResponse_0())
             } else {
                 Option::None
             };
-            let cr_key = input.1.get_Some_0();
+            let cr_key = input.scheduled_cr_key.get_Some_0();
             let reconcile_state = s.ongoing_reconciles[cr_key];
 
             let (local_state_prime, req_o) = (reconciler.reconcile_core)(cr_key, resp_o, reconcile_state.local_state);
 
             let (chan_manager_prime, pending_req_msg) = if req_o.is_Some() {
-                (input.2.allocate().0, Option::Some(controller_req_msg(req_o.get_Some_0(), input.2.allocate().1)))
+                (input.chan_manager.allocate().0, Option::Some(controller_req_msg(req_o.get_Some_0(), input.chan_manager.allocate().1)))
             } else {
-                (input.2, Option::None)
+                (input.chan_manager, Option::None)
             };
 
             let reconcile_state_prime = OngoingReconcile {
@@ -95,23 +95,23 @@ pub open spec fn continue_reconcile<T>(reconciler: Reconciler<T>) -> ControllerA
 pub open spec fn end_reconcile<T>(reconciler: Reconciler<T>) -> ControllerAction<T> {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState<T>| {
-            if input.1.is_Some() {
-                let cr_key = input.1.get_Some_0();
+            if input.scheduled_cr_key.is_Some() {
+                let cr_key = input.scheduled_cr_key.get_Some_0();
 
                 &&& s.ongoing_reconciles.dom().contains(cr_key)
                 &&& ((reconciler.reconcile_done)(s.ongoing_reconciles[cr_key].local_state) || (reconciler.reconcile_error)(s.ongoing_reconciles[cr_key].local_state))
-                &&& input.0.is_None()
+                &&& input.recv.is_None()
             } else {
                 false
             }
         },
         transition: |input: ControllerActionInput, s: ControllerState<T>| {
-            let cr_key = input.1.get_Some_0();
+            let cr_key = input.scheduled_cr_key.get_Some_0();
             let s_prime = ControllerState {
                 ongoing_reconciles: s.ongoing_reconciles.remove(cr_key),
                 ..s
             };
-            (s_prime, (Multiset::empty(), input.2))
+            (s_prime, (Multiset::empty(), input.chan_manager))
         }
     }
 }

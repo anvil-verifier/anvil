@@ -118,10 +118,10 @@ pub open spec fn transition_by_builtin_controllers(event: WatchEvent, s: Kuberne
 pub open spec fn handle_request() -> KubernetesAPIAction {
     Action {
         precondition: |input: KubernetesAPIActionInput, s: KubernetesAPIState| {
-            &&& input.0.is_Some()
-            &&& input.0.get_Some_0().content.is_APIRequest()
+            &&& input.recv.is_Some()
+            &&& input.recv.get_Some_0().content.is_APIRequest()
             // This dst check is redundant since the compound state machine has checked it
-            &&& input.0.get_Some_0().dst == HostId::KubernetesAPI
+            &&& input.recv.get_Some_0().dst == HostId::KubernetesAPI
         },
         transition: |input: KubernetesAPIActionInput, s: KubernetesAPIState| {
             // This transition describes how Kubernetes API server handles requests,
@@ -145,8 +145,8 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
             // (b) omitting the notification stream from the datastore to apiserver then to built-in controller,
             //  and making built-in controllers immediately activated by updates to cluster state;
             // (c) baking them into one action, which makes them atomic.
-            let input_msg = input.0;
-            let input_chan_manager = input.1;
+            let input_msg = input.recv;
+            let input_chan_manager = input.chan_manager;
 
             let (etcd_state, etcd_resp, etcd_notify_o) = transition_by_etcd(input_msg.get_Some_0(), s);
             let s_after_etcd_transition = KubernetesAPIState {

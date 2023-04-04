@@ -19,7 +19,11 @@ pub enum Step {
     SendDeleteCR,
 }
 
-pub type ClientActionInput = (Option<Message>, CustomResourceView, ChannelManager);
+pub struct ClientActionInput {
+    pub recv: Option<Message>,
+    pub cr: CustomResourceView,
+    pub chan_manager: ChannelManager,
+}
 
 pub type ClientActionOutput = (Multiset<Message>, ChannelManager);
 
@@ -34,10 +38,10 @@ pub open spec fn client_req_msg(msg_content: MessageContent) -> Message {
 pub open spec fn send_create_cr() -> ClientAction {
     Action {
         precondition: |input: ClientActionInput, s: ClientState| {
-            &&& input.0.is_None()
+            &&& input.recv.is_None()
         },
         transition: |input: ClientActionInput, s: ClientState| {
-            (ClientState{}, (Multiset::singleton(client_req_msg(create_req_msg_content(KubernetesObject::CustomResource(input.1), input.2.allocate().1))), input.2.allocate().0))
+            (ClientState{}, (Multiset::singleton(client_req_msg(create_req_msg_content(KubernetesObject::CustomResource(input.cr), input.chan_manager.allocate().1))), input.chan_manager.allocate().0))
         },
     }
 }
@@ -45,10 +49,10 @@ pub open spec fn send_create_cr() -> ClientAction {
 pub open spec fn send_delete_cr() -> ClientAction {
     Action {
         precondition: |input: ClientActionInput, s: ClientState| {
-            &&& input.0.is_None()
+            &&& input.recv.is_None()
         },
         transition: |input: ClientActionInput, s: ClientState| {
-            (ClientState{}, (Multiset::singleton(client_req_msg(delete_req_msg_content(input.1.object_ref(), input.2.allocate().1))), input.2.allocate().0))
+            (ClientState{}, (Multiset::singleton(client_req_msg(delete_req_msg_content(input.cr.object_ref(), input.chan_manager.allocate().1))), input.chan_manager.allocate().0))
         },
     }
 }

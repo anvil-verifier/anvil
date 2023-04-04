@@ -28,7 +28,11 @@ pub enum ControllerStep {
     EndReconcile,
 }
 
-pub type ControllerActionInput = (Option<Message>, Option<ObjectRef>, ChannelManager);
+pub struct ControllerActionInput {
+    pub recv: Option<Message>,
+    pub scheduled_cr_key: Option<ObjectRef>,
+    pub chan_manager: ChannelManager,
+}
 
 pub type ControllerActionOutput = (Multiset<Message>, ChannelManager);
 
