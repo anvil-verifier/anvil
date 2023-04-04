@@ -178,7 +178,7 @@ pub proof fn lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assum
         cr_key.kind.is_CustomResourceKind(),
     ensures
         sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))).entails(
-            lift_state(|s: State<T>| { !s.reconcile_state_contains(cr_key)})
+            lift_state(|s: State<T>| !s.reconcile_state_contains(cr_key))
                 .leads_to(lift_state(|s: State<T>| {
                     &&& !s.reconcile_state_contains(cr_key)
                     &&& s.reconcile_scheduled_for(cr_key)})
@@ -198,11 +198,11 @@ pub proof fn lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assum
 }
 
 pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_init_and_no_pending_req<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
-requires
-    cr_key.kind.is_CustomResourceKind(),
-ensures
-    sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))).entails(
-        lift_state(|s: State<T>| {!s.reconcile_state_contains(cr_key)})
+    requires
+        cr_key.kind.is_CustomResourceKind(),
+    ensures
+        sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))).entails(
+            lift_state(|s: State<T>| {!s.reconcile_state_contains(cr_key)})
             .leads_to(lift_state(|s: State<T>| {
                 &&& s.reconcile_state_contains(cr_key)
                 &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()

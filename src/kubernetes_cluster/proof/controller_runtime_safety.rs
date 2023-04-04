@@ -105,12 +105,11 @@ pub proof fn lemma_always_forall_resp_matches_at_most_one_pending_req<T>(reconci
     ensures
         sm_spec(reconciler).entails(tla_forall(|msg| always(lift_state(resp_matches_at_most_one_pending_req(msg, cr_key))))),
 {
-    assert forall |ex| #[trigger] sm_spec(reconciler).satisfied_by(ex) implies tla_forall(|msg| always(lift_state(resp_matches_at_most_one_pending_req(msg, cr_key)))).satisfied_by(ex) by {
-        assert forall |msg| #[trigger] always(lift_state(resp_matches_at_most_one_pending_req(msg, cr_key))).satisfied_by(ex) by {
-            lemma_always_resp_matches_at_most_one_pending_req::<T>(reconciler, msg, cr_key);
-            entails_apply::<State<T>>(ex, sm_spec(reconciler), always(lift_state(resp_matches_at_most_one_pending_req(msg, cr_key))));
-        }
+    let m_to_p = |msg| always(lift_state(resp_matches_at_most_one_pending_req(msg, cr_key)));
+    assert forall |msg| #[trigger] sm_spec(reconciler).entails(m_to_p(msg)) by {
+        lemma_always_resp_matches_at_most_one_pending_req::<T>(reconciler, msg, cr_key);
     };
+    spec_entails_tla_forall(sm_spec(reconciler), m_to_p);
 }
 
 pub open spec fn each_resp_matches_at_most_one_pending_req<T>(cr_key: ObjectRef) -> StatePred<State<T>>

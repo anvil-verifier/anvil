@@ -144,7 +144,7 @@ proof fn implies_apply_with_always<T>(ex: Execution<T>, p: TempPred<T>, q: TempP
     always_unfold::<T>(ex, p);
 }
 
-pub proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.entails(q),
         p.satisfied_by(ex),
@@ -161,7 +161,7 @@ proof fn entails_apply_auto<T>()
 {
     assert forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>|
     #[trigger] valid(p.implies(q)) && p.satisfied_by(ex) implies #[trigger] q.satisfied_by(ex) by {
-       entails_apply(ex, p, q);
+        entails_apply(ex, p, q);
     };
 }
 
