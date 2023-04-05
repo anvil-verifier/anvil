@@ -531,7 +531,7 @@ proof fn confluence_at_some_point<T>(ex: Execution<T>, next: TempPred<T>, p: Tem
 
 /// Predict future behavior from always predicate
 /// pre:
-///     spec(p)
+///     spec(ex)
 ///     spec |= always(p)
 /// post:
 ///     p(ex.suffix(i))
@@ -643,7 +643,7 @@ pub proof fn tla_exists_equality<T, A>(f: FnSpec(A, T) -> bool)
 
 /// Lift the "always" outside tla_forall if the function is previously wrapped by an "always"
 /// Note: Verus may not able to infer that (|a| func(a))(a) equals func(a).
-///       Please turn to lemma tla_forall_always_equality_variant for troubleshooting. 
+///       Please turn to lemma tla_forall_always_equality_variant for troubleshooting.
 pub proof fn tla_forall_always_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
     ensures
         tla_forall(|a: A| always(a_to_p(a))) == always(tla_forall(a_to_p)),
