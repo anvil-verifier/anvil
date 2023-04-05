@@ -1301,6 +1301,13 @@ pub proof fn wf1_assume<T>(spec: TempPred<T>, next: ActionPred<T>, forward: Acti
     wf1_variant_assume_temp::<T>(spec, lift_action(next), lift_action(forward), lift_state(asm), lift_state(p), lift_state(q));
 }
 
+/// Leads to p and q if (1) p leads to q and (2) ~q and next preserve p
+/// pre:
+///     spec |= [](p /\ ~q /\ next => p')
+///     spec |= p ~> q
+///     spec |= []next
+/// post:
+///     spec |= p ~> p /\ q
 pub proof fn leads_to_confluence_self_temp<T>(spec: TempPred<T>, next: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         spec.entails(always(p.and(not(q)).and(next).implies(later(p)))),
@@ -1326,6 +1333,7 @@ pub proof fn leads_to_confluence_self_temp<T>(spec: TempPred<T>, next: TempPred<
     };
 }
 
+/// StatePred version of leads_to_confluence_self_temp
 pub proof fn leads_to_confluence_self<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
     requires
         forall |s, s_prime: T| p(s) && !q(s) && #[trigger] next(s, s_prime) ==> p(s_prime),
@@ -1854,6 +1862,12 @@ pub proof fn implies_preserved_by_eventually_temp<T>(p: TempPred<T>, q: TempPred
     };
 }
 
+/// Strength only part of the spec
+/// pre:
+///     spec /\ q |= r
+///     p |= q
+/// post:
+///     spec /\ p |= r
 pub proof fn partially_strengthen_spec<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     requires
         spec.and(q).entails(r),
