@@ -77,7 +77,7 @@ proof fn liveness_proof(cr: CustomResourceView)
     temp_pred_equality::<State<SimpleReconcileState>>(lift_state(init(simple_reconciler())).and(sm_partial_spec(simple_reconciler()).and(all_invariants(cr))), sm_spec(simple_reconciler()).and(all_invariants(cr)));
 
     lemma_sm_spec_entails_all_invariants(cr);
-    minimize_spec::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), all_invariants(cr), always(cr_exists(cr)).leads_to(lift_state(cm_exists(cr))));
+    simplify_predicate::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), all_invariants(cr));
 
     lemma_p_leads_to_cm_always_exists(cr, always(cr_exists(cr)));
 }

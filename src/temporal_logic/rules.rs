@@ -529,6 +529,12 @@ proof fn confluence_at_some_point<T>(ex: Execution<T>, next: TempPred<T>, p: Tem
 /// All the lemmas above are used internally for proving the lemmas below
 /// The following lemmas are used by developers to simplify liveness/safety proof
 
+/// Predict future behavior from always predicate
+/// pre:
+///     spec(p)
+///     spec |= always(p)
+/// post:
+///     p(ex.suffix(i))
 pub proof fn instantiate_entailed_always<T>(ex: Execution<T>, i: nat, spec: TempPred<T>, p: TempPred<T>)
     requires
         spec.satisfied_by(ex),
@@ -635,6 +641,9 @@ pub proof fn tla_exists_equality<T, A>(f: FnSpec(A, T) -> bool)
     temp_pred_equality::<T>(p, q);
 }
 
+/// Lift the "always" outside tla_forall if the function is previously wrapped by an "always"
+/// Note: Verus may not able to infer that (|a| func(a))(a) equals func(a).
+///       Please turn to lemma tla_forall_always_equality_variant for troubleshooting. 
 pub proof fn tla_forall_always_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
     ensures
         tla_forall(|a: A| always(a_to_p(a))) == always(tla_forall(a_to_p)),
@@ -916,6 +925,7 @@ pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
     };
 }
 
+/// The three-predicate-version for entails_and_temp
 pub proof fn entails_and_3_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
     requires
         spec.entails(p1),
@@ -928,6 +938,7 @@ pub proof fn entails_and_3_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempP
     entails_and_temp::<T>(spec, p1.and(p2), p3);
 }
 
+/// The four-predicate-version for entails_and_temp
 pub proof fn entails_and_4_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>)
     requires
         spec.entails(p1),
@@ -941,6 +952,12 @@ pub proof fn entails_and_4_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempP
     entails_and_temp::<T>(spec, p1.and(p2).and(p3), p4);
 }
 
+/// Combining two specs together entails p and q if each of them entails p, q respectively.
+/// pre:
+///     spec1 |= p
+///     spec2 |= q
+/// post:
+///     spec1 /\ spec2 |= p /\ q
 pub proof fn entails_and_different_temp<T>(spec1: TempPred<T>, spec2: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         spec1.entails(p),
@@ -987,6 +1004,8 @@ pub proof fn stable_and_temp<T>(p: TempPred<T>, q: TempPred<T>)
     }
 }
 
+/// The three-predicate-version of stable_and_temp
+/// This is created for avoid multiple calls to stable_and_temp.
 pub proof fn stable_and_3_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
     requires
         valid(stable(p1)),
@@ -999,6 +1018,7 @@ pub proof fn stable_and_3_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred
     stable_and_temp::<T>(p1.and(p2), p3);
 }
 
+/// The four-predicate-version of stable_and_temp
 pub proof fn stable_and_4_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>)
     requires
         valid(stable(p1)),
@@ -1037,6 +1057,11 @@ pub proof fn unpack_assumption_from_spec<T>(init: TempPred<T>, partial_spec: Tem
     };
 }
 
+/// A stronger spec can undoubtedly entail the previous conclusion.
+/// pre:
+///     spec |= p
+/// post:
+///     spec /\ asm |= p
 pub proof fn strengthen_spec<T>(spec: TempPred<T>, asm: TempPred<T>, p: TempPred<T>)
     requires
         spec.entails(p),
@@ -1049,19 +1074,22 @@ pub proof fn strengthen_spec<T>(spec: TempPred<T>, asm: TempPred<T>, p: TempPred
     };
 }
 
-pub proof fn minimize_spec<T>(spec: TempPred<T>, asm: TempPred<T>, p: TempPred<T>)
+/// This lemma is used to make the predicate as concise as possible.
+/// Similar to the first-order logic where p equals p /\ q when p -> q is satisfied,
+/// we can reduce the size of predicate when some part of it implies the rest.
+pub proof fn simplify_predicate<T>(simpler: TempPred<T>, redundant: TempPred<T>)
     requires
-        spec.entails(asm),
-        spec.and(asm).entails(p),
+        simpler.entails(redundant),
     ensures
-        spec.entails(p),
+        simpler == simpler.and(redundant),
 {
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.satisfied_by(ex) by {
-        entails_apply(ex, spec, asm);
-        assert(spec.and(asm).satisfied_by(ex));
-        entails_apply(ex, spec.and(asm), p);
+    assert forall |ex| #[trigger] simpler.satisfied_by(ex) implies simpler.and(redundant).satisfied_by(ex) by {
+        entails_and_temp::<T>(simpler, simpler, redundant);
+        entails_apply::<T>(ex, simpler, simpler.and(redundant));
     };
+    temp_pred_equality::<T>(simpler, simpler.and(redundant));
 }
+
 
 /// Prove safety by induction.
 /// pre:
