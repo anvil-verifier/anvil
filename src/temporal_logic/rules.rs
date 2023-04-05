@@ -906,6 +906,22 @@ pub proof fn leads_to_self<T>(p: StatePred<T>)
     leads_to_self_temp::<T>(lift_state(p));
 }
 
+/// Obviously p ~> p /\ p is valid
+/// post:
+///     |= p ~> p /\ p
+pub proof fn leads_to_self_and_self_temp<T>(p: TempPred<T>)
+    ensures
+        valid(p.leads_to(p.and(p))),
+{
+    assert forall |ex| #[trigger] always(p.implies(eventually(p.and(p)))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(p.and(p)).satisfied_by(ex.suffix(i)) by {
+            execution_equality::<T>(ex.suffix(i), ex.suffix(i).suffix(0));
+            assert(p.and(p).satisfied_by(ex.suffix(i).suffix(0)));
+            eventually_proved_by_witness::<T>(ex.suffix(i), p.and(p), 0);
+        };
+    };
+}
+
 /// Entails p and q if entails each of them.
 /// pre:
 ///     spec |= p
@@ -1316,21 +1332,8 @@ pub proof fn leads_to_confluence_self_temp<T>(spec: TempPred<T>, next: TempPred<
     ensures
         spec.entails(p.leads_to(p.and(q))),
 {
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(p.and(q)).satisfied_by(ex) by {
-        entails_apply::<T>(ex, spec, p.leads_to(q));
-        entails_apply::<T>(ex, spec, always(next));
-        entails_apply::<T>(ex, spec, always(p.and(not(q)).and(next).implies(later(p))));
-        assert(p.leads_to(q).satisfied_by(ex));
-        assert(always(next).satisfied_by(ex));
-        assert(always(p.and(not(q)).and(next).implies(later(p))).satisfied_by(ex));
-        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(p.and(q)).satisfied_by(ex.suffix(i)) by {
-            leads_to_unfold::<T>(ex, p, q);
-            let q_idx = eventually_choose_witness::<T>(ex.suffix(i), q);
-            always_propagate_forwards::<T>(ex, next, i);
-            always_propagate_forwards::<T>(ex, p.and(not(q)).and(next).implies(later(p)), i);
-            confluence_at_some_point::<T>(ex.suffix(i), next, p, q, q_idx);
-        };
-    };
+    leads_to_self_and_self_temp::<T>(p);
+    leads_to_partial_confluence_temp::<T>(spec, next, p, p, p, q);
 }
 
 /// StatePred version of leads_to_confluence_self_temp
