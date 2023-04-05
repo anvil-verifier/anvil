@@ -110,18 +110,18 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Etc
 }
 
 /// Collect the requests from the builtin controllers
-pub open spec fn transition_by_builtin_controllers(event: WatchEvent, s: KubernetesAPIState) -> (ChannelManager, Multiset<Message>) {
+pub open spec fn transition_by_builtin_controllers(event: WatchEvent, s: KubernetesAPIState, chan_manager: ChannelManager) -> (ChannelManager, Multiset<Message>) {
     // We only have spec of statefulset_controller for now
-    statefulset_controller::transition_by_statefulset_controller(event, s)
+    statefulset_controller::transition_by_statefulset_controller(event, s, chan_manager)
 }
 
 pub open spec fn handle_request() -> KubernetesAPIAction {
     Action {
         precondition: |input: KubernetesAPIActionInput, s: KubernetesAPIState| {
-            &&& input.is_Some()
-            &&& input.get_Some_0().content.is_APIRequest()
+            &&& input.recv.is_Some()
+            &&& input.recv.get_Some_0().content.is_APIRequest()
             // This dst check is redundant since the compound state machine has checked it
-            &&& input.get_Some_0().dst == HostId::KubernetesAPI
+            &&& input.recv.get_Some_0().dst == HostId::KubernetesAPI
         },
         transition: |input: KubernetesAPIActionInput, s: KubernetesAPIState| {
             // This transition describes how Kubernetes API server handles requests,
@@ -145,21 +145,23 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
             // (b) omitting the notification stream from the datastore to apiserver then to built-in controller,
             //  and making built-in controllers immediately activated by updates to cluster state;
             // (c) baking them into one action, which makes them atomic.
-            let (etcd_state, etcd_resp, etcd_notify_o) = transition_by_etcd(input.get_Some_0(), s);
+            let input_msg = input.recv;
+            let input_chan_manager = input.chan_manager;
+
+            let (etcd_state, etcd_resp, etcd_notify_o) = transition_by_etcd(input_msg.get_Some_0(), s);
             let s_after_etcd_transition = KubernetesAPIState {
                 resources: etcd_state,
                 ..s
             };
             if etcd_notify_o.is_Some() {
-                let (chan_manager_prime, controller_requests) = transition_by_builtin_controllers(etcd_notify_o.get_Some_0(), s_after_etcd_transition);
+                let (chan_manager_prime, controller_requests) = transition_by_builtin_controllers(etcd_notify_o.get_Some_0(), s_after_etcd_transition, input_chan_manager);
                 let s_prime = KubernetesAPIState {
-                    chan_manager: chan_manager_prime,
                     ..s_after_etcd_transition
                 };
-                (s_prime, Multiset::empty().insert(etcd_resp).add(controller_requests))
+                (s_prime, (Multiset::empty().insert(etcd_resp).add(controller_requests), chan_manager_prime))
             } else {
                 let s_prime = s_after_etcd_transition;
-                (s_prime, Multiset::singleton(etcd_resp))
+                (s_prime, (Multiset::singleton(etcd_resp), input_chan_manager))
             }
         },
     }
@@ -168,7 +170,6 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
 pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine {
     StateMachine {
         init: |s: KubernetesAPIState| s == KubernetesAPIState {
-            chan_manager: ChannelManager::init(),
             resources: Map::empty(),
         },
         actions: set![handle_request()],

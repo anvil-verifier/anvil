@@ -15,7 +15,6 @@ verus! {
 pub type EtcdState = Map<ObjectRef, KubernetesObject>;
 
 pub struct KubernetesAPIState {
-    pub chan_manager: ChannelManager,
     pub resources: EtcdState,
 }
 
@@ -23,12 +22,15 @@ pub enum KubernetesAPIStep {
     HandleRequest,
 }
 
-pub type KubernetesAPIActionInput = Option<Message>;
+pub struct KubernetesAPIActionInput {
+    pub recv: Option<Message>,
+    pub chan_manager: ChannelManager,
+}
 
-pub type KubernetesAPIStateMachine = StateMachine<KubernetesAPIState, KubernetesAPIActionInput, KubernetesAPIActionInput, Multiset<Message>, KubernetesAPIStep>;
+pub type KubernetesAPIActionOutput = (Multiset<Message>, ChannelManager);
 
-pub type KubernetesAPIAction = Action<KubernetesAPIState, KubernetesAPIActionInput, Multiset<Message>>;
+pub type KubernetesAPIStateMachine = StateMachine<KubernetesAPIState, KubernetesAPIActionInput, KubernetesAPIActionInput, KubernetesAPIActionOutput, KubernetesAPIStep>;
 
-pub type KubernetesAPIActionResult = ActionResult<KubernetesAPIState, Multiset<Message>>;
+pub type KubernetesAPIAction = Action<KubernetesAPIState, KubernetesAPIActionInput, KubernetesAPIActionOutput>;
 
 }

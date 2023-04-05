@@ -1,25 +1,27 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*, object::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, custom_resource::*, object::*};
 use crate::kubernetes_cluster::spec::{
-    client,
+    channel::*,
     client::{client, ClientActionInput, ClientState},
-    controller::common::{
-        insert_scheduled_reconcile, ControllerAction, ControllerActionInput, ControllerState,
-        OngoingReconcile,
+    controller::{
+        common::{
+            insert_scheduled_reconcile, ControllerAction, ControllerActionInput, ControllerState,
+            OngoingReconcile,
+        },
+        state_machine::controller,
     },
-    controller::state_machine::controller,
-    kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
-    kubernetes_api::state_machine::kubernetes_api,
+    kubernetes_api::{
+        common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
+        state_machine::kubernetes_api,
+    },
     message::*,
-    network,
     network::{multiset_contains_msg, network, NetworkState},
     reconciler::Reconciler,
 };
-use crate::pervasive::{map::*, option::*, seq::*, set::*};
-use crate::state_machine::action::*;
-use crate::state_machine::state_machine::*;
+use crate::pervasive::prelude::*;
+use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use builtin::*;
 use builtin_macros::*;
@@ -31,6 +33,7 @@ pub struct State<T> {
     pub controller_state: ControllerState<T>,
     pub client_state: ClientState,
     pub network_state: NetworkState,
+    pub chan_manager: ChannelManager,
 }
 
 impl<T> State<T> {
@@ -76,6 +79,7 @@ pub open spec fn init<T>(reconciler: Reconciler<T>) -> StatePred<State<T>> {
         &&& (controller(reconciler).init)(s.controller_state)
         &&& (client().init)(s.client_state)
         &&& (network().init)(s.network_state)
+        &&& s.chan_manager == ChannelManager::init()
     }
 }
 
@@ -87,54 +91,62 @@ pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostI
     }
 }
 
-pub open spec fn kubernetes_api_next<T>() -> Action<State<T>, KubernetesAPIActionInput, ()> {
-    let result = |input: KubernetesAPIActionInput, s: State<T>| {
-        let host_result = kubernetes_api().next_result(input, s.kubernetes_api_state);
+pub open spec fn kubernetes_api_next<T>() -> Action<State<T>, Option<Message>, ()> {
+    let result = |input: Option<Message>, s: State<T>| {
+        let host_result = kubernetes_api().next_result(
+            KubernetesAPIActionInput{recv: input, chan_manager: s.chan_manager},
+            s.kubernetes_api_state
+        );
         let msg_ops = MessageOps {
             recv: input,
-            send: host_result.get_Enabled_1(),
+            send: host_result.get_Enabled_1().0,
         };
         let network_result = network().next_result(msg_ops, s.network_state);
 
         (host_result, network_result)
     };
     Action {
-        precondition: |input: KubernetesAPIActionInput, s: State<T>| {
+        precondition: |input: Option<Message>, s: State<T>| {
             &&& received_msg_destined_for(input, HostId::KubernetesAPI)
             &&& result(input, s).0.is_Enabled()
             &&& result(input, s).1.is_Enabled()
         },
-        transition: |input: KubernetesAPIActionInput, s: State<T>| {
+        transition: |input: Option<Message>, s: State<T>| {
             (State {
                 kubernetes_api_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
+                chan_manager: result(input, s).0.get_Enabled_1().1,
                 ..s
             }, ())
         },
     }
 }
 
-pub open spec fn controller_next<T>(reconciler: Reconciler<T>) -> Action<State<T>, ControllerActionInput, ()> {
-    let result = |input: ControllerActionInput, s: State<T>| {
-        let host_result = controller(reconciler).next_result(input, s.controller_state);
+pub open spec fn controller_next<T>(reconciler: Reconciler<T>) -> Action<State<T>, (Option<Message>, Option<ObjectRef>), ()> {
+    let result = |input: (Option<Message>, Option<ObjectRef>), s: State<T>| {
+        let host_result = controller(reconciler).next_result(
+            ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager},
+            s.controller_state
+        );
         let msg_ops = MessageOps {
-            recv: input.recv,
-            send: host_result.get_Enabled_1(),
+            recv: input.0,
+            send: host_result.get_Enabled_1().0,
         };
         let network_result = network().next_result(msg_ops, s.network_state);
 
         (host_result, network_result)
     };
     Action {
-        precondition: |input: ControllerActionInput, s: State<T>| {
-            &&& received_msg_destined_for(input.recv, HostId::CustomController)
+        precondition: |input: (Option<Message>, Option<ObjectRef>), s: State<T>| {
+            &&& received_msg_destined_for(input.0, HostId::CustomController)
             &&& result(input, s).0.is_Enabled()
             &&& result(input, s).1.is_Enabled()
         },
-        transition: |input: ControllerActionInput, s: State<T>| {
+        transition: |input: (Option<Message>, Option<ObjectRef>), s: State<T>| {
             (State {
                 controller_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
+                chan_manager: result(input, s).0.get_Enabled_1().1,
                 ..s
             }, ())
         },
@@ -162,27 +174,31 @@ pub open spec fn schedule_controller_reconcile<T>() -> Action<State<T>, ObjectRe
     }
 }
 
-pub open spec fn client_next<T>() -> Action<State<T>, ClientActionInput, ()> {
-    let result = |input: ClientActionInput, s: State<T>| {
-        let host_result = client().next_result(input, s.client_state);
+pub open spec fn client_next<T>() -> Action<State<T>, (Option<Message>, CustomResourceView), ()> {
+    let result = |input: (Option<Message>, CustomResourceView), s: State<T>| {
+        let host_result = client().next_result(
+            ClientActionInput{recv: input.0, cr: input.1, chan_manager: s.chan_manager},
+            s.client_state
+        );
         let msg_ops = MessageOps {
-            recv: input.recv,
-            send: host_result.get_Enabled_1(),
+            recv: input.0,
+            send: host_result.get_Enabled_1().0,
         };
         let network_result = network().next_result(msg_ops, s.network_state);
 
         (host_result, network_result)
     };
     Action {
-        precondition: |input: ClientActionInput, s: State<T>| {
-            &&& received_msg_destined_for(input.recv, HostId::Client)
+        precondition: |input: (Option<Message>, CustomResourceView), s: State<T>| {
+            &&& received_msg_destined_for(input.0, HostId::Client)
             &&& result(input, s).0.is_Enabled()
             &&& result(input, s).1.is_Enabled()
         },
-        transition: |input: ClientActionInput, s: State<T>| {
+        transition: |input: (Option<Message>, CustomResourceView), s: State<T>| {
             (State {
                 client_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
+                chan_manager: result(input, s).0.get_Enabled_1().1,
                 ..s
             }, ())
         },
@@ -202,10 +218,10 @@ pub open spec fn stutter<T>() -> Action<State<T>, Option<Message>, ()> {
 }
 
 pub enum Step {
-    KubernetesAPIStep(KubernetesAPIActionInput),
-    ControllerStep(ControllerActionInput),
+    KubernetesAPIStep(Option<Message>),
+    ControllerStep((Option<Message>, Option<ObjectRef>)),
     ScheduleControllerReconcileStep(ObjectRef),
-    ClientStep(ClientActionInput),
+    ClientStep((Option<Message>, CustomResourceView)),
     StutterStep(Option<Message>),
 }
 
@@ -240,12 +256,16 @@ pub open spec fn sm_partial_spec<T>(reconciler: Reconciler<T>) -> TempPred<State
     .and(tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)))
 }
 
-pub open spec fn kubernetes_api_action_pre<T>(action: KubernetesAPIAction, input: KubernetesAPIActionInput) -> StatePred<State<T>> {
+pub open spec fn kubernetes_api_action_pre<T>(action: KubernetesAPIAction, input: Option<Message>) -> StatePred<State<T>> {
     |s: State<T>| {
-        let host_result = kubernetes_api().next_action_result(action, input, s.kubernetes_api_state);
+        let host_result = kubernetes_api().next_action_result(
+            action,
+            KubernetesAPIActionInput{recv: input, chan_manager: s.chan_manager},
+            s.kubernetes_api_state
+        );
         let msg_ops = MessageOps {
             recv: input,
-            send: host_result.get_Enabled_1(),
+            send: host_result.get_Enabled_1().0,
         };
         let network_result = network().next_result(msg_ops, s.network_state);
 
@@ -255,16 +275,20 @@ pub open spec fn kubernetes_api_action_pre<T>(action: KubernetesAPIAction, input
     }
 }
 
-pub open spec fn controller_action_pre<T>(reconciler: Reconciler<T>, action: ControllerAction<T>, input: ControllerActionInput) -> StatePred<State<T>> {
+pub open spec fn controller_action_pre<T>(reconciler: Reconciler<T>, action: ControllerAction<T>, input: (Option<Message>, Option<ObjectRef>)) -> StatePred<State<T>> {
     |s: State<T>| {
-        let host_result = controller(reconciler).next_action_result(action, input, s.controller_state);
+        let host_result = controller(reconciler).next_action_result(
+            action,
+            ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager},
+            s.controller_state
+        );
         let msg_ops = MessageOps {
-            recv: input.recv,
-            send: host_result.get_Enabled_1(),
+            recv: input.0,
+            send: host_result.get_Enabled_1().0,
         };
         let network_result = network().next_result(msg_ops, s.network_state);
 
-        &&& received_msg_destined_for(input.recv, HostId::CustomController)
+        &&& received_msg_destined_for(input.0, HostId::CustomController)
         &&& host_result.is_Enabled()
         &&& network_result.is_Enabled()
     }

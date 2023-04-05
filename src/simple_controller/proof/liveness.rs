@@ -4,9 +4,8 @@
 use crate::kubernetes_api_objects::{common::*, custom_resource::*, object::*};
 use crate::kubernetes_cluster::{
     proof::{
-        controller_runtime_liveness, controller_runtime_safety, kubernetes_api_liveness,
-        kubernetes_api_safety,
-        cluster::*,
+        cluster::*, controller_runtime_liveness, controller_runtime_safety,
+        kubernetes_api_liveness, kubernetes_api_safety,
     },
     spec::{
         controller::common::{controller_req_msg, ControllerActionInput},
@@ -87,7 +86,7 @@ proof fn liveness_proof(cr: CustomResourceView)
 
     lemma_sm_spec_entails_all_invariants(cr);
     simplify_predicate::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), all_invariants(cr));
-    
+
     // Step (5)
     lemma_p_leads_to_cm_always_exists(cr, always(cr_exists(cr)));
 }
@@ -219,7 +218,7 @@ proof fn lemma_init_pc_leads_to_cm_exists_with_invariants(cr: CustomResourceView
         ),
 {
     implies_to_leads_to::<State<SimpleReconcileState>>(partial_spec_with_invariants_and_cr_always_exists(cr), lift_state(reconciler_at_init_pc(cr)), lift_state(reconcile_init_pc_and_no_pending_req(cr)));
-    
+
     lemma_init_pc_and_no_pending_req_leads_to_cm_exists_with_invariants(cr);
     leads_to_trans::<State<SimpleReconcileState>>(partial_spec_with_invariants_and_cr_always_exists(cr), reconciler_at_init_pc(cr), reconcile_init_pc_and_no_pending_req(cr), cm_exists(cr));
 }
@@ -303,7 +302,7 @@ proof fn lemma_after_create_cm_pc_leads_to_cm_exists_with_invariants(cr: CustomR
             } else {
                 let cm = KubernetesObject::ConfigMap(simple_reconciler::subresource_configmap(cr.object_ref()));
                 let pre = |s: State<SimpleReconcileState>| {
-                    &&& s.message_in_flight(req_msg) &&& req_msg.dst == HostId::KubernetesAPI &&& req_msg.content.is_create_request() 
+                    &&& s.message_in_flight(req_msg) &&& req_msg.dst == HostId::KubernetesAPI &&& req_msg.content.is_create_request()
                     &&& req_msg.content.get_create_request().obj == cm
                 };
                 kubernetes_api_liveness::lemma_create_req_leads_to_res_exists::<SimpleReconcileState>(sm_partial_spec(simple_reconciler()), simple_reconciler(), req_msg, cm);
@@ -342,10 +341,7 @@ proof fn lemma_init_pc_leads_to_after_get_cr_pc(cr: CustomResourceView)
 {
     let pre = reconciler_at_init_pc_and_no_pending_req(cr);
     let post = reconciler_at_after_get_cr_pc(cr);
-    let input = ControllerActionInput {
-        recv: Option::None,
-        scheduled_cr_key: Option::Some(cr.object_ref()),
-    };
+    let input = (Option::None, Option::Some(cr.object_ref()));
     controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(sm_partial_spec(simple_reconciler()), simple_reconciler(), input, next(simple_reconciler()), continue_reconcile(simple_reconciler()), pre, post);
 }
 
@@ -411,10 +407,7 @@ proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc_wit
         &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr)(s)
     };
     let post = reconciler_at_after_create_cm_pc(cr);
-    let input = ControllerActionInput {
-        recv: Option::Some(resp_msg),
-        scheduled_cr_key: Option::Some(cr.object_ref()),
-    };
+    let input = (Option::Some(resp_msg), Option::Some(cr.object_ref()));
     let next_and_invariant = |s, s_prime: State<SimpleReconcileState>| {
         &&& next(simple_reconciler())(s, s_prime)
         &&& controller_runtime_safety::resp_matches_at_most_one_pending_req(resp_msg, cr.object_ref())(s)

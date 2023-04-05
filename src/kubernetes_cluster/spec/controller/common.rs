@@ -12,7 +12,6 @@ use builtin_macros::*;
 verus! {
 
 pub struct ControllerState<T> {
-    pub chan_manager: ChannelManager,
     pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile<T>>,
     pub scheduled_reconciles: Set<ObjectRef>,
 }
@@ -22,11 +21,6 @@ pub struct OngoingReconcile<T> {
     pub local_state: T,
 }
 
-pub struct ControllerActionInput {
-    pub recv: Option<Message>,
-    pub scheduled_cr_key: Option<ObjectRef>,
-}
-
 #[is_variant]
 pub enum ControllerStep {
     RunScheduledReconcile,
@@ -34,11 +28,17 @@ pub enum ControllerStep {
     EndReconcile,
 }
 
-pub type ControllerStateMachine<T> = StateMachine<ControllerState<T>, ControllerActionInput, ControllerActionInput, Multiset<Message>, ControllerStep>;
+pub struct ControllerActionInput {
+    pub recv: Option<Message>,
+    pub scheduled_cr_key: Option<ObjectRef>,
+    pub chan_manager: ChannelManager,
+}
 
-pub type ControllerAction<T> = Action<ControllerState<T>, ControllerActionInput, Multiset<Message>>;
+pub type ControllerActionOutput = (Multiset<Message>, ChannelManager);
 
-pub type ControllerActionResult<T> = ActionResult<ControllerState<T>, Multiset<Message>>;
+pub type ControllerStateMachine<T> = StateMachine<ControllerState<T>, ControllerActionInput, ControllerActionInput, ControllerActionOutput, ControllerStep>;
+
+pub type ControllerAction<T> = Action<ControllerState<T>, ControllerActionInput, ControllerActionOutput>;
 
 pub open spec fn controller_req_msg(req: APIRequest, req_id: nat) -> Message {
     form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req, req_id))

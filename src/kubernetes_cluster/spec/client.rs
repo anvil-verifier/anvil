@@ -12,25 +12,24 @@ use builtin_macros::*;
 
 verus! {
 
-pub struct ClientState {
-    pub chan_manager: ChannelManager
-}
-
-pub struct ClientActionInput {
-    pub recv: Option<Message>,
-    pub cr: CustomResourceView,
-}
+pub struct ClientState {}
 
 pub enum Step {
     SendCreateCR,
     SendDeleteCR,
 }
 
-pub type ClientStateMachine = StateMachine<ClientState, ClientActionInput, ClientActionInput, Multiset<Message>, Step>;
+pub struct ClientActionInput {
+    pub recv: Option<Message>,
+    pub cr: CustomResourceView,
+    pub chan_manager: ChannelManager,
+}
 
-pub type ClientAction = Action<ClientState, ClientActionInput, Multiset<Message>>;
+pub type ClientActionOutput = (Multiset<Message>, ChannelManager);
 
-pub type ClientActionResult = ActionResult<ClientState, Multiset<Message>>;
+pub type ClientStateMachine = StateMachine<ClientState, ClientActionInput, ClientActionInput, ClientActionOutput, Step>;
+
+pub type ClientAction = Action<ClientState, ClientActionInput, ClientActionOutput>;
 
 pub open spec fn client_req_msg(msg_content: MessageContent) -> Message {
     form_msg(HostId::Client, HostId::KubernetesAPI, msg_content)
@@ -42,7 +41,7 @@ pub open spec fn send_create_cr() -> ClientAction {
             &&& input.recv.is_None()
         },
         transition: |input: ClientActionInput, s: ClientState| {
-            (ClientState {chan_manager: s.chan_manager.allocate().0}, Multiset::singleton(client_req_msg(create_req_msg_content(KubernetesObject::CustomResource(input.cr), s.chan_manager.allocate().1))))
+            (ClientState{}, (Multiset::singleton(client_req_msg(create_req_msg_content(KubernetesObject::CustomResource(input.cr), input.chan_manager.allocate().1))), input.chan_manager.allocate().0))
         },
     }
 }
@@ -53,7 +52,7 @@ pub open spec fn send_delete_cr() -> ClientAction {
             &&& input.recv.is_None()
         },
         transition: |input: ClientActionInput, s: ClientState| {
-            (ClientState {chan_manager: s.chan_manager.allocate().0}, Multiset::singleton(client_req_msg(delete_req_msg_content(input.cr.object_ref(), s.chan_manager.allocate().1))))
+            (ClientState{}, (Multiset::singleton(client_req_msg(delete_req_msg_content(input.cr.object_ref(), input.chan_manager.allocate().1))), input.chan_manager.allocate().0))
         },
     }
 }
@@ -61,9 +60,7 @@ pub open spec fn send_delete_cr() -> ClientAction {
 pub open spec fn client() -> ClientStateMachine {
     StateMachine {
         init: |s: ClientState| {
-            s == ClientState {
-                chan_manager: ChannelManager::init(),
-            }
+            s == ClientState {}
         },
         actions: set![send_create_cr(), send_delete_cr()],
         step_to_action: |step: Step| {
