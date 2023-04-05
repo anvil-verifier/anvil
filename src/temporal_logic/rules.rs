@@ -161,11 +161,11 @@ proof fn entails_apply_auto<T>()
 {
     assert forall |ex: Execution<T>, p: TempPred<T>, q: TempPred<T>|
     #[trigger] valid(p.implies(q)) && p.satisfied_by(ex) implies #[trigger] q.satisfied_by(ex) by {
-       entails_apply(ex, p, q);
+        entails_apply(ex, p, q);
     };
 }
 
-proof fn entails_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+pub proof fn entails_trans<T>(p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     requires
         p.entails(q),
         q.entails(r),
@@ -328,7 +328,7 @@ proof fn valid_p_implies_always_p<T>(p: TempPred<T>)
     };
 }
 
-proof fn implies_to_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+pub proof fn implies_to_leads_to<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         spec.entails(always(p.implies(q))),
     ensures
@@ -529,6 +529,12 @@ proof fn confluence_at_some_point<T>(ex: Execution<T>, next: TempPred<T>, p: Tem
 /// All the lemmas above are used internally for proving the lemmas below
 /// The following lemmas are used by developers to simplify liveness/safety proof
 
+/// Predict future behavior from always predicate
+/// pre:
+///     spec(p)
+///     spec |= always(p)
+/// post:
+///     p(ex.suffix(i))
 pub proof fn instantiate_entailed_always<T>(ex: Execution<T>, i: nat, spec: TempPred<T>, p: TempPred<T>)
     requires
         spec.satisfied_by(ex),
@@ -635,6 +641,9 @@ pub proof fn tla_exists_equality<T, A>(f: FnSpec(A, T) -> bool)
     temp_pred_equality::<T>(p, q);
 }
 
+/// Lift the "always" outside tla_forall if the function is previously wrapped by an "always"
+/// Note: Verus may not able to infer that (|a| func(a))(a) equals func(a).
+///       Please turn to lemma tla_forall_always_equality_variant for troubleshooting. 
 pub proof fn tla_forall_always_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>)
     ensures
         tla_forall(|a: A| always(a_to_p(a))) == always(tla_forall(a_to_p)),
@@ -711,6 +720,15 @@ pub proof fn tla_forall_and_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: 
     };
 
     temp_pred_equality::<T>(tla_forall(|a: A| a_to_p(a).and(q)), tla_forall(a_to_p).and(q));
+}
+
+pub proof fn tla_forall_apply<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, a: A)
+    ensures
+        tla_forall(a_to_p).entails(a_to_p(a)),
+{
+    assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies a_to_p(a).satisfied_by(ex) by {
+        tla_forall_unfold::<T, A>(ex, a_to_p);
+    }
 }
 
 pub proof fn tla_forall_or_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
@@ -907,6 +925,52 @@ pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
     };
 }
 
+/// The three-predicate-version for entails_and_temp
+pub proof fn entails_and_3_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
+    requires
+        spec.entails(p1),
+        spec.entails(p2),
+        spec.entails(p3),
+    ensures
+        spec.entails(p1.and(p2).and(p3)),
+{
+    entails_and_temp::<T>(spec, p1, p2);
+    entails_and_temp::<T>(spec, p1.and(p2), p3);
+}
+
+/// The four-predicate-version for entails_and_temp
+pub proof fn entails_and_4_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>)
+    requires
+        spec.entails(p1),
+        spec.entails(p2),
+        spec.entails(p3),
+        spec.entails(p4),
+    ensures
+        spec.entails(p1.and(p2).and(p3).and(p4)),
+{
+    entails_and_3_temp::<T>(spec, p1, p2, p3);
+    entails_and_temp::<T>(spec, p1.and(p2).and(p3), p4);
+}
+
+/// Combining two specs together entails p and q if each of them entails p, q respectively.
+/// pre:
+///     spec1 |= p
+///     spec2 |= q
+/// post:
+///     spec1 /\ spec2 |= p /\ q
+pub proof fn entails_and_different_temp<T>(spec1: TempPred<T>, spec2: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        spec1.entails(p),
+        spec2.entails(q),
+    ensures
+        spec1.and(spec2).entails(p.and(q)),
+{
+    assert forall |ex| #[trigger] spec1.and(spec2).satisfied_by(ex) implies p.and(q).satisfied_by(ex) by {
+        implies_apply::<T>(ex, spec1, p);
+        implies_apply::<T>(ex, spec2, q);
+    };
+}
+
 /// An always predicate is stable.
 /// post:
 ///     |= stable(always(p))
@@ -940,6 +1004,34 @@ pub proof fn stable_and_temp<T>(p: TempPred<T>, q: TempPred<T>)
     }
 }
 
+/// The three-predicate-version of stable_and_temp
+/// This is created for avoid multiple calls to stable_and_temp.
+pub proof fn stable_and_3_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
+    requires
+        valid(stable(p1)),
+        valid(stable(p2)),
+        valid(stable(p3)),
+    ensures
+        valid(stable(p1.and(p2).and(p3))),
+{
+    stable_and_temp::<T>(p1, p2);
+    stable_and_temp::<T>(p1.and(p2), p3);
+}
+
+/// The four-predicate-version of stable_and_temp
+pub proof fn stable_and_4_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>)
+    requires
+        valid(stable(p1)),
+        valid(stable(p2)),
+        valid(stable(p3)),
+        valid(stable(p4)),
+    ensures
+        valid(stable(p1.and(p2).and(p3).and(p4))),
+{
+    stable_and_temp::<T>(p1, p2);
+    stable_and_3_temp::<T>(p1.and(p2), p3, p4);
+}
+
 /// Unpack the assumption from left to the right side of |=
 /// pre:
 ///     |= stable(partial_spec)
@@ -964,6 +1056,40 @@ pub proof fn unpack_assumption_from_spec<T>(init: TempPred<T>, partial_spec: Tem
         };
     };
 }
+
+/// A stronger spec can undoubtedly entail the previous conclusion.
+/// pre:
+///     spec |= p
+/// post:
+///     spec /\ asm |= p
+pub proof fn strengthen_spec<T>(spec: TempPred<T>, asm: TempPred<T>, p: TempPred<T>)
+    requires
+        spec.entails(p),
+    ensures
+        (spec.and(asm)).entails(p),
+{
+    assert forall |ex| #[trigger] (spec.and(asm)).satisfied_by(ex) implies p.satisfied_by(ex) by {
+        assert(spec.satisfied_by(ex));
+        entails_apply(ex, spec, p);
+    };
+}
+
+/// This lemma is used to make the predicate as concise as possible.
+/// Similar to the first-order logic where p equals p /\ q when p -> q is satisfied,
+/// we can reduce the size of predicate when some part of it implies the rest.
+pub proof fn simplify_predicate<T>(simpler: TempPred<T>, redundant: TempPred<T>)
+    requires
+        simpler.entails(redundant),
+    ensures
+        simpler == simpler.and(redundant),
+{
+    assert forall |ex| #[trigger] simpler.satisfied_by(ex) implies simpler.and(redundant).satisfied_by(ex) by {
+        entails_and_temp::<T>(simpler, simpler, redundant);
+        entails_apply::<T>(ex, simpler, simpler.and(redundant));
+    };
+    temp_pred_equality::<T>(simpler, simpler.and(redundant));
+}
+
 
 /// Prove safety by induction.
 /// pre:
@@ -1173,6 +1299,50 @@ pub proof fn wf1_assume<T>(spec: TempPred<T>, next: ActionPred<T>, forward: Acti
         };
     };
     wf1_variant_assume_temp::<T>(spec, lift_action(next), lift_action(forward), lift_state(asm), lift_state(p), lift_state(q));
+}
+
+/// Leads to p and q if (1) p leads to q and (2) ~q and next preserve p
+/// pre:
+///     spec |= [](p /\ ~q /\ next => p')
+///     spec |= p ~> q
+///     spec |= []next
+/// post:
+///     spec |= p ~> p /\ q
+pub proof fn leads_to_confluence_self_temp<T>(spec: TempPred<T>, next: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(always(p.and(not(q)).and(next).implies(later(p)))),
+        spec.entails(p.leads_to(q)),
+        spec.entails(always(next)),
+    ensures
+        spec.entails(p.leads_to(p.and(q))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(p.and(q)).satisfied_by(ex) by {
+        entails_apply::<T>(ex, spec, p.leads_to(q));
+        entails_apply::<T>(ex, spec, always(next));
+        entails_apply::<T>(ex, spec, always(p.and(not(q)).and(next).implies(later(p))));
+        assert(p.leads_to(q).satisfied_by(ex));
+        assert(always(next).satisfied_by(ex));
+        assert(always(p.and(not(q)).and(next).implies(later(p))).satisfied_by(ex));
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(p.and(q)).satisfied_by(ex.suffix(i)) by {
+            leads_to_unfold::<T>(ex, p, q);
+            let q_idx = eventually_choose_witness::<T>(ex.suffix(i), q);
+            always_propagate_forwards::<T>(ex, next, i);
+            always_propagate_forwards::<T>(ex, p.and(not(q)).and(next).implies(later(p)), i);
+            confluence_at_some_point::<T>(ex.suffix(i), next, p, q, q_idx);
+        };
+    };
+}
+
+/// StatePred version of leads_to_confluence_self_temp
+pub proof fn leads_to_confluence_self<T>(spec: TempPred<T>, next: ActionPred<T>, p: StatePred<T>, q: StatePred<T>)
+    requires
+        forall |s, s_prime: T| p(s) && !q(s) && #[trigger] next(s, s_prime) ==> p(s_prime),
+        spec.entails(lift_state(p).leads_to(lift_state(q))),
+        spec.entails(always(lift_action(next))),
+    ensures
+        spec.entails(lift_state(p).leads_to(lift_state(p).and(lift_state(q)))),
+{
+    leads_to_confluence_self_temp::<T>(spec, lift_action(next), lift_state(p), lift_state(q));
 }
 
 /// Leads to q and r if (1) p leads to q, (2) p leads to r, (3) ~r and next preserve q and (4) ~q and next preserve r
@@ -1692,6 +1862,24 @@ pub proof fn implies_preserved_by_eventually_temp<T>(p: TempPred<T>, q: TempPred
     };
 }
 
+/// Strength only part of the spec
+/// pre:
+///     spec /\ q |= r
+///     p |= q
+/// post:
+///     spec /\ p |= r
+pub proof fn partially_strengthen_spec<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    requires
+        spec.and(q).entails(r),
+        valid(p.implies(q)),
+    ensures
+        spec.and(p).entails(r),
+{
+    assert(p.entails(q));
+    entails_and_different_temp::<T>(spec, p, spec, q);
+    entails_trans(spec.and(p), spec.and(q), r);
+}
+
 /// Weaken eventually by implies.
 /// pre:
 ///     |= p => q
@@ -1931,6 +2119,58 @@ pub proof fn or_leads_to_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: State
         spec.entails(lift_state(p).or(lift_state(q)).leads_to(lift_state(r))),
 {
     or_leads_to_combine_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
+}
+
+/// Three-predicate-version of or_leads_to_combine_temp.
+pub proof fn or_leads_to_combine_3_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(p1.leads_to(q)),
+        spec.entails(p2.leads_to(q)),
+        spec.entails(p3.leads_to(q)),
+    ensures
+        spec.entails(p1.or(p2).or(p3).leads_to(q)),
+{
+    or_leads_to_combine_temp(spec, p1, p2, q);
+    or_leads_to_combine_temp(spec, p1.or(p2), p3, q);
+}
+
+/// StatePred version of or_leads_to_combine_3_temp.
+pub proof fn or_leads_to_combine_3<T>(spec: TempPred<T>, p1: StatePred<T>, p2: StatePred<T>, p3: StatePred<T>, q: StatePred<T>)
+    requires
+        spec.entails(lift_state(p1).leads_to(lift_state(q))),
+        spec.entails(lift_state(p2).leads_to(lift_state(q))),
+        spec.entails(lift_state(p3).leads_to(lift_state(q))),
+    ensures
+        spec.entails(lift_state(p1).or(lift_state(p2)).or(lift_state(p3)).leads_to(lift_state(q))),
+{
+    or_leads_to_combine_3_temp::<T>(spec, lift_state(p1), lift_state(p2), lift_state(p3), lift_state(q));
+}
+
+/// Four-predicate-version of or_leads_to_combine_temp.
+pub proof fn or_leads_to_combine_4_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(p1.leads_to(q)),
+        spec.entails(p2.leads_to(q)),
+        spec.entails(p3.leads_to(q)),
+        spec.entails(p4.leads_to(q)),
+    ensures
+        spec.entails(p1.or(p2).or(p3).or(p4).leads_to(q)),
+{
+    or_leads_to_combine_temp(spec, p1, p2, q);
+    or_leads_to_combine_3_temp(spec, p1.or(p2), p3, p4, q);
+}
+
+/// StatePred version of or_leads_to_combine_4_temp.
+pub proof fn or_leads_to_combine_4<T>(spec: TempPred<T>, p1: StatePred<T>, p2: StatePred<T>, p3: StatePred<T>, p4: StatePred<T>, q: StatePred<T>)
+    requires
+        spec.entails(lift_state(p1).leads_to(lift_state(q))),
+        spec.entails(lift_state(p2).leads_to(lift_state(q))),
+        spec.entails(lift_state(p3).leads_to(lift_state(q))),
+        spec.entails(lift_state(p4).leads_to(lift_state(q))),
+    ensures
+        spec.entails(lift_state(p1).or(lift_state(p2)).or(lift_state(p3)).or(lift_state(p4)).leads_to(lift_state(q))),
+{
+    or_leads_to_combine_4_temp::<T>(spec, lift_state(p1), lift_state(p2), lift_state(p3), lift_state(p4), lift_state(q));
 }
 
 /// Specialized version of or_leads_to_combine used for eliminating q in premise.
