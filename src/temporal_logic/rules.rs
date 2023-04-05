@@ -2121,6 +2121,58 @@ pub proof fn or_leads_to_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: State
     or_leads_to_combine_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }
 
+/// Three-predicate-version of or_leads_to_combine_temp.
+pub proof fn or_leads_to_combine_3_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(p1.leads_to(q)),
+        spec.entails(p2.leads_to(q)),
+        spec.entails(p3.leads_to(q)),
+    ensures
+        spec.entails(p1.or(p2).or(p3).leads_to(q)),
+{
+    or_leads_to_combine_temp(spec, p1, p2, q);
+    or_leads_to_combine_temp(spec, p1.or(p2), p3, q);
+}
+
+/// StatePred version of or_leads_to_combine_3_temp.
+pub proof fn or_leads_to_combine_3<T>(spec: TempPred<T>, p1: StatePred<T>, p2: StatePred<T>, p3: StatePred<T>, q: StatePred<T>)
+    requires
+        spec.entails(lift_state(p1).leads_to(lift_state(q))),
+        spec.entails(lift_state(p2).leads_to(lift_state(q))),
+        spec.entails(lift_state(p3).leads_to(lift_state(q))),
+    ensures
+        spec.entails(lift_state(p1).or(lift_state(p2)).or(lift_state(p3)).leads_to(lift_state(q))),
+{
+    or_leads_to_combine_3_temp::<T>(spec, lift_state(p1), lift_state(p2), lift_state(p3), lift_state(q));
+}
+
+/// Four-predicate-version of or_leads_to_combine_temp.
+pub proof fn or_leads_to_combine_4_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(p1.leads_to(q)),
+        spec.entails(p2.leads_to(q)),
+        spec.entails(p3.leads_to(q)),
+        spec.entails(p4.leads_to(q)),
+    ensures
+        spec.entails(p1.or(p2).or(p3).or(p4).leads_to(q)),
+{
+    or_leads_to_combine_temp(spec, p1, p2, q);
+    or_leads_to_combine_3_temp(spec, p1.or(p2), p3, p4, q);
+}
+
+/// StatePred version of or_leads_to_combine_4_temp.
+pub proof fn or_leads_to_combine_4<T>(spec: TempPred<T>, p1: StatePred<T>, p2: StatePred<T>, p3: StatePred<T>, p4: StatePred<T>, q: StatePred<T>)
+    requires
+        spec.entails(lift_state(p1).leads_to(lift_state(q))),
+        spec.entails(lift_state(p2).leads_to(lift_state(q))),
+        spec.entails(lift_state(p3).leads_to(lift_state(q))),
+        spec.entails(lift_state(p4).leads_to(lift_state(q))),
+    ensures
+        spec.entails(lift_state(p1).or(lift_state(p2)).or(lift_state(p3)).or(lift_state(p4)).leads_to(lift_state(q))),
+{
+    or_leads_to_combine_4_temp::<T>(spec, lift_state(p1), lift_state(p2), lift_state(p3), lift_state(p4), lift_state(q));
+}
+
 /// Specialized version of or_leads_to_combine used for eliminating q in premise.
 /// pre:
 ///     spec |= p /\ r ~> q
