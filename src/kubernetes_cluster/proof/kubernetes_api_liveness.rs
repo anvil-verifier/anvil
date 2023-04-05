@@ -20,7 +20,7 @@ use builtin_macros::*;
 
 verus! {
 
-pub proof fn lemma_pre_leads_to_post_by_kubernetes_api<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, input: KubernetesAPIActionInput, next: ActionPred<State<T>>, action: KubernetesAPIAction, pre: StatePred<State<T>>, post: StatePred<State<T>>)
+pub proof fn lemma_pre_leads_to_post_by_kubernetes_api<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, input: Option<Message>, next: ActionPred<State<T>>, action: KubernetesAPIAction, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         kubernetes_api().actions.contains(action),
         forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
@@ -31,7 +31,7 @@ pub proof fn lemma_pre_leads_to_post_by_kubernetes_api<T>(spec: TempPred<State<T
     ensures
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
-    use_tla_forall::<State<T>, KubernetesAPIActionInput>(spec, |i| kubernetes_api_next().weak_fairness(i), input);
+    use_tla_forall::<State<T>, Option<Message>>(spec, |i| kubernetes_api_next().weak_fairness(i), input);
 
     kubernetes_api_action_pre_implies_next_pre::<T>(action, input);
     valid_implies_trans::<State<T>>(lift_state(pre), lift_state(kubernetes_api_action_pre(action, input)), lift_state(kubernetes_api_next().pre(input)));
@@ -39,7 +39,7 @@ pub proof fn lemma_pre_leads_to_post_by_kubernetes_api<T>(spec: TempPred<State<T
     kubernetes_api_next().wf1(input, spec, next, pre, post);
 }
 
-pub proof fn lemma_pre_leads_to_post_with_assumption_by_kubernetes_api<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, input: KubernetesAPIActionInput, next: ActionPred<State<T>>, action: KubernetesAPIAction, assumption: StatePred<State<T>>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
+pub proof fn lemma_pre_leads_to_post_with_assumption_by_kubernetes_api<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, input: Option<Message>, next: ActionPred<State<T>>, action: KubernetesAPIAction, assumption: StatePred<State<T>>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         kubernetes_api().actions.contains(action),
         forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) && assumption(s) ==> pre(s_prime) || post(s_prime),
@@ -50,7 +50,7 @@ pub proof fn lemma_pre_leads_to_post_with_assumption_by_kubernetes_api<T>(spec: 
     ensures
         spec.entails(lift_state(pre).and(always(lift_state(assumption))).leads_to(lift_state(post))),
 {
-    use_tla_forall::<State<T>, KubernetesAPIActionInput>(spec, |i| kubernetes_api_next().weak_fairness(i), input);
+    use_tla_forall::<State<T>, Option<Message>>(spec, |i| kubernetes_api_next().weak_fairness(i), input);
 
     kubernetes_api_action_pre_implies_next_pre::<T>(action, input);
     valid_implies_trans::<State<T>>(lift_state(pre), lift_state(kubernetes_api_action_pre(action, input)), lift_state(kubernetes_api_next().pre(input)));

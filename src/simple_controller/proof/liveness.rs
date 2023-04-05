@@ -341,10 +341,7 @@ proof fn lemma_init_pc_leads_to_after_get_cr_pc(cr: CustomResourceView)
 {
     let pre = reconciler_at_init_pc_and_no_pending_req(cr);
     let post = reconciler_at_after_get_cr_pc(cr);
-    let input = ControllerActionInput {
-        recv: Option::None,
-        scheduled_cr_key: Option::Some(cr.object_ref()),
-    };
+    let input = (Option::None, Option::Some(cr.object_ref()));
     controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(sm_partial_spec(simple_reconciler()), simple_reconciler(), input, next(simple_reconciler()), continue_reconcile(simple_reconciler()), pre, post);
 }
 
@@ -410,10 +407,7 @@ proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc_wit
         &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr)(s)
     };
     let post = reconciler_at_after_create_cm_pc(cr);
-    let input = ControllerActionInput {
-        recv: Option::Some(resp_msg),
-        scheduled_cr_key: Option::Some(cr.object_ref()),
-    };
+    let input = (Option::Some(resp_msg), Option::Some(cr.object_ref()));
     let next_and_invariant = |s, s_prime: State<SimpleReconcileState>| {
         &&& next(simple_reconciler())(s, s_prime)
         &&& controller_runtime_safety::resp_matches_at_most_one_pending_req(resp_msg, cr.object_ref())(s)

@@ -23,7 +23,7 @@ use builtin_macros::*;
 
 verus! {
 
-pub proof fn lemma_pre_leads_to_post_by_controller<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, input: ControllerActionInput, next: ActionPred<State<T>>, action: ControllerAction<T>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
+pub proof fn lemma_pre_leads_to_post_by_controller<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, input: (Option<Message>, Option<ObjectRef>), next: ActionPred<State<T>>, action: ControllerAction<T>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         controller(reconciler).actions.contains(action),
         forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
@@ -34,7 +34,7 @@ pub proof fn lemma_pre_leads_to_post_by_controller<T>(spec: TempPred<State<T>>, 
     ensures
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
-    use_tla_forall::<State<T>, ControllerActionInput>(spec, |i| controller_next(reconciler).weak_fairness(i), input);
+    use_tla_forall::<State<T>, (Option<Message>, Option<ObjectRef>)>(spec, |i| controller_next(reconciler).weak_fairness(i), input);
 
     controller_action_pre_implies_next_pre::<T>(reconciler, action, input);
     valid_implies_trans::<State<T>>(lift_state(pre), lift_state(controller_action_pre(reconciler, action, input)), lift_state(controller_next(reconciler).pre(input)));
@@ -42,7 +42,7 @@ pub proof fn lemma_pre_leads_to_post_by_controller<T>(spec: TempPred<State<T>>, 
     controller_next(reconciler).wf1(input, spec, next, pre, post);
 }
 
-pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, input: ControllerActionInput, next: ActionPred<State<T>>, action: ControllerAction<T>, assumption: StatePred<State<T>>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
+pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, input: (Option<Message>, Option<ObjectRef>), next: ActionPred<State<T>>, action: ControllerAction<T>, assumption: StatePred<State<T>>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         controller(reconciler).actions.contains(action),
         forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) && assumption(s) ==> pre(s_prime) || post(s_prime),
@@ -53,7 +53,7 @@ pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<T>(spec: Temp
     ensures
         spec.entails(lift_state(pre).and(always(lift_state(assumption))).leads_to(lift_state(post))),
 {
-    use_tla_forall::<State<T>, ControllerActionInput>(spec, |i| controller_next(reconciler).weak_fairness(i), input);
+    use_tla_forall::<State<T>, (Option<Message>, Option<ObjectRef>)>(spec, |i| controller_next(reconciler).weak_fairness(i), input);
 
     controller_action_pre_implies_next_pre::<T>(reconciler, action, input);
     valid_implies_trans::<State<T>>(lift_state(pre), lift_state(controller_action_pre(reconciler, action, input)), lift_state(controller_next(reconciler).pre(input)));
@@ -82,10 +82,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle<T>(reconciler: Reconci
     let post = |s: State<T>| {
         &&& !s.reconcile_state_contains(cr_key)
     };
-    let input = ControllerActionInput {
-        recv: Option::None,
-        scheduled_cr_key: Option::Some(cr_key),
-    };
+    let input = (Option::None, Option::Some(cr_key));
     lemma_pre_leads_to_post_by_controller::<T>(sm_spec(reconciler), reconciler, input, next(reconciler), end_reconcile(reconciler), pre, post);
 }
 
@@ -110,10 +107,7 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle<T>(reconciler: Reconc
     let post = |s: State<T>| {
         &&& !s.reconcile_state_contains(cr_key)
     };
-    let input = ControllerActionInput {
-        recv: Option::None,
-        scheduled_cr_key: Option::Some(cr_key),
-    };
+    let input = (Option::None, Option::Some(cr_key));
     lemma_pre_leads_to_post_by_controller::<T>(sm_partial_spec(reconciler), reconciler, input, next(reconciler), end_reconcile(reconciler), pre, post);
 }
 
@@ -144,10 +138,7 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<T>(spec:
         &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
     };
-    let input = ControllerActionInput {
-        recv: Option::None,
-        scheduled_cr_key: Option::Some(cr_key),
-    };
+    let input = (Option::None, Option::Some(cr_key));
     lemma_pre_leads_to_post_by_controller::<T>(spec, reconciler, input, next(reconciler), run_scheduled_reconcile(reconciler), pre, post);
 }
 
