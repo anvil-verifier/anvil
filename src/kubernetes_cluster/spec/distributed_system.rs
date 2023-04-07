@@ -205,13 +205,12 @@ pub open spec fn client_next<T>() -> Action<State<T>, (Option<Message>, CustomRe
     }
 }
 
-// TODO: stutter does not need input
-pub open spec fn stutter<T>() -> Action<State<T>, Option<Message>, ()> {
+pub open spec fn stutter<T>() -> Action<State<T>, (), ()> {
     Action {
-        precondition: |input: Option<Message>, s: State<T>| {
-            input.is_None()
+        precondition: |input: (), s: State<T>| {
+            true
         },
-        transition: |input: Option<Message>, s: State<T>| {
+        transition: |input: (), s: State<T>| {
             (s, ())
         },
     }
@@ -222,7 +221,7 @@ pub enum Step {
     ControllerStep((Option<Message>, Option<ObjectRef>)),
     ScheduleControllerReconcileStep(ObjectRef),
     ClientStep((Option<Message>, CustomResourceView)),
-    StutterStep(Option<Message>),
+    StutterStep(),
 }
 
 pub open spec fn next_step<T>(reconciler: Reconciler<T>, s: State<T>, s_prime: State<T>, step: Step) -> bool {
@@ -231,7 +230,7 @@ pub open spec fn next_step<T>(reconciler: Reconciler<T>, s: State<T>, s_prime: S
         Step::ControllerStep(input) => controller_next(reconciler).forward(input)(s, s_prime),
         Step::ScheduleControllerReconcileStep(input) => schedule_controller_reconcile().forward(input)(s, s_prime),
         Step::ClientStep(input) => client_next().forward(input)(s, s_prime),
-        Step::StutterStep(input) => stutter().forward(input)(s, s_prime),
+        Step::StutterStep() => stutter().forward(())(s, s_prime),
     }
 }
 
