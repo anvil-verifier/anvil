@@ -16,10 +16,7 @@ verus! {
 pub open spec fn controller<T>(reconciler: Reconciler<T>) -> ControllerStateMachine<T> {
     StateMachine {
         init: |s: ControllerState<T>| {
-            s == ControllerState::<T> {
-                ongoing_reconciles: Map::empty(),
-                scheduled_reconciles: Set::empty(),
-            }
+            s == init_controller_state::<T>()
         },
         actions: set![
             run_scheduled_reconcile(reconciler),

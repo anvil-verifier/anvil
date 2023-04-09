@@ -28,6 +28,14 @@ use builtin_macros::*;
 
 verus! {
 
+proof fn valid_stable_action_weak_fairness<T, Output>(action: Action<State<T>, (), Output>)
+    ensures
+        valid(stable(action.weak_fairness(()))),
+{
+    let split_always = always(lift_state(action.pre(()))).implies(eventually(lift_action(action.forward(()))));
+    always_p_stable::<State<T>>(split_always);
+}
+
 proof fn valid_stable_tla_forall_action_weak_fairness<T, Input, Output>(action: Action<State<T>, Input, Output>)
     ensures
         valid(stable(tla_forall(|input| action.weak_fairness(input)))),
@@ -45,10 +53,17 @@ pub proof fn valid_stable_sm_partial_spec<T>(reconciler: Reconciler<T>)
     valid_stable_tla_forall_action_weak_fairness::<T, Option<Message>, ()>(kubernetes_api_next());
     valid_stable_tla_forall_action_weak_fairness::<T, (Option<Message>, Option<ObjectRef>), ()>(controller_next(reconciler));
     valid_stable_tla_forall_action_weak_fairness::<T, ObjectRef, ()>(schedule_controller_reconcile());
-    stable_and_temp::<State<T>>(always(lift_action(next(reconciler))), tla_forall(|input| kubernetes_api_next().weak_fairness(input)));
-    stable_and_temp::<State<T>>(always(lift_action(next(reconciler))).and(tla_forall(|input| kubernetes_api_next().weak_fairness(input)))
-    , tla_forall(|input| controller_next(reconciler).weak_fairness(input)));
-    stable_and_temp(always(lift_action(next(reconciler))).and(tla_forall(|input| kubernetes_api_next().weak_fairness(input))).and(tla_forall(|input| controller_next(reconciler).weak_fairness(input))), tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)));
+    valid_stable_action_weak_fairness::<T, ()>(restart_controller());
+    valid_stable_action_weak_fairness::<T, ()>(disable_crash());
+
+    stable_and_6_temp::<State<T>>(
+        always(lift_action(next(reconciler))),
+        tla_forall(|input| kubernetes_api_next().weak_fairness(input)),
+        tla_forall(|input| controller_next(reconciler).weak_fairness(input)),
+        tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)),
+        restart_controller().weak_fairness(()),
+        disable_crash().weak_fairness(())
+    );
 }
 
 }
