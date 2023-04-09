@@ -1006,6 +1006,7 @@ pub proof fn stable_and_temp<T>(p: TempPred<T>, q: TempPred<T>)
 
 /// The three-predicate-version of stable_and_temp
 /// This is created for avoid multiple calls to stable_and_temp.
+// TODO: The following stable_and_x_temp lemmas should be generated using a macro
 pub proof fn stable_and_3_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
     requires
         valid(stable(p1)),

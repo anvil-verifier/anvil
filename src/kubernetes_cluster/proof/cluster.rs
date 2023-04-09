@@ -28,6 +28,7 @@ use builtin_macros::*;
 
 verus! {
 
+/// Prove weak_fairness is stable.
 proof fn valid_stable_action_weak_fairness<T, Output>(action: Action<State<T>, (), Output>)
     ensures
         valid(stable(action.weak_fairness(()))),
@@ -36,6 +37,7 @@ proof fn valid_stable_action_weak_fairness<T, Output>(action: Action<State<T>, (
     always_p_stable::<State<T>>(split_always);
 }
 
+/// Prove weak_fairness for all input is stable.
 proof fn valid_stable_tla_forall_action_weak_fairness<T, Input, Output>(action: Action<State<T>, Input, Output>)
     ensures
         valid(stable(tla_forall(|input| action.weak_fairness(input)))),
@@ -45,6 +47,7 @@ proof fn valid_stable_tla_forall_action_weak_fairness<T, Input, Output>(action: 
     always_p_stable::<State<T>>(tla_forall(split_always));
 }
 
+/// Prove partial_spec is stable.
 pub proof fn valid_stable_sm_partial_spec<T>(reconciler: Reconciler<T>)
     ensures
         valid(stable(sm_partial_spec(reconciler))),

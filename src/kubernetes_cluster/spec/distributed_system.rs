@@ -30,6 +30,8 @@ verus! {
 
 pub struct State<T> {
     pub kubernetes_api_state: KubernetesAPIState,
+    /// controller_state is in an Option
+    /// because we use Option::None to represent that the controller is not running.
     pub controller_state: Option<ControllerState<T>>,
     pub client_state: ClientState,
     pub network_state: NetworkState,
@@ -192,6 +194,9 @@ pub open spec fn schedule_controller_reconcile<T>() -> Action<State<T>, ObjectRe
     }
 }
 
+/// This action crashes the controller.
+/// It specifies the faulty scenario when the controller crashes and loses all the internal state.
+/// It is controlled by s.crash_enabled so that we can later stop crashing by setting it to false.
 pub open spec fn crash_controller<T>() -> Action<State<T>, (), ()> {
     Action {
         precondition: |input: (), s: State<T>| {
@@ -206,6 +211,7 @@ pub open spec fn crash_controller<T>() -> Action<State<T>, (), ()> {
     }
 }
 
+/// This action restarts the crashed controller.
 pub open spec fn restart_controller<T>() -> Action<State<T>, (), ()> {
     Action {
         precondition: |input: (), s: State<T>| {
@@ -220,6 +226,8 @@ pub open spec fn restart_controller<T>() -> Action<State<T>, (), ()> {
     }
 }
 
+/// This action sets s.crash_enabled to false.
+/// This is used to constraint the crash behavior: the controller eventually stops crashing.
 pub open spec fn disable_crash<T>() -> Action<State<T>, (), ()> {
     Action {
         precondition: |input: (), s: State<T>| {
