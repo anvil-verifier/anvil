@@ -1006,6 +1006,7 @@ pub proof fn stable_and_temp<T>(p: TempPred<T>, q: TempPred<T>)
 
 /// The three-predicate-version of stable_and_temp
 /// This is created for avoid multiple calls to stable_and_temp.
+// TODO: The following stable_and_x_temp lemmas should be generated using a macro
 pub proof fn stable_and_3_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
     requires
         valid(stable(p1)),
@@ -1030,6 +1031,37 @@ pub proof fn stable_and_4_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred
 {
     stable_and_temp::<T>(p1, p2);
     stable_and_3_temp::<T>(p1.and(p2), p3, p4);
+}
+
+/// The five-predicate-version of stable_and_temp
+pub proof fn stable_and_5_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>)
+    requires
+        valid(stable(p1)),
+        valid(stable(p2)),
+        valid(stable(p3)),
+        valid(stable(p4)),
+        valid(stable(p5)),
+    ensures
+        valid(stable(p1.and(p2).and(p3).and(p4).and(p5))),
+{
+    stable_and_temp::<T>(p1, p2);
+    stable_and_4_temp::<T>(p1.and(p2), p3, p4, p5);
+}
+
+/// The six-predicate-version of stable_and_temp
+pub proof fn stable_and_6_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>, p6: TempPred<T>)
+    requires
+        valid(stable(p1)),
+        valid(stable(p2)),
+        valid(stable(p3)),
+        valid(stable(p4)),
+        valid(stable(p5)),
+        valid(stable(p6)),
+    ensures
+        valid(stable(p1.and(p2).and(p3).and(p4).and(p5).and(p6))),
+{
+    stable_and_temp::<T>(p1, p2);
+    stable_and_5_temp::<T>(p1.and(p2), p3, p4, p5, p6);
 }
 
 /// Unpack the assumption from left to the right side of |=

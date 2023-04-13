@@ -54,4 +54,11 @@ pub open spec fn insert_scheduled_reconcile<T>(s: ControllerState<T>, key: Objec
     }
 }
 
+pub open spec fn init_controller_state<T>() -> ControllerState<T> {
+    ControllerState {
+        ongoing_reconciles: Map::empty(),
+        scheduled_reconciles: Set::empty(),
+    }
+}
+
 }
