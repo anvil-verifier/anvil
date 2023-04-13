@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, object::*};
-use crate::pervasive::prelude::*;
-use crate::pervasive::string::*;
 use crate::simple_controller::spec::simple_reconciler::reconcile_core as reconcile_core_spec;
 use crate::simple_controller::spec::simple_reconciler::SimpleReconcileState as SimpleReconcileStateView;
 use builtin::*;
 use builtin_macros::*;
+use vstd::prelude::*;
+use vstd::string::*;
 
 verus! {
 
@@ -38,7 +38,7 @@ pub fn reconcile_core<'a>(cr_key: &'a KubeObjectRef, resp_o: &'a Option<KubeAPIR
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
-        (res.0.to_view(), res.1.to_view()) == reconcile_core_spec(cr_key.to_view(), Option::None, state.to_view()),
+        (res.0.to_view(), opt_req_to_view(&res.1)) == reconcile_core_spec(cr_key.to_view(), Option::None, state.to_view()),
 {
     let pc = state.reconcile_pc;
     if pc == 0 {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::object_meta::*;
-use crate::pervasive::prelude::*;
+use vstd::prelude::*;
 
 use k8s_openapi::api::core::v1::Pod as K8SPod;
 use k8s_openapi::api::core::v1::PodSpec as K8SPodSpec;

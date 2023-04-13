@@ -18,7 +18,7 @@ use crate::kubernetes_cluster::spec::{
     network::{multiset_contains_msg, network, NetworkState},
     reconciler::Reconciler,
 };
-use crate::pervasive::{map::*, option::*, seq::*, set::*};
+use vstd::{map::*, option::*, seq::*, set::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;

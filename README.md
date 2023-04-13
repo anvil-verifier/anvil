@@ -10,7 +10,7 @@ You cannot compile the verifiable-controllers codebase with a standard rust comp
 
 ### Prerequisites
 
-* A Verus installation
+* A Verus installation, using the `main_new` branch
 
 ### Build and run
 

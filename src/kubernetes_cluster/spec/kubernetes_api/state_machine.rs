@@ -7,7 +7,7 @@ use crate::kubernetes_cluster::spec::{
     kubernetes_api::{builtin_controllers::statefulset_controller, common::*},
     message::*,
 };
-use crate::pervasive::{map::*, multiset::*, option::*, result::*, seq::*, set::*};
+use vstd::{map::*, multiset::*, option::*, result::*, seq::*, set::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;

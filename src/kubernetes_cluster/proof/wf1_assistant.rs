@@ -17,7 +17,7 @@ use crate::kubernetes_cluster::spec::{
     message::*,
     reconciler::Reconciler,
 };
-use crate::pervasive::{option::*, seq::*, set::*};
+use vstd::{option::*, seq::*, set::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;

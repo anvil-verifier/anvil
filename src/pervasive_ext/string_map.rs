@@ -1,5 +1,5 @@
-use crate::pervasive::prelude::*;
-use crate::pervasive::string::*;
+use vstd::prelude::*;
+use vstd::string::*;
 
 verus! {
 

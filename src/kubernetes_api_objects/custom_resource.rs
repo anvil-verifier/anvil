@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::object_meta::*;
-use crate::pervasive::prelude::*;
+use vstd::prelude::*;
 
 verus! {
 

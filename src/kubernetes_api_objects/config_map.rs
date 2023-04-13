@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::object_meta::*;
-use crate::pervasive::prelude::*;
+use vstd::prelude::*;
 use crate::pervasive_ext::string_map;
 use crate::pervasive_ext::string_view::*;
 

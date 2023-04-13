@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, object::*};
 use crate::kubernetes_cluster::spec::{channel::*, message::*};
-use crate::pervasive::{map::*, multiset::*, option::*, result::*, seq::*, string::*};
+use vstd::{map::*, multiset::*, option::*, result::*, seq::*, string::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;

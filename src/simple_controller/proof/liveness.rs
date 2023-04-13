@@ -15,8 +15,8 @@ use crate::kubernetes_cluster::{
         message::*,
     },
 };
-use crate::pervasive::*;
-use crate::pervasive::{option::*, result::*};
+use vstd::*;
+use vstd::{option::*, result::*};
 use crate::simple_controller::proof::safety::*;
 use crate::simple_controller::proof::shared::*;
 use crate::simple_controller::spec::{

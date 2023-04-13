@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::pervasive::seq::*;
+use vstd::seq::*;
 use crate::pervasive_ext::seq_lemmas::*;
 use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;

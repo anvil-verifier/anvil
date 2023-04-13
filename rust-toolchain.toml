@@ -1,0 +1,4 @@
+# this should be synchronized with the Verus version, since we need to combine
+# k8s compiled with rustc and our own code compiled with rust-verify.sh
+[toolchain]
+channel = "1.68.0"

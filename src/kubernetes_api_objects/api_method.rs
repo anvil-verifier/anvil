@@ -4,9 +4,9 @@ use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::config_map::*;
 use crate::kubernetes_api_objects::custom_resource::*;
 use crate::kubernetes_api_objects::object::*;
-use crate::pervasive::prelude::*;
-use crate::pervasive::string::*;
 use crate::pervasive_ext::string_view::*;
+use vstd::prelude::*;
+use vstd::string::*;
 
 verus! {
 
@@ -169,12 +169,10 @@ impl KubeAPIRequest<'_> {
     }
 }
 
-impl Option<KubeAPIRequest<'_>> {
-    pub open spec fn to_view(&self) -> Option<APIRequest> {
-        match self {
-            Option::Some(req) => Option::Some(req.to_view()),
-            Option::None => Option::None,
-        }
+pub open spec fn opt_req_to_view(req: &Option<KubeAPIRequest>) -> Option<APIRequest> {
+    match req {
+        Option::Some(req) => Option::Some(req.to_view()),
+        Option::None => Option::None,
     }
 }
 
