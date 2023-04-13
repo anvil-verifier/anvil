@@ -44,7 +44,7 @@ pub proof fn controller_action_pre_implies_next_pre<T>(reconciler: Reconciler<T>
         valid(lift_state(controller_action_pre(reconciler, action, input)).implies(lift_state(controller_next(reconciler).pre(input)))),
 {
     assert forall |s| #[trigger] controller_action_pre(reconciler, action, input)(s) implies controller_next(reconciler).pre(input)(s) by {
-        exists_next_controller_step(reconciler, action, ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager}, s.controller_state.get_Some_0());
+        exists_next_controller_step(reconciler, action, ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager}, s.controller_state);
     };
 }
 

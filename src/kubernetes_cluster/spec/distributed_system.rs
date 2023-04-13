@@ -30,9 +30,7 @@ verus! {
 
 pub struct State<T> {
     pub kubernetes_api_state: KubernetesAPIState,
-    /// controller_state is in an Option
-    /// because we use Option::None to represent that the controller is not running.
-    pub controller_state: Option<ControllerState<T>>,
+    pub controller_state: ControllerState<T>,
     pub client_state: ClientState,
     pub network_state: NetworkState,
     pub chan_manager: ChannelManager,
@@ -61,39 +59,26 @@ impl<T> State<T> {
     }
 
     #[verifier(inline)]
-    pub open spec fn controller_alive(self) -> bool {
-        self.controller_state.is_Some()
-    }
-
-    #[verifier(inline)]
-    pub open spec fn reconcile_state_contains(self, key: ObjectRef) -> bool
-        recommends
-            self.controller_alive(),
-    {
-        self.controller_state.get_Some_0().ongoing_reconciles.dom().contains(key)
+    pub open spec fn reconcile_state_contains(self, key: ObjectRef) -> bool {
+        self.controller_state.ongoing_reconciles.dom().contains(key)
     }
 
     pub open spec fn reconcile_state_of(self, key: ObjectRef) -> OngoingReconcile<T>
         recommends
-            self.controller_alive(),
             self.reconcile_state_contains(key),
     {
-        self.controller_state.get_Some_0().ongoing_reconciles[key]
+        self.controller_state.ongoing_reconciles[key]
     }
 
-    pub open spec fn reconcile_scheduled_for(self, key: ObjectRef) -> bool
-        recommends
-            self.controller_alive(),
-    {
-        self.controller_state.get_Some_0().scheduled_reconciles.contains(key)
+    pub open spec fn reconcile_scheduled_for(self, key: ObjectRef) -> bool {
+        self.controller_state.scheduled_reconciles.contains(key)
     }
 }
 
 pub open spec fn init<T>(reconciler: Reconciler<T>) -> StatePred<State<T>> {
     |s: State<T>| {
         &&& (kubernetes_api().init)(s.kubernetes_api_state)
-        &&& s.controller_alive()
-        &&& (controller(reconciler).init)(s.controller_state.get_Some_0())
+        &&& (controller(reconciler).init)(s.controller_state)
         &&& (client().init)(s.client_state)
         &&& (network().init)(s.network_state)
         &&& s.chan_manager == ChannelManager::init()
@@ -144,7 +129,7 @@ pub open spec fn controller_next<T>(reconciler: Reconciler<T>) -> Action<State<T
     let result = |input: (Option<Message>, Option<ObjectRef>), s: State<T>| {
         let host_result = controller(reconciler).next_result(
             ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager},
-            s.controller_state.get_Some_0()
+            s.controller_state
         );
         let msg_ops = MessageOps {
             recv: input.0,
@@ -156,14 +141,13 @@ pub open spec fn controller_next<T>(reconciler: Reconciler<T>) -> Action<State<T
     };
     Action {
         precondition: |input: (Option<Message>, Option<ObjectRef>), s: State<T>| {
-            &&& s.controller_alive()
             &&& received_msg_destined_for(input.0, HostId::CustomController)
             &&& result(input, s).0.is_Enabled()
             &&& result(input, s).1.is_Enabled()
         },
         transition: |input: (Option<Message>, Option<ObjectRef>), s: State<T>| {
             (State {
-                controller_state: Option::Some(result(input, s).0.get_Enabled_0()),
+                controller_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
                 chan_manager: result(input, s).0.get_Enabled_1().1,
                 ..s
@@ -181,33 +165,15 @@ pub open spec fn controller_next<T>(reconciler: Reconciler<T>) -> Action<State<T
 pub open spec fn schedule_controller_reconcile<T>() -> Action<State<T>, ObjectRef, ()> {
     Action {
         precondition: |input: ObjectRef, s: State<T>| {
-            &&& s.controller_alive()
             &&& s.resource_key_exists(input)
             &&& input.kind.is_CustomResourceKind()
         },
         transition: |input: ObjectRef, s: State<T>| {
             (State {
-                controller_state: Option::Some(insert_scheduled_reconcile(s.controller_state.get_Some_0(), input)),
+                controller_state: insert_scheduled_reconcile(s.controller_state, input),
                 ..s
             }, ())
         }
-    }
-}
-
-/// This action crashes the controller.
-/// It specifies the faulty scenario when the controller crashes and loses all the internal state.
-/// It is controlled by s.crash_enabled so that we can later stop crashing by setting it to false.
-pub open spec fn crash_controller<T>() -> Action<State<T>, (), ()> {
-    Action {
-        precondition: |input: (), s: State<T>| {
-            s.crash_enabled
-        },
-        transition: |input: (), s: State<T>| {
-            (State {
-                controller_state: Option::None,
-                ..s
-            }, ())
-        },
     }
 }
 
@@ -215,11 +181,11 @@ pub open spec fn crash_controller<T>() -> Action<State<T>, (), ()> {
 pub open spec fn restart_controller<T>() -> Action<State<T>, (), ()> {
     Action {
         precondition: |input: (), s: State<T>| {
-            !s.controller_alive()
+            s.crash_enabled
         },
         transition: |input: (), s: State<T>| {
             (State {
-                controller_state: Option::Some(init_controller_state()),
+                controller_state: init_controller_state(),
                 ..s
             }, ())
         },
@@ -289,7 +255,6 @@ pub enum Step {
     ControllerStep((Option<Message>, Option<ObjectRef>)),
     ClientStep((Option<Message>, CustomResourceView)),
     ScheduleControllerReconcileStep(ObjectRef),
-    CrashController(),
     RestartController(),
     DisableCrash(),
     StutterStep(),
@@ -301,7 +266,6 @@ pub open spec fn next_step<T>(reconciler: Reconciler<T>, s: State<T>, s_prime: S
         Step::ControllerStep(input) => controller_next(reconciler).forward(input)(s, s_prime),
         Step::ClientStep(input) => client_next().forward(input)(s, s_prime),
         Step::ScheduleControllerReconcileStep(input) => schedule_controller_reconcile().forward(input)(s, s_prime),
-        Step::CrashController() => crash_controller().forward(())(s, s_prime),
         Step::RestartController() => restart_controller().forward(())(s, s_prime),
         Step::DisableCrash() => disable_crash().forward(())(s, s_prime),
         Step::StutterStep() => stutter().forward(())(s, s_prime),
@@ -327,7 +291,6 @@ pub open spec fn sm_partial_spec<T>(reconciler: Reconciler<T>) -> TempPred<State
     .and(tla_forall(|input| kubernetes_api_next().weak_fairness(input)))
     .and(tla_forall(|input| controller_next(reconciler).weak_fairness(input)))
     .and(tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)))
-    .and(restart_controller().weak_fairness(()))
     .and(disable_crash().weak_fairness(()))
 }
 
@@ -352,24 +315,20 @@ pub open spec fn kubernetes_api_action_pre<T>(action: KubernetesAPIAction, input
 
 pub open spec fn controller_action_pre<T>(reconciler: Reconciler<T>, action: ControllerAction<T>, input: (Option<Message>, Option<ObjectRef>)) -> StatePred<State<T>> {
     |s: State<T>| {
-        if s.controller_alive() {
-            let host_result = controller(reconciler).next_action_result(
-                action,
-                ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager},
-                s.controller_state.get_Some_0()
-            );
-            let msg_ops = MessageOps {
-                recv: input.0,
-                send: host_result.get_Enabled_1().0,
-            };
-            let network_result = network().next_result(msg_ops, s.network_state);
+        let host_result = controller(reconciler).next_action_result(
+            action,
+            ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager},
+            s.controller_state
+        );
+        let msg_ops = MessageOps {
+            recv: input.0,
+            send: host_result.get_Enabled_1().0,
+        };
+        let network_result = network().next_result(msg_ops, s.network_state);
 
-            &&& received_msg_destined_for(input.0, HostId::CustomController)
-            &&& host_result.is_Enabled()
-            &&& network_result.is_Enabled()
-        } else {
-            false
-        }
+        &&& received_msg_destined_for(input.0, HostId::CustomController)
+        &&& host_result.is_Enabled()
+        &&& network_result.is_Enabled()
     }
 }
 

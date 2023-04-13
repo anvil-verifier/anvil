@@ -56,15 +56,13 @@ pub proof fn valid_stable_sm_partial_spec<T>(reconciler: Reconciler<T>)
     valid_stable_tla_forall_action_weak_fairness::<T, Option<Message>, ()>(kubernetes_api_next());
     valid_stable_tla_forall_action_weak_fairness::<T, (Option<Message>, Option<ObjectRef>), ()>(controller_next(reconciler));
     valid_stable_tla_forall_action_weak_fairness::<T, ObjectRef, ()>(schedule_controller_reconcile());
-    valid_stable_action_weak_fairness::<T, ()>(restart_controller());
     valid_stable_action_weak_fairness::<T, ()>(disable_crash());
 
-    stable_and_6_temp::<State<T>>(
+    stable_and_5_temp::<State<T>>(
         always(lift_action(next(reconciler))),
         tla_forall(|input| kubernetes_api_next().weak_fairness(input)),
         tla_forall(|input| controller_next(reconciler).weak_fairness(input)),
         tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)),
-        restart_controller().weak_fairness(()),
         disable_crash().weak_fairness(())
     );
 }
