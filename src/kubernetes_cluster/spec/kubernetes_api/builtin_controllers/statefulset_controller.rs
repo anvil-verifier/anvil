@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_cluster::spec::{channel::*, kubernetes_api::common::*, message::*};
-use crate::pervasive::{map::*, multiset::*, option::*, result::*, seq::*};
+use vstd::{map::*, multiset::*, option::*, result::*, seq::*};
 use builtin::*;
 use builtin_macros::*;
 

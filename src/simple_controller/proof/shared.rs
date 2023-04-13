@@ -7,8 +7,8 @@ use crate::kubernetes_cluster::spec::{
     distributed_system::*,
     message::*,
 };
-use crate::pervasive::*;
-use crate::pervasive::{option::*, result::*};
+use vstd::*;
+use vstd::{option::*, result::*};
 use crate::simple_controller::spec::{
     simple_reconciler,
     simple_reconciler::{simple_reconciler, SimpleReconcileState},

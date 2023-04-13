@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::pervasive::function::*;
+use vstd::function::*;
 use builtin::*;
 use builtin_macros::*;
 

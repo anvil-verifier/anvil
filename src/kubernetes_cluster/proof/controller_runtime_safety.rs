@@ -12,7 +12,7 @@ use crate::kubernetes_cluster::{
         reconciler::Reconciler,
     },
 };
-use crate::pervasive::{option::*, result::*};
+use vstd::{option::*, result::*};
 use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
 use builtin::*;

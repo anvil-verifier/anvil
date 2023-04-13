@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, object::*};
 use crate::kubernetes_cluster::spec::{distributed_system::*, message::*, reconciler::Reconciler};
-use crate::pervasive::seq::*;
+use vstd::seq::*;
 use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
 use builtin::*;

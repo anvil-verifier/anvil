@@ -4,7 +4,7 @@
 use crate::kubernetes_cluster::spec::{
     channel::*, controller::common::*, controller::controller_runtime::*, message::*, reconciler::*,
 };
-use crate::pervasive::{map::*, option::*, seq::*, set::*, string::*};
+use vstd::{map::*, option::*, seq::*, set::*, string::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;

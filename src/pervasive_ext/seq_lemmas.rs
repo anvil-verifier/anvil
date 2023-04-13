@@ -1,8 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::pervasive::seq::*;
-use crate::pervasive::seq_lib::*;
+use vstd::seq::*;
+use vstd::seq_lib::*;
 use builtin::*;
 use builtin_macros::*;
 

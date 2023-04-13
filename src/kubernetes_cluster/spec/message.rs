@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, object::*};
-use crate::pervasive::{multiset::*, prelude::*};
+use vstd::{multiset::*, prelude::*};
 use crate::pervasive_ext::string_view::*;
 use builtin::*;
 use builtin_macros::*;
