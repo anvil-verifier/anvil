@@ -38,13 +38,15 @@ spec fn cr_matched(cr: CustomResourceView) -> TempPred<State<SimpleReconcileStat
 }
 
 /// Proof strategy:
-///     (1) For case_1, case_2, ..., case_n, we prove partial_spec /\ all_invariants /\ []cr_exists |= case_i ~> cm_exists. The disjunction of case_1, case_2, ..., case_n should be true.
-///     (2) Now we have partial_spec /\ all_invariants /\ []cr_exists |= true ~> cm_exists. Unpacking []cr_exists to the right side, we have spec /\ all_invariants |= []cr_exists ~> cm_exists.
+///     (1) For case_1, case_2, ..., case_n, we prove partial_spec /\ [] crash_disabled /\ all_invariants /\ []cr_exists |= case_i ~> cm_exists. The disjunction of case_1, case_2, ..., case_n should be true.
+///     (2) Now we have partial_spec /\ [] crash_disabled /\ all_invariants /\ []cr_exists |= true ~> cm_exists. Unpacking [] crash_disabled /\ []cr_exists to the right side, we have spec /\ all_invariants |= []cr_exists ~> cm_exists.
 ///     (3) To unpack []cr_exists, we have to prove the stability of partial_spec /\ all_invariants.
-///     (4) By proving all the invariants can be infer from spec, here comes to spec |= []cr_exists ~> cm_exists.
-///     (5) Finally, with the help of lemma_p_leads_to_cm_always_exists, the liveness property is proved.
+///     (4) By proving all the invariants can be inferred from spec, here comes to spec |= []cr_exists /\ [] crash_disabled ~> cm_exists.
+///     (5) Next, with the help of lemma_p_leads_to_cm_always_exists, we have spec |= []cr_exists /\ [] crash_disabled ~> [] cm_exists.
+///     (6) By the weak fairness of the action disable_crash, we have spec |= []cr_exists ~> [] cr_exists /\ [] crash_disabled.
+///     (7) By the transitivity of leads_to relation, we have spec |= []cr_exists ~> [] cr_matched.
 
-/// To prove the liveness property, we need some invariants (these invariants have already contained always constraint).
+/// To prove the liveness property, we need some invariants (these invariants have already contained "always" constraint).
 spec fn all_invariants(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState>> {
     always(lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr)))
     .and(tla_forall(|msg| always(lift_state(controller_runtime_safety::resp_matches_at_most_one_pending_req(msg, cr.object_ref())))))
