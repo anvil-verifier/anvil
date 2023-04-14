@@ -23,10 +23,6 @@ use builtin_macros::*;
 
 verus! {
 
-pub open spec fn crash_disabled<T>() -> StatePred<State<T>> {
-    |s: State<T>| !s.crash_enabled
-}
-
 pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled<T>(reconciler: Reconciler<T>, cr_key: ObjectRef) -> TempPred<State<T>> {
     sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))).and(always(lift_state(crash_disabled::<T>())))
 }

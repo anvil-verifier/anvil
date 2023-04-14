@@ -601,6 +601,14 @@ pub proof fn always_and_equality<T>(p: TempPred<T>, q: TempPred<T>)
     temp_pred_equality::<T>(always(p.and(q)), always(p).and(always(q)));
 }
 
+pub proof fn always_and_3_equality<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
+    ensures
+        always(p1.and(p2).and(p3)) == always(p1).and(always(p2)).and(always(p3)),
+{
+    always_and_equality::<T>(p1, p2);
+    always_and_equality::<T>(p1.and(p2), p3);
+}
+
 pub proof fn p_and_always_p_equals_always_p<T>(p: TempPred<T>)
     ensures
         p.and(always(p)) == always(p),
@@ -1090,23 +1098,6 @@ pub proof fn unpack_assumption_from_spec<T>(init: TempPred<T>, partial_spec: Tem
     };
 }
 
-/// A stronger spec can undoubtedly entail the previous conclusion.
-/// pre:
-///     spec |= p
-/// post:
-///     spec /\ asm |= p
-pub proof fn strengthen_spec<T>(spec: TempPred<T>, asm: TempPred<T>, p: TempPred<T>)
-    requires
-        spec.entails(p),
-    ensures
-        (spec.and(asm)).entails(p),
-{
-    assert forall |ex| #[trigger] (spec.and(asm)).satisfied_by(ex) implies p.satisfied_by(ex) by {
-        assert(spec.satisfied_by(ex));
-        entails_apply(ex, spec, p);
-    };
-}
-
 /// This lemma is used to make the predicate as concise as possible.
 /// Similar to the first-order logic where p equals p /\ q when p -> q is satisfied,
 /// we can reduce the size of predicate when some part of it implies the rest.
@@ -1169,6 +1160,21 @@ pub proof fn strengthen_next<T>(spec: TempPred<T>, next: ActionPred<T>, inv: Sta
     entails_and_temp::<T>(spec, always(lift_action(next)), always(lift_state(inv)));
     always_and_equality::<T>(lift_action(next), lift_state(inv));
     temp_pred_equality::<T>(lift_action(next_and_inv), lift_action(next).and(lift_state(inv)));
+}
+
+/// Strengthen next with two invs.
+pub proof fn strengthen_next_2<T>(spec: TempPred<T>, next: ActionPred<T>, inv1: StatePred<T>, inv2: StatePred<T>, next_and_inv: ActionPred<T>)
+    requires
+        spec.entails(always(lift_action(next))),
+        spec.entails(always(lift_state(inv1))),
+        spec.entails(always(lift_state(inv2))),
+        valid(lift_action(next_and_inv).equals(lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)))),
+    ensures
+        spec.entails(always(lift_action(next_and_inv))),
+{
+    entails_and_3_temp::<T>(spec, always(lift_action(next)), always(lift_state(inv1)), always(lift_state(inv2)));
+    always_and_3_equality::<T>(lift_action(next), lift_state(inv1), lift_state(inv2));
+    temp_pred_equality::<T>(lift_action(next_and_inv), lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)));
 }
 
 /// Get the initial leads_to.
@@ -1881,24 +1887,6 @@ pub proof fn implies_preserved_by_eventually_temp<T>(p: TempPred<T>, q: TempPred
         let p_witness = eventually_choose_witness::<T>(ex, p);
         implies_apply::<T>(ex.suffix(p_witness), p, q);
     };
-}
-
-/// Strength only part of the spec
-/// pre:
-///     spec /\ q |= r
-///     p |= q
-/// post:
-///     spec /\ p |= r
-pub proof fn partially_strengthen_spec<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
-    requires
-        spec.and(q).entails(r),
-        valid(p.implies(q)),
-    ensures
-        spec.and(p).entails(r),
-{
-    assert(p.entails(q));
-    entails_and_different_temp::<T>(spec, p, spec, q);
-    entails_trans(spec.and(p), spec.and(q), r);
 }
 
 /// Weaken eventually by implies.

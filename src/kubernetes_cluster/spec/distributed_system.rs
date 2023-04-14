@@ -332,4 +332,8 @@ pub open spec fn controller_action_pre<T>(reconciler: Reconciler<T>, action: Con
     }
 }
 
+pub open spec fn crash_disabled<T>() -> StatePred<State<T>> {
+    |s: State<T>| !s.crash_enabled
+}
+
 }
