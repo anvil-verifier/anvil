@@ -14,9 +14,10 @@ rv=$VERUS_DIR/source/tools/rust-verify.sh
 cd deps_hack
 cargo build
 cd ..
-k8s_openapi_rlib="$(find deps_hack/target/debug/deps/ -name 'libk8s_openapi-*.rlib')"
+k8s_openapi_rlib="$(find deps_hack/target/debug/deps -name 'libk8s_openapi-*.rlib')"
 "$rv" -L dependency=deps_hack/target/debug/deps \
   --extern=k8s_openapi="$k8s_openapi_rlib" \
   --expand-errors \
   --compile \
+  --time \
   main.rs
