@@ -67,4 +67,28 @@ pub proof fn valid_stable_sm_partial_spec<T>(reconciler: Reconciler<T>)
     );
 }
 
+pub proof fn lemma_true_leads_to_crash_always_disabled<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>)
+    requires
+        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(disable_crash().weak_fairness(())),
+    ensures
+        spec.entails(true_pred().leads_to(always(lift_state(crash_disabled::<T>())))),
+{
+    let true_state = |s: State<T>| true;
+    disable_crash().wf1((), spec, next(reconciler), true_state, crash_disabled::<T>());
+    leads_to_stable_temp::<State<T>>(spec, lift_action(next(reconciler)), true_pred(), lift_state(crash_disabled::<T>()));
+}
+
+pub proof fn lemma_any_pred_leads_to_crash_always_disabled<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, any_pred: TempPred<State<T>>)
+    requires
+        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(disable_crash().weak_fairness(())),
+    ensures
+        spec.entails(any_pred.leads_to(always(lift_state(crash_disabled::<T>())))),
+{
+    valid_implies_implies_leads_to::<State<T>>(spec, any_pred, true_pred());
+    lemma_true_leads_to_crash_always_disabled::<T>(spec, reconciler);
+    leads_to_trans_temp::<State<T>>(spec, any_pred, true_pred(), always(lift_state(crash_disabled::<T>())));
+}
+
 }

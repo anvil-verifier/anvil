@@ -23,6 +23,10 @@ use builtin_macros::*;
 
 verus! {
 
+pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled<T>(reconciler: Reconciler<T>, cr_key: ObjectRef) -> TempPred<State<T>> {
+    sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))).and(always(lift_state(crash_disabled::<T>())))
+}
+
 pub proof fn lemma_pre_leads_to_post_by_controller<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, input: (Option<Message>, Option<ObjectRef>), next: ActionPred<State<T>>, action: ControllerAction<T>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         controller(reconciler).actions.contains(action),
@@ -115,6 +119,7 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<T>(spec:
     requires
         cr_key.kind.is_CustomResourceKind(),
         spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(always(lift_state(crash_disabled::<T>()))),
         spec.entails(tla_forall(|i| controller_next(reconciler).weak_fairness(i))),
     ensures
         spec.entails(
@@ -138,8 +143,13 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<T>(spec:
         &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
     };
+    let stronger_next = |s, s_prime: State<T>| {
+        &&& next(reconciler)(s, s_prime)
+        &&& !s.crash_enabled
+    };
+    strengthen_next::<State<T>>(spec, next(reconciler), crash_disabled::<T>(), stronger_next);
     let input = (Option::None, Option::Some(cr_key));
-    lemma_pre_leads_to_post_by_controller::<T>(spec, reconciler, input, next(reconciler), run_scheduled_reconcile(reconciler), pre, post);
+    lemma_pre_leads_to_post_by_controller::<T>(spec, reconciler, input, stronger_next, run_scheduled_reconcile(reconciler), pre, post);
 }
 
 pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
@@ -192,7 +202,7 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_in
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
-        sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))).entails(
+        partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key).entails(
             lift_state(|s: State<T>| {!s.reconcile_state_contains(cr_key)})
             .leads_to(lift_state(|s: State<T>| {
                 &&& s.reconcile_state_contains(cr_key)
@@ -201,20 +211,16 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_in
             }))
     ),
 {
-    lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption::<T>(reconciler, cr_key);
-    lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init::<T>(sm_partial_spec(reconciler), reconciler, cr_key);
-    strengthen_spec::<State<T>>(sm_partial_spec(reconciler), always(lift_state(|s: State<T>| s.resource_key_exists(cr_key))),
-        lift_state(|s: State<T>| {
-            &&& !s.reconcile_state_contains(cr_key)
-            &&& s.reconcile_scheduled_for(cr_key)
-        })
-        .leads_to(lift_state(|s: State<T>| {
-            &&& s.reconcile_state_contains(cr_key)
-            &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
-            &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-        })));
 
-    leads_to_trans_auto::<State<T>>(sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))));
+    lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption::<T>(reconciler, cr_key);
+    entails_trans::<State<T>>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key), sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))), lift_state(|s: State<T>| !s.reconcile_state_contains(cr_key))
+    .leads_to(lift_state(|s: State<T>| {
+        &&& !s.reconcile_state_contains(cr_key)
+        &&& s.reconcile_scheduled_for(cr_key)})
+    ));
+    lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init::<T>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key), reconciler, cr_key);
+
+    leads_to_trans_auto::<State<T>>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key));
 }
 
 
@@ -222,7 +228,7 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
-        sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))).entails(
+        partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key).entails(
             lift_state(|s: State<T>| {
                 &&& s.reconcile_state_contains(cr_key)
                 &&& (reconciler.reconcile_error)(s.reconcile_state_of(cr_key).local_state)
@@ -235,27 +241,21 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
         ),
 {
     lemma_reconcile_error_leads_to_reconcile_idle::<T>(reconciler, cr_key);
-    strengthen_spec::<State<T>>(sm_partial_spec(reconciler), always(lift_state(|s: State<T>| s.resource_key_exists(cr_key))), lift_state(|s: State<T>| {
+    entails_trans::<State<T>>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key), sm_partial_spec(reconciler), lift_state(|s: State<T>| {
         &&& s.reconcile_state_contains(cr_key)
         &&& (reconciler.reconcile_error)(s.reconcile_state_of(cr_key).local_state)
-    })
+        })
         .leads_to(lift_state(|s: State<T>| {
             &&& !s.reconcile_state_contains(cr_key)
         })));
     lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption::<T>(reconciler, cr_key);
-    lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init::<T>(sm_partial_spec(reconciler), reconciler, cr_key);
-    strengthen_spec::<State<T>>(sm_partial_spec(reconciler), always(lift_state(|s: State<T>| s.resource_key_exists(cr_key))),
-    lift_state(|s: State<T>| {
-        &&& !s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_scheduled_for(cr_key)
-        })
-        .leads_to(lift_state(|s: State<T>| {
-            &&& s.reconcile_state_contains(cr_key)
-            &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
-            &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-        })));
+    entails_trans::<State<T>>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key), sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))), lift_state(|s: State<T>| !s.reconcile_state_contains(cr_key))
+            .leads_to(lift_state(|s: State<T>| {
+                &&& !s.reconcile_state_contains(cr_key)
+                &&& s.reconcile_scheduled_for(cr_key)})));
+    lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init::<T>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key), reconciler, cr_key);
 
-    leads_to_trans_auto::<State<T>>(sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))));
+    leads_to_trans_auto::<State<T>>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key));
 }
 
 }
