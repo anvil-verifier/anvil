@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::config_map::*;
 use crate::kubernetes_api_objects::custom_resource::*;
+use crate::kubernetes_api_objects::error::*;
 use crate::kubernetes_api_objects::object::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -178,7 +179,6 @@ pub open spec fn opt_req_to_view(req: &Option<KubeAPIRequest>) -> Option<APIRequ
 
 /// APIResponse represents API responses sent from the Kubernetes API for specifications.
 
-// TODO: implement Update and Patch request.
 #[is_variant]
 pub enum APIResponse {
     GetResponse(GetResponse),
@@ -219,15 +219,6 @@ pub struct DeleteResponse {
 // TODO: implement all the variants after we import kube-rs.
 pub enum KubeAPIResponse {
     WillAddSomething,
-}
-
-/// APIError represents the Error codes sent from the Kubernetes API for specifications.
-
-// TODO: implement the error types for executable code.
-#[is_variant]
-pub enum APIError {
-    ObjectNotFound,
-    ObjectAlreadyExists,
 }
 
 }
