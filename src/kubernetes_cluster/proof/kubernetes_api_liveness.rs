@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*, object::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, error::*, object::*};
 use crate::kubernetes_cluster::{
     proof::wf1_assistant::kubernetes_api_action_pre_implies_next_pre,
     spec::{
@@ -12,11 +12,11 @@ use crate::kubernetes_cluster::{
         reconciler::Reconciler,
     },
 };
-use vstd::{option::*, result::*};
 use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
 use builtin::*;
 use builtin_macros::*;
+use vstd::{option::*, result::*};
 
 verus! {
 
