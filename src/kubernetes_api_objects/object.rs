@@ -6,15 +6,40 @@ use builtin::*;
 use builtin_macros::*;
 
 use crate::kubernetes_api_objects::common::*;
-use crate::kubernetes_api_objects::config_map::ConfigMapView;
-use crate::kubernetes_api_objects::custom_resource::CustomResourceView;
+use crate::kubernetes_api_objects::config_map::{ConfigMap, ConfigMapView};
+use crate::kubernetes_api_objects::custom_resource::{CustomResource, CustomResourceView};
 use crate::kubernetes_api_objects::object_meta::ObjectMetaView;
-use crate::kubernetes_api_objects::persistent_volume_claim::PersistentVolumeClaimView;
-use crate::kubernetes_api_objects::pod::PodView;
-use crate::kubernetes_api_objects::service::ServiceView;
-use crate::kubernetes_api_objects::stateful_set::StatefulSetView;
+use crate::kubernetes_api_objects::persistent_volume_claim::{
+    PersistentVolumeClaim, PersistentVolumeClaimView,
+};
+use crate::kubernetes_api_objects::pod::{Pod, PodView};
+use crate::kubernetes_api_objects::service::{Service, ServiceView};
+use crate::kubernetes_api_objects::stateful_set::{StatefulSet, StatefulSetView};
 
 verus! {
+
+#[is_variant]
+pub enum KubeObject {
+    ConfigMap(ConfigMap),
+    CustomResource(CustomResource),
+    PersistentVolumeClaim(PersistentVolumeClaim),
+    Pod(Pod),
+    StatefulSet(StatefulSet),
+    Service(Service),
+}
+
+impl KubeObject {
+    pub open spec fn to_view(&self) -> KubernetesObject {
+        match self {
+            KubeObject::ConfigMap(o) => KubernetesObject::ConfigMap(o@),
+            KubeObject::CustomResource(o) => KubernetesObject::CustomResource(o@),
+            KubeObject::PersistentVolumeClaim(o) => KubernetesObject::PersistentVolumeClaim(o@),
+            KubeObject::Pod(o) => KubernetesObject::Pod(o@),
+            KubeObject::StatefulSet(o) => KubernetesObject::StatefulSet(o@),
+            KubeObject::Service(o) => KubernetesObject::Service(o@),
+        }
+    }
+}
 
 #[is_variant]
 pub enum KubernetesObject {

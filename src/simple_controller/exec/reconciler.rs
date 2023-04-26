@@ -26,6 +26,16 @@ impl SimpleReconcileState {
     }
 }
 
+// TODO: merge it into vstd
+pub const fn is_result_ok<T, E>(result: &Result<T, E>) -> (res: bool)
+        ensures res <==> result.is_Ok(),
+    {
+        match result {
+            Result::Ok(_) => true,
+            Result::Err(_) => false,
+        }
+    }
+
 /// reconcile_core is the exec implementation of the core reconciliation logic.
 /// It will be called by the reconcile() function in a loop in our shim layer, and reconcile()
 /// will be called by kube-rs framework when related events happen.
@@ -37,12 +47,13 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
-        (res.0.to_view(), opt_req_to_view(&res.1)) == reconcile_core_spec(cr_key.to_view(), Option::None, state.to_view()),
+        (res.0.to_view(), opt_req_to_view(&res.1)) == reconcile_core_spec(cr_key.to_view(), opt_resp_to_view(&resp_o), state.to_view()),
 {
     let pc = state.reconcile_pc;
-    if pc == 0 {
+    if pc == init_pc() {
+        assert(pc as nat == 0);
         let state_prime = SimpleReconcileState {
-            reconcile_pc: pc + 1,
+            reconcile_pc: after_get_cr_pc(),
         };
         let req_o = Option::Some(KubeAPIRequest::CustomResourceRequest(
             KubeCustomResourceRequest::GetRequest(
@@ -53,21 +64,38 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
             )
         ));
         (state_prime, req_o)
-    } else if pc == 1 {
-        let state_prime = SimpleReconcileState {
-            reconcile_pc: pc + 1,
-        };
-        let mut config_map = ConfigMap::default();
-        config_map.set_name(cr_key.name.clone().concat(new_strlit("_cm")));
-        config_map.set_namespace(cr_key.namespace.clone());
-        let req_o = Option::Some(KubeAPIRequest::ConfigMapRequest(
-            KubeConfigMapRequest::CreateRequest(
-                KubeCreateRequest {
-                    obj: config_map,
-                }
-            )
-        ));
-        (state_prime, req_o)
+    } else if pc == after_get_cr_pc() {
+        if resp_o.is_some() {
+            let resp = resp_o.unwrap();
+            if resp.is_get_response() && is_result_ok(&resp.unwrap_get_response().res) {
+                let state_prime = SimpleReconcileState {
+                    reconcile_pc: after_create_cm_pc(),
+                };
+                let mut config_map = ConfigMap::default();
+                config_map.set_name(cr_key.name.clone().concat(new_strlit("_cm")));
+                config_map.set_namespace(cr_key.namespace.clone());
+                let req_o = Option::Some(KubeAPIRequest::ConfigMapRequest(
+                    KubeConfigMapRequest::CreateRequest(
+                        KubeCreateRequest {
+                            obj: config_map,
+                        }
+                    )
+                ));
+                (state_prime, req_o)
+            } else {
+                let state_prime = SimpleReconcileState {
+                    reconcile_pc: error_pc(),
+                };
+                let req_o = Option::None;
+                (state_prime, req_o)
+            }
+        } else {
+            let state_prime = SimpleReconcileState {
+                reconcile_pc: error_pc(),
+            };
+            let req_o = Option::None;
+            (state_prime, req_o)
+        }
     } else {
         let state_prime = SimpleReconcileState {
             reconcile_pc: pc,
@@ -76,5 +104,21 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
         (state_prime, req_o)
     }
 }
+
+pub fn init_pc() -> (res: u64)
+    ensures res as nat == 0,
+{ 0 }
+
+pub fn after_get_cr_pc() -> (res: u64)
+    ensures res as nat == 1,
+{ 1 }
+
+pub fn after_create_cm_pc() -> (res: u64)
+    ensures res as nat == 2,
+{ 2 }
+
+pub fn error_pc() -> (res: u64)
+    ensures res as nat == 3,
+{ 3 }
 
 }
