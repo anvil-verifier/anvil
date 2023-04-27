@@ -42,7 +42,6 @@ pub const fn is_result_ok<T, E>(result: &Result<T, E>) -> (res: bool)
 /// The postcondition ensures that it conforms to the spec of reconciliation logic.
 ///
 /// TODO: Maybe we should make state a mutable reference; revisit it later
-/// TODO: Use the view of resp_o, instead of Option::None, when we need to check the response result to decide the next step
 pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, state: &SimpleReconcileState) -> (res: (SimpleReconcileState, Option<KubeAPIRequest>))
     requires
         cr_key.kind.is_CustomResourceKind(),
