@@ -14,15 +14,15 @@ rv=$VERUS_DIR/source/tools/rust-verify.sh
 cd deps_hack
 cargo build
 cd ..
-k8s_openapi_rlib="$(find deps_hack/target/debug/deps -name 'libk8s_openapi-*.rlib')"
+k8s_openapi_rlib="$(find deps_hack/target/debug/deps -name 'libk8s_openapi-*.rlib' | head -n 1)"
 kube_rlib="$(find deps_hack/target/debug/deps -name 'libkube-*.rlib' | head -n 1)"
-kube_client_rlib="$(find deps_hack/target/debug/deps -name 'libkube_client-*.rlib')"
-kube_core_rlib="$(find deps_hack/target/debug/deps -name 'libkube_core-*.rlib')"
-kube_runtime_rlib="$(find deps_hack/target/debug/deps -name 'libkube_runtime-*.rlib')"
+kube_client_rlib="$(find deps_hack/target/debug/deps -name 'libkube_client-*.rlib' | head -n 1)"
+kube_core_rlib="$(find deps_hack/target/debug/deps -name 'libkube_core-*.rlib' | head -n 1)"
+kube_runtime_rlib="$(find deps_hack/target/debug/deps -name 'libkube_runtime-*.rlib' | head -n 1)"
 serde_rlib="$(find deps_hack/target/debug/deps -name 'libserde-*.rlib' | head -n 1)"
 serde_json_rlib="$(find deps_hack/target/debug/deps -name 'libserde_json-*.rlib' | head -n 1)"
 serde_yaml_rlib="$(find deps_hack/target/debug/deps -name 'libserde_yaml-*.rlib' | head -n 1)"
-schemars_rlib="$(find deps_hack/target/debug/deps -name 'libschemars-*.rlib')"
+schemars_rlib="$(find deps_hack/target/debug/deps -name 'libschemars-*.rlib' | head -n 1)"
 tokio_rlib="$(find deps_hack/target/debug/deps -name 'libtokio-*.rlib' | head -n 1)"
 tracing_rlib="$(find deps_hack/target/debug/deps -name 'libtracing-*.rlib' | head -n 1)"
 anyhow_rlib="$(find deps_hack/target/debug/deps -name 'libanyhow-*.rlib' | head -n 1)"

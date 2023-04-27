@@ -7,6 +7,7 @@ use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 
 use k8s_openapi::api::core::v1::ConfigMap as K8SConfigMap;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
 
 verus! {
 
@@ -36,6 +37,11 @@ impl ConfigMap {
     #[verifier(external)]
     pub fn into_kube_obj(self) -> K8SConfigMap {
         self.inner
+    }
+
+    #[verifier(external)]
+    pub fn kube_metadata_ref(&self) -> &K8SObjectMeta {
+        &self.inner.metadata
     }
 
     #[verifier(external_body)]

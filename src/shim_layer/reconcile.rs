@@ -68,8 +68,9 @@ pub async fn reconcile(cr: Arc<SimpleCR>, ctx: Arc<Data>) -> Result<Action, Erro
                     match req {
                         KubeCustomResourceRequest::GetRequest(get_req) => {
                             let cr_api = Api::<SimpleCR>::namespaced(client.clone(), &get_req.namespace.into_rust_string());
-                            cr_api.get(&get_req.name.into_rust_string()).await;
+                            let res = cr_api.get(&get_req.name.into_rust_string()).await; // TODO: Check res and update resp_option
                             resp_option = Option::None;
+                            println!("Get CR done");
                         },
                         _ => {
                             resp_option = Option::None;
@@ -79,11 +80,20 @@ pub async fn reconcile(cr: Arc<SimpleCR>, ctx: Arc<Data>) -> Result<Action, Erro
                 KubeAPIRequest::ConfigMapRequest(req) => {
                     match req {
                         KubeConfigMapRequest::CreateRequest(create_req) => {
-                            let cm_api = Api::<ConfigMap>::namespaced(client.clone(), &create_req.obj.metadata().namespace().unwrap().into_rust_string());
+                            let cm_api = Api::<ConfigMap>::namespaced(client.clone(), &create_req.obj.kube_metadata_ref().namespace.as_ref().unwrap());
                             let pp = PostParams::default();
                             let cm = create_req.obj.into_kube_obj();
-                            cm_api.create(&pp, &cm).await;
+                            // TODO: need to prove whether the object is valid
+                            // See an example:
+                            // ConfigMap "foo_cm" is invalid: metadata.name: Invalid value: "foo_cm": a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.',
+                            // and must start and end with an alphanumeric character (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')
+                            let res = cm_api.create(&pp, &cm).await; // TODO: Check res and update resp_option
+                            // match res {
+                            //     std::result::Result::Err(kube::Error::Api(kube_core::ErrorResponse { status, message, reason, .. })) => println!("{}\n{}\n{}", status, message, reason),
+                            //     _ => {},
+                            // }
                             resp_option = Option::None;
+                            println!("Create CM done");
                         },
                         _ => {
                             resp_option = Option::None;
