@@ -38,16 +38,16 @@ pub const fn is_result_ok<T, E>(result: &Result<T, E>) -> (res: bool)
 
 pub fn reconcile_init_state() -> SimpleReconcileState {
     SimpleReconcileState {
-        reconcile_pc: 0,
+        reconcile_pc: init_pc(),
     }
 }
 
 pub fn reconcile_done(state: &SimpleReconcileState) -> bool {
-    state.reconcile_pc == 2
+    state.reconcile_pc == after_create_cm_pc()
 }
 
 pub fn reconcile_error(state: &SimpleReconcileState) -> bool {
-    state.reconcile_pc != 0 && state.reconcile_pc != 1 && state.reconcile_pc != 2
+    state.reconcile_pc != init_pc() && state.reconcile_pc != after_get_cr_pc() && state.reconcile_pc != after_create_cm_pc()
 }
 
 /// reconcile_core is the exec implementation of the core reconciliation logic.
@@ -64,7 +64,6 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
 {
     let pc = state.reconcile_pc;
     if pc == init_pc() {
-        assert(pc as nat == 0);
         let state_prime = SimpleReconcileState {
             reconcile_pc: after_get_cr_pc(),
         };
