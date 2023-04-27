@@ -85,7 +85,7 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
                     reconcile_pc: after_create_cm_pc(),
                 };
                 let mut config_map = ConfigMap::default();
-                config_map.set_name(cr_key.name.clone().concat(new_strlit("_cm")));
+                config_map.set_name(cr_key.name.clone().concat(new_strlit("-cm")));
                 config_map.set_namespace(cr_key.namespace.clone());
                 let req_o = Option::Some(KubeAPIRequest::ConfigMapRequest(
                     KubeConfigMapRequest::CreateRequest(
