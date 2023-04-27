@@ -28,13 +28,13 @@ impl SimpleReconcileState {
 
 // TODO: merge it into vstd
 pub const fn is_result_ok<T, E>(result: &Result<T, E>) -> (res: bool)
-        ensures res <==> result.is_Ok(),
-    {
-        match result {
-            Result::Ok(_) => true,
-            Result::Err(_) => false,
-        }
+    ensures res <==> result.is_Ok(),
+{
+    match result {
+        Result::Ok(_) => true,
+        Result::Err(_) => false,
     }
+}
 
 /// reconcile_core is the exec implementation of the core reconciliation logic.
 /// It will be called by the reconcile() function in a loop in our shim layer, and reconcile()
@@ -66,8 +66,8 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
         (state_prime, req_o)
     } else if pc == after_get_cr_pc() {
         if resp_o.is_some() {
-            let resp = resp_o.unwrap();
-            if resp.is_get_response() && is_result_ok(&resp.unwrap_get_response().res) {
+            let resp = resp_o.as_ref().unwrap();
+            if resp.is_get_response() && is_result_ok(&resp.as_get_response_ref().res) {
                 let state_prime = SimpleReconcileState {
                     reconcile_pc: after_create_cm_pc(),
                 };

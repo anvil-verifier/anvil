@@ -299,7 +299,7 @@ impl KubeAPIResponse {
         }
     }
 
-    pub fn unwrap_get_response(self) -> (resp: KubeGetResponse)
+    pub fn as_get_response_ref(&self) -> (resp: &KubeGetResponse)
         requires
             self.is_GetResponse(),
         ensures
