@@ -36,6 +36,20 @@ pub const fn is_result_ok<T, E>(result: &Result<T, E>) -> (res: bool)
     }
 }
 
+pub fn reconcile_init_state() -> SimpleReconcileState {
+    SimpleReconcileState {
+        reconcile_pc: 0,
+    }
+}
+
+pub fn reconcile_done(state: &SimpleReconcileState) -> bool {
+    state.reconcile_pc == 2
+}
+
+pub fn reconcile_error(state: &SimpleReconcileState) -> bool {
+    state.reconcile_pc != 0 && state.reconcile_pc != 1 && state.reconcile_pc != 2
+}
+
 /// reconcile_core is the exec implementation of the core reconciliation logic.
 /// It will be called by the reconcile() function in a loop in our shim layer, and reconcile()
 /// will be called by kube-rs framework when related events happen.
