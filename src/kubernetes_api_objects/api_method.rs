@@ -62,15 +62,15 @@ pub struct DeleteRequest {
 /// the concrete object type to instantiate a kube::api::Api.
 /// For example, to create a ConfigMap, we need to pass a ConfigMap object.
 
-pub enum KubeAPIRequest<'a> {
-    CustomResourceRequest(KubeCustomResourceRequest<'a>),
-    ConfigMapRequest(KubeConfigMapRequest<'a>),
+pub enum KubeAPIRequest {
+    CustomResourceRequest(KubeCustomResourceRequest),
+    ConfigMapRequest(KubeConfigMapRequest),
 }
 
 /// KubeCustomResourceRequest represents all the requests concerning CustomResource.
 
-pub enum KubeCustomResourceRequest<'a> {
-    GetRequest(KubeGetRequest<'a>),
+pub enum KubeCustomResourceRequest {
+    GetRequest(KubeGetRequest),
     ListRequest(KubeListRequest),
     CreateRequest(KubeCreateRequest<CustomResource>),
     DeleteRequest(KubeDeleteRequest),
@@ -78,8 +78,8 @@ pub enum KubeCustomResourceRequest<'a> {
 
 /// KubeConfigMapRequest represents all the requests concerning ConfigMap.
 
-pub enum KubeConfigMapRequest<'a> {
-    GetRequest(KubeGetRequest<'a>),
+pub enum KubeConfigMapRequest {
+    GetRequest(KubeGetRequest),
     ListRequest(KubeListRequest),
     CreateRequest(KubeCreateRequest<ConfigMap>),
     DeleteRequest(KubeDeleteRequest),
@@ -87,9 +87,9 @@ pub enum KubeConfigMapRequest<'a> {
 
 /// KubeGetRequest has the name as the parameter of Api.get(), and namespace to instantiate an Api.
 
-pub struct KubeGetRequest<'a> {
-    pub name: &'a String,
-    pub namespace: &'a String,
+pub struct KubeGetRequest {
+    pub name: String,
+    pub namespace: String,
 }
 
 /// KubeListRequest has the namespace to instantiate an Api.
@@ -113,7 +113,7 @@ pub struct KubeDeleteRequest {
     pub namespace: String,
 }
 
-impl KubeAPIRequest<'_> {
+impl KubeAPIRequest {
     /// to_view returns the view of KubeAPIRequest, i.e., APIRequest used for specifications.
     ///
     /// We need verbose pattern matching here because we have one variant for each object kind.
