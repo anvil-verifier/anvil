@@ -1,7 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, object::*};
+use crate::kubernetes_api_objects::{
+    api_method::*, common::*, config_map::*, custom_resource::*, error::*, object::*,
+};
 use crate::simple_controller::exec::reconciler::{
     reconcile_core, reconcile_done, reconcile_error, reconcile_init_state,
 };
@@ -9,7 +11,6 @@ use anyhow::Result;
 use builtin::*;
 use builtin_macros::*;
 use deps_hack::{Error, SimpleCR};
-use k8s_openapi::api::core::v1::ConfigMap;
 use kube::{
     api::{Api, ListParams, ObjectMeta, PostParams},
     runtime::controller::{Action, Controller},
@@ -24,6 +25,23 @@ verus! {
 #[verifier(external_body)]
 pub struct Data {
     pub client: Client,
+}
+
+// TODO: revisit kube error
+#[verifier(external)]
+pub fn kube_error_to_ghost(error: &kube::Error) -> APIError {
+    match error {
+        kube::Error::Api(error_resp) => {
+            if error_resp.code == 404 {
+                APIError::ObjectNotFound
+            } else if error_resp.code == 403 {
+                APIError::ObjectAlreadyExists
+            } else {
+                APIError::Other
+            }
+        },
+        _ => APIError::Other,
+    }
 }
 
 #[verifier(external)]
@@ -68,9 +86,25 @@ pub async fn reconcile(cr: Arc<SimpleCR>, ctx: Arc<Data>) -> Result<Action, Erro
                     match req {
                         KubeCustomResourceRequest::GetRequest(get_req) => {
                             let cr_api = Api::<SimpleCR>::namespaced(client.clone(), &get_req.namespace.into_rust_string());
-                            let res = cr_api.get(&get_req.name.into_rust_string()).await; // TODO: Check res and update resp_option
-                            resp_option = Option::None;
-                            println!("Get CR done");
+                            match cr_api.get(&get_req.name.into_rust_string()).await {
+                                std::result::Result::Err(err) => {
+                                    resp_option = Option::Some(KubeAPIResponse::GetResponse(
+                                        KubeGetResponse{
+                                            res: vstd::result::Result::Err(kube_error_to_ghost(&err)),
+                                        }
+                                    ));
+                                    println!("Get CR failed {}", err);
+                                },
+                                std::result::Result::Ok(obj) => {
+                                    resp_option = Option::Some(KubeAPIResponse::GetResponse(
+                                        KubeGetResponse{
+                                            // TODO: need to use the actual returned object here
+                                            res: vstd::result::Result::Ok(KubeObject::CustomResource(CustomResource::default())),
+                                        }
+                                    ));
+                                    println!("Get CR done");
+                                },
+                            }
                         },
                         _ => {
                             resp_option = Option::None;
@@ -80,20 +114,31 @@ pub async fn reconcile(cr: Arc<SimpleCR>, ctx: Arc<Data>) -> Result<Action, Erro
                 KubeAPIRequest::ConfigMapRequest(req) => {
                     match req {
                         KubeConfigMapRequest::CreateRequest(create_req) => {
-                            let cm_api = Api::<ConfigMap>::namespaced(client.clone(), &create_req.obj.kube_metadata_ref().namespace.as_ref().unwrap());
+                            let cm_api = Api::<k8s_openapi::api::core::v1::ConfigMap>::namespaced(client.clone(), &create_req.obj.kube_metadata_ref().namespace.as_ref().unwrap());
                             let pp = PostParams::default();
                             let cm = create_req.obj.into_kube_obj();
                             // TODO: need to prove whether the object is valid
                             // See an example:
                             // ConfigMap "foo_cm" is invalid: metadata.name: Invalid value: "foo_cm": a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.',
                             // and must start and end with an alphanumeric character (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')
-                            let res = cm_api.create(&pp, &cm).await; // TODO: Check res and update resp_option
-                            // match res {
-                            //     std::result::Result::Err(kube::Error::Api(kube_core::ErrorResponse { status, message, reason, .. })) => println!("{}\n{}\n{}", status, message, reason),
-                            //     _ => {},
-                            // }
-                            resp_option = Option::None;
-                            println!("Create CM done");
+                            match cm_api.create(&pp, &cm).await {
+                                std::result::Result::Err(err) => {
+                                    resp_option = Option::Some(KubeAPIResponse::CreateResponse(
+                                        KubeCreateResponse{
+                                            res: vstd::result::Result::Err(kube_error_to_ghost(&err)),
+                                        }
+                                    ));
+                                    println!("Create CM failed {}", err);
+                                },
+                                std::result::Result::Ok(obj) => {
+                                    resp_option = Option::Some(KubeAPIResponse::GetResponse(
+                                        KubeGetResponse{
+                                            res: vstd::result::Result::Ok(KubeObject::ConfigMap(ConfigMap::from_kube_obj(obj))),
+                                        }
+                                    ));
+                                    println!("Create CM done");
+                                },
+                            }
                         },
                         _ => {
                             resp_option = Option::None;

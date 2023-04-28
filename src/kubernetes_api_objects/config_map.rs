@@ -35,6 +35,13 @@ impl ConfigMap {
     }
 
     #[verifier(external)]
+    pub fn from_kube_obj(inner: K8SConfigMap) -> ConfigMap {
+        ConfigMap {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
     pub fn into_kube_obj(self) -> K8SConfigMap {
         self.inner
     }
