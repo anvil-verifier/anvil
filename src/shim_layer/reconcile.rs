@@ -4,13 +4,12 @@
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, custom_resource::*, error::*, object::*,
 };
-use crate::simple_controller::exec::reconciler::{
-    reconcile_core, reconcile_done, reconcile_error, reconcile_init_state,
-};
+use crate::kubernetes_cluster::exec::reconciler::*;
 use anyhow::Result;
 use builtin::*;
 use builtin_macros::*;
 use deps_hack::{Error, SimpleCR};
+use futures::TryFuture;
 use kube::{
     api::{Api, ListParams, ObjectMeta, PostParams},
     runtime::controller::{Action, Controller},
@@ -44,8 +43,12 @@ pub fn kube_error_to_ghost(error: &kube::Error) -> APIError {
     }
 }
 
+// TODO: reconcile_with should not be hardcoded to SimpleCR
 #[verifier(external)]
-pub async fn reconcile(cr: Arc<SimpleCR>, ctx: Arc<Data>) -> Result<Action, Error> {
+pub async fn reconcile_with<T, S>(reconciler: &T, cr: Arc<SimpleCR>, ctx: Arc<Data>) -> Result<Action, Error>
+  where
+    T: Reconciler<S>
+{
     let client = &ctx.client;
 
     let cr_name = cr
@@ -65,20 +68,20 @@ pub async fn reconcile(cr: Arc<SimpleCR>, ctx: Arc<Data>) -> Result<Action, Erro
         name: String::from_rust_string(cr_name.clone()),
         namespace: String::from_rust_string(cr_ns.clone()),
     };
-    let mut state = reconcile_init_state();
+    let mut state = reconciler.reconcile_init_state();
     let mut resp_option: Option<KubeAPIResponse> = Option::None;
 
     // Call reconcile_core in a loop
     loop {
         // If reconcile core is done, then breaks the loop
-        if reconcile_done(&state) {
+        if reconciler.reconcile_done(&state) {
             break;
         }
-        if reconcile_error(&state) {
+        if reconciler.reconcile_error(&state) {
             break;
         }
         // Feed the current reconcile state and get the new state and the pending request
-        let (state_prime, req_option) = reconcile_core(&cr_key, &resp_option, &state);
+        let (state_prime, req_option) = reconciler.reconcile_core(&cr_key, &resp_option, &state);
         // Pattern match the request and send requests to the Kubernetes API via kube-rs methods
         match req_option {
             Option::Some(req) => match req {

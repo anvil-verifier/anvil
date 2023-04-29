@@ -14,6 +14,7 @@ pub mod temporal_logic;
 use builtin::*;
 use builtin_macros::*;
 
+use crate::simple_controller::exec::reconciler::{SimpleReconcileState, SimpleReconciler};
 use anyhow::Result;
 use deps_hack::{Error, SimpleCR};
 use futures::StreamExt;
@@ -22,7 +23,7 @@ use kube::{
     runtime::controller::{Action, Controller},
     Client, CustomResourceExt,
 };
-use shim_layer::reconcile::{reconcile, Data};
+use shim_layer::reconcile::{reconcile_with, Data};
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::*;
@@ -45,6 +46,10 @@ async fn main() -> Result<()> {
         "Simple CRD:\n{}\n",
         serde_yaml::to_string(&SimpleCR::crd())?
     );
+
+    let reconcile = |cr: Arc<SimpleCR>, ctx: Arc<Data>| async move {
+        return reconcile_with::<SimpleReconciler, SimpleReconcileState>(&SimpleReconciler{}, cr, ctx).await;
+    };
 
     println!("starting simple-controller");
     Controller::new(crs, ListParams::default()) // The controller's reconcile is triggered when a CR is created/updated

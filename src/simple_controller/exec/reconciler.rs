@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, object::*};
+use crate::kubernetes_cluster::exec::reconciler::*;
 use crate::simple_controller::spec::simple_reconciler::reconcile_core as reconcile_core_spec;
 use crate::simple_controller::spec::simple_reconciler::SimpleReconcileState as SimpleReconcileStateView;
 use builtin::*;
@@ -33,6 +34,29 @@ pub const fn is_result_ok<T, E>(result: &Result<T, E>) -> (res: bool)
     match result {
         Result::Ok(_) => true,
         Result::Err(_) => false,
+    }
+}
+
+pub struct SimpleReconciler {}
+
+#[verifier(external)]
+impl Reconciler<SimpleReconcileState> for SimpleReconciler {
+    fn reconcile_init_state(&self) -> SimpleReconcileState {
+        SimpleReconcileState {
+            reconcile_pc: init_pc(),
+        }
+    }
+
+    fn reconcile_core(&self, cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, state: &SimpleReconcileState) -> (SimpleReconcileState, Option<KubeAPIRequest>) {
+        reconcile_core(cr_key, resp_o, state)
+    }
+
+    fn reconcile_done(&self, state: &SimpleReconcileState) -> bool {
+        state.reconcile_pc == after_create_cm_pc()
+    }
+
+    fn reconcile_error(&self, state: &SimpleReconcileState) -> bool {
+        state.reconcile_pc != init_pc() && state.reconcile_pc != after_get_cr_pc() && state.reconcile_pc != after_create_cm_pc()
     }
 }
 
