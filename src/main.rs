@@ -6,6 +6,7 @@
 pub mod kubernetes_api_objects;
 pub mod kubernetes_cluster;
 pub mod pervasive_ext;
+pub mod reconciler;
 pub mod shim_layer;
 pub mod simple_controller;
 pub mod state_machine;
@@ -23,17 +24,12 @@ use kube::{
     runtime::controller::{Action, Controller},
     Client, CustomResourceExt,
 };
-use shim_layer::reconcile::{reconcile_with, Data};
+use shim_layer::{error_policy, reconcile_with, Data};
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::*;
 
 verus! {
-
-#[verifier(external)]
-fn error_policy(_object: Arc<SimpleCR>, _error: &Error, _ctx: Arc<Data>) -> Action {
-    Action::requeue(Duration::from_secs(1))
-}
 
 #[verifier(external)]
 #[tokio::main]

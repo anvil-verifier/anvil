@@ -18,13 +18,13 @@ use crate::kubernetes_cluster::spec::{
     },
     message::*,
     network::{multiset_contains_msg, network, NetworkState},
-    reconciler::Reconciler,
 };
-use vstd::prelude::*;
+use crate::reconciler::spec::Reconciler;
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use builtin::*;
 use builtin_macros::*;
+use vstd::prelude::*;
 
 verus! {
 
