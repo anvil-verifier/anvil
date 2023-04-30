@@ -21,33 +21,18 @@ use vstd::{option::*, string::*};
 
 verus! {
 
-#[verifier(external_body)]
-pub struct Data {
-    pub client: Client,
-}
+/// The shim layer connects the verified reconciler to the trusted kube-rs APIs.
+/// The key is to implement the reconcile function (impl FnMut(Arc<K>, Arc<Ctx>) -> ReconcilerFut),
+/// which is required by the kube-rs framework to build a controller,
+/// on top of reconcile_core, which is provided by the developer.
 
-// TODO: revisit kube error
-#[verifier(external)]
-pub fn kube_error_to_ghost(error: &kube::Error) -> APIError {
-    match error {
-        kube::Error::Api(error_resp) => {
-            if error_resp.code == 404 {
-                APIError::ObjectNotFound
-            } else if error_resp.code == 403 {
-                APIError::ObjectAlreadyExists
-            } else {
-                APIError::Other
-            }
-        },
-        _ => APIError::Other,
-    }
-}
-
-
-#[verifier(external)]
-pub fn error_policy(_object: Arc<SimpleCR>, _error: &Error, _ctx: Arc<Data>) -> Action {
-    Action::requeue(Duration::from_secs(1))
-}
+/// reconcile_with implements the reconcile function by repeatedly invoking reconciler.reconcile_core.
+/// reconcile_with will be invoked by kube-rs whenever kube-rs's watcher receives any event defined as relevant to the controller.
+/// In each invocation, reconcile_with invokes reconciler.reconcile_core in a loop:
+/// it starts with reconciler.reconcile_init_state, and in each iteration it invokes reconciler.reconcile_core with the new state
+/// returned by the previous invocation.
+/// For each request from reconciler.reconcile_core, it invokes kube-rs APIs to send the request to the Kubernetes API.
+/// It ends the loop when the reconciler reports the reconcile is done (reconciler.reconcile_done) or encounters error (reconciler.reconcile_error).
 
 // TODO: reconcile_with should not be hardcoded to SimpleCR
 #[verifier(external)]
@@ -90,6 +75,7 @@ pub async fn reconcile_with<T, S>(reconciler: &T, cr: Arc<SimpleCR>, ctx: Arc<Da
         // Feed the current reconcile state and get the new state and the pending request
         let (state_prime, req_option) = reconciler.reconcile_core(&cr_key, &resp_option, &state);
         // Pattern match the request and send requests to the Kubernetes API via kube-rs methods
+        // TODO: use dynamic object type to avoid pattern matching each concrete type
         match req_option {
             Option::Some(req) => match req {
                 KubeAPIRequest::CustomResourceRequest(req) => {
@@ -163,6 +149,40 @@ pub async fn reconcile_with<T, S>(reconciler: &T, cr: Arc<SimpleCR>, ctx: Arc<Da
 
     println!("reconcile OK");
     Ok(Action::requeue(Duration::from_secs(10)))
+}
+
+/// error_policy defines the controller's behavior when the reconcile ends with an error.
+
+#[verifier(external)]
+pub fn error_policy(_object: Arc<SimpleCR>, _error: &Error, _ctx: Arc<Data>) -> Action {
+    Action::requeue(Duration::from_secs(10))
+}
+
+/// Data is passed to reconcile_with.
+/// It carries the client that communicates with Kubernetes API.
+#[verifier(external_body)]
+pub struct Data {
+    pub client: Client,
+}
+
+/// kube_error_to_ghost translates the API error from kube-rs APIs
+/// to the form that can be processed by reconcile_core.
+
+// TODO: revisit the translation; the current implementation is too coarse grained.
+#[verifier(external)]
+pub fn kube_error_to_ghost(error: &kube::Error) -> APIError {
+    match error {
+        kube::Error::Api(error_resp) => {
+            if error_resp.code == 404 {
+                APIError::ObjectNotFound
+            } else if error_resp.code == 403 {
+                APIError::ObjectAlreadyExists
+            } else {
+                APIError::Other
+            }
+        },
+        _ => APIError::Other,
+    }
 }
 
 }
