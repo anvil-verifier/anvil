@@ -66,11 +66,12 @@ pub async fn reconcile_with<T, S>(reconciler: &T, cr: Arc<SimpleCR>, ctx: Arc<Da
     loop {
         // If reconcile core is done, then breaks the loop
         if reconciler.reconcile_done(&state) {
+            println!("reconcile done");
             break;
         }
-        // TODO: we should treat reconcile_error differently
         if reconciler.reconcile_error(&state) {
-            break;
+            println!("reconcile error");
+            return Err(Error::APIError);
         }
         // Feed the current reconcile state and get the new state and the pending request
         let (state_prime, req_option) = reconciler.reconcile_core(&cr_key, &resp_option, &state);
@@ -147,7 +148,6 @@ pub async fn reconcile_with<T, S>(reconciler: &T, cr: Arc<SimpleCR>, ctx: Arc<Da
         state = state_prime;
     }
 
-    println!("reconcile OK");
     Ok(Action::requeue(Duration::from_secs(10)))
 }
 

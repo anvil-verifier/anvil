@@ -14,6 +14,8 @@ pub use tracing;
 pub enum Error {
     #[error("MissingObjectKey: {0}")]
     MissingObjectKey(&'static str),
+    #[error("APIError")]
+    APIError,
 }
 
 #[derive(
