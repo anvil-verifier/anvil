@@ -63,6 +63,10 @@ impl Reconciler<SimpleReconcileState> for SimpleReconciler {
     }
 }
 
+impl Default for SimpleReconciler {
+    fn default() -> SimpleReconciler { SimpleReconciler{} }
+}
+
 pub fn reconcile_init_state() -> (res: SimpleReconcileState)
     ensures
         reconcile_init_state_spec() == res.to_view(),

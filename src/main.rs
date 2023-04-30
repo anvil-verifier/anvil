@@ -17,17 +17,8 @@ use builtin_macros::*;
 
 use crate::simple_controller::exec::reconciler::{SimpleReconcileState, SimpleReconciler};
 use anyhow::Result;
-use deps_hack::{Error, SimpleCR};
-use futures::StreamExt;
-use kube::{
-    api::{Api, ListParams, ObjectMeta, PostParams},
-    runtime::controller::{Action, Controller},
-    Client, CustomResourceExt,
-};
-use shim_layer::{error_policy, reconcile_with, Data};
-use std::sync::Arc;
-use std::time::Duration;
-use tracing::*;
+use deps_hack::SimpleCR;
+use shim_layer::run_controller;
 
 verus! {
 
@@ -36,29 +27,7 @@ verus! {
 async fn main() -> Result<()> {
     println!("This is main");
 
-    let client = Client::try_default().await?;
-    let crs = Api::<SimpleCR>::all(client.clone());
-    println!(
-        "Simple CRD:\n{}\n",
-        serde_yaml::to_string(&SimpleCR::crd())?
-    );
-
-    let reconcile = |cr: Arc<SimpleCR>, ctx: Arc<Data>| async move {
-        return reconcile_with::<SimpleCR, SimpleReconciler, SimpleReconcileState>(&SimpleReconciler{}, cr, ctx).await;
-    };
-
-    println!("starting simple-controller");
-    Controller::new(crs, ListParams::default()) // The controller's reconcile is triggered when a CR is created/updated
-        .shutdown_on_signal()
-        .run(reconcile, error_policy, Arc::new(Data { client })) // The reconcile function is registered
-        .for_each(|res| async move {
-            match res {
-                Ok(o) => println!("reconciled {:?}", o),
-                Err(e) => println!("reconcile failed: {}", e),
-            }
-        })
-        .await;
-    println!("controller terminated");
+    run_controller::<SimpleCR, SimpleReconciler, SimpleReconcileState>().await?;
     Ok(())
 }
 }

@@ -8,13 +8,17 @@ use crate::reconciler::exec::*;
 use anyhow::Result;
 use builtin::*;
 use builtin_macros::*;
+use core::fmt::Debug;
+use core::hash::Hash;
 use deps_hack::{Error, SimpleCR};
+use futures::StreamExt;
 use futures::TryFuture;
 use kube::{
     api::{Api, ListParams, ObjectMeta, PostParams, Resource},
     runtime::controller::{Action, Controller},
     Client, CustomResource, CustomResourceExt,
 };
+use serde::de::DeserializeOwned;
 use std::sync::Arc;
 use std::time::Duration;
 use vstd::{option::*, string::*};
@@ -26,6 +30,46 @@ verus! {
 /// which is required by the kube-rs framework to build a controller,
 /// on top of reconcile_core, which is provided by the developer.
 
+/// run_controller prepares and runs the controller. It requires:
+/// K: the custom resource type
+/// T: the reconciler type
+/// S: the local state of the reconciler
+#[verifier(external)]
+pub async fn run_controller<K, T, S>() -> Result<()>
+where
+    K: Clone + Resource + CustomResourceExt + DeserializeOwned + Debug + Send + Sync + 'static,
+    K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
+    T: Reconciler<S> + Send + Sync + Default,
+    S: Send
+{
+    let client = Client::try_default().await?;
+    let crs = Api::<K>::all(client.clone());
+    println!(
+        "CRD:\n{}\n",
+        serde_yaml::to_string(&K::crd())?
+    );
+
+    // Build the async closure on top of reconcile_with
+    let reconcile = |cr: Arc<K>, ctx: Arc<Data>| async move {
+        return reconcile_with::<K, T, S>(&T::default(), cr, ctx).await;
+    };
+
+    println!("starting controller");
+    // TODO: the controller should also listen to the owned resources
+    Controller::new(crs, ListParams::default()) // The controller's reconcile is triggered when a CR is created/updated
+        .shutdown_on_signal()
+        .run(reconcile, error_policy, Arc::new(Data { client })) // The reconcile function is registered
+        .for_each(|res| async move {
+            match res {
+                Ok(o) => println!("reconciled {:?}", o),
+                Err(e) => println!("reconcile failed: {}", e),
+            }
+        })
+        .await;
+    println!("controller terminated");
+    Ok(())
+}
+
 /// reconcile_with implements the reconcile function by repeatedly invoking reconciler.reconcile_core.
 /// reconcile_with will be invoked by kube-rs whenever kube-rs's watcher receives any event defined as relevant to the controller.
 /// In each invocation, reconcile_with invokes reconciler.reconcile_core in a loop:
@@ -36,7 +80,7 @@ verus! {
 
 #[verifier(external)]
 pub async fn reconcile_with<K, T, S>(reconciler: &T, cr: Arc<K>, ctx: Arc<Data>) -> Result<Action, Error>
-  where
+where
     K: Resource,
     T: Reconciler<S>,
 {
@@ -154,7 +198,11 @@ pub async fn reconcile_with<K, T, S>(reconciler: &T, cr: Arc<K>, ctx: Arc<Data>)
 /// error_policy defines the controller's behavior when the reconcile ends with an error.
 
 #[verifier(external)]
-pub fn error_policy(_object: Arc<SimpleCR>, _error: &Error, _ctx: Arc<Data>) -> Action {
+pub fn error_policy<K>(_object: Arc<K>, _error: &Error, _ctx: Arc<Data>) -> Action
+where
+    K: Clone + Resource + DeserializeOwned + Debug + Send + Sync + 'static,
+    K::DynamicType: Eq + Hash + Clone + Debug + Unpin,
+{
     Action::requeue(Duration::from_secs(10))
 }
 
