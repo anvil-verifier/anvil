@@ -4,6 +4,9 @@
 use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, object::*};
 use crate::reconciler::exec::*;
 use crate::simple_controller::spec::simple_reconciler::reconcile_core as reconcile_core_spec;
+use crate::simple_controller::spec::simple_reconciler::reconcile_done as reconcile_done_spec;
+use crate::simple_controller::spec::simple_reconciler::reconcile_error as reconcile_error_spec;
+use crate::simple_controller::spec::simple_reconciler::reconcile_init_state as reconcile_init_state_spec;
 use crate::simple_controller::spec::simple_reconciler::SimpleReconcileState as SimpleReconcileStateView;
 use builtin::*;
 use builtin_macros::*;
@@ -60,17 +63,26 @@ impl Reconciler<SimpleReconcileState> for SimpleReconciler {
     }
 }
 
-pub fn reconcile_init_state() -> SimpleReconcileState {
+pub fn reconcile_init_state() -> (res: SimpleReconcileState)
+    ensures
+        reconcile_init_state_spec() == res.to_view(),
+{
     SimpleReconcileState {
         reconcile_pc: init_pc(),
     }
 }
 
-pub fn reconcile_done(state: &SimpleReconcileState) -> bool {
+pub fn reconcile_done(state: &SimpleReconcileState) -> (res: bool)
+    ensures
+        reconcile_done_spec(state.to_view()) == res,
+{
     state.reconcile_pc == after_create_cm_pc()
 }
 
-pub fn reconcile_error(state: &SimpleReconcileState) -> bool {
+pub fn reconcile_error(state: &SimpleReconcileState) -> (res: bool)
+    ensures
+        reconcile_error_spec(state.to_view()) == res,
+{
     state.reconcile_pc != init_pc() && state.reconcile_pc != after_get_cr_pc() && state.reconcile_pc != after_create_cm_pc()
 }
 
