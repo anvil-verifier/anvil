@@ -44,7 +44,7 @@ async fn main() -> Result<()> {
     );
 
     let reconcile = |cr: Arc<SimpleCR>, ctx: Arc<Data>| async move {
-        return reconcile_with::<SimpleReconciler, SimpleReconcileState>(&SimpleReconciler{}, cr, ctx).await;
+        return reconcile_with::<SimpleCR, SimpleReconciler, SimpleReconcileState>(&SimpleReconciler{}, cr, ctx).await;
     };
 
     println!("starting simple-controller");

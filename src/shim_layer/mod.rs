@@ -11,7 +11,7 @@ use builtin_macros::*;
 use deps_hack::{Error, SimpleCR};
 use futures::TryFuture;
 use kube::{
-    api::{Api, ListParams, ObjectMeta, PostParams},
+    api::{Api, ListParams, ObjectMeta, PostParams, Resource},
     runtime::controller::{Action, Controller},
     Client, CustomResource, CustomResourceExt,
 };
@@ -34,21 +34,21 @@ verus! {
 /// For each request from reconciler.reconcile_core, it invokes kube-rs APIs to send the request to the Kubernetes API.
 /// It ends the loop when the reconciler reports the reconcile is done (reconciler.reconcile_done) or encounters error (reconciler.reconcile_error).
 
-// TODO: reconcile_with should not be hardcoded to SimpleCR
 #[verifier(external)]
-pub async fn reconcile_with<T, S>(reconciler: &T, cr: Arc<SimpleCR>, ctx: Arc<Data>) -> Result<Action, Error>
+pub async fn reconcile_with<K, T, S>(reconciler: &T, cr: Arc<K>, ctx: Arc<Data>) -> Result<Action, Error>
   where
-    T: Reconciler<S>
+    K: Resource,
+    T: Reconciler<S>,
 {
     let client = &ctx.client;
 
     let cr_name = cr
-        .metadata
+        .meta()
         .name
         .as_ref()
         .ok_or_else(|| Error::MissingObjectKey(".metadata.name"))?;
     let cr_ns = cr
-        .metadata
+        .meta()
         .namespace
         .as_ref()
         .ok_or_else(|| Error::MissingObjectKey(".metadata.namespace"))?;
