@@ -1,6 +1,6 @@
 # Except this file
 !.gitignore
 .vscode/
-main
+src/main
 src/.verus-log/
 reference_controllers/simple_controller/target/
