@@ -13,22 +13,22 @@ use crate::kubernetes_cluster::{
         message::*,
     },
 };
-use vstd::{option::*, result::*};
 use crate::simple_controller::proof::shared::*;
 use crate::simple_controller::spec::{
-    simple_reconciler,
-    simple_reconciler::{simple_reconciler, SimpleReconcileState},
+    reconciler,
+    reconciler::{simple_reconciler, SimpleReconcileState},
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use builtin::*;
 use builtin_macros::*;
+use vstd::{option::*, result::*};
 
 verus! {
 
 pub open spec fn reconcile_init_pc_and_no_pending_req(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
-        &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == simple_reconciler::init_pc()
+        &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::init_pc()
         &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_None()
     }
 }
@@ -41,9 +41,9 @@ pub proof fn lemma_always_reconcile_init_pc_and_no_pending_req(cr: CustomResourc
 {
     let invariant = |s: State<SimpleReconcileState>| {
         s.reconcile_state_contains(cr.object_ref())
-        && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == simple_reconciler::init_pc()
+        && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::init_pc()
         ==> s.reconcile_state_contains(cr.object_ref())
-            && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == simple_reconciler::init_pc()
+            && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::init_pc()
             && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_None()
     };
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), next(simple_reconciler()), invariant);
@@ -52,7 +52,7 @@ pub proof fn lemma_always_reconcile_init_pc_and_no_pending_req(cr: CustomResourc
     // There is no need to do this if we only want to prove safety
     let invariant_temp_pred = lift_state(reconciler_at_init_pc(cr)).implies(lift_state(|s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
-        &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == simple_reconciler::init_pc()
+        &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::init_pc()
         &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_None()
     }));
     temp_pred_equality::<State<SimpleReconcileState>>(lift_state(invariant), invariant_temp_pred);
@@ -61,7 +61,7 @@ pub proof fn lemma_always_reconcile_init_pc_and_no_pending_req(cr: CustomResourc
 pub open spec fn reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         s.reconcile_state_contains(cr.object_ref())
-        && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == simple_reconciler::after_get_cr_pc()
+        && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
         ==> exists |req_msg| {
                 #[trigger] is_controller_get_cr_request_msg(req_msg, cr)
                 && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
@@ -106,9 +106,9 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
         reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr)(s_prime),
 {
     // We only care about the case where reconcile state is at after_get_cr_pc at s_prime
-    if s_prime.reconcile_state_contains(cr.object_ref()) && s_prime.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == simple_reconciler::after_get_cr_pc() {
+    if s_prime.reconcile_state_contains(cr.object_ref()) && s_prime.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc() {
         // Depending on whether reconcile state is at after_get_cr_pc, we need to reason about different transitions
-        if s.reconcile_state_contains(cr.object_ref()) && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == simple_reconciler::after_get_cr_pc() {
+        if s.reconcile_state_contains(cr.object_ref()) && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc() {
             let req_msg = choose |req_msg| #[trigger] is_controller_get_cr_request_msg(req_msg, cr) && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg);
             assert(is_controller_get_cr_request_msg(req_msg, cr) && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg));
             // If req_msg is in flight at s...
@@ -145,11 +145,11 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
 pub open spec fn reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         s.reconcile_state_contains(cr.object_ref())
-        && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == simple_reconciler::after_create_cm_pc()
+        && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_create_cm_pc()
         ==> exists |req_msg| {
                 #[trigger] is_controller_create_cm_request_msg(req_msg, cr)
                 && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
-                && (s.message_in_flight(req_msg) || s.resource_key_exists(simple_reconciler::subresource_configmap(cr.object_ref()).object_ref()))
+                && (s.message_in_flight(req_msg) || s.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()))
             }
     }
 }
@@ -184,25 +184,25 @@ proof fn next_preserves_reconcile_create_cm_done_implies_pending_create_cm_req_i
     ensures
         reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr)(s_prime),
 {
-    if s_prime.reconcile_state_contains(cr.object_ref()) && s_prime.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == simple_reconciler::after_create_cm_pc() {
-        if s.reconcile_state_contains(cr.object_ref()) && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == simple_reconciler::after_create_cm_pc() {
+    if s_prime.reconcile_state_contains(cr.object_ref()) && s_prime.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_create_cm_pc() {
+        if s.reconcile_state_contains(cr.object_ref()) && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_create_cm_pc() {
             let req_msg = choose |req_msg| #[trigger] is_controller_create_cm_request_msg(req_msg, cr) && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg);
             assert(is_controller_create_cm_request_msg(req_msg, cr) && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg));
             if s.message_in_flight(req_msg) {
-                if s.resource_key_exists(simple_reconciler::subresource_configmap(cr.object_ref()).object_ref()) {
-                    assert(s_prime.resource_key_exists(simple_reconciler::subresource_configmap(cr.object_ref()).object_ref()));
+                if s.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()) {
+                    assert(s_prime.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()));
                 } else {
                     if s_prime.message_in_flight(req_msg) {
                         assert(s_prime.message_in_flight(req_msg));
                     } else {
-                        assert(s_prime.resource_key_exists(simple_reconciler::subresource_configmap(cr.object_ref()).object_ref()));
+                        assert(s_prime.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()));
                     }
                 }
             } else {
-                assert(s_prime.resource_key_exists(simple_reconciler::subresource_configmap(cr.object_ref()).object_ref()));
+                assert(s_prime.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()));
             }
         } else {
-            let req_msg = controller_req_msg(simple_reconciler::create_cm_req(cr.object_ref()), s.chan_manager.cur_chan_id);
+            let req_msg = controller_req_msg(reconciler::create_cm_req(cr.object_ref()), s.chan_manager.cur_chan_id);
             assert(is_controller_create_cm_request_msg(req_msg, cr)
                 && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
                 && s_prime.message_in_flight(req_msg)
@@ -217,7 +217,7 @@ pub open spec fn delete_cm_req_msg_not_in_flight(cr: CustomResourceView) -> Stat
             &&& #[trigger] s.message_in_flight(m)
             &&& m.dst == HostId::KubernetesAPI
             &&& m.content.is_delete_request()
-            &&& m.content.get_delete_request().key == simple_reconciler::subresource_configmap(cr.object_ref()).object_ref()
+            &&& m.content.get_delete_request().key == reconciler::subresource_configmap(cr.object_ref()).object_ref()
         }
     }
 }
@@ -231,7 +231,7 @@ pub proof fn lemma_delete_cm_req_msg_never_in_flight(cr: CustomResourceView)
         assert(!exists |m: Message| s.message_in_flight(m)
             && m.dst == HostId::KubernetesAPI
             && #[trigger] m.content.is_delete_request()
-            && m.content.get_delete_request().key == simple_reconciler::subresource_configmap(cr.object_ref()).object_ref()
+            && m.content.get_delete_request().key == reconciler::subresource_configmap(cr.object_ref()).object_ref()
         );
     };
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), next(simple_reconciler()), invariant);
