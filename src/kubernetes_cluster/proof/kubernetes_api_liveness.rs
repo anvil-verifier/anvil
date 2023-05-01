@@ -9,9 +9,9 @@ use crate::kubernetes_cluster::{
         kubernetes_api::common::KubernetesAPIAction,
         kubernetes_api::state_machine::{handle_request, kubernetes_api},
         message::*,
-        reconciler::Reconciler,
     },
 };
+use crate::reconciler::spec::Reconciler;
 use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
 use builtin::*;

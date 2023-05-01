@@ -15,20 +15,4 @@ pub enum APIError {
     Other
 }
 
-#[verifier(external)]
-pub fn kube_error_to_ghost(error: kube::Error) -> APIError {
-    match error {
-        kube::Error::Api(error_resp) => {
-            if error_resp.code == 404 {
-                APIError::ObjectNotFound
-            } else if error_resp.code == 403 {
-                APIError::ObjectAlreadyExists
-            } else {
-                APIError::Other
-            }
-        },
-        _ => APIError::Other,
-    }
-}
-
 }

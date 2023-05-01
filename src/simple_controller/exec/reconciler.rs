@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, object::*};
+use crate::reconciler::exec::*;
 use crate::simple_controller::spec::simple_reconciler::reconcile_core as reconcile_core_spec;
+use crate::simple_controller::spec::simple_reconciler::reconcile_done as reconcile_done_spec;
+use crate::simple_controller::spec::simple_reconciler::reconcile_error as reconcile_error_spec;
+use crate::simple_controller::spec::simple_reconciler::reconcile_init_state as reconcile_init_state_spec;
 use crate::simple_controller::spec::simple_reconciler::SimpleReconcileState as SimpleReconcileStateView;
 use builtin::*;
 use builtin_macros::*;
@@ -36,6 +40,56 @@ pub const fn is_result_ok<T, E>(result: &Result<T, E>) -> (res: bool)
     }
 }
 
+pub struct SimpleReconciler {}
+
+#[verifier(external)]
+impl Reconciler<SimpleReconcileState> for SimpleReconciler {
+    fn reconcile_init_state(&self) -> SimpleReconcileState {
+        SimpleReconcileState {
+            reconcile_pc: init_pc(),
+        }
+    }
+
+    fn reconcile_core(&self, cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, state: &SimpleReconcileState) -> (SimpleReconcileState, Option<KubeAPIRequest>) {
+        reconcile_core(cr_key, resp_o, state)
+    }
+
+    fn reconcile_done(&self, state: &SimpleReconcileState) -> bool {
+        state.reconcile_pc == after_create_cm_pc()
+    }
+
+    fn reconcile_error(&self, state: &SimpleReconcileState) -> bool {
+        state.reconcile_pc != init_pc() && state.reconcile_pc != after_get_cr_pc() && state.reconcile_pc != after_create_cm_pc()
+    }
+}
+
+impl Default for SimpleReconciler {
+    fn default() -> SimpleReconciler { SimpleReconciler{} }
+}
+
+pub fn reconcile_init_state() -> (res: SimpleReconcileState)
+    ensures
+        reconcile_init_state_spec() == res.to_view(),
+{
+    SimpleReconcileState {
+        reconcile_pc: init_pc(),
+    }
+}
+
+pub fn reconcile_done(state: &SimpleReconcileState) -> (res: bool)
+    ensures
+        reconcile_done_spec(state.to_view()) == res,
+{
+    state.reconcile_pc == after_create_cm_pc()
+}
+
+pub fn reconcile_error(state: &SimpleReconcileState) -> (res: bool)
+    ensures
+        reconcile_error_spec(state.to_view()) == res,
+{
+    state.reconcile_pc != init_pc() && state.reconcile_pc != after_get_cr_pc() && state.reconcile_pc != after_create_cm_pc()
+}
+
 /// reconcile_core is the exec implementation of the core reconciliation logic.
 /// It will be called by the reconcile() function in a loop in our shim layer, and reconcile()
 /// will be called by kube-rs framework when related events happen.
@@ -50,7 +104,6 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
 {
     let pc = state.reconcile_pc;
     if pc == init_pc() {
-        assert(pc as nat == 0);
         let state_prime = SimpleReconcileState {
             reconcile_pc: after_get_cr_pc(),
         };
@@ -71,7 +124,7 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
                     reconcile_pc: after_create_cm_pc(),
                 };
                 let mut config_map = ConfigMap::default();
-                config_map.set_name(cr_key.name.clone().concat(new_strlit("_cm")));
+                config_map.set_name(cr_key.name.clone().concat(new_strlit("-cm")));
                 config_map.set_namespace(cr_key.namespace.clone());
                 let req_o = Option::Some(KubeAPIRequest::ConfigMapRequest(
                     KubeConfigMapRequest::CreateRequest(

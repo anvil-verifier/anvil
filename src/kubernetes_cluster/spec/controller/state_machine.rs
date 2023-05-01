@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_cluster::spec::{
-    channel::*, controller::common::*, controller::controller_runtime::*, message::*, reconciler::*,
+    channel::*, controller::common::*, controller::controller_runtime::*, message::*,
 };
-use vstd::{map::*, option::*, seq::*, set::*, string::*};
+use crate::reconciler::spec::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
 use builtin::*;
 use builtin_macros::*;
+use vstd::{map::*, option::*, seq::*, set::*, string::*};
 
 verus! {
 

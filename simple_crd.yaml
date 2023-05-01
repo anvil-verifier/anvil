@@ -1,0 +1,35 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: simplecrs.anvil.dev
+spec:
+  group: anvil.dev
+  names:
+    categories: []
+    kind: SimpleCR
+    plural: simplecrs
+    shortNames:
+      - cr
+    singular: simplecr
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns: []
+      name: v1
+      schema:
+        openAPIV3Schema:
+          description: "Auto-generated derived type for SimpleCRSpec via `CustomResource`"
+          properties:
+            spec:
+              properties:
+                content:
+                  type: string
+              required:
+                - content
+              type: object
+          required:
+            - spec
+          title: SimpleCR
+          type: object
+      served: true
+      storage: true
+      subresources: {}

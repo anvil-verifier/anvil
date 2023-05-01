@@ -1,9 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use vstd::prelude::*;
-use vstd::string::*;
 use crate::pervasive_ext::string_map;
 use crate::pervasive_ext::string_view::*;
+use vstd::prelude::*;
+use vstd::string::*;
 
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
 
@@ -34,6 +34,13 @@ impl ObjectMeta {
     {
         ObjectMeta {
             inner: K8SObjectMeta::default(),
+        }
+    }
+
+    #[verifier(external)]
+    pub fn from_kube_object_meta(inner: K8SObjectMeta) -> ObjectMeta {
+        ObjectMeta {
+            inner: inner
         }
     }
 
