@@ -45,4 +45,4 @@ futures_rlib="$(find deps_hack/target/debug/deps -name 'libfutures-*.rlib' | hea
   --expand-errors \
   --compile \
   --time \
-  main.rs
+  "$1".rs

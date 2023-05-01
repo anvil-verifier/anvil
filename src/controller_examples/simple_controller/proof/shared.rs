@@ -1,15 +1,15 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::controller_examples::simple_controller::spec::{
+    reconciler,
+    reconciler::{simple_reconciler, SimpleReconcileState},
+};
 use crate::kubernetes_api_objects::{common::*, config_map::*, custom_resource::*, object::*};
 use crate::kubernetes_cluster::spec::{
     controller::common::{controller_req_msg, ControllerAction, ControllerActionInput},
     distributed_system::*,
     message::*,
-};
-use crate::simple_controller::spec::{
-    reconciler,
-    reconciler::{simple_reconciler, SimpleReconcileState},
 };
 use crate::temporal_logic::defs::*;
 use builtin::*;

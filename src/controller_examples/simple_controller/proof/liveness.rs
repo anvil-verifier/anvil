@@ -1,6 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::controller_examples::simple_controller::proof::safety::*;
+use crate::controller_examples::simple_controller::proof::shared::*;
+use crate::controller_examples::simple_controller::spec::{
+    simple_reconciler,
+    simple_reconciler::{simple_reconciler, SimpleReconcileState},
+};
 use crate::kubernetes_api_objects::{common::*, custom_resource::*, object::*};
 use crate::kubernetes_cluster::{
     proof::{
@@ -15,17 +21,11 @@ use crate::kubernetes_cluster::{
         message::*,
     },
 };
-use vstd::*;
-use vstd::{option::*, result::*};
-use crate::simple_controller::proof::safety::*;
-use crate::simple_controller::proof::shared::*;
-use crate::simple_controller::spec::{
-    simple_reconciler,
-    simple_reconciler::{simple_reconciler, SimpleReconcileState},
-};
 use crate::temporal_logic::{defs::*, rules::*};
 use builtin::*;
 use builtin_macros::*;
+use vstd::*;
+use vstd::{option::*, result::*};
 
 verus! {
 

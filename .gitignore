@@ -2,5 +2,6 @@
 !.gitignore
 .vscode/
 src/main
+src/simple_controller
 src/.verus-log/
 reference_controllers/simple_controller/target/
