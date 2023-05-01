@@ -3,3 +3,4 @@
 .vscode/
 main
 src/.verus-log/
+reference_controllers/simple_controller/target/
