@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, custom_resource::*, error::*, object::*,
+    api_method::*, common::*, dynamic_object::*, error::*, object::*,
 };
 use crate::reconciler::exec::*;
 use anyhow::Result;
@@ -10,7 +10,7 @@ use builtin::*;
 use builtin_macros::*;
 use core::fmt::Debug;
 use core::hash::Hash;
-use deps_hack::{Error, SimpleCR};
+use deps_hack::Error;
 use futures::StreamExt;
 use futures::TryFuture;
 use kube::{
@@ -123,69 +123,53 @@ where
         // TODO: use dynamic object type to avoid pattern matching each concrete type
         match req_option {
             Option::Some(req) => match req {
-                KubeAPIRequest::CustomResourceRequest(req) => {
-                    match req {
-                        KubeCustomResourceRequest::GetRequest(get_req) => {
-                            let cr_api = Api::<SimpleCR>::namespaced(client.clone(), &get_req.namespace.into_rust_string());
-                            match cr_api.get(&get_req.name.into_rust_string()).await {
-                                std::result::Result::Err(err) => {
-                                    resp_option = Option::Some(KubeAPIResponse::GetResponse(
-                                        KubeGetResponse{
-                                            res: vstd::result::Result::Err(kube_error_to_ghost(&err)),
-                                        }
-                                    ));
-                                    println!("Get CR failed {}", err);
-                                },
-                                std::result::Result::Ok(obj) => {
-                                    resp_option = Option::Some(KubeAPIResponse::GetResponse(
-                                        KubeGetResponse{
-                                            // TODO: need to use the actual returned object here
-                                            res: vstd::result::Result::Ok(KubeObject::CustomResource(CustomResource::default())),
-                                        }
-                                    ));
-                                    println!("Get CR done");
-                                },
-                            }
+                KubeAPIRequest::GetRequest(get_req) => {
+                    let api = Api::<kube::api::DynamicObject>::namespaced_with(client.clone(), &get_req.namespace.into_rust_string(), &get_req.api_resource.into_kube_api_resource());
+                    match api.get(&get_req.name.into_rust_string()).await {
+                        std::result::Result::Err(err) => {
+                            resp_option = Option::Some(KubeAPIResponse::GetResponse(
+                                KubeGetResponse{
+                                    res: vstd::result::Result::Err(kube_error_to_ghost(&err)),
+                                }
+                            ));
+                            println!("Get failed {}", err);
                         },
-                        _ => {
-                            resp_option = Option::None;
-                        }
+                        std::result::Result::Ok(obj) => {
+                            resp_option = Option::Some(KubeAPIResponse::GetResponse(
+                                KubeGetResponse{
+                                    res: vstd::result::Result::Ok(DynamicObject::from_kube_obj(obj)),
+                                }
+                            ));
+                            println!("Get done");
+                        },
                     }
                 },
-                KubeAPIRequest::ConfigMapRequest(req) => {
-                    match req {
-                        KubeConfigMapRequest::CreateRequest(create_req) => {
-                            let cm_api = Api::<k8s_openapi::api::core::v1::ConfigMap>::namespaced(client.clone(), &create_req.obj.kube_metadata_ref().namespace.as_ref().unwrap());
-                            let pp = PostParams::default();
-                            let cm = create_req.obj.into_kube_obj();
-                            // TODO: need to prove whether the object is valid
-                            // See an example:
-                            // ConfigMap "foo_cm" is invalid: metadata.name: Invalid value: "foo_cm": a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.',
-                            // and must start and end with an alphanumeric character (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')
-                            match cm_api.create(&pp, &cm).await {
-                                std::result::Result::Err(err) => {
-                                    resp_option = Option::Some(KubeAPIResponse::CreateResponse(
-                                        KubeCreateResponse{
-                                            res: vstd::result::Result::Err(kube_error_to_ghost(&err)),
-                                        }
-                                    ));
-                                    println!("Create CM failed {}", err);
-                                },
-                                std::result::Result::Ok(obj) => {
-                                    resp_option = Option::Some(KubeAPIResponse::GetResponse(
-                                        KubeGetResponse{
-                                            res: vstd::result::Result::Ok(KubeObject::ConfigMap(ConfigMap::from_kube_obj(obj))),
-                                        }
-                                    ));
-                                    println!("Create CM done");
-                                },
-                            }
+                KubeAPIRequest::CreateRequest(create_req) => {
+                    let api = Api::<kube::api::DynamicObject>::namespaced_with(client.clone(), &create_req.obj.kube_metadata_ref().namespace.as_ref().unwrap(), &create_req.api_resource.into_kube_api_resource());
+                    let pp = PostParams::default();
+                    let obj_to_create = create_req.obj.into_kube_obj();
+                    match api.create(&pp, &obj_to_create).await {
+                        std::result::Result::Err(err) => {
+                            resp_option = Option::Some(KubeAPIResponse::CreateResponse(
+                                KubeCreateResponse{
+                                    res: vstd::result::Result::Err(kube_error_to_ghost(&err)),
+                                }
+                            ));
+                            println!("Create failed {}", err);
                         },
-                        _ => {
-                            resp_option = Option::None;
-                        }
+                        std::result::Result::Ok(obj) => {
+                            resp_option = Option::Some(KubeAPIResponse::GetResponse(
+                                KubeGetResponse{
+                                    res: vstd::result::Result::Ok(DynamicObject::from_kube_obj(obj)),
+                                }
+                            ));
+                            println!("Create done");
+                        },
                     }
                 },
+                _ => {
+                    panic!("Not supported yet");
+                }
             },
             _ => resp_option = Option::None,
         }

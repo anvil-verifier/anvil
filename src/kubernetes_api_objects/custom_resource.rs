@@ -1,15 +1,18 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use vstd::prelude::*;
 
+use deps_hack::SimpleCR;
+
 verus! {
 
-// TODO: CustomResource should be a generic type
+// TODO: CustomResource should be defined by the controller developer
 #[verifier(external_body)]
 pub struct CustomResource {
-    // the content is specific to the controller
+    inner: SimpleCR
 }
 
 pub struct CustomResourceView {
@@ -22,11 +25,8 @@ impl CustomResource {
     pub spec fn view(&self) -> CustomResourceView;
 
     #[verifier(external_body)]
-    pub fn default() -> (cr: CustomResource)
-        ensures
-            cr@ == CustomResourceView::default(),
-    {
-        CustomResource {}
+    pub fn api_resource() -> ApiResource {
+        ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<SimpleCR>(&()))
     }
 
     #[verifier(external_body)]

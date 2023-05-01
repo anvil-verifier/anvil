@@ -1,6 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
+use crate::kubernetes_api_objects::dynamic_object::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::pervasive_ext::string_map;
 use crate::pervasive_ext::string_view::*;
@@ -44,6 +46,24 @@ impl ConfigMap {
     #[verifier(external)]
     pub fn into_kube_obj(self) -> K8SConfigMap {
         self.inner
+    }
+
+    #[verifier(external_body)]
+    pub fn api_resource() -> ApiResource {
+        ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<K8SConfigMap>(&()))
+    }
+
+    // This function assumes serde_json::to_value won't fail!
+    #[verifier(external_body)]
+    pub fn to_dynamic_object(self) -> DynamicObject {
+        DynamicObject::from_kube_obj(kube::api::DynamicObject {
+            types: std::option::Option::Some(kube::api::TypeMeta {
+                api_version: Self::api_resource().into_kube_api_resource().api_version,
+                kind: Self::api_resource().into_kube_api_resource().kind,
+            }),
+            metadata: self.inner.metadata,
+            data: k8s_openapi::serde_json::to_value(self.inner.data).unwrap(),
+        })
     }
 
     #[verifier(external)]
