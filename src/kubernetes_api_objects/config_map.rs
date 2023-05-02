@@ -56,7 +56,8 @@ impl ConfigMap {
         ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<K8SConfigMap>(&()))
     }
 
-    // This function assumes serde_json::to_value won't fail!
+    /// Convert a ConfigMap to a DynamicObject
+    // NOTE: This function assumes serde_json::to_value won't fail!
     #[verifier(external_body)]
     pub fn to_dynamic_object(self) -> (obj: DynamicObject)
         ensures
@@ -72,7 +73,8 @@ impl ConfigMap {
         })
     }
 
-    // This function assumes try_parse won't fail!
+    /// Convert a DynamicObject to a ConfigMap
+    // NOTE: This function assumes try_parse won't fail!
     #[verifier(external_body)]
     pub fn from_dynamic_object(obj: DynamicObject) -> (cm: ConfigMap)
         ensures
@@ -137,6 +139,8 @@ impl ConfigMapView {
         }
     }
 
+    // TODO: defining spec functions like data_field() to serve as the key of Object Map
+    // is not the ideal way. Find a more elegant way to define the keys.
     pub open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: self.kind(),
@@ -152,7 +156,8 @@ impl ConfigMapView {
         }
     }
 
-    pub proof fn preserved_by_marshaling()
+    /// Check that any config map remains unchanged after serialization and deserialization
+    pub proof fn integrity_check()
         ensures
             forall |o: ConfigMapView| o == ConfigMapView::from_dynamic_object(#[trigger] o.to_dynamic_object())
     {}

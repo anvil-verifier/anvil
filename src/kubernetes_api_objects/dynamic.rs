@@ -10,6 +10,19 @@ use kube::api::DynamicObject as K8SDynamicObject;
 
 verus! {
 
+/// Value is used to "serialize" whatever Kubernetes resource object to a DynamicObject.
+/// It looks similar to serde_json::Value but there are two major differences:
+/// - Value::Object carries a Map<nat, Value>, while serde_json::Value::Object carries a Map<String, Value>
+/// - Value has more variants for map structures like StringStringMap
+///
+/// All these differences are intended to make it easy (trivial) to prove a Kubernetes object
+/// remains unchanged after "serialization" and "deserialization".
+/// For example:
+///     forall |o: ConfigMapView| o == ConfigMapView::from_dynamic_object(o.to_dynamic_object())
+///
+/// To do so, we try to avoid using StringView (Seq<Char>) as the key of Object Map because
+/// Verus cannot easily tell two StringViews are different unless we reveal them.
+
 #[is_variant]
 pub enum Value {
     Null,
@@ -21,6 +34,13 @@ pub enum Value {
     StringStringMap(Map<StringView, StringView>),
     Object(Map<nat, Value>),
 }
+
+/// DynamicObject is mainly used to pass requests/response between reconcile_core and the shim layer.
+/// We use DynamicObject in KubeAPIRequest and KubeAPIResponse so that they can carry the requests and responses
+/// for all kinds of Kubernetes resource objects without exhaustive pattern matching.
+/// Note that for each Kubernetes resource object we need to implement two methods:
+/// - to_dynamic_object: converts a type K object to a DynamicObject
+/// - from_dynamic_object: converts a DynamicObject to a type K object
 
 #[verifier(external_body)]
 pub struct DynamicObject {

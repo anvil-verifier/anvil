@@ -89,7 +89,7 @@ impl CustomResourceView {
         }
     }
 
-    pub proof fn preserved_by_marshaling()
+    pub proof fn integrity_check()
         ensures
             forall |o: CustomResourceView| o == CustomResourceView::from_dynamic_object(#[trigger] o.to_dynamic_object())
     {}
