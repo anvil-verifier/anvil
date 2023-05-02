@@ -1,9 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{
-    api_method::*, common::*, custom_resource::*, dynamic_object::*,
-};
+use crate::kubernetes_api_objects::{api_method::*, common::*, custom_resource::*, dynamic::*};
 use crate::kubernetes_cluster::spec::{
     channel::*,
     client::{client, ClientActionInput, ClientState},

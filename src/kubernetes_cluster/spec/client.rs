@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{custom_resource::*, dynamic_object::*};
+use crate::kubernetes_api_objects::{custom_resource::*, dynamic::*};
 use crate::kubernetes_cluster::spec::{channel::*, message::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
