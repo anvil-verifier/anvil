@@ -49,7 +49,10 @@ impl ConfigMap {
     }
 
     #[verifier(external_body)]
-    pub fn api_resource() -> ApiResource {
+    pub fn api_resource() -> (res: ApiResource)
+        ensures
+            res@.kind == Kind::ConfigMapKind,
+    {
         ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<K8SConfigMap>(&()))
     }
 

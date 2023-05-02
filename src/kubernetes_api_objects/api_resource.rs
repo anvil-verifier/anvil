@@ -15,7 +15,7 @@ pub struct ApiResource {
 }
 
 pub struct ApiResourceView {
-
+    pub kind: Kind,
 }
 
 impl ApiResource {
@@ -37,10 +37,6 @@ impl ApiResource {
     pub fn as_kube_api_resource_ref(&self) -> &K8SApiResource {
         &self.inner
     }
-}
-
-impl ApiResourceView {
-
 }
 
 }

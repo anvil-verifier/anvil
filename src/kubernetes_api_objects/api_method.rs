@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::api_resource::*;
-use crate::kubernetes_api_objects::common::*;
+use crate::kubernetes_api_objects::common::{Kind, ObjectRef};
 use crate::kubernetes_api_objects::dynamic::*;
 use crate::kubernetes_api_objects::error::*;
 use crate::pervasive_ext::string_view::*;
@@ -106,13 +106,13 @@ impl KubeAPIRequest {
         match self {
             KubeAPIRequest::GetRequest(get_req) => APIRequest::GetRequest(GetRequest {
                 key: ObjectRef {
-                    kind: Kind::CustomResourceKind,
+                    kind: get_req.api_resource@.kind,
                     name: get_req.name@,
                     namespace: get_req.namespace@,
                 }
             }),
             KubeAPIRequest::ListRequest(list_req) => APIRequest::ListRequest(ListRequest {
-                kind: Kind::CustomResourceKind,
+                kind: list_req.api_resource@.kind,
                 namespace: list_req.namespace@,
             }),
             KubeAPIRequest::CreateRequest(create_req) => APIRequest::CreateRequest(CreateRequest {
@@ -120,7 +120,7 @@ impl KubeAPIRequest {
             }),
             KubeAPIRequest::DeleteRequest(delete_req) => APIRequest::DeleteRequest(DeleteRequest {
                 key: ObjectRef {
-                    kind: Kind::CustomResourceKind,
+                    kind: delete_req.api_resource@.kind,
                     name: delete_req.name@,
                     namespace: delete_req.namespace@,
                 }

@@ -27,7 +27,10 @@ impl CustomResource {
     pub spec fn view(&self) -> CustomResourceView;
 
     #[verifier(external_body)]
-    pub fn api_resource() -> ApiResource {
+    pub fn api_resource() -> (res: ApiResource)
+        ensures
+            res@.kind == Kind::CustomResourceKind,
+    {
         ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<SimpleCR>(&()))
     }
 
