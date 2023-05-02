@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*, error::*, object::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic_object::*, error::*};
 use crate::kubernetes_cluster::{
     proof::wf1_assistant::kubernetes_api_action_pre_implies_next_pre,
     spec::{
@@ -142,7 +142,7 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp<T>(spec: TempPred<State<T>>, 
     );
 }
 
-pub proof fn lemma_get_req_leads_to_ok_resp_if_never_delete<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
+pub proof fn lemma_get_req_leads_to_ok_resp_if_never_delete<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, res: DynamicObjectView)
     requires
         spec.entails(always(lift_action(next(reconciler)))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
@@ -187,7 +187,7 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_never_delete<T>(spec: TempPred<St
     lemma_pre_leads_to_post_with_assumption_by_kubernetes_api::<T>(spec, reconciler, Option::Some(msg), next(reconciler), handle_request(), assumption, pre, post);
 }
 
-pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
+pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, res: DynamicObjectView)
     requires
         spec.entails(always(lift_action(next(reconciler)))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
@@ -260,7 +260,7 @@ pub proof fn lemma_get_req_leads_to_ok_resp_if_res_always_exists<T>(spec: TempPr
     p_and_always_p_equals_always_p::<State<T>>(lift_state(res_exists));
 }
 
-pub proof fn lemma_create_req_leads_to_res_exists<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
+pub proof fn lemma_create_req_leads_to_res_exists<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, res: DynamicObjectView)
     requires
         spec.entails(always(lift_action(next(reconciler)))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
@@ -287,7 +287,7 @@ pub proof fn lemma_create_req_leads_to_res_exists<T>(spec: TempPred<State<T>>, r
     lemma_pre_leads_to_post_by_kubernetes_api::<T>(spec, reconciler, Option::Some(msg), next(reconciler), handle_request(), pre, post);
 }
 
-pub proof fn lemma_delete_req_leads_to_res_not_exists<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
+pub proof fn lemma_delete_req_leads_to_res_not_exists<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, res: DynamicObjectView)
     requires
         spec.entails(always(lift_action(next(reconciler)))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
@@ -314,7 +314,7 @@ pub proof fn lemma_delete_req_leads_to_res_not_exists<T>(spec: TempPred<State<T>
     lemma_pre_leads_to_post_by_kubernetes_api::<T>(spec, reconciler, Option::Some(msg), next(reconciler), handle_request(), pre, post);
 }
 
-pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, res: KubernetesObject)
+pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, msg: Message, res: DynamicObjectView)
     requires
         spec.entails(always(lift_action(next(reconciler)))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
@@ -364,7 +364,7 @@ pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<T>(spec: T
 }
 
 /// How to prove this? It is obvious according to lemma_always_res_always_exists_implies_delete_never_sent
-pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, res: KubernetesObject)
+pub proof fn lemma_always_res_always_exists_implies_forall_delete_never_sent<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, res: DynamicObjectView)
     requires
         spec.entails(always(lift_action(next(reconciler)))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),

@@ -6,9 +6,7 @@ use crate::controller_examples::simple_controller::spec::reconciler::reconcile_d
 use crate::controller_examples::simple_controller::spec::reconciler::reconcile_error as reconcile_error_spec;
 use crate::controller_examples::simple_controller::spec::reconciler::reconcile_init_state as reconcile_init_state_spec;
 use crate::controller_examples::simple_controller::spec::reconciler::SimpleReconcileState as SimpleReconcileStateView;
-use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, custom_resource::*, object::*,
-};
+use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, custom_resource::*};
 use crate::reconciler::exec::*;
 use builtin::*;
 use builtin_macros::*;
@@ -104,8 +102,8 @@ pub fn reconcile_error(state: &SimpleReconcileState) -> (res: bool)
 pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, state: &SimpleReconcileState) -> (res: (SimpleReconcileState, Option<KubeAPIRequest>))
     requires
         cr_key.kind.is_CustomResourceKind(),
-    // ensures
-    //     (res.0.to_view(), opt_req_to_view(&res.1)) == reconcile_core_spec(cr_key.to_view(), opt_resp_to_view(&resp_o), state.to_view()),
+    ensures
+        (res.0.to_view(), opt_req_to_view(&res.1)) == reconcile_core_spec(cr_key.to_view(), opt_resp_to_view(&resp_o), state.to_view()),
 {
     let pc = state.reconcile_pc;
     if pc == init_pc() {

@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*, error::*, object::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic_object::*, error::*};
 use crate::kubernetes_cluster::spec::{
     channel::*,
     kubernetes_api::{builtin_controllers::statefulset_controller, common::*},
@@ -34,7 +34,7 @@ pub open spec fn handle_get_request(msg: Message, s: KubernetesAPIState) -> (Etc
     }
 }
 
-pub open spec fn list_query(list_req: ListRequest, s: KubernetesAPIState) -> Seq<KubernetesObject> {
+pub open spec fn list_query(list_req: ListRequest, s: KubernetesAPIState) -> Seq<DynamicObjectView> {
     // TODO: the returned seq should contain all the objects of the resource kind in the resources map
     Seq::empty()
 }

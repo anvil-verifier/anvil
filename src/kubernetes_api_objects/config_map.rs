@@ -55,7 +55,10 @@ impl ConfigMap {
 
     // This function assumes serde_json::to_value won't fail!
     #[verifier(external_body)]
-    pub fn to_dynamic_object(self) -> DynamicObject {
+    pub fn to_dynamic_object(self) -> (obj: DynamicObject)
+        ensures
+            obj@ == self@.to_dynamic_object(),
+    {
         DynamicObject::from_kube_obj(kube::api::DynamicObject {
             types: std::option::Option::Some(kube::api::TypeMeta {
                 api_version: Self::api_resource().into_kube_api_resource().api_version,
@@ -64,6 +67,15 @@ impl ConfigMap {
             metadata: self.inner.metadata,
             data: k8s_openapi::serde_json::to_value(self.inner.data).unwrap(),
         })
+    }
+
+    // This function assumes try_parse won't fail!
+    #[verifier(external_body)]
+    pub fn from_dynamic_object(obj: DynamicObject) -> (cm: ConfigMap)
+        ensures
+            cm@ == ConfigMapView::from_dynamic_object(obj@),
+    {
+        ConfigMap {inner: obj.into_kube_obj().try_parse::<K8SConfigMap>().unwrap()}
     }
 
     #[verifier(external)]
@@ -122,6 +134,26 @@ impl ConfigMapView {
         }
     }
 
+    pub open spec fn to_dynamic_object(self) -> DynamicObjectView {
+        DynamicObjectView {
+            kind: self.kind(),
+            metadata: self.metadata,
+            data: Value::Object(Map::empty().insert(data_field(), if self.data.is_None() {Value::Null} else {Value::StringStringMap(self.data.get_Some_0())})),
+        }
+    }
+
+    pub open spec fn from_dynamic_object(obj: DynamicObjectView) -> ConfigMapView {
+        ConfigMapView {
+            metadata: obj.metadata,
+            data: if obj.data.get_Object_0()[data_field()].is_Null() {Option::None} else {Option::Some(obj.data.get_Object_0()[data_field()].get_StringStringMap_0())},
+        }
+    }
+
+    pub proof fn preserved_by_marshaling()
+        ensures
+            forall |o: ConfigMapView| o == ConfigMapView::from_dynamic_object(#[trigger] o.to_dynamic_object())
+    {}
+
     pub open spec fn kind(self) -> Kind {
         Kind::ConfigMapKind
     }
@@ -152,5 +184,7 @@ impl ConfigMapView {
         }
     }
 }
+
+pub open spec fn data_field() -> nat {0}
 
 }

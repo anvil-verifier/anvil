@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::object_meta::*;
+use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
@@ -9,14 +10,27 @@ use kube::api::DynamicObject as K8SDynamicObject;
 
 verus! {
 
+#[is_variant]
+pub enum Value {
+    Null,
+    Bool(bool),
+    Nat(nat),
+    Int(int),
+    String(StringView),
+    Array(Seq<Value>),
+    StringStringMap(Map<StringView, StringView>),
+    Object(Map<nat, Value>),
+}
+
 #[verifier(external_body)]
 pub struct DynamicObject {
     inner: K8SDynamicObject,
 }
 
 pub struct DynamicObjectView {
+    pub kind: Kind,
     pub metadata: ObjectMetaView,
-    // TODO: implement data field
+    pub data: Value,
 }
 
 impl DynamicObject {
@@ -49,7 +63,17 @@ impl DynamicObject {
 }
 
 impl DynamicObjectView {
-
+    pub open spec fn object_ref(self) -> ObjectRef
+        recommends
+            self.metadata.name.is_Some(),
+            self.metadata.namespace.is_Some(),
+    {
+        ObjectRef {
+            kind: self.kind,
+            name: self.metadata.name.get_Some_0(),
+            namespace: self.metadata.namespace.get_Some_0(),
+        }
+    }
 }
 
 }

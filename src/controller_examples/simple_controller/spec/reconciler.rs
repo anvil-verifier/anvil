@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, object::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*};
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_const::*;
 use crate::reconciler::spec::*;
@@ -100,7 +100,7 @@ pub open spec fn create_cm_req(cr_key: ObjectRef) -> APIRequest
         cr_key.kind.is_CustomResourceKind(),
 {
     APIRequest::CreateRequest(CreateRequest{
-        obj: KubernetesObject::ConfigMap(subresource_configmap(cr_key)),
+        obj: subresource_configmap(cr_key).to_dynamic_object(),
     })
 }
 

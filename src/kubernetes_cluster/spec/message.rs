@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*, error::*, object::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic_object::*, error::*};
 use crate::pervasive_ext::string_view::*;
 use builtin::*;
 use builtin_macros::*;
@@ -46,15 +46,15 @@ pub enum WatchEvent {
 }
 
 pub struct AddedEvent {
-    pub obj: KubernetesObject,
+    pub obj: DynamicObjectView,
 }
 
 pub struct ModifiedEvent {
-    pub obj: KubernetesObject,
+    pub obj: DynamicObjectView,
 }
 
 pub struct DeletedEvent {
-    pub obj: KubernetesObject,
+    pub obj: DynamicObjectView,
 }
 
 // We implement some handy methods for pattern matching and retrieving information from MessageContent
@@ -196,43 +196,43 @@ pub open spec fn form_msg(src: HostId, dst: HostId, msg_content: MessageContent)
     }
 }
 
-pub open spec fn form_get_resp_msg(req_msg: Message, result: Result<KubernetesObject, APIError>) -> Message
+pub open spec fn form_get_resp_msg(req_msg: Message, result: Result<DynamicObjectView, APIError>) -> Message
     recommends req_msg.content.is_get_request(),
 {
     form_msg(req_msg.dst, req_msg.src, get_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
-pub open spec fn form_list_resp_msg(req_msg: Message, result: Result<Seq<KubernetesObject>, APIError>) -> Message
+pub open spec fn form_list_resp_msg(req_msg: Message, result: Result<Seq<DynamicObjectView>, APIError>) -> Message
     recommends req_msg.content.is_list_request(),
 {
     form_msg(req_msg.dst, req_msg.src, list_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
-pub open spec fn form_create_resp_msg(req_msg: Message, result: Result<KubernetesObject, APIError>) -> Message
+pub open spec fn form_create_resp_msg(req_msg: Message, result: Result<DynamicObjectView, APIError>) -> Message
     recommends req_msg.content.is_create_request(),
 {
     form_msg(req_msg.dst, req_msg.src, create_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
-pub open spec fn form_delete_resp_msg(req_msg: Message, result: Result<KubernetesObject, APIError>) -> Message
+pub open spec fn form_delete_resp_msg(req_msg: Message, result: Result<DynamicObjectView, APIError>) -> Message
     recommends req_msg.content.is_delete_request(),
 {
     form_msg(req_msg.dst, req_msg.src, delete_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
-pub open spec fn added_event(obj: KubernetesObject) -> WatchEvent {
+pub open spec fn added_event(obj: DynamicObjectView) -> WatchEvent {
     WatchEvent::AddedEvent(AddedEvent{
         obj: obj
     })
 }
 
-pub open spec fn modified_event(obj: KubernetesObject) -> WatchEvent {
+pub open spec fn modified_event(obj: DynamicObjectView) -> WatchEvent {
     WatchEvent::ModifiedEvent(ModifiedEvent{
         obj: obj
     })
 }
 
-pub open spec fn deleted_event(obj: KubernetesObject) -> WatchEvent {
+pub open spec fn deleted_event(obj: DynamicObjectView) -> WatchEvent {
     WatchEvent::DeletedEvent(DeletedEvent{
         obj: obj
     })
@@ -251,7 +251,7 @@ pub open spec fn list_req_msg_content(kind: Kind, namespace: StringView, req_id:
     }), req_id)
 }
 
-pub open spec fn create_req_msg_content(obj: KubernetesObject, req_id: nat) -> MessageContent {
+pub open spec fn create_req_msg_content(obj: DynamicObjectView, req_id: nat) -> MessageContent {
     MessageContent::APIRequest(APIRequest::CreateRequest(CreateRequest{
         obj: obj,
     }), req_id)
@@ -263,25 +263,25 @@ pub open spec fn delete_req_msg_content(key: ObjectRef, req_id: nat) -> MessageC
     }), req_id)
 }
 
-pub open spec fn get_resp_msg_content(res: Result<KubernetesObject, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn get_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::GetResponse(GetResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn list_resp_msg_content(res: Result<Seq<KubernetesObject>, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn list_resp_msg_content(res: Result<Seq<DynamicObjectView>, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::ListResponse(ListResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn create_resp_msg_content(res: Result<KubernetesObject, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn create_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::CreateResponse(CreateResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn delete_resp_msg_content(res: Result<KubernetesObject, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn delete_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::DeleteResponse(DeleteResponse{
         res: res,
     }), resp_id)
