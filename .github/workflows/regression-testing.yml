@@ -2,10 +2,10 @@ name: Regression Testing
 run-name: ${{ github.actor }} is running regression tests
 on:
   workflow_dispatch:
-  # push:
-  #   branches:
-  #     - main
-  # pull_request:
+  push:
+    branches:
+      - main
+  pull_request:
 jobs:
   regression-testing:
     runs-on: ubuntu-latest
