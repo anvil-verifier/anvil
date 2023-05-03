@@ -17,11 +17,7 @@ jobs:
           repository: verus-lang/verus
           path: verus
       - name: Install latest nightly Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-          components: rustfmt, clippy
+        run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o sh.rustup.rs && sh sh.rustup.rs -y
       - name: Download Z3
         run: cd verus/source && ./tools/get-z3.sh
       - name: Build Verus
