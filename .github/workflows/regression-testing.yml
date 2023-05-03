@@ -1,0 +1,30 @@
+name: Regression Testing
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+jobs:
+  regression-testing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download Verus
+        uses: actions/checkout@v2
+        with:
+          repository: verus-lang/verus
+          path: verus
+      - name: Install latest nightly Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          components: rustfmt, clippy
+      - name: Download Z3
+        run: cd verus/source && ./tools/get-z3.sh
+      - name: Build Verus
+        run: cd verus/source && source ../tools/activate && vargo build --release
+      - name: Build simple controller
+        run: VERUS_DIR=$PWD/verus ./build.sh simple_controller
