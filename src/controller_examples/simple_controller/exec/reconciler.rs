@@ -30,16 +30,6 @@ impl SimpleReconcileState {
     }
 }
 
-// TODO: merge it into vstd
-pub const fn is_result_ok<T, E>(result: &Result<T, E>) -> (res: bool)
-    ensures res <==> result.is_Ok(),
-{
-    match result {
-        Result::Ok(_) => true,
-        Result::Err(_) => false,
-    }
-}
-
 pub struct SimpleReconciler {}
 
 #[verifier(external)]
@@ -121,7 +111,7 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
     } else if pc == after_get_cr_pc() {
         if resp_o.is_some() {
             let resp = resp_o.as_ref().unwrap();
-            if resp.is_get_response() && is_result_ok(&resp.as_get_response_ref().res) {
+            if resp.is_get_response() && resp.as_get_response_ref().res.is_ok() {
                 let state_prime = SimpleReconcileState {
                     reconcile_pc: after_create_cm_pc(),
                 };

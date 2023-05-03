@@ -30,7 +30,7 @@ impl StringMap {
             self@.contains_key(key@) == v.is_Some(),
             v.is_Some() ==> v.get_Some_0()@ == self@[key@],
     {
-        match self.inner.get(&key.into_rust_string()) {
+        match self.inner.get(key.as_rust_string_ref()) {
             std::option::Option::Some(v) => Some(StrSlice::from_rust_str(v)),
             std::option::Option::None => None,
         }
