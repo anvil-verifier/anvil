@@ -15,4 +15,6 @@ pub enum APIError {
     Other
 }
 
+pub struct ParseDynamicObjectError {}
+
 }

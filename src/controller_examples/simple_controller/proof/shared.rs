@@ -5,7 +5,7 @@ use crate::controller_examples::simple_controller::spec::{
     reconciler,
     reconciler::{simple_reconciler, SimpleReconcileState},
 };
-use crate::kubernetes_api_objects::{common::*, config_map::*, custom_resource::*, object::*};
+use crate::kubernetes_api_objects::{common::*, config_map::*, custom_resource::*};
 use crate::kubernetes_cluster::spec::{
     controller::common::{controller_req_msg, ControllerAction, ControllerActionInput},
     distributed_system::*,
@@ -129,7 +129,7 @@ pub open spec fn is_controller_create_cm_request_msg(msg: Message, cr: CustomRes
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI
     &&& msg.content.is_create_request()
-    &&& msg.content.get_create_request().obj == KubernetesObject::ConfigMap(reconciler::subresource_configmap(cr.object_ref()))
+    &&& msg.content.get_create_request().obj == reconciler::subresource_configmap(cr.object_ref()).to_dynamic_object()
 }
 
 }

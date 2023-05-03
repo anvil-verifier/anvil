@@ -1,6 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
+use crate::kubernetes_api_objects::dynamic::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::pervasive_ext::string_map;
 use crate::pervasive_ext::string_view::*;
@@ -44,6 +46,41 @@ impl ConfigMap {
     #[verifier(external)]
     pub fn into_kube_obj(self) -> K8SConfigMap {
         self.inner
+    }
+
+    #[verifier(external_body)]
+    pub fn api_resource() -> (res: ApiResource)
+        ensures
+            res@.kind == Kind::ConfigMapKind,
+    {
+        ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<K8SConfigMap>(&()))
+    }
+
+    /// Convert a ConfigMap to a DynamicObject
+    // NOTE: This function assumes serde_json::to_value won't fail!
+    #[verifier(external_body)]
+    pub fn to_dynamic_object(self) -> (obj: DynamicObject)
+        ensures
+            obj@ == self@.to_dynamic_object(),
+    {
+        DynamicObject::from_kube_obj(kube::api::DynamicObject {
+            types: std::option::Option::Some(kube::api::TypeMeta {
+                api_version: Self::api_resource().into_kube_api_resource().api_version,
+                kind: Self::api_resource().into_kube_api_resource().kind,
+            }),
+            metadata: self.inner.metadata,
+            data: k8s_openapi::serde_json::to_value(self.inner.data).unwrap(),
+        })
+    }
+
+    /// Convert a DynamicObject to a ConfigMap
+    // NOTE: This function assumes try_parse won't fail!
+    #[verifier(external_body)]
+    pub fn from_dynamic_object(obj: DynamicObject) -> (cm: ConfigMap)
+        ensures
+            cm@ == ConfigMapView::from_dynamic_object(obj@),
+    {
+        ConfigMap {inner: obj.into_kube_obj().try_parse::<K8SConfigMap>().unwrap()}
     }
 
     #[verifier(external)]
@@ -102,6 +139,29 @@ impl ConfigMapView {
         }
     }
 
+    // TODO: defining spec functions like data_field() to serve as the key of Object Map
+    // is not the ideal way. Find a more elegant way to define the keys.
+    pub open spec fn to_dynamic_object(self) -> DynamicObjectView {
+        DynamicObjectView {
+            kind: self.kind(),
+            metadata: self.metadata,
+            data: Value::Object(Map::empty().insert(data_field(), if self.data.is_None() {Value::Null} else {Value::StringStringMap(self.data.get_Some_0())})),
+        }
+    }
+
+    pub open spec fn from_dynamic_object(obj: DynamicObjectView) -> ConfigMapView {
+        ConfigMapView {
+            metadata: obj.metadata,
+            data: if obj.data.get_Object_0()[data_field()].is_Null() {Option::None} else {Option::Some(obj.data.get_Object_0()[data_field()].get_StringStringMap_0())},
+        }
+    }
+
+    /// Check that any config map remains unchanged after serialization and deserialization
+    pub proof fn integrity_check()
+        ensures
+            forall |o: ConfigMapView| o == ConfigMapView::from_dynamic_object(#[trigger] o.to_dynamic_object())
+    {}
+
     pub open spec fn kind(self) -> Kind {
         Kind::ConfigMapKind
     }
@@ -132,5 +192,7 @@ impl ConfigMapView {
         }
     }
 }
+
+pub open spec fn data_field() -> nat {0}
 
 }

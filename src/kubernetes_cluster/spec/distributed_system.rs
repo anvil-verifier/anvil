@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*, custom_resource::*, object::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, custom_resource::*, dynamic::*};
 use crate::kubernetes_cluster::spec::{
     channel::*,
     client::{client, ClientActionInput, ClientState},
@@ -47,12 +47,12 @@ impl<T> State<T> {
         self.kubernetes_api_state.resources.dom().contains(key)
     }
 
-    pub open spec fn resource_obj_exists(self, obj: KubernetesObject) -> bool {
+    pub open spec fn resource_obj_exists(self, obj: DynamicObjectView) -> bool {
         &&& self.kubernetes_api_state.resources.dom().contains(obj.object_ref())
         &&& self.kubernetes_api_state.resources[obj.object_ref()] == obj
     }
 
-    pub open spec fn resource_obj_of(self, key: ObjectRef) -> KubernetesObject
+    pub open spec fn resource_obj_of(self, key: ObjectRef) -> DynamicObjectView
         recommends self.resource_key_exists(key)
     {
         self.kubernetes_api_state.resources[key]

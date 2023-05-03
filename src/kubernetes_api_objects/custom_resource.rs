@@ -1,15 +1,20 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
+use crate::kubernetes_api_objects::dynamic::*;
 use crate::kubernetes_api_objects::object_meta::*;
+use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
+
+use deps_hack::SimpleCR;
 
 verus! {
 
-// TODO: CustomResource should be a generic type
+// TODO: CustomResource should be defined by the controller developer
 #[verifier(external_body)]
 pub struct CustomResource {
-    // the content is specific to the controller
+    inner: SimpleCR
 }
 
 pub struct CustomResourceView {
@@ -22,11 +27,11 @@ impl CustomResource {
     pub spec fn view(&self) -> CustomResourceView;
 
     #[verifier(external_body)]
-    pub fn default() -> (cr: CustomResource)
+    pub fn api_resource() -> (res: ApiResource)
         ensures
-            cr@ == CustomResourceView::default(),
+            res@.kind == Kind::CustomResourceKind,
     {
-        CustomResource {}
+        ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<SimpleCR>(&()))
     }
 
     #[verifier(external_body)]
@@ -37,7 +42,6 @@ impl CustomResource {
         todo!()
     }
 
-    // is it OK to name it spec?
     #[verifier(external_body)]
     pub fn spec(&self) -> (spec: Option<CustomResourceSpec>)
         ensures
@@ -58,13 +62,37 @@ impl CustomResource {
 }
 
 impl CustomResourceView {
-    pub open spec fn default() -> CustomResourceView {
-        CustomResourceView {
-            metadata: ObjectMetaView::default(),
-            spec: Option::Some(CustomResourceSpecView::default()),
-            status: Option::Some(CustomResourceStatusView::default()),
+    pub open spec fn to_dynamic_object(self) -> DynamicObjectView {
+        DynamicObjectView {
+            kind: self.kind(),
+            metadata: self.metadata,
+            data: Value::Object(Map::empty()
+                                    .insert(spec_field(), if self.spec.is_None() {Value::Null} else {
+                                        Value::Object(Map::empty().insert(spec_content_field(), Value::String(self.spec.get_Some_0().content)))
+                                    })
+                                    .insert(status_field(), if self.status.is_None() {Value::Null} else {
+                                        Value::Object(Map::empty().insert(status_echoed_content_field(), Value::String(self.status.get_Some_0().echoed_content)))
+                                    })
+                                ),
         }
     }
+
+    pub open spec fn from_dynamic_object(obj: DynamicObjectView) -> CustomResourceView {
+        CustomResourceView {
+            metadata: obj.metadata,
+            spec: if obj.data.get_Object_0()[spec_field()].is_Null() {Option::None} else {Option::Some(CustomResourceSpecView{
+                content: obj.data.get_Object_0()[spec_field()].get_Object_0()[spec_content_field()].get_String_0(),
+            })},
+            status: if obj.data.get_Object_0()[status_field()].is_Null() {Option::None} else {Option::Some(CustomResourceStatusView{
+                echoed_content: obj.data.get_Object_0()[status_field()].get_Object_0()[status_echoed_content_field()].get_String_0(),
+            })},
+        }
+    }
+
+    pub proof fn integrity_check()
+        ensures
+            forall |o: CustomResourceView| o == CustomResourceView::from_dynamic_object(#[trigger] o.to_dynamic_object())
+    {}
 
     pub open spec fn kind(self) -> Kind {
         Kind::CustomResourceKind
@@ -85,56 +113,36 @@ impl CustomResourceView {
 
 #[verifier(external_body)]
 pub struct CustomResourceSpec {
-    // the content is specific to the controller
+    // TODO: add the content
 }
 
 pub struct CustomResourceSpecView {
-    // A lot more fields to specify...
+    pub content: StringView,
 }
 
 impl CustomResourceSpec {
     pub spec fn view(&self) -> CustomResourceSpecView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (cr_spec: CustomResourceSpec)
-        ensures
-            cr_spec@ == CustomResourceSpecView::default(),
-    {
-        CustomResourceSpec {}
-    }
-}
-
-impl CustomResourceSpecView {
-    pub open spec fn default() -> CustomResourceSpecView {
-       CustomResourceSpecView {}
-    }
 }
 
 #[verifier(external_body)]
 pub struct CustomResourceStatus {
-    // the content is specific to the controller
+    // TODO: add the content
 }
 
 pub struct CustomResourceStatusView {
-    // A lot more fields to specify...
+    pub echoed_content: StringView,
 }
 
 impl CustomResourceStatus {
     pub spec fn view(&self) -> CustomResourceStatusView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (cr_status: CustomResourceStatus)
-        ensures
-            cr_status@ == CustomResourceStatusView::default(),
-    {
-        CustomResourceStatus {}
-    }
 }
 
-impl CustomResourceStatusView {
-    pub open spec fn default() -> CustomResourceStatusView {
-        CustomResourceStatusView {}
-    }
-}
+pub open spec fn spec_field() -> nat {0}
+
+pub open spec fn status_field() -> nat {1}
+
+pub open spec fn spec_content_field() -> nat {0}
+
+pub open spec fn status_echoed_content_field() -> nat {0}
 
 }

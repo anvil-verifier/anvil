@@ -6,7 +6,7 @@ use crate::controller_examples::simple_controller::spec::reconciler::reconcile_d
 use crate::controller_examples::simple_controller::spec::reconciler::reconcile_error as reconcile_error_spec;
 use crate::controller_examples::simple_controller::spec::reconciler::reconcile_init_state as reconcile_init_state_spec;
 use crate::controller_examples::simple_controller::spec::reconciler::SimpleReconcileState as SimpleReconcileStateView;
-use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, object::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, custom_resource::*};
 use crate::reconciler::exec::*;
 use builtin::*;
 use builtin_macros::*;
@@ -94,8 +94,11 @@ pub fn reconcile_error(state: &SimpleReconcileState) -> (res: bool)
 /// It will be called by the reconcile() function in a loop in our shim layer, and reconcile()
 /// will be called by kube-rs framework when related events happen.
 /// The postcondition ensures that it conforms to the spec of reconciliation logic.
-///
-/// TODO: Maybe we should make state a mutable reference; revisit it later
+
+// TODO: Maybe we should make state a mutable reference; revisit it later
+// TODO: need to prove whether the object is valid; See an example:
+// ConfigMap "foo_cm" is invalid: metadata.name: Invalid value: "foo_cm": a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.',
+// and must start and end with an alphanumeric character (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')
 pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, state: &SimpleReconcileState) -> (res: (SimpleReconcileState, Option<KubeAPIRequest>))
     requires
         cr_key.kind.is_CustomResourceKind(),
@@ -107,13 +110,12 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
         let state_prime = SimpleReconcileState {
             reconcile_pc: after_get_cr_pc(),
         };
-        let req_o = Option::Some(KubeAPIRequest::CustomResourceRequest(
-            KubeCustomResourceRequest::GetRequest(
-                KubeGetRequest {
-                    name: cr_key.name.clone(),
-                    namespace: cr_key.namespace.clone(),
-                }
-            )
+        let req_o = Option::Some(KubeAPIRequest::GetRequest(
+            KubeGetRequest {
+                api_resource: CustomResource::api_resource(),
+                name: cr_key.name.clone(),
+                namespace: cr_key.namespace.clone(),
+            }
         ));
         (state_prime, req_o)
     } else if pc == after_get_cr_pc() {
@@ -126,12 +128,11 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
                 let mut config_map = ConfigMap::default();
                 config_map.set_name(cr_key.name.clone().concat(new_strlit("-cm")));
                 config_map.set_namespace(cr_key.namespace.clone());
-                let req_o = Option::Some(KubeAPIRequest::ConfigMapRequest(
-                    KubeConfigMapRequest::CreateRequest(
-                        KubeCreateRequest {
-                            obj: config_map,
-                        }
-                    )
+                let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                    KubeCreateRequest {
+                        api_resource: ConfigMap::api_resource(),
+                        obj: config_map.to_dynamic_object(),
+                    }
                 ));
                 (state_prime, req_o)
             } else {

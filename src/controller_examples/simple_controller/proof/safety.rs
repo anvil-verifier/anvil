@@ -6,9 +6,7 @@ use crate::controller_examples::simple_controller::spec::{
     reconciler,
     reconciler::{simple_reconciler, SimpleReconcileState},
 };
-use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, custom_resource::*, object::*,
-};
+use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, custom_resource::*};
 use crate::kubernetes_cluster::{
     proof::{controller_runtime_safety, kubernetes_api_safety},
     spec::{

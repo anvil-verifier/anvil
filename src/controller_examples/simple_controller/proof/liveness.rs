@@ -7,7 +7,7 @@ use crate::controller_examples::simple_controller::spec::{
     simple_reconciler,
     simple_reconciler::{simple_reconciler, SimpleReconcileState},
 };
-use crate::kubernetes_api_objects::{common::*, custom_resource::*, object::*};
+use crate::kubernetes_api_objects::{common::*, custom_resource::*};
 use crate::kubernetes_cluster::{
     proof::{
         cluster::*, controller_runtime_liveness::*, controller_runtime_safety,
@@ -30,7 +30,7 @@ use vstd::{option::*, result::*};
 verus! {
 
 spec fn cr_exists(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState>> {
-    lift_state(|s: State<SimpleReconcileState>| s.resource_obj_exists(KubernetesObject::CustomResource(cr)))
+    lift_state(|s: State<SimpleReconcileState>| s.resource_obj_exists(cr.to_dynamic_object()))
 }
 
 spec fn cr_matched(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState>> {
@@ -319,7 +319,7 @@ proof fn lemma_after_create_cm_pc_leads_to_cm_exists_with_invariants(cr: CustomR
             if (s.resource_key_exists(simple_reconciler::subresource_configmap(cr.object_ref()).object_ref())) {
                 assert(lift_state(cm_exists(cr)).satisfied_by(ex.suffix(i).suffix(0)));
             } else {
-                let cm = KubernetesObject::ConfigMap(simple_reconciler::subresource_configmap(cr.object_ref()));
+                let cm = simple_reconciler::subresource_configmap(cr.object_ref()).to_dynamic_object();
                 let pre = |s: State<SimpleReconcileState>| {
                     &&& s.message_in_flight(req_msg) &&& req_msg.dst == HostId::KubernetesAPI &&& req_msg.content.is_create_request()
                     &&& req_msg.content.get_create_request().obj == cm
