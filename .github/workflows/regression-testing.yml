@@ -1,11 +1,15 @@
 name: Regression Testing
-run-name: ${{ github.actor }} is running regression tests
+run-name: Regression tests run by ${{ github.actor }}
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
+    paths-ignore:
+      - "README.md"
+      - ".gitignore"
+      - "doc/**"
   pull_request:
+  workflow_dispatch:
 jobs:
   regression-testing:
     runs-on: ubuntu-latest
@@ -16,11 +20,14 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-      - name: Install latest nightly Rust toolchain
-        run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o sh.rustup.rs && sh sh.rustup.rs -y
-      - name: Download Z3
-        run: cd verus/source && ./tools/get-z3.sh
+      - name: Install Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Build Verus
-        run: cd verus/source && source ../tools/activate && vargo build --release
+        run: |
+          cd verus/source
+          ./tools/get-z3.sh
+          source ../tools/activate
+          vargo build --release
       - name: Build simple controller
-        run: VERUS_DIR=$PWD/verus ./build.sh simple_controller
+        run: VERUS_DIR=$PWD/verus ./build.sh simple_controller.rs --time
