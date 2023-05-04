@@ -39,12 +39,12 @@ spec fn cr_matched(cr: CustomResourceView) -> TempPred<State<SimpleReconcileStat
 
 /// Proof strategy:
 ///     (1) For case_1, case_2, ..., case_n, we prove partial_spec /\ [] crash_disabled /\ all_invariants /\ []cr_exists |= case_i ~> cm_exists. The disjunction of case_1, case_2, ..., case_n should be true.
-///     (2) Now we have partial_spec /\ [] crash_disabled /\ all_invariants /\ []cr_exists |= true ~> cm_exists. Unpacking [] crash_disabled /\ []cr_exists to the right side, we have spec /\ all_invariants |= []cr_exists ~> cm_exists.
+///     (2) Combining the n cases, we have partial_spec /\ [] crash_disabled /\ all_invariants /\ []cr_exists |= true ~> cm_exists. Unpacking []crash_disabled /\ []cr_exists to the right side, we have spec /\ all_invariants |= []cr_exists ~> cm_exists.
 ///     (3) To unpack []cr_exists, we have to prove the stability of partial_spec /\ all_invariants.
-///     (4) By proving all the invariants can be inferred from spec, here comes to spec |= []cr_exists /\ [] crash_disabled ~> cm_exists.
-///     (5) Next, with the help of lemma_p_leads_to_cm_always_exists, we have spec |= []cr_exists /\ [] crash_disabled ~> [] cm_exists.
-///     (6) By the weak fairness of the action disable_crash, we have spec |= []cr_exists ~> [] cr_exists /\ [] crash_disabled.
-///     (7) By the transitivity of leads_to relation, we have spec |= []cr_exists ~> [] cr_matched.
+///     (4) By proving all the invariants can be inferred from spec, here comes to spec |= []cr_exists /\ []crash_disabled ~> cm_exists.
+///     (5) Next, with the help of lemma_p_leads_to_cm_always_exists, we have spec |= []cr_exists /\ []crash_disabled ~> []cm_exists.
+///     (6) By the weak fairness of the action disable_crash, we have spec |= []cr_exists ~> []cr_exists /\ []crash_disabled.
+///     (7) By the transitivity of leads_to relation, we have spec |= []cr_exists ~> []cr_matched.
 
 /// To prove the liveness property, we need some invariants (these invariants have already contained "always" constraint).
 spec fn all_invariants(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState>> {
@@ -90,11 +90,13 @@ proof fn liveness_proof(cr: CustomResourceView)
             always(cr_exists(cr)).leads_to(always(cr_matched(cr)))
         ),
 {
+    // Step (6)
     lemma_any_pred_leads_to_crash_always_disabled::<SimpleReconcileState>(sm_spec(simple_reconciler()), simple_reconciler(), always(cr_exists(cr)));
     leads_to_self_temp::<State<SimpleReconcileState>>(always(cr_exists(cr)));
     leads_to_always_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(cr_exists(cr)), cr_exists(cr), lift_state(crash_disabled::<SimpleReconcileState>()));
     always_and_equality::<State<SimpleReconcileState>>(cr_exists(cr), lift_state(crash_disabled::<SimpleReconcileState>()));
     lemma_sm_spec_entails_cr_always_exists_and_crash_always_disabled_leads_to_cm_always_exists(cr);
+    // Step (7)
     leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(cr_exists(cr)), always(cr_exists(cr)).and(always(lift_state(crash_disabled::<SimpleReconcileState>()))), always(cr_matched(cr)));
 }
 
@@ -105,10 +107,12 @@ proof fn lemma_sm_spec_entails_cr_always_exists_and_crash_always_disabled_leads_
     lemma_true_leads_to_cm_exists_with_invariants(cr);
     temp_pred_equality::<State<SimpleReconcileState>>(sm_partial_spec(simple_reconciler()).and(all_invariants(cr)).and(always(cr_exists(cr)).and(always(lift_state(crash_disabled::<SimpleReconcileState>())))), partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr));
     lemma_valid_stable_sm_partial_spec_and_invariants(cr);
+    // Step (2)
     unpack_assumption_from_spec::<State<SimpleReconcileState>>(lift_state(init(simple_reconciler())), sm_partial_spec(simple_reconciler()).and(all_invariants(cr)), always(cr_exists(cr)).and(always(lift_state(crash_disabled::<SimpleReconcileState>()))), lift_state(cm_exists(cr)));
     temp_pred_equality::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()).and(all_invariants(cr)), lift_state(init(simple_reconciler())).and(sm_partial_spec(simple_reconciler()).and(all_invariants(cr))));
     lemma_sm_spec_entails_all_invariants(cr);
     simplify_predicate::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), all_invariants(cr));
+    // Step (5)
     lemma_p_leads_to_cm_always_exists(cr, always(cr_exists(cr)).and(always(lift_state(crash_disabled::<SimpleReconcileState>()))));
 }
 
@@ -148,6 +152,7 @@ proof fn lemma_valid_stable_sm_partial_spec_and_invariants(cr: CustomResourceVie
     stable_and_temp::<State<SimpleReconcileState>>(sm_partial_spec(simple_reconciler()), all_invariants(cr));
 }
 
+// Step (2)
 proof fn lemma_true_leads_to_cm_exists_with_invariants(cr: CustomResourceView)
     ensures
         partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr).entails(
