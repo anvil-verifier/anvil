@@ -10,7 +10,7 @@ set -eu
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 cd "$DIR/src"
 
-rv=$VERUS_DIR/source/tools/rust-verify.sh
+rv=$VERUS_DIR/source/target-verus/release/verus
 cd deps_hack
 cargo build
 cd ..
@@ -44,5 +44,4 @@ futures_rlib="$(find deps_hack/target/debug/deps -name 'libfutures-*.rlib' | hea
   --extern=deps_hack="deps_hack/target/debug/libdeps_hack.rlib" \
   --expand-errors \
   --compile \
-  --time \
-  "$1".rs
+  "$@"

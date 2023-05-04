@@ -14,21 +14,16 @@ You cannot compile the verifiable-controllers codebase with a standard rust comp
 
 ### Build and run
 
-To build and verify the framework:
+Set `VERUS_DIR` to the path to Verus
 ```
-$: VERUS_DIR=<path-to-verus> ./build.sh main
+export VERUS_DIR=<path-to-verus>
 ```
-You might need to manually add `ssl` to `LIBRARY_PATH` to build it.
 
 To build and verify the simple controller:
 ```
-$: VERUS_DIR=<path-to-verus> ./build.sh simple_controller
+$: ./build.sh simple_controller.rs
 ```
-
-To verify the tla toy examples:
-```
-$: <path-to-verus>/source/tools/rust-verify.sh src/temporal_logic_examples.rs
-```
+For Mac users, you might need to manually add `ssl` to `LIBRARY_PATH` to build it.
 
 ## Documentation
 
