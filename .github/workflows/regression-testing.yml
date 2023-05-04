@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "README.md"
+      - ".gitignore"
+      - "doc/**"
   pull_request:
   workflow_dispatch:
 jobs:
@@ -16,15 +20,13 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
-      - name: Install latest nightly Rust toolchain
+      - name: Install Rust toolchain
         run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o sh.rustup.rs
-          sh sh.rustup.rs -y
-      - name: Download Z3
-        run: cd verus/source && ./tools/get-z3.sh
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Build Verus
         run: |
           cd verus/source
+          ./tools/get-z3.sh
           source ../tools/activate
           vargo build --release
       - name: Build simple controller
