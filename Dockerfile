@@ -17,6 +17,6 @@ RUN VERUS_DIR=/anvil/verus ./build.sh simple_controller.rs --time
 
 FROM rust:latest
 
-COPY --from=builder /anvil/src/simple-controller /simple-controller
+COPY --from=builder /anvil/src/simple_controller /simple_controller
 
-ENTRYPOINT ["/simple-controller"]
+ENTRYPOINT ["/simple_controller"]
