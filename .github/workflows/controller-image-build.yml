@@ -1,17 +1,8 @@
-name: Docker
-
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
+name: Controller Image Build
 on:
   workflow_dispatch:
-
 env:
-  # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
-
 jobs:
   build:
     runs-on: ubuntu-latest
