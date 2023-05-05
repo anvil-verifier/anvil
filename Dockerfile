@@ -1,4 +1,4 @@
-FROM rust:latest
+FROM rust:latest as builder
 
 WORKDIR /anvil
 
@@ -15,4 +15,8 @@ RUN git clone https://github.com/verus-lang/verus.git \
 
 RUN VERUS_DIR=/anvil/verus ./build.sh simple_controller.rs --time
 
-ENTRYPOINT ["/anvil/src/simple-controller"]
+FROM rust:latest
+
+COPY --from=builder /anvil/src/simple-controller /simple-controller
+
+ENTRYPOINT ["/simple-controller"]
