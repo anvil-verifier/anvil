@@ -1,5 +1,5 @@
 [package]
-name = "simple_controller_impl"
+name = "simple_controller_unverified"
 version = "0.1.0"
 edition = "2021"
 

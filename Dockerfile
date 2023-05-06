@@ -15,8 +15,11 @@ RUN git clone https://github.com/verus-lang/verus.git \
 
 RUN VERUS_DIR=/anvil/verus ./build.sh simple_controller.rs --time
 
-FROM rust:latest
+RUN cd reference_controllers/simple_controller && cargo build
+
+FROM alpine:latest
 
 COPY --from=builder /anvil/src/simple_controller /simple_controller
+COPY --from=builder /anvil/reference_controllers/simple_controller/target/debug/simple_controller_unverified /simple_controller_unverified
 
 ENTRYPOINT ["/simple_controller"]
