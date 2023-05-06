@@ -96,6 +96,16 @@ async fn main() -> Result<()> {
 
     info!("starting configmapgen-controller");
 
+    match crs.list(&ListParams::default()).await {
+        Err(e) => warn!("List CR fails: {}", e),
+        Ok(_) => info!("List CR succeeds."),
+    }
+
+    match cms.list(&ListParams::default()).await {
+        Err(e) => warn!("List CM fails: {}", e),
+        Ok(_) => info!("List CM succeeds."),
+    }
+
     Controller::new(crs, ListParams::default())
         .owns(cms, ListParams::default())
         .shutdown_on_signal()
