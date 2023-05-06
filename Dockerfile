@@ -19,7 +19,7 @@ RUN cd reference_controllers/simple_controller && cargo build
 
 # =============================================================================
 
-FROM alpine:latest
+FROM ubuntu:latest
 
 COPY --from=builder /anvil/src/simple_controller /usr/local/bin/simple_controller
 COPY --from=builder /anvil/reference_controllers/simple_controller/target/debug/simple_controller_unverified /usr/local/bin/simple_controller_unverified
