@@ -1,3 +1,8 @@
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/vmware-research/verifiable-controllers/blob/main/LICENSE)
+[![Regression Testing](https://github.com/vmware-research/verifiable-controllers/actions/workflows/regression-testing.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/regression-testing.yml)
+[![Verus Image Build](https://github.com/vmware-research/verifiable-controllers/actions/workflows/verus-image-build.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/verus-image-build.yml)
+[![Controller Image Build](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-image-build.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-image-build.yml)
+
 # verifiable-controllers
 
 ## Overview
