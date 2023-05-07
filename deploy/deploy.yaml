@@ -1,8 +1,15 @@
 apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/name: simple
+  name: simple
+---
+apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: simple-controller
-  namespace: default
+  namespace: simple
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -144,13 +151,13 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: simple-controller
-    namespace: default
+    namespace: simple
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: simple-controller
-  namespace: default
+  namespace: simple
   labels:
     app.kubernetes.io/name: simple-controller
 spec:

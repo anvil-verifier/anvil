@@ -30,6 +30,14 @@ $: ./build.sh simple_controller.rs
 ```
 For Mac users, you might need to manually add `ssl` to `LIBRARY_PATH` to build it.
 
+### Deploy
+
+To deploy the verified simple controller to a Kubernetes cluster:
+```
+$: ./deploy.sh
+```
+This script will deploy the simple controller image (hosted at [our repo](https://github.com/vmware-research/verifiable-controllers/pkgs/container/verifiable-controllers%2Fsimple_controller)) inside your Kubernetes cluster.
+
 ## Documentation
 
 Our verification approach is described [here](doc/framework_design.md).

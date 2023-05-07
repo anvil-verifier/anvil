@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-## Build and verify the main controller example.
+## Build and verify the controller example.
 ##
 ## Requires VERUS_DIR to be set to the path to verus.
 
