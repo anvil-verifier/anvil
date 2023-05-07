@@ -46,6 +46,24 @@ pub open spec fn pending_req_has_unique_id<T>(cr_key: ObjectRef) -> StatePred<St
     }
 }
 
+pub open spec fn in_flight_resp_has_lower_resp_id<T>() -> StatePred<State<T>> {
+    |s: State<T>| {
+        forall |resp_msg: Message|
+            #[trigger] s.message_in_flight(resp_msg)
+            && resp_msg.content.is_APIResponse()
+            ==> resp_msg.content.get_req_id() < s.chan_manager.cur_chan_id
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_in_flight_resp_has_lower_resp_id<T>(reconciler: Reconciler<T>)
+    ensures
+        sm_spec(reconciler).entails(always(lift_state(in_flight_resp_has_lower_resp_id()))),
+{
+    let invariant = in_flight_resp_has_lower_resp_id::<T>();
+    init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), next(reconciler), invariant);
+}
+
 pub open spec fn pending_req_has_lower_req_id<T>() -> StatePred<State<T>> {
     |s: State<T>| {
         forall |cr_key: ObjectRef|
@@ -80,6 +98,23 @@ pub open spec fn resp_matches_at_most_one_pending_req<T>(resp_msg: Message, cr_k
             )
     }
 }
+
+pub open spec fn at_most_one_resp_matches_req<T>(resp_msg: Message, req_msg: Message) -> StatePred<State<T>>
+{
+    |s: State<T>| {
+        resp_msg_matches_req_msg(resp_msg, req_msg)
+        ==> (
+            forall |other_resp: Message| other_resp != resp_msg 
+            ==> !resp_msg_matches_req_msg(other_resp, req_msg)
+        )
+    }
+}
+
+// #[verifier(external_body)]
+// pub proof fn lemma_always_at_most_one_resp_matches_req<T>(reconciler: Reconciler<T>, resp_msg: Message, cr_key: ObjectRef)
+//     ensures
+//         sm_spec(reconciler).entails(always(lift_state(at_most_one_resp_matches_req(resp_msg, cr_key))))
+// {}
 
 pub proof fn lemma_always_resp_matches_at_most_one_pending_req<T>(reconciler: Reconciler<T>, resp_msg: Message, cr_key: ObjectRef)
     requires

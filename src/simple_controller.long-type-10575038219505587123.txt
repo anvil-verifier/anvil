@@ -1,0 +1,1 @@
+builtin::FnSpec<(kubernetes_cluster::spec::distributed_system::State<controller_examples::simple_controller::spec::reconciler::SimpleReconcileState>, kubernetes_cluster::spec::distributed_system::State<controller_examples::simple_controller::spec::reconciler::SimpleReconcileState>), bool>

@@ -52,6 +52,65 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req(msg: Message, cr:
     }
 }
 
+pub open spec fn exists_pending_req_and_req_in_flight(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+    |s: State<SimpleReconcileState>| {
+        exists |msg: Message| {
+            &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(msg)
+            &&& is_controller_get_cr_request_msg(msg, cr)
+            &&& #[trigger] s.message_in_flight(msg)
+        }
+    }
+}
+
+pub open spec fn exists_ok_resp_in_flight(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+    |s: State<SimpleReconcileState>| {
+        exists |req_msg| {
+            #[trigger] is_controller_get_cr_request_msg(req_msg, cr)
+            && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
+            && s.message_in_flight(form_get_resp_msg(req_msg, Result::Ok(cr.to_dynamic_object())))
+        }
+    }
+}
+
+pub open spec fn reconciler_at_after_get_cr_pc_and_req_sent(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+    |s: State<SimpleReconcileState>| {
+        &&& s.reconcile_state_contains(cr.object_ref())
+        &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
+        &&& exists |msg: Message| {
+            &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(msg)
+            &&& is_controller_get_cr_request_msg(msg, cr)
+            &&& #[trigger] s.message_in_flight(msg)
+        }
+    }
+}
+
+pub open spec fn reconciler_at_after_get_cr_pc_and_ok_resp_in_flight(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+    |s: State<SimpleReconcileState>| {
+        &&& s.reconcile_state_contains(cr.object_ref())
+        &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
+        &&& exists |req_msg| {
+            #[trigger] is_controller_get_cr_request_msg(req_msg, cr)
+            && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
+            && s.message_in_flight(form_get_resp_msg(req_msg, Result::Ok(cr.to_dynamic_object())))
+        }
+    }
+}
+
+pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight_and_no_resp_in_flight(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+    |s: State<SimpleReconcileState>| {
+        &&& s.reconcile_state_contains(cr.object_ref())
+        &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
+        &&& exists |req_msg| {
+            &&& #[trigger] is_controller_get_cr_request_msg(req_msg, cr)
+            &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
+            &&& ! exists |resp_msg: Message| {
+                &&& #[trigger] s.message_in_flight(resp_msg)
+                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            }
+        }
+    }
+}
+
 pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight(msg: Message, cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())

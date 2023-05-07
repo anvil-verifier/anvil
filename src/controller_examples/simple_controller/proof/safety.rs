@@ -140,6 +140,14 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
     }
 }
 
+#[verifier(external_body)]
+pub proof fn next_and_not_crash_preserves_init_pc_or_reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight_and_no_resp_in_flight(cr: CustomResourceView, s: State<SimpleReconcileState>, s_prime: State<SimpleReconcileState>)
+    requires
+        next(simple_reconciler())(s, s_prime), !s.crash_enabled, reconciler_at_init_pc_and_no_pending_req(cr)(s),
+    ensures
+        reconciler_at_init_pc_and_no_pending_req(cr)(s_prime) || reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight_and_no_resp_in_flight(cr)(s_prime),
+{}
+
 pub open spec fn reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         s.reconcile_state_contains(cr.object_ref())

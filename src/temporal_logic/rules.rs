@@ -961,6 +961,21 @@ pub proof fn entails_and_4_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempP
     entails_and_temp::<T>(spec, p1.and(p2).and(p3), p4);
 }
 
+/// The five-predicate-version for entails_and_temp
+pub proof fn entails_and_5_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>)
+    requires
+        spec.entails(p1),
+        spec.entails(p2),
+        spec.entails(p3),
+        spec.entails(p4),
+        spec.entails(p5),
+    ensures
+        spec.entails(p1.and(p2).and(p3).and(p4).and(p5)),
+{
+    entails_and_4_temp::<T>(spec, p1, p2, p3, p4);
+    entails_and_temp::<T>(spec, p1.and(p2).and(p3).and(p4), p5);
+}
+
 /// Combining two specs together entails p and q if each of them entails p, q respectively.
 /// pre:
 ///     spec1 |= p
@@ -1175,6 +1190,24 @@ pub proof fn strengthen_next_2<T>(spec: TempPred<T>, next: ActionPred<T>, inv1: 
     entails_and_3_temp::<T>(spec, always(lift_action(next)), always(lift_state(inv1)), always(lift_state(inv2)));
     always_and_3_equality::<T>(lift_action(next), lift_state(inv1), lift_state(inv2));
     temp_pred_equality::<T>(lift_action(next_and_inv), lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)));
+}
+
+/// Strengthen next with three invs.
+pub proof fn strengthen_next_3<T>(spec: TempPred<T>, next: ActionPred<T>, inv1: StatePred<T>, inv2: StatePred<T>, inv3: StatePred<T>, next_and_inv: ActionPred<T>)
+    requires
+        spec.entails(always(lift_action(next))),
+        spec.entails(always(lift_state(inv1))),
+        spec.entails(always(lift_state(inv2))),
+        spec.entails(always(lift_state(inv3))),
+        valid(lift_action(next_and_inv).equals(lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)).and(lift_state(inv3)))),
+    ensures
+        spec.entails(always(lift_action(next_and_inv))),
+{
+    entails_and_4_temp::<T>(spec, always(lift_action(next)), always(lift_state(inv1)), always(lift_state(inv2)), always(lift_state(inv3)));
+    always_and_3_equality::<T>(lift_action(next), lift_state(inv1), lift_state(inv2));
+
+    always_and_equality::<T>(lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)), lift_state(inv3));
+    temp_pred_equality::<T>(lift_action(next_and_inv), lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)).and(lift_state(inv3)));
 }
 
 /// Get the initial leads_to.
