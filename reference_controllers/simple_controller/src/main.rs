@@ -92,12 +92,10 @@ async fn main() -> Result<()> {
     let client = Client::try_default().await?;
 
     let crs = Api::<SimpleCR>::all(client.clone());
-    let cms = Api::<ConfigMap>::all(client.clone());
 
-    info!("starting configmapgen-controller");
+    info!("starting simple-controller");
 
     Controller::new(crs, ListParams::default())
-        .owns(cms, ListParams::default())
         .shutdown_on_signal()
         .run(reconcile, error_policy, Arc::new(Data { client }))
         .for_each(|res| async move {
