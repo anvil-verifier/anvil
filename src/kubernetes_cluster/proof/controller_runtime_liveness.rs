@@ -27,6 +27,14 @@ pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled<T>(re
     sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))).and(always(lift_state(crash_disabled::<T>())))
 }
 
+pub open spec fn reconciler_init_and_no_pending_req<T>(reconciler: Reconciler<T>, cr_key: ObjectRef) -> StatePred<State<T>> {
+    |s: State<T>| {
+        &&& s.reconcile_state_contains(cr_key)
+        &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
+        &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
+    }
+}
+
 pub proof fn lemma_pre_leads_to_post_by_controller<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, input: (Option<Message>, Option<ObjectRef>), next: ActionPred<State<T>>, action: ControllerAction<T>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         controller(reconciler).actions.contains(action),
@@ -236,11 +244,7 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
                 &&& s.reconcile_state_contains(cr_key)
                 &&& (reconciler.reconcile_error)(s.reconcile_state_of(cr_key).local_state)
             })
-                .leads_to(lift_state(|s: State<T>| {
-                    &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
-                    &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-                }))
+                .leads_to(lift_state(reconciler_init_and_no_pending_req(reconciler, cr_key)))
         ),
 {
     lemma_reconcile_error_leads_to_reconcile_idle::<T>(reconciler, cr_key);
