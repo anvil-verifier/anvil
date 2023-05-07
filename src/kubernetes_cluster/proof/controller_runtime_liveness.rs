@@ -224,11 +224,14 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_in
 }
 
 
-pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
+pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
+        spec.entails(sm_partial_spec(reconciler)),
+        spec.entails(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))),
+        spec.entails(always(lift_state(crash_disabled::<T>()))),
     ensures
-        partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key).entails(
+        spec.entails(
             lift_state(|s: State<T>| {
                 &&& s.reconcile_state_contains(cr_key)
                 &&& (reconciler.reconcile_error)(s.reconcile_state_of(cr_key).local_state)
@@ -256,6 +259,18 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
     lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init::<T>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key), reconciler, cr_key);
 
     leads_to_trans_auto::<State<T>>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key));
+
+    entails_and_3_temp::<State<T>>(spec, sm_partial_spec(reconciler), always(lift_state(|s: State<T>| s.resource_key_exists(cr_key))), always(lift_state(crash_disabled::<T>())));
+    entails_trans::<State<T>>(spec, partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key), 
+    lift_state(|s: State<T>| {
+        &&& s.reconcile_state_contains(cr_key)
+        &&& (reconciler.reconcile_error)(s.reconcile_state_of(cr_key).local_state)
+    })
+        .leads_to(lift_state(|s: State<T>| {
+            &&& s.reconcile_state_contains(cr_key)
+            &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
+            &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
+        })));
 }
 
 }

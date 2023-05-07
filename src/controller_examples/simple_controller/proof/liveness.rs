@@ -50,6 +50,7 @@ spec fn cr_matched(cr: CustomResourceView) -> TempPred<State<SimpleReconcileStat
 spec fn all_invariants(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState>> {
     always(lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr)))
     .and(tla_forall(|msg| always(lift_state(controller_runtime_safety::resp_matches_at_most_one_pending_req(msg, cr.object_ref())))))
+    .and(tla_forall(|resp_req_pair: (Message, Message)| always(lift_state(controller_runtime_safety::at_most_one_resp_matches_req(resp_req_pair.0, resp_req_pair.1)))))
     .and(always(lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr))))
     .and(always(lift_state(reconciler_at_init_pc(cr)).implies(lift_state(reconcile_init_pc_and_no_pending_req(cr)))))
     .and(always(lift_state(controller_runtime_safety::in_flight_resp_has_lower_resp_id::<SimpleReconcileState>())))
@@ -125,11 +126,12 @@ proof fn lemma_sm_spec_entails_all_invariants(cr: CustomResourceView)
 {
     lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr);
     controller_runtime_safety::lemma_always_forall_resp_matches_at_most_one_pending_req(simple_reconciler(), cr.object_ref());
+    controller_runtime_safety::lemma_always_at_most_one_resp_matches_req(simple_reconciler());
     lemma_always_reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr);
     lemma_always_reconcile_init_pc_and_no_pending_req(cr);
     controller_runtime_safety::lemma_always_in_flight_resp_has_lower_resp_id::<SimpleReconcileState>(simple_reconciler());
 
-    entails_and_5_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr))), tla_forall(|msg| always(lift_state(controller_runtime_safety::resp_matches_at_most_one_pending_req(msg, cr.object_ref())))), always(lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr))), always(lift_state(reconciler_at_init_pc(cr)).implies(lift_state(reconcile_init_pc_and_no_pending_req(cr)))), always(lift_state(controller_runtime_safety::in_flight_resp_has_lower_resp_id::<SimpleReconcileState>())));
+    entails_and_6_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr))), tla_forall(|msg| always(lift_state(controller_runtime_safety::resp_matches_at_most_one_pending_req(msg, cr.object_ref())))), tla_forall(|resp_req_pair: (Message, Message)| always(lift_state(controller_runtime_safety::at_most_one_resp_matches_req(resp_req_pair.0, resp_req_pair.1)))), always(lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr))), always(lift_state(reconciler_at_init_pc(cr)).implies(lift_state(reconcile_init_pc_and_no_pending_req(cr)))), always(lift_state(controller_runtime_safety::in_flight_resp_has_lower_resp_id::<SimpleReconcileState>())));
 }
 
 // Step (3), prove the stability of partial_spec /\ all_invariants.
@@ -142,6 +144,7 @@ proof fn lemma_valid_stable_sm_partial_spec_and_invariants(cr: CustomResourceVie
     always_p_stable::<State<SimpleReconcileState>>(lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr)));
     always_p_stable::<State<SimpleReconcileState>>(lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr)));
     always_p_stable::<State<SimpleReconcileState>>(tla_forall(|msg| lift_state(controller_runtime_safety::resp_matches_at_most_one_pending_req(msg, cr.object_ref()))));
+    always_p_stable::<State<SimpleReconcileState>>(tla_forall(|resp_req_pair: (Message, Message)| lift_state(controller_runtime_safety::at_most_one_resp_matches_req(resp_req_pair.0, resp_req_pair.1))));
     always_p_stable::<State<SimpleReconcileState>>(lift_state(reconciler_at_init_pc(cr)).implies(lift_state(reconcile_init_pc_and_no_pending_req(cr))));
     always_p_stable::<State<SimpleReconcileState>>(lift_state(controller_runtime_safety::in_flight_resp_has_lower_resp_id::<SimpleReconcileState>()));
 
@@ -149,7 +152,11 @@ proof fn lemma_valid_stable_sm_partial_spec_and_invariants(cr: CustomResourceVie
     let a_to_always = |msg| always(lift_state(controller_runtime_safety::resp_matches_at_most_one_pending_req::<SimpleReconcileState>(msg, cr.object_ref())));
     tla_forall_always_equality_variant::<State<SimpleReconcileState>, Message>(a_to_always, a_to_p);
 
-    stable_and_5_temp::<State<SimpleReconcileState>>(always(lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr))), tla_forall(|msg| always(lift_state(controller_runtime_safety::resp_matches_at_most_one_pending_req(msg, cr.object_ref())))), always(lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr))), always(lift_state(reconciler_at_init_pc(cr)).implies(lift_state(reconcile_init_pc_and_no_pending_req(cr)))), always(lift_state(controller_runtime_safety::in_flight_resp_has_lower_resp_id::<SimpleReconcileState>())));
+    let a_to_p_1 = |resp_req_pair: (Message, Message)| lift_state(controller_runtime_safety::at_most_one_resp_matches_req(resp_req_pair.0, resp_req_pair.1));
+    let a_to_always_1 = |resp_req_pair: (Message, Message)| always(lift_state(controller_runtime_safety::at_most_one_resp_matches_req(resp_req_pair.0, resp_req_pair.1)));
+    tla_forall_always_equality_variant::<State<SimpleReconcileState>, (Message, Message)>(a_to_always_1, a_to_p_1);
+
+    stable_and_6_temp::<State<SimpleReconcileState>>(always(lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr))), tla_forall(|msg| always(lift_state(controller_runtime_safety::resp_matches_at_most_one_pending_req(msg, cr.object_ref())))), tla_forall(|resp_req_pair: (Message, Message)| always(lift_state(controller_runtime_safety::at_most_one_resp_matches_req(resp_req_pair.0, resp_req_pair.1)))), always(lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr))), always(lift_state(reconciler_at_init_pc(cr)).implies(lift_state(reconcile_init_pc_and_no_pending_req(cr)))), always(lift_state(controller_runtime_safety::in_flight_resp_has_lower_resp_id::<SimpleReconcileState>())));
 
     // Note that using a stable_and_4_temp along with a stable_and_temp is better than a stable_and_5_temp since we have to join the variants first.
     stable_and_temp::<State<SimpleReconcileState>>(sm_partial_spec(simple_reconciler()), all_invariants(cr));
@@ -218,7 +225,7 @@ proof fn lemma_error_pc_leads_to_cm_exists_with_invariants(cr: CustomResourceVie
             .leads_to(lift_state(cm_exists(cr)))
         ),
 {
-    lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req::<SimpleReconcileState>(simple_reconciler(), cr.object_ref());
+    lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req::<SimpleReconcileState>(partial_spec_with_always_cr_key_exists_and_crash_disabled::<SimpleReconcileState>(simple_reconciler(), cr.object_ref()), simple_reconciler(), cr.object_ref());
 
     temp_pred_equality::<State<SimpleReconcileState>>(lift_state(reconcile_init_pc_and_no_pending_req(cr)), lift_state(|s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
@@ -289,26 +296,6 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_after_get_cr_pc_and_pending_r
     lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr), simple_reconciler(), input, stronger_next, continue_reconcile(simple_reconciler()), pre, post);      
 }
 
-proof fn lemma_after_get_cr_pc_and_req_sent_leads_to_after_create_cm_pc(cr: CustomResourceView)
-    ensures
-        partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr).entails(
-            lift_state(reconciler_at_after_get_cr_pc_and_req_sent(cr)).leads_to(lift_state(reconciler_at_after_create_cm_pc(cr)))
-        ),
-{
-    assert forall |ex| #[trigger] partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr).satisfied_by(ex) implies lift_state(reconciler_at_after_get_cr_pc_and_req_sent(cr)).leads_to(lift_state(reconciler_at_after_create_cm_pc(cr))).satisfied_by(ex) by {
-        assert forall |i| #[trigger] lift_state(reconciler_at_after_get_cr_pc_and_req_sent(cr)).satisfied_by(ex.suffix(i)) implies eventually(lift_state(reconciler_at_after_create_cm_pc(cr))).satisfied_by(ex.suffix(i)) by {
-            let s = ex.suffix(i).head();
-            let msg = choose |msg: Message| {
-                &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(msg)
-                &&& is_controller_get_cr_request_msg(msg, cr)
-                &&& #[trigger] s.message_in_flight(msg)
-            };
-            lemma_req_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc_with_invariants(msg, cr);
-            instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, partial_spec_with_crash_always_disabled().and(tla_forall(|msg| always(lift_state(controller_runtime_safety::resp_matches_at_most_one_pending_req(msg, cr.object_ref()))))), lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight(msg, cr)), lift_state(reconciler_at_after_create_cm_pc(cr)));
-        };
-    };
-}
-
 proof fn lemma_init_pc_and_no_pending_req_leads_to_cm_exists_with_invariants(cr: CustomResourceView)
     ensures
         partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr).entails(
@@ -316,10 +303,21 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_cm_exists_with_invariants(cr:
                 .leads_to(lift_state(cm_exists(cr)))
         ),
 {
+    lemma_init_pc_and_no_pending_req_leads_to_after_create_cm_pc_with_invariants(cr);
+    lemma_after_create_cm_pc_leads_to_cm_exists_with_invariants(cr);
+    leads_to_trans_auto::<State<SimpleReconcileState>>(partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr));
+}
+
+proof fn lemma_init_pc_and_no_pending_req_leads_to_after_create_cm_pc_with_invariants(cr: CustomResourceView)
+    ensures
+        partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr).entails(
+            lift_state(reconciler_at_init_pc_and_no_pending_req(cr))
+                .leads_to(lift_state(reconciler_at_after_create_cm_pc(cr)))
+        ),
+{
     lemma_init_pc_and_no_pending_req_leads_to_after_get_cr_pc_and_pending_req_and_req_in_flight_and_no_resp_in_flight(cr);
     lemma_after_get_cr_pc_and_pending_req_and_req_in_flight_and_no_resp_in_flight_leads_to_ok_resp_received(cr);
     lemma_after_get_cr_pc_and_ok_resp_received_leads_to_after_create_cm_pc(cr);
-    lemma_after_create_cm_pc_leads_to_cm_exists_with_invariants(cr);
     leads_to_trans_auto::<State<SimpleReconcileState>>(partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr));
 }
 
@@ -470,7 +468,7 @@ proof fn lemma_req_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc_with
 
 proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc_with_invariants(resp_msg: Message, req_msg: Message, cr: CustomResourceView)
     ensures
-        partial_spec_with_crash_always_disabled().and(always(lift_state(controller_runtime_safety::at_most_one_resp_matches_req(resp_msg, req_msg)))).and(always(lift_state(controller_runtime_safety::resp_matches_at_most_one_pending_req(resp_msg, cr.object_ref())))).entails(
+        partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr).entails(
             lift_state(|s: State<SimpleReconcileState>| {
                 &&& s.message_in_flight(resp_msg)
                 &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -490,7 +488,21 @@ proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc_wit
         &&& controller_runtime_safety::resp_matches_at_most_one_pending_req(resp_msg, cr.object_ref())(s)
         &&& !s.crash_enabled
     };
-    let spec = partial_spec_with_crash_always_disabled().and(always(lift_state(controller_runtime_safety::at_most_one_resp_matches_req(resp_msg, req_msg)))).and(always(lift_state(controller_runtime_safety::resp_matches_at_most_one_pending_req(resp_msg, cr.object_ref()))));
+    let spec = partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr);
+    // First, show spec |= always(inv1)
+    let a_to_p_1 = |resp_req_pair: (Message, Message)| always(lift_state(controller_runtime_safety::at_most_one_resp_matches_req(resp_req_pair.0, resp_req_pair.1)));
+    let tla_forall_pred_1 = tla_forall(a_to_p_1);
+    assert(spec.entails(tla_forall_pred_1));
+    tla_forall_apply::<State<SimpleReconcileState>, (Message, Message)>(a_to_p_1, (resp_msg, req_msg));
+    entails_trans::<State<SimpleReconcileState>>(spec, tla_forall_pred_1, always(lift_state(controller_runtime_safety::at_most_one_resp_matches_req(resp_msg, req_msg))));
+
+    // Next, show spec |= always(inv2)
+    let a_to_p_2 = |msg| always(lift_state(controller_runtime_safety::resp_matches_at_most_one_pending_req(msg, cr.object_ref())));
+    let tla_forall_pred_2 = tla_forall(a_to_p_2);
+    assert(spec.entails(tla_forall_pred_2));
+    tla_forall_apply::<State<SimpleReconcileState>, Message>(a_to_p_2, resp_msg);
+    entails_trans::<State<SimpleReconcileState>>(spec, tla_forall_pred_2, always(lift_state(controller_runtime_safety::resp_matches_at_most_one_pending_req(resp_msg, cr.object_ref()))));
+    
     strengthen_next_3::<State<SimpleReconcileState>>(spec, next(simple_reconciler()), controller_runtime_safety::at_most_one_resp_matches_req(resp_msg, req_msg), controller_runtime_safety::resp_matches_at_most_one_pending_req(resp_msg, cr.object_ref()), crash_disabled::<SimpleReconcileState>(), next_and_invariant);
 
     if (resp_msg.content.is_APIResponse() && resp_msg.content.get_APIResponse_0().is_GetResponse() && resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.is_Ok()) {
@@ -500,7 +512,26 @@ proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc_wit
     else {
         let post = reconciler_reconcile_error(cr);
         lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(spec, simple_reconciler(), input, next_and_invariant, continue_reconcile(simple_reconciler()), pre, post);
-        lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req(simple_reconciler(), cr.object_ref());
+
+        // To show that ideal_spec |= error_pc ~> init_pc /\ no_pending_req
+        // First, show that always(cr_exists) |= always(cr_key_exists) to get spec |= always(cr_key_exists) using entails_trans.
+        // Then we can use lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req.
+        // Note that we add a temp_pre_equality because Verus can't figure out reconciler_at_init_pc_and_no_pending_req equals the one in the above lemma (annoying)
+        implies_preserved_by_always_temp::<State<SimpleReconcileState>>(cr_exists(cr), lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(cr.object_ref())));
+        entails_trans::<State<SimpleReconcileState>>(spec, always(cr_exists(cr)), always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(cr.object_ref()))));
+        lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req(spec, simple_reconciler(), cr.object_ref());
+        temp_pred_equality::<State<SimpleReconcileState>>(lift_state(reconcile_init_pc_and_no_pending_req(cr)), lift_state(|s: State<SimpleReconcileState>| {
+            &&& s.reconcile_state_contains(cr.object_ref())
+            &&& s.reconcile_state_of(cr.object_ref()).local_state == (simple_reconciler().reconcile_init_state)()
+            &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_None()
+        }));
+        lemma_init_pc_and_no_pending_req_leads_to_after_create_cm_pc_with_invariants(cr);
+
+        // Finally, using leads_to transitivity.
+        // 1. spec |= after_get_cr_pc /\ pending_req /\ resp_in_flight ~> error_pc ~> init_pc /\ no_pending_req
+        // 2. spec |= after_get_cr_pc /\ pending_req /\ resp_in_flight ~> init_pc /\ no_pending_req ~> after_create_cm_pc
+        leads_to_trans::<State<SimpleReconcileState>>(spec, pre, post, reconciler_at_init_pc_and_no_pending_req(cr));
+        leads_to_trans::<State<SimpleReconcileState>>(spec, pre, reconciler_at_init_pc_and_no_pending_req(cr), reconciler_at_after_create_cm_pc(cr));
     }
 }
 

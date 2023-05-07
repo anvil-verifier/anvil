@@ -976,6 +976,22 @@ pub proof fn entails_and_5_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempP
     entails_and_temp::<T>(spec, p1.and(p2).and(p3).and(p4), p5);
 }
 
+/// The six-predicate-version for entails_and_temp
+pub proof fn entails_and_6_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>, p6: TempPred<T>)
+    requires
+        spec.entails(p1),
+        spec.entails(p2),
+        spec.entails(p3),
+        spec.entails(p4),
+        spec.entails(p5),
+        spec.entails(p6),
+    ensures
+        spec.entails(p1.and(p2).and(p3).and(p4).and(p5).and(p6)),
+{
+    entails_and_5_temp::<T>(spec, p1, p2, p3, p4, p5);
+    entails_and_temp::<T>(spec, p1.and(p2).and(p3).and(p4).and(p5), p6);
+}
+
 /// Combining two specs together entails p and q if each of them entails p, q respectively.
 /// pre:
 ///     spec1 |= p

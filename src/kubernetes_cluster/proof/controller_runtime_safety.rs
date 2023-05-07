@@ -110,11 +110,11 @@ pub open spec fn at_most_one_resp_matches_req<T>(resp_msg: Message, req_msg: Mes
     }
 }
 
-// #[verifier(external_body)]
-// pub proof fn lemma_always_at_most_one_resp_matches_req<T>(reconciler: Reconciler<T>, resp_msg: Message, cr_key: ObjectRef)
-//     ensures
-//         sm_spec(reconciler).entails(always(lift_state(at_most_one_resp_matches_req(resp_msg, cr_key))))
-// {}
+#[verifier(external_body)]
+pub proof fn lemma_always_at_most_one_resp_matches_req<T>(reconciler: Reconciler<T>)
+    ensures
+        sm_spec(reconciler).entails(tla_forall(|resp_req_pair: (Message, Message)| always(lift_state(at_most_one_resp_matches_req(resp_req_pair.0, resp_req_pair.1))))),
+{}
 
 pub proof fn lemma_always_resp_matches_at_most_one_pending_req<T>(reconciler: Reconciler<T>, resp_msg: Message, cr_key: ObjectRef)
     requires
