@@ -64,6 +64,29 @@ pub proof fn lemma_always_in_flight_resp_has_lower_resp_id<T>(reconciler: Reconc
     init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), next(reconciler), invariant);
 }
 
+pub open spec fn in_flight_req_has_unique_id<T>() -> StatePred<State<T>> {
+    |s: State<T>| {
+        forall |req_msg: Message| 
+            #[trigger] s.message_in_flight(req_msg)
+            && req_msg.content.is_APIRequest()
+            ==> (
+                forall |other_msg: Message|
+                    #[trigger] s.message_in_flight(other_msg)
+                    && other_msg.content.is_APIRequest()
+                    && req_msg != other_msg
+                    ==> req_msg.content.get_req_id() != other_msg.content.get_req_id()
+                )
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_in_flight_req_has_unique_id<T>(reconciler: Reconciler<T>)
+    ensures
+        sm_spec(reconciler).entails(
+            always(lift_state(in_flight_req_has_unique_id::<T>()))
+        ),
+{}
+
 pub open spec fn pending_req_has_lower_req_id<T>() -> StatePred<State<T>> {
     |s: State<T>| {
         forall |cr_key: ObjectRef|
@@ -99,22 +122,47 @@ pub open spec fn resp_matches_at_most_one_pending_req<T>(resp_msg: Message, cr_k
     }
 }
 
-pub open spec fn at_most_one_resp_matches_req<T>(resp_msg: Message, req_msg: Message) -> StatePred<State<T>>
+pub open spec fn at_most_one_resp_matches_req<T>(resp_msg: Message, cr_key: ObjectRef) -> StatePred<State<T>>
 {
     |s: State<T>| {
-        resp_msg_matches_req_msg(resp_msg, req_msg)
+        s.reconcile_state_contains(cr_key)
+        && s.message_in_flight(resp_msg)
+        && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
+        && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
         ==> (
             forall |other_resp: Message| other_resp != resp_msg 
-            ==> !resp_msg_matches_req_msg(other_resp, req_msg)
+            ==> !resp_msg_matches_req_msg(other_resp, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
         )
     }
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_always_at_most_one_resp_matches_req<T>(reconciler: Reconciler<T>)
+pub proof fn lemma_always_at_most_one_resp_matches_req<T>(reconciler: Reconciler<T>, resp_msg: Message, cr_key: ObjectRef)
     ensures
-        sm_spec(reconciler).entails(tla_forall(|resp_req_pair: (Message, Message)| always(lift_state(at_most_one_resp_matches_req(resp_req_pair.0, resp_req_pair.1))))),
-{}
+        sm_spec(reconciler).entails(always(lift_state(at_most_one_resp_matches_req(resp_msg, cr_key)))),
+{
+    let invariant = at_most_one_resp_matches_req::<T>(resp_msg, cr_key);
+    let stronger_next = |s, s_prime: State<T>| {
+        &&& next(reconciler)(s, s_prime)
+        &&& in_flight_resp_has_lower_resp_id()(s)
+    };
+
+    lemma_always_in_flight_resp_has_lower_resp_id::<T>(reconciler);
+
+    strengthen_next::<State<T>>(sm_spec(reconciler), next(reconciler), in_flight_resp_has_lower_resp_id(), stronger_next);
+    init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), stronger_next, invariant);
+}
+
+pub proof fn lemma_forall_always_at_most_one_resp_matches_req<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
+    ensures
+        sm_spec(reconciler).entails(tla_forall(|resp_msg: Message| always(lift_state(at_most_one_resp_matches_req(resp_msg, cr_key))))),
+{
+    let m_to_p = |msg| always(lift_state(at_most_one_resp_matches_req(msg, cr_key)));
+    assert forall |msg| #[trigger] sm_spec(reconciler).entails(m_to_p(msg)) by {
+        lemma_always_at_most_one_resp_matches_req::<T>(reconciler, msg, cr_key);
+    }
+    spec_entails_tla_forall(sm_spec(reconciler), m_to_p);
+}
 
 pub proof fn lemma_always_resp_matches_at_most_one_pending_req<T>(reconciler: Reconciler<T>, resp_msg: Message, cr_key: ObjectRef)
     requires

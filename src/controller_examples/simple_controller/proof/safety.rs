@@ -133,7 +133,7 @@ pub proof fn next_and_not_crash_preserves_init_pc_or_reconciler_at_after_get_cr_
     requires
         next(simple_reconciler())(s, s_prime), !s.crash_enabled, reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())(s),
     ensures
-        reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())(s_prime) || reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight_and_no_resp_in_flight(cr)(s_prime),
+        reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())(s_prime) || reconciler_at_after_get_cr_pc_and_exists_pending_req_and_req_in_flight_and_no_resp_in_flight(cr)(s_prime),
 {}
 
 pub open spec fn reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {

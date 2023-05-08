@@ -250,6 +250,7 @@ pub open spec fn stutter<T>() -> Action<State<T>, (), ()> {
     }
 }
 
+#[is_variant]
 pub enum Step {
     KubernetesAPIStep(Option<Message>),
     ControllerStep((Option<Message>, Option<ObjectRef>)),

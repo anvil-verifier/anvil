@@ -992,6 +992,23 @@ pub proof fn entails_and_6_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempP
     entails_and_temp::<T>(spec, p1.and(p2).and(p3).and(p4).and(p5), p6);
 }
 
+/// The six-predicate-version for entails_and_temp
+pub proof fn entails_and_7_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>, p6: TempPred<T>, p7: TempPred<T>)
+    requires
+        spec.entails(p1),
+        spec.entails(p2),
+        spec.entails(p3),
+        spec.entails(p4),
+        spec.entails(p5),
+        spec.entails(p6),
+        spec.entails(p7),
+    ensures
+        spec.entails(p1.and(p2).and(p3).and(p4).and(p5).and(p6).and(p7)),
+{
+    entails_and_temp::<T>(spec, p1, p2);
+    entails_and_6_temp::<T>(spec, p1.and(p2), p3, p4, p5, p6, p7);
+}
+
 /// Combining two specs together entails p and q if each of them entails p, q respectively.
 /// pre:
 ///     spec1 |= p
@@ -1102,6 +1119,23 @@ pub proof fn stable_and_6_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred
 {
     stable_and_temp::<T>(p1, p2);
     stable_and_5_temp::<T>(p1.and(p2), p3, p4, p5, p6);
+}
+
+/// The seven-predicate-version of stable_and_temp
+pub proof fn stable_and_7_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>, p6: TempPred<T>, p7: TempPred<T>)
+    requires
+        valid(stable(p1)),
+        valid(stable(p2)),
+        valid(stable(p3)),
+        valid(stable(p4)),
+        valid(stable(p5)),
+        valid(stable(p6)),
+        valid(stable(p7)),
+    ensures
+        valid(stable(p1.and(p2).and(p3).and(p4).and(p5).and(p6).and(p7))),
+{
+    stable_and_temp::<T>(p1, p2);
+    stable_and_6_temp::<T>(p1.and(p2), p3, p4, p5, p6, p7);
 }
 
 /// Unpack the assumption from left to the right side of |=
