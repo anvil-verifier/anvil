@@ -258,11 +258,14 @@ proof fn lemma_after_get_cr_pc_and_ok_resp_received_leads_to_after_create_cm_pc(
 {
     let pre = reconciler_at_after_get_cr_pc_and_ok_resp_in_flight(req_msg, cr);
     let resp_msg = form_get_resp_msg(req_msg, Result::Ok(cr.to_dynamic_object()));
-    let input = (Option::Some(resp_msg), Option::Some(cr.object_ref()));
-    let spec = partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr);
-    ideal_spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr);
-    let post = reconciler_at_after_create_cm_pc(cr);
-    lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(spec, simple_reconciler(), input, strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr), continue_reconcile(simple_reconciler()), pre, post);
+    let intermediate = |s: State<SimpleReconcileState>| {
+        &&& s.message_in_flight(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr)(s)
+    };
+    lemma_ok_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc_with_invariants(resp_msg, req_msg, cr);
+    valid_implies_implies_leads_to::<State<SimpleReconcileState>>(partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr), lift_state(pre), lift_state(intermediate));
+    leads_to_trans::<State<SimpleReconcileState>>(partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr), pre, intermediate, reconciler_at_after_create_cm_pc(cr));
 }
 
 proof fn lemma_after_get_cr_pc_and_pending_req_and_req_in_flight_and_no_resp_in_flight_leads_to_ok_resp_received(req_msg: Message, cr: CustomResourceView)
@@ -529,6 +532,30 @@ proof fn ideal_spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg: 
     strengthen_next_3::<State<SimpleReconcileState>>(spec, next(simple_reconciler()), controller_runtime_safety::at_most_one_resp_matches_req(resp_msg, cr.object_ref()), controller_runtime_safety::resp_matches_at_most_one_pending_req(resp_msg, cr.object_ref()), crash_disabled::<SimpleReconcileState>(), next_and_invariant);
 }
 
+proof fn lemma_ok_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc_with_invariants(resp_msg: Message, req_msg: Message, cr: CustomResourceView)
+    requires
+        resp_msg.content.is_APIResponse() && resp_msg.content.get_APIResponse_0().is_GetResponse() && resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.is_Ok(),
+    ensures
+        partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr).entails(
+            lift_state(|s: State<SimpleReconcileState>| {
+                &&& s.message_in_flight(resp_msg)
+                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr)(s)
+            }).leads_to(lift_state(reconciler_at_after_create_cm_pc(cr)))
+        ),
+{
+    let pre = |s: State<SimpleReconcileState>| {
+        &&& s.message_in_flight(resp_msg)
+        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr)(s)
+    };
+    let input = (Option::Some(resp_msg), Option::Some(cr.object_ref()));
+    let spec = partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr);
+    ideal_spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr);
+    let post = reconciler_at_after_create_cm_pc(cr);
+    lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(spec, simple_reconciler(), input, strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr), continue_reconcile(simple_reconciler()), pre, post);
+}
+
 proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc_with_invariants(resp_msg: Message, req_msg: Message, cr: CustomResourceView)
     ensures
         partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr).entails(
@@ -549,8 +576,7 @@ proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc_wit
     ideal_spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr);
 
     if (resp_msg.content.is_APIResponse() && resp_msg.content.get_APIResponse_0().is_GetResponse() && resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.is_Ok()) {
-        let post = reconciler_at_after_create_cm_pc(cr);
-        lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(spec, simple_reconciler(), input, strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr), continue_reconcile(simple_reconciler()), pre, post);
+        lemma_ok_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc_with_invariants(resp_msg, req_msg, cr);
     }
     else {
         let post = reconciler_reconcile_error(cr);
