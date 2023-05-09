@@ -1,1 +1,0 @@
-fn(kubernetes_api_objects::custom_resource::CustomResourceView) -> builtin::FnSpec<(kubernetes_cluster::spec::distributed_system::State<controller_examples::simple_controller::spec::reconciler::SimpleReconcileState>,), bool> {controller_examples::simple_controller::proof::shared::reconciler_at_after_create_cm_pc}
