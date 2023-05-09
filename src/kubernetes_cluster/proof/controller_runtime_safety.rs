@@ -51,17 +51,142 @@ pub open spec fn in_flight_resp_has_lower_resp_id<T>() -> StatePred<State<T>> {
         forall |resp_msg: Message|
             #[trigger] s.message_in_flight(resp_msg)
             && resp_msg.content.is_APIResponse()
-            ==> resp_msg.content.get_req_id() < s.chan_manager.cur_chan_id
+            ==> resp_msg.content.get_resp_id() < s.chan_manager.cur_chan_id
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_always_in_flight_resp_has_lower_resp_id<T>(reconciler: Reconciler<T>)
     ensures
         sm_spec(reconciler).entails(always(lift_state(in_flight_resp_has_lower_resp_id()))),
 {
     let invariant = in_flight_resp_has_lower_resp_id::<T>();
-    init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), next(reconciler), invariant);
+    let stronger_next = |s, s_prime: State<T>| {
+        next(reconciler)(s, s_prime)
+        && in_flight_req_has_lower_req_id::<T>()(s)
+    };
+    lemma_always_in_flight_req_has_lower_req_id::<T>(reconciler);
+    strengthen_next::<State<T>>(sm_spec(reconciler), next(reconciler), in_flight_req_has_lower_req_id::<T>(), stronger_next);
+    assert forall |s, s_prime: State<T>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        assert forall |msg: Message| #[trigger] s_prime.message_in_flight(msg) && msg.content.is_APIResponse() implies msg.content.get_resp_id() < s_prime.chan_manager.cur_chan_id by {
+            assert(s.chan_manager.cur_chan_id <= s_prime.chan_manager.cur_chan_id);
+            if (s.message_in_flight(msg)) {
+                assert(msg.content.get_resp_id() < s.chan_manager.cur_chan_id);
+                assert(msg.content.get_resp_id() < s_prime.chan_manager.cur_chan_id);
+            }
+            else {
+                let next_step = choose |step: Step| next_step(reconciler, s, s_prime, step);
+                assert(next_step.is_KubernetesAPIStep());
+                let input = next_step.get_KubernetesAPIStep_0();
+                assert(input.is_Some());
+                assert(s.message_in_flight(input.get_Some_0()));
+                assert(input.get_Some_0().content.is_APIRequest());
+                assert(msg.content.get_resp_id() == input.get_Some_0().content.get_req_id());
+                assert(input.get_Some_0().content.get_req_id() < s.chan_manager.cur_chan_id);
+            }
+        };
+    };
+    init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), stronger_next, invariant);
+}
+
+pub open spec fn every_in_flight_req_is_unique<T>() -> StatePred<State<T>> {
+    |s: State<T>| {
+        forall |msg: Message|
+            msg.content.is_APIRequest()
+            ==> #[trigger] s.message_in_flight_count(msg) <= 1
+    }
+}
+
+pub proof fn lemma_always_every_in_flight_req_is_unique<T>(reconciler: Reconciler<T>)
+    ensures
+        sm_spec(reconciler).entails(
+            always(lift_state(every_in_flight_req_is_unique::<T>()))
+        ),
+{
+    let invariant = every_in_flight_req_is_unique::<T>();
+    let stronger_next = |s, s_prime: State<T>| {
+        &&& next(reconciler)(s, s_prime)
+        &&& in_flight_req_has_lower_req_id()(s)
+    };
+    lemma_always_in_flight_req_has_lower_req_id::<T>(reconciler);
+    strengthen_next::<State<T>>(sm_spec(reconciler), next(reconciler), in_flight_req_has_lower_req_id(), stronger_next);
+    assert forall |s, s_prime: State<T>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        assert forall |msg: Message| msg.content.is_APIRequest() implies #[trigger] s_prime.message_in_flight_count(msg) <= 1 by {
+            if (!s.message_in_flight(msg)) {
+                assert(s_prime.message_in_flight_count(msg) <= 1);
+            }
+            else {
+                assert(s.message_in_flight_count(msg) == 1);
+            }
+        };
+    };
+    init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), stronger_next, invariant);
+}
+
+pub open spec fn every_in_flight_msg_has_unique_id<T>() -> StatePred<State<T>> {
+    |s: State<T>| {
+        forall |msg: Message|
+            #[trigger] s.message_in_flight(msg)
+            ==> (
+                forall |other_msg: Message|
+                    #[trigger] s.message_in_flight(other_msg)
+                    && msg != other_msg
+                    ==> msg.content.get_msg_id() != other_msg.content.get_msg_id()
+            )
+    }
+}
+
+pub proof fn lemma_always_every_in_flight_msg_has_unique_id<T>(reconciler: Reconciler<T>)
+    ensures
+        sm_spec(reconciler).entails(
+            always(lift_state(every_in_flight_msg_has_unique_id::<T>()))
+        ),
+{
+    let invariant = every_in_flight_msg_has_unique_id::<T>();
+    let stronger_next = |s, s_prime: State<T>| {
+        next(reconciler)(s, s_prime)
+        && in_flight_req_has_lower_req_id::<T>()(s)
+        && in_flight_resp_has_lower_resp_id::<T>()(s)
+        && every_in_flight_req_is_unique::<T>()(s)
+    };
+    lemma_always_in_flight_req_has_lower_req_id::<T>(reconciler);
+    lemma_always_in_flight_resp_has_lower_resp_id::<T>(reconciler);
+    lemma_always_every_in_flight_req_is_unique::<T>(reconciler);
+    strengthen_next_3::<State<T>>(sm_spec(reconciler), next(reconciler), in_flight_req_has_lower_req_id::<T>(), in_flight_resp_has_lower_resp_id::<T>(), every_in_flight_req_is_unique::<T>(), stronger_next);
+    assert forall |s, s_prime: State<T>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        assert forall |msg: Message| #[trigger] s_prime.message_in_flight(msg) implies (
+            forall |other_msg: Message| #[trigger] s_prime.message_in_flight(other_msg) && msg != other_msg ==> msg.content.get_msg_id() != other_msg.content.get_msg_id()) by {
+                assert forall |other_msg: Message| #[trigger] s_prime.message_in_flight(other_msg) && msg != other_msg implies msg.content.get_msg_id() != other_msg.content.get_msg_id() by {
+                    // At most one message will be added to the network_state.in_flight for each action.
+                    assert(s.message_in_flight(msg) || s.message_in_flight(other_msg));
+                    if (s.message_in_flight(msg) && s.message_in_flight(other_msg)) {
+                        assert(msg.content.get_msg_id() != other_msg.content.get_msg_id());
+                    }
+                    else {
+                        if (s.message_in_flight(msg)) {
+                            if (other_msg.content.is_APIResponse()) {
+                                let next_step = choose |step: Step| next_step(reconciler, s, s_prime, step);
+                                let input = next_step.get_KubernetesAPIStep_0();
+                                assert(other_msg.content.get_resp_id() == input.get_Some_0().content.get_req_id());
+                                assert(s.message_in_flight_count(input.get_Some_0()) <= 1);
+                                assert(!s_prime.message_in_flight(input.get_Some_0()));
+                                assert(msg.content.get_msg_id() != other_msg.content.get_msg_id());
+                            }
+                        }
+                        else {
+                            if (msg.content.is_APIResponse()) {
+                                let next_step = choose |step: Step| next_step(reconciler, s, s_prime, step);
+                                let input = next_step.get_KubernetesAPIStep_0();
+                                assert(msg.content.get_resp_id() == input.get_Some_0().content.get_req_id());
+                                assert(s.message_in_flight_count(input.get_Some_0()) <= 1);
+                                assert(!s_prime.message_in_flight(input.get_Some_0()));
+                                assert(msg.content.get_msg_id() != other_msg.content.get_msg_id());
+                            }
+                        }
+                    }
+                }
+            };
+    };
+    init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), stronger_next, invariant);
 }
 
 pub open spec fn in_flight_req_has_unique_id<T>() -> StatePred<State<T>> {
@@ -79,13 +204,63 @@ pub open spec fn in_flight_req_has_unique_id<T>() -> StatePred<State<T>> {
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_always_in_flight_req_has_unique_id<T>(reconciler: Reconciler<T>)
     ensures
         sm_spec(reconciler).entails(
             always(lift_state(in_flight_req_has_unique_id::<T>()))
         ),
-{}
+{
+    let invariant = in_flight_req_has_unique_id::<T>();
+    let stronger_next = |s, s_prime: State<T>| {
+        next(reconciler)(s, s_prime)
+        && in_flight_req_has_lower_req_id::<T>()(s)
+    };
+    lemma_always_in_flight_req_has_lower_req_id::<T>(reconciler);
+    strengthen_next::<State<T>>(sm_spec(reconciler), next(reconciler), in_flight_req_has_lower_req_id::<T>(), stronger_next);
+    assert forall |s, s_prime: State<T>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        assert forall |req_msg: Message| #[trigger] s_prime.message_in_flight(req_msg) && req_msg.content.is_APIRequest() implies (
+            forall |other_msg: Message| #[trigger] s_prime.message_in_flight(other_msg) && other_msg.content.is_APIRequest() && req_msg != other_msg ==> req_msg.content.get_req_id() != other_msg.content.get_req_id()) by {
+                assert forall |other_msg: Message| #[trigger] s_prime.message_in_flight(other_msg) && other_msg.content.is_APIRequest() && req_msg != other_msg implies req_msg.content.get_req_id() != other_msg.content.get_req_id() by {
+                    // At most one request will be added to the network_state.in_flight for each action.
+                    assert(s.message_in_flight(req_msg) || s.message_in_flight(other_msg));
+                    if (s.message_in_flight(req_msg) && s.message_in_flight(other_msg)) {
+                        assert(req_msg.content.get_req_id() != other_msg.content.get_req_id());
+                    }
+                }
+            };
+    };
+    init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), stronger_next, invariant);
+}
+
+pub open spec fn in_flight_req_has_lower_req_id<T>() -> StatePred<State<T>> {
+    |s: State<T>| {
+        forall |req_msg: Message| 
+            #[trigger] s.message_in_flight(req_msg)
+            && req_msg.content.is_APIRequest()
+            ==> req_msg.content.get_req_id() < s.chan_manager.cur_chan_id
+                
+    }
+}
+
+pub proof fn lemma_always_in_flight_req_has_lower_req_id<T>(reconciler: Reconciler<T>)
+    ensures
+        sm_spec(reconciler).entails(always(lift_state(in_flight_req_has_lower_req_id()))),
+{
+    let invariant = in_flight_req_has_lower_req_id::<T>();
+    assert forall |s, s_prime: State<T>| invariant(s) && #[trigger] next(reconciler)(s, s_prime) implies invariant(s_prime) by {
+        assert forall |msg: Message| #[trigger] s_prime.message_in_flight(msg) && msg.content.is_APIRequest() implies msg.content.get_req_id() < s_prime.chan_manager.cur_chan_id by {
+            assert(s.chan_manager.cur_chan_id <= s_prime.chan_manager.cur_chan_id);
+            if (s.message_in_flight(msg)) {
+                assert(msg.content.get_req_id() < s.chan_manager.cur_chan_id);
+                assert(msg.content.get_req_id() < s_prime.chan_manager.cur_chan_id);
+            }
+            else {
+                assert(s.chan_manager.cur_chan_id < s_prime.chan_manager.cur_chan_id)
+            }
+        };
+    };
+    init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), next(reconciler), invariant);
+}
 
 pub open spec fn pending_req_has_lower_req_id<T>() -> StatePred<State<T>> {
     |s: State<T>| {
@@ -130,27 +305,19 @@ pub open spec fn at_most_one_resp_matches_req<T>(resp_msg: Message, cr_key: Obje
         && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
         && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
         ==> (
-            forall |other_resp: Message| other_resp != resp_msg 
+            forall |other_resp: Message| other_resp != resp_msg && #[trigger] s.message_in_flight(other_resp)
             ==> !resp_msg_matches_req_msg(other_resp, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
         )
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_always_at_most_one_resp_matches_req<T>(reconciler: Reconciler<T>, resp_msg: Message, cr_key: ObjectRef)
     ensures
         sm_spec(reconciler).entails(always(lift_state(at_most_one_resp_matches_req(resp_msg, cr_key)))),
 {
-    let invariant = at_most_one_resp_matches_req::<T>(resp_msg, cr_key);
-    let stronger_next = |s, s_prime: State<T>| {
-        &&& next(reconciler)(s, s_prime)
-        &&& in_flight_resp_has_lower_resp_id()(s)
-    };
-
-    lemma_always_in_flight_resp_has_lower_resp_id::<T>(reconciler);
-
-    strengthen_next::<State<T>>(sm_spec(reconciler), next(reconciler), in_flight_resp_has_lower_resp_id(), stronger_next);
-    init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), stronger_next, invariant);
+    implies_preserved_by_always::<State<T>>(every_in_flight_msg_has_unique_id::<T>(), at_most_one_resp_matches_req::<T>(resp_msg, cr_key));
+    lemma_always_every_in_flight_msg_has_unique_id::<T>(reconciler);
+    entails_trans::<State<T>>(sm_spec(reconciler), always(lift_state(every_in_flight_msg_has_unique_id::<T>())), always(lift_state(at_most_one_resp_matches_req::<T>(resp_msg, cr_key))));
 }
 
 pub proof fn lemma_forall_always_at_most_one_resp_matches_req<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)

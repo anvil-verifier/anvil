@@ -43,6 +43,10 @@ impl<T> State<T> {
         multiset_contains_msg(self.network_state.in_flight, msg)
     }
 
+    pub open spec fn message_in_flight_count(self, msg: Message) -> nat {
+        self.network_state.in_flight.count(msg)
+    }
+
     pub open spec fn resource_key_exists(self, key: ObjectRef) -> bool {
         self.kubernetes_api_state.resources.dom().contains(key)
     }

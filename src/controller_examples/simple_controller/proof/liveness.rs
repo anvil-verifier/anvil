@@ -504,7 +504,6 @@ spec fn strengthen_next_with_rep_resp_injectivity(resp_msg: Message, req_msg: Me
     }
 }
 
-#[verifier(external_body)]
 proof fn ideal_spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg: Message, req_msg: Message, cr: CustomResourceView)
     ensures
         partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr).entails(
@@ -514,7 +513,7 @@ proof fn ideal_spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg: 
     let next_and_invariant = strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr);
     let spec = partial_spec_with_crash_always_disabled_and_invariants_and_cr_always_exists(cr);
     // First, show spec |= always(inv1)
-    let a_to_p_1 = |resp_msg: Message| lift_state(controller_runtime_safety::at_most_one_resp_matches_req(resp_msg, cr.object_ref()));
+    let a_to_p_1 = |resp_msg: Message| always(lift_state(controller_runtime_safety::at_most_one_resp_matches_req(resp_msg, cr.object_ref())));
     let tla_forall_pred_1 = tla_forall(a_to_p_1);
     assert(spec.entails(tla_forall_pred_1));
     tla_forall_apply::<State<SimpleReconcileState>, Message>(a_to_p_1, resp_msg);

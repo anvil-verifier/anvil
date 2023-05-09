@@ -128,13 +128,38 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
     }
 }
 
-#[verifier(external_body)]
 pub proof fn next_and_not_crash_preserves_init_pc_or_reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight_and_no_resp_in_flight(cr: CustomResourceView, s: State<SimpleReconcileState>, s_prime: State<SimpleReconcileState>)
     requires
-        next(simple_reconciler())(s, s_prime), !s.crash_enabled, reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())(s),
+        next(simple_reconciler())(s, s_prime), !s.crash_enabled, controller_runtime_safety::in_flight_resp_has_lower_resp_id::<SimpleReconcileState>()(s),
+        reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())(s),
     ensures
         reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())(s_prime) || reconciler_at_after_get_cr_pc_and_exists_pending_req_and_req_in_flight_and_no_resp_in_flight(cr)(s_prime),
-{}
+{
+    let pre = reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref());
+    let post = reconciler_at_after_get_cr_pc_and_exists_pending_req_and_req_in_flight_and_no_resp_in_flight(cr);
+    if (!pre(s_prime)) {
+        let next_step = choose |step: Step| next_step(simple_reconciler(), s, s_prime, step);
+        let input = next_step.get_ControllerStep_0();
+        let req_msg = controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr.object_ref()}), s.chan_manager.allocate().1);
+        assert(is_controller_get_cr_request_msg(req_msg, cr));
+        assert(s_prime.message_in_flight(req_msg));
+        assert(s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg));
+        if (exists |resp_msg: Message| {
+            &&& #[trigger] s_prime.message_in_flight(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        }) {
+            let resp_msg = choose |resp_msg: Message| {
+                &&& #[trigger] s_prime.message_in_flight(resp_msg)
+                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            };
+            assert(s.message_in_flight(resp_msg));
+            assert(resp_msg.content.get_resp_id() < s.chan_manager.cur_chan_id);
+            assert(req_msg.content.get_req_id() == s.chan_manager.cur_chan_id);
+            assert(false);
+        }
+    }
+    
+}
 
 pub open spec fn reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
