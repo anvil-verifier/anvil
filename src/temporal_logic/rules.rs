@@ -934,6 +934,17 @@ pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
     };
 }
 
+#[allow(unused_macros)]
+macro_rules! entails_and_n {
+    ($t:ty, $spec:expr, $p1:expr, $p2:expr) => {
+        entails_and_temp::<$t>($spec, $p1, $p2);
+    };
+    ($t:ty, $spec:expr, $p1:expr, $p2:expr, $($tail:tt)*) => {
+        entails_and_temp::<$t>($spec, $p1, $p2);
+        entails_and_n!($t, $spec, $p1.and($p2), $($tail)*);
+    };
+}
+
 /// The three-predicate-version for entails_and_temp
 pub proof fn entails_and_3_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
     requires
@@ -943,8 +954,9 @@ pub proof fn entails_and_3_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempP
     ensures
         spec.entails(p1.and(p2).and(p3)),
 {
-    entails_and_temp::<T>(spec, p1, p2);
-    entails_and_temp::<T>(spec, p1.and(p2), p3);
+    // entails_and_temp::<T>(spec, p1, p2);
+    // entails_and_temp::<T>(spec, p1.and(p2), p3);
+    entails_and_n!(T, spec, p1, p2, p3);
 }
 
 /// The four-predicate-version for entails_and_temp
@@ -957,8 +969,9 @@ pub proof fn entails_and_4_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempP
     ensures
         spec.entails(p1.and(p2).and(p3).and(p4)),
 {
-    entails_and_3_temp::<T>(spec, p1, p2, p3);
-    entails_and_temp::<T>(spec, p1.and(p2).and(p3), p4);
+    // entails_and_3_temp::<T>(spec, p1, p2, p3);
+    // entails_and_temp::<T>(spec, p1.and(p2).and(p3), p4);
+    entails_and_n!(T, spec, p1, p2, p3, p4);
 }
 
 /// The five-predicate-version for entails_and_temp
