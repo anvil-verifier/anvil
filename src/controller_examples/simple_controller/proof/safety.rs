@@ -128,7 +128,7 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
     }
 }
 
-pub proof fn next_and_not_crash_preserves_init_pc_or_reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight_and_no_resp_in_flight(cr: CustomResourceView, s: State<SimpleReconcileState>, s_prime: State<SimpleReconcileState>)
+pub proof fn next_and_not_crash_preserves_init_pc_or_reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight(cr: CustomResourceView, s: State<SimpleReconcileState>, s_prime: State<SimpleReconcileState>)
     requires
         next(simple_reconciler())(s, s_prime), !s.crash_enabled, controller_runtime_safety::in_flight_resp_has_lower_resp_id::<SimpleReconcileState>()(s),
         reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())(s),

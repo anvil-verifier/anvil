@@ -349,7 +349,7 @@ pub proof fn lemma_always_resp_matches_at_most_one_pending_req<T>(reconciler: Re
     init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), stronger_next, invariant);
 }
 
-pub proof fn lemma_always_forall_resp_matches_at_most_one_pending_req<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
+pub proof fn lemma_forall_resp_always_matches_at_most_one_pending_req<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures

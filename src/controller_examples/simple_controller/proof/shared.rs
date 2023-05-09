@@ -111,7 +111,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_exists_pending_req_and_req_in
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight_and_no_resp_in_flight(req_msg: Message, cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight(req_msg: Message, cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
