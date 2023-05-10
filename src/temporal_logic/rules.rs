@@ -934,93 +934,26 @@ pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
     };
 }
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! entails_and_n {
-    ($t:ty, $spec:expr, $p1:expr, $p2:expr) => {
-        entails_and_temp::<$t>($spec, $p1, $p2);
-    };
-    ($t:ty, $spec:expr, $p1:expr, $p2:expr, $($tail:tt)*) => {
-        entails_and_temp::<$t>($spec, $p1, $p2);
-        entails_and_n!($t, $spec, $p1.and($p2), $($tail)*);
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::entails_and_n_internal!($($tail)*));
     };
 }
 
-/// The three-predicate-version for entails_and_temp
-pub proof fn entails_and_3_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
-    requires
-        spec.entails(p1),
-        spec.entails(p2),
-        spec.entails(p3),
-    ensures
-        spec.entails(p1.and(p2).and(p3)),
-{
-    // entails_and_temp::<T>(spec, p1, p2);
-    // entails_and_temp::<T>(spec, p1.and(p2), p3);
-    entails_and_n!(T, spec, p1, p2, p3);
+#[macro_export]
+macro_rules! entails_and_n_internal {
+    ($spec:expr, $p1:expr, $p2:expr) => {
+        entails_and_temp($spec, $p1, $p2);
+    };
+    ($spec:expr, $p1:expr, $p2:expr, $($tail:tt)*) => {
+        entails_and_temp($spec, $p1, $p2);
+        entails_and_n_internal!($spec, $p1.and($p2), $($tail)*);
+    };
 }
 
-/// The four-predicate-version for entails_and_temp
-pub proof fn entails_and_4_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>)
-    requires
-        spec.entails(p1),
-        spec.entails(p2),
-        spec.entails(p3),
-        spec.entails(p4),
-    ensures
-        spec.entails(p1.and(p2).and(p3).and(p4)),
-{
-    // entails_and_3_temp::<T>(spec, p1, p2, p3);
-    // entails_and_temp::<T>(spec, p1.and(p2).and(p3), p4);
-    entails_and_n!(T, spec, p1, p2, p3, p4);
-}
-
-/// The five-predicate-version for entails_and_temp
-pub proof fn entails_and_5_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>)
-    requires
-        spec.entails(p1),
-        spec.entails(p2),
-        spec.entails(p3),
-        spec.entails(p4),
-        spec.entails(p5),
-    ensures
-        spec.entails(p1.and(p2).and(p3).and(p4).and(p5)),
-{
-    entails_and_4_temp::<T>(spec, p1, p2, p3, p4);
-    entails_and_temp::<T>(spec, p1.and(p2).and(p3).and(p4), p5);
-}
-
-/// The six-predicate-version for entails_and_temp
-pub proof fn entails_and_6_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>, p6: TempPred<T>)
-    requires
-        spec.entails(p1),
-        spec.entails(p2),
-        spec.entails(p3),
-        spec.entails(p4),
-        spec.entails(p5),
-        spec.entails(p6),
-    ensures
-        spec.entails(p1.and(p2).and(p3).and(p4).and(p5).and(p6)),
-{
-    entails_and_5_temp::<T>(spec, p1, p2, p3, p4, p5);
-    entails_and_temp::<T>(spec, p1.and(p2).and(p3).and(p4).and(p5), p6);
-}
-
-/// The six-predicate-version for entails_and_temp
-pub proof fn entails_and_7_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>, p6: TempPred<T>, p7: TempPred<T>)
-    requires
-        spec.entails(p1),
-        spec.entails(p2),
-        spec.entails(p3),
-        spec.entails(p4),
-        spec.entails(p5),
-        spec.entails(p6),
-        spec.entails(p7),
-    ensures
-        spec.entails(p1.and(p2).and(p3).and(p4).and(p5).and(p6).and(p7)),
-{
-    entails_and_temp::<T>(spec, p1, p2);
-    entails_and_6_temp::<T>(spec, p1.and(p2), p3, p4, p5, p6, p7);
-}
+pub use entails_and_n;
+pub use entails_and_n_internal;
 
 /// Combining two specs together entails p and q if each of them entails p, q respectively.
 /// pre:
@@ -1074,82 +1007,26 @@ pub proof fn stable_and_temp<T>(p: TempPred<T>, q: TempPred<T>)
     }
 }
 
-/// The three-predicate-version of stable_and_temp
-/// This is created for avoid multiple calls to stable_and_temp.
-// TODO: The following stable_and_x_temp lemmas should be generated using a macro
-pub proof fn stable_and_3_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
-    requires
-        valid(stable(p1)),
-        valid(stable(p2)),
-        valid(stable(p3)),
-    ensures
-        valid(stable(p1.and(p2).and(p3))),
-{
-    stable_and_temp::<T>(p1, p2);
-    stable_and_temp::<T>(p1.and(p2), p3);
+#[macro_export]
+macro_rules! stable_and_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::stable_and_n_internal!($($tail)*));
+    };
 }
 
-/// The four-predicate-version of stable_and_temp
-pub proof fn stable_and_4_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>)
-    requires
-        valid(stable(p1)),
-        valid(stable(p2)),
-        valid(stable(p3)),
-        valid(stable(p4)),
-    ensures
-        valid(stable(p1.and(p2).and(p3).and(p4))),
-{
-    stable_and_temp::<T>(p1, p2);
-    stable_and_3_temp::<T>(p1.and(p2), p3, p4);
+#[macro_export]
+macro_rules! stable_and_n_internal {
+    ($p1:expr, $p2:expr) => {
+        stable_and_temp($p1, $p2);
+    };
+    ($p1:expr, $p2:expr, $($tail:tt)*) => {
+        stable_and_temp($p1, $p2);
+        stable_and_n_internal!($p1.and($p2), $($tail)*);
+    };
 }
 
-/// The five-predicate-version of stable_and_temp
-pub proof fn stable_and_5_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>)
-    requires
-        valid(stable(p1)),
-        valid(stable(p2)),
-        valid(stable(p3)),
-        valid(stable(p4)),
-        valid(stable(p5)),
-    ensures
-        valid(stable(p1.and(p2).and(p3).and(p4).and(p5))),
-{
-    stable_and_temp::<T>(p1, p2);
-    stable_and_4_temp::<T>(p1.and(p2), p3, p4, p5);
-}
-
-/// The six-predicate-version of stable_and_temp
-pub proof fn stable_and_6_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>, p6: TempPred<T>)
-    requires
-        valid(stable(p1)),
-        valid(stable(p2)),
-        valid(stable(p3)),
-        valid(stable(p4)),
-        valid(stable(p5)),
-        valid(stable(p6)),
-    ensures
-        valid(stable(p1.and(p2).and(p3).and(p4).and(p5).and(p6))),
-{
-    stable_and_temp::<T>(p1, p2);
-    stable_and_5_temp::<T>(p1.and(p2), p3, p4, p5, p6);
-}
-
-/// The seven-predicate-version of stable_and_temp
-pub proof fn stable_and_7_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>, p6: TempPred<T>, p7: TempPred<T>)
-    requires
-        valid(stable(p1)),
-        valid(stable(p2)),
-        valid(stable(p3)),
-        valid(stable(p4)),
-        valid(stable(p5)),
-        valid(stable(p6)),
-        valid(stable(p7)),
-    ensures
-        valid(stable(p1.and(p2).and(p3).and(p4).and(p5).and(p6).and(p7))),
-{
-    stable_and_temp::<T>(p1, p2);
-    stable_and_6_temp::<T>(p1.and(p2), p3, p4, p5, p6, p7);
-}
+pub use stable_and_n;
+pub use stable_and_n_internal;
 
 /// Unpack the assumption from left to the right side of |=
 /// pre:
@@ -1250,7 +1127,7 @@ pub proof fn strengthen_next_2<T>(spec: TempPred<T>, next: ActionPred<T>, inv1: 
     ensures
         spec.entails(always(lift_action(next_and_inv))),
 {
-    entails_and_3_temp::<T>(spec, always(lift_action(next)), always(lift_state(inv1)), always(lift_state(inv2)));
+    entails_and_n!(spec, always(lift_action(next)), always(lift_state(inv1)), always(lift_state(inv2)));
     always_and_3_equality::<T>(lift_action(next), lift_state(inv1), lift_state(inv2));
     temp_pred_equality::<T>(lift_action(next_and_inv), lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)));
 }
@@ -1266,7 +1143,7 @@ pub proof fn strengthen_next_3<T>(spec: TempPred<T>, next: ActionPred<T>, inv1: 
     ensures
         spec.entails(always(lift_action(next_and_inv))),
 {
-    entails_and_4_temp::<T>(spec, always(lift_action(next)), always(lift_state(inv1)), always(lift_state(inv2)), always(lift_state(inv3)));
+    entails_and_n!(spec, always(lift_action(next)), always(lift_state(inv1)), always(lift_state(inv2)), always(lift_state(inv3)));
     always_and_3_equality::<T>(lift_action(next), lift_state(inv1), lift_state(inv2));
 
     always_and_equality::<T>(lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)), lift_state(inv3));

@@ -180,7 +180,7 @@ proof fn lemma_valid_stable_sm_partial_spec_and_invariants(cr: CustomResourceVie
     let a_to_always_1 = |resp_msg: Message| always(lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref())));
     tla_forall_always_equality_variant::<State<SimpleReconcileState>, Message>(a_to_always_1, a_to_p_1);
 
-    stable_and_7_temp::<State<SimpleReconcileState>>(
+    stable_and_n!(
         always(lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr))),
         tla_forall(|msg| always(lift_state(resp_matches_at_most_one_pending_req(msg, cr.object_ref())))),
         tla_forall(|msg| always(lift_state(at_most_one_resp_matches_req(msg, cr.object_ref())))),
@@ -207,7 +207,7 @@ proof fn lemma_sm_spec_entails_all_invariants(cr: CustomResourceView)
     lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager::<SimpleReconcileState>(simple_reconciler());
     lemma_always_every_in_flight_req_has_unique_id::<SimpleReconcileState>(simple_reconciler());
 
-    entails_and_7_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()),
+    entails_and_n!(sm_spec(simple_reconciler()),
         always(lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr))),
         tla_forall(|msg| always(lift_state(resp_matches_at_most_one_pending_req(msg, cr.object_ref())))),
         tla_forall(|resp_msg: Message| always(lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref())))),
@@ -256,7 +256,7 @@ proof fn lemma_reconcile_idle_leads_to_cm_exists(cr: CustomResourceView)
 
     entails_trans::<State<SimpleReconcileState>>(partial_spec_with_invariants_and_assumptions(cr), always(cr_exists(cr)),
         always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(cr.object_ref()))));
-    entails_and_3_temp::<State<SimpleReconcileState>>(partial_spec_with_invariants_and_assumptions(cr),
+    entails_and_n!(partial_spec_with_invariants_and_assumptions(cr),
         sm_partial_spec(simple_reconciler()),
         always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(cr.object_ref()))),
         always(lift_state(crash_disabled::<SimpleReconcileState>())));
@@ -327,7 +327,7 @@ proof fn lemma_error_pc_leads_to_cm_exists(cr: CustomResourceView)
 
     entails_trans::<State<SimpleReconcileState>>(partial_spec_with_invariants_and_assumptions(cr), always(cr_exists(cr)),
         always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(cr.object_ref()))));
-    entails_and_3_temp::<State<SimpleReconcileState>>(partial_spec_with_invariants_and_assumptions(cr),
+    entails_and_n!(partial_spec_with_invariants_and_assumptions(cr),
         sm_partial_spec(simple_reconciler()),
         always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(cr.object_ref()))),
         always(lift_state(crash_disabled::<SimpleReconcileState>())));
