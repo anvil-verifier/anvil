@@ -20,32 +20,6 @@ use vstd::{option::*, result::*};
 
 verus! {
 
-pub open spec fn pending_msg_is_req_msg<T>() -> StatePred<State<T>> {
-    |s: State<T>| {
-        forall |cr_key: ObjectRef|
-            #[trigger] s.reconcile_state_contains(cr_key)
-            && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
-            ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.is_APIRequest()
-    }
-}
-
-pub open spec fn pending_req_has_unique_id<T>(cr_key: ObjectRef) -> StatePred<State<T>>
-    recommends
-        cr_key.kind.is_CustomResourceKind(),
-{
-    |s: State<T>| {
-        s.reconcile_state_contains(cr_key)
-        && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
-        ==> (
-            forall |other_key: ObjectRef|
-                #[trigger] s.reconcile_state_contains(other_key)
-                && s.reconcile_state_of(other_key).pending_req_msg.is_Some()
-                && other_key !== cr_key
-                ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_req_id() !== s.reconcile_state_of(other_key).pending_req_msg.get_Some_0().content.get_req_id()
-            )
-    }
-}
-
 pub open spec fn every_in_flight_msg_has_lower_id_than_chan_manager<T>() -> StatePred<State<T>> {
     |s: State<T>| {
         forall |msg: Message|
@@ -190,7 +164,7 @@ proof fn newly_added_msg_have_different_id_from_existing_ones<T>(reconciler: Rec
     }
 }
 
-pub open spec fn in_flight_req_has_unique_id<T>() -> StatePred<State<T>> {
+pub open spec fn every_in_flight_req_has_unique_id<T>() -> StatePred<State<T>> {
     |s: State<T>| {
         forall |req_msg: Message| 
             #[trigger] s.message_in_flight(req_msg)
@@ -205,13 +179,13 @@ pub open spec fn in_flight_req_has_unique_id<T>() -> StatePred<State<T>> {
     }
 }
 
-pub proof fn lemma_always_in_flight_req_has_unique_id<T>(reconciler: Reconciler<T>)
+pub proof fn lemma_always_every_in_flight_req_has_unique_id<T>(reconciler: Reconciler<T>)
     ensures
         sm_spec(reconciler).entails(
-            always(lift_state(in_flight_req_has_unique_id::<T>()))
+            always(lift_state(every_in_flight_req_has_unique_id::<T>()))
         ),
 {
-    let invariant = in_flight_req_has_unique_id::<T>();
+    let invariant = every_in_flight_req_has_unique_id::<T>();
     let stronger_next = |s, s_prime: State<T>| {
         next(reconciler)(s, s_prime)
         && every_in_flight_msg_has_lower_id_than_chan_manager::<T>()(s)
