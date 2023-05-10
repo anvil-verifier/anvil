@@ -52,28 +52,6 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req(msg: Message, cr:
     }
 }
 
-pub open spec fn exists_pending_req_and_req_in_flight(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
-    |s: State<SimpleReconcileState>| {
-        exists |msg: Message| {
-            &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(msg)
-            &&& is_controller_get_cr_request_msg(msg, cr)
-            &&& #[trigger] s.message_in_flight(msg)
-        }
-    }
-}
-
-pub open spec fn reconciler_at_after_get_cr_pc_and_req_sent(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
-    |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr.object_ref())
-        &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
-        &&& exists |msg: Message| {
-            &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(msg)
-            &&& is_controller_get_cr_request_msg(msg, cr)
-            &&& #[trigger] s.message_in_flight(msg)
-        }
-    }
-}
-
 pub open spec fn reconciler_at_after_get_cr_pc_and_ok_resp_in_flight(req_msg: Message, cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
@@ -138,7 +116,6 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_fligh
         }
     }
 }
-
 
 pub open spec fn get_cr_req_in_flight(msg: Message, cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
