@@ -1,6 +1,5 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-#![feature(macro_metavar_expr)]
 #![allow(unused_imports)]
 
 pub mod controller_examples;
