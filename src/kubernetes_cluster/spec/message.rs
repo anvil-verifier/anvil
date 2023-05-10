@@ -171,11 +171,9 @@ impl MessageContent {
 
     pub open spec fn get_msg_id(self) -> nat
     {
-        if self.is_APIRequest() {
-            self.get_APIRequest_1()
-        }
-        else {
-            self.get_APIResponse_1()
+        match self {
+            MessageContent::APIRequest(_, _) => self.get_APIRequest_1(),
+            MessageContent::APIResponse(_, _) => self.get_APIResponse_1()
         }
     }
 }

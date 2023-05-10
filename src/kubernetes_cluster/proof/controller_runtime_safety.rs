@@ -72,8 +72,7 @@ pub proof fn lemma_always_in_flight_resp_has_lower_resp_id<T>(reconciler: Reconc
             if (s.message_in_flight(msg)) {
                 assert(msg.content.get_resp_id() < s.chan_manager.cur_chan_id);
                 assert(msg.content.get_resp_id() < s_prime.chan_manager.cur_chan_id);
-            }
-            else {
+            } else {
                 let next_step = choose |step: Step| next_step(reconciler, s, s_prime, step);
                 assert(next_step.is_KubernetesAPIStep());
                 let input = next_step.get_KubernetesAPIStep_0();
@@ -91,8 +90,8 @@ pub proof fn lemma_always_in_flight_resp_has_lower_resp_id<T>(reconciler: Reconc
 pub open spec fn every_in_flight_req_is_unique<T>() -> StatePred<State<T>> {
     |s: State<T>| {
         forall |msg: Message|
-            msg.content.is_APIRequest()
-            ==> #[trigger] s.message_in_flight_count(msg) <= 1
+            msg.content.is_APIRequest() && #[trigger] s.message_in_flight(msg)
+            ==> s.network_state.in_flight.count(msg) == 1
     }
 }
 
@@ -110,12 +109,9 @@ pub proof fn lemma_always_every_in_flight_req_is_unique<T>(reconciler: Reconcile
     lemma_always_in_flight_req_has_lower_req_id::<T>(reconciler);
     strengthen_next::<State<T>>(sm_spec(reconciler), next(reconciler), in_flight_req_has_lower_req_id(), stronger_next);
     assert forall |s, s_prime: State<T>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        assert forall |msg: Message| msg.content.is_APIRequest() implies #[trigger] s_prime.message_in_flight_count(msg) <= 1 by {
-            if (!s.message_in_flight(msg)) {
-                assert(s_prime.message_in_flight_count(msg) <= 1);
-            }
-            else {
-                assert(s.message_in_flight_count(msg) == 1);
+        assert forall |msg: Message| msg.content.is_APIRequest() && #[trigger] s_prime.message_in_flight(msg) implies s_prime.network_state.in_flight.count(msg) == 1 by {
+            if (s.message_in_flight(msg)) {
+                assert(s.network_state.in_flight.count(msg) == 1);
             }
         };
     };
@@ -153,40 +149,42 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id<T>(reconciler: Recon
     lemma_always_every_in_flight_req_is_unique::<T>(reconciler);
     strengthen_next_3::<State<T>>(sm_spec(reconciler), next(reconciler), in_flight_req_has_lower_req_id::<T>(), in_flight_resp_has_lower_resp_id::<T>(), every_in_flight_req_is_unique::<T>(), stronger_next);
     assert forall |s, s_prime: State<T>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        assert forall |msg: Message| #[trigger] s_prime.message_in_flight(msg) implies (
-            forall |other_msg: Message| #[trigger] s_prime.message_in_flight(other_msg) && msg != other_msg ==> msg.content.get_msg_id() != other_msg.content.get_msg_id()) by {
-                assert forall |other_msg: Message| #[trigger] s_prime.message_in_flight(other_msg) && msg != other_msg implies msg.content.get_msg_id() != other_msg.content.get_msg_id() by {
-                    // At most one message will be added to the network_state.in_flight for each action.
-                    assert(s.message_in_flight(msg) || s.message_in_flight(other_msg));
-                    if (s.message_in_flight(msg) && s.message_in_flight(other_msg)) {
+        next_and_unique_lower_msg_id_preserves_in_flight_msg_has_unique_id::<T>(reconciler, s, s_prime);
+    };
+    init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), stronger_next, invariant);
+}
+
+proof fn next_and_unique_lower_msg_id_preserves_in_flight_msg_has_unique_id<T>(reconciler: Reconciler<T>, s: State<T>, s_prime: State<T>)
+    requires
+        next(reconciler)(s, s_prime), in_flight_req_has_lower_req_id::<T>()(s), in_flight_resp_has_lower_resp_id::<T>()(s),every_in_flight_req_is_unique::<T>()(s), every_in_flight_msg_has_unique_id::<T>()(s),
+    ensures
+        every_in_flight_msg_has_unique_id::<T>()(s_prime),
+{
+    assert forall |msg: Message| #[trigger] s_prime.message_in_flight(msg) implies (forall |other_msg: Message| #[trigger] s_prime.message_in_flight(other_msg) && msg != other_msg ==> msg.content.get_msg_id() != other_msg.content.get_msg_id()) by {
+        assert forall |other_msg: Message| #[trigger] s_prime.message_in_flight(other_msg) && msg != other_msg implies msg.content.get_msg_id() != other_msg.content.get_msg_id() by {
+            // At most one message will be added to the network_state.in_flight for each action.
+            assert(s.message_in_flight(msg) || s.message_in_flight(other_msg));
+            if (s.message_in_flight(msg) && s.message_in_flight(other_msg)) {
+                assert(msg.content.get_msg_id() != other_msg.content.get_msg_id());
+            } else {
+                if (s.message_in_flight(msg)) {
+                    if (other_msg.content.is_APIResponse()) {
+                        let next_step = choose |step: Step| next_step(reconciler, s, s_prime, step);
+                        let input = next_step.get_KubernetesAPIStep_0();
+                        assert(s.network_state.in_flight.count(input.get_Some_0()) <= 1);
                         assert(msg.content.get_msg_id() != other_msg.content.get_msg_id());
-                    }
-                    else {
-                        if (s.message_in_flight(msg)) {
-                            if (other_msg.content.is_APIResponse()) {
-                                let next_step = choose |step: Step| next_step(reconciler, s, s_prime, step);
-                                let input = next_step.get_KubernetesAPIStep_0();
-                                assert(other_msg.content.get_resp_id() == input.get_Some_0().content.get_req_id());
-                                assert(s.message_in_flight_count(input.get_Some_0()) <= 1);
-                                assert(!s_prime.message_in_flight(input.get_Some_0()));
-                                assert(msg.content.get_msg_id() != other_msg.content.get_msg_id());
-                            }
                         }
-                        else {
-                            if (msg.content.is_APIResponse()) {
-                                let next_step = choose |step: Step| next_step(reconciler, s, s_prime, step);
-                                let input = next_step.get_KubernetesAPIStep_0();
-                                assert(msg.content.get_resp_id() == input.get_Some_0().content.get_req_id());
-                                assert(s.message_in_flight_count(input.get_Some_0()) <= 1);
-                                assert(!s_prime.message_in_flight(input.get_Some_0()));
-                                assert(msg.content.get_msg_id() != other_msg.content.get_msg_id());
-                            }
+                    } else {
+                        if (msg.content.is_APIResponse()) {
+                            let next_step = choose |step: Step| next_step(reconciler, s, s_prime, step);
+                            let input = next_step.get_KubernetesAPIStep_0();
+                            assert(s.network_state.in_flight.count(input.get_Some_0()) <= 1);
+                            assert(msg.content.get_msg_id() != other_msg.content.get_msg_id());
                         }
                     }
                 }
-            };
+        }
     };
-    init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), stronger_next, invariant);
 }
 
 pub open spec fn in_flight_req_has_unique_id<T>() -> StatePred<State<T>> {
@@ -253,8 +251,7 @@ pub proof fn lemma_always_in_flight_req_has_lower_req_id<T>(reconciler: Reconcil
             if (s.message_in_flight(msg)) {
                 assert(msg.content.get_req_id() < s.chan_manager.cur_chan_id);
                 assert(msg.content.get_req_id() < s_prime.chan_manager.cur_chan_id);
-            }
-            else {
+            } else {
                 assert(s.chan_manager.cur_chan_id < s_prime.chan_manager.cur_chan_id)
             }
         };
