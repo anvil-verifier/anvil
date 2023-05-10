@@ -120,8 +120,13 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id<T>(reconciler: Recon
     };
     lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager::<T>(reconciler);
     lemma_always_every_in_flight_req_is_unique::<T>(reconciler);
-    strengthen_next_2::<State<T>>(sm_spec(reconciler), next(reconciler),
-        every_in_flight_msg_has_lower_id_than_chan_manager::<T>(), every_in_flight_req_is_unique::<T>(), stronger_next);
+    entails_always_and_n!(sm_spec(reconciler), lift_action(next(reconciler)),
+        lift_state(every_in_flight_msg_has_lower_id_than_chan_manager::<T>()),
+        lift_state(every_in_flight_req_is_unique::<T>()));
+    temp_pred_equality(lift_action(stronger_next),
+        lift_action(next(reconciler))
+        .and(lift_state(every_in_flight_msg_has_lower_id_than_chan_manager::<T>()))
+        .and(lift_state(every_in_flight_req_is_unique::<T>())));
     assert forall |s, s_prime: State<T>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies
     invariant(s_prime) by {
         next_and_unique_lower_msg_id_preserves_in_flight_msg_has_unique_id::<T>(reconciler, s, s_prime);

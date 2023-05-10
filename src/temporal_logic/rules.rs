@@ -601,6 +601,27 @@ pub proof fn always_and_equality<T>(p: TempPred<T>, q: TempPred<T>)
     temp_pred_equality::<T>(always(p.and(q)), always(p).and(always(q)));
 }
 
+#[macro_export]
+macro_rules! always_and_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::always_and_n_internal!($($tail)*));
+    };
+}
+
+#[macro_export]
+macro_rules! always_and_n_internal {
+    ($p1:expr, $p2:expr) => {
+        always_and_equality($p1, $p2);
+    };
+    ($p1:expr, $p2:expr, $($tail:tt)*) => {
+        always_and_equality($p1, $p2);
+        always_and_n_internal!($p1.and($p2), $($tail)*);
+    };
+}
+
+pub use always_and_n;
+pub use always_and_n_internal;
+
 pub proof fn always_and_3_equality<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
     ensures
         always(p1.and(p2).and(p3)) == always(p1).and(always(p2)).and(always(p3)),
@@ -955,6 +976,29 @@ macro_rules! entails_and_n_internal {
 pub use entails_and_n;
 pub use entails_and_n_internal;
 
+#[macro_export]
+macro_rules! entails_always_and_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::entails_always_and_n_internal!($($tail)*));
+    };
+}
+
+#[macro_export]
+macro_rules! entails_always_and_n_internal {
+    ($spec:expr, $p1:expr, $p2:expr) => {
+        entails_and_temp($spec, always($p1), always($p2));
+        always_and_equality($p1, $p2);
+    };
+    ($spec:expr, $p1:expr, $p2:expr, $($tail:tt)*) => {
+        entails_and_temp($spec, always($p1), always($p2));
+        always_and_equality($p1, $p2);
+        entails_always_and_n_internal!($spec, $p1.and($p2), $($tail)*);
+    };
+}
+
+pub use entails_always_and_n;
+pub use entails_always_and_n_internal;
+
 /// Combining two specs together entails p and q if each of them entails p, q respectively.
 /// pre:
 ///     spec1 |= p
@@ -1115,39 +1159,6 @@ pub proof fn strengthen_next<T>(spec: TempPred<T>, next: ActionPred<T>, inv: Sta
     entails_and_temp::<T>(spec, always(lift_action(next)), always(lift_state(inv)));
     always_and_equality::<T>(lift_action(next), lift_state(inv));
     temp_pred_equality::<T>(lift_action(next_and_inv), lift_action(next).and(lift_state(inv)));
-}
-
-/// Strengthen next with two invs.
-pub proof fn strengthen_next_2<T>(spec: TempPred<T>, next: ActionPred<T>, inv1: StatePred<T>, inv2: StatePred<T>, next_and_inv: ActionPred<T>)
-    requires
-        spec.entails(always(lift_action(next))),
-        spec.entails(always(lift_state(inv1))),
-        spec.entails(always(lift_state(inv2))),
-        valid(lift_action(next_and_inv).equals(lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)))),
-    ensures
-        spec.entails(always(lift_action(next_and_inv))),
-{
-    entails_and_n!(spec, always(lift_action(next)), always(lift_state(inv1)), always(lift_state(inv2)));
-    always_and_3_equality::<T>(lift_action(next), lift_state(inv1), lift_state(inv2));
-    temp_pred_equality::<T>(lift_action(next_and_inv), lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)));
-}
-
-/// Strengthen next with three invs.
-pub proof fn strengthen_next_3<T>(spec: TempPred<T>, next: ActionPred<T>, inv1: StatePred<T>, inv2: StatePred<T>, inv3: StatePred<T>, next_and_inv: ActionPred<T>)
-    requires
-        spec.entails(always(lift_action(next))),
-        spec.entails(always(lift_state(inv1))),
-        spec.entails(always(lift_state(inv2))),
-        spec.entails(always(lift_state(inv3))),
-        valid(lift_action(next_and_inv).equals(lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)).and(lift_state(inv3)))),
-    ensures
-        spec.entails(always(lift_action(next_and_inv))),
-{
-    entails_and_n!(spec, always(lift_action(next)), always(lift_state(inv1)), always(lift_state(inv2)), always(lift_state(inv3)));
-    always_and_3_equality::<T>(lift_action(next), lift_state(inv1), lift_state(inv2));
-
-    always_and_equality::<T>(lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)), lift_state(inv3));
-    temp_pred_equality::<T>(lift_action(next_and_inv), lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)).and(lift_state(inv3)));
 }
 
 /// Get the initial leads_to.
