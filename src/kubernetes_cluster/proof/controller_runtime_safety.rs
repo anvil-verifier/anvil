@@ -225,8 +225,6 @@ pub proof fn lemma_always_pending_req_has_lower_req_id<T>(reconciler: Reconciler
 }
 
 pub open spec fn resp_matches_at_most_one_pending_req<T>(resp_msg: Message, cr_key: ObjectRef) -> StatePred<State<T>>
-    recommends
-        cr_key.kind.is_CustomResourceKind(),
 {
     |s: State<T>| {
         s.reconcile_state_contains(cr_key)
