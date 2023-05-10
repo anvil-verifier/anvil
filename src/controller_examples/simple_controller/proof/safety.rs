@@ -8,7 +8,7 @@ use crate::controller_examples::simple_controller::spec::{
 };
 use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, custom_resource::*};
 use crate::kubernetes_cluster::{
-    proof::{controller_runtime_safety, kubernetes_api_safety},
+    proof::{controller_runtime_safety, kubernetes_api_safety, controller_runtime_liveness::reconciler_init_and_no_pending_req},
     spec::{
         controller::common::{controller_req_msg, ControllerAction, ControllerActionInput},
         distributed_system::*,
@@ -23,18 +23,10 @@ use vstd::{option::*, result::*};
 
 verus! {
 
-pub open spec fn reconcile_init_pc_and_no_pending_req(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
-    |s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr.object_ref())
-        &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::init_pc()
-        &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_None()
-    }
-}
-
 pub proof fn lemma_always_reconcile_init_pc_and_no_pending_req(cr: CustomResourceView)
     ensures
         sm_spec(simple_reconciler()).entails(always(
-            lift_state(reconciler_at_init_pc(cr)).implies(lift_state(reconcile_init_pc_and_no_pending_req(cr)))
+            lift_state(reconciler_at_init_pc(cr)).implies(lift_state(reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())))
         )),
 {
     let invariant = |s: State<SimpleReconcileState>| {
@@ -48,11 +40,7 @@ pub proof fn lemma_always_reconcile_init_pc_and_no_pending_req(cr: CustomResourc
 
     // We intentionally write the safety property in a form that is friendly to liveness reasoning
     // There is no need to do this if we only want to prove safety
-    let invariant_temp_pred = lift_state(reconciler_at_init_pc(cr)).implies(lift_state(|s: State<SimpleReconcileState>| {
-        &&& s.reconcile_state_contains(cr.object_ref())
-        &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::init_pc()
-        &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_None()
-    }));
+    let invariant_temp_pred = lift_state(reconciler_at_init_pc(cr)).implies(lift_state(reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())));
     temp_pred_equality::<State<SimpleReconcileState>>(lift_state(invariant), invariant_temp_pred);
 }
 
