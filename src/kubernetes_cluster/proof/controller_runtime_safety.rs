@@ -163,23 +163,31 @@ proof fn next_and_unique_lower_msg_id_preserves_in_flight_msg_has_unique_id<T>(r
                 assert(msg.content.get_msg_id() != other_msg.content.get_msg_id());
             } else {
                 if (s.message_in_flight(msg)) {
-                    if (other_msg.content.is_APIResponse()) {
-                        let next_step = choose |step: Step| next_step(reconciler, s, s_prime, step);
-                        let input = next_step.get_KubernetesAPIStep_0();
-                        assert(s.network_state.in_flight.count(input.get_Some_0()) <= 1);
-                        assert(msg.content.get_msg_id() != other_msg.content.get_msg_id());
-                        }
-                    } else {
-                        if (msg.content.is_APIResponse()) {
-                            let next_step = choose |step: Step| next_step(reconciler, s, s_prime, step);
-                            let input = next_step.get_KubernetesAPIStep_0();
-                            assert(s.network_state.in_flight.count(input.get_Some_0()) <= 1);
-                            assert(msg.content.get_msg_id() != other_msg.content.get_msg_id());
-                        }
-                    }
+                    newly_added_msg_have_different_id_from_existing_ones(reconciler, s, s_prime, msg, other_msg);
+                } else {
+                    newly_added_msg_have_different_id_from_existing_ones(reconciler, s, s_prime, other_msg, msg);
                 }
+            }
         }
     };
+}
+
+proof fn newly_added_msg_have_different_id_from_existing_ones<T>(reconciler: Reconciler<T>, s: State<T>, s_prime: State<T>, msg_1: Message, msg_2: Message)
+    requires
+        next(reconciler)(s, s_prime), 
+        every_in_flight_msg_has_lower_id_than_chan_manager::<T>()(s), every_in_flight_req_is_unique::<T>()(s), 
+        s.message_in_flight(msg_1), !s.message_in_flight(msg_2), 
+        s_prime.message_in_flight(msg_1), s_prime.message_in_flight(msg_2),
+        every_in_flight_msg_has_unique_id::<T>()(s), // the invariant
+    ensures
+        msg_1.content.get_msg_id() != msg_2.content.get_msg_id(),
+{
+    if (msg_2.content.is_APIResponse()) {
+        let next_step = choose |step: Step| next_step(reconciler, s, s_prime, step);
+        let input = next_step.get_KubernetesAPIStep_0();
+        assert(s.network_state.in_flight.count(input.get_Some_0()) <= 1);
+        assert(msg_1.content.get_msg_id() != msg_2.content.get_msg_id());
+    }
 }
 
 pub open spec fn in_flight_req_has_unique_id<T>() -> StatePred<State<T>> {
