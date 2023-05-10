@@ -265,7 +265,7 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
     leads_to_trans_auto::<State<T>>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key));
 
     entails_and_3_temp::<State<T>>(spec, sm_partial_spec(reconciler), always(lift_state(|s: State<T>| s.resource_key_exists(cr_key))), always(lift_state(crash_disabled::<T>())));
-    entails_trans::<State<T>>(spec, partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key), 
+    entails_trans::<State<T>>(spec, partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key),
     lift_state(|s: State<T>| {
         &&& s.reconcile_state_contains(cr_key)
         &&& (reconciler.reconcile_error)(s.reconcile_state_of(cr_key).local_state)

@@ -42,7 +42,7 @@ impl<T> State<T> {
     pub open spec fn message_in_flight(self, msg: Message) -> bool {
         multiset_contains_msg(self.network_state.in_flight, msg)
     }
-    
+
     pub open spec fn resource_key_exists(self, key: ObjectRef) -> bool {
         self.kubernetes_api_state.resources.dom().contains(key)
     }
