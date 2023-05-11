@@ -601,35 +601,6 @@ pub proof fn always_and_equality<T>(p: TempPred<T>, q: TempPred<T>)
     temp_pred_equality::<T>(always(p.and(q)), always(p).and(always(q)));
 }
 
-#[macro_export]
-macro_rules! always_and_n {
-    [$($tail:tt)*] => {
-        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::always_and_n_internal!($($tail)*));
-    };
-}
-
-#[macro_export]
-macro_rules! always_and_n_internal {
-    ($p1:expr, $p2:expr) => {
-        always_and_equality($p1, $p2);
-    };
-    ($p1:expr, $p2:expr, $($tail:tt)*) => {
-        always_and_equality($p1, $p2);
-        always_and_n_internal!($p1.and($p2), $($tail)*);
-    };
-}
-
-pub use always_and_n;
-pub use always_and_n_internal;
-
-pub proof fn always_and_3_equality<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
-    ensures
-        always(p1.and(p2).and(p3)) == always(p1).and(always(p2)).and(always(p3)),
-{
-    always_and_equality::<T>(p1, p2);
-    always_and_equality::<T>(p1.and(p2), p3);
-}
-
 pub proof fn p_and_always_p_equals_always_p<T>(p: TempPred<T>)
     ensures
         p.and(always(p)) == always(p),
@@ -2114,57 +2085,26 @@ pub proof fn or_leads_to_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: State
     or_leads_to_combine_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }
 
-/// Three-predicate-version of or_leads_to_combine_temp.
-pub proof fn or_leads_to_combine_3_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(p1.leads_to(q)),
-        spec.entails(p2.leads_to(q)),
-        spec.entails(p3.leads_to(q)),
-    ensures
-        spec.entails(p1.or(p2).or(p3).leads_to(q)),
-{
-    or_leads_to_combine_temp(spec, p1, p2, q);
-    or_leads_to_combine_temp(spec, p1.or(p2), p3, q);
+#[macro_export]
+macro_rules! or_leads_to_combine_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::or_leads_to_combine_n_internal!($($tail)*));
+    };
 }
 
-/// StatePred version of or_leads_to_combine_3_temp.
-pub proof fn or_leads_to_combine_3<T>(spec: TempPred<T>, p1: StatePred<T>, p2: StatePred<T>, p3: StatePred<T>, q: StatePred<T>)
-    requires
-        spec.entails(lift_state(p1).leads_to(lift_state(q))),
-        spec.entails(lift_state(p2).leads_to(lift_state(q))),
-        spec.entails(lift_state(p3).leads_to(lift_state(q))),
-    ensures
-        spec.entails(lift_state(p1).or(lift_state(p2)).or(lift_state(p3)).leads_to(lift_state(q))),
-{
-    or_leads_to_combine_3_temp::<T>(spec, lift_state(p1), lift_state(p2), lift_state(p3), lift_state(q));
+#[macro_export]
+macro_rules! or_leads_to_combine_n_internal {
+    ($spec:expr, $p1:expr, $p2:expr; $q:expr) => {
+        or_leads_to_combine_temp($spec, $p1, $p2, $q);
+    };
+    ($spec:expr, $p1:expr, $p2:expr, $($rest:expr),+; $q:expr) => {
+        or_leads_to_combine_temp($spec, $p1, $p2, $q);
+        or_leads_to_combine_n_internal!($spec, $p1.or($p2), $($rest),+; $q);
+    };
 }
 
-/// Four-predicate-version of or_leads_to_combine_temp.
-pub proof fn or_leads_to_combine_4_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(p1.leads_to(q)),
-        spec.entails(p2.leads_to(q)),
-        spec.entails(p3.leads_to(q)),
-        spec.entails(p4.leads_to(q)),
-    ensures
-        spec.entails(p1.or(p2).or(p3).or(p4).leads_to(q)),
-{
-    or_leads_to_combine_temp(spec, p1, p2, q);
-    or_leads_to_combine_3_temp(spec, p1.or(p2), p3, p4, q);
-}
-
-/// StatePred version of or_leads_to_combine_4_temp.
-pub proof fn or_leads_to_combine_4<T>(spec: TempPred<T>, p1: StatePred<T>, p2: StatePred<T>, p3: StatePred<T>, p4: StatePred<T>, q: StatePred<T>)
-    requires
-        spec.entails(lift_state(p1).leads_to(lift_state(q))),
-        spec.entails(lift_state(p2).leads_to(lift_state(q))),
-        spec.entails(lift_state(p3).leads_to(lift_state(q))),
-        spec.entails(lift_state(p4).leads_to(lift_state(q))),
-    ensures
-        spec.entails(lift_state(p1).or(lift_state(p2)).or(lift_state(p3)).or(lift_state(p4)).leads_to(lift_state(q))),
-{
-    or_leads_to_combine_4_temp::<T>(spec, lift_state(p1), lift_state(p2), lift_state(p3), lift_state(p4), lift_state(q));
-}
+pub use or_leads_to_combine_n;
+pub use or_leads_to_combine_n_internal;
 
 /// Specialized version of or_leads_to_combine used for eliminating q in premise.
 /// pre:

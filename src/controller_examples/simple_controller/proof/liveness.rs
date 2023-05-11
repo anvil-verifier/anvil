@@ -291,11 +291,11 @@ proof fn lemma_reconcile_ongoing_leads_to_cm_exists(cr: CustomResourceView)
     lemma_init_pc_leads_to_cm_exists(cr);
     lemma_after_get_cr_pc_leads_to_cm_exists(cr);
     lemma_after_create_cm_pc_leads_to_cm_exists(cr);
-    or_leads_to_combine_4_temp::<State<SimpleReconcileState>>(partial_spec_with_invariants_and_assumptions(cr),
+    or_leads_to_combine_n!(partial_spec_with_invariants_and_assumptions(cr),
         lift_state(reconciler_reconcile_error(cr)),
         lift_state(reconciler_at_init_pc(cr)),
         lift_state(reconciler_at_after_get_cr_pc(cr)),
-        lift_state(reconciler_at_after_create_cm_pc(cr)),
+        lift_state(reconciler_at_after_create_cm_pc(cr));
         lift_state(cm_exists(cr)));
 }
 
