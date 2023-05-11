@@ -601,14 +601,6 @@ pub proof fn always_and_equality<T>(p: TempPred<T>, q: TempPred<T>)
     temp_pred_equality::<T>(always(p.and(q)), always(p).and(always(q)));
 }
 
-pub proof fn always_and_3_equality<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
-    ensures
-        always(p1.and(p2).and(p3)) == always(p1).and(always(p2)).and(always(p3)),
-{
-    always_and_equality::<T>(p1, p2);
-    always_and_equality::<T>(p1.and(p2), p3);
-}
-
 pub proof fn p_and_always_p_equals_always_p<T>(p: TempPred<T>)
     ensures
         p.and(always(p)) == always(p),
@@ -934,80 +926,69 @@ pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
     };
 }
 
-/// The three-predicate-version for entails_and_temp
-pub proof fn entails_and_3_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
-    requires
-        spec.entails(p1),
-        spec.entails(p2),
-        spec.entails(p3),
-    ensures
-        spec.entails(p1.and(p2).and(p3)),
-{
-    entails_and_temp::<T>(spec, p1, p2);
-    entails_and_temp::<T>(spec, p1.and(p2), p3);
+/// Entails the conjunction of all the p if entails each of them.
+/// pre:
+///     spec |= p1
+///     spec |= p2
+///        ...
+///     spec |= pn
+/// post:
+///     spec |= p1 /\ p2 /\ ... /\ pn
+///
+/// Usage: entails_and_n!(spec, p1, p2, p3, p4)
+#[macro_export]
+macro_rules! entails_and_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::entails_and_n_internal!($($tail)*));
+    };
 }
 
-/// The four-predicate-version for entails_and_temp
-pub proof fn entails_and_4_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>)
-    requires
-        spec.entails(p1),
-        spec.entails(p2),
-        spec.entails(p3),
-        spec.entails(p4),
-    ensures
-        spec.entails(p1.and(p2).and(p3).and(p4)),
-{
-    entails_and_3_temp::<T>(spec, p1, p2, p3);
-    entails_and_temp::<T>(spec, p1.and(p2).and(p3), p4);
+#[macro_export]
+macro_rules! entails_and_n_internal {
+    ($spec:expr, $p1:expr, $p2:expr) => {
+        entails_and_temp($spec, $p1, $p2);
+    };
+    ($spec:expr, $p1:expr, $p2:expr, $($tail:tt)*) => {
+        entails_and_temp($spec, $p1, $p2);
+        entails_and_n_internal!($spec, $p1.and($p2), $($tail)*);
+    };
 }
 
-/// The five-predicate-version for entails_and_temp
-pub proof fn entails_and_5_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>)
-    requires
-        spec.entails(p1),
-        spec.entails(p2),
-        spec.entails(p3),
-        spec.entails(p4),
-        spec.entails(p5),
-    ensures
-        spec.entails(p1.and(p2).and(p3).and(p4).and(p5)),
-{
-    entails_and_4_temp::<T>(spec, p1, p2, p3, p4);
-    entails_and_temp::<T>(spec, p1.and(p2).and(p3).and(p4), p5);
+pub use entails_and_n;
+pub use entails_and_n_internal;
+
+/// Entails always the conjunction of all the p if entails each always p.
+/// pre:
+///     spec |= []p1
+///     spec |= []p2
+///        ...
+///     spec |= []pn
+/// post:
+///     spec |= [](p1 /\ p2 /\ ... /\ pn)
+///
+/// Usage: entails_always_and_n!(spec, p1, p2, p3, p4)
+#[macro_export]
+macro_rules! entails_always_and_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::entails_always_and_n_internal!($($tail)*));
+    };
 }
 
-/// The six-predicate-version for entails_and_temp
-pub proof fn entails_and_6_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>, p6: TempPred<T>)
-    requires
-        spec.entails(p1),
-        spec.entails(p2),
-        spec.entails(p3),
-        spec.entails(p4),
-        spec.entails(p5),
-        spec.entails(p6),
-    ensures
-        spec.entails(p1.and(p2).and(p3).and(p4).and(p5).and(p6)),
-{
-    entails_and_5_temp::<T>(spec, p1, p2, p3, p4, p5);
-    entails_and_temp::<T>(spec, p1.and(p2).and(p3).and(p4).and(p5), p6);
+#[macro_export]
+macro_rules! entails_always_and_n_internal {
+    ($spec:expr, $p1:expr, $p2:expr) => {
+        entails_and_temp($spec, always($p1), always($p2));
+        always_and_equality($p1, $p2);
+    };
+    ($spec:expr, $p1:expr, $p2:expr, $($tail:tt)*) => {
+        entails_and_temp($spec, always($p1), always($p2));
+        always_and_equality($p1, $p2);
+        entails_always_and_n_internal!($spec, $p1.and($p2), $($tail)*);
+    };
 }
 
-/// The six-predicate-version for entails_and_temp
-pub proof fn entails_and_7_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>, p6: TempPred<T>, p7: TempPred<T>)
-    requires
-        spec.entails(p1),
-        spec.entails(p2),
-        spec.entails(p3),
-        spec.entails(p4),
-        spec.entails(p5),
-        spec.entails(p6),
-        spec.entails(p7),
-    ensures
-        spec.entails(p1.and(p2).and(p3).and(p4).and(p5).and(p6).and(p7)),
-{
-    entails_and_temp::<T>(spec, p1, p2);
-    entails_and_6_temp::<T>(spec, p1.and(p2), p3, p4, p5, p6, p7);
-}
+pub use entails_always_and_n;
+pub use entails_always_and_n_internal;
 
 /// Combining two specs together entails p and q if each of them entails p, q respectively.
 /// pre:
@@ -1061,82 +1042,36 @@ pub proof fn stable_and_temp<T>(p: TempPred<T>, q: TempPred<T>)
     }
 }
 
-/// The three-predicate-version of stable_and_temp
-/// This is created for avoid multiple calls to stable_and_temp.
-// TODO: The following stable_and_x_temp lemmas should be generated using a macro
-pub proof fn stable_and_3_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>)
-    requires
-        valid(stable(p1)),
-        valid(stable(p2)),
-        valid(stable(p3)),
-    ensures
-        valid(stable(p1.and(p2).and(p3))),
-{
-    stable_and_temp::<T>(p1, p2);
-    stable_and_temp::<T>(p1.and(p2), p3);
+/// The conjunction of all the p is stable if each p is stable.
+/// pre:
+///     |= stable(p1)
+///     |= stable(p2)
+///      ...
+///     |= stable(pn)
+/// post:
+///     |= stable(p1 /\ p2 /\ ... /\ pn)
+///
+/// Usage: stable_and_n!(p1, p2, p3, p4)
+#[macro_export]
+macro_rules! stable_and_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::stable_and_n_internal!($($tail)*));
+    };
 }
 
-/// The four-predicate-version of stable_and_temp
-pub proof fn stable_and_4_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>)
-    requires
-        valid(stable(p1)),
-        valid(stable(p2)),
-        valid(stable(p3)),
-        valid(stable(p4)),
-    ensures
-        valid(stable(p1.and(p2).and(p3).and(p4))),
-{
-    stable_and_temp::<T>(p1, p2);
-    stable_and_3_temp::<T>(p1.and(p2), p3, p4);
+#[macro_export]
+macro_rules! stable_and_n_internal {
+    ($p1:expr, $p2:expr) => {
+        stable_and_temp($p1, $p2);
+    };
+    ($p1:expr, $p2:expr, $($tail:tt)*) => {
+        stable_and_temp($p1, $p2);
+        stable_and_n_internal!($p1.and($p2), $($tail)*);
+    };
 }
 
-/// The five-predicate-version of stable_and_temp
-pub proof fn stable_and_5_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>)
-    requires
-        valid(stable(p1)),
-        valid(stable(p2)),
-        valid(stable(p3)),
-        valid(stable(p4)),
-        valid(stable(p5)),
-    ensures
-        valid(stable(p1.and(p2).and(p3).and(p4).and(p5))),
-{
-    stable_and_temp::<T>(p1, p2);
-    stable_and_4_temp::<T>(p1.and(p2), p3, p4, p5);
-}
-
-/// The six-predicate-version of stable_and_temp
-pub proof fn stable_and_6_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>, p6: TempPred<T>)
-    requires
-        valid(stable(p1)),
-        valid(stable(p2)),
-        valid(stable(p3)),
-        valid(stable(p4)),
-        valid(stable(p5)),
-        valid(stable(p6)),
-    ensures
-        valid(stable(p1.and(p2).and(p3).and(p4).and(p5).and(p6))),
-{
-    stable_and_temp::<T>(p1, p2);
-    stable_and_5_temp::<T>(p1.and(p2), p3, p4, p5, p6);
-}
-
-/// The seven-predicate-version of stable_and_temp
-pub proof fn stable_and_7_temp<T>(p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, p5: TempPred<T>, p6: TempPred<T>, p7: TempPred<T>)
-    requires
-        valid(stable(p1)),
-        valid(stable(p2)),
-        valid(stable(p3)),
-        valid(stable(p4)),
-        valid(stable(p5)),
-        valid(stable(p6)),
-        valid(stable(p7)),
-    ensures
-        valid(stable(p1.and(p2).and(p3).and(p4).and(p5).and(p6).and(p7))),
-{
-    stable_and_temp::<T>(p1, p2);
-    stable_and_6_temp::<T>(p1.and(p2), p3, p4, p5, p6, p7);
-}
+pub use stable_and_n;
+pub use stable_and_n_internal;
 
 /// Unpack the assumption from left to the right side of |=
 /// pre:
@@ -1225,39 +1160,6 @@ pub proof fn strengthen_next<T>(spec: TempPred<T>, next: ActionPred<T>, inv: Sta
     entails_and_temp::<T>(spec, always(lift_action(next)), always(lift_state(inv)));
     always_and_equality::<T>(lift_action(next), lift_state(inv));
     temp_pred_equality::<T>(lift_action(next_and_inv), lift_action(next).and(lift_state(inv)));
-}
-
-/// Strengthen next with two invs.
-pub proof fn strengthen_next_2<T>(spec: TempPred<T>, next: ActionPred<T>, inv1: StatePred<T>, inv2: StatePred<T>, next_and_inv: ActionPred<T>)
-    requires
-        spec.entails(always(lift_action(next))),
-        spec.entails(always(lift_state(inv1))),
-        spec.entails(always(lift_state(inv2))),
-        valid(lift_action(next_and_inv).equals(lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)))),
-    ensures
-        spec.entails(always(lift_action(next_and_inv))),
-{
-    entails_and_3_temp::<T>(spec, always(lift_action(next)), always(lift_state(inv1)), always(lift_state(inv2)));
-    always_and_3_equality::<T>(lift_action(next), lift_state(inv1), lift_state(inv2));
-    temp_pred_equality::<T>(lift_action(next_and_inv), lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)));
-}
-
-/// Strengthen next with three invs.
-pub proof fn strengthen_next_3<T>(spec: TempPred<T>, next: ActionPred<T>, inv1: StatePred<T>, inv2: StatePred<T>, inv3: StatePred<T>, next_and_inv: ActionPred<T>)
-    requires
-        spec.entails(always(lift_action(next))),
-        spec.entails(always(lift_state(inv1))),
-        spec.entails(always(lift_state(inv2))),
-        spec.entails(always(lift_state(inv3))),
-        valid(lift_action(next_and_inv).equals(lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)).and(lift_state(inv3)))),
-    ensures
-        spec.entails(always(lift_action(next_and_inv))),
-{
-    entails_and_4_temp::<T>(spec, always(lift_action(next)), always(lift_state(inv1)), always(lift_state(inv2)), always(lift_state(inv3)));
-    always_and_3_equality::<T>(lift_action(next), lift_state(inv1), lift_state(inv2));
-
-    always_and_equality::<T>(lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)), lift_state(inv3));
-    temp_pred_equality::<T>(lift_action(next_and_inv), lift_action(next).and(lift_state(inv1)).and(lift_state(inv2)).and(lift_state(inv3)));
 }
 
 /// Get the initial leads_to.
@@ -2213,57 +2115,36 @@ pub proof fn or_leads_to_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: State
     or_leads_to_combine_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }
 
-/// Three-predicate-version of or_leads_to_combine_temp.
-pub proof fn or_leads_to_combine_3_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(p1.leads_to(q)),
-        spec.entails(p2.leads_to(q)),
-        spec.entails(p3.leads_to(q)),
-    ensures
-        spec.entails(p1.or(p2).or(p3).leads_to(q)),
-{
-    or_leads_to_combine_temp(spec, p1, p2, q);
-    or_leads_to_combine_temp(spec, p1.or(p2), p3, q);
+/// Combine the premises of all the leads_to using or.
+/// pre:
+///     spec |= p1 ~> q
+///     spec |= p2 ~> q
+///         ...
+///     spec |= pn ~> q
+/// post:
+///     spec |= (p1 \/ p2 \/ ... \/ pn) ~> q
+///
+/// Usage: or_leads_to_combine_n!(spec, p1, p2, p3, p4; q)
+#[macro_export]
+macro_rules! or_leads_to_combine_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::or_leads_to_combine_n_internal!($($tail)*));
+    };
 }
 
-/// StatePred version of or_leads_to_combine_3_temp.
-pub proof fn or_leads_to_combine_3<T>(spec: TempPred<T>, p1: StatePred<T>, p2: StatePred<T>, p3: StatePred<T>, q: StatePred<T>)
-    requires
-        spec.entails(lift_state(p1).leads_to(lift_state(q))),
-        spec.entails(lift_state(p2).leads_to(lift_state(q))),
-        spec.entails(lift_state(p3).leads_to(lift_state(q))),
-    ensures
-        spec.entails(lift_state(p1).or(lift_state(p2)).or(lift_state(p3)).leads_to(lift_state(q))),
-{
-    or_leads_to_combine_3_temp::<T>(spec, lift_state(p1), lift_state(p2), lift_state(p3), lift_state(q));
+#[macro_export]
+macro_rules! or_leads_to_combine_n_internal {
+    ($spec:expr, $p1:expr, $p2:expr; $q:expr) => {
+        or_leads_to_combine_temp($spec, $p1, $p2, $q);
+    };
+    ($spec:expr, $p1:expr, $p2:expr, $($rest:expr),+; $q:expr) => {
+        or_leads_to_combine_temp($spec, $p1, $p2, $q);
+        or_leads_to_combine_n_internal!($spec, $p1.or($p2), $($rest),+; $q);
+    };
 }
 
-/// Four-predicate-version of or_leads_to_combine_temp.
-pub proof fn or_leads_to_combine_4_temp<T>(spec: TempPred<T>, p1: TempPred<T>, p2: TempPred<T>, p3: TempPred<T>, p4: TempPred<T>, q: TempPred<T>)
-    requires
-        spec.entails(p1.leads_to(q)),
-        spec.entails(p2.leads_to(q)),
-        spec.entails(p3.leads_to(q)),
-        spec.entails(p4.leads_to(q)),
-    ensures
-        spec.entails(p1.or(p2).or(p3).or(p4).leads_to(q)),
-{
-    or_leads_to_combine_temp(spec, p1, p2, q);
-    or_leads_to_combine_3_temp(spec, p1.or(p2), p3, p4, q);
-}
-
-/// StatePred version of or_leads_to_combine_4_temp.
-pub proof fn or_leads_to_combine_4<T>(spec: TempPred<T>, p1: StatePred<T>, p2: StatePred<T>, p3: StatePred<T>, p4: StatePred<T>, q: StatePred<T>)
-    requires
-        spec.entails(lift_state(p1).leads_to(lift_state(q))),
-        spec.entails(lift_state(p2).leads_to(lift_state(q))),
-        spec.entails(lift_state(p3).leads_to(lift_state(q))),
-        spec.entails(lift_state(p4).leads_to(lift_state(q))),
-    ensures
-        spec.entails(lift_state(p1).or(lift_state(p2)).or(lift_state(p3)).or(lift_state(p4)).leads_to(lift_state(q))),
-{
-    or_leads_to_combine_4_temp::<T>(spec, lift_state(p1), lift_state(p2), lift_state(p3), lift_state(p4), lift_state(q));
-}
+pub use or_leads_to_combine_n;
+pub use or_leads_to_combine_n_internal;
 
 /// Specialized version of or_leads_to_combine used for eliminating q in premise.
 /// pre:
