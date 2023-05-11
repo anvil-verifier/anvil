@@ -35,7 +35,7 @@ verus! {
 #[verifier(external)]
 pub async fn run_controller<K, T, S>() -> Result<()>
 where
-    K: Clone + Resource + CustomResourceExt + DeserializeOwned + Debug + Send + Sync + 'static,
+    K: Clone + Resource + CustomResourceExt + DeserializeOwned + Debug + Send + Sync + for<'de> k8s_openapi::serde::Deserialize<'de> + 'static,
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
     T: Reconciler<S> + Send + Sync + Default,
     S: Send
