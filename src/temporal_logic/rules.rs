@@ -926,6 +926,16 @@ pub proof fn entails_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<
     };
 }
 
+/// Entails the conjunction of all the p if entails each of them.
+/// pre:
+///     spec |= p1
+///     spec |= p2
+///        ...
+///     spec |= pn
+/// post:
+///     spec |= p1 /\ p2 /\ ... /\ pn
+///
+/// Usage: entails_and_n!(spec, p1, p2, p3, p4)
 #[macro_export]
 macro_rules! entails_and_n {
     [$($tail:tt)*] => {
@@ -947,6 +957,16 @@ macro_rules! entails_and_n_internal {
 pub use entails_and_n;
 pub use entails_and_n_internal;
 
+/// Entails always the conjunction of all the p if entails each always p.
+/// pre:
+///     spec |= []p1
+///     spec |= []p2
+///        ...
+///     spec |= []pn
+/// post:
+///     spec |= [](p1 /\ p2 /\ ... /\ pn)
+///
+/// Usage: entails_always_and_n!(spec, p1, p2, p3, p4)
 #[macro_export]
 macro_rules! entails_always_and_n {
     [$($tail:tt)*] => {
@@ -1022,6 +1042,16 @@ pub proof fn stable_and_temp<T>(p: TempPred<T>, q: TempPred<T>)
     }
 }
 
+/// The conjunction of all the p is stable if each p is stable.
+/// pre:
+///     |= stable(p1)
+///     |= stable(p2)
+///      ...
+///     |= stable(pn)
+/// post:
+///     |= stable(p1 /\ p2 /\ ... /\ pn)
+///
+/// Usage: stable_and_n!(p1, p2, p3, p4)
 #[macro_export]
 macro_rules! stable_and_n {
     [$($tail:tt)*] => {
@@ -2085,6 +2115,16 @@ pub proof fn or_leads_to_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: State
     or_leads_to_combine_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }
 
+/// Combine the premises of all the leads_to using or.
+/// pre:
+///     spec |= p1 ~> q
+///     spec |= p2 ~> q
+///         ...
+///     spec |= pn ~> q
+/// post:
+///     spec |= (p1 \/ p2 \/ ... \/ pn) ~> q
+///
+/// Usage: or_leads_to_combine_n!(spec, p1, p2, p3, p4; q)
 #[macro_export]
 macro_rules! or_leads_to_combine_n {
     [$($tail:tt)*] => {
