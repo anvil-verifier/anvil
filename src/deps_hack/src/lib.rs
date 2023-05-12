@@ -26,3 +26,12 @@ pub enum Error {
 pub struct SimpleCRSpec {
     pub content: String,
 }
+
+#[derive(
+    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
+#[kube(group = "anvil.dev", version = "v1", kind = "ZookeeperCluster")]
+#[kube(namespaced)]
+pub struct ZookeeperClusterSpec {
+    pub replica: i32,
+}
