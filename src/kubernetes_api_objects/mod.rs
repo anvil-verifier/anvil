@@ -4,7 +4,6 @@ pub mod api_method;
 pub mod api_resource;
 pub mod common;
 pub mod config_map;
-pub mod custom_resource;
 pub mod dynamic;
 pub mod error;
 pub mod object_meta;

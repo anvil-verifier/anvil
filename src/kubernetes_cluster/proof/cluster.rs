@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*};
 use crate::kubernetes_cluster::spec::{
     client,
     client::{client, ClientActionInput, ClientState},
@@ -48,7 +48,7 @@ proof fn valid_stable_tla_forall_action_weak_fairness<T, Input, Output>(action: 
 }
 
 /// Prove partial_spec is stable.
-pub proof fn valid_stable_sm_partial_spec<T>(reconciler: Reconciler<T>)
+pub proof fn valid_stable_sm_partial_spec<K: Marshalable, T>(reconciler: Reconciler<K, T>)
     ensures
         valid(stable(sm_partial_spec(reconciler))),
 {
@@ -67,7 +67,7 @@ pub proof fn valid_stable_sm_partial_spec<T>(reconciler: Reconciler<T>)
     );
 }
 
-pub proof fn lemma_true_leads_to_crash_always_disabled<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>)
+pub proof fn lemma_true_leads_to_crash_always_disabled<K: Marshalable, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>)
     requires
         spec.entails(always(lift_action(next(reconciler)))),
         spec.entails(disable_crash().weak_fairness(())),
@@ -79,7 +79,7 @@ pub proof fn lemma_true_leads_to_crash_always_disabled<T>(spec: TempPred<State<T
     leads_to_stable_temp::<State<T>>(spec, lift_action(next(reconciler)), true_pred(), lift_state(crash_disabled::<T>()));
 }
 
-pub proof fn lemma_any_pred_leads_to_crash_always_disabled<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, any_pred: TempPred<State<T>>)
+pub proof fn lemma_any_pred_leads_to_crash_always_disabled<K: Marshalable, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>, any_pred: TempPred<State<T>>)
     requires
         spec.entails(always(lift_action(next(reconciler)))),
         spec.entails(disable_crash().weak_fairness(())),
@@ -87,7 +87,7 @@ pub proof fn lemma_any_pred_leads_to_crash_always_disabled<T>(spec: TempPred<Sta
         spec.entails(any_pred.leads_to(always(lift_state(crash_disabled::<T>())))),
 {
     valid_implies_implies_leads_to::<State<T>>(spec, any_pred, true_pred());
-    lemma_true_leads_to_crash_always_disabled::<T>(spec, reconciler);
+    lemma_true_leads_to_crash_always_disabled::<K, T>(spec, reconciler);
     leads_to_trans_temp::<State<T>>(spec, any_pred, true_pred(), always(lift_state(crash_disabled::<T>())));
 }
 

@@ -96,4 +96,13 @@ impl DynamicObjectView {
     }
 }
 
+pub trait Marshalable: Sized {
+    // TODO: make metadata() a trait method
+    open spec fn object_ref(self) -> ObjectRef;
+    open spec fn to_dynamic_object(self) -> DynamicObjectView;
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Self;
+    proof fn integrity_check()
+        ensures forall |o: Self| o == Self::from_dynamic_object(#[trigger] o.to_dynamic_object());
+}
+
 }

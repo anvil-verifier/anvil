@@ -4,10 +4,11 @@
 use crate::controller_examples::simple_controller::proof::safety::*;
 use crate::controller_examples::simple_controller::proof::shared::*;
 use crate::controller_examples::simple_controller::spec::{
+    custom_resource::*,
     reconciler,
     reconciler::{simple_reconciler, SimpleReconcileState},
 };
-use crate::kubernetes_api_objects::{api_method::*, common::*, custom_resource::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*};
 use crate::kubernetes_cluster::{
     proof::{
         cluster::*, controller_runtime_liveness::*, controller_runtime_safety::*,
@@ -89,8 +90,7 @@ proof fn liveness_proof(cr: CustomResourceView)
         ),
 {
     // Step (6)
-    lemma_any_pred_leads_to_crash_always_disabled::<SimpleReconcileState>(sm_spec(simple_reconciler()),
-        simple_reconciler(), always(cr_exists(cr)));
+    lemma_any_pred_leads_to_crash_always_disabled(sm_spec(simple_reconciler()), simple_reconciler(), always(cr_exists(cr)));
     leads_to_self_temp::<State<SimpleReconcileState>>(always(cr_exists(cr)));
     leads_to_always_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(cr_exists(cr)),
         cr_exists(cr), lift_state(crash_disabled::<SimpleReconcileState>()));
@@ -153,7 +153,7 @@ proof fn lemma_valid_stable_sm_partial_spec_and_invariants(cr: CustomResourceVie
     ensures
         valid(stable(sm_partial_spec(simple_reconciler()).and(all_invariants(cr)))),
 {
-    valid_stable_sm_partial_spec::<SimpleReconcileState>(simple_reconciler());
+    valid_stable_sm_partial_spec(simple_reconciler());
 
     always_p_stable::<State<SimpleReconcileState>>(
         lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr)));
@@ -204,8 +204,8 @@ proof fn lemma_sm_spec_entails_all_invariants(cr: CustomResourceView)
     lemma_forall_always_at_most_one_resp_matches_req(simple_reconciler(), cr.object_ref());
     lemma_always_reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr);
     lemma_always_reconcile_init_pc_and_no_pending_req(cr);
-    lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager::<SimpleReconcileState>(simple_reconciler());
-    lemma_always_every_in_flight_req_has_unique_id::<SimpleReconcileState>(simple_reconciler());
+    lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager(simple_reconciler());
+    lemma_always_every_in_flight_req_has_unique_id(simple_reconciler());
 
     entails_and_n!(sm_spec(simple_reconciler()),
         always(lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr))),
@@ -248,8 +248,8 @@ proof fn lemma_reconcile_idle_leads_to_cm_exists(cr: CustomResourceView)
             .leads_to(lift_state(cm_exists(cr)))
         ),
 {
-    lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_init_and_no_pending_req::<SimpleReconcileState>(
-        simple_reconciler(), cr.object_ref());
+    lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_init_and_no_pending_req(simple_reconciler(),
+        cr.object_ref());
 
     implies_preserved_by_always_temp::<State<SimpleReconcileState>>(cr_exists(cr),
         lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(cr.object_ref())));
@@ -318,8 +318,8 @@ proof fn lemma_error_pc_leads_to_cm_exists(cr: CustomResourceView)
             .leads_to(lift_state(cm_exists(cr)))
         ),
 {
-    lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req::<SimpleReconcileState>(
-        partial_spec_with_always_cr_key_exists_and_crash_disabled::<SimpleReconcileState>(simple_reconciler(), cr.object_ref()),
+    lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req(
+        partial_spec_with_always_cr_key_exists_and_crash_disabled(simple_reconciler(), cr.object_ref()),
         simple_reconciler(), cr.object_ref());
 
     implies_preserved_by_always_temp::<State<SimpleReconcileState>>(cr_exists(cr),
@@ -436,8 +436,8 @@ proof fn lemma_after_create_cm_pc_leads_to_cm_exists(cr: CustomResourceView)
                     &&& req_msg.content.is_create_request()
                     &&& req_msg.content.get_create_request().obj == cm
                 };
-                kubernetes_api_liveness::lemma_create_req_leads_to_res_exists::<SimpleReconcileState>(
-                    sm_partial_spec(simple_reconciler()), simple_reconciler(), req_msg, cm);
+                kubernetes_api_liveness::lemma_create_req_leads_to_res_exists(sm_partial_spec(simple_reconciler()),
+                    simple_reconciler(), req_msg, cm);
                 instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_partial_spec(simple_reconciler()),
                     lift_state(pre), lift_state(cm_exists(cr)));
             }
@@ -508,8 +508,7 @@ proof fn lemma_req_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(req_
 
     leads_to_self::<State<SimpleReconcileState>>(pre);
 
-    kubernetes_api_liveness::lemma_get_req_leads_to_some_resp::<SimpleReconcileState>(spec, simple_reconciler(),
-        req_msg, cr.object_ref());
+    kubernetes_api_liveness::lemma_get_req_leads_to_some_resp(spec, simple_reconciler(), req_msg, cr.object_ref());
 
     let get_req = |s: State<SimpleReconcileState>| {
         &&& s.message_in_flight(req_msg)
@@ -621,7 +620,7 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_after_get_cr_pc_and_exists_pe
         next_and_not_crash_preserves_init_pc_or_reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight(cr, s, s_prime);
     }
 
-    lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(partial_spec_with_invariants_and_assumptions(cr), simple_reconciler(), input, stronger_next, continue_reconcile(simple_reconciler()), pre, post);
+    lemma_pre_leads_to_post_by_controller(partial_spec_with_invariants_and_assumptions(cr), simple_reconciler(), input, stronger_next, continue_reconcile(simple_reconciler()), pre, post);
 }
 
 proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_leads_to_ok_resp_received(req_msg: Message, cr: CustomResourceView)
@@ -647,9 +646,8 @@ proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_l
         lift_action(next(simple_reconciler())).and(lift_state(crash_disabled::<SimpleReconcileState>()))
         .and(lift_state(|s: State<SimpleReconcileState>| s.resource_obj_exists(cr.to_dynamic_object())))
         .and(lift_state(every_in_flight_req_has_unique_id::<SimpleReconcileState>())));
-    kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api::<SimpleReconcileState>(
-        partial_spec_with_invariants_and_assumptions(cr), simple_reconciler(), Option::Some(req_msg), stronger_next,
-        handle_request(), pre, post);
+    kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api(partial_spec_with_invariants_and_assumptions(cr),
+        simple_reconciler(), Option::Some(req_msg), stronger_next, handle_request(), pre, post);
 }
 
 // This lemma proves:
@@ -707,7 +705,7 @@ proof fn lemma_ok_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(
     let spec = partial_spec_with_invariants_and_assumptions(cr);
     ideal_spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr);
     let post = reconciler_at_after_create_cm_pc(cr);
-    lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(spec, simple_reconciler(), input,
+    lemma_pre_leads_to_post_by_controller(spec, simple_reconciler(), input,
         strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr), continue_reconcile(simple_reconciler()),
         pre, post);
 }
@@ -736,7 +734,7 @@ proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(res
         lemma_ok_resp_msg_sent_and_after_get_cr_pc_leads_to_after_create_cm_pc(resp_msg, req_msg, cr);
     } else {
         let post = reconciler_reconcile_error(cr);
-        lemma_pre_leads_to_post_by_controller::<SimpleReconcileState>(spec, simple_reconciler(), input,
+        lemma_pre_leads_to_post_by_controller(spec, simple_reconciler(), input,
             strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr), continue_reconcile(simple_reconciler()),
             pre, post);
 
@@ -806,7 +804,7 @@ pub proof fn next_and_not_crash_preserves_init_pc_or_reconciler_at_after_get_cr_
     let pre = reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref());
     let post = reconciler_at_after_get_cr_pc_and_exists_pending_req_and_req_in_flight_and_no_resp_in_flight(cr);
     if (!pre(s_prime)) {
-        let next_step = choose |step: Step| next_step(simple_reconciler(), s, s_prime, step);
+        let next_step = choose |step: Step<CustomResourceView>| next_step(simple_reconciler(), s, s_prime, step);
         let input = next_step.get_ControllerStep_0();
         let req_msg = controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr.object_ref()}), s.chan_manager.allocate().1);
         assert(is_controller_get_cr_request_msg(req_msg, cr));

@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::kubernetes_api_objects::{common::*, dynamic::*};
 use crate::kubernetes_cluster::spec::{
     channel::*, controller::common::*, controller::controller_runtime::*, message::*,
 };
@@ -14,7 +15,7 @@ use vstd::{map::*, option::*, seq::*, set::*, string::*};
 
 verus! {
 
-pub open spec fn controller<T>(reconciler: Reconciler<T>) -> ControllerStateMachine<T> {
+pub open spec fn controller<K: Marshalable, T>(reconciler: Reconciler<K, T>) -> ControllerStateMachine<T> {
     StateMachine {
         init: |s: ControllerState<T>| {
             s == init_controller_state::<T>()
