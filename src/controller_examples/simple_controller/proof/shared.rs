@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::controller_examples::simple_controller::spec::{
+    custom_resource::*,
     reconciler,
     reconciler::{simple_reconciler, SimpleReconcileState},
 };
-use crate::kubernetes_api_objects::{common::*, config_map::*, custom_resource::*};
+use crate::kubernetes_api_objects::{common::*, config_map::*, resource::*};
 use crate::kubernetes_cluster::spec::{
     controller::common::{controller_req_msg, ControllerAction, ControllerActionInput},
     distributed_system::*,

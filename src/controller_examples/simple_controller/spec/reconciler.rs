@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::controller_examples::simple_controller::spec::custom_resource::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*};
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_const::*;
@@ -22,12 +23,13 @@ pub struct SimpleReconcileState {
 
 /// We use Reconciler to pack up everything specific to the custom controller,
 /// including reconcile function (reconcile_core) and triggering conditions (reconcile_trigger)
-pub open spec fn simple_reconciler() -> Reconciler<SimpleReconcileState> {
+pub open spec fn simple_reconciler() -> Reconciler<CustomResourceView, SimpleReconcileState> {
     Reconciler {
         reconcile_init_state: || reconcile_init_state(),
         reconcile_core: |cr_key: ObjectRef, resp_o: Option<APIResponse>, state: SimpleReconcileState| reconcile_core(cr_key, resp_o, state),
         reconcile_done: |state: SimpleReconcileState| reconcile_done(state),
         reconcile_error: |state: SimpleReconcileState| reconcile_error(state),
+        consume_kubernetes_resource_type: |cr: CustomResourceView| cr,
     }
 }
 

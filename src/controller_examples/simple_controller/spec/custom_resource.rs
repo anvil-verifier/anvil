@@ -4,6 +4,7 @@ use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
 use crate::kubernetes_api_objects::object_meta::*;
+use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -62,7 +63,21 @@ impl CustomResource {
 }
 
 impl CustomResourceView {
-    pub open spec fn to_dynamic_object(self) -> DynamicObjectView {
+    pub open spec fn kind(self) -> Kind {
+        Kind::CustomResourceKind
+    }
+}
+
+impl ResourceView for CustomResourceView {
+    open spec fn object_ref(self) -> ObjectRef {
+        ObjectRef {
+            kind: self.kind(),
+            name: self.metadata.name.get_Some_0(),
+            namespace: self.metadata.namespace.get_Some_0(),
+        }
+    }
+
+    open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
@@ -77,7 +92,7 @@ impl CustomResourceView {
         }
     }
 
-    pub open spec fn from_dynamic_object(obj: DynamicObjectView) -> CustomResourceView {
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> CustomResourceView {
         CustomResourceView {
             metadata: obj.metadata,
             spec: if obj.data.get_Object_0()[spec_field()].is_Null() {Option::None} else {Option::Some(CustomResourceSpecView{
@@ -89,26 +104,7 @@ impl CustomResourceView {
         }
     }
 
-    pub proof fn integrity_check()
-        ensures
-            forall |o: CustomResourceView| o == CustomResourceView::from_dynamic_object(#[trigger] o.to_dynamic_object())
-    {}
-
-    pub open spec fn kind(self) -> Kind {
-        Kind::CustomResourceKind
-    }
-
-    pub open spec fn object_ref(self) -> ObjectRef
-        recommends
-            self.metadata.name.is_Some(),
-            self.metadata.namespace.is_Some(),
-    {
-        ObjectRef {
-            kind: self.kind(),
-            name: self.metadata.name.get_Some_0(),
-            namespace: self.metadata.namespace.get_Some_0(),
-        }
-    }
+    proof fn integrity_check() {}
 }
 
 #[verifier(external_body)]

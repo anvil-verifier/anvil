@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::spec::{controller::common::*, message::*};
 use crate::reconciler::spec::*;
 use crate::state_machine::action::*;
@@ -13,7 +13,7 @@ use vstd::{map::*, multiset::*, option::*, seq::*, set::*};
 
 verus! {
 
-pub open spec fn run_scheduled_reconcile<T>(reconciler: Reconciler<T>) -> ControllerAction<T> {
+pub open spec fn run_scheduled_reconcile<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ControllerAction<T> {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState<T>| {
             &&& input.scheduled_cr_key.is_Some()
@@ -38,7 +38,7 @@ pub open spec fn run_scheduled_reconcile<T>(reconciler: Reconciler<T>) -> Contro
     }
 }
 
-pub open spec fn continue_reconcile<T>(reconciler: Reconciler<T>) -> ControllerAction<T> {
+pub open spec fn continue_reconcile<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ControllerAction<T> {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState<T>| {
             if input.scheduled_cr_key.is_Some() {
@@ -93,7 +93,7 @@ pub open spec fn continue_reconcile<T>(reconciler: Reconciler<T>) -> ControllerA
     }
 }
 
-pub open spec fn end_reconcile<T>(reconciler: Reconciler<T>) -> ControllerAction<T> {
+pub open spec fn end_reconcile<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ControllerAction<T> {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState<T>| {
             if input.scheduled_cr_key.is_Some() {

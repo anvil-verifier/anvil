@@ -3,10 +3,11 @@
 #![allow(unused_imports)]
 use crate::controller_examples::simple_controller::proof::shared::*;
 use crate::controller_examples::simple_controller::spec::{
+    custom_resource::*,
     reconciler,
     reconciler::{simple_reconciler, SimpleReconcileState},
 };
-use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, custom_resource::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, resource::*};
 use crate::kubernetes_cluster::{
     proof::{
         controller_runtime_liveness::reconciler_init_and_no_pending_req, controller_runtime_safety,
@@ -79,7 +80,7 @@ pub proof fn lemma_always_reconcile_get_cr_done_implies_pending_req_in_flight_or
         next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr, s, s_prime);
     };
 
-    controller_runtime_safety::lemma_always_each_resp_matches_at_most_one_pending_req::<SimpleReconcileState>(simple_reconciler(), cr.object_ref());
+    controller_runtime_safety::lemma_always_each_resp_matches_at_most_one_pending_req(simple_reconciler(), cr.object_ref());
 
     strengthen_next::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), next(simple_reconciler()), controller_runtime_safety::each_resp_matches_at_most_one_pending_req::<SimpleReconcileState>(cr.object_ref()), stronger_next);
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), stronger_next, invariant);

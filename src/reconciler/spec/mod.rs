@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::spec::message::*;
 use builtin::*;
 use builtin_macros::*;
@@ -11,7 +11,7 @@ verus! {
 
 /// Reconciler is the key data structure we use to pack up all the custom controller-specific logic
 /// and install it to the Kubernetes cluster state machine
-pub struct Reconciler<#[verifier(maybe_negative)] T> {
+pub struct Reconciler<#[verifier(maybe_negative)] K: ResourceView, #[verifier(maybe_negative)] T> {
     // reconcile_init_state returns the initial local state that the reconciler starts
     // its reconcile function with.
     // Currently the local state is hardcoded to a ReconcileState.
@@ -31,6 +31,9 @@ pub struct Reconciler<#[verifier(maybe_negative)] T> {
     // reconcile_error is used to tell the controller_runtime whether this reconcile round returns with error.
     // If it is true, controller_runtime will requeue the reconcile.
     pub reconcile_error: ReconcileError<T>,
+
+    // use K so that Rust no longer complains about "parameter `K` is never used"
+    pub consume_kubernetes_resource_type: FnSpec(K) -> K,
 }
 
 pub type ReconcileInitState<T> = FnSpec() -> T;

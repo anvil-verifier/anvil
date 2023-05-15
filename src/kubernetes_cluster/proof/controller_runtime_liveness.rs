@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::common::*;
+use crate::kubernetes_api_objects::{common::*, resource::*};
 use crate::kubernetes_cluster::{
     proof::{kubernetes_api_safety, wf1_assistant::controller_action_pre_implies_next_pre},
     spec::{
@@ -23,11 +23,11 @@ use vstd::{option::*, result::*};
 
 verus! {
 
-pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled<T>(reconciler: Reconciler<T>, cr_key: ObjectRef) -> TempPred<State<T>> {
+pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled<K: ResourceView, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef) -> TempPred<State<T>> {
     sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))).and(always(lift_state(crash_disabled::<T>())))
 }
 
-pub open spec fn reconciler_init_and_no_pending_req<T>(reconciler: Reconciler<T>, cr_key: ObjectRef) -> StatePred<State<T>> {
+pub open spec fn reconciler_init_and_no_pending_req<K: ResourceView, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef) -> StatePred<State<T>> {
     |s: State<T>| {
         &&& s.reconcile_state_contains(cr_key)
         &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
@@ -35,7 +35,7 @@ pub open spec fn reconciler_init_and_no_pending_req<T>(reconciler: Reconciler<T>
     }
 }
 
-pub proof fn lemma_pre_leads_to_post_by_controller<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, input: (Option<Message>, Option<ObjectRef>), next: ActionPred<State<T>>, action: ControllerAction<T>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
+pub proof fn lemma_pre_leads_to_post_by_controller<K: ResourceView, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>, input: (Option<Message>, Option<ObjectRef>), next: ActionPred<State<T>>, action: ControllerAction<T>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         controller(reconciler).actions.contains(action),
         forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
@@ -48,13 +48,13 @@ pub proof fn lemma_pre_leads_to_post_by_controller<T>(spec: TempPred<State<T>>, 
 {
     use_tla_forall::<State<T>, (Option<Message>, Option<ObjectRef>)>(spec, |i| controller_next(reconciler).weak_fairness(i), input);
 
-    controller_action_pre_implies_next_pre::<T>(reconciler, action, input);
+    controller_action_pre_implies_next_pre(reconciler, action, input);
     valid_implies_trans::<State<T>>(lift_state(pre), lift_state(controller_action_pre(reconciler, action, input)), lift_state(controller_next(reconciler).pre(input)));
 
     controller_next(reconciler).wf1(input, spec, next, pre, post);
 }
 
-pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, input: (Option<Message>, Option<ObjectRef>), next: ActionPred<State<T>>, action: ControllerAction<T>, assumption: StatePred<State<T>>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
+pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<K: ResourceView, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>, input: (Option<Message>, Option<ObjectRef>), next: ActionPred<State<T>>, action: ControllerAction<T>, assumption: StatePred<State<T>>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         controller(reconciler).actions.contains(action),
         forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) && assumption(s) ==> pre(s_prime) || post(s_prime),
@@ -67,13 +67,13 @@ pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<T>(spec: Temp
 {
     use_tla_forall::<State<T>, (Option<Message>, Option<ObjectRef>)>(spec, |i| controller_next(reconciler).weak_fairness(i), input);
 
-    controller_action_pre_implies_next_pre::<T>(reconciler, action, input);
+    controller_action_pre_implies_next_pre(reconciler, action, input);
     valid_implies_trans::<State<T>>(lift_state(pre), lift_state(controller_action_pre(reconciler, action, input)), lift_state(controller_next(reconciler).pre(input)));
 
     controller_next(reconciler).wf1_assume(input, spec, next, assumption, pre, post);
 }
 
-pub proof fn lemma_reconcile_done_leads_to_reconcile_idle<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
+pub proof fn lemma_reconcile_done_leads_to_reconcile_idle<K: ResourceView, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -95,10 +95,10 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle<T>(reconciler: Reconci
         &&& !s.reconcile_state_contains(cr_key)
     };
     let input = (Option::None, Option::Some(cr_key));
-    lemma_pre_leads_to_post_by_controller::<T>(sm_spec(reconciler), reconciler, input, next(reconciler), end_reconcile(reconciler), pre, post);
+    lemma_pre_leads_to_post_by_controller(sm_spec(reconciler), reconciler, input, next(reconciler), end_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_reconcile_error_leads_to_reconcile_idle<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
+pub proof fn lemma_reconcile_error_leads_to_reconcile_idle<K: ResourceView, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -120,10 +120,10 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle<T>(reconciler: Reconc
         &&& !s.reconcile_state_contains(cr_key)
     };
     let input = (Option::None, Option::Some(cr_key));
-    lemma_pre_leads_to_post_by_controller::<T>(sm_partial_spec(reconciler), reconciler, input, next(reconciler), end_reconcile(reconciler), pre, post);
+    lemma_pre_leads_to_post_by_controller(sm_partial_spec(reconciler), reconciler, input, next(reconciler), end_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, cr_key: ObjectRef)
+pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<K: ResourceView, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
         spec.entails(always(lift_action(next(reconciler)))),
@@ -157,10 +157,10 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<T>(spec:
     };
     strengthen_next::<State<T>>(spec, next(reconciler), crash_disabled::<T>(), stronger_next);
     let input = (Option::None, Option::Some(cr_key));
-    lemma_pre_leads_to_post_by_controller::<T>(spec, reconciler, input, stronger_next, run_scheduled_reconcile(reconciler), pre, post);
+    lemma_pre_leads_to_post_by_controller(spec, reconciler, input, stronger_next, run_scheduled_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
+pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption<K: ResourceView, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -182,7 +182,7 @@ pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption<T>(reconciler
     schedule_controller_reconcile().wf1(cr_key, spec, next_and_cr_exists, pre, post);
 }
 
-pub proof fn lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
+pub proof fn lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption<K: ResourceView, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -198,7 +198,7 @@ pub proof fn lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assum
     let reconcile_idle = lift_state(|s: State<T>| { !s.reconcile_state_contains(cr_key) });
     let reconcile_scheduled = lift_state(|s: State<T>| { s.reconcile_scheduled_for(cr_key) });
     valid_implies_implies_leads_to(spec, reconcile_idle, true_pred());
-    lemma_true_leads_to_reconcile_scheduled_by_assumption::<T>(reconciler, cr_key);
+    lemma_true_leads_to_reconcile_scheduled_by_assumption(reconciler, cr_key);
     leads_to_trans_temp(spec, reconcile_idle, true_pred(), reconcile_scheduled);
     leads_to_confluence_self_temp::<State<T>>(spec, lift_action(next(reconciler)), reconcile_idle, reconcile_scheduled);
     temp_pred_equality::<State<T>>(reconcile_idle.and(reconcile_scheduled), lift_state(|s: State<T>| {
@@ -206,7 +206,7 @@ pub proof fn lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assum
         &&& s.reconcile_scheduled_for(cr_key)}));
 }
 
-pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_init_and_no_pending_req<T>(reconciler: Reconciler<T>, cr_key: ObjectRef)
+pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_init_and_no_pending_req<K: ResourceView, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -220,19 +220,19 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_in
     ),
 {
 
-    lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption::<T>(reconciler, cr_key);
+    lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption(reconciler, cr_key);
     entails_trans::<State<T>>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key), sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))), lift_state(|s: State<T>| !s.reconcile_state_contains(cr_key))
     .leads_to(lift_state(|s: State<T>| {
         &&& !s.reconcile_state_contains(cr_key)
         &&& s.reconcile_scheduled_for(cr_key)})
     ));
-    lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init::<T>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key), reconciler, cr_key);
+    lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key), reconciler, cr_key);
 
     leads_to_trans_auto::<State<T>>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key));
 }
 
 
-pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req<T>(spec: TempPred<State<T>>, reconciler: Reconciler<T>, cr_key: ObjectRef)
+pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req<K: ResourceView, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
         spec.entails(sm_partial_spec(reconciler)),
@@ -247,7 +247,7 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
                 .leads_to(lift_state(reconciler_init_and_no_pending_req(reconciler, cr_key)))
         ),
 {
-    lemma_reconcile_error_leads_to_reconcile_idle::<T>(reconciler, cr_key);
+    lemma_reconcile_error_leads_to_reconcile_idle(reconciler, cr_key);
     entails_trans::<State<T>>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key), sm_partial_spec(reconciler), lift_state(|s: State<T>| {
         &&& s.reconcile_state_contains(cr_key)
         &&& (reconciler.reconcile_error)(s.reconcile_state_of(cr_key).local_state)
@@ -255,12 +255,12 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
         .leads_to(lift_state(|s: State<T>| {
             &&& !s.reconcile_state_contains(cr_key)
         })));
-    lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption::<T>(reconciler, cr_key);
+    lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption(reconciler, cr_key);
     entails_trans::<State<T>>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key), sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))), lift_state(|s: State<T>| !s.reconcile_state_contains(cr_key))
             .leads_to(lift_state(|s: State<T>| {
                 &&& !s.reconcile_state_contains(cr_key)
                 &&& s.reconcile_scheduled_for(cr_key)})));
-    lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init::<T>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key), reconciler, cr_key);
+    lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key), reconciler, cr_key);
 
     leads_to_trans_auto::<State<T>>(partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key));
 
