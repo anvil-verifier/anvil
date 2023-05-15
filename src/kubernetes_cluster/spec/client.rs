@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::dynamic::Marshalable;
+use crate::kubernetes_api_objects::dynamic::ResourceView;
 use crate::kubernetes_cluster::spec::{channel::*, message::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -35,7 +35,7 @@ pub open spec fn client_req_msg(msg_content: MessageContent) -> Message {
     form_msg(HostId::Client, HostId::KubernetesAPI, msg_content)
 }
 
-pub open spec fn send_create_cr<K: Marshalable>() -> ClientAction<K> {
+pub open spec fn send_create_cr<K: ResourceView>() -> ClientAction<K> {
     Action {
         precondition: |input: ClientActionInput<K>, s: ClientState| {
             &&& input.recv.is_None()
@@ -46,7 +46,7 @@ pub open spec fn send_create_cr<K: Marshalable>() -> ClientAction<K> {
     }
 }
 
-pub open spec fn send_delete_cr<K: Marshalable>() -> ClientAction<K> {
+pub open spec fn send_delete_cr<K: ResourceView>() -> ClientAction<K> {
     Action {
         precondition: |input: ClientActionInput<K>, s: ClientState| {
             &&& input.recv.is_None()
@@ -57,7 +57,7 @@ pub open spec fn send_delete_cr<K: Marshalable>() -> ClientAction<K> {
     }
 }
 
-pub open spec fn client<K: Marshalable>() -> ClientStateMachine<K> {
+pub open spec fn client<K: ResourceView>() -> ClientStateMachine<K> {
     StateMachine {
         init: |s: ClientState| {
             s == ClientState {}

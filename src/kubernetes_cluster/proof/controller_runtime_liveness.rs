@@ -23,11 +23,11 @@ use vstd::{option::*, result::*};
 
 verus! {
 
-pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled<K: Marshalable, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef) -> TempPred<State<T>> {
+pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled<K: ResourceView, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef) -> TempPred<State<T>> {
     sm_partial_spec(reconciler).and(always(lift_state(|s: State<T>| s.resource_key_exists(cr_key)))).and(always(lift_state(crash_disabled::<T>())))
 }
 
-pub open spec fn reconciler_init_and_no_pending_req<K: Marshalable, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef) -> StatePred<State<T>> {
+pub open spec fn reconciler_init_and_no_pending_req<K: ResourceView, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef) -> StatePred<State<T>> {
     |s: State<T>| {
         &&& s.reconcile_state_contains(cr_key)
         &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
@@ -35,7 +35,7 @@ pub open spec fn reconciler_init_and_no_pending_req<K: Marshalable, T>(reconcile
     }
 }
 
-pub proof fn lemma_pre_leads_to_post_by_controller<K: Marshalable, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>, input: (Option<Message>, Option<ObjectRef>), next: ActionPred<State<T>>, action: ControllerAction<T>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
+pub proof fn lemma_pre_leads_to_post_by_controller<K: ResourceView, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>, input: (Option<Message>, Option<ObjectRef>), next: ActionPred<State<T>>, action: ControllerAction<T>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         controller(reconciler).actions.contains(action),
         forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
@@ -54,7 +54,7 @@ pub proof fn lemma_pre_leads_to_post_by_controller<K: Marshalable, T>(spec: Temp
     controller_next(reconciler).wf1(input, spec, next, pre, post);
 }
 
-pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<K: Marshalable, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>, input: (Option<Message>, Option<ObjectRef>), next: ActionPred<State<T>>, action: ControllerAction<T>, assumption: StatePred<State<T>>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
+pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<K: ResourceView, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>, input: (Option<Message>, Option<ObjectRef>), next: ActionPred<State<T>>, action: ControllerAction<T>, assumption: StatePred<State<T>>, pre: StatePred<State<T>>, post: StatePred<State<T>>)
     requires
         controller(reconciler).actions.contains(action),
         forall |s, s_prime: State<T>| pre(s) && #[trigger] next(s, s_prime) && assumption(s) ==> pre(s_prime) || post(s_prime),
@@ -73,7 +73,7 @@ pub proof fn lemma_pre_leads_to_post_with_assumption_by_controller<K: Marshalabl
     controller_next(reconciler).wf1_assume(input, spec, next, assumption, pre, post);
 }
 
-pub proof fn lemma_reconcile_done_leads_to_reconcile_idle<K: Marshalable, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
+pub proof fn lemma_reconcile_done_leads_to_reconcile_idle<K: ResourceView, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -98,7 +98,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle<K: Marshalable, T>(rec
     lemma_pre_leads_to_post_by_controller(sm_spec(reconciler), reconciler, input, next(reconciler), end_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_reconcile_error_leads_to_reconcile_idle<K: Marshalable, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
+pub proof fn lemma_reconcile_error_leads_to_reconcile_idle<K: ResourceView, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -123,7 +123,7 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle<K: Marshalable, T>(re
     lemma_pre_leads_to_post_by_controller(sm_partial_spec(reconciler), reconciler, input, next(reconciler), end_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<K: Marshalable, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>, cr_key: ObjectRef)
+pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<K: ResourceView, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
         spec.entails(always(lift_action(next(reconciler)))),
@@ -160,7 +160,7 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<K: Marsh
     lemma_pre_leads_to_post_by_controller(spec, reconciler, input, stronger_next, run_scheduled_reconcile(reconciler), pre, post);
 }
 
-pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption<K: Marshalable, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
+pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption<K: ResourceView, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -182,7 +182,7 @@ pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption<K: Marshalabl
     schedule_controller_reconcile().wf1(cr_key, spec, next_and_cr_exists, pre, post);
 }
 
-pub proof fn lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption<K: Marshalable, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
+pub proof fn lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption<K: ResourceView, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -206,7 +206,7 @@ pub proof fn lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assum
         &&& s.reconcile_scheduled_for(cr_key)}));
 }
 
-pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_init_and_no_pending_req<K: Marshalable, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
+pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_init_and_no_pending_req<K: ResourceView, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -232,7 +232,7 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_in
 }
 
 
-pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req<K: Marshalable, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>, cr_key: ObjectRef)
+pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req<K: ResourceView, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>, cr_key: ObjectRef)
     requires
         cr_key.kind.is_CustomResourceKind(),
         spec.entails(sm_partial_spec(reconciler)),

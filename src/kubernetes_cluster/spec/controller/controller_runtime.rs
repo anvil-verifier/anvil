@@ -13,7 +13,7 @@ use vstd::{map::*, multiset::*, option::*, seq::*, set::*};
 
 verus! {
 
-pub open spec fn run_scheduled_reconcile<K: Marshalable, T>(reconciler: Reconciler<K, T>) -> ControllerAction<T> {
+pub open spec fn run_scheduled_reconcile<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ControllerAction<T> {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState<T>| {
             &&& input.scheduled_cr_key.is_Some()
@@ -38,7 +38,7 @@ pub open spec fn run_scheduled_reconcile<K: Marshalable, T>(reconciler: Reconcil
     }
 }
 
-pub open spec fn continue_reconcile<K: Marshalable, T>(reconciler: Reconciler<K, T>) -> ControllerAction<T> {
+pub open spec fn continue_reconcile<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ControllerAction<T> {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState<T>| {
             if input.scheduled_cr_key.is_Some() {
@@ -93,7 +93,7 @@ pub open spec fn continue_reconcile<K: Marshalable, T>(reconciler: Reconciler<K,
     }
 }
 
-pub open spec fn end_reconcile<K: Marshalable, T>(reconciler: Reconciler<K, T>) -> ControllerAction<T> {
+pub open spec fn end_reconcile<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ControllerAction<T> {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState<T>| {
             if input.scheduled_cr_key.is_Some() {

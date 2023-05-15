@@ -11,7 +11,7 @@ verus! {
 
 /// Reconciler is the key data structure we use to pack up all the custom controller-specific logic
 /// and install it to the Kubernetes cluster state machine
-pub struct Reconciler<#[verifier(maybe_negative)] K: Marshalable, #[verifier(maybe_negative)] T> {
+pub struct Reconciler<#[verifier(maybe_negative)] K: ResourceView, #[verifier(maybe_negative)] T> {
     // reconcile_init_state returns the initial local state that the reconciler starts
     // its reconcile function with.
     // Currently the local state is hardcoded to a ReconcileState.

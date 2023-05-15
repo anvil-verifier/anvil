@@ -37,7 +37,7 @@ pub proof fn kubernetes_api_action_pre_implies_next_pre<T>(action: KubernetesAPI
     };
 }
 
-pub proof fn controller_action_pre_implies_next_pre<K: Marshalable, T>(reconciler: Reconciler<K, T>, action: ControllerAction<T>, input: (Option<Message>, Option<ObjectRef>))
+pub proof fn controller_action_pre_implies_next_pre<K: ResourceView, T>(reconciler: Reconciler<K, T>, action: ControllerAction<T>, input: (Option<Message>, Option<ObjectRef>))
     requires
         controller(reconciler).actions.contains(action),
     ensures
@@ -58,7 +58,7 @@ pub proof fn exists_next_kubernetes_api_step(action: KubernetesAPIAction, input:
     assert(((kubernetes_api().step_to_action)(KubernetesAPIStep::HandleRequest).precondition)(input, s));
 }
 
-pub proof fn exists_next_controller_step<K: Marshalable, T>(reconciler: Reconciler<K, T>, action: ControllerAction<T>, input: ControllerActionInput, s: ControllerState<T>)
+pub proof fn exists_next_controller_step<K: ResourceView, T>(reconciler: Reconciler<K, T>, action: ControllerAction<T>, input: ControllerActionInput, s: ControllerState<T>)
     requires
         controller(reconciler).actions.contains(action),
         (action.precondition)(input, s),

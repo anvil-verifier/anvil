@@ -75,7 +75,7 @@ impl<T> State<T> {
     }
 }
 
-pub open spec fn init<K: Marshalable, T>(reconciler: Reconciler<K, T>) -> StatePred<State<T>> {
+pub open spec fn init<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> StatePred<State<T>> {
     |s: State<T>| {
         &&& (kubernetes_api().init)(s.kubernetes_api_state)
         &&& (controller(reconciler).init)(s.controller_state)
@@ -125,7 +125,7 @@ pub open spec fn kubernetes_api_next<T>() -> Action<State<T>, Option<Message>, (
     }
 }
 
-pub open spec fn controller_next<K: Marshalable, T>(reconciler: Reconciler<K, T>) -> Action<State<T>, (Option<Message>, Option<ObjectRef>), ()> {
+pub open spec fn controller_next<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> Action<State<T>, (Option<Message>, Option<ObjectRef>), ()> {
     let result = |input: (Option<Message>, Option<ObjectRef>), s: State<T>| {
         let host_result = controller(reconciler).next_result(
             ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager},
@@ -208,7 +208,7 @@ pub open spec fn disable_crash<T>() -> Action<State<T>, (), ()> {
     }
 }
 
-pub open spec fn client_next<K: Marshalable, T>() -> Action<State<T>, (Option<Message>, K), ()> {
+pub open spec fn client_next<K: ResourceView, T>() -> Action<State<T>, (Option<Message>, K), ()> {
     let result = |input: (Option<Message>, K), s: State<T>| {
         let host_result = client().next_result(
             ClientActionInput{recv: input.0, cr: input.1, chan_manager: s.chan_manager},
@@ -261,7 +261,7 @@ pub enum Step<K> {
     StutterStep(),
 }
 
-pub open spec fn next_step<K: Marshalable, T>(reconciler: Reconciler<K, T>, s: State<T>, s_prime: State<T>, step: Step<K>) -> bool {
+pub open spec fn next_step<K: ResourceView, T>(reconciler: Reconciler<K, T>, s: State<T>, s_prime: State<T>, step: Step<K>) -> bool {
     match step {
         Step::KubernetesAPIStep(input) => kubernetes_api_next().forward(input)(s, s_prime),
         Step::ControllerStep(input) => controller_next(reconciler).forward(input)(s, s_prime),
@@ -276,18 +276,18 @@ pub open spec fn next_step<K: Marshalable, T>(reconciler: Reconciler<K, T>, s: S
 /// `next` chooses:
 /// * which host to take the next action (`Step`)
 /// * whether to deliver a message and which message to deliver (`Option<Message>` in `Step`)
-pub open spec fn next<K: Marshalable, T>(reconciler: Reconciler<K, T>) -> ActionPred<State<T>> {
+pub open spec fn next<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ActionPred<State<T>> {
     |s: State<T>, s_prime: State<T>| exists |step: Step<K>| next_step(reconciler, s, s_prime, step)
 }
 
 /// We install the reconciler to the Kubernetes cluster state machine spec
 /// TODO: develop a struct for the compound state machine and make reconciler its member
 /// so that we don't have to pass reconciler to init and next in the proof.
-pub open spec fn sm_spec<K: Marshalable, T>(reconciler: Reconciler<K, T>) -> TempPred<State<T>> {
+pub open spec fn sm_spec<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> TempPred<State<T>> {
     lift_state(init(reconciler)).and(sm_partial_spec(reconciler))
 }
 
-pub open spec fn sm_partial_spec<K: Marshalable, T>(reconciler: Reconciler<K, T>) -> TempPred<State<T>> {
+pub open spec fn sm_partial_spec<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> TempPred<State<T>> {
     always(lift_action(next(reconciler)))
     .and(tla_forall(|input| kubernetes_api_next().weak_fairness(input)))
     .and(tla_forall(|input| controller_next(reconciler).weak_fairness(input)))
@@ -314,7 +314,7 @@ pub open spec fn kubernetes_api_action_pre<T>(action: KubernetesAPIAction, input
     }
 }
 
-pub open spec fn controller_action_pre<K: Marshalable, T>(reconciler: Reconciler<K, T>, action: ControllerAction<T>, input: (Option<Message>, Option<ObjectRef>)) -> StatePred<State<T>> {
+pub open spec fn controller_action_pre<K: ResourceView, T>(reconciler: Reconciler<K, T>, action: ControllerAction<T>, input: (Option<Message>, Option<ObjectRef>)) -> StatePred<State<T>> {
     |s: State<T>| {
         let host_result = controller(reconciler).next_action_result(
             action,

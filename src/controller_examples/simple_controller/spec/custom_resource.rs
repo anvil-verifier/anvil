@@ -67,7 +67,7 @@ impl CustomResourceView {
     }
 }
 
-impl Marshalable for CustomResourceView {
+impl ResourceView for CustomResourceView {
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: self.kind(),

@@ -96,7 +96,7 @@ impl DynamicObjectView {
     }
 }
 
-pub trait Marshalable: Sized {
+pub trait ResourceView: Sized {
     // TODO: make metadata() a trait method
     open spec fn object_ref(self) -> ObjectRef;
     open spec fn to_dynamic_object(self) -> DynamicObjectView;
