@@ -9,5 +9,6 @@ pub mod error;
 pub mod object_meta;
 pub mod persistent_volume_claim;
 pub mod pod;
+pub mod resource;
 pub mod service;
 pub mod stateful_set;

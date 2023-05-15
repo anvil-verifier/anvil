@@ -8,7 +8,7 @@ use crate::controller_examples::simple_controller::spec::{
     reconciler,
     reconciler::{simple_reconciler, SimpleReconcileState},
 };
-use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::{
     proof::{
         cluster::*, controller_runtime_liveness::*, controller_runtime_safety::*,
