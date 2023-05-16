@@ -62,8 +62,46 @@ async fn reconcile(zk: Arc<ZookeeperCluster>, ctx: Arc<Data>) -> Result<Action, 
 
     // Create the ZookeeperCluster headless service
     let headless_service = make_headless_service(&zk);
+    info!(
+        "Create headless service: {}",
+        headless_service.metadata.name.as_ref().unwrap()
+    );
     match svc_api
         .create(&PostParams::default(), &headless_service)
+        .await
+    {
+        Err(e) => match e {
+            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
+                if reason.clone() == "AlreadyExists" => {}
+            _ => return Err(Error::ServiceCreationFailed(e)),
+        },
+        _ => {}
+    }
+
+    let client_service = make_client_service(&zk);
+    info!(
+        "Create client service: {}",
+        client_service.metadata.name.as_ref().unwrap()
+    );
+    match svc_api
+        .create(&PostParams::default(), &client_service)
+        .await
+    {
+        Err(e) => match e {
+            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
+                if reason.clone() == "AlreadyExists" => {}
+            _ => return Err(Error::ServiceCreationFailed(e)),
+        },
+        _ => {}
+    }
+
+    let admin_server_service = make_admin_server_service(&zk);
+    info!(
+        "Create admin server service: {}",
+        admin_server_service.metadata.name.as_ref().unwrap()
+    );
+    match svc_api
+        .create(&PostParams::default(), &admin_server_service)
         .await
     {
         Err(e) => match e {

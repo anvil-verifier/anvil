@@ -184,6 +184,32 @@ pub fn make_headless_service(zk: &ZookeeperCluster) -> corev1::Service {
     )
 }
 
+pub fn make_client_service(zk: &ZookeeperCluster) -> corev1::Service {
+    make_service(
+        zk,
+        zk.meta().name.as_ref().unwrap().clone() + "-client",
+        vec![corev1::ServicePort {
+            name: Some("tcp-client".to_string()),
+            port: 2181,
+            ..corev1::ServicePort::default()
+        }],
+        true,
+    )
+}
+
+pub fn make_admin_server_service(zk: &ZookeeperCluster) -> corev1::Service {
+    make_service(
+        zk,
+        zk.meta().name.as_ref().unwrap().clone() + "-admin-server",
+        vec![corev1::ServicePort {
+            name: Some("tcp-admin-server".to_string()),
+            port: 8080,
+            ..corev1::ServicePort::default()
+        }],
+        true,
+    )
+}
+
 fn make_service(
     zk: &ZookeeperCluster,
     name: String,
