@@ -4,7 +4,7 @@ WORKDIR /anvil
 
 SHELL ["/bin/bash", "-c"]
 
-COPY ../.. .
+COPY . .
 
 RUN VERUS_DIR=/verus ./build.sh simple_controller.rs --time
 

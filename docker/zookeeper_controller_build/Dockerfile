@@ -4,7 +4,7 @@ WORKDIR /anvil
 
 SHELL ["/bin/bash", "-c"]
 
-COPY ../.. .
+COPY . .
 
 RUN cd reference_controllers/zookeeper_controller && cargo build
 
