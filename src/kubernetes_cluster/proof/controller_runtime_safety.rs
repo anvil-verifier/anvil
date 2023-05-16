@@ -35,12 +35,12 @@ pub proof fn lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager<K: 
     let invariant = every_in_flight_msg_has_lower_id_than_chan_manager::<T>();
     assert forall |s, s_prime: State<T>| invariant(s) && #[trigger] next(reconciler)(s, s_prime) implies
     invariant(s_prime) by {
-        next_preserves_every_in_flight_msg_has_lower_idthan_chan_manager::<K, T>(reconciler, s, s_prime);
+        next_preserves_every_in_flight_msg_has_lower_id_than_chan_manager::<K, T>(reconciler, s, s_prime);
     };
     init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), next(reconciler), invariant);
 }
 
-proof fn next_preserves_every_in_flight_msg_has_lower_idthan_chan_manager<K: ResourceView, T>(reconciler: Reconciler<K, T>, s: State<T>, s_prime: State<T>)
+proof fn next_preserves_every_in_flight_msg_has_lower_id_than_chan_manager<K: ResourceView, T>(reconciler: Reconciler<K, T>, s: State<T>, s_prime: State<T>)
     requires
         every_in_flight_msg_has_lower_id_than_chan_manager::<T>()(s), next(reconciler)(s, s_prime),
     ensures
