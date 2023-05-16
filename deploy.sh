@@ -11,12 +11,18 @@ GREEN='\033[1;32m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-if cd deploy && kubectl apply -f crd.yaml && kubectl apply -f deploy.yaml && kubectl apply -f simplecr.yaml; then
-    echo ""
-    echo -e "${GREEN}Simple controller is deployed in your Kubernetes cluster in namespace \"simple\"."
-    echo -e "${GREEN}Run \"kubectl get pod -n simple\" to check the controller pod.${NC}"
+if [ "$1" = "simple" ]; then
+    if cd deploy/simple && kubectl apply -f crd.yaml && kubectl apply -f deploy.yaml; then
+        echo ""
+        echo -e "${GREEN}Simple controller is deployed in your Kubernetes cluster in namespace \"simple\"."
+        echo -e "Run \"kubectl get pod -n simple\" to check the controller pod."
+        echo -e "Run \"kubectl apply -f deploy/simple/simplecr.yaml\" to deploy a simple custom resource.${NC}"
+    else
+        echo ""
+        echo -e "${RED}Cannot deploy the controller."
+        echo -e "${YELLOW}Please ensure kubectl can connect to a Kubernetes cluster.${NC}"
+    fi
 else
-    echo ""
-    echo -e "${RED}Cannot deploy the controller."
-    echo -e "${YELLOW}Please ensure kubectl can connect to a Kubernetes cluster.${NC}"
+    echo -e "${RED}Unsupported app name."
+    echo -e "${YELLOW}Currently supported app: simple.${NC}"
 fi
