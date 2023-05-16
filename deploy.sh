@@ -22,6 +22,17 @@ if [ "$1" = "simple" ]; then
         echo -e "${RED}Cannot deploy the controller."
         echo -e "${YELLOW}Please ensure kubectl can connect to a Kubernetes cluster.${NC}"
     fi
+elif [ "$1" = "zookeeper" ]; then
+    if cd deploy/zookeeper && kubectl apply -f crd.yaml && kubectl apply -f deploy.yaml; then
+        echo ""
+        echo -e "${GREEN}Simple controller is deployed in your Kubernetes cluster in namespace \"zookeeper\"."
+        echo -e "Run \"kubectl get pod -n zookeeper\" to check the controller pod."
+        echo -e "Run \"kubectl apply -f deploy/zookeeper/zookeeper.yaml\" to deploy a zookeeper cluster custom resource.${NC}"
+    else
+        echo ""
+        echo -e "${RED}Cannot deploy the controller."
+        echo -e "${YELLOW}Please ensure kubectl can connect to a Kubernetes cluster.${NC}"
+    fi
 else
     echo -e "${RED}Unsupported app name."
     echo -e "${YELLOW}Currently supported app: simple.${NC}"
