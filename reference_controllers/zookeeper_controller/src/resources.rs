@@ -113,6 +113,28 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> corev1::PodSpec {
                     ..corev1::ContainerPort::default()
                 },
             ]),
+            readiness_probe: Some(corev1::Probe {
+                exec: Some(corev1::ExecAction {
+                    command: Some(vec!["zookeeperReady.sh".to_string()]),
+                }),
+                failure_threshold: Some(3),
+                initial_delay_seconds: Some(10),
+                period_seconds: Some(10),
+                success_threshold: Some(1),
+                timeout_seconds: Some(10),
+                ..corev1::Probe::default()
+            }),
+            liveness_probe: Some(corev1::Probe {
+                exec: Some(corev1::ExecAction {
+                    command: Some(vec!["zookeeperLive.sh".to_string()]),
+                }),
+                failure_threshold: Some(3),
+                initial_delay_seconds: Some(10),
+                period_seconds: Some(10),
+                success_threshold: Some(1),
+                timeout_seconds: Some(10),
+                ..corev1::Probe::default()
+            }),
             ..corev1::Container::default()
         }],
         volumes: Some(vec![corev1::Volume {
