@@ -14,7 +14,15 @@ jobs:
         uses: actions/checkout@v3
       - name: Log into registry ghcr.io
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-      - name: Build Image
-        run: docker build -t ghcr.io/${{ env.IMAGE_NAME }}/simple_controller:latest .
-      - name: Push Image
+      - name: Build Simple Controller Image
+        run: |
+          cd docker/simple_controller_build
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/simple_controller:latest .
+      - name: Push Simple Controller Image
         run: docker push ghcr.io/${{ env.IMAGE_NAME }}/simple_controller:latest
+      - name: Build Zookeeper Controller Image
+        run: |
+          cd docker/zookeeper_controller_build
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/zookeeper_controller:latest .
+      - name: Push Zookeeper Controller Image
+        run: docker push ghcr.io/${{ env.IMAGE_NAME }}/zookeeper_controller:latest
