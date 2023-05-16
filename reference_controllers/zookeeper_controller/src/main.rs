@@ -57,10 +57,11 @@ async fn reconcile(zk: Arc<ZookeeperCluster>, ctx: Arc<Data>) -> Result<Action, 
     let cm_api = Api::<corev1::ConfigMap>::namespaced(client.clone(), &zk_ns);
     let sts_api = Api::<appsv1::StatefulSet>::namespaced(client.clone(), &zk_ns);
 
-    // Get the ZookeeperCluster custom resource
+    // Get the ZookeeperCluster custom resource before taking any reconciliation actions.
     zk_api.get(&zk_name).await.map_err(Error::CRGetFailed)?;
 
-    // Create the ZookeeperCluster headless service
+    // Create the ZookeeperCluster headless service.
+    // The headless service is used to assign a domain name for each zookeeper replica.
     let headless_service = make_headless_service(&zk);
     info!(
         "Create headless service: {}",
@@ -78,6 +79,8 @@ async fn reconcile(zk: Arc<ZookeeperCluster>, ctx: Arc<Data>) -> Result<Action, 
         _ => {}
     }
 
+    // Create the ZookeeperCluster client service.
+    // The client service provides a stable ip and domain name to connect to the client port.
     let client_service = make_client_service(&zk);
     info!(
         "Create client service: {}",
@@ -95,6 +98,8 @@ async fn reconcile(zk: Arc<ZookeeperCluster>, ctx: Arc<Data>) -> Result<Action, 
         _ => {}
     }
 
+    // Create the ZookeeperCluster client service.
+    // The client service provides a stable ip and domain name to connect to the admin server port.
     let admin_server_service = make_admin_server_service(&zk);
     info!(
         "Create admin server service: {}",
@@ -112,7 +117,8 @@ async fn reconcile(zk: Arc<ZookeeperCluster>, ctx: Arc<Data>) -> Result<Action, 
         _ => {}
     }
 
-    // Create the ZookeeperCluster configmap
+    // Create the ZookeeperCluster configmap.
+    // The configmap stores the configuration data for zookeeper.
     let cm = make_configmap(&zk);
     info!("Create configmap: {}", cm.metadata.name.as_ref().unwrap());
     match cm_api.create(&PostParams::default(), &cm).await {
@@ -124,7 +130,8 @@ async fn reconcile(zk: Arc<ZookeeperCluster>, ctx: Arc<Data>) -> Result<Action, 
         _ => {}
     }
 
-    // Create the ZookeeperCluster statefulset
+    // Create the ZookeeperCluster statefulset.
+    // The statefulset hosts all the zookeeper pods and volumes.
     let sts = make_statefulset(&zk);
     info!(
         "Create statefulset: {}",
