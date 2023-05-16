@@ -114,6 +114,7 @@ async fn reconcile(zk: Arc<ZookeeperCluster>, ctx: Arc<Data>) -> Result<Action, 
 
     // Create the ZookeeperCluster configmap
     let cm = make_configmap(&zk);
+    info!("Create configmap: {}", cm.metadata.name.as_ref().unwrap());
     match cm_api.create(&PostParams::default(), &cm).await {
         Err(e) => match e {
             kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
@@ -125,6 +126,10 @@ async fn reconcile(zk: Arc<ZookeeperCluster>, ctx: Arc<Data>) -> Result<Action, 
 
     // Create the ZookeeperCluster statefulset
     let sts = make_statefulset(&zk);
+    info!(
+        "Create statefulset: {}",
+        sts.metadata.name.as_ref().unwrap()
+    );
     match sts_api.create(&PostParams::default(), &sts).await {
         Err(e) => match e {
             kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
