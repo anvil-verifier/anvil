@@ -5,3 +5,4 @@ src/main
 src/simple_controller
 src/.verus-log/
 reference_controllers/simple_controller/target/
+reference_controllers/zookeeper_controller/target/
