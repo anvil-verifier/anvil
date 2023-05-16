@@ -51,16 +51,14 @@ proof fn next_preserves_every_in_flight_msg_has_lower_id_than_chan_manager<K: Re
         assert(s.chan_manager.cur_chan_id <= s_prime.chan_manager.cur_chan_id);
         if (s.message_in_flight(msg)) {
             assert(msg.content.get_msg_id() < s.chan_manager.cur_chan_id);
-            assert(msg.content.get_msg_id() < s_prime.chan_manager.cur_chan_id);
         } else {
             match msg.content {
                 MessageContent::APIRequest(_, _) => assert(s.chan_manager.cur_chan_id < s_prime.chan_manager.cur_chan_id),
                 MessageContent::APIResponse(_, id) => {
                     let next_step = choose |step: Step<K>| next_step(reconciler, s, s_prime, step);
-                    let input = next_step.get_KubernetesAPIStep_0();
-                    assert(s.message_in_flight(input.get_Some_0()));
-                    assert(id == input.get_Some_0().content.get_req_id());
-                    assert(input.get_Some_0().content.get_req_id() < s.chan_manager.cur_chan_id);
+                    let input = next_step.get_KubernetesAPIStep_0().get_Some_0();
+                    assert(s.message_in_flight(input));
+                    assert(id == input.content.get_req_id());
                 }
             }
         }
