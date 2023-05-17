@@ -1,5 +1,5 @@
 #![allow(clippy::unnecessary_lazy_evaluations)]
-
+#![allow(unused_imports)]
 
 pub mod rabbitmqcluster_types;
 pub mod rabbitmqcluster_status;
@@ -16,7 +16,7 @@ pub mod statefulset;
 
 use anyhow::Result;
 use futures::StreamExt;
-use k8s_openapi::api::apps::v1 as appsv1;
+use k8s_openapi::api::{apps::v1 as appsv1, core::v1::Service};
 use k8s_openapi::api::core::v1 as corev1;
 use kube::{
     api::{Api, ListParams, PostParams},
@@ -24,7 +24,7 @@ use kube::{
     Client, CustomResourceExt,
 };
 use kube_client::{self, client};
-use kube_core;
+use kube_core::{self, ResourceExt};
 use core::time;
 use std::{env, sync::Arc};
 use thiserror::Error;
@@ -35,6 +35,14 @@ use crate::rabbitmqcluster_types::*;
 
 #[derive(Debug, Error)]
 enum Error {
+    #[error("Failed to get CR: {0}")]
+    CRGetFailed(#[source] kube::Error),
+    #[error("Failed to create ConfigMap: {0}")]
+    ConfigMapCreationFailed(#[source] kube::Error),
+    #[error("Failed to create Service: {0}")]
+    ServiceCreationFailed(#[source] kube::Error),
+    #[error("Failed to create StatefulSet: {0}")]
+    StatefulSetCreationFailed(#[source] kube::Error),
     #[error("MissingObjectKey: {0}")]
     MissingObjectKey(&'static str),
     #[error("ReplaceImageFail: {0}")]
@@ -54,8 +62,8 @@ impl RabbitmqClusterReconciler {
 
 
 async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<RabbitmqClusterReconciler>) -> Result<Action, Error> {
-    let client = _ctx.client.clone();
-    let namespace = _ctx.Namespace.clone();
+    let client = &_ctx.client;
+    let namespace = rabbitmq.namespace().unwrap();
     let name = rabbitmq
         .metadata
         .name
@@ -63,20 +71,72 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<RabbitmqClusterReco
         .ok_or_else(|| Error::MissingObjectKey(".metadata.name"))?;
     
 
-    let (duration, err) = reconcile_operator_defaults(&rabbitmq, client).await;
+    let (duration, err) = reconcile_operator_defaults(&rabbitmq, client.clone()).await;
     if duration.as_secs() != 0 || err.is_some() {
         return Ok(Action::requeue(duration));
     }
 
+    let svc_api = Api::<corev1::Service>::namespaced(client.clone(), &namespace);
+    let cm_api = Api::<corev1::ConfigMap>::namespaced(client.clone(), &namespace);
+    let sts_api = Api::<appsv1::StatefulSet>::namespaced(client.clone(), &namespace);
+    let secret_api = Api::<corev1::Secret>::namespaced(client.clone(), &namespace);
 
     info!("Start reconciling");
 
+    // Create headless service
+    let headless_service = headless_service::headless_build(&rabbitmq);
+    info!("headless_service: {:?}", headless_service);
+    info!(
+        "Create headless service: {}",
+        headless_service.metadata.name.as_ref().unwrap()
+    );
+    match svc_api
+        .create(&PostParams::default(), &headless_service)
+        .await
+    {
+        Err(e) => match e {
+            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
+                if reason.clone() == "AlreadyExists" => {}
+            _ => return Err(Error::ServiceCreationFailed(e)),
+        },
+        _ => {}
+    }
 
+    // Create service
+    let service = service::service_build(&rabbitmq);
+    info!(
+        "Create service: {}",
+        service.metadata.name.as_ref().unwrap()
+    );
+    match svc_api
+        .create(&PostParams::default(), &service)
+        .await
+    {
+        Err(e) => match e {
+            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
+                if reason.clone() == "AlreadyExists" => {}
+            _ => return Err(Error::ServiceCreationFailed(e)),
+        },
+        _ => {}
+    }
 
-    let secvice = service::service_build(&rabbitmq);
-
-
-
+    // Create erlang cookie
+    let erlang_cookie = erlang_cookie::erlang_build(&rabbitmq);
+    info!(
+        "Create erlang cookie: {}",
+        erlang_cookie.metadata.name.as_ref().unwrap()
+    );
+    match secret_api
+        .create(&PostParams::default(), &erlang_cookie)
+        .await
+    {
+        Err(e) => match e {
+            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
+                if reason.clone() == "AlreadyExists" => {}
+            _ => return Err(Error::ServiceCreationFailed(e)),
+        },
+        _ => {}
+    }
 
 
     Ok(Action::requeue(Duration::from_secs(300)))

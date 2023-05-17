@@ -7,7 +7,7 @@ use k8s_openapi::api::core::v1 as corev1;
 
 #[derive(CustomResource, Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[kube(group = "anvil.dev", version = "v1", kind = "RabbitmqCluster")]
-#[kube(shortname = "rm", namespaced)]
+#[kube(shortname = "rbmq", namespaced)]
 pub struct RabbitmqClusterSpec {
     pub replica: i32,
     #[serde(rename = "image", skip_serializing_if = "Option::is_none")]

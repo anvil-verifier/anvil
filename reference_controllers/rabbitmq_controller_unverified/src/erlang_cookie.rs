@@ -17,13 +17,18 @@ use crate::rabbitmqcluster_types::RabbitmqCluster;
 
 
 
-pub fn eralang_build(rabbitmq: &RabbitmqCluster) -> corev1::Secret {
+pub fn erlang_build(rabbitmq: &RabbitmqCluster) -> corev1::Secret {
     let cookie = generate_cookie();
     let name_cookie = rabbitmq.metadata.name.clone().unwrap() + "-erlang-cookie";
     corev1::Secret {
         metadata: metav1::ObjectMeta {
             name: Some(name_cookie),
             namespace: rabbitmq.metadata.namespace.clone(),
+            owner_references: Some(vec![rabbitmq.controller_owner_ref(&()).unwrap()]),
+            labels: Some(BTreeMap::from([(
+                "app".to_string(),
+                rabbitmq.meta().name.as_ref().unwrap().clone(),
+            )])),
             ..Default::default()
         },
         data: 
