@@ -62,13 +62,17 @@ impl CustomResource {
     }
 }
 
-impl CustomResourceView {
-    pub open spec fn kind(self) -> Kind {
-        Kind::CustomResourceKind
-    }
-}
+impl CustomResourceView {}
 
 impl ResourceView for CustomResourceView {
+    open spec fn metadata(self) -> ObjectMetaView {
+        self.metadata
+    }
+
+    open spec fn kind(self) -> Kind {
+        Kind::CustomResourceKind
+    }
+
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: self.kind(),

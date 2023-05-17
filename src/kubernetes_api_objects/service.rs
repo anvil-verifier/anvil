@@ -1,7 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::common::*;
+use crate::kubernetes_api_objects::dynamic::*;
 use crate::kubernetes_api_objects::object_meta::*;
+use crate::kubernetes_api_objects::resource::*;
 use vstd::prelude::*;
 
 use k8s_openapi::api::core::v1::Service as K8SService;
@@ -17,8 +19,8 @@ pub struct Service {
 
 pub struct ServiceView {
     pub metadata: ObjectMetaView,
-    pub spec: Option<ServiceSpecView>,
-    pub status: Option<ServiceStatusView>,
+    // pub spec: Option<ServiceSpecView>,
+    // pub status: Option<ServiceStatusView>,
 }
 
 impl Service {
@@ -42,51 +44,69 @@ impl Service {
         todo!()
     }
 
-    // is it OK to name it spec?
-    #[verifier(external_body)]
-    pub fn spec(&self) -> (spec: Option<ServiceSpec>)
-        ensures
-            self@.spec.is_Some() == spec.is_Some(),
-            spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
-    {
-        todo!()
-    }
+    // #[verifier(external_body)]
+    // pub fn spec(&self) -> (spec: Option<ServiceSpec>)
+    //     ensures
+    //         self@.spec.is_Some() == spec.is_Some(),
+    //         spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
+    // {
+    //     todo!()
+    // }
 
-    #[verifier(external_body)]
-    pub fn status(&self) -> (status: Option<ServiceStatus>)
-        ensures
-            self@.status.is_Some() == status.is_Some(),
-            status.is_Some() ==> status.get_Some_0()@ == self@.status.get_Some_0(),
-    {
-        todo!()
-    }
+    // #[verifier(external_body)]
+    // pub fn status(&self) -> (status: Option<ServiceStatus>)
+    //     ensures
+    //         self@.status.is_Some() == status.is_Some(),
+    //         status.is_Some() ==> status.get_Some_0()@ == self@.status.get_Some_0(),
+    // {
+    //     todo!()
+    // }
 }
 
 impl ServiceView {
     pub open spec fn default() -> ServiceView {
         ServiceView {
             metadata: ObjectMetaView::default(),
-            spec: Option::None,
-            status: Option::None,
+            // spec: Option::None,
+            // status: Option::None,
         }
     }
+}
 
-    pub open spec fn kind(self) -> Kind {
+impl ResourceView for ServiceView {
+    open spec fn metadata(self) -> ObjectMetaView {
+        self.metadata
+    }
+
+    open spec fn kind(self) -> Kind {
         Kind::ServiceKind
     }
 
-    pub open spec fn object_ref(self) -> ObjectRef
-        recommends
-            self.metadata.name.is_Some(),
-            self.metadata.namespace.is_Some(),
-    {
+    open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: self.kind(),
             name: self.metadata.name.get_Some_0(),
             namespace: self.metadata.namespace.get_Some_0(),
         }
     }
+
+    open spec fn to_dynamic_object(self) -> DynamicObjectView {
+        DynamicObjectView {
+            kind: self.kind(),
+            metadata: self.metadata,
+            data: Value::Object(Map::empty()),
+        }
+    }
+
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> ServiceView {
+        ServiceView {
+            metadata: obj.metadata,
+        }
+    }
+
+    proof fn integrity_check() {}
 }
+
 
 #[verifier(external_body)]
 pub struct ServiceSpec {
