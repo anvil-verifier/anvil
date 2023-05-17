@@ -74,6 +74,10 @@ impl PersistentVolumeClaimView {
 }
 
 impl ResourceView for PersistentVolumeClaimView {
+    open spec fn metadata(self) -> ObjectMetaView {
+        self.metadata
+    }
+
     open spec fn kind(self) -> Kind {
         Kind::PersistentVolumeClaimKind
     }

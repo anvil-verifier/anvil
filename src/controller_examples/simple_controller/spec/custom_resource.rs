@@ -65,6 +65,10 @@ impl CustomResource {
 impl CustomResourceView {}
 
 impl ResourceView for CustomResourceView {
+    open spec fn metadata(self) -> ObjectMetaView {
+        self.metadata
+    }
+
     open spec fn kind(self) -> Kind {
         Kind::CustomResourceKind
     }

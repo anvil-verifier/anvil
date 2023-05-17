@@ -74,6 +74,10 @@ impl StatefulSetView {
 }
 
 impl ResourceView for StatefulSetView {
+    open spec fn metadata(self) -> ObjectMetaView {
+        self.metadata
+    }
+
     open spec fn kind(self) -> Kind {
         Kind::StatefulSetKind
     }

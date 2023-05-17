@@ -74,6 +74,10 @@ impl ServiceView {
 }
 
 impl ResourceView for ServiceView {
+    open spec fn metadata(self) -> ObjectMetaView {
+        self.metadata
+    }
+
     open spec fn kind(self) -> Kind {
         Kind::ServiceKind
     }

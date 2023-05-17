@@ -156,6 +156,10 @@ impl ConfigMapView {
 }
 
 impl ResourceView for ConfigMapView {
+    open spec fn metadata(self) -> ObjectMetaView {
+        self.metadata
+    }
+
     open spec fn kind(self) -> Kind {
         Kind::ConfigMapKind
     }

@@ -74,6 +74,10 @@ impl PodView {
 }
 
 impl ResourceView for PodView {
+    open spec fn metadata(self) -> ObjectMetaView {
+        self.metadata
+    }
+
     open spec fn kind(self) -> Kind {
         Kind::PodKind
     }
