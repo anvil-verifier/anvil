@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::controller_examples::simple_controller::spec::custom_resource::*;
-use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, resource::*};
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_const::*;
 use crate::reconciler::spec::*;

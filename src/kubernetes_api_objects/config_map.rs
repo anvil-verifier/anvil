@@ -4,6 +4,7 @@ use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
 use crate::kubernetes_api_objects::object_meta::*;
+use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_map;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -139,43 +140,8 @@ impl ConfigMapView {
         }
     }
 
-    // TODO: defining spec functions like data_field() to serve as the key of Object Map
-    // is not the ideal way. Find a more elegant way to define the keys.
-    pub open spec fn to_dynamic_object(self) -> DynamicObjectView {
-        DynamicObjectView {
-            kind: self.kind(),
-            metadata: self.metadata,
-            data: Value::Object(Map::empty().insert(data_field(), if self.data.is_None() {Value::Null} else {Value::StringStringMap(self.data.get_Some_0())})),
-        }
-    }
-
-    pub open spec fn from_dynamic_object(obj: DynamicObjectView) -> ConfigMapView {
-        ConfigMapView {
-            metadata: obj.metadata,
-            data: if obj.data.get_Object_0()[data_field()].is_Null() {Option::None} else {Option::Some(obj.data.get_Object_0()[data_field()].get_StringStringMap_0())},
-        }
-    }
-
-    /// Check that any config map remains unchanged after serialization and deserialization
-    pub proof fn integrity_check()
-        ensures
-            forall |o: ConfigMapView| o == ConfigMapView::from_dynamic_object(#[trigger] o.to_dynamic_object())
-    {}
-
     pub open spec fn kind(self) -> Kind {
         Kind::ConfigMapKind
-    }
-
-    pub open spec fn object_ref(self) -> ObjectRef
-        recommends
-            self.metadata.name.is_Some(),
-            self.metadata.namespace.is_Some(),
-    {
-        ObjectRef {
-            kind: self.kind(),
-            name: self.metadata.name.get_Some_0(),
-            namespace: self.metadata.namespace.get_Some_0(),
-        }
     }
 
     pub open spec fn set_name(self, name: StringView) -> ConfigMapView {
@@ -192,6 +158,50 @@ impl ConfigMapView {
         }
     }
 }
+
+impl ResourceView for ConfigMapView {
+    open spec fn object_ref(self) -> ObjectRef {
+        ObjectRef {
+            kind: self.kind(),
+            name: self.metadata.name.get_Some_0(),
+            namespace: self.metadata.namespace.get_Some_0(),
+        }
+    }
+
+    // TODO: defining spec functions like data_field() to serve as the key of Object Map
+    // is not the ideal way. Find a more elegant way to define the keys.
+    open spec fn to_dynamic_object(self) -> DynamicObjectView {
+        DynamicObjectView {
+            kind: self.kind(),
+            metadata: self.metadata,
+            data: Value::Object(
+                Map::empty()
+                .insert(data_field(),
+                        if self.data.is_None() {
+                            Value::Null
+                        } else {
+                            Value::StringStringMap(self.data.get_Some_0())
+                        }
+                )
+            ),
+        }
+    }
+
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> ConfigMapView {
+        ConfigMapView {
+            metadata: obj.metadata,
+            data: if obj.data.get_Object_0()[data_field()].is_Null() {
+                Option::None
+            } else {
+                Option::Some(obj.data.get_Object_0()[data_field()].get_StringStringMap_0())
+            },
+        }
+    }
+
+    /// Check that any config map remains unchanged after serialization and deserialization
+    proof fn integrity_check() {}
+}
+
 
 pub open spec fn data_field() -> nat {0}
 

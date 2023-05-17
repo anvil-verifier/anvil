@@ -1,7 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::common::*;
+use crate::kubernetes_api_objects::dynamic::*;
 use crate::kubernetes_api_objects::object_meta::*;
+use crate::kubernetes_api_objects::resource::*;
 use vstd::prelude::*;
 
 use k8s_openapi::api::apps::v1::StatefulSet as K8SStatefulSet;
@@ -17,8 +19,8 @@ pub struct StatefulSet {
 
 pub struct StatefulSetView {
     pub metadata: ObjectMetaView,
-    pub spec: Option<StatefulSetSpecView>,
-    pub status: Option<StatefulSetStatusView>,
+    // pub spec: Option<StatefulSetSpecView>,
+    // pub status: Option<StatefulSetStatusView>,
 }
 
 impl StatefulSet {
@@ -42,24 +44,23 @@ impl StatefulSet {
         todo!()
     }
 
-    // is it OK to name it spec?
-    #[verifier(external_body)]
-    pub fn spec(&self) -> (spec: Option<StatefulSetSpec>)
-        ensures
-            self@.spec.is_Some() == spec.is_Some(),
-            spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
-    {
-        todo!()
-    }
+    // #[verifier(external_body)]
+    // pub fn spec(&self) -> (spec: Option<StatefulSetSpec>)
+    //     ensures
+    //         self@.spec.is_Some() == spec.is_Some(),
+    //         spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
+    // {
+    //     todo!()
+    // }
 
-    #[verifier(external_body)]
-    pub fn status(&self) -> (status: Option<StatefulSetStatus>)
-        ensures
-            self@.status.is_Some() == status.is_Some(),
-            status.is_Some() ==> status.get_Some_0()@ == self@.status.get_Some_0(),
-    {
-        todo!()
-    }
+    // #[verifier(external_body)]
+    // pub fn status(&self) -> (status: Option<StatefulSetStatus>)
+    //     ensures
+    //         self@.status.is_Some() == status.is_Some(),
+    //         status.is_Some() ==> status.get_Some_0()@ == self@.status.get_Some_0(),
+    // {
+    //     todo!()
+    // }
 }
 
 impl StatefulSetView {
@@ -67,11 +68,17 @@ impl StatefulSetView {
         Kind::StatefulSetKind
     }
 
-    pub open spec fn object_ref(self) -> ObjectRef
-        recommends
-            self.metadata.name.is_Some(),
-            self.metadata.namespace.is_Some(),
-    {
+    pub open spec fn default() -> StatefulSetView {
+        StatefulSetView {
+            metadata: ObjectMetaView::default(),
+            // spec: Option::None,
+            // status: Option::None,
+        }
+    }
+}
+
+impl ResourceView for StatefulSetView {
+    open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: self.kind(),
             name: self.metadata.name.get_Some_0(),
@@ -79,13 +86,21 @@ impl StatefulSetView {
         }
     }
 
-    pub open spec fn default() -> StatefulSetView {
-        StatefulSetView {
-            metadata: ObjectMetaView::default(),
-            spec: Option::None,
-            status: Option::None,
+    open spec fn to_dynamic_object(self) -> DynamicObjectView {
+        DynamicObjectView {
+            kind: self.kind(),
+            metadata: self.metadata,
+            data: Value::Object(Map::empty()),
         }
     }
+
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> StatefulSetView {
+        StatefulSetView {
+            metadata: obj.metadata,
+        }
+    }
+
+    proof fn integrity_check() {}
 }
 
 #[verifier(external_body)]
