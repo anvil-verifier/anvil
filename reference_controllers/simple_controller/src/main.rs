@@ -7,13 +7,13 @@ use k8s_openapi::api::core::v1::ConfigMap;
 use kube::{
     api::{Api, ListParams, ObjectMeta, PostParams, Resource},
     runtime::controller::{Action, Controller},
-    Client, CustomResource,
+    Client, CustomResource, CustomResourceExt
 };
 use kube_client;
 use kube_core;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{env, sync::Arc};
 use thiserror::Error;
 use tokio::time::Duration;
 use tracing::*;
@@ -89,22 +89,30 @@ struct Data {
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-    let client = Client::try_default().await?;
 
-    let crs = Api::<SimpleCR>::all(client.clone());
+    let args: Vec<String> = env::args().collect();
+    let cmd = args[1].clone();
+    if cmd == String::from("export") {
+        info!("exporting custom resource definition");
+        println!("{}", serde_yaml::to_string(&SimpleCR::crd())?);
+    } else if cmd == String::from("run") {
+        info!("running simple-controller");
+        let client = Client::try_default().await?;
+        let crs = Api::<SimpleCR>::all(client.clone());
 
-    info!("starting simple-controller");
-
-    Controller::new(crs, ListParams::default())
-        .shutdown_on_signal()
-        .run(reconcile, error_policy, Arc::new(Data { client }))
-        .for_each(|res| async move {
-            match res {
-                Ok(o) => info!("reconciled {:?}", o),
-                Err(e) => warn!("reconcile failed: {}", e),
-            }
-        })
-        .await;
-    info!("controller terminated");
+        Controller::new(crs, ListParams::default())
+            .shutdown_on_signal()
+            .run(reconcile, error_policy, Arc::new(Data { client }))
+            .for_each(|res| async move {
+                match res {
+                    Ok(o) => info!("reconciled {:?}", o),
+                    Err(e) => warn!("reconcile failed: {}", e),
+                }
+            })
+            .await;
+        info!("controller terminated");
+    } else {
+        warn!("wrong command; please use \"export\" or \"run\"");
+    }
     Ok(())
 }

@@ -19,16 +19,28 @@ use crate::controller_examples::simple_controller::exec::reconciler::{
 };
 use anyhow::Result;
 use deps_hack::SimpleCR;
+use kube::CustomResourceExt;
 use shim_layer::run_controller;
+use std::env;
 
 verus! {
 
 #[verifier(external)]
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("This is main");
+    let args: Vec<String> = env::args().collect();
+    let cmd = args[1].clone();
 
-    run_controller::<SimpleCR, SimpleReconciler, SimpleReconcileState>().await?;
+    if cmd == String::from("export") {
+        println!("exporting custom resource definition");
+        println!("{}", serde_yaml::to_string(&SimpleCR::crd())?);
+    } else if cmd == String::from("run") {
+        println!("running simple-controller");
+        run_controller::<SimpleCR, SimpleReconciler, SimpleReconcileState>().await?;
+        println!("controller terminated");
+    } else {
+        println!("wrong command; please use \"export\" or \"run\"");
+    }
     Ok(())
 }
 }
