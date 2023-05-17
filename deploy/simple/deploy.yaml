@@ -175,6 +175,7 @@ spec:
           name: controller
           command:
             - simple_controller
+            - run
           resources:
             limits:
               cpu: 200m
