@@ -64,10 +64,6 @@ impl StatefulSet {
 }
 
 impl StatefulSetView {
-    pub open spec fn kind(self) -> Kind {
-        Kind::StatefulSetKind
-    }
-
     pub open spec fn default() -> StatefulSetView {
         StatefulSetView {
             metadata: ObjectMetaView::default(),
@@ -78,6 +74,10 @@ impl StatefulSetView {
 }
 
 impl ResourceView for StatefulSetView {
+    open spec fn kind(self) -> Kind {
+        Kind::StatefulSetKind
+    }
+
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: self.kind(),

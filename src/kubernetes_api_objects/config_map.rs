@@ -140,10 +140,6 @@ impl ConfigMapView {
         }
     }
 
-    pub open spec fn kind(self) -> Kind {
-        Kind::ConfigMapKind
-    }
-
     pub open spec fn set_name(self, name: StringView) -> ConfigMapView {
         ConfigMapView {
             metadata: self.metadata.set_name(name),
@@ -160,6 +156,10 @@ impl ConfigMapView {
 }
 
 impl ResourceView for ConfigMapView {
+    open spec fn kind(self) -> Kind {
+        Kind::ConfigMapKind
+    }
+
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: self.kind(),

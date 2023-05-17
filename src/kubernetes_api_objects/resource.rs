@@ -16,7 +16,11 @@ pub trait ResourceView: Sized {
     // TODO: make metadata() a trait method
     // TODO: implement this trait for all k8s resource types
 
-    /// Get the reference of the object
+    /// Get the kind of the object
+    open spec fn kind(self) -> Kind;
+
+    /// Get the reference of the object,
+    /// which consists of kind, name and namespace
     open spec fn object_ref(self) -> ObjectRef;
 
     /// Convert the object to a dynamic object

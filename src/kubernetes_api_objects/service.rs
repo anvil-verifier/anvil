@@ -71,13 +71,13 @@ impl ServiceView {
             // status: Option::None,
         }
     }
-
-    pub open spec fn kind(self) -> Kind {
-        Kind::ServiceKind
-    }
 }
 
 impl ResourceView for ServiceView {
+    open spec fn kind(self) -> Kind {
+        Kind::ServiceKind
+    }
+
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: self.kind(),

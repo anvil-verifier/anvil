@@ -71,13 +71,13 @@ impl PersistentVolumeClaimView {
             // status: Option::None,
         }
     }
-
-    pub open spec fn kind(self) -> Kind {
-        Kind::PersistentVolumeClaimKind
-    }
 }
 
 impl ResourceView for PersistentVolumeClaimView {
+    open spec fn kind(self) -> Kind {
+        Kind::PersistentVolumeClaimKind
+    }
+
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: self.kind(),

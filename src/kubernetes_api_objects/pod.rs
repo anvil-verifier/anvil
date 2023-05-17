@@ -71,13 +71,13 @@ impl PodView {
             // status: Option::None,
         }
     }
-
-    pub open spec fn kind(self) -> Kind {
-        Kind::PodKind
-    }
 }
 
 impl ResourceView for PodView {
+    open spec fn kind(self) -> Kind {
+        Kind::PodKind
+    }
+
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
             kind: self.kind(),
