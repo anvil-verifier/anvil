@@ -125,10 +125,11 @@ impl ConfigMap {
     #[verifier(external_body)]
     pub fn set_data(&mut self, data: string_map::StringMap)
         ensures
-            self@.data.is_Some(),
-            data@ == self@.data.get_Some_0(),
+            self@ == old(self)@.set_data(data@),
+            // self@.data.is_Some(),
+            // data@ == self@.data.get_Some_0(),
     {
-        todo!()
+        self.inner.data = std::option::Option::Some(data.inner);
     }
 }
 
@@ -204,6 +205,12 @@ impl ResourceView for ConfigMapView {
 
     /// Check that any config map remains unchanged after serialization and deserialization
     proof fn integrity_check() {}
+    pub open spec fn set_data(self, data: Map<StringView, StringView>) -> ConfigMapView {
+        ConfigMapView {
+            data: Option::Some(data),
+            ..self
+        }
+    }
 }
 
 
