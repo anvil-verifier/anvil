@@ -1,0 +1,46 @@
+use k8s_openapi::api::apps::v1 as appsv1;
+use k8s_openapi::api::core::v1 as corev1;
+use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1 as metav1;
+use k8s_openapi::ByteString;
+use kube::{
+    api::{Api, ListParams, PostParams},
+    runtime::controller::{Action, Controller},
+    Client, CustomResourceExt,
+};
+use kube_client::{self, client};
+use kube_core::{self, Resource};
+use std::collections::BTreeMap;
+use rand::Rng;
+
+use crate::rabbitmqcluster_types::RabbitmqCluster;
+
+
+
+pub fn eralang_build(rabbitmq: &RabbitmqCluster) -> corev1::Secret {
+    let cookie = generate_cookie();
+    let name_cookie = rabbitmq.metadata.name.clone().unwrap() + "-erlang-cookie";
+    corev1::Secret {
+        metadata: metav1::ObjectMeta {
+            name: Some(name_cookie),
+            namespace: rabbitmq.metadata.namespace.clone(),
+            ..Default::default()
+        },
+        data: 
+        Some(BTreeMap::from([(
+            ".erlang.cookie".to_string(),
+            ByteString(cookie),
+        )])),
+        type_: Some("Opaque".to_string()),
+        ..Default::default()
+    }
+}
+
+
+
+fn generate_cookie() -> Vec<u8> {
+    let mut rng = rand::thread_rng();
+    let cookie: Vec<u8> = (0..24).map(|_| rng.gen()).collect();
+
+    cookie
+}
