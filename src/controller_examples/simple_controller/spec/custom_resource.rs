@@ -7,6 +7,7 @@ use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
+use vstd::string::*;
 
 use deps_hack::SimpleCR;
 use deps_hack::SimpleCRSpec;
@@ -98,10 +99,10 @@ impl ResourceView for CustomResourceView {
             kind: self.kind(),
             metadata: self.metadata,
             data: Value::Object(Map::empty()
-                                    .insert(spec_field(), Value::Object(Map::empty().insert(spec_content_field(), Value::String(self.spec.content))))
-                                    .insert(status_field(), if self.status.is_None() {Value::Null} else {
-                                        Value::Object(Map::empty().insert(status_echoed_content_field(), Value::String(self.status.get_Some_0().echoed_content)))
-                                    })
+                                    .insert(spec_field(), Value::Object(Map::empty().insert(spec_content_field(), Value::String(self.spec.content)))
+                                    )
+                                    .insert(status_field(), Value::Object(Map::empty().insert(status_echoed_content_field(), Value::String(self.status.get_Some_0().echoed_content)))
+                                    )
                                 ),
         }
     }
@@ -109,9 +110,9 @@ impl ResourceView for CustomResourceView {
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> CustomResourceView {
         CustomResourceView {
             metadata: obj.metadata,
-            spec: if obj.data.get_Object_0()[spec_field()].is_Null() {Option::None} else {Option::Some(CustomResourceSpecView{
+            spec: CustomResourceSpecView{
                 content: obj.data.get_Object_0()[spec_field()].get_Object_0()[spec_content_field()].get_String_0(),
-            })},
+            },
             status: if obj.data.get_Object_0()[status_field()].is_Null() {Option::None} else {Option::Some(CustomResourceStatusView{
                 echoed_content: obj.data.get_Object_0()[status_field()].get_Object_0()[status_echoed_content_field()].get_String_0(),
             })},
@@ -133,7 +134,8 @@ pub struct CustomResourceSpecView {
 impl CustomResourceSpec {
     pub spec fn view(&self) -> CustomResourceSpecView;
 
-    pub open spec fn content(&self) -> (content: String)
+    #[verifier(external_body)]
+    pub fn content(&self) -> (content: String)
         ensures
             content@ == self@.content,
     {

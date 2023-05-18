@@ -120,8 +120,8 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
                 let mut config_map = ConfigMap::default();
                 config_map.set_name(cr_key.name.clone().concat(new_strlit("-cm")));
                 config_map.set_namespace(cr_key.namespace.clone());
-                let cr_map = StringMap::new();
-                cr_map.insert(String::from_rust_string("content".to_string()), CustomResource::from_dynamic_object(resp.as_get_response_ref().res.get_Ok_0()).spec().content());
+                let mut cr_map = StringMap::new();
+                cr_map.insert(String::from_str(new_strlit("content")), CustomResource::from_dynamic_object(resp.into_get_response().res.unwrap()).spec().content());
                 config_map.set_data(cr_map);
                 let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                     KubeCreateRequest {

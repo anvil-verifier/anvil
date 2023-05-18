@@ -152,6 +152,13 @@ impl ConfigMapView {
             ..self
         }
     }
+
+    pub open spec fn set_data(self, data: Map<StringView, StringView>) -> ConfigMapView {
+        ConfigMapView {
+            data: Option::Some(data),
+            ..self
+        }
+    }
 }
 
 impl ResourceView for ConfigMapView {
@@ -203,12 +210,6 @@ impl ResourceView for ConfigMapView {
 
     /// Check that any config map remains unchanged after serialization and deserialization
     proof fn integrity_check() {}
-    pub open spec fn set_data(self, data: Map<StringView, StringView>) -> ConfigMapView {
-        ConfigMapView {
-            data: Option::Some(data),
-            ..self
-        }
-    }
 }
 
 
