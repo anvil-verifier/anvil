@@ -8,7 +8,7 @@ pub mod service;
 pub mod erlang_cookie;
 pub mod default_user_secret;
 pub mod rabbitmq_plugin_configmap;
-pub mod service_configmap;
+pub mod server_configmap;
 pub mod service_account;
 pub mod role;
 pub mod role_binding;
@@ -85,7 +85,6 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<RabbitmqClusterReco
 
     // Create headless service
     let headless_service = headless_service::headless_build(&rabbitmq);
-    info!("headless_service: {:?}", headless_service);
     info!(
         "Create headless service: {}",
         headless_service.metadata.name.as_ref().unwrap()
