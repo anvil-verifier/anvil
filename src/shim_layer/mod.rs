@@ -42,10 +42,6 @@ where
 {
     let client = Client::try_default().await?;
     let crs = Api::<K>::all(client.clone());
-    println!(
-        "CRD:\n{}\n",
-        serde_yaml::to_string(&K::crd())?
-    );
 
     // Build the async closure on top of reconcile_with
     let reconcile = |cr: Arc<K>, ctx: Arc<Data>| async move {

@@ -168,7 +168,6 @@ async fn main() -> Result<()> {
     if cmd == String::from("export") {
         info!("exporting custom resource definition");
         println!("{}", serde_yaml::to_string(&ZookeeperCluster::crd())?);
-        Ok(())
     } else if cmd == String::from("run") {
         info!("running zookeeper-controller");
         let client = Client::try_default().await?;
@@ -185,9 +184,8 @@ async fn main() -> Result<()> {
             })
             .await;
         info!("controller terminated");
-        Ok(())
     } else {
         warn!("wrong command; please use \"export\" or \"run\"");
-        Ok(())
     }
+    Ok(())
 }
