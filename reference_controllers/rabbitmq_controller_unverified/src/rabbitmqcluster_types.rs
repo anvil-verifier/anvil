@@ -25,7 +25,7 @@ pub struct RabbitmqClusterSpec {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct  RabbitmqClusterPersistenceSpec{
-    storage_class_name: Option<String>,
-    storage: Option<Quantity>,
+    pub storage_class_name: Option<String>,
+    pub storage: Option<Quantity>,
 }
 

@@ -1,6 +1,6 @@
 use k8s_openapi::api::apps::v1 as appsv1;
 use k8s_openapi::api::core::v1 as corev1;
-use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
+use k8s_openapi::apimachinery::pkg::api::resource::Quantity as Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1 as metav1;
 use kube::{
     api::{Api, ListParams, PostParams},
@@ -58,7 +58,7 @@ fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> String {
 fn default_user_config(rabbitmq: &RabbitmqCluster) -> String {
     let mut value = 0;
     if rabbitmq.spec.resources.is_none() {
-        value = remove_headroom(1073741824*2 as i64)
+        value = remove_headroom(1073741824*2 as i64) // 2Gi in default
     }
     let rabmq_part = format!(
         "total_memory_available_override_value = {}\n",

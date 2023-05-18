@@ -41,6 +41,31 @@ spec:
                     type: object
                     x-kubernetes-map-type: atomic
                   type: array
+                persistence:
+                  default:
+                    storage: 10Gi
+                  description: The desired persistent storage configuration for each Pod in the cluster.
+                  properties:
+                    storage:
+                      anyOf:
+                        - type: integer
+                        - type: string
+                      default: 10Gi
+                      description: The requested size of the persistent volume attached to each Pod in the RabbitmqCluster. The format of this field matches that defined by kubernetes/apimachinery. See https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity for more info on the format of this field.
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    storageClassName:
+                      description: The name of the StorageClass to claim a PersistentVolume from.
+                      type: string
+                  type: object
+                resources:
+                  default:
+                    limits:
+                      cpu: 2000m
+                      memory: 2Gi
+                    requests:
+                      cpu: 1000m
+                      memory: 2Gi
               type: object
           required:
             - spec
