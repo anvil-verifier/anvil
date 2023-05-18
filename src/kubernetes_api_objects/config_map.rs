@@ -126,10 +126,8 @@ impl ConfigMap {
     pub fn set_data(&mut self, data: string_map::StringMap)
         ensures
             self@ == old(self)@.set_data(data@),
-            // self@.data.is_Some(),
-            // data@ == self@.data.get_Some_0(),
     {
-        self.inner.data = std::option::Option::Some(data.inner);
+        self.inner.data = std::option::Option::Some(data.get_inner_map());
     }
 }
 

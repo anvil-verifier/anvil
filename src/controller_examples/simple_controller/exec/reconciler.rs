@@ -8,6 +8,7 @@ use crate::controller_examples::simple_controller::spec::reconciler::reconcile_e
 use crate::controller_examples::simple_controller::spec::reconciler::reconcile_init_state as reconcile_init_state_spec;
 use crate::controller_examples::simple_controller::spec::reconciler::SimpleReconcileState as SimpleReconcileStateView;
 use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*};
+use crate::pervasive_ext::string_map::StringMap;
 use crate::reconciler::exec::*;
 use builtin::*;
 use builtin_macros::*;
@@ -119,6 +120,9 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
                 let mut config_map = ConfigMap::default();
                 config_map.set_name(cr_key.name.clone().concat(new_strlit("-cm")));
                 config_map.set_namespace(cr_key.namespace.clone());
+                let cr_map = StringMap::new();
+                cr_map.insert(String::from_rust_string("content".to_string()), CustomResource::from_dynamic_object(resp.as_get_response_ref().res.get_Ok_0()).spec().content());
+                config_map.set_data(cr_map);
                 let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                     KubeCreateRequest {
                         api_resource: ConfigMap::api_resource(),

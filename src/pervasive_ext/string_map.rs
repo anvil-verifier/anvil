@@ -12,6 +12,14 @@ impl StringMap {
     pub spec fn view(&self) -> Map<Seq<char>, Seq<char>>;
 
     #[verifier(external_body)]
+    pub fn new() -> (sm: Self)
+        ensures
+            sm@ == Map::<Seq<char>, Seq<char>>::empty(),
+    {
+        StringMap { inner: std::collections::BTreeMap::new() }
+    }
+
+    #[verifier(external_body)]
     pub fn insert(&mut self, key: String, value: String) -> (old_v: Option<String>)
         ensures
             self@ == old(self)@.insert(key@, value@),
@@ -34,6 +42,11 @@ impl StringMap {
             std::option::Option::Some(v) => Some(StrSlice::from_rust_str(v)),
             std::option::Option::None => None,
         }
+    }
+
+    #[verifier(external)]
+    pub fn get_inner_map(self) -> std::collections::BTreeMap<std::string::String, std::string::String> {
+        self.inner
     }
 }
 
