@@ -18,6 +18,7 @@ use anyhow::Result;
 use futures::StreamExt;
 use k8s_openapi::api::{apps::v1 as appsv1, core::v1::Service};
 use k8s_openapi::api::core::v1 as corev1;
+use k8s_openapi::api::rbac::v1 as rbacv1;
 use kube::{
     api::{Api, ListParams, PostParams},
     runtime::controller::{Action, Controller},
@@ -39,10 +40,20 @@ enum Error {
     CRGetFailed(#[source] kube::Error),
     #[error("Failed to create ConfigMap: {0}")]
     ConfigMapCreationFailed(#[source] kube::Error),
+
     #[error("Failed to create Service: {0}")]
     ServiceCreationFailed(#[source] kube::Error),
+    #[error("Failed to create ServiceAccount: {0}")]
+    ServiceAccountCreationFailed(#[source] kube::Error),
+
+    #[error("Failed to create Role: {0}")]
+    RoleCreationFailed(#[source] kube::Error),
+    #[error("Failed to create RoleBinding: {0}")]
+    RoleBindingCreationFailed(#[source] kube::Error),
+
     #[error("Failed to create StatefulSet: {0}")]
     StatefulSetCreationFailed(#[source] kube::Error),
+
     #[error("MissingObjectKey: {0}")]
     MissingObjectKey(&'static str),
     #[error("ReplaceImageFail: {0}")]
@@ -77,9 +88,12 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<RabbitmqClusterReco
     }
 
     let svc_api = Api::<corev1::Service>::namespaced(client.clone(), &namespace);
+    let svc_acc_api = Api::<corev1::ServiceAccount>::namespaced(client.clone(), &namespace);
     let cm_api = Api::<corev1::ConfigMap>::namespaced(client.clone(), &namespace);
     let sts_api = Api::<appsv1::StatefulSet>::namespaced(client.clone(), &namespace);
     let secret_api = Api::<corev1::Secret>::namespaced(client.clone(), &namespace);
+    let role_api = Api::<rbacv1::Role>::namespaced(client.clone(), &namespace);
+    let role_binding_api = Api::<rbacv1::RoleBinding>::namespaced(client.clone(), &namespace);
 
     info!("Start reconciling");
 
@@ -136,6 +150,76 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<RabbitmqClusterReco
         },
         _ => {}
     }
+
+    // Create sever config
+    let server_config = server_configmap::server_configmap_build(&rabbitmq);
+    info!(
+        "Create server config: {}",
+        server_config.metadata.name.as_ref().unwrap()
+    );
+    match cm_api
+        .create(&PostParams::default(), &server_config)
+        .await
+    {
+        Err(e) => match e {
+            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
+                if reason.clone() == "AlreadyExists" => {}
+            _ => return Err(Error::ConfigMapCreationFailed(e)),
+        },
+        _ => {}
+    }
+
+    // Create service account
+    let service_account = service_account::service_account_build(&rabbitmq);
+    info!(
+        "Create service account: {}",
+        service_account.metadata.name.as_ref().unwrap()
+    );
+    match svc_acc_api
+        .create(&PostParams::default(), &service_account)
+        .await
+    {
+        Err(e) => match e {
+            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
+                if reason.clone() == "AlreadyExists" => {}
+            _ => return Err(Error::ServiceAccountCreationFailed(e)),
+        },
+        _ => {}
+    }
+
+    // Create role
+    let role = role::role_build(&rabbitmq);
+    info!("Create role: {}", role.metadata.name.as_ref().unwrap());
+    match role_api.create(&PostParams::default(), &role).await {
+        Err(e) => match e {
+            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
+                if reason.clone() == "AlreadyExists" => {}
+            _ => return Err(Error::RoleCreationFailed(e)),
+        },
+        _ => {}
+    }
+
+    // Create role binding
+    let role_binding = role_binding::role_binding_build(&rabbitmq);
+    info!(
+        "Create role binding: {}",
+        role_binding.metadata.name.as_ref().unwrap()
+    );
+    match role_binding_api
+        .create(&PostParams::default(), &role_binding)
+        .await
+    {
+        Err(e) => match e {
+            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
+                if reason.clone() == "AlreadyExists" => {}
+            _ => return Err(Error::RoleBindingCreationFailed(e)),
+        },
+        _ => {}
+    }
+
+
+    // Create statefulset
+
 
 
     Ok(Action::requeue(Duration::from_secs(300)))
