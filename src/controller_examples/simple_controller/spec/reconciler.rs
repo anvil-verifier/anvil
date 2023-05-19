@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::controller_examples::simple_controller::spec::custom_resource::*;
-use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, resource::*};
+use crate::kubernetes_api_objects::{
+    api_method::*, common::*, config_map::*, dynamic::DynamicObjectView, resource::*,
+};
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_const::*;
 use crate::reconciler::spec::*;
@@ -11,6 +13,7 @@ use crate::temporal_logic::defs::*;
 use builtin::*;
 use builtin_macros::*;
 use vstd::prelude::*;
+use vstd::string::new_strlit;
 
 verus! {
 
@@ -58,8 +61,15 @@ pub open spec fn reconcile_core(cr_key: ObjectRef, resp_o: Option<APIResponse>, 
             let state_prime = SimpleReconcileState {
                 reconcile_pc: after_create_cm_pc(),
             };
-            let req_o = Option::Some(create_cm_req(cr_key));
-            (state_prime, req_o)
+            let cr = CustomResourceView::from_dynamic_object(resp_o.get_Some_0().get_GetResponse_0().res.get_Ok_0());
+            if (cr.metadata.name.is_Some() && cr.metadata.namespace.is_Some()) {
+                (state_prime, Option::Some(create_cm_req(cr)))
+            } else {
+                let state_prime = SimpleReconcileState {
+                    reconcile_pc: error_pc(),
+                };
+                (state_prime, Option::None)
+            }
         } else {
             let state_prime = SimpleReconcileState {
                 reconcile_pc: error_pc(),
@@ -89,20 +99,16 @@ pub open spec fn after_create_cm_pc() -> nat { 2 }
 
 pub open spec fn error_pc() -> nat { 3 }
 
-pub open spec fn subresource_configmap(cr_key: ObjectRef) -> ConfigMapView
-    recommends
-        cr_key.kind.is_CustomResourceKind(),
+pub open spec fn subresource_configmap(cr: CustomResourceView) -> ConfigMapView
 {
-    let config_map = ConfigMapView::default().set_name(cr_key.name + cm_suffix()).set_namespace(cr_key.namespace);
+    let config_map = ConfigMapView::default().set_name(cr.metadata.name.get_Some_0() + cm_suffix()).set_namespace(cr.metadata.namespace.get_Some_0()).set_data(Map::empty().insert(new_strlit("content")@, cr.spec.content));
     config_map
 }
 
-pub open spec fn create_cm_req(cr_key: ObjectRef) -> APIRequest
-    recommends
-        cr_key.kind.is_CustomResourceKind(),
+pub open spec fn create_cm_req(cr: CustomResourceView) -> APIRequest
 {
     APIRequest::CreateRequest(CreateRequest{
-        obj: subresource_configmap(cr_key).to_dynamic_object(),
+        obj: subresource_configmap(cr).to_dynamic_object(),
     })
 }
 

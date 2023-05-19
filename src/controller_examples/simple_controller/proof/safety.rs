@@ -139,7 +139,7 @@ pub open spec fn reconcile_create_cm_done_implies_pending_create_cm_req_in_fligh
         ==> exists |req_msg| {
                 #[trigger] is_controller_create_cm_request_msg(req_msg, cr)
                 && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
-                && (s.message_in_flight(req_msg) || s.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()))
+                && (s.message_in_flight(req_msg) || s.resource_key_exists(reconciler::subresource_configmap(cr).object_ref()))
             }
     }
 }
@@ -179,20 +179,20 @@ proof fn next_preserves_reconcile_create_cm_done_implies_pending_create_cm_req_i
             let req_msg = choose |req_msg| #[trigger] is_controller_create_cm_request_msg(req_msg, cr) && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg);
             assert(is_controller_create_cm_request_msg(req_msg, cr) && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg));
             if s.message_in_flight(req_msg) {
-                if s.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()) {
-                    assert(s_prime.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()));
+                if s.resource_key_exists(reconciler::subresource_configmap(cr).object_ref()) {
+                    assert(s_prime.resource_key_exists(reconciler::subresource_configmap(cr).object_ref()));
                 } else {
                     if s_prime.message_in_flight(req_msg) {
                         assert(s_prime.message_in_flight(req_msg));
                     } else {
-                        assert(s_prime.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()));
+                        assert(s_prime.resource_key_exists(reconciler::subresource_configmap(cr).object_ref()));
                     }
                 }
             } else {
-                assert(s_prime.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()));
+                assert(s_prime.resource_key_exists(reconciler::subresource_configmap(cr).object_ref()));
             }
         } else {
-            let req_msg = controller_req_msg(reconciler::create_cm_req(cr.object_ref()), s.chan_manager.cur_chan_id);
+            let req_msg = controller_req_msg(reconciler::create_cm_req(cr), s.chan_manager.cur_chan_id);
             assert(is_controller_create_cm_request_msg(req_msg, cr)
                 && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
                 && s_prime.message_in_flight(req_msg)
@@ -207,7 +207,7 @@ pub open spec fn delete_cm_req_msg_not_in_flight(cr: CustomResourceView) -> Stat
             &&& #[trigger] s.message_in_flight(m)
             &&& m.dst == HostId::KubernetesAPI
             &&& m.content.is_delete_request()
-            &&& m.content.get_delete_request().key == reconciler::subresource_configmap(cr.object_ref()).object_ref()
+            &&& m.content.get_delete_request().key == reconciler::subresource_configmap(cr).object_ref()
         }
     }
 }
@@ -221,7 +221,7 @@ pub proof fn lemma_delete_cm_req_msg_never_in_flight(cr: CustomResourceView)
         assert(!exists |m: Message| s.message_in_flight(m)
             && m.dst == HostId::KubernetesAPI
             && #[trigger] m.content.is_delete_request()
-            && m.content.get_delete_request().key == reconciler::subresource_configmap(cr.object_ref()).object_ref()
+            && m.content.get_delete_request().key == reconciler::subresource_configmap(cr).object_ref()
         );
     };
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), next(simple_reconciler()), invariant);

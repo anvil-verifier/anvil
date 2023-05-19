@@ -156,7 +156,7 @@ pub open spec fn reconciler_reconcile_error(cr: CustomResourceView) -> StatePred
 }
 
 pub open spec fn cm_exists(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
-    |s: State<SimpleReconcileState>| s.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref())
+    |s: State<SimpleReconcileState>| s.resource_key_exists(reconciler::subresource_configmap(cr).object_ref())
 }
 
 pub open spec fn is_controller_get_cr_request_msg(msg: Message, cr: CustomResourceView) -> bool {
@@ -170,7 +170,7 @@ pub open spec fn is_controller_create_cm_request_msg(msg: Message, cr: CustomRes
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI
     &&& msg.content.is_create_request()
-    &&& msg.content.get_create_request().obj == reconciler::subresource_configmap(cr.object_ref()).to_dynamic_object()
+    &&& msg.content.get_create_request().obj == reconciler::subresource_configmap(cr).to_dynamic_object()
 }
 
 }

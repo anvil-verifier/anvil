@@ -7,7 +7,9 @@ use crate::controller_examples::simple_controller::spec::reconciler::reconcile_d
 use crate::controller_examples::simple_controller::spec::reconciler::reconcile_error as reconcile_error_spec;
 use crate::controller_examples::simple_controller::spec::reconciler::reconcile_init_state as reconcile_init_state_spec;
 use crate::controller_examples::simple_controller::spec::reconciler::SimpleReconcileState as SimpleReconcileStateView;
-use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*};
+use crate::kubernetes_api_objects::{
+    api_method::*, common::*, config_map::*, resource::ResourceView,
+};
 use crate::pervasive_ext::string_map::StringMap;
 use crate::reconciler::exec::*;
 use builtin::*;
@@ -118,38 +120,43 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
                     reconcile_pc: after_create_cm_pc(),
                 };
                 let mut config_map = ConfigMap::default();
-                config_map.set_name(cr_key.name.clone().concat(new_strlit("-cm")));
-                config_map.set_namespace(cr_key.namespace.clone());
-                let mut cr_map = StringMap::new();
-                cr_map.insert(String::from_str(new_strlit("content")), CustomResource::from_dynamic_object(resp.into_get_response().res.unwrap()).spec().content());
-                config_map.set_data(cr_map);
-                let req_o = Option::Some(KubeAPIRequest::CreateRequest(
-                    KubeCreateRequest {
-                        api_resource: ConfigMap::api_resource(),
-                        obj: config_map.to_dynamic_object(),
-                    }
-                ));
-                (state_prime, req_o)
+                let cr = CustomResource::from_dynamic_object_ref(resp.as_get_response_ref().res.as_ref().unwrap());
+                if (cr.metadata().name().is_some() && cr.metadata().namespace().is_some()) {
+                    config_map.set_name(cr.metadata().name().unwrap().clone().concat(new_strlit("-cm")));
+                    config_map.set_namespace(cr.metadata().namespace().unwrap().clone());
+                    let mut cr_map = StringMap::new();
+                    cr_map.insert(String::from_str(new_strlit("content")), cr.spec().content());
+                    config_map.set_data(cr_map);
+                    let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                        KubeCreateRequest {
+                            api_resource: ConfigMap::api_resource(),
+                            obj: config_map.to_dynamic_object(),
+                        }
+                    ));
+                    (state_prime, req_o)
+                } else {
+                    let state_prime = SimpleReconcileState {
+                        reconcile_pc: error_pc(),
+                    };
+                    (state_prime, Option::None)
+                }
             } else {
                 let state_prime = SimpleReconcileState {
                     reconcile_pc: error_pc(),
                 };
-                let req_o = Option::None;
-                (state_prime, req_o)
+                (state_prime, Option::None)
             }
         } else {
             let state_prime = SimpleReconcileState {
                 reconcile_pc: error_pc(),
             };
-            let req_o = Option::None;
-            (state_prime, req_o)
+            (state_prime, Option::None)
         }
     } else {
         let state_prime = SimpleReconcileState {
             reconcile_pc: pc,
         };
-        let req_o = Option::None;
-        (state_prime, req_o)
+        (state_prime, Option::None)
     }
 }
 

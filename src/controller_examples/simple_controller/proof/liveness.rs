@@ -39,7 +39,7 @@ spec fn cr_exists(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState
 
 spec fn cr_matched(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState>> {
     lift_state(|s: State<SimpleReconcileState>|
-        s.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()))
+        s.resource_key_exists(reconciler::subresource_configmap(cr).object_ref()))
 }
 
 /// Proof strategy:
@@ -424,12 +424,12 @@ proof fn lemma_after_create_cm_pc_leads_to_cm_exists(cr: CustomResourceView)
                 (#[trigger] is_controller_create_cm_request_msg(m, cr)
                 && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(m)
                 && s.message_in_flight(m))
-                || s.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref())
+                || s.resource_key_exists(reconciler::subresource_configmap(cr).object_ref())
             };
-            if (s.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref())) {
+            if (s.resource_key_exists(reconciler::subresource_configmap(cr).object_ref())) {
                 assert(lift_state(cm_exists(cr)).satisfied_by(ex.suffix(i).suffix(0)));
             } else {
-                let cm = reconciler::subresource_configmap(cr.object_ref()).to_dynamic_object();
+                let cm = reconciler::subresource_configmap(cr).to_dynamic_object();
                 let pre = |s: State<SimpleReconcileState>| {
                     &&& s.message_in_flight(req_msg)
                     &&& req_msg.dst == HostId::KubernetesAPI

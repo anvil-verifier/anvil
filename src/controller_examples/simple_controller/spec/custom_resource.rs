@@ -12,6 +12,8 @@ use vstd::string::*;
 use deps_hack::SimpleCR;
 use deps_hack::SimpleCRSpec;
 
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
+
 verus! {
 
 // TODO: CustomResource should be defined by the controller developer
@@ -42,7 +44,7 @@ impl CustomResource {
         ensures
             metadata@ == self@.metadata,
     {
-        todo!()
+        ObjectMeta::from_kube_object_meta(self.inner.metadata)
     }
 
     #[verifier(external_body)]
@@ -72,6 +74,14 @@ impl CustomResource {
             cr@ == CustomResourceView::from_dynamic_object(obj@),
     {
         CustomResource {inner: obj.into_kube_obj().try_parse::<SimpleCR>().unwrap()}
+    }
+
+    #[verifier(external_body)]
+    pub fn from_dynamic_object_ref(obj: &DynamicObject) -> (cr: &CustomResource)
+        ensures
+            cr@ == CustomResourceView::from_dynamic_object(obj@),
+    {
+        &CustomResource {inner: obj.into_kube_obj().try_parse::<SimpleCR>().unwrap()}
     }
 }
 
