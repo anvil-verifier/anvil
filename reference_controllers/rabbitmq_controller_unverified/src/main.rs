@@ -14,6 +14,8 @@ pub mod role;
 pub mod role_binding;
 pub mod statefulset;
 
+use http::Uri;
+use tower::ServiceBuilder;
 use anyhow::Result;
 use futures::StreamExt;
 use k8s_openapi::api::{apps::v1 as appsv1, core::v1::Service};
@@ -22,11 +24,12 @@ use k8s_openapi::api::rbac::v1 as rbacv1;
 use kube::{
     api::{Api, ListParams, PostParams},
     runtime::controller::{Action, Controller},
-    Client, CustomResourceExt,
+    Client, CustomResourceExt,client::ConfigExt,  Config
 };
 use kube_client::{self, client};
 use kube_core::{self, ResourceExt};
 use core::time;
+use std::str::FromStr;
 use std::{env, sync::Arc};
 use thiserror::Error;
 use tokio::time::Duration;
@@ -75,20 +78,17 @@ impl RabbitmqClusterReconciler {
 async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<RabbitmqClusterReconciler>) -> Result<Action, Error> {
     let client = &_ctx.client;
     let namespace = rabbitmq.namespace().unwrap();
-    let name = rabbitmq
-        .metadata
-        .name
-        .as_ref()
-        .ok_or_else(|| Error::MissingObjectKey(".metadata.name"))?;
     
 
     let (duration, err) = reconcile_operator_defaults(&rabbitmq, client.clone()).await;
     if duration.as_secs() != 0 || err.is_some() {
         return Ok(Action::requeue(duration));
     }
-
+    info!("Reconcile operator defaults done, get APIs");
     let svc_api = Api::<corev1::Service>::namespaced(client.clone(), &namespace);
+    info!("Get service API");
     let svc_acc_api = Api::<corev1::ServiceAccount>::namespaced(client.clone(), &namespace);
+    info!("Get service account API");
     let cm_api = Api::<corev1::ConfigMap>::namespaced(client.clone(), &namespace);
     let sts_api = Api::<appsv1::StatefulSet>::namespaced(client.clone(), &namespace);
     let secret_api = Api::<corev1::Secret>::namespaced(client.clone(), &namespace);
@@ -150,6 +150,26 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<RabbitmqClusterReco
         },
         _ => {}
     }
+
+    // Create default user secret
+    let default_user_secret = default_user_secret::default_user_secret_build(&rabbitmq);
+    info!(
+        "Create user secret: {}",
+        default_user_secret.metadata.name.as_ref().unwrap()
+    );
+    match secret_api
+        .create(&PostParams::default(), &default_user_secret)
+        .await
+    {
+        Err(e) => match e {
+            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
+                if reason.clone() == "AlreadyExists" => {}
+            _ => return Err(Error::ServiceCreationFailed(e)),
+        },
+        _ => {}
+    }
+
+
 
     // Create sever config
     let server_config = server_configmap::server_configmap_build(&rabbitmq);
@@ -219,7 +239,22 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<RabbitmqClusterReco
 
 
     // Create statefulset
-
+    let statefulset = statefulset::statefulset_build(&rabbitmq);
+    info!(
+        "Create statefulset: {}",
+        statefulset.metadata.name.as_ref().unwrap()
+    );
+    match sts_api
+        .create(&PostParams::default(), &statefulset)
+        .await
+    {
+        Err(e) => match e {
+            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
+                if reason.clone() == "AlreadyExists" => {}
+            _ => return Err(Error::StatefulSetCreationFailed(e)),
+        },
+        _ => {}
+    }
 
 
     Ok(Action::requeue(Duration::from_secs(300)))
@@ -267,9 +302,10 @@ fn error_policy(obj: Arc<RabbitmqCluster>, _error: &Error, _ctx: Arc<RabbitmqClu
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-
     let args: Vec<String> = env::args().collect();
     let cmd = args[1].clone();
+    
+
     if cmd == String::from("export") {
         info!("exporting custom resource definition");
         println!("{}", serde_yaml::to_string(&RabbitmqCluster::crd())?);
