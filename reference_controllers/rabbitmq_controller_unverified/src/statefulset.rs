@@ -109,13 +109,14 @@ fn update_persistence_storage_capacity(
 fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
     let readiness_probe_port = "amqp".to_string(); // default one
     let volumes = vec![
-            // corev1::Volume{          plugins-conf didn't implement yet
-            // name: "plugins-conf".to_string(),
-            // persistent_volume_claim: Some(corev1::PersistentVolumeClaimVolumeSource{
-            //     claim_name: Some("persistence".to_string()),
-            //     ..corev1::PersistentVolumeClaimVolumeSource::default()
-            // }),
-            // ..corev1::Volume::default()}
+            corev1::Volume{          
+                name: "plugins-conf".to_string(),
+                config_map: Some(corev1::ConfigMapVolumeSource{
+                    name: Some(rabbitmq.metadata.name.clone().unwrap() + "-plugins-conf"),
+                    ..corev1::ConfigMapVolumeSource::default()
+                }),
+                ..corev1::Volume::default()
+            },
             corev1::Volume{
                 name:"rabbitmq-confd".to_string(),
                 projected: Some(corev1::ProjectedVolumeSource{
@@ -171,7 +172,11 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
                 }),
                 ..corev1::Volume::default()
             },
-            // plugins  not implement yet
+            corev1::Volume{
+                name:"rabbitmq-plugins".to_string(),
+                empty_dir: Some(corev1::EmptyDirVolumeSource{ ..corev1::EmptyDirVolumeSource::default() }),
+                ..corev1::Volume::default()
+            },
             corev1::Volume{
                 name: "pod-info".to_string(),
                 downward_api: Some(corev1::DownwardAPIVolumeSource{
@@ -202,7 +207,11 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
             mount_path: "/var/lib/rabbitmq/mnesia/".to_string(),
             ..corev1::VolumeMount::default()
         },
-        // rabbitmq-plugins not implement yet
+        corev1::VolumeMount{
+            name: "rabbitmq-plugins".to_string(),
+            mount_path: "/operator".to_string(),
+            ..corev1::VolumeMount::default()
+        },
         corev1::VolumeMount{
             name: "rabbitmq-confd".to_string(),
             mount_path: "/etc/rabbitmq/conf.d/10-operatorDefaults.conf".to_string(),
@@ -271,7 +280,7 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
                     ports: Some(update_container_ports(rabbitmq)),
                     volume_mounts: Some(rbmq_container_volume_mounts),
                     readiness_probe: Some(corev1::Probe{
-                        initial_delay_seconds: Some(10),
+                        initial_delay_seconds: Some(50),
                         timeout_seconds: Some(5),
                         period_seconds: Some(10),
                         failure_threshold: Some(3),
@@ -318,16 +327,8 @@ fn setup_container(rabbitmq: &RabbitmqCluster) -> corev1::Container{
     let mut command = vec![
         "sh".to_string(),
         "-c".to_string(),
-        format!(
-            "cp /tmp/erlang-cookie-secret/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie &&
-            chmod 600 /var/lib/rabbitmq/.erlang.cookie ;
-            cp /tmp/rabbitmq-plugins/enabled_plugins /operator/enabled_plugins ;
-            echo '[default]' > /var/lib/rabbitmq/.rabbitmqadmin.conf &&
-            sed -e 's/default_user/username/' -e 's/default_pass/password/' {} >> /var/lib/rabbitmq/.rabbitmqadmin.conf &&
-            chmod 600 /var/lib/rabbitmq/.rabbitmqadmin.conf ;
-            sleep 30",
-            "/tmp/default_user.conf" // default value
-        )
+        "cp /tmp/erlang-cookie-secret/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie && chmod 600 /var/lib/rabbitmq/.erlang.cookie ; cp /tmp/rabbitmq-plugins/enabled_plugins /operator/enabled_plugins ; echo '[default]' > /var/lib/rabbitmq/.rabbitmqadmin.conf && sed -e 's/default_user/username/' -e 's/default_pass/password/' /tmp/default_user.conf >> /var/lib/rabbitmq/.rabbitmqadmin.conf && chmod 600 /var/lib/rabbitmq/.rabbitmqadmin.conf ; sleep 30".to_string() // default value
+
     ];
 
     let mut image_used = Some(String::from("rabbitmq:3.11.10-management"));
@@ -358,11 +359,11 @@ fn setup_container(rabbitmq: &RabbitmqCluster) -> corev1::Container{
             ..corev1::ResourceRequirements::default()
         }),
         volume_mounts: Some(vec![
-            // corev1::VolumeMount {
-            //     name: "plugins-conf".to_string(),
-            //     mount_path: "/tmp/rabbitmq-plugins/".to_string(),
-            //     ..Default::default()
-            // },
+            corev1::VolumeMount {
+                name: "plugins-conf".to_string(),
+                mount_path: "/tmp/rabbitmq-plugins/".to_string(),
+                ..Default::default()
+            },
             corev1::VolumeMount {
                 name: "rabbitmq-erlang-cookie".to_string(),
                 mount_path: "/var/lib/rabbitmq/".to_string(),
@@ -373,14 +374,20 @@ fn setup_container(rabbitmq: &RabbitmqCluster) -> corev1::Container{
                 mount_path: "/tmp/erlang-cookie-secret/".to_string(),
                 ..Default::default()
             },
-            // corev1::VolumeMount {
-            //     name: "rabbitmq-plugins".to_string(),
-            //     mount_path: "/operator".to_string(),
-            //     ..Default::default()
-            // },
+            corev1::VolumeMount {
+                name: "rabbitmq-plugins".to_string(),
+                mount_path: "/operator".to_string(),
+                ..Default::default()
+            },
             corev1::VolumeMount {
                 name: "persistence".to_string(),
                 mount_path: "/var/lib/rabbitmq/mnesia/".to_string(),
+                ..Default::default()
+            },
+            corev1::VolumeMount {
+                name: "rabbitmq-confd".to_string(),
+                mount_path: "/tmp/default_user.conf".to_string(),
+                sub_path: Some("default_user.conf".to_string()),
                 ..Default::default()
             },
         ]),
@@ -423,11 +430,11 @@ fn env_vars_k8s_objects(rabbitmq: &RabbitmqCluster) -> Vec<corev1::EnvVar>{
             value: Some(rabbitmq.metadata.name.clone().unwrap() + "-nodes"),
             ..Default::default()
         },              
-        // corev1::EnvVar {
-        //     name: "RABBITMQ_ENABLED_PLUGINS_FILE".to_string(),
-        //     value: "/operator/enabled_plugins".to_string(),
-        //     ..Default::default()
-        // },
+        corev1::EnvVar {
+            name: "RABBITMQ_ENABLED_PLUGINS_FILE".to_string(),
+            value: Some("/operator/enabled_plugins".to_string()),
+            ..Default::default()
+        },
         corev1::EnvVar {
             name: "RABBITMQ_USE_LONGNAME".to_string(),
             value: Some("true".to_string()),

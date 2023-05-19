@@ -52,7 +52,17 @@ pub fn service_build(rabbitmq: &RabbitmqCluster) -> corev1::Service {
                     app_protocol: Some("http".to_string()),
                     node_port: Some(0),
                     ..Default::default()
-                }, // Other ports need additional plugin enabled
+                }, 
+                corev1::ServicePort {
+                    protocol: Some("TCP".to_string()),
+                    port: 15692,
+                    target_port: Some(IntOrString::Int(15692)),
+                    name: Some("prometheus".to_string()),
+                    app_protocol: Some("prometheus.io/metrics".to_string()),
+                    node_port: Some(0),
+                    ..Default::default()
+                }, 
+                // Other ports need additional plugin enabled
             ]),
             publish_not_ready_addresses: Some(true),
             ..corev1::ServiceSpec::default()

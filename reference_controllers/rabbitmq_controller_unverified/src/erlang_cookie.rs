@@ -10,7 +10,7 @@ use kube::{
 };
 use kube_client::{self, client};
 use kube_core::{self, Resource};
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, vec};
 use rand::Rng;
 
 use crate::rabbitmqcluster_types::RabbitmqCluster;
@@ -18,7 +18,7 @@ use crate::rabbitmqcluster_types::RabbitmqCluster;
 
 
 pub fn erlang_build(rabbitmq: &RabbitmqCluster) -> corev1::Secret {
-    let cookie = generate_cookie();
+    let cookie = "aaaaaaaaaaaaaaaaaaaaaaa".to_string().into_bytes();
     let name_cookie = rabbitmq.metadata.name.clone().unwrap() + "-erlang-cookie";
     corev1::Secret {
         metadata: metav1::ObjectMeta {

@@ -7,7 +7,7 @@ pub mod headless_service;
 pub mod service;
 pub mod erlang_cookie;
 pub mod default_user_secret;
-pub mod rabbitmq_plugin_configmap;
+pub mod rabbitmq_plugins;
 pub mod server_configmap;
 pub mod service_account;
 pub mod role;
@@ -170,6 +170,23 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<RabbitmqClusterReco
     }
 
 
+    // Create plugins config
+    let plugins_config = rabbitmq_plugins::plugins_configmap_build(&rabbitmq);
+    info!(
+        "Create plugins config: {}",
+        plugins_config.metadata.name.as_ref().unwrap()
+    );
+    match cm_api
+        .create(&PostParams::default(), &plugins_config)
+        .await
+    {
+        Err(e) => match e {
+            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
+                if reason.clone() == "AlreadyExists" => {}
+            _ => return Err(Error::ConfigMapCreationFailed(e)),
+        },
+        _ => {}
+    }
 
     // Create sever config
     let server_config = server_configmap::server_configmap_build(&rabbitmq);

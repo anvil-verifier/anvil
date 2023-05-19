@@ -15,7 +15,7 @@ use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 
 
 pub fn headless_build(rabbitmq: &RabbitmqCluster) -> corev1::Service {
-    let name_node = rabbitmq.metadata.name.clone().unwrap() + "-node";
+    let name_node = rabbitmq.metadata.name.clone().unwrap() + "-nodes";
     corev1::Service {
         metadata: metav1::ObjectMeta {
             name: Some(name_node),
