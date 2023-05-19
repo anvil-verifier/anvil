@@ -10,12 +10,10 @@ use kube::{
 };
 use kube_client::{self, client};
 use kube_core::{self, Resource};
-use std::{collections::BTreeMap, vec};
 use rand::Rng;
+use std::{collections::BTreeMap, vec};
 
 use crate::rabbitmqcluster_types::RabbitmqCluster;
-
-
 
 pub fn erlang_build(rabbitmq: &RabbitmqCluster) -> corev1::Secret {
     let cookie = "aaaaaaaaaaaaaaaaaaaaaaa".to_string().into_bytes();
@@ -31,8 +29,7 @@ pub fn erlang_build(rabbitmq: &RabbitmqCluster) -> corev1::Secret {
             )])),
             ..Default::default()
         },
-        data: 
-        Some(BTreeMap::from([(
+        data: Some(BTreeMap::from([(
             ".erlang.cookie".to_string(),
             ByteString(cookie),
         )])),
@@ -40,8 +37,6 @@ pub fn erlang_build(rabbitmq: &RabbitmqCluster) -> corev1::Secret {
         ..Default::default()
     }
 }
-
-
 
 fn _generate_cookie() -> Vec<u8> {
     let mut rng = rand::thread_rng();

@@ -1,8 +1,10 @@
+use crate::rabbitmqcluster_types::RabbitmqCluster;
 use k8s_openapi::api::apps::v1 as appsv1;
 use k8s_openapi::api::core::v1 as corev1;
 use k8s_openapi::api::rbac::v1 as rbacv1;
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1 as metav1;
+use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use kube::{
     api::{Api, ListParams, PostParams},
     runtime::controller::{Action, Controller},
@@ -11,9 +13,6 @@ use kube::{
 use kube_client::{self, client};
 use kube_core::{self, Resource};
 use std::collections::BTreeMap;
-use crate::rabbitmqcluster_types::RabbitmqCluster;
-use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
-
 
 pub fn role_build(rabbitmq: &RabbitmqCluster) -> rbacv1::Role {
     let name_new = rabbitmq.metadata.name.clone().unwrap() + "-peer-discorvery";
@@ -28,7 +27,7 @@ pub fn role_build(rabbitmq: &RabbitmqCluster) -> rbacv1::Role {
             owner_references: Some(vec![rabbitmq.controller_owner_ref(&()).unwrap()]),
             ..metav1::ObjectMeta::default()
         },
-        rules:Some( vec![
+        rules: Some(vec![
             rbacv1::PolicyRule {
                 api_groups: Some(vec!["".to_string()]),
                 resources: Some(vec!["endpoints".to_string()]),
@@ -40,7 +39,8 @@ pub fn role_build(rabbitmq: &RabbitmqCluster) -> rbacv1::Role {
                 resources: Some(vec!["events".to_string()]),
                 verbs: vec!["create".to_string()],
                 ..Default::default()
-            }] ),
+            },
+        ]),
         ..rbacv1::Role::default()
     }
 }

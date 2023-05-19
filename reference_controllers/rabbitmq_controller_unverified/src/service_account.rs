@@ -14,7 +14,6 @@ use crate::rabbitmqcluster_types::RabbitmqCluster;
 use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use std::collections::BTreeMap;
 
-
 pub fn service_account_build(rabbitmq: &RabbitmqCluster) -> corev1::ServiceAccount {
     let name_new = rabbitmq.metadata.name.clone().unwrap() + "-server";
     corev1::ServiceAccount {

@@ -1,34 +1,33 @@
 #![allow(clippy::unnecessary_lazy_evaluations)]
 #![allow(unused_imports)]
 
-pub mod rabbitmqcluster_types;
-pub mod rabbitmqcluster_status;
-pub mod headless_service;
-pub mod service;
-pub mod erlang_cookie;
 pub mod default_user_secret;
+pub mod erlang_cookie;
+pub mod headless_service;
 pub mod rabbitmq_plugins;
-pub mod server_configmap;
-pub mod service_account;
+pub mod rabbitmqcluster_status;
+pub mod rabbitmqcluster_types;
 pub mod role;
 pub mod role_binding;
+pub mod server_configmap;
+pub mod service;
+pub mod service_account;
 pub mod statefulset;
 
-
-
 use anyhow::Result;
+use core::time;
 use futures::StreamExt;
-use k8s_openapi::api::{apps::v1 as appsv1, core::v1::Service};
 use k8s_openapi::api::core::v1 as corev1;
 use k8s_openapi::api::rbac::v1 as rbacv1;
+use k8s_openapi::api::{apps::v1 as appsv1, core::v1::Service};
 use kube::{
     api::{Api, ListParams, PostParams},
+    client::ConfigExt,
     runtime::controller::{Action, Controller},
-    Client, CustomResourceExt,client::ConfigExt,  Config
+    Client, Config, CustomResourceExt,
 };
 use kube_client::{self, client};
 use kube_core::{self, ResourceExt};
-use core::time;
 use std::str::FromStr;
 use std::{env, sync::Arc};
 use thiserror::Error;
@@ -63,20 +62,18 @@ enum Error {
     ReplaceImageFail(kube_client::Error),
 }
 
-
 struct RabbitmqClusterReconciler {
     client: Client,
 }
 
-impl RabbitmqClusterReconciler {
+impl RabbitmqClusterReconciler {}
 
-}
-
-
-async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<RabbitmqClusterReconciler>) -> Result<Action, Error> {
+async fn reconcile(
+    rabbitmq: Arc<RabbitmqCluster>,
+    _ctx: Arc<RabbitmqClusterReconciler>,
+) -> Result<Action, Error> {
     let client = &_ctx.client;
     let namespace = rabbitmq.namespace().unwrap();
-    
 
     let (duration, err) = reconcile_operator_defaults(&rabbitmq, client.clone()).await;
     if duration.as_secs() != 0 || err.is_some() {
@@ -119,10 +116,7 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<RabbitmqClusterReco
         "Create service: {}",
         service.metadata.name.as_ref().unwrap()
     );
-    match svc_api
-        .create(&PostParams::default(), &service)
-        .await
-    {
+    match svc_api.create(&PostParams::default(), &service).await {
         Err(e) => match e {
             kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
                 if reason.clone() == "AlreadyExists" => {}
@@ -167,17 +161,13 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<RabbitmqClusterReco
         _ => {}
     }
 
-
     // Create plugins config
     let plugins_config = rabbitmq_plugins::plugins_configmap_build(&rabbitmq);
     info!(
         "Create plugins config: {}",
         plugins_config.metadata.name.as_ref().unwrap()
     );
-    match cm_api
-        .create(&PostParams::default(), &plugins_config)
-        .await
-    {
+    match cm_api.create(&PostParams::default(), &plugins_config).await {
         Err(e) => match e {
             kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
                 if reason.clone() == "AlreadyExists" => {}
@@ -192,10 +182,7 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<RabbitmqClusterReco
         "Create server config: {}",
         server_config.metadata.name.as_ref().unwrap()
     );
-    match cm_api
-        .create(&PostParams::default(), &server_config)
-        .await
-    {
+    match cm_api.create(&PostParams::default(), &server_config).await {
         Err(e) => match e {
             kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
                 if reason.clone() == "AlreadyExists" => {}
@@ -252,17 +239,13 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<RabbitmqClusterReco
         _ => {}
     }
 
-
     // Create statefulset
     let statefulset = statefulset::statefulset_build(&rabbitmq);
     info!(
         "Create statefulset: {}",
         statefulset.metadata.name.as_ref().unwrap()
     );
-    match sts_api
-        .create(&PostParams::default(), &statefulset)
-        .await
-    {
+    match sts_api.create(&PostParams::default(), &statefulset).await {
         Err(e) => match e {
             kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
                 if reason.clone() == "AlreadyExists" => {}
@@ -271,23 +254,27 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<RabbitmqClusterReco
         _ => {}
     }
 
-
     Ok(Action::requeue(Duration::from_secs(300)))
 }
 
-
-
-async fn reconcile_operator_defaults(rabbitmq: &RabbitmqCluster, client: Client) ->  (Duration, Option<Error>){
-    let rabbitmq_api: Api<RabbitmqCluster> = Api::namespaced(client, &rabbitmq.metadata.namespace.as_ref().unwrap());
+async fn reconcile_operator_defaults(
+    rabbitmq: &RabbitmqCluster,
+    client: Client,
+) -> (Duration, Option<Error>) {
+    let rabbitmq_api: Api<RabbitmqCluster> =
+        Api::namespaced(client, &rabbitmq.metadata.namespace.as_ref().unwrap());
     let mut rabbitmq_replace = rabbitmq.clone();
-    if rabbitmq.spec.image.is_none() || rabbitmq.spec.image.as_ref().unwrap() == ""{
+    if rabbitmq.spec.image.is_none() || rabbitmq.spec.image.as_ref().unwrap() == "" {
         rabbitmq_replace.spec.image = Some(String::from("rabbitmq:3.11.10-management"));
         match rabbitmq_api
-              .replace(&rabbitmq.metadata.name.as_ref().unwrap(), &PostParams::default(), &rabbitmq_replace).await
+            .replace(
+                &rabbitmq.metadata.name.as_ref().unwrap(),
+                &PostParams::default(),
+                &rabbitmq_replace,
+            )
+            .await
         {
-            Err(e) => {
-                return (Duration::from_secs(2),Some(Error::ReplaceImageFail(e)))
-            },
+            Err(e) => return (Duration::from_secs(2), Some(Error::ReplaceImageFail(e))),
             Ok(_) => {
                 info!("Updated default image");
             }
@@ -304,13 +291,14 @@ async fn reconcile_operator_defaults(rabbitmq: &RabbitmqCluster, client: Client)
     // }
 
     // User default updater image
-
 }
 
-
-
 /// object that caused the failure and the actual error
-fn error_policy(_obj: Arc<RabbitmqCluster>, _error: &Error, _ctx: Arc<RabbitmqClusterReconciler>) -> Action {
+fn error_policy(
+    _obj: Arc<RabbitmqCluster>,
+    _error: &Error,
+    _ctx: Arc<RabbitmqClusterReconciler>,
+) -> Action {
     Action::requeue(Duration::from_secs(60))
 }
 
@@ -319,7 +307,6 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
     let args: Vec<String> = env::args().collect();
     let cmd = args[1].clone();
-    
 
     if cmd == String::from("export") {
         info!("exporting custom resource definition");
@@ -332,7 +319,11 @@ async fn main() -> Result<()> {
 
         Controller::new(rabbitmq, ListParams::default())
             .shutdown_on_signal()
-            .run(reconcile, error_policy, Arc::new(RabbitmqClusterReconciler { client: client }))
+            .run(
+                reconcile,
+                error_policy,
+                Arc::new(RabbitmqClusterReconciler { client: client }),
+            )
             .for_each(|res| async move {
                 match res {
                     Ok(o) => info!("reconciled {:?}", o),

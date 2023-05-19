@@ -1,7 +1,9 @@
+use crate::rabbitmqcluster_types::RabbitmqCluster;
 use k8s_openapi::api::apps::v1 as appsv1;
 use k8s_openapi::api::core::v1 as corev1;
-use k8s_openapi::apimachinery::pkg::api::resource::Quantity as Quantity;
+use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1 as metav1;
+use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use kube::{
     api::{Api, ListParams, PostParams},
     runtime::controller::{Action, Controller},
@@ -10,11 +12,8 @@ use kube::{
 use kube_client::{self, client};
 use kube_core::{self, Resource};
 use std::collections::BTreeMap;
-use crate::rabbitmqcluster_types::RabbitmqCluster;
-use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 
-
-pub fn server_configmap_build(rabbitmq: &RabbitmqCluster) -> corev1::ConfigMap{
+pub fn server_configmap_build(rabbitmq: &RabbitmqCluster) -> corev1::ConfigMap {
     let name_new = rabbitmq.metadata.name.clone().unwrap() + "-server-conf";
     corev1::ConfigMap {
         metadata: metav1::ObjectMeta {
@@ -28,13 +27,18 @@ pub fn server_configmap_build(rabbitmq: &RabbitmqCluster) -> corev1::ConfigMap{
             ..metav1::ObjectMeta::default()
         },
         data: Some(BTreeMap::from([
-            ("operatorDefaults.conf".to_string(), default_rbmq_config(rabbitmq)),
-            ("userDefineConfiguration.conf".to_string(),default_user_config(rabbitmq))
+            (
+                "operatorDefaults.conf".to_string(),
+                default_rbmq_config(rabbitmq),
+            ),
+            (
+                "userDefineConfiguration.conf".to_string(),
+                default_user_config(rabbitmq),
+            ),
         ])),
         ..corev1::ConfigMap::default()
     }
 }
-
 
 fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> String {
     let mut default_part = concat!(
@@ -44,7 +48,8 @@ fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> String {
         "cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s\n",
         "cluster_formation.k8s.host = kubernetes.default\n",
         "cluster_formation.k8s.address_type = hostname\n",
-    ).to_string();
+    )
+    .to_string();
     let rabmq_part = format!(
         "cluster_formation.target_cluster_size_hint = {}\n\
         cluster_name = {}\n",
@@ -58,15 +63,11 @@ fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> String {
 fn default_user_config(rabbitmq: &RabbitmqCluster) -> String {
     let mut value = 0;
     if rabbitmq.spec.resources.is_none() {
-        value = remove_headroom(1073741824*2 as i64) // 2Gi in default
+        value = remove_headroom(1073741824 * 2 as i64) // 2Gi in default
     }
-    let rabmq_part = format!(
-        "total_memory_available_override_value = {}\n",
-        value,
-    );
+    let rabmq_part = format!("total_memory_available_override_value = {}\n", value,);
     rabmq_part
 }
-
 
 fn remove_headroom(mem_limit: i64) -> i64 {
     const GIB: i64 = 1073741824;
