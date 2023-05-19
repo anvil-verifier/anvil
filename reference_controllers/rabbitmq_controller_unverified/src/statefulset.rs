@@ -64,7 +64,7 @@ pub fn statefulset_build( rabbitmq: &RabbitmqCluster) -> appsv1::StatefulSet {
 
 fn persistent_volume_claim(rabbitmq: &RabbitmqCluster) ->Vec<corev1::PersistentVolumeClaim>{
     let mut pvc = Vec::new();
-    let mut pvc_data = corev1::PersistentVolumeClaim {
+    let pvc_data = corev1::PersistentVolumeClaim {
         metadata: metav1::ObjectMeta {
             name: Some("persistence".to_string()),
             namespace: rabbitmq.meta().namespace.clone(),
@@ -196,7 +196,7 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
             }
     ];
 
-    let mut rbmq_container_volume_mounts = vec![
+    let rbmq_container_volume_mounts = vec![
         corev1::VolumeMount{
             name: "rabbitmq-erlang-cookie".to_string(),
             mount_path: "/var/lib/rabbitmq/".to_string(),
@@ -324,7 +324,7 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
 fn setup_container(rabbitmq: &RabbitmqCluster) -> corev1::Container{
     let cpu_request = "100m".to_string();
     let mem_request = "500Mi".to_string();
-    let mut command = vec![
+    let command = vec![
         "sh".to_string(),
         "-c".to_string(),
         "cp /tmp/erlang-cookie-secret/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie && chmod 600 /var/lib/rabbitmq/.erlang.cookie ; cp /tmp/rabbitmq-plugins/enabled_plugins /operator/enabled_plugins ; echo '[default]' > /var/lib/rabbitmq/.rabbitmqadmin.conf && sed -e 's/default_user/username/' -e 's/default_pass/password/' /tmp/default_user.conf >> /var/lib/rabbitmq/.rabbitmqadmin.conf && chmod 600 /var/lib/rabbitmq/.rabbitmqadmin.conf ; sleep 30".to_string() // default value
@@ -335,7 +335,7 @@ fn setup_container(rabbitmq: &RabbitmqCluster) -> corev1::Container{
     if !rabbitmq.spec.image.is_none(){ // because we only modify k8s resource but not rust struct, we still need to check here
         image_used = rabbitmq.spec.image.clone();
     }
-    let mut setup_container = corev1::Container {
+    let setup_container = corev1::Container {
         name: "setup-container".to_string(),
         image: image_used,
         command: Some(command),
@@ -454,7 +454,7 @@ fn env_vars_k8s_objects(rabbitmq: &RabbitmqCluster) -> Vec<corev1::EnvVar>{
 }
 
 
-fn update_container_ports(rabbitmq: &RabbitmqCluster) -> Vec<corev1::ContainerPort>{
+fn update_container_ports(_rabbitmq: &RabbitmqCluster) -> Vec<corev1::ContainerPort>{
     vec![
         corev1::ContainerPort {
             container_port: 4369,

@@ -9,6 +9,6 @@ pub struct RabbitmqClusterStatus {
 }
 
 pub struct RabbitmqClusterCondition {
-    t_ype : String,
-    status : String,
+    // t_ype : String,
+    // status : String,
 }

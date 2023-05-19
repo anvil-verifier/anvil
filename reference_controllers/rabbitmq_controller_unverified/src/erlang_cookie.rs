@@ -43,7 +43,7 @@ pub fn erlang_build(rabbitmq: &RabbitmqCluster) -> corev1::Secret {
 
 
 
-fn generate_cookie() -> Vec<u8> {
+fn _generate_cookie() -> Vec<u8> {
     let mut rng = rand::thread_rng();
     let cookie: Vec<u8> = (0..24).map(|_| rng.gen()).collect();
 

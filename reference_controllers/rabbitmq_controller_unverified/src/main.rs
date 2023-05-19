@@ -14,8 +14,8 @@ pub mod role;
 pub mod role_binding;
 pub mod statefulset;
 
-use http::Uri;
-use tower::ServiceBuilder;
+
+
 use anyhow::Result;
 use futures::StreamExt;
 use k8s_openapi::api::{apps::v1 as appsv1, core::v1::Service};
@@ -39,8 +39,8 @@ use crate::rabbitmqcluster_types::*;
 
 #[derive(Debug, Error)]
 enum Error {
-    #[error("Failed to get CR: {0}")]
-    CRGetFailed(#[source] kube::Error),
+    // #[error("Failed to get CR: {0}")]
+    // CRGetFailed(#[source] kube::Error),
     #[error("Failed to create ConfigMap: {0}")]
     ConfigMapCreationFailed(#[source] kube::Error),
 
@@ -57,8 +57,8 @@ enum Error {
     #[error("Failed to create StatefulSet: {0}")]
     StatefulSetCreationFailed(#[source] kube::Error),
 
-    #[error("MissingObjectKey: {0}")]
-    MissingObjectKey(&'static str),
+    // #[error("MissingObjectKey: {0}")]
+    // MissingObjectKey(&'static str),
     #[error("ReplaceImageFail: {0}")]
     ReplaceImageFail(kube_client::Error),
 }
@@ -66,8 +66,6 @@ enum Error {
 
 struct RabbitmqClusterReconciler {
     client: Client,
-    // scheme: kube::runtime::Scheme, can not find same in rust
-    Namespace: String,
 }
 
 impl RabbitmqClusterReconciler {
@@ -312,7 +310,7 @@ async fn reconcile_operator_defaults(rabbitmq: &RabbitmqCluster, client: Client)
 
 
 /// object that caused the failure and the actual error
-fn error_policy(obj: Arc<RabbitmqCluster>, _error: &Error, _ctx: Arc<RabbitmqClusterReconciler>) -> Action {
+fn error_policy(_obj: Arc<RabbitmqCluster>, _error: &Error, _ctx: Arc<RabbitmqClusterReconciler>) -> Action {
     Action::requeue(Duration::from_secs(60))
 }
 
@@ -334,7 +332,7 @@ async fn main() -> Result<()> {
 
         Controller::new(rabbitmq, ListParams::default())
             .shutdown_on_signal()
-            .run(reconcile, error_policy, Arc::new(RabbitmqClusterReconciler { client: client, Namespace: String::from("rabbitmq-system") }))
+            .run(reconcile, error_policy, Arc::new(RabbitmqClusterReconciler { client: client }))
             .for_each(|res| async move {
                 match res {
                     Ok(o) => info!("reconciled {:?}", o),
