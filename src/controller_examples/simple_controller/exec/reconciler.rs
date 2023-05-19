@@ -111,7 +111,7 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
                 namespace: cr_key.namespace.clone(),
             }
         ));
-        (state_prime, req_o)
+        return (state_prime, req_o);
     } else if pc == after_get_cr_pc() {
         if resp_o.is_some() {
             let resp = resp_o.as_ref().unwrap();
@@ -133,31 +133,16 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
                             obj: config_map.to_dynamic_object(),
                         }
                     ));
-                    (state_prime, req_o)
-                } else {
-                    let state_prime = SimpleReconcileState {
-                        reconcile_pc: error_pc(),
-                    };
-                    (state_prime, Option::None)
+                    return (state_prime, req_o);
                 }
-            } else {
-                let state_prime = SimpleReconcileState {
-                    reconcile_pc: error_pc(),
-                };
-                (state_prime, Option::None)
             }
-        } else {
-            let state_prime = SimpleReconcileState {
-                reconcile_pc: error_pc(),
-            };
-            (state_prime, Option::None)
         }
-    } else {
         let state_prime = SimpleReconcileState {
-            reconcile_pc: pc,
+            reconcile_pc: error_pc(),
         };
-        (state_prime, Option::None)
+        return (state_prime, Option::None);
     }
+    return (SimpleReconcileState {reconcile_pc: pc}, Option::None);
 }
 
 pub fn init_pc() -> (res: u64)
