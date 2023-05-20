@@ -122,7 +122,7 @@ impl ConfigMap {
         ensures
             self@ == old(self)@.set_data(data@),
     {
-        self.inner.data = std::option::Option::Some(data.get_inner_map());
+        self.inner.data = std::option::Option::Some(data.into_rust_map())
     }
 }
 
