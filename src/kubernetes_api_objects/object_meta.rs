@@ -1,6 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::pervasive_ext::string_map;
+use crate::pervasive_ext::string_map::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::string::*;
@@ -85,6 +85,26 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn labels(&self) -> (labels: Option<StringMap>)
+        ensures
+            self@.labels.is_Some() == labels.is_Some(),
+            labels.is_Some() ==> labels.get_Some_0()@ == self@.labels.get_Some_0(),
+    {
+        match &self.inner.labels {
+            std::option::Option::Some(n) => Option::Some(StringMap::from_rust_map(n.clone())),
+            std::option::Option::None => Option::None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_labels(&mut self, labels: StringMap)
+        ensures
+            self@ == old(self)@.set_labels(labels@),
+    {
+        self.inner.labels = std::option::Option::Some(labels.into_rust_map());
+    }
+
+    #[verifier(external_body)]
     pub fn resource_version(&self) -> (resource_version: Option<u64>)
         ensures
             self@.resource_version.is_Some() == resource_version.is_Some(),
@@ -111,16 +131,6 @@ impl ObjectMeta {
         todo!()
     }
 
-    // how to implement finalizers()?
-
-    #[verifier(external_body)]
-    pub fn labels(&self) -> (labels: Option<string_map::StringMap>)
-        ensures
-            self@.labels.is_Some() == labels.is_Some(),
-            labels.is_Some() ==> labels.get_Some_0()@ == self@.labels.get_Some_0(),
-    {
-        todo!()
-    }
 }
 
 impl ObjectMetaView {
@@ -146,6 +156,13 @@ impl ObjectMetaView {
     pub open spec fn set_namespace(self, namespace: StringView) -> ObjectMetaView {
         ObjectMetaView {
             namespace: Option::Some(namespace),
+            ..self
+        }
+    }
+
+    pub open spec fn set_labels(self, labels: Map<StringView, StringView>) -> ObjectMetaView {
+        ObjectMetaView {
+            labels: Option::Some(labels),
             ..self
         }
     }
