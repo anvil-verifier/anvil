@@ -90,6 +90,14 @@ impl Service {
     }
 
     #[verifier(external_body)]
+    pub fn set_labels(&mut self, labels: StringMap)
+        ensures
+            self@ == old(self)@.set_labels(labels@),
+    {
+        self.inner.metadata.labels = std::option::Option::Some(labels.into_rust_map());
+    }
+
+    #[verifier(external_body)]
     pub fn set_spec(&mut self, spec: ServiceSpec)
         ensures
             self@ == old(self)@.set_spec(spec@),
@@ -116,6 +124,13 @@ impl ServiceView {
     pub open spec fn set_namespace(self, namespace: StringView) -> ServiceView {
         ServiceView {
             metadata: self.metadata.set_namespace(namespace),
+            ..self
+        }
+    }
+
+    pub open spec fn set_labels(self, labels: Map<StringView, StringView>) -> ServiceView {
+        ServiceView {
+            metadata: self.metadata.set_labels(labels),
             ..self
         }
     }
@@ -312,6 +327,17 @@ impl ServicePort {
         ServicePort {
             inner: k8s_openapi::api::core::v1::ServicePort::default(),
         }
+    }
+
+    pub fn new_with(name: String, port: i32) -> (service_port: ServicePort)
+        ensures
+            service_port@ == ServicePortView::default().set_name(name@).set_port(port as nat),
+    {
+        let mut service_port = Self::default();
+        service_port.set_name(name);
+        service_port.set_port(port);
+
+        service_port
     }
 
     #[verifier(external_body)]
