@@ -53,8 +53,7 @@ spec fn cr_matched(cr: CustomResourceView) -> TempPred<State<SimpleReconcileStat
 
 /// To prove the liveness property, we need some invariants (these invariants have already contained "always" constraint).
 spec fn all_invariants(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState>> {
-    always(lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr)))
-    .and(tla_forall(|msg| always(lift_state(resp_matches_at_most_one_pending_req(msg, cr.object_ref())))))
+    tla_forall(|msg| always(lift_state(resp_matches_at_most_one_pending_req(msg, cr.object_ref()))))
     .and(tla_forall(|resp_msg: Message| always(lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref())))))
     .and(always(lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr))))
     .and(always(lift_state(reconciler_at_init_pc(cr))
@@ -156,8 +155,6 @@ proof fn lemma_valid_stable_sm_partial_spec_and_invariants(cr: CustomResourceVie
     valid_stable_sm_partial_spec(simple_reconciler());
 
     always_p_stable::<State<SimpleReconcileState>>(
-        lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr)));
-    always_p_stable::<State<SimpleReconcileState>>(
         lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr)));
     always_p_stable::<State<SimpleReconcileState>>(
         tla_forall(|msg| lift_state(resp_matches_at_most_one_pending_req(msg, cr.object_ref()))));
@@ -181,8 +178,7 @@ proof fn lemma_valid_stable_sm_partial_spec_and_invariants(cr: CustomResourceVie
     tla_forall_always_equality_variant::<State<SimpleReconcileState>, Message>(a_to_always_1, a_to_p_1);
 
     stable_and_n!(
-        always(lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr))),
-        tla_forall(|msg| always(lift_state(resp_matches_at_most_one_pending_req(msg, cr.object_ref())))),
+        tla_forall(|msg| always(lift_state(resp_matches_at_most_one_pending_req::<SimpleReconcileState>(msg, cr.object_ref())))),
         tla_forall(|msg| always(lift_state(at_most_one_resp_matches_req(msg, cr.object_ref())))),
         always(lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr))),
         always(lift_state(reconciler_at_init_pc(cr))
@@ -199,7 +195,6 @@ proof fn lemma_sm_spec_entails_all_invariants(cr: CustomResourceView)
     ensures
         sm_spec(simple_reconciler()).entails(all_invariants(cr)),
 {
-    lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr);
     lemma_forall_resp_always_matches_at_most_one_pending_req(simple_reconciler(), cr.object_ref());
     lemma_forall_always_at_most_one_resp_matches_req(simple_reconciler(), cr.object_ref());
     lemma_always_reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr);
@@ -208,7 +203,6 @@ proof fn lemma_sm_spec_entails_all_invariants(cr: CustomResourceView)
     lemma_always_every_in_flight_req_has_unique_id(simple_reconciler());
 
     entails_and_n!(sm_spec(simple_reconciler()),
-        always(lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr))),
         tla_forall(|msg| always(lift_state(resp_matches_at_most_one_pending_req(msg, cr.object_ref())))),
         tla_forall(|resp_msg: Message| always(lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref())))),
         always(lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr))),
@@ -404,36 +398,6 @@ proof fn lemma_after_create_cm_pc_leads_to_cm_exists(cr: CustomResourceView)
     lemma_pre_leads_to_post_by_controller(partial_spec_with_invariants_and_assumptions(cr), simple_reconciler(), input, next(simple_reconciler()), end_reconcile(simple_reconciler()), pre, post);
     lemma_reconcile_idle_leads_to_cm_exists(cr);
     leads_to_trans(partial_spec_with_invariants_and_assumptions(cr), pre, post, cm_exists(cr));
-    // assert forall |ex| #[trigger] partial_spec_with_invariants_and_assumptions(cr).satisfied_by(ex) implies
-    // lift_state(reconciler_at_after_create_cm_pc(cr)).leads_to(lift_state(cm_exists(cr))).satisfied_by(ex) by {
-    //     assert forall |i| #[trigger] lift_state(reconciler_at_after_create_cm_pc(cr)).satisfied_by(ex.suffix(i))
-    //     implies eventually(lift_state(cm_exists(cr))).satisfied_by(ex.suffix(i)) by {
-    //         assert(lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr))
-    //             .satisfied_by(ex.suffix(i)));
-    //         let s = ex.suffix(i).head();
-    //         let req_msg = choose |m: Message| {
-    //             (#[trigger] is_controller_create_cm_request_msg(m, cr)
-    //             && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(m)
-    //             && s.message_in_flight(m))
-    //             || s.resource_key_exists(reconciler::subresource_configmap(cr).object_ref())
-    //         };
-    //         if (s.resource_key_exists(reconciler::subresource_configmap(cr).object_ref())) {
-    //             assert(lift_state(cm_exists(cr)).satisfied_by(ex.suffix(i).suffix(0)));
-    //         } else {
-    //             let cm = reconciler::subresource_configmap(cr).to_dynamic_object();
-    //             let pre = |s: State<SimpleReconcileState>| {
-    //                 &&& s.message_in_flight(req_msg)
-    //                 &&& req_msg.dst == HostId::KubernetesAPI
-    //                 &&& req_msg.content.is_create_request()
-    //                 &&& req_msg.content.get_create_request().obj == cm
-    //             };
-    //             kubernetes_api_liveness::lemma_create_req_leads_to_res_exists(sm_partial_spec(simple_reconciler()),
-    //                 simple_reconciler(), req_msg, cm);
-    //             instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i, sm_partial_spec(simple_reconciler()),
-    //                 lift_state(pre), lift_state(cm_exists(cr)));
-    //         }
-    //     };
-    // };
 }
 
 proof fn lemma_init_pc_and_no_pending_req_leads_to_cm_exists(cr: CustomResourceView)
