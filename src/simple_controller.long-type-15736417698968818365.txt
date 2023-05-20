@@ -1,0 +1,1 @@
+fn(controller_examples::simple_controller::spec::custom_resource::CustomResourceView) -> builtin::FnSpec<(kubernetes_cluster::spec::distributed_system::State<controller_examples::simple_controller::spec::reconciler::SimpleReconcileState>,), bool> {controller_examples::simple_controller::proof::safety::this_is_an_invariant}

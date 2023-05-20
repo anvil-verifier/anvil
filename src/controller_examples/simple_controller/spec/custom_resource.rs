@@ -44,7 +44,7 @@ impl CustomResource {
         ensures
             metadata@ == self@.metadata,
     {
-        ObjectMeta::from_kube_object_meta(self.inner.metadata)
+        ObjectMeta::from_kube_object_meta(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
@@ -53,7 +53,7 @@ impl CustomResource {
             spec@ == self@.spec,
     {
         CustomResourceSpec {
-            inner: self.inner.spec
+            inner: self.inner.spec.clone()
         }
     }
 
@@ -81,7 +81,8 @@ impl CustomResource {
         ensures
             cr@ == CustomResourceView::from_dynamic_object(obj@),
     {
-        &CustomResource {inner: obj.into_kube_obj().try_parse::<SimpleCR>().unwrap()}
+        let ret = CustomResource {inner: obj.into_kube_obj().try_parse::<SimpleCR>().unwrap()};
+        &ret
     }
 }
 
@@ -111,8 +112,9 @@ impl ResourceView for CustomResourceView {
             data: Value::Object(Map::empty()
                                     .insert(spec_field(), Value::Object(Map::empty().insert(spec_content_field(), Value::String(self.spec.content)))
                                     )
-                                    .insert(status_field(), Value::Object(Map::empty().insert(status_echoed_content_field(), Value::String(self.status.get_Some_0().echoed_content)))
-                                    )
+                                    .insert(status_field(), if self.status.is_None() {Value::Null} else {
+                                        Value::Object(Map::empty().insert(status_echoed_content_field(), Value::String(self.status.get_Some_0().echoed_content)))
+                                    })
                                 ),
         }
     }

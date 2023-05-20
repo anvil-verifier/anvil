@@ -137,12 +137,18 @@ pub open spec fn this_is_an_invariant(cr: CustomResourceView) -> StatePred<State
         forall |resp_msg: Message|
             s.reconcile_state_contains(cr.object_ref())
             && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
-            && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0())
+            && #[trigger] resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0())
             && resp_msg.content.get_APIResponse_0().is_GetResponse()
             && resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.is_Ok()
             ==> cr.metadata == resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata
     }
 }
+
+#[verifier(external_body)]
+pub proof fn lemma_always_this_is_an_invariant(cr: CustomResourceView)
+    ensures
+        sm_spec(simple_reconciler()).entails(always(lift_state(this_is_an_invariant(cr)))),
+{}
 
 pub open spec fn delete_cm_req_msg_not_in_flight(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
