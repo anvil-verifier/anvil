@@ -166,6 +166,19 @@ pub proof fn lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), stronger_next, invariant);
 }
 
+pub open spec fn this_is_an_invariant(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+    |s: State<SimpleReconcileState>| {
+        forall |resp_msg: Message|
+            s.reconcile_state_contains(cr.object_ref())
+            && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
+            && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0())
+            && resp_msg.content.get_APIResponse_0().is_GetResponse()
+            && resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.is_Ok()
+            ==> cr.metadata == resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata
+    }
+}
+
+#[verifier(external_body)]
 proof fn next_preserves_reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr: CustomResourceView, s: State<SimpleReconcileState>, s_prime: State<SimpleReconcileState>)
     requires
         reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr)(s),
@@ -193,10 +206,12 @@ proof fn next_preserves_reconcile_create_cm_done_implies_pending_create_cm_req_i
             }
         } else {
             let req_msg = controller_req_msg(reconciler::create_cm_req(cr), s.chan_manager.cur_chan_id);
+            // how to know that this cr is the same as the one obtained via resp_o
             assert(is_controller_create_cm_request_msg(req_msg, cr)
                 && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
                 && s_prime.message_in_flight(req_msg)
             );
+
         }
     }
 }

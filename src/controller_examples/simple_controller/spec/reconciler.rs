@@ -58,11 +58,11 @@ pub open spec fn reconcile_core(cr_key: ObjectRef, resp_o: Option<APIResponse>, 
         (state_prime, req_o)
     } else if pc == after_get_cr_pc() {
         if resp_o.is_Some() && resp_o.get_Some_0().is_GetResponse() && resp_o.get_Some_0().get_GetResponse_0().res.is_Ok() {
-            let state_prime = SimpleReconcileState {
-                reconcile_pc: after_create_cm_pc(),
-            };
             let cr = CustomResourceView::from_dynamic_object(resp_o.get_Some_0().get_GetResponse_0().res.get_Ok_0());
             if (cr.metadata.name.is_Some() && cr.metadata.namespace.is_Some()) {
+                let state_prime = SimpleReconcileState {
+                    reconcile_pc: after_create_cm_pc(),
+                };
                 (state_prime, Option::Some(create_cm_req(cr)))
             } else {
                 let state_prime = SimpleReconcileState {
