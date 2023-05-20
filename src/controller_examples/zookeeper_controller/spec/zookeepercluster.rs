@@ -52,6 +52,14 @@ impl ZookeeperCluster {
             std::option::Option::None => Option::None,
         }
     }
+
+    #[verifier(external_body)]
+    pub fn replica(&self) -> (replica: i32)
+        ensures
+            replica as nat == self@.spec.replica,
+    {
+        self.inner.spec.replica
+    }
 }
 
 impl ZookeeperClusterView {
@@ -117,7 +125,17 @@ pub struct ZookeeperClusterSpecView {
 
 impl ZookeeperClusterSpec {
     pub spec fn view(&self) -> ZookeeperClusterSpecView;
+
+    #[verifier(external_body)]
+    pub fn replica(&self) -> (replica: i32)
+        ensures
+            replica as nat == self@.replica,
+    {
+        self.inner.replica
+    }
 }
+
+impl ZookeeperClusterSpecView {}
 
 pub open spec fn spec_field() -> nat {0}
 
