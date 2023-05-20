@@ -45,6 +45,12 @@ impl StringMap {
     }
 
     #[verifier(external)]
+    pub fn from_rust_map(inner: std::collections::BTreeMap<std::string::String, std::string::String>) -> StringMap
+    {
+        StringMap { inner: inner }
+    }
+
+    #[verifier(external)]
     pub fn into_rust_map(self) -> std::collections::BTreeMap<std::string::String, std::string::String>
     {
         self.inner
