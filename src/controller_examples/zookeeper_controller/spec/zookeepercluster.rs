@@ -22,14 +22,6 @@ impl ZookeeperCluster {
     pub spec fn view(&self) -> ZookeeperClusterView;
 
     #[verifier(external_body)]
-    pub fn api_resource() -> (res: ApiResource)
-        ensures
-            res@.kind == Kind::CustomResourceKind,
-    {
-        ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<deps_hack::ZookeeperCluster>(&()))
-    }
-
-    #[verifier(external_body)]
     pub fn name(&self) -> (name: Option<String>)
         ensures
             self@.name().is_Some() == name.is_Some(),
@@ -59,6 +51,50 @@ impl ZookeeperCluster {
             replica as nat == self@.spec.replica,
     {
         self.inner.spec.replica
+    }
+
+    #[verifier(external)]
+    pub fn into_kube_obj(self) -> deps_hack::ZookeeperCluster {
+        self.inner
+    }
+
+    #[verifier(external_body)]
+    pub fn api_resource() -> (res: ApiResource)
+        ensures
+            res@.kind == Kind::CustomResourceKind,
+    {
+        ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<deps_hack::ZookeeperCluster>(&()))
+    }
+
+    // NOTE: This function assumes serde_json::to_string won't fail!
+    #[verifier(external_body)]
+    pub fn to_dynamic_object(self) -> (obj: DynamicObject)
+        ensures
+            obj@ == self@.to_dynamic_object(),
+    {
+        // TODO: this might be unnecessarily slow
+        DynamicObject::from_kube_obj(
+            k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
+        )
+
+        // DynamicObject::from_kube_obj(kube::api::DynamicObject {
+        //     types: std::option::Option::Some(kube::api::TypeMeta {
+        //         api_version: Self::api_resource().into_kube_api_resource().api_version,
+        //         kind: Self::api_resource().into_kube_api_resource().kind,
+        //     }),
+        //     metadata: self.inner.metadata,
+        //     data: k8s_openapi::serde_json::to_value(self.inner.spec).unwrap(),
+        // })
+    }
+
+    /// Convert a DynamicObject to a ConfigMap
+    // NOTE: This function assumes try_parse won't fail!
+    #[verifier(external_body)]
+    pub fn from_dynamic_object(obj: DynamicObject) -> (zk: ZookeeperCluster)
+        ensures
+            zk@ == ZookeeperClusterView::from_dynamic_object(obj@),
+    {
+        ZookeeperCluster { inner: obj.into_kube_obj().try_parse::<deps_hack::ZookeeperCluster>().unwrap() }
     }
 }
 

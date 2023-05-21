@@ -18,66 +18,34 @@ pub struct ZookeeperReconcileState {
     // reconcile_step, like a program counter, is used to track the progress of reconcile_core
     // since reconcile_core is frequently "trapped" into the controller_runtime spec.
     pub reconcile_step: ZookeeperReconcileStep,
+
+    // The custom resource object that the controller is currently reconciling for
+    pub zk: Option<ZookeeperCluster>,
 }
 
 #[is_variant]
 pub enum ZookeeperReconcileStep {
     Init,
-    AfterGetCR,
+    AfterGetZK,
+    AfterCreateHeadlessService,
+    AfterCreateClientService,
+    AfterCreateAdminServerService,
     Done,
     Error,
 }
 
 impl ZookeeperReconcileStep {
-
     pub fn clone(&self) -> (res: ZookeeperReconcileStep)
         ensures res == self
     {
         match self {
             ZookeeperReconcileStep::Init => ZookeeperReconcileStep::Init,
-            ZookeeperReconcileStep::AfterGetCR => ZookeeperReconcileStep::AfterGetCR,
+            ZookeeperReconcileStep::AfterGetZK => ZookeeperReconcileStep::AfterGetZK,
+            ZookeeperReconcileStep::AfterCreateHeadlessService => ZookeeperReconcileStep::AfterCreateHeadlessService,
+            ZookeeperReconcileStep::AfterCreateClientService => ZookeeperReconcileStep::AfterCreateClientService,
+            ZookeeperReconcileStep::AfterCreateAdminServerService => ZookeeperReconcileStep::AfterCreateAdminServerService,
             ZookeeperReconcileStep::Done => ZookeeperReconcileStep::Done,
             ZookeeperReconcileStep::Error => ZookeeperReconcileStep::Error,
-        }
-    }
-
-    #[inline(always)]
-    pub const fn is_init(&self) -> (res: bool)
-        ensures res <==> self.is_Init(),
-    {
-        match self {
-            ZookeeperReconcileStep::Init => true,
-            _ => false,
-        }
-    }
-
-    #[inline(always)]
-    pub const fn is_after_get_cr(&self) -> (res: bool)
-        ensures res <==> self.is_AfterGetCR(),
-    {
-        match self {
-            ZookeeperReconcileStep::AfterGetCR => true,
-            _ => false,
-        }
-    }
-
-    #[inline(always)]
-    pub const fn is_done(&self) -> (res: bool)
-        ensures res <==> self.is_Done(),
-    {
-        match self {
-            ZookeeperReconcileStep::Done => true,
-            _ => false,
-        }
-    }
-
-    #[inline(always)]
-    pub const fn is_error(&self) -> (res: bool)
-        ensures res <==> self.is_Error(),
-    {
-        match self {
-            ZookeeperReconcileStep::Error => true,
-            _ => false,
         }
     }
 }
@@ -90,7 +58,7 @@ impl Reconciler<ZookeeperReconcileState> for ZookeeperReconciler {
         reconcile_init_state()
     }
 
-    fn reconcile_core(&self, cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, state: &ZookeeperReconcileState) -> (ZookeeperReconcileState, Option<KubeAPIRequest>) {
+    fn reconcile_core(&self, cr_key: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, state: ZookeeperReconcileState) -> (ZookeeperReconcileState, Option<KubeAPIRequest>) {
         reconcile_core(cr_key, resp_o, state)
     }
 
@@ -110,23 +78,31 @@ impl Default for ZookeeperReconciler {
 pub fn reconcile_init_state() -> ZookeeperReconcileState {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
+        zk: Option::None,
     }
 }
 
 pub fn reconcile_done(state: &ZookeeperReconcileState) -> (res: bool) {
-    state.reconcile_step.is_done()
+    match state.reconcile_step {
+        ZookeeperReconcileStep::Done => true,
+        _ => false,
+    }
 }
 
 pub fn reconcile_error(state: &ZookeeperReconcileState) -> (res: bool) {
-    state.reconcile_step.is_error()
+    match state.reconcile_step {
+        ZookeeperReconcileStep::Error => true,
+        _ => false,
+    }
 }
 
-pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, state: &ZookeeperReconcileState) -> (res: (ZookeeperReconcileState, Option<KubeAPIRequest>)) {
-    let step = &state.reconcile_step;
+pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, state: ZookeeperReconcileState) -> (res: (ZookeeperReconcileState, Option<KubeAPIRequest>)) {
+    let step = state.reconcile_step;
     match step {
         ZookeeperReconcileStep::Init => {
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterGetCR,
+                reconcile_step: ZookeeperReconcileStep::AfterGetZK,
+                ..state
             };
             let req_o = Option::Some(KubeAPIRequest::GetRequest(
                 KubeGetRequest {
@@ -137,33 +113,114 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
             ));
             (state_prime, req_o)
         },
-        ZookeeperReconcileStep::AfterGetCR => {
+        ZookeeperReconcileStep::AfterGetZK => {
             if resp_o.is_some() {
-                let resp = resp_o.as_ref().unwrap();
+                let resp = resp_o.unwrap();
                 if resp.is_get_response() && resp.as_get_response_ref().res.is_ok() {
+                    let zk = ZookeeperCluster::from_dynamic_object(resp.into_get_response().res.unwrap());
+                    if zk.name().is_some() && zk.namespace().is_some() {
+                        let headless_service = make_headless_service(&zk);
+                        let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                            KubeCreateRequest {
+                                api_resource: Service::api_resource(),
+                                obj: headless_service.to_dynamic_object(),
+                            }
+                        ));
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterCreateHeadlessService,
+                            zk: Option::Some(zk),
+                            ..state
+                        };
+                        return (state_prime, req_o)
+                    }
+                }
+            }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            let req_o = Option::None;
+            return (state_prime, req_o)
+        },
+        ZookeeperReconcileStep::AfterCreateHeadlessService => {
+            if state.zk.is_some() {
+                let zk = state.zk.as_ref().unwrap();
+                if zk.name().is_some() && zk.namespace().is_some() {
+                    let client_service = make_client_service(zk);
+                    let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                        KubeCreateRequest {
+                            api_resource: Service::api_resource(),
+                            obj: client_service.to_dynamic_object(),
+                        }
+                    ));
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterCreateClientService,
+                        ..state
+                    };
+                    return (state_prime, req_o)
+                }
+            }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            let req_o = Option::None;
+            return (state_prime, req_o)
+        },
+        ZookeeperReconcileStep::AfterCreateClientService => {
+            if state.zk.is_some() {
+                let zk = state.zk.as_ref().unwrap();
+                if zk.name().is_some() && zk.namespace().is_some() {
+                    let admin_server_service = make_admin_server_service(zk);
+                    let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                        KubeCreateRequest {
+                            api_resource: Service::api_resource(),
+                            obj: admin_server_service.to_dynamic_object(),
+                        }
+                    ));
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterCreateAdminServerService,
+                        ..state
+                    };
+                    return (state_prime, req_o)
+                }
+            }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            let req_o = Option::None;
+            return (state_prime, req_o)
+        },
+        ZookeeperReconcileStep::AfterCreateAdminServerService => {
+            if state.zk.is_some() {
+                let zk = state.zk.as_ref().unwrap();
+                if zk.name().is_some() && zk.namespace().is_some() {
+                    let configmap = make_configmap(zk);
+                    let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                        KubeCreateRequest {
+                            api_resource: ConfigMap::api_resource(),
+                            obj: configmap.to_dynamic_object(),
+                        }
+                    ));
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::Done,
+                        ..state
                     };
-                    let req_o = Option::None;
-                    (state_prime, req_o)
-                } else {
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Error,
-                    };
-                    let req_o = Option::None;
-                    (state_prime, req_o)
+                    return (state_prime, req_o)
                 }
-            } else {
-                let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::Error,
-                };
-                let req_o = Option::None;
-                (state_prime, req_o)
             }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            let req_o = Option::None;
+            return (state_prime, req_o)
         },
         _ => {
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: step.clone(),
+                reconcile_step: step,
+                ..state
             };
             let req_o = Option::None;
             (state_prime, req_o)
@@ -225,7 +282,7 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
     service.set_labels(labels);
 
     let mut service_spec = ServiceSpec::default();
-    if cluster_ip {
+    if !cluster_ip {
         service_spec.set_cluster_ip(new_strlit("None").to_string());
     }
     service_spec.set_ports(ports);
