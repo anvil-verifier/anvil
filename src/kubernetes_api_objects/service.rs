@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
 use crate::kubernetes_api_objects::object_meta::*;
@@ -103,6 +104,40 @@ impl Service {
             self@ == old(self)@.set_spec(spec@),
     {
         self.inner.spec = std::option::Option::Some(spec.into_kube_service_spec());
+    }
+
+    #[verifier(external)]
+    pub fn into_kube_obj(self) -> k8s_openapi::api::core::v1::Service {
+        self.inner
+    }
+
+    #[verifier(external_body)]
+    pub fn api_resource() -> (res: ApiResource)
+        ensures
+            res@.kind == Kind::CustomResourceKind,
+    {
+        ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<k8s_openapi::api::core::v1::Service>(&()))
+    }
+
+    // NOTE: This function assumes serde_json::to_string won't fail!
+    #[verifier(external_body)]
+    pub fn to_dynamic_object(self) -> (obj: DynamicObject)
+        ensures
+            obj@ == self@.to_dynamic_object(),
+    {
+        DynamicObject::from_kube_obj(
+            k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
+        )
+    }
+
+    /// Convert a DynamicObject to a ConfigMap
+    // NOTE: This function assumes try_parse won't fail!
+    #[verifier(external_body)]
+    pub fn from_dynamic_object(obj: DynamicObject) -> (svc: Service)
+        ensures
+            svc@ == ServiceView::from_dynamic_object(obj@),
+    {
+        Service { inner: obj.into_kube_obj().try_parse::<k8s_openapi::api::core::v1::Service>().unwrap() }
     }
 }
 

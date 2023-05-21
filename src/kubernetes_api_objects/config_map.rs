@@ -79,11 +79,6 @@ impl ConfigMap {
         ConfigMap {inner: obj.into_kube_obj().try_parse::<K8SConfigMap>().unwrap()}
     }
 
-    #[verifier(external)]
-    pub fn kube_metadata_ref(&self) -> &K8SObjectMeta {
-        &self.inner.metadata
-    }
-
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures

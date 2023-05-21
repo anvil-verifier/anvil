@@ -80,6 +80,14 @@ impl DynamicObject {
     {
         todo!()
     }
+
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (obj: DynamicObject)
+        ensures
+            obj == self,
+    {
+        DynamicObject { inner: self.inner.clone() }
+    }
 }
 
 impl DynamicObjectView {
