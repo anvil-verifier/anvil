@@ -132,12 +132,35 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
     }
 }
 
-pub open spec fn this_is_an_invariant(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn temp1(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+    |s: State<SimpleReconcileState>| {
+            s.reconcile_state_contains(cr.object_ref())
+            && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_Some()
+            ==> (
+                forall |resp_msg: Message|
+                    s.message_in_flight(resp_msg)
+                    && #[trigger] resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0())
+                    && resp_msg.content.get_APIResponse_0().is_GetResponse()
+                    && resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.is_Ok()
+                    ==> !s.message_in_flight(s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0())
+                        && cr.metadata == resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata
+                )
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_temp1(cr: CustomResourceView)
+    ensures
+        sm_spec(simple_reconciler()).entails(always(lift_state(temp1(cr)))),
+{}
+
+pub open spec fn matched_in_flight_resp_msg_has_same_metadata_as_cr(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         forall |resp_msg: Message|
             s.reconcile_state_contains(cr.object_ref())
-            && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
-            && #[trigger] resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0())
+            && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_Some()
+            && #[trigger] s.message_in_flight(resp_msg)
+            && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0())
             && resp_msg.content.get_APIResponse_0().is_GetResponse()
             && resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.is_Ok()
             ==> cr.metadata == resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata
@@ -145,10 +168,60 @@ pub open spec fn this_is_an_invariant(cr: CustomResourceView) -> StatePred<State
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_always_this_is_an_invariant(cr: CustomResourceView)
+pub proof fn lemma_always_matched_in_flight_resp_msg_has_same_metadata_as_cr(cr: CustomResourceView)
     ensures
-        sm_spec(simple_reconciler()).entails(always(lift_state(this_is_an_invariant(cr)))),
-{}
+        sm_spec(simple_reconciler()).entails(always(lift_state(matched_in_flight_resp_msg_has_same_metadata_as_cr(cr)))),
+{
+    let invariant = matched_in_flight_resp_msg_has_same_metadata_as_cr(cr);
+    let stronger_next = |s, s_prime: State<SimpleReconcileState>| {
+        next(simple_reconciler())(s, s_prime)
+        && temp1(cr)(s)
+        && temp1(cr)(s_prime)
+    };
+    lemma_always_temp1(cr);
+
+    assert forall |s, s_prime: State<SimpleReconcileState>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        assert forall |resp_msg: Message| s_prime.reconcile_state_contains(cr.object_ref())
+        && s_prime.message_in_flight(resp_msg) && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg.is_Some() && #[trigger] resp_msg_matches_req_msg(resp_msg, s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0()) && resp_msg.content.get_APIResponse_0().is_GetResponse() && resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.is_Ok()
+        implies cr.metadata == resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata by {
+            let next_step = choose |step: Step<CustomResourceView>| next_step(simple_reconciler(), s, s_prime, step);
+            match next_step {
+                Step::KubernetesAPIStep(input) => {
+                    assert(s.reconcile_state_of(cr.object_ref()).pending_req_msg == s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg);
+                    if (s.message_in_flight(resp_msg)) {
+                        assert(cr.metadata == resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata);
+                    } else {
+                        assert(s.reconcile_state_contains(cr.object_ref()));
+                        assert(s.message_in_flight(s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0()));
+                        // assert(!s_prime.message_in_flight(s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0()));
+                        // let req = input.get_Some_0();
+                        // req must be the pending request of some cr => need prove
+                        // resp matches s_prime.pending_req => resp matches s.pending req
+                        // req and resp match or not??
+                        // assert(req == s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0());
+                    }
+                }
+                Step::ControllerStep(input) => {
+                    assert(s.message_in_flight(resp_msg));
+                }
+                _ => {
+                    assert(cr.metadata == resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata);
+                }
+            }
+            // if s.message_in_flight(resp_msg) {
+            //     if s.reconcile_state_contains(cr.object_ref()) && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc() {
+            //         assert(cr.metadata == resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata);
+            //     } else {
+            //         assert(s.reconcile_state_contains(cr.object_ref()) && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::init_pc());
+            //         assert(s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0().content.get_APIRequest_0() == APIRequest::GetRequest(GetRequest{key: cr.object_ref()}));
+            //     }
+            // }
+        };
+    };
+
+    init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()),
+        next(simple_reconciler()), invariant);
+}
 
 pub open spec fn delete_cm_req_msg_not_in_flight(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {

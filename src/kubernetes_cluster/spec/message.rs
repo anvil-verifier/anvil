@@ -194,6 +194,12 @@ pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -
     &&& resp_msg.dst == req_msg.src
     &&& resp_msg.src == req_msg.dst
     &&& resp_msg.content.get_APIResponse_1() == req_msg.content.get_APIRequest_1()
+    &&& match resp_msg.content.get_APIResponse_0() {
+        APIResponse::GetResponse(_) => req_msg.content.get_APIRequest_0().is_GetRequest(),
+        APIResponse::ListResponse(_) => req_msg.content.get_APIRequest_0().is_ListRequest(),
+        APIResponse::CreateResponse(_) => req_msg.content.get_APIRequest_0().is_CreateRequest(),
+        APIResponse::DeleteResponse(_) => req_msg.content.get_APIRequest_0().is_DeleteRequest()
+    }
 }
 
 pub open spec fn form_msg(src: HostId, dst: HostId, msg_content: MessageContent) -> Message {
