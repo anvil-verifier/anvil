@@ -34,7 +34,7 @@ async fn main() -> Result<()> {
         println!("exporting custom resource definition");
         println!("{}", serde_yaml::to_string(&deps_hack::ZookeeperCluster::crd())?);
     } else if cmd == String::from("run") {
-        println!("running simple-controller");
+        println!("running zookeeper-controller");
         run_controller::<deps_hack::ZookeeperCluster, ZookeeperReconciler, ZookeeperReconcileState>().await?;
         println!("controller terminated");
     } else {
