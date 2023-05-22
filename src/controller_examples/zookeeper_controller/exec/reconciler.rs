@@ -5,6 +5,7 @@ use crate::controller_examples::zookeeper_controller::spec::reconciler as zk_spe
 use crate::controller_examples::zookeeper_controller::spec::zookeepercluster::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, service::*};
 use crate::pervasive_ext::string_map::StringMap;
+use crate::pervasive_ext::string_view::*;
 use crate::reconciler::exec::*;
 use builtin::*;
 use builtin_macros::*;
@@ -345,7 +346,9 @@ fn make_configmap(zk: &ZookeeperCluster) -> ConfigMap
     configmap
 }
 
-fn make_zk_config() -> String
+fn make_zk_config() -> (s: String)
+    ensures
+        s@ == zk_spec::make_zk_config(),
 {
     new_strlit(
         "4lw.commands.whitelist=cons, envi, conf, crst, srvr, stat, mntr, ruok\n\
@@ -376,7 +379,9 @@ fn make_zk_config() -> String
     ).to_string()
 }
 
-fn make_log4j_config() -> String
+fn make_log4j_config() -> (s: String)
+    ensures
+        s@ == zk_spec::make_log4j_config(),
 {
     new_strlit(
         "zookeeper.root.logger=CONSOLE\n\
@@ -389,7 +394,9 @@ fn make_log4j_config() -> String
     ).to_string()
 }
 
-fn make_log4j_quiet_config() -> String
+fn make_log4j_quiet_config() -> (s: String)
+    ensures
+        s@ == zk_spec::make_log4j_quiet_config(),
 {
     new_strlit(
         "log4j.rootLogger=ERROR, CONSOLE\n\
@@ -400,10 +407,12 @@ fn make_log4j_quiet_config() -> String
     ).to_string()
 }
 
-fn make_env_config(zk: &ZookeeperCluster) -> String
+fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+    ensures
+        s@ == zk_spec::make_env_config(zk@),
 {
     let name = zk.name().unwrap();
     let namespace = zk.namespace().unwrap();
@@ -419,12 +428,7 @@ fn make_env_config(zk: &ZookeeperCluster) -> String
         ADMIN_SERVER_HOST=")).concat(name.as_str()).concat(new_strlit("-admin-server\n\
         ADMIN_SERVER_PORT=8080\n\
         CLUSTER_NAME=")).concat(name.as_str()).concat(new_strlit("\n\
-        CLUSTER_SIZE=")).concat(int_to_string(zk.replica()).as_str()).concat(new_strlit("\n"))
-}
-
-#[verifier(external_body)]
-fn int_to_string(i: i32) -> String {
-    String::from_rust_string(i.to_string())
+        CLUSTER_SIZE=")).concat(u32_to_string(zk.replica()).as_str()).concat(new_strlit("\n"))
 }
 
 }

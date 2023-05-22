@@ -7,7 +7,7 @@ use crate::kubernetes_api_objects::{
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_const::*;
-use crate::pervasive_ext::string_view::StringView;
+use crate::pervasive_ext::string_view::*;
 use crate::reconciler::spec::*;
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
@@ -73,6 +73,79 @@ pub open spec fn make_service(
         .set_labels(labels)
         .set_spec(service_spec);
     service
+}
+
+pub open spec fn make_zk_config() -> StringView {
+    new_strlit(
+        "4lw.commands.whitelist=cons, envi, conf, crst, srvr, stat, mntr, ruok\n\
+        dataDir=/data\n\
+        standaloneEnabled=false\n\
+        reconfigEnabled=true\n\
+        skipACL=yes\n\
+        metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider\n\
+        metricsProvider.httpPort=7000\n\
+        metricsProvider.exportJvmInfo=true\n\
+        initLimit=10\n\
+        syncLimit=2\n\
+        tickTime=2000\n\
+        globalOutstandingLimit=1000\n\
+        preAllocSize=65536\n\
+        snapCount=10000\n\
+        commitLogCount=500\n\
+        snapSizeLimitInKb=4194304\n\
+        maxCnxns=0\n\
+        maxClientCnxns=60\n\
+        minSessionTimeout=4000\n\
+        maxSessionTimeout=40000\n\
+        autopurge.snapRetainCount=3\n\
+        autopurge.purgeInterval=1\n\
+        quorumListenOnAllIPs=false\n\
+        admin.serverPort=8080\n\
+        dynamicConfigFile=/data/zoo.cfg.dynamic\n"
+    )@
+}
+
+pub open spec fn make_log4j_config() -> StringView {
+    new_strlit(
+        "zookeeper.root.logger=CONSOLE\n\
+        zookeeper.console.threshold=INFO\n\
+        log4j.rootLogger=${zookeeper.root.logger}\n\
+        log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender\n\
+        log4j.appender.CONSOLE.Threshold=${zookeeper.console.threshold}\n\
+        log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout\n\
+        log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L] - %m%n\n"
+    )@
+}
+
+pub open spec fn make_log4j_quiet_config() -> StringView {
+    new_strlit(
+        "log4j.rootLogger=ERROR, CONSOLE\n\
+        log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender\n\
+        log4j.appender.CONSOLE.Threshold=ERROR\n\
+        log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout\n\
+        log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L] - %m%n\n"
+    )@
+}
+
+pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView
+    recommends
+        zk.metadata.name.is_Some(),
+        zk.metadata.namespace.is_Some(),
+{
+    let name = zk.metadata.name.get_Some_0();
+    let namespace = zk.metadata.namespace.get_Some_0();
+
+    new_strlit(
+        "#!/usr/bin/env bash\n\n\
+        DOMAIN=")@ + name + new_strlit("-headless.")@ + namespace + new_strlit(".svc.cluster.local\n\
+        QUORUM_PORT=2888\n\
+        LEADER_PORT=3888\n\
+        CLIENT_HOST=")@ + name + new_strlit("-client\n\
+        CLIENT_PORT=2181\n\
+        ADMIN_SERVER_HOST=")@ + name + new_strlit("-admin-server\n\
+        ADMIN_SERVER_PORT=8080\n\
+        CLUSTER_NAME=")@ + name + new_strlit("\n\
+        CLUSTER_SIZE=")@ + nat_to_string_view(zk.spec.replica) + new_strlit("\n")@
 }
 
 }
