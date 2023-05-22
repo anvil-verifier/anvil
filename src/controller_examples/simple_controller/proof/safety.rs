@@ -7,7 +7,9 @@ use crate::controller_examples::simple_controller::spec::{
     reconciler,
     reconciler::{simple_reconciler, SimpleReconcileState},
 };
-use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, resource::*};
+use crate::kubernetes_api_objects::{
+    api_method::*, common::*, config_map::*, object_meta::ObjectMetaView, resource::*,
+};
 use crate::kubernetes_cluster::{
     proof::{
         controller_runtime_liveness::reconciler_init_and_no_pending_req, controller_runtime_safety,
@@ -132,27 +134,9 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
     }
 }
 
-pub open spec fn temp1(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
-    |s: State<SimpleReconcileState>| {
-            s.reconcile_state_contains(cr.object_ref())
-            && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_Some()
-            ==> (
-                forall |resp_msg: Message|
-                    s.message_in_flight(resp_msg)
-                    && #[trigger] resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0())
-                    && resp_msg.content.get_APIResponse_0().is_GetResponse()
-                    && resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.is_Ok()
-                    ==> !s.message_in_flight(s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0())
-                        && cr.metadata == resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata
-                )
-    }
+pub open spec fn metadata_with_same_name_and_namespace(metadata1: ObjectMetaView, metadata2: ObjectMetaView) -> bool {
+    metadata1.name == metadata2.name && metadata1.namespace == metadata2.namespace
 }
-
-#[verifier(external_body)]
-pub proof fn lemma_always_temp1(cr: CustomResourceView)
-    ensures
-        sm_spec(simple_reconciler()).entails(always(lift_state(temp1(cr)))),
-{}
 
 pub open spec fn matched_in_flight_resp_msg_has_same_metadata_as_cr(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
@@ -163,64 +147,79 @@ pub open spec fn matched_in_flight_resp_msg_has_same_metadata_as_cr(cr: CustomRe
             && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0())
             && resp_msg.content.get_APIResponse_0().is_GetResponse()
             && resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.is_Ok()
-            ==> cr.metadata == resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata
+            ==> metadata_with_same_name_and_namespace(cr.metadata, resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata)
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_always_matched_in_flight_resp_msg_has_same_metadata_as_cr(cr: CustomResourceView)
     ensures
         sm_spec(simple_reconciler()).entails(always(lift_state(matched_in_flight_resp_msg_has_same_metadata_as_cr(cr)))),
 {
     let invariant = matched_in_flight_resp_msg_has_same_metadata_as_cr(cr);
+
     let stronger_next = |s, s_prime: State<SimpleReconcileState>| {
         next(simple_reconciler())(s, s_prime)
-        && temp1(cr)(s)
-        && temp1(cr)(s_prime)
+        && controller_runtime_safety::every_in_flight_msg_has_unique_id::<SimpleReconcileState>()(s)
+        && controller_runtime_safety::every_in_flight_or_pending_req_has_unique_id::<SimpleReconcileState>(cr.object_ref())(s)
+        && controller_runtime_safety::every_in_flight_msg_has_lower_id_than_chan_manager::<SimpleReconcileState>()(s)
     };
-    lemma_always_temp1(cr);
+
+    controller_runtime_safety::lemma_always_every_in_flight_msg_has_unique_id::<CustomResourceView, SimpleReconcileState>(simple_reconciler());
+    controller_runtime_safety::lemma_always_every_in_flight_or_pending_req_has_unique_id::<CustomResourceView, SimpleReconcileState>(simple_reconciler(), cr.object_ref());
+    controller_runtime_safety::lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager::<CustomResourceView, SimpleReconcileState>(simple_reconciler());
+
+    // make strengthen next inline here because we don't have the two-inv version :-(
+    entails_and_n!(sm_spec(simple_reconciler()), always(lift_action(next(simple_reconciler()))), always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id::<SimpleReconcileState>())), always(lift_state(controller_runtime_safety::every_in_flight_or_pending_req_has_unique_id::<SimpleReconcileState>(cr.object_ref()))), always(lift_state(controller_runtime_safety::every_in_flight_msg_has_lower_id_than_chan_manager::<SimpleReconcileState>())));
+
+    entails_always_and_n!(sm_spec(simple_reconciler()), lift_action(next(simple_reconciler())), lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id::<SimpleReconcileState>()), lift_state(controller_runtime_safety::every_in_flight_or_pending_req_has_unique_id::<SimpleReconcileState>(cr.object_ref())), lift_state(controller_runtime_safety::every_in_flight_msg_has_lower_id_than_chan_manager::<SimpleReconcileState>()));
+
+    temp_pred_equality(lift_action(stronger_next), lift_action(next(simple_reconciler())).and(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id::<SimpleReconcileState>())).and(lift_state(controller_runtime_safety::every_in_flight_or_pending_req_has_unique_id::<SimpleReconcileState>(cr.object_ref()))).and(lift_state(controller_runtime_safety::every_in_flight_msg_has_lower_id_than_chan_manager::<SimpleReconcileState>())));
 
     assert forall |s, s_prime: State<SimpleReconcileState>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
         assert forall |resp_msg: Message| s_prime.reconcile_state_contains(cr.object_ref())
         && s_prime.message_in_flight(resp_msg) && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg.is_Some() && #[trigger] resp_msg_matches_req_msg(resp_msg, s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0()) && resp_msg.content.get_APIResponse_0().is_GetResponse() && resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.is_Ok()
-        implies cr.metadata == resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata by {
+        implies metadata_with_same_name_and_namespace(cr.metadata, resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata) by {
             let next_step = choose |step: Step<CustomResourceView>| next_step(simple_reconciler(), s, s_prime, step);
             match next_step {
                 Step::KubernetesAPIStep(input) => {
                     assert(s.reconcile_state_of(cr.object_ref()).pending_req_msg == s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg);
+                    let pending_req = s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0();
+                    // pending_req doesn't change
                     if (s.message_in_flight(resp_msg)) {
-                        assert(cr.metadata == resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata);
+                        assert(metadata_with_same_name_and_namespace(cr.metadata, resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata));
                     } else {
                         assert(s.reconcile_state_contains(cr.object_ref()));
-                        assert(s.message_in_flight(s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0()));
-                        // assert(!s_prime.message_in_flight(s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0()));
-                        // let req = input.get_Some_0();
-                        // req must be the pending request of some cr => need prove
-                        // resp matches s_prime.pending_req => resp matches s.pending req
-                        // req and resp match or not??
-                        // assert(req == s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0());
+                        assume((input.get_Some_0() == pending_req) ==> cr.metadata == resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata);
+                        assert(input.get_Some_0() == pending_req);
+                        // assert(pending_req.content.get_get_request().key == cr.object_ref());
+                        assert(metadata_with_same_name_and_namespace(cr.metadata, resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata));
                     }
                 }
                 Step::ControllerStep(input) => {
                     assert(s.message_in_flight(resp_msg));
+                    assert(resp_msg.content.get_resp_id() < s.chan_manager.cur_chan_id);
+                    if input.1.get_Some_0() == cr.object_ref() {
+                        assert(s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0().content.get_req_id() == s.chan_manager.cur_chan_id);
+                        assert(false);
+                    }
+                    else {
+                        assert(metadata_with_same_name_and_namespace(cr.metadata, resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata));
+                    }
+                }
+                Step::ClientStep(input) => {
+                    assert(s.reconcile_state_contains(cr.object_ref()));
+                    assert(s.reconcile_state_of(cr.object_ref()) == s_prime.reconcile_state_of(cr.object_ref()));
+                    assert(s.message_in_flight(resp_msg));
                 }
                 _ => {
-                    assert(cr.metadata == resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata);
+                    assert(metadata_with_same_name_and_namespace(cr.metadata, resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata));
                 }
             }
-            // if s.message_in_flight(resp_msg) {
-            //     if s.reconcile_state_contains(cr.object_ref()) && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc() {
-            //         assert(cr.metadata == resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0().metadata);
-            //     } else {
-            //         assert(s.reconcile_state_contains(cr.object_ref()) && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::init_pc());
-            //         assert(s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0().content.get_APIRequest_0() == APIRequest::GetRequest(GetRequest{key: cr.object_ref()}));
-            //     }
-            // }
         };
     };
 
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()),
-        next(simple_reconciler()), invariant);
+        stronger_next, invariant);
 }
 
 pub open spec fn delete_cm_req_msg_not_in_flight(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {

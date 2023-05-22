@@ -59,7 +59,7 @@ spec fn all_invariants(cr: CustomResourceView) -> TempPred<State<SimpleReconcile
     .and(always(lift_state(reconciler_at_init_pc(cr))
         .implies(lift_state(reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())))))
     .and(always(lift_state(every_in_flight_msg_has_lower_id_than_chan_manager::<SimpleReconcileState>())))
-    .and(always(lift_state(every_in_flight_req_has_unique_id::<SimpleReconcileState>())))
+    .and(always(lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>())))
     .and(always(lift_state(matched_in_flight_resp_msg_has_same_metadata_as_cr(cr))))
 }
 
@@ -167,7 +167,7 @@ proof fn lemma_valid_stable_sm_partial_spec_and_invariants(cr: CustomResourceVie
     always_p_stable::<State<SimpleReconcileState>>(
         lift_state(every_in_flight_msg_has_lower_id_than_chan_manager::<SimpleReconcileState>()));
     always_p_stable::<State<SimpleReconcileState>>(
-        lift_state(every_in_flight_req_has_unique_id::<SimpleReconcileState>()));
+        lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>()));
     always_p_stable::<State<SimpleReconcileState>>(
         lift_state(matched_in_flight_resp_msg_has_same_metadata_as_cr(cr)));
 
@@ -187,7 +187,7 @@ proof fn lemma_valid_stable_sm_partial_spec_and_invariants(cr: CustomResourceVie
         always(lift_state(reconciler_at_init_pc(cr))
             .implies(lift_state(reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())))),
         always(lift_state(every_in_flight_msg_has_lower_id_than_chan_manager::<SimpleReconcileState>())),
-        always(lift_state(every_in_flight_req_has_unique_id::<SimpleReconcileState>())),
+        always(lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>())),
         always(lift_state(matched_in_flight_resp_msg_has_same_metadata_as_cr(cr))));
 
     stable_and_temp::<State<SimpleReconcileState>>(sm_partial_spec(simple_reconciler()), all_invariants(cr));
@@ -204,7 +204,7 @@ proof fn lemma_sm_spec_entails_all_invariants(cr: CustomResourceView)
     lemma_always_reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr);
     lemma_always_reconcile_init_pc_and_no_pending_req(cr);
     lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager(simple_reconciler());
-    lemma_always_every_in_flight_req_has_unique_id(simple_reconciler());
+    lemma_always_every_in_flight_msg_has_unique_id(simple_reconciler());
     lemma_always_matched_in_flight_resp_msg_has_same_metadata_as_cr(cr);
 
     entails_and_n!(sm_spec(simple_reconciler()),
@@ -214,7 +214,7 @@ proof fn lemma_sm_spec_entails_all_invariants(cr: CustomResourceView)
         always(lift_state(reconciler_at_init_pc(cr))
             .implies(lift_state(reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())))),
         always(lift_state(every_in_flight_msg_has_lower_id_than_chan_manager::<SimpleReconcileState>())),
-        always(lift_state(every_in_flight_req_has_unique_id::<SimpleReconcileState>())),
+        always(lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>())),
         always(lift_state(matched_in_flight_resp_msg_has_same_metadata_as_cr(cr))));
 }
 
@@ -596,18 +596,18 @@ proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_l
         next(simple_reconciler())(s, s_prime)
         && !s.crash_enabled
         && s.resource_obj_exists(cr.to_dynamic_object()) && cr.metadata.name.is_Some() && cr.metadata.namespace.is_Some()
-        && every_in_flight_req_has_unique_id::<SimpleReconcileState>()(s)
+        && every_in_flight_msg_has_unique_id::<SimpleReconcileState>()(s)
     };
     implies_preserved_by_always_temp(cr_exists(cr), lift_state(|s: State<SimpleReconcileState>| s.resource_obj_exists(cr.to_dynamic_object())));
     entails_trans(partial_spec_with_invariants_and_assumptions(cr), always(cr_exists(cr)), always(lift_state(|s: State<SimpleReconcileState>| s.resource_obj_exists(cr.to_dynamic_object()))));
     entails_always_and_n!(partial_spec_with_invariants_and_assumptions(cr),
         lift_action(next(simple_reconciler())), lift_state(crash_disabled::<SimpleReconcileState>()),
         cr_exists(cr),
-        lift_state(every_in_flight_req_has_unique_id::<SimpleReconcileState>()));
+        lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>()));
     temp_pred_equality(lift_action(stronger_next),
         lift_action(next(simple_reconciler())).and(lift_state(crash_disabled::<SimpleReconcileState>()))
         .and(cr_exists(cr))
-        .and(lift_state(every_in_flight_req_has_unique_id::<SimpleReconcileState>())));
+        .and(lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>())));
     kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api(partial_spec_with_invariants_and_assumptions(cr),
         simple_reconciler(), Option::Some(req_msg), stronger_next, handle_request(), pre, post);
 }

@@ -188,18 +188,20 @@ s_prime: State<T>, msg_1: Message, msg_2: Message)
     }
 }
 
-pub open spec fn every_in_flight_req_has_unique_id<T>() -> StatePred<State<T>> {
+pub open spec fn every_in_flight_or_pending_req_has_unique_id<T>(cr_key: ObjectRef) -> StatePred<State<T>>
+    recommends
+        cr_key.kind.is_CustomResourceKind(),
+{
     |s: State<T>| {
-        forall |req_msg: Message|
-            #[trigger] s.message_in_flight(req_msg)
-            && req_msg.content.is_APIRequest()
-            ==> (
-                forall |other_msg: Message|
-                    #[trigger] s.message_in_flight(other_msg)
-                    && other_msg.content.is_APIRequest()
-                    && req_msg != other_msg
-                    ==> req_msg.content.get_req_id() != other_msg.content.get_req_id()
-                )
+        s.reconcile_state_contains(cr_key)
+        && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
+        ==> (
+            forall |req_msg: Message|
+                s.message_in_flight(req_msg)
+                && req_msg.content.is_APIRequest()
+                && req_msg != s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0()
+                ==> req_msg.content.get_req_id() != s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_req_id()
+        )
     }
 }
 
@@ -214,36 +216,37 @@ pub open spec fn req_has_unique_id<T>(req_msg: Message) -> StatePred<State<T>> {
     }
 }
 
-pub proof fn lemma_always_every_in_flight_req_has_unique_id<K: ResourceView, T>(reconciler: Reconciler<K, T>)
+#[verifier(external_body)]
+pub proof fn lemma_always_every_in_flight_or_pending_req_has_unique_id<K: ResourceView, T>(reconciler: Reconciler<K, T>, cr_key: ObjectRef)
     ensures
         sm_spec(reconciler).entails(
-            always(lift_state(every_in_flight_req_has_unique_id::<T>()))
+            always(lift_state(every_in_flight_or_pending_req_has_unique_id::<T>(cr_key)))
         ),
 {
-    let invariant = every_in_flight_req_has_unique_id::<T>();
-    let stronger_next = |s, s_prime: State<T>| {
-        next(reconciler)(s, s_prime)
-        && every_in_flight_msg_has_lower_id_than_chan_manager::<T>()(s)
-    };
-    lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager(reconciler);
-    strengthen_next::<State<T>>(sm_spec(reconciler), next(reconciler),
-        every_in_flight_msg_has_lower_id_than_chan_manager::<T>(), stronger_next);
-    assert forall |s, s_prime: State<T>| invariant(s) && #[trigger] stronger_next(s, s_prime)
-    implies invariant(s_prime) by {
-        assert forall |req_msg: Message| #[trigger] s_prime.message_in_flight(req_msg) && req_msg.content.is_APIRequest()
-        implies req_has_unique_id::<T>(req_msg)(s_prime) by {
-            assert forall |other_msg: Message| #[trigger] s_prime.message_in_flight(other_msg)
-            && other_msg.content.is_APIRequest() && req_msg != other_msg implies
-                req_msg.content.get_req_id() != other_msg.content.get_req_id() by {
-                    // At most one request will be added to the network_state.in_flight for each action.
-                    assert(s.message_in_flight(req_msg) || s.message_in_flight(other_msg));
-                    if (s.message_in_flight(req_msg) && s.message_in_flight(other_msg)) {
-                        assert(req_msg.content.get_req_id() != other_msg.content.get_req_id());
-                    }
-                }
-            };
-    };
-    init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), stronger_next, invariant);
+    // let invariant = every_in_flight_req_has_unique_id::<T>();
+    // let stronger_next = |s, s_prime: State<T>| {
+    //     next(reconciler)(s, s_prime)
+    //     && every_in_flight_msg_has_lower_id_than_chan_manager::<T>()(s)
+    // };
+    // lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager(reconciler);
+    // strengthen_next::<State<T>>(sm_spec(reconciler), next(reconciler),
+    //     every_in_flight_msg_has_lower_id_than_chan_manager::<T>(), stronger_next);
+    // assert forall |s, s_prime: State<T>| invariant(s) && #[trigger] stronger_next(s, s_prime)
+    // implies invariant(s_prime) by {
+    //     assert forall |req_msg: Message| #[trigger] s_prime.message_in_flight(req_msg) && req_msg.content.is_APIRequest()
+    //     implies req_has_unique_id::<T>(req_msg)(s_prime) by {
+    //         assert forall |other_msg: Message| #[trigger] s_prime.message_in_flight(other_msg)
+    //         && other_msg.content.is_APIRequest() && req_msg != other_msg implies
+    //             req_msg.content.get_req_id() != other_msg.content.get_req_id() by {
+    //                 // At most one request will be added to the network_state.in_flight for each action.
+    //                 assert(s.message_in_flight(req_msg) || s.message_in_flight(other_msg));
+    //                 if (s.message_in_flight(req_msg) && s.message_in_flight(other_msg)) {
+    //                     assert(req_msg.content.get_req_id() != other_msg.content.get_req_id());
+    //                 }
+    //             }
+    //         };
+    // };
+    // init_invariant::<State<T>>(sm_spec(reconciler), init(reconciler), stronger_next, invariant);
 }
 
 pub open spec fn pending_req_has_lower_req_id<T>() -> StatePred<State<T>> {

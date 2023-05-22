@@ -601,32 +601,6 @@ pub proof fn always_and_equality<T>(p: TempPred<T>, q: TempPred<T>)
     temp_pred_equality::<T>(always(p.and(q)), always(p).and(always(q)));
 }
 
-/// The n predicate version of always_and_equality.
-/// post:
-///     always(p1.and(p1).and...and(pn)) == always(p1).and(always(p2))....and(always(pn))
-///
-/// Usage: always_and_equality_n!(spec, p1, p2, p3, p4)
-#[macro_export]
-macro_rules! always_and_equality_n {
-    [$($tail:tt)*] => {
-        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::always_and_equality_n_internal!($($tail)*));
-    };
-}
-
-#[macro_export]
-macro_rules! always_and_equality_n_internal {
-    ($p1:expr, $p2:expr) => {
-        always_and_equality($p1, $p2);
-    };
-    ($p1:expr, $p2:expr, $($tail:tt)*) => {
-        always_and_equality($p1, $p2);
-        always_and_equality_n_internal!($p1.and($p2), $($tail)*);
-    };
-}
-
-pub use always_and_equality_n;
-pub use always_and_equality_n_internal;
-
 pub proof fn p_and_always_p_equals_always_p<T>(p: TempPred<T>)
     ensures
         p.and(always(p)) == always(p),
@@ -1186,20 +1160,6 @@ pub proof fn strengthen_next<T>(spec: TempPred<T>, next: ActionPred<T>, inv: Sta
     entails_and_temp::<T>(spec, always(lift_action(next)), always(lift_state(inv)));
     always_and_equality::<T>(lift_action(next), lift_state(inv));
     temp_pred_equality::<T>(lift_action(next_and_inv), lift_action(next).and(lift_state(inv)));
-}
-
-pub proof fn strengthen_next_both_states<T>(spec: TempPred<T>, next: ActionPred<T>, inv: StatePred<T>, next_and_inv: ActionPred<T>)
-    requires
-        spec.entails(always(lift_action(next))),
-        spec.entails(always(lift_state(inv))),
-        valid(lift_action(next_and_inv).equals(lift_action(next).and(lift_state(inv)).and(later(lift_state(inv))))),
-    ensures
-        spec.entails(always(lift_action(next_and_inv))),
-{
-    always_p_to_always_later_p::<T>(spec, lift_state(inv));
-    entails_and_n!(spec, always(lift_action(next)), always(lift_state(inv)), always(later(lift_state(inv))));
-    always_and_equality_n!(lift_action(next), lift_state(inv), later(lift_state(inv)));
-    temp_pred_equality::<T>(lift_action(next_and_inv), lift_action(next).and(lift_state(inv)).and(later(lift_state(inv))));
 }
 
 /// Get the initial leads_to.
