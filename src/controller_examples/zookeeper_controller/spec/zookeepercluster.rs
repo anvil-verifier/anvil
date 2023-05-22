@@ -46,7 +46,7 @@ impl ZookeeperCluster {
     }
 
     #[verifier(external_body)]
-    pub fn replica(&self) -> (replica: i32)
+    pub fn replica(&self) -> (replica: u32)
         ensures
             replica as nat == self@.spec.replica,
     {
@@ -163,7 +163,7 @@ impl ZookeeperClusterSpec {
     pub spec fn view(&self) -> ZookeeperClusterSpecView;
 
     #[verifier(external_body)]
-    pub fn replica(&self) -> (replica: i32)
+    pub fn replica(&self) -> (replica: u32)
         ensures
             replica as nat == self@.replica,
     {

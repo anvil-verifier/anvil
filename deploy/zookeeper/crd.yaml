@@ -22,7 +22,8 @@ spec:
             spec:
               properties:
                 replica:
-                  format: int32
+                  format: uint32
+                  minimum: 0.0
                   type: integer
               required:
                 - replica

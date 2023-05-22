@@ -31,7 +31,7 @@ pub struct SimpleCRSpec {
     kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]
 #[kube(group = "anvil.dev", version = "v1", kind = "ZookeeperCluster")]
-#[kube(namespaced)]
+#[kube(shortname = "zk", namespaced)]
 pub struct ZookeeperClusterSpec {
-    pub replica: i32,
+    pub replica: u32,
 }
