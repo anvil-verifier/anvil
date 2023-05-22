@@ -373,16 +373,11 @@ proof fn lemma_after_get_cr_pc_leads_to_cm_exists(cr: CustomResourceView)
                 lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_msg, cr);
                 instantiate_entailed_leads_to::<State<SimpleReconcileState>>(ex, i,
                     partial_spec_with_invariants_and_assumptions(cr),
-                    lift_state(|s: State<SimpleReconcileState>| {
-                        exists |m: Message| {
-                            &&& #[trigger] s.message_in_flight(m)
-                            &&& resp_msg_matches_req_msg(m, req_msg)
-                        }
-                    }).and(lift_state(reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr))),
+                    lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_exists_resp_in_flight(req_msg, cr)),
                     lift_state(cm_exists(cr)));
             }
-        }
-    }
+        };
+    };
 }
 
 proof fn lemma_after_create_cm_pc_leads_to_cm_exists(cr: CustomResourceView)
@@ -409,8 +404,6 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_cm_exists(cr: CustomResourceV
 {
     lemma_init_pc_and_no_pending_req_leads_to_after_get_cr_pc_and_exists_pending_req_and_req_in_flight_and_no_resp_in_flight(cr);
 
-    // To make the spec and proof simpler, we first choose the pending req_msg.
-    // In this case, we have to use the `assert forall` to continue the proof in the view of a specific execution.
     assert forall |ex| #[trigger] partial_spec_with_invariants_and_assumptions(cr).satisfied_by(ex) implies
         lift_state(reconciler_at_after_get_cr_pc_and_exists_pending_req_and_req_in_flight_and_no_resp_in_flight(cr))
             .leads_to(lift_state(cm_exists(cr))).satisfied_by(ex) by {
@@ -426,7 +419,7 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_cm_exists(cr: CustomResourceV
                 }
             };
             lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_leads_to_ok_resp_received(req_msg, cr);
-            lemma_after_get_cr_pc_and_ok_resp_received_leads_to_cm_exists(req_msg, cr);
+            lemma_after_get_cr_pc_and_ok_resp_rin_flight_leads_to_cm_exists(req_msg, cr);
             leads_to_trans::<State<SimpleReconcileState>>(partial_spec_with_invariants_and_assumptions(cr),
                 reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight(req_msg, cr),
                 reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr), cm_exists(cr));
@@ -487,60 +480,35 @@ proof fn lemma_req_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_msg: Mess
         reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr), get_req, get_cr_resp_msg_sent);
     // Now we have all the premise to fire the leads-to formula from
     lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_msg, cr);
-    leads_to_trans::<State<SimpleReconcileState>>(spec,
-        pre,
-        |s| {
-            &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr)(s)
-            &&& get_cr_resp_msg_sent(s)
-        },
-        cm_exists(cr)
-    );
+    leads_to_trans::<State<SimpleReconcileState>>(spec, pre,
+        reconciler_at_after_get_cr_pc_and_pending_req_and_exists_resp_in_flight(req_msg, cr), cm_exists(cr));
 }
 
 proof fn lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_msg: Message, cr: CustomResourceView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
-            lift_state(|s: State<SimpleReconcileState>| {
-                exists |m: Message| {
-                    &&& #[trigger] s.message_in_flight(m)
-                    &&& resp_msg_matches_req_msg(m, req_msg)
-                }
-            }).and(lift_state(reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr)))
+            lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_exists_resp_in_flight(req_msg, cr))
             .leads_to(lift_state(cm_exists(cr)))
         ),
 {
-    let m_to_pre1 = |m: Message| lift_state(|s: State<SimpleReconcileState>| {
-        &&& s.message_in_flight(m)
-        &&& resp_msg_matches_req_msg(m, req_msg)
-    });
-    let pre2 = lift_state(reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr));
+    let m_to_pre = |m: Message| lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_flight(req_msg, m, cr));
     let post = lift_state(cm_exists(cr));
     let spec = partial_spec_with_invariants_and_assumptions(cr);
-    assert forall |msg: Message| spec.entails(#[trigger] m_to_pre1(msg).and(pre2).leads_to(post)) by {
+    assert forall |msg: Message| spec.entails(#[trigger] m_to_pre(msg).leads_to(post)) by {
         lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(msg, req_msg, cr);
-        temp_pred_equality::<State<SimpleReconcileState>>(
-            lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_flight(req_msg, msg, cr)),
-            m_to_pre1(msg).and(pre2));
     };
-    leads_to_exists_intro::<State<SimpleReconcileState>, Message>(spec, |m| m_to_pre1(m).and(pre2), post);
-    tla_exists_and_equality::<State<SimpleReconcileState>, Message>(m_to_pre1, pre2);
+    leads_to_exists_intro::<State<SimpleReconcileState>, Message>(spec, m_to_pre, post);
 
-    // This is very tedious proof to show exists_m_to_pre1 == tla_exists(m_to_pre1)
-    // I hope we can encapsulate this as a lemma
-    let exists_m_to_pre1 = lift_state(|s: State<SimpleReconcileState>| {
-        exists |m: Message| {
-            &&& #[trigger] s.message_in_flight(m)
-            &&& resp_msg_matches_req_msg(m, req_msg)
-        }
-    });
-    assert forall |ex| #[trigger] exists_m_to_pre1.satisfied_by(ex) implies tla_exists(m_to_pre1).satisfied_by(ex) by {
+    // This is for showing exists_m_to_pre == tla_exists(m_to_pre)
+    let exists_m_to_pre = lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_exists_resp_in_flight(req_msg, cr));
+    assert forall |ex| #[trigger] exists_m_to_pre.satisfied_by(ex) implies tla_exists(m_to_pre).satisfied_by(ex) by {
         let m = choose |m: Message| {
-            &&& #[trigger] ex.head().message_in_flight(m)
-            &&& resp_msg_matches_req_msg(m, req_msg)
+            #[trigger] ex.head().message_in_flight(m)
+            && resp_msg_matches_req_msg(m, req_msg)
         };
-        assert(m_to_pre1(m).satisfied_by(ex));
+        assert(m_to_pre(m).satisfied_by(ex));
     };
-    temp_pred_equality::<State<SimpleReconcileState>>(exists_m_to_pre1, tla_exists(m_to_pre1));
+    temp_pred_equality::<State<SimpleReconcileState>>(exists_m_to_pre, tla_exists(m_to_pre));
 }
 
 proof fn lemma_init_pc_and_no_pending_req_leads_to_after_get_cr_pc_and_exists_pending_req_and_req_in_flight_and_no_resp_in_flight(cr: CustomResourceView)
@@ -605,7 +573,7 @@ proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_l
 
 // This lemma proves:
 // ideal_spec |= get_cr_pc /\ pending_req /\ ok_resp_in_flight ~> cm_exists
-proof fn lemma_after_get_cr_pc_and_ok_resp_received_leads_to_cm_exists(req_msg: Message, cr: CustomResourceView)
+proof fn lemma_after_get_cr_pc_and_ok_resp_rin_flight_leads_to_cm_exists(req_msg: Message, cr: CustomResourceView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr))
@@ -618,16 +586,9 @@ proof fn lemma_after_get_cr_pc_and_ok_resp_received_leads_to_cm_exists(req_msg: 
     let spec = partial_spec_with_invariants_and_assumptions(cr);
     let stronger_next = strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr);
     spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr);
-    let cm_created = |s: State<SimpleReconcileState>| {
-        exists |req_msg: Message|
-            #![trigger s.message_in_flight(req_msg)]
-            #![trigger req_msg.content.is_create_request()]
-            reconciler_at_after_create_cm_pc(cr)(s)
-            && s.message_in_flight(req_msg)
-            && req_msg.dst == HostId::KubernetesAPI
-            && req_msg.content.is_create_request()
-            && req_msg.content.get_create_request().obj == reconciler::subresource_configmap(cr).to_dynamic_object()
-    };
+    let cm_created = reconciler_at_after_create_cm_pc_and_req_in_flight_and_cm_created(cr);
+
+    // First, prove spec |= get_cr_pc /\ pending_req /\ ok_resp_in_flight ~> exists_cm_req_in_flight using wf1 of controller
     assert forall |s, s_prime: State<SimpleReconcileState>| pre(s) && #[trigger] stronger_next(s, s_prime)
         && controller_next(simple_reconciler()).forward(input)(s, s_prime) implies cm_created(s_prime) by {
         let req_msg = controller_req_msg(reconciler::create_cm_req(cr), s.chan_manager.cur_chan_id);
@@ -635,15 +596,16 @@ proof fn lemma_after_get_cr_pc_and_ok_resp_received_leads_to_cm_exists(req_msg: 
         assert(s_prime.message_in_flight(req_msg));
     };
     lemma_pre_leads_to_post_by_controller(spec, simple_reconciler(), input, stronger_next, continue_reconcile(simple_reconciler()),
-        reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr),
-        cm_created
+        reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr), cm_created
     );
+
+    // Second, prove spec |= exists_cm_req_in_flight ~> cm_exists using wf1 of kubernetes api.
+    // Besides "assert forall execution", this can also be done using tla_exists.
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(cm_created).leads_to(lift_state(cm_exists(cr))).satisfied_by(ex) by {
         assert forall |i| #[trigger] lift_state(cm_created).satisfied_by(ex.suffix(i)) implies eventually(lift_state(cm_exists(cr))).satisfied_by(ex.suffix(i)) by {
             let s = ex.suffix(i).head();
             let req_msg = choose |msg: Message| {
-                reconciler_at_after_create_cm_pc(cr)(s)
-                && s.message_in_flight(msg)
+                s.message_in_flight(msg)
                 && msg.dst == HostId::KubernetesAPI
                 && #[trigger] msg.content.is_create_request()
                 && msg.content.get_create_request().obj == reconciler::subresource_configmap(cr).to_dynamic_object()

@@ -129,6 +129,19 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_fligh
     }
 }
 
+pub open spec fn reconciler_at_after_create_cm_pc_and_req_in_flight_and_cm_created(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+    |s: State<SimpleReconcileState>| {
+        reconciler_at_after_create_cm_pc(cr)(s)
+        && exists |req_msg: Message|
+            #![trigger s.message_in_flight(req_msg)]
+            #![trigger req_msg.content.is_create_request()]
+            s.message_in_flight(req_msg)
+            && req_msg.dst == HostId::KubernetesAPI
+            && req_msg.content.is_create_request()
+            && req_msg.content.get_create_request().obj == reconciler::subresource_configmap(cr).to_dynamic_object()
+    }
+}
+
 pub open spec fn reconciler_at_after_create_cm_pc(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
