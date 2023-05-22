@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::controller_examples::zookeeper_controller::common::*;
 use crate::controller_examples::zookeeper_controller::spec::reconciler as zk_spec;
 use crate::controller_examples::zookeeper_controller::spec::zookeepercluster::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, service::*};
@@ -26,15 +27,16 @@ pub struct ZookeeperReconcileState {
     pub zk: Option<ZookeeperCluster>,
 }
 
-#[is_variant]
-pub enum ZookeeperReconcileStep {
-    Init,
-    AfterGetZK,
-    AfterCreateHeadlessService,
-    AfterCreateClientService,
-    AfterCreateAdminServerService,
-    Done,
-    Error,
+impl ZookeeperReconcileState {
+    pub open spec fn to_view(&self) -> zk_spec::ZookeeperReconcileState {
+        zk_spec::ZookeeperReconcileState {
+            reconcile_step: self.reconcile_step,
+            zk: match self.zk {
+                Option::Some(inner_zk) => Option::Some(inner_zk@),
+                Option::None => Option::None,
+            }
+        }
+    }
 }
 
 pub struct ZookeeperReconciler {}
@@ -62,21 +64,30 @@ impl Default for ZookeeperReconciler {
     fn default() -> ZookeeperReconciler { ZookeeperReconciler{} }
 }
 
-pub fn reconcile_init_state() -> ZookeeperReconcileState {
+pub fn reconcile_init_state() -> (state: ZookeeperReconcileState)
+    ensures
+        state.to_view() == zk_spec::reconcile_init_state(),
+{
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
         zk: Option::None,
     }
 }
 
-pub fn reconcile_done(state: &ZookeeperReconcileState) -> (res: bool) {
+pub fn reconcile_done(state: &ZookeeperReconcileState) -> (res: bool)
+    ensures
+        res == zk_spec::reconcile_done(state.to_view()),
+{
     match state.reconcile_step {
         ZookeeperReconcileStep::Done => true,
         _ => false,
     }
 }
 
-pub fn reconcile_error(state: &ZookeeperReconcileState) -> (res: bool) {
+pub fn reconcile_error(state: &ZookeeperReconcileState) -> (res: bool)
+    ensures
+        res == zk_spec::reconcile_error(state.to_view()),
+{
     match state.reconcile_step {
         ZookeeperReconcileStep::Error => true,
         _ => false,

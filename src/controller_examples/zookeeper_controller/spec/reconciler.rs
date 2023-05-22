@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::controller_examples::zookeeper_controller::common::*;
 use crate::controller_examples::zookeeper_controller::spec::zookeepercluster::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, resource::*, service::*,
@@ -17,6 +18,33 @@ use vstd::prelude::*;
 use vstd::string::*;
 
 verus! {
+
+pub struct ZookeeperReconcileState {
+    pub reconcile_step: ZookeeperReconcileStep,
+
+    pub zk: Option<ZookeeperClusterView>,
+}
+
+pub open spec fn reconcile_init_state() -> ZookeeperReconcileState {
+    ZookeeperReconcileState {
+        reconcile_step: ZookeeperReconcileStep::Init,
+        zk: Option::None,
+    }
+}
+
+pub open spec fn reconcile_done(state: ZookeeperReconcileState) -> bool {
+    match state.reconcile_step {
+        ZookeeperReconcileStep::Done => true,
+        _ => false,
+    }
+}
+
+pub open spec fn reconcile_error(state: ZookeeperReconcileState) -> bool {
+    match state.reconcile_step {
+        ZookeeperReconcileStep::Error => true,
+        _ => false,
+    }
+}
 
 pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView
     recommends
