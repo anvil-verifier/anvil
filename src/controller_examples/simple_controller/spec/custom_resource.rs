@@ -75,15 +75,6 @@ impl CustomResource {
     {
         CustomResource {inner: obj.into_kube_obj().try_parse::<SimpleCR>().unwrap()}
     }
-
-    #[verifier(external_body)]
-    pub fn from_dynamic_object_ref(obj: &DynamicObject) -> (cr: &CustomResource)
-        ensures
-            cr@ == CustomResourceView::from_dynamic_object(obj@),
-    {
-        let ret = CustomResource {inner: obj.into_kube_obj().try_parse::<SimpleCR>().unwrap()};
-        &ret
-    }
 }
 
 impl CustomResourceView {}

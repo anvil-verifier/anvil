@@ -44,7 +44,7 @@ impl Reconciler<SimpleReconcileState> for SimpleReconciler {
         }
     }
 
-    fn reconcile_core(&self, cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, state: &SimpleReconcileState) -> (SimpleReconcileState, Option<KubeAPIRequest>) {
+    fn reconcile_core(&self, cr_key: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, state: SimpleReconcileState) -> (SimpleReconcileState, Option<KubeAPIRequest>) {
         reconcile_core(cr_key, resp_o, state)
     }
 
@@ -93,7 +93,7 @@ pub fn reconcile_error(state: &SimpleReconcileState) -> (res: bool)
 // TODO: need to prove whether the object is valid; See an example:
 // ConfigMap "foo_cm" is invalid: metadata.name: Invalid value: "foo_cm": a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.',
 // and must start and end with an alphanumeric character (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')
-pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, state: &SimpleReconcileState) -> (res: (SimpleReconcileState, Option<KubeAPIRequest>))
+pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, state: SimpleReconcileState) -> (res: (SimpleReconcileState, Option<KubeAPIRequest>))
     requires
         cr_key.kind.is_CustomResourceKind(),
     ensures
@@ -114,13 +114,13 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: &Option<KubeAPIResponse>, 
         return (state_prime, req_o);
     } else if pc == after_get_cr_pc() {
         if resp_o.is_some() {
-            let resp = resp_o.as_ref().unwrap();
+            let resp = resp_o.unwrap();
             if resp.is_get_response() && resp.as_get_response_ref().res.is_ok() {
                 let state_prime = SimpleReconcileState {
                     reconcile_pc: after_create_cm_pc(),
                 };
                 let mut config_map = ConfigMap::default();
-                let cr = CustomResource::from_dynamic_object_ref(resp.as_get_response_ref().res.as_ref().unwrap());
+                let cr = CustomResource::from_dynamic_object(resp.into_get_response().res.unwrap());
                 if (cr.metadata().name().is_some() && cr.metadata().namespace().is_some()) {
                     config_map.set_name(cr.metadata().name().unwrap().clone().concat(new_strlit("-cm")));
                     config_map.set_namespace(cr.metadata().namespace().unwrap().clone());

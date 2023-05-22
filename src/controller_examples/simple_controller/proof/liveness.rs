@@ -60,7 +60,6 @@ spec fn all_invariants(cr: CustomResourceView) -> TempPred<State<SimpleReconcile
         .implies(lift_state(reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())))))
     .and(always(lift_state(every_in_flight_msg_has_lower_id_than_chan_manager::<SimpleReconcileState>())))
     .and(always(lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>())))
-    .and(always(lift_state(matched_in_flight_resp_msg_has_same_metadata_as_cr(cr))))
 }
 
 spec fn partial_spec_with_invariants_and_assumptions(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState>> {
@@ -168,8 +167,6 @@ proof fn lemma_valid_stable_sm_partial_spec_and_invariants(cr: CustomResourceVie
         lift_state(every_in_flight_msg_has_lower_id_than_chan_manager::<SimpleReconcileState>()));
     always_p_stable::<State<SimpleReconcileState>>(
         lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>()));
-    always_p_stable::<State<SimpleReconcileState>>(
-        lift_state(matched_in_flight_resp_msg_has_same_metadata_as_cr(cr)));
 
     let a_to_p = |msg| lift_state(resp_matches_at_most_one_pending_req::<SimpleReconcileState>(msg, cr.object_ref()));
     let a_to_always = |msg| always(lift_state(
@@ -187,8 +184,7 @@ proof fn lemma_valid_stable_sm_partial_spec_and_invariants(cr: CustomResourceVie
         always(lift_state(reconciler_at_init_pc(cr))
             .implies(lift_state(reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())))),
         always(lift_state(every_in_flight_msg_has_lower_id_than_chan_manager::<SimpleReconcileState>())),
-        always(lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>())),
-        always(lift_state(matched_in_flight_resp_msg_has_same_metadata_as_cr(cr))));
+        always(lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>())));
 
     stable_and_temp::<State<SimpleReconcileState>>(sm_partial_spec(simple_reconciler()), all_invariants(cr));
 }
@@ -205,7 +201,6 @@ proof fn lemma_sm_spec_entails_all_invariants(cr: CustomResourceView)
     lemma_always_reconcile_init_pc_and_no_pending_req(cr);
     lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager(simple_reconciler());
     lemma_always_every_in_flight_msg_has_unique_id(simple_reconciler());
-    lemma_always_matched_in_flight_resp_msg_has_same_metadata_as_cr(cr);
 
     entails_and_n!(sm_spec(simple_reconciler()),
         tla_forall(|msg| always(lift_state(resp_matches_at_most_one_pending_req(msg, cr.object_ref())))),
@@ -214,8 +209,7 @@ proof fn lemma_sm_spec_entails_all_invariants(cr: CustomResourceView)
         always(lift_state(reconciler_at_init_pc(cr))
             .implies(lift_state(reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())))),
         always(lift_state(every_in_flight_msg_has_lower_id_than_chan_manager::<SimpleReconcileState>())),
-        always(lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>())),
-        always(lift_state(matched_in_flight_resp_msg_has_same_metadata_as_cr(cr))));
+        always(lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>())));
 }
 
 proof fn lemma_p_leads_to_cm_always_exists(cr: CustomResourceView, p: TempPred<State<SimpleReconcileState>>)
