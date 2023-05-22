@@ -17,8 +17,8 @@ use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString as IntOrString;
 
 
 pub fn statefulset_build( rabbitmq: &RabbitmqCluster) -> appsv1::StatefulSet {
-    let name_sts = rabbitmq.metadata.name.clone().unwrap() + "-server";
-    let name_headless = rabbitmq.metadata.name.clone().unwrap() + "-nodes";
+    let sts_name = rabbitmq.metadata.name.clone().unwrap() + "-server";
+    let headless_name = rabbitmq.metadata.name.clone().unwrap() + "-nodes";
 
     let pvc = persistent_volume_claim(rabbitmq);
 
@@ -26,7 +26,7 @@ pub fn statefulset_build( rabbitmq: &RabbitmqCluster) -> appsv1::StatefulSet {
 
     let sts = appsv1::StatefulSet{
         metadata: metav1::ObjectMeta {
-            name: Some(name_sts.clone()),
+            name: Some(sts_name.clone()),
             namespace: rabbitmq.meta().namespace.clone(),
             labels: Some(BTreeMap::from([(
                 "app".to_string(),
@@ -36,7 +36,7 @@ pub fn statefulset_build( rabbitmq: &RabbitmqCluster) -> appsv1::StatefulSet {
             ..metav1::ObjectMeta::default()
         },
         spec: Some(appsv1::StatefulSetSpec{
-            service_name: name_headless.clone(),
+            service_name: headless_name.clone(),
             replicas: Some(rabbitmq.spec.replica),
             update_strategy: Some(appsv1::StatefulSetUpdateStrategy{
                 type_: Some("RollingUpdate".to_string()),
@@ -93,17 +93,6 @@ fn persistent_volume_claim(rabbitmq: &RabbitmqCluster) ->Vec<corev1::PersistentV
 }
 
 
-// fn update_persistence_storage_capacity(
-//     templates: &mut Vec<corev1::PersistentVolumeClaim>,
-//     capacity: &k8sresource::Quantity,
-// ) {
-//     for t in templates.iter_mut() {
-//         if t.meta().name == Some("persistence".to_string()) {
-//             let requests = t.spec.as_mut().unwrap().resources.as_mut().unwrap().requests.as_mut().unwrap();
-//             requests.insert("storage".to_string(), capacity.clone());
-//         }
-//     }
-// }
 
 fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
     let readiness_probe_port = "amqp".to_string(); // default one
@@ -236,10 +225,7 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
         },
     ];
 
-    let mut image_used = Some(String::from("rabbitmq:3.11.10-management"));
-    if !rabbitmq.spec.image.is_none(){ // because we only modify k8s resource but not rust struct, we still need to check here
-        image_used = rabbitmq.spec.image.clone();
-    }
+    let image_used = Some(String::from("rabbitmq:3.11.10-management"));
 
     let rabbitmq_uid = 999 as i64;
     let pod_template_spec = corev1::PodTemplateSpec{
@@ -290,8 +276,8 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
                         }
                     ),
                     image:  image_used,
-                    env: Some(env_vars_k8s_objects(rabbitmq)),
-                    ports: Some(update_container_ports(rabbitmq)),
+                    env: Some(make_env_vars(rabbitmq)),
+                    ports: Some(make_container_ports(rabbitmq)),
                     volume_mounts: Some(rbmq_container_volume_mounts),
                     readiness_probe: Some(corev1::Probe{
                         initial_delay_seconds: Some(50),
@@ -335,7 +321,7 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
     pod_template_spec
 }
 
-fn setup_container(rabbitmq: &RabbitmqCluster) -> corev1::Container{
+fn setup_container(_rabbitmq: &RabbitmqCluster) -> corev1::Container{
     let cpu_request = "100m".to_string();
     let mem_request = "500Mi".to_string();
     let command = vec![
@@ -345,10 +331,7 @@ fn setup_container(rabbitmq: &RabbitmqCluster) -> corev1::Container{
 
     ];
 
-    let mut image_used = Some(String::from("rabbitmq:3.11.10-management"));
-    if !rabbitmq.spec.image.is_none(){ // because we only modify k8s resource but not rust struct, we still need to check here
-        image_used = rabbitmq.spec.image.clone();
-    }
+    let image_used = Some(String::from("rabbitmq:3.11.10-management"));
     let setup_container = corev1::Container {
         name: "setup-container".to_string(),
         image: image_used,
@@ -409,7 +392,7 @@ fn setup_container(rabbitmq: &RabbitmqCluster) -> corev1::Container{
 }
 
 
-fn env_vars_k8s_objects(rabbitmq: &RabbitmqCluster) -> Vec<corev1::EnvVar>{
+fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<corev1::EnvVar>{
     vec![
         corev1::EnvVar{
             name: "MY_POD_NAME".to_string(),
@@ -464,7 +447,7 @@ fn env_vars_k8s_objects(rabbitmq: &RabbitmqCluster) -> Vec<corev1::EnvVar>{
 }
 
 
-fn update_container_ports(_rabbitmq: &RabbitmqCluster) -> Vec<corev1::ContainerPort>{
+fn make_container_ports(_rabbitmq: &RabbitmqCluster) -> Vec<corev1::ContainerPort>{
     vec![
         corev1::ContainerPort {
             container_port: 4369,
