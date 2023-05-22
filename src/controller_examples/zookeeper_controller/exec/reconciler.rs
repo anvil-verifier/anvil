@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::controller_examples::zookeeper_controller::spec::reconciler as zk_spec;
 use crate::controller_examples::zookeeper_controller::spec::zookeepercluster::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, service::*};
 use crate::pervasive_ext::string_map::StringMap;
@@ -8,6 +9,7 @@ use crate::reconciler::exec::*;
 use builtin::*;
 use builtin_macros::*;
 use vstd::prelude::*;
+use vstd::seq_lib::*;
 use vstd::string::*;
 use vstd::vec::*;
 
@@ -228,35 +230,53 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, s
     }
 }
 
-fn make_headless_service(zk: &ZookeeperCluster) -> Service
+fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+    ensures
+        service@ == zk_spec::make_headless_service(zk@),
 {
     let mut ports = Vec::empty();
 
     ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), 2181));
     ports.push(ServicePort::new_with(new_strlit("tcp-quorum").to_string(), 2888));
-    ports.push(ServicePort::new_with(new_strlit("tcp-leadeer-election").to_string(), 3888));
+    ports.push(ServicePort::new_with(new_strlit("tcp-leader-election").to_string(), 3888));
     ports.push(ServicePort::new_with(new_strlit("tcp-metrics").to_string(), 7000));
     ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), 8080));
+
+    proof {
+        assert_seqs_equal!(
+            ports@.map_values(|port: ServicePort| port@),
+            zk_spec::make_headless_service(zk@).spec.get_Some_0().ports.get_Some_0()
+        );
+    }
 
     make_service(zk, zk.name().unwrap().concat(new_strlit("-headless")), ports, false)
 }
 
-fn make_client_service(zk: &ZookeeperCluster) -> Service
+fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+    ensures
+        service@ == zk_spec::make_client_service(zk@),
 {
     let mut ports = Vec::empty();
 
     ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), 2181));
 
+    proof {
+        assert_seqs_equal!(
+            ports@.map_values(|port: ServicePort| port@),
+            zk_spec::make_client_service(zk@).spec.get_Some_0().ports.get_Some_0()
+        );
+    }
+
     make_service(zk, zk.name().unwrap().concat(new_strlit("-client")), ports, true)
 }
 
-fn make_admin_server_service(zk: &ZookeeperCluster) -> Service
+fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
@@ -265,13 +285,22 @@ fn make_admin_server_service(zk: &ZookeeperCluster) -> Service
 
     ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), 8080));
 
+    proof {
+        assert_seqs_equal!(
+            ports@.map_values(|port: ServicePort| port@),
+            zk_spec::make_admin_server_service(zk@).spec.get_Some_0().ports.get_Some_0()
+        );
+    }
+
     make_service(zk, zk.name().unwrap().concat(new_strlit("-admin-server")), ports, true)
 }
 
-fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cluster_ip: bool) -> Service
+fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cluster_ip: bool) -> (service: Service)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+    ensures
+        service@ == zk_spec::make_service(zk@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip),
 {
     let mut service = Service::default();
     service.set_name(name);
