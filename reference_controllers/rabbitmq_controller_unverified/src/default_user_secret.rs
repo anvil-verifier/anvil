@@ -26,7 +26,7 @@ pub fn default_user_secret_build(rabbitmq: &RabbitmqCluster) -> corev1::Secret {
         data: Some(BTreeMap::from([
             (
                 "username".to_string(),
-                ByteString("zichengma".to_string().into_bytes()),
+                ByteString("user".to_string().into_bytes()),
             ),
             (
                 "password".to_string(),
@@ -54,7 +54,7 @@ pub fn default_user_secret_build(rabbitmq: &RabbitmqCluster) -> corev1::Secret {
             (
                 "default_user.conf".to_string(),
                 ByteString(
-                    "default_user = zichengma\ndefault_pass = changeme"
+                    "default_user = user\ndefault_pass = changeme"
                         .to_string()
                         .into_bytes(),
                 ), // not sure how to do this

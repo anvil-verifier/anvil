@@ -15,11 +15,11 @@ use kube_core::{self, Resource};
 use std::collections::BTreeMap;
 
 pub fn role_binding_build(rabbitmq: &RabbitmqCluster) -> rbacv1::RoleBinding {
-    let name_new = rabbitmq.metadata.name.clone().unwrap() + "-server";
-    let name_role = rabbitmq.metadata.name.clone().unwrap() + "-peer-discorvery";
+    let role_binding_name = rabbitmq.metadata.name.clone().unwrap() + "-server";
+    let role_name = rabbitmq.metadata.name.clone().unwrap() + "-peer-discorvery";
     rbacv1::RoleBinding {
         metadata: metav1::ObjectMeta {
-            name: Some(name_new.clone()),
+            name: Some(role_binding_name.clone()),
             namespace: rabbitmq.meta().namespace.clone(),
             labels: Some(BTreeMap::from([(
                 "app".to_string(),
@@ -31,11 +31,11 @@ pub fn role_binding_build(rabbitmq: &RabbitmqCluster) -> rbacv1::RoleBinding {
         role_ref: rbacv1::RoleRef {
             api_group: "rbac.authorization.k8s.io".to_string(),
             kind: "Role".to_string(),
-            name: name_role,
+            name: role_name,
         },
         subjects: Some(vec![rbacv1::Subject {
             kind: "ServiceAccount".to_string(),
-            name: name_new,
+            name: role_binding_name,
             namespace: rabbitmq.meta().namespace.clone(),
             ..rbacv1::Subject::default()
         }]),

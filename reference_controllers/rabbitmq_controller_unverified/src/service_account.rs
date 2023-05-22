@@ -15,10 +15,10 @@ use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use std::collections::BTreeMap;
 
 pub fn service_account_build(rabbitmq: &RabbitmqCluster) -> corev1::ServiceAccount {
-    let name_new = rabbitmq.metadata.name.clone().unwrap() + "-server";
+    let name = rabbitmq.metadata.name.clone().unwrap() + "-server";
     corev1::ServiceAccount {
         metadata: metav1::ObjectMeta {
-            name: Some(name_new),
+            name: Some(name),
             namespace: rabbitmq.metadata.namespace.clone(),
             owner_references: Some(vec![rabbitmq.controller_owner_ref(&()).unwrap()]),
             labels: Some(BTreeMap::from([(

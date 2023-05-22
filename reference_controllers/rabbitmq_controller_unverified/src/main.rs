@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 
 pub mod default_user_secret;
-pub mod erlang_cookie;
+pub mod erlang_cookie_secret;
 pub mod headless_service;
 pub mod rabbitmq_plugins;
 pub mod rabbitmqcluster_status;
@@ -62,16 +62,11 @@ enum Error {
     ReplaceImageFail(kube_client::Error),
 }
 
-struct RabbitmqClusterReconciler {
+struct Data {
     client: Client,
 }
 
-impl RabbitmqClusterReconciler {}
-
-async fn reconcile(
-    rabbitmq: Arc<RabbitmqCluster>,
-    _ctx: Arc<RabbitmqClusterReconciler>,
-) -> Result<Action, Error> {
+async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<Data>) -> Result<Action, Error> {
     let client = &_ctx.client;
     let namespace = rabbitmq.namespace().unwrap();
 
@@ -126,13 +121,13 @@ async fn reconcile(
     }
 
     // Create erlang cookie
-    let erlang_cookie = erlang_cookie::erlang_build(&rabbitmq);
+    let erlang_cookie_secret = erlang_cookie_secret::erlang_build(&rabbitmq);
     info!(
         "Create erlang cookie: {}",
-        erlang_cookie.metadata.name.as_ref().unwrap()
+        erlang_cookie_secret.metadata.name.as_ref().unwrap()
     );
     match secret_api
-        .create(&PostParams::default(), &erlang_cookie)
+        .create(&PostParams::default(), &erlang_cookie_secret)
         .await
     {
         Err(e) => match e {
@@ -294,11 +289,7 @@ async fn reconcile_operator_defaults(
 }
 
 /// object that caused the failure and the actual error
-fn error_policy(
-    _obj: Arc<RabbitmqCluster>,
-    _error: &Error,
-    _ctx: Arc<RabbitmqClusterReconciler>,
-) -> Action {
+fn error_policy(_obj: Arc<RabbitmqCluster>, _error: &Error, _ctx: Arc<Data>) -> Action {
     Action::requeue(Duration::from_secs(60))
 }
 
@@ -319,11 +310,7 @@ async fn main() -> Result<()> {
 
         Controller::new(rabbitmq, ListParams::default())
             .shutdown_on_signal()
-            .run(
-                reconcile,
-                error_policy,
-                Arc::new(RabbitmqClusterReconciler { client: client }),
-            )
+            .run(reconcile, error_policy, Arc::new(Data { client: client }))
             .for_each(|res| async move {
                 match res {
                     Ok(o) => info!("reconciled {:?}", o),

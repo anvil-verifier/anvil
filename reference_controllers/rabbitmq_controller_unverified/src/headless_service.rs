@@ -35,16 +35,12 @@ pub fn headless_build(rabbitmq: &RabbitmqCluster) -> corev1::Service {
             )])),
             ports: Some(vec![
                 corev1::ServicePort {
-                    protocol: Some("TCP".to_string()),
                     port: 4369,
-                    target_port: Some(IntOrString::Int(4369)),
                     name: Some("epmd".to_string()),
                     ..Default::default()
                 },
                 corev1::ServicePort {
-                    protocol: Some("TCP".to_string()),
                     port: 25672,
-                    target_port: Some(IntOrString::Int(25672)),
                     name: Some("cluster-rpc".to_string()),
                     ..Default::default()
                 },

@@ -14,10 +14,10 @@ use kube_core::{self, Resource};
 use std::collections::BTreeMap;
 
 pub fn server_configmap_build(rabbitmq: &RabbitmqCluster) -> corev1::ConfigMap {
-    let name_new = rabbitmq.metadata.name.clone().unwrap() + "-server-conf";
+    let name = rabbitmq.metadata.name.clone().unwrap() + "-server-conf";
     corev1::ConfigMap {
         metadata: metav1::ObjectMeta {
-            name: Some(name_new),
+            name: Some(name),
             namespace: rabbitmq.meta().namespace.clone(),
             labels: Some(BTreeMap::from([(
                 "app".to_string(),
@@ -61,10 +61,7 @@ fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> String {
 }
 
 fn default_user_config(rabbitmq: &RabbitmqCluster) -> String {
-    let mut value = 0;
-    if rabbitmq.spec.resources.is_none() {
-        value = remove_headroom(1073741824 * 2 as i64) // 2Gi in default
-    }
+    let value = remove_headroom(1073741824 * 2 as i64); // 2Gi in default
     let rabmq_part = format!("total_memory_available_override_value = {}\n", value,);
     rabmq_part
 }

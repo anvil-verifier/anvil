@@ -14,10 +14,10 @@ use kube_core::{self, Resource};
 use std::collections::BTreeMap;
 
 pub fn plugins_configmap_build(rabbitmq: &RabbitmqCluster) -> corev1::ConfigMap {
-    let name_new = rabbitmq.metadata.name.clone().unwrap() + "-plugins-conf";
+    let name = rabbitmq.metadata.name.clone().unwrap() + "-plugins-conf";
     corev1::ConfigMap {
         metadata: metav1::ObjectMeta {
-            name: Some(name_new),
+            name: Some(name),
             namespace: rabbitmq.meta().namespace.clone(),
             labels: Some(BTreeMap::from([(
                 "app".to_string(),
