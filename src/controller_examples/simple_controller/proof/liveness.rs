@@ -190,7 +190,7 @@ proof fn lemma_valid_stable_sm_partial_spec_and_invariants(cr: CustomResourceVie
 }
 
 // Step (4)
-// This proof is straightforward: Use the lemmas which prove spec |= invariant_i for i = 1, 2, 3, 4 respectively.
+// This proof is straightforward: Use the lemmas which prove spec |= invariant_i for i = 1, 2, 3, 4, 5, 6 respectively.
 proof fn lemma_sm_spec_entails_all_invariants(cr: CustomResourceView)
     ensures
         sm_spec(simple_reconciler()).entails(all_invariants(cr)),
@@ -418,8 +418,8 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_cm_exists(cr: CustomResourceV
                     &&& resp_msg_matches_req_msg(resp_msg, msg)
                 }
             };
-            lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_leads_to_ok_resp_received(req_msg, cr);
-            lemma_after_get_cr_pc_and_ok_resp_rin_flight_leads_to_cm_exists(req_msg, cr);
+            lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_leads_to_ok_resp_in_flight(req_msg, cr);
+            lemma_after_get_cr_pc_and_ok_resp_in_flight_leads_to_cm_exists(req_msg, cr);
             leads_to_trans::<State<SimpleReconcileState>>(partial_spec_with_invariants_and_assumptions(cr),
                 reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight(req_msg, cr),
                 reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr), cm_exists(cr));
@@ -542,7 +542,7 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_after_get_cr_pc_and_exists_pe
     lemma_pre_leads_to_post_by_controller(partial_spec_with_invariants_and_assumptions(cr), simple_reconciler(), input, stronger_next, continue_reconcile(simple_reconciler()), pre, post);
 }
 
-proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_leads_to_ok_resp_received(req_msg: Message, cr: CustomResourceView)
+proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_leads_to_ok_resp_in_flight(req_msg: Message, cr: CustomResourceView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight(req_msg, cr))
@@ -573,7 +573,7 @@ proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_l
 
 // This lemma proves:
 // ideal_spec |= get_cr_pc /\ pending_req /\ ok_resp_in_flight ~> cm_exists
-proof fn lemma_after_get_cr_pc_and_ok_resp_rin_flight_leads_to_cm_exists(req_msg: Message, cr: CustomResourceView)
+proof fn lemma_after_get_cr_pc_and_ok_resp_in_flight_leads_to_cm_exists(req_msg: Message, cr: CustomResourceView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr))
