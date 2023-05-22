@@ -12,12 +12,6 @@ pub struct RabbitmqClusterSpec {
     pub replica: i32,
     #[serde(rename = "image", skip_serializing_if = "Option::is_none")]
     pub image: Option<String>,
-    #[serde(rename = "image", skip_serializing_if = "Option::is_none")]
-    pub image_pull_secrets: Option<vec::Vec<corev1::LocalObjectReference>>,
-    #[serde(rename = "resources", skip_serializing_if = "Option::is_none")]
-    pub resources: Option<corev1::ResourceRequirements>,
-    #[serde(rename = "persistence", skip_serializing_if = "Option::is_none")]
-    pub persistence: Option<RabbitmqClusterPersistenceSpec>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]

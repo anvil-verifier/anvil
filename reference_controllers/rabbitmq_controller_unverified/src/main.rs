@@ -55,11 +55,6 @@ enum Error {
 
     #[error("Failed to create StatefulSet: {0}")]
     StatefulSetCreationFailed(#[source] kube::Error),
-
-    // #[error("MissingObjectKey: {0}")]
-    // MissingObjectKey(&'static str),
-    #[error("ReplaceImageFail: {0}")]
-    ReplaceImageFail(kube_client::Error),
 }
 
 struct Data {
@@ -70,10 +65,6 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<Data>) -> Result<Ac
     let client = &_ctx.client;
     let namespace = rabbitmq.namespace().unwrap();
 
-    let (duration, err) = reconcile_operator_defaults(&rabbitmq, client.clone()).await;
-    if duration.as_secs() != 0 || err.is_some() {
-        return Ok(Action::requeue(duration));
-    }
     info!("Reconcile operator defaults done, get APIs");
     let svc_api = Api::<corev1::Service>::namespaced(client.clone(), &namespace);
     info!("Get service API");
@@ -250,42 +241,6 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<Data>) -> Result<Ac
     }
 
     Ok(Action::requeue(Duration::from_secs(300)))
-}
-
-async fn reconcile_operator_defaults(
-    rabbitmq: &RabbitmqCluster,
-    client: Client,
-) -> (Duration, Option<Error>) {
-    let rabbitmq_api: Api<RabbitmqCluster> =
-        Api::namespaced(client, &rabbitmq.metadata.namespace.as_ref().unwrap());
-    let mut rabbitmq_replace = rabbitmq.clone();
-    if rabbitmq.spec.image.is_none() || rabbitmq.spec.image.as_ref().unwrap() == "" {
-        rabbitmq_replace.spec.image = Some(String::from("rabbitmq:3.11.10-management"));
-        match rabbitmq_api
-            .replace(
-                &rabbitmq.metadata.name.as_ref().unwrap(),
-                &PostParams::default(),
-                &rabbitmq_replace,
-            )
-            .await
-        {
-            Err(e) => return (Duration::from_secs(2), Some(Error::ReplaceImageFail(e))),
-            Ok(_) => {
-                info!("Updated default image");
-            }
-        };
-    }
-    (Duration::from_secs(0), None)
-
-    // if rabbitmq.spec.image_pull_secrets.is_none() || rabbitmq.spec.image_pull_secrets.as_ref().unwrap().len() == 0{
-    //     let mut rabbitmq_replace = rabbitmq.clone();
-    //     rabbitmq_replace.spec.image_pull_secrets = Some(vec![corev1::LocalObjectReference{
-    //         name: Some(String::from("regcred")),
-    //     }]);
-    //     rabbitmq_api.replace(&rabbitmq.metadata.name.as_ref().unwrap(), &PostParams::default(), &rabbitmq_replace);
-    // }
-
-    // User default updater image
 }
 
 /// object that caused the failure and the actual error

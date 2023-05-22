@@ -20,9 +20,9 @@ pub fn statefulset_build( rabbitmq: &RabbitmqCluster) -> appsv1::StatefulSet {
     let name_sts = rabbitmq.metadata.name.clone().unwrap() + "-server";
     let name_headless = rabbitmq.metadata.name.clone().unwrap() + "-nodes";
 
-    let mut pvc = persistent_volume_claim(rabbitmq);
+    let pvc = persistent_volume_claim(rabbitmq);
 
-    update_persistence_storage_capacity(&mut pvc, rabbitmq.spec.persistence.as_ref().unwrap().storage.as_ref().unwrap());
+    // update_persistence_storage_capacity(&mut pvc, rabbitmq.spec.persistence.as_ref().unwrap().storage.as_ref().unwrap());
 
     let sts = appsv1::StatefulSet{
         metadata: metav1::ObjectMeta {
@@ -79,11 +79,10 @@ fn persistent_volume_claim(rabbitmq: &RabbitmqCluster) ->Vec<corev1::PersistentV
             resources: Some(corev1::ResourceRequirements {
                 requests: Some(BTreeMap::from([(
                     "storage".to_string(),
-                    rabbitmq.spec.persistence.as_ref().unwrap().storage.clone().unwrap(),
+                    k8sresource::Quantity("10Gi".to_string()),
                 )])),
                 ..corev1::ResourceRequirements::default()
             }),
-            storage_class_name: rabbitmq.spec.persistence.as_ref().unwrap().storage_class_name.clone(),
             access_modes: Some(vec!["ReadWriteOnce".to_string()]),
             ..corev1::PersistentVolumeClaimSpec::default()
         }),
@@ -94,17 +93,17 @@ fn persistent_volume_claim(rabbitmq: &RabbitmqCluster) ->Vec<corev1::PersistentV
 }
 
 
-fn update_persistence_storage_capacity(
-    templates: &mut Vec<corev1::PersistentVolumeClaim>,
-    capacity: &k8sresource::Quantity,
-) {
-    for t in templates.iter_mut() {
-        if t.meta().name == Some("persistence".to_string()) {
-            let requests = t.spec.as_mut().unwrap().resources.as_mut().unwrap().requests.as_mut().unwrap();
-            requests.insert("storage".to_string(), capacity.clone());
-        }
-    }
-}
+// fn update_persistence_storage_capacity(
+//     templates: &mut Vec<corev1::PersistentVolumeClaim>,
+//     capacity: &k8sresource::Quantity,
+// ) {
+//     for t in templates.iter_mut() {
+//         if t.meta().name == Some("persistence".to_string()) {
+//             let requests = t.spec.as_mut().unwrap().resources.as_mut().unwrap().requests.as_mut().unwrap();
+//             requests.insert("storage".to_string(), capacity.clone());
+//         }
+//     }
+// }
 
 fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
     let readiness_probe_port = "amqp".to_string(); // default one
@@ -265,7 +264,6 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
                 run_as_user: Some(rabbitmq_uid),
                 ..Default::default()
             }),
-            image_pull_secrets: rabbitmq.spec.image_pull_secrets.clone(),
             termination_grace_period_seconds: Some(604800), // default value
             service_account_name: Some(rabbitmq.meta().name.as_ref().unwrap().clone() + "-server"),
             automount_service_account_token: Some(true),
@@ -274,7 +272,23 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
             containers: vec![
                 corev1::Container{
                     name: "rabbitmq".to_string(),
-                    resources: rabbitmq.spec.resources.clone(),
+                    resources: Some(
+                        corev1::ResourceRequirements{
+                            requests: Some(
+                                BTreeMap::from([
+                                    ("cpu".to_string(), k8sresource::Quantity("1000m".to_string())),
+                                    ("memory".to_string(), k8sresource::Quantity("2Gi".to_string()))
+                                ])
+                            ),
+                            limits: Some(
+                                BTreeMap::from([
+                                    ("cpu".to_string(), k8sresource::Quantity("2000m".to_string())),
+                                    ("memory".to_string(), k8sresource::Quantity("2Gi".to_string()))
+                                ])
+                            ),
+                            ..Default::default()
+                        }
+                    ),
                     image:  image_used,
                     env: Some(env_vars_k8s_objects(rabbitmq)),
                     ports: Some(update_container_ports(rabbitmq)),
@@ -341,10 +355,6 @@ fn setup_container(rabbitmq: &RabbitmqCluster) -> corev1::Container{
         command: Some(command),
         resources: Some(corev1::ResourceRequirements {
             limits: Some(
-                // Some(BTreeMap::from([(
-                //     "storage".to_string(),
-                //     rabbitmq.spec.persistence.as_ref().unwrap().storage.clone().unwrap(),
-                // )])),
                 BTreeMap::from([
                     ("cpu".to_string(), k8sresource::Quantity(cpu_request.clone())),
                     ("memory".to_string(), k8sresource::Quantity(mem_request.clone()))

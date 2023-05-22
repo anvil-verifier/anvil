@@ -33,7 +33,7 @@ pub fn server_configmap_build(rabbitmq: &RabbitmqCluster) -> corev1::ConfigMap {
             ),
             (
                 "userDefineConfiguration.conf".to_string(),
-                default_user_config(rabbitmq),
+                default_user_config(),
             ),
         ])),
         ..corev1::ConfigMap::default()
@@ -60,7 +60,7 @@ fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> String {
     default_part
 }
 
-fn default_user_config(rabbitmq: &RabbitmqCluster) -> String {
+fn default_user_config() -> String {
     let value = remove_headroom(1073741824 * 2 as i64); // 2Gi in default
     let rabmq_part = format!("total_memory_available_override_value = {}\n", value,);
     rabmq_part
