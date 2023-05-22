@@ -481,10 +481,5 @@ fn update_container_ports(_rabbitmq: &RabbitmqCluster) -> Vec<corev1::ContainerP
             name: Some("management".to_string()),
             ..Default::default()
         },
-        corev1::ContainerPort {
-            container_port: 15692,
-            name: Some("prometheus".to_string()),
-            ..Default::default()
-        },
     ]
 }

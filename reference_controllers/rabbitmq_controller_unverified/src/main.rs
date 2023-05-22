@@ -5,7 +5,6 @@ pub mod default_user_secret;
 pub mod erlang_cookie_secret;
 pub mod headless_service;
 pub mod rabbitmq_plugins;
-pub mod rabbitmqcluster_status;
 pub mod rabbitmqcluster_types;
 pub mod role;
 pub mod role_binding;
@@ -259,7 +258,7 @@ async fn main() -> Result<()> {
         println!("{}", serde_yaml::to_string(&RabbitmqCluster::crd())?);
         Ok(())
     } else if cmd == String::from("run") {
-        info!("running zookeeper-controller");
+        info!("running rabbitmq-controller");
         let client = Client::try_default().await?;
         let rabbitmq = Api::<RabbitmqCluster>::all(client.clone());
 

@@ -28,7 +28,6 @@ pub fn service_build(rabbitmq: &RabbitmqCluster) -> corev1::Service {
         },
         spec: Some(corev1::ServiceSpec {
             type_: Some("ClusterIP".to_string()),
-            cluster_ip: Some("None".to_string()),
             selector: Some(BTreeMap::from([(
                 "app".to_string(),
                 rabbitmq.meta().name.as_ref().unwrap().clone(),
@@ -49,15 +48,6 @@ pub fn service_build(rabbitmq: &RabbitmqCluster) -> corev1::Service {
                     target_port: Some(IntOrString::Int(15672)),
                     name: Some("management".to_string()),
                     app_protocol: Some("http".to_string()),
-                    node_port: Some(0),
-                    ..Default::default()
-                },
-                corev1::ServicePort {
-                    protocol: Some("TCP".to_string()),
-                    port: 15692,
-                    target_port: Some(IntOrString::Int(15692)),
-                    name: Some("prometheus".to_string()),
-                    app_protocol: Some("prometheus.io/metrics".to_string()),
                     node_port: Some(0),
                     ..Default::default()
                 },

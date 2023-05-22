@@ -29,8 +29,7 @@ pub fn plugins_configmap_build(rabbitmq: &RabbitmqCluster) -> corev1::ConfigMap 
         data: Some(BTreeMap::from([
             (
                 "enabled_plugins".to_string(),
-                "[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management]."
-                    .to_string(),
+                "[rabbitmq_peer_discovery_k8s,rabbitmq_management].".to_string(), // rabbitmq_prometheus(default in hello-world, but not necessary)
             ), // default plugins(no additional)
         ])),
         ..corev1::ConfigMap::default()
