@@ -46,6 +46,126 @@ pub open spec fn reconcile_error(state: ZookeeperReconcileState) -> bool {
     }
 }
 
+pub open spec fn reconcile_core(zk_ref: ObjectRef, resp_o: Option<APIResponse>, state: ZookeeperReconcileState) -> (ZookeeperReconcileState, Option<APIRequest>)
+    recommends
+        zk_ref.kind.is_CustomResourceKind(),
+{
+    let step = state.reconcile_step;
+    match step {
+        ZookeeperReconcileStep::Init => {
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::AfterGetZK,
+                ..state
+            };
+            let req_o = Option::Some(APIRequest::GetRequest(GetRequest{key: zk_ref}));
+            (state_prime, req_o)
+        },
+        ZookeeperReconcileStep::AfterGetZK => {
+            if resp_o.is_Some() {
+                let resp = resp_o.get_Some_0();
+                if resp.is_GetResponse() && resp.get_GetResponse_0().res.is_Ok() {
+                    let zk = ZookeeperClusterView::from_dynamic_object(resp.get_GetResponse_0().res.get_Ok_0());
+                    if zk.metadata.name.is_Some() && zk.metadata.namespace.is_Some() {
+                        let headless_service = make_headless_service(zk);
+                        let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                            obj: headless_service.to_dynamic_object(),
+                        }));
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterCreateHeadlessService,
+                            zk: Option::Some(zk),
+                            ..state
+                        };
+                        (state_prime, req_o)
+                    } else {
+                        reconcile_error_result(state)
+                    }
+                } else {
+                    reconcile_error_result(state)
+                }
+            } else {
+                reconcile_error_result(state)
+            }
+        },
+        ZookeeperReconcileStep::AfterCreateHeadlessService => {
+            if state.zk.is_Some() {
+                let zk = state.zk.get_Some_0();
+                if zk.metadata.name.is_Some() && zk.metadata.namespace.is_Some() {
+                    let client_service = make_client_service(zk);
+                    let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                        obj: client_service.to_dynamic_object(),
+                    }));
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterCreateClientService,
+                        ..state
+                    };
+                    (state_prime, req_o)
+                } else {
+                    reconcile_error_result(state)
+                }
+            } else {
+                reconcile_error_result(state)
+            }
+        },
+        ZookeeperReconcileStep::AfterCreateClientService => {
+            if state.zk.is_Some() {
+                let zk = state.zk.get_Some_0();
+                if zk.metadata.name.is_Some() && zk.metadata.namespace.is_Some() {
+                    let admin_server_service = make_admin_server_service(zk);
+                    let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                        obj: admin_server_service.to_dynamic_object(),
+                    }));
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterCreateAdminServerService,
+                        ..state
+                    };
+                    (state_prime, req_o)
+                } else {
+                    reconcile_error_result(state)
+                }
+            } else {
+                reconcile_error_result(state)
+            }
+        },
+        ZookeeperReconcileStep::AfterCreateAdminServerService => {
+            if state.zk.is_Some() {
+                let zk = state.zk.get_Some_0();
+                if zk.metadata.name.is_Some() && zk.metadata.namespace.is_Some() {
+                    let configmap = make_configmap(zk);
+                    let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                        obj: configmap.to_dynamic_object(),
+                    }));
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::Done,
+                        ..state
+                    };
+                    (state_prime, req_o)
+                } else {
+                    reconcile_error_result(state)
+                }
+            } else {
+                reconcile_error_result(state)
+            }
+        },
+        _ => {
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: step,
+                ..state
+            };
+            let req_o = Option::None;
+            (state_prime, req_o)
+        }
+    }
+}
+
+pub open spec fn reconcile_error_result(state: ZookeeperReconcileState) -> (ZookeeperReconcileState, Option<APIRequest>) {
+    let state_prime = ZookeeperReconcileState {
+        reconcile_step: ZookeeperReconcileStep::Error,
+        ..state
+    };
+    let req_o = Option::None;
+    (state_prime, req_o)
+}
+
 pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView
     recommends
         zk.metadata.name.is_Some(),

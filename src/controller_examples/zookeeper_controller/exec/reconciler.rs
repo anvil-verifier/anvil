@@ -47,8 +47,8 @@ impl Reconciler<ZookeeperReconcileState> for ZookeeperReconciler {
         reconcile_init_state()
     }
 
-    fn reconcile_core(&self, cr_key: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, state: ZookeeperReconcileState) -> (ZookeeperReconcileState, Option<KubeAPIRequest>) {
-        reconcile_core(cr_key, resp_o, state)
+    fn reconcile_core(&self, zk_ref: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, state: ZookeeperReconcileState) -> (ZookeeperReconcileState, Option<KubeAPIRequest>) {
+        reconcile_core(zk_ref, resp_o, state)
     }
 
     fn reconcile_done(&self, state: &ZookeeperReconcileState) -> bool {
@@ -94,7 +94,12 @@ pub fn reconcile_error(state: &ZookeeperReconcileState) -> (res: bool)
     }
 }
 
-pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, state: ZookeeperReconcileState) -> (res: (ZookeeperReconcileState, Option<KubeAPIRequest>)) {
+pub fn reconcile_core(zk_ref: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, state: ZookeeperReconcileState) -> (res: (ZookeeperReconcileState, Option<KubeAPIRequest>))
+    requires
+        zk_ref.kind.is_CustomResourceKind(),
+    ensures
+        (res.0.to_view(), opt_req_to_view(&res.1)) == zk_spec::reconcile_core(zk_ref.to_view(), opt_resp_to_view(&resp_o), state.to_view()),
+{
     let step = state.reconcile_step;
     match step {
         ZookeeperReconcileStep::Init => {
@@ -105,8 +110,8 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, s
             let req_o = Option::Some(KubeAPIRequest::GetRequest(
                 KubeGetRequest {
                     api_resource: ZookeeperCluster::api_resource(),
-                    name: cr_key.name.clone(),
-                    namespace: cr_key.namespace.clone(),
+                    name: zk_ref.name.clone(),
+                    namespace: zk_ref.namespace.clone(),
                 }
             ));
             (state_prime, req_o)
@@ -276,6 +281,8 @@ fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+    ensures
+        service@ == zk_spec::make_admin_server_service(zk@),
 {
     let mut ports = Vec::empty();
 
