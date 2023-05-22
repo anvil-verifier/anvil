@@ -326,10 +326,12 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
     service
 }
 
-fn make_configmap(zk: &ZookeeperCluster) -> ConfigMap
+fn make_configmap(zk: &ZookeeperCluster) -> (configmap: ConfigMap)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+    ensures
+        configmap@ == zk_spec::make_configmap(zk@),
 {
     let mut configmap = ConfigMap::default();
     configmap.set_name(zk.name().unwrap().concat(new_strlit("-configmap")));

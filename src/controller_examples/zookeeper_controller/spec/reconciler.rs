@@ -67,12 +67,29 @@ pub open spec fn make_service(
     } else {
         ServiceSpecView::default().set_ports(ports).set_selector(selector)
     };
-    let service = ServiceView::default()
+
+    ServiceView::default()
         .set_name(name)
         .set_namespace(zk.metadata.namespace.get_Some_0())
         .set_labels(labels)
-        .set_spec(service_spec);
-    service
+        .set_spec(service_spec)
+}
+
+pub open spec fn make_configmap(zk: ZookeeperClusterView) -> ConfigMapView
+    recommends
+        zk.metadata.name.is_Some(),
+        zk.metadata.namespace.is_Some(),
+{
+    let data = Map::empty()
+        .insert(new_strlit("zoo.cfg")@, make_zk_config())
+        .insert(new_strlit("log4j.properties")@, make_log4j_config())
+        .insert(new_strlit("log4j-quiet.properties")@, make_log4j_quiet_config())
+        .insert(new_strlit("env.sh")@, make_env_config(zk));
+
+    ConfigMapView::default()
+        .set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
+        .set_namespace(zk.metadata.namespace.get_Some_0())
+        .set_data(data)
 }
 
 pub open spec fn make_zk_config() -> StringView {
