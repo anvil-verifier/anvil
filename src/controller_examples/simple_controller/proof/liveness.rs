@@ -524,12 +524,9 @@ proof fn lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_m
     let spec = partial_spec_with_invariants_and_assumptions(cr);
     assert forall |msg: Message| spec.entails(#[trigger] m_to_pre1(msg).and(pre2).leads_to(post)) by {
         lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(msg, req_msg, cr);
-        let pre = lift_state(|s: State<SimpleReconcileState>| {
-            &&& s.message_in_flight(msg)
-            &&& resp_msg_matches_req_msg(msg, req_msg)
-            &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr)(s)
-        });
-        temp_pred_equality::<State<SimpleReconcileState>>(pre, m_to_pre1(msg).and(pre2));
+        temp_pred_equality::<State<SimpleReconcileState>>(
+            lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_flight(req_msg, msg, cr)),
+            m_to_pre1(msg).and(pre2));
     };
     leads_to_exists_intro::<State<SimpleReconcileState>, Message>(spec, |m| m_to_pre1(m).and(pre2), post);
     tla_exists_and_equality::<State<SimpleReconcileState>, Message>(m_to_pre1, pre2);
@@ -613,7 +610,7 @@ proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_l
 }
 
 // This lemma proves:
-// ideal_spec |= get_cr_pc /\ pending_req /\ ok_resp_in_flight ~> create_cm_pc
+// ideal_spec |= get_cr_pc /\ pending_req /\ ok_resp_in_flight ~> cm_exists
 proof fn lemma_after_get_cr_pc_and_ok_resp_received_leads_to_cm_exists(req_msg: Message, cr: CustomResourceView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
@@ -621,17 +618,54 @@ proof fn lemma_after_get_cr_pc_and_ok_resp_received_leads_to_cm_exists(req_msg: 
                 .leads_to(lift_state(cm_exists(cr)))
         ),
 {
-    let pre = reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr);
     let resp_msg = form_get_resp_msg(req_msg, Result::Ok(cr.to_dynamic_object()));
-    let clearer_pre = lift_state(|s: State<SimpleReconcileState>| {
-        &&& s.message_in_flight(resp_msg)
-        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr)(s)
-        &&& resp_is_ok_and_named_and_namespaced(resp_msg)
-    });
-    lemma_ok_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(resp_msg, req_msg, cr);
-    leads_to_weaken_temp::<State<SimpleReconcileState>>(partial_spec_with_invariants_and_assumptions(cr), clearer_pre,
-        lift_state(cm_exists(cr)), lift_state(pre), lift_state(cm_exists(cr)));
+    let input = (Option::Some(resp_msg), Option::Some(cr.object_ref()));
+    let pre = reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr);
+    let spec = partial_spec_with_invariants_and_assumptions(cr);
+    let stronger_next = strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr);
+    spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr);
+    let cm_created = |s: State<SimpleReconcileState>| {
+        exists |req_msg: Message|
+            #![trigger s.message_in_flight(req_msg)]
+            #![trigger req_msg.content.is_create_request()]
+            reconciler_at_after_create_cm_pc(cr)(s)
+            && s.message_in_flight(req_msg)
+            && req_msg.dst == HostId::KubernetesAPI
+            && req_msg.content.is_create_request()
+            && req_msg.content.get_create_request().obj == reconciler::subresource_configmap(cr).to_dynamic_object()
+    };
+    assert forall |s, s_prime: State<SimpleReconcileState>| pre(s) && #[trigger] stronger_next(s, s_prime)
+        && controller_next(simple_reconciler()).forward(input)(s, s_prime) implies cm_created(s_prime) by {
+        let req_msg = controller_req_msg(reconciler::create_cm_req(cr), s.chan_manager.cur_chan_id);
+        assert(s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0() == req_msg);
+        assert(s_prime.message_in_flight(req_msg));
+    };
+    lemma_pre_leads_to_post_by_controller(spec, simple_reconciler(), input, stronger_next, continue_reconcile(simple_reconciler()),
+        reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr),
+        cm_created
+    );
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(cm_created).leads_to(lift_state(cm_exists(cr))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] lift_state(cm_created).satisfied_by(ex.suffix(i)) implies eventually(lift_state(cm_exists(cr))).satisfied_by(ex.suffix(i)) by {
+            let s = ex.suffix(i).head();
+            let req_msg = choose |msg: Message| {
+                reconciler_at_after_create_cm_pc(cr)(s)
+                && s.message_in_flight(msg)
+                && msg.dst == HostId::KubernetesAPI
+                && #[trigger] msg.content.is_create_request()
+                && msg.content.get_create_request().obj == reconciler::subresource_configmap(cr).to_dynamic_object()
+            };
+            let kube_pre = |s: State<SimpleReconcileState>| {
+                &&& s.message_in_flight(req_msg)
+                &&& req_msg.dst == HostId::KubernetesAPI
+                &&& req_msg.content.is_create_request()
+                &&& req_msg.content.get_create_request().obj == reconciler::subresource_configmap(cr).to_dynamic_object()
+            };
+            kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api(spec, simple_reconciler(), Option::Some(req_msg), next(simple_reconciler()), handle_request(), kube_pre, cm_exists(cr));
+            instantiate_entailed_leads_to(ex, i, spec, lift_state(kube_pre), lift_state(cm_exists(cr)));
+        }
+    };
+    leads_to_trans(spec, reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr),
+        cm_created, cm_exists(cr));
 }
 
 spec fn strengthen_next_with_rep_resp_injectivity(resp_msg: Message, req_msg: Message, cr: CustomResourceView) -> ActionPred<State<SimpleReconcileState>> {
@@ -639,150 +673,35 @@ spec fn strengthen_next_with_rep_resp_injectivity(resp_msg: Message, req_msg: Me
         &&& next(simple_reconciler())(s, s_prime)
         &&& at_most_one_resp_matches_req(resp_msg, cr.object_ref())(s)
         &&& resp_matches_at_most_one_pending_req(resp_msg, cr.object_ref())(s)
-        &&& matched_in_flight_resp_msg_has_same_metadata_as_cr(cr)(s)
         &&& !s.crash_enabled
     }
-}
-
-spec fn resp_is_ok_and_named_and_namespaced(resp_msg: Message) -> bool {
-    let res = resp_msg.content.get_APIResponse_0().get_GetResponse_0().res;
-
-    resp_msg.content.is_APIResponse()
-    && resp_msg.content.get_APIResponse_0().is_GetResponse()
-    && res.is_Ok()
-    && res.get_Ok_0().metadata.name.is_Some()
-    && res.get_Ok_0().metadata.namespace.is_Some()
-}
-
-proof fn lemma_ok_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(resp_msg: Message, req_msg: Message, cr: CustomResourceView)
-    ensures
-        partial_spec_with_invariants_and_assumptions(cr).entails(
-            lift_state(|s: State<SimpleReconcileState>| {
-                &&& s.message_in_flight(resp_msg)
-                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr)(s)
-                &&& resp_is_ok_and_named_and_namespaced(resp_msg)
-            }).leads_to(lift_state(cm_exists(cr)))
-        ),
-{
-    let pre = |s: State<SimpleReconcileState>| {
-        &&& s.message_in_flight(resp_msg)
-        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr)(s)
-        &&& resp_is_ok_and_named_and_namespaced(resp_msg)
-    };
-    let new_cr = CustomResourceView::from_dynamic_object(resp_msg.content.get_APIResponse_0().get_GetResponse_0().res.get_Ok_0());
-    let medium = |s: State<SimpleReconcileState>| {
-        // let req_msg = controller_req_msg(reconciler::create_cm_req(new_cr), s.chan_manager.cur_chan_id);
-        // This is a bit tricky.
-        // We can't specify the req id of req_msg because it equals the channel if of the previous state of s.
-        exists |req_msg: Message| {
-            reconciler_at_after_create_cm_pc(cr)(s)
-            && #[trigger] s.message_in_flight(req_msg)
-            && req_msg.dst == HostId::KubernetesAPI
-            && req_msg.content.is_create_request()
-            && req_msg.content.get_create_request().obj == reconciler::subresource_configmap(new_cr).to_dynamic_object()
-            && cr.object_ref() == new_cr.object_ref()
-        }
-    };
-    let input = (Option::Some(resp_msg), Option::Some(cr.object_ref()));
-    let spec = partial_spec_with_invariants_and_assumptions(cr);
-    spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr);
-    assert forall |s, s_prime: State<SimpleReconcileState>| pre(s) && #[trigger] strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr)(s, s_prime) && controller_next(simple_reconciler()).forward(input)(s, s_prime) implies medium(s_prime) by {
-        let req_msg = controller_req_msg(reconciler::create_cm_req(new_cr), s.chan_manager.cur_chan_id);
-        assert(reconciler_at_after_create_cm_pc(cr)(s_prime));
-        assert(s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg.is_Some());
-        assert(s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0() == req_msg);
-        assert(s_prime.message_in_flight(s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0()));
-        assert(cr.object_ref() == new_cr.object_ref());
-    };
-    lemma_pre_leads_to_post_by_controller(spec, simple_reconciler(), input,
-        strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr), continue_reconcile(simple_reconciler()),
-        pre, medium);
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(medium).leads_to(lift_state(cm_exists(cr))).satisfied_by(ex) by {
-        assert forall |i| #[trigger] lift_state(medium).satisfied_by(ex.suffix(i)) implies eventually(lift_state(cm_exists(cr))).satisfied_by(ex.suffix(i)) by {
-            let s = ex.suffix(i).head();
-            let req_msg = choose |msg: Message| {
-                reconciler_at_after_create_cm_pc(cr)(s)
-                && #[trigger] s.message_in_flight(msg)
-                && msg.dst == HostId::KubernetesAPI
-                && msg.content.is_create_request()
-                && msg.content.get_create_request().obj == reconciler::subresource_configmap(new_cr).to_dynamic_object()
-                && cr.object_ref() == new_cr.object_ref()
-            };
-            let pre1 = |s: State<SimpleReconcileState>| {
-                &&& s.message_in_flight(req_msg)
-                &&& req_msg.dst == HostId::KubernetesAPI
-                &&& req_msg.content.is_create_request()
-                &&& req_msg.content.get_create_request().obj == reconciler::subresource_configmap(new_cr).to_dynamic_object()
-                &&& cr.object_ref() == new_cr.object_ref()
-            };
-            let post = |s: State<SimpleReconcileState>| {
-                cr.object_ref() == new_cr.object_ref()
-                && s.resource_key_exists(reconciler::subresource_configmap(new_cr).to_dynamic_object().object_ref())
-            };
-            kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api(spec, simple_reconciler(), Option::Some(req_msg), next(simple_reconciler()), handle_request(), pre1, post);
-            leads_to_weaken_temp(spec, lift_state(pre1), lift_state(post), lift_state(pre1), lift_state(cm_exists(cr)));
-            instantiate_entailed_leads_to(ex, i, spec, lift_state(pre1), lift_state(cm_exists(cr)));
-        }
-    };
-    leads_to_trans(spec, pre, medium, cm_exists(cr));
 }
 
 proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(resp_msg: Message, req_msg: Message, cr: CustomResourceView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
-            lift_state(|s: State<SimpleReconcileState>| {
-                &&& s.message_in_flight(resp_msg)
-                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-                &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr)(s)
-            }).leads_to(lift_state(cm_exists(cr)))
+            lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_flight(req_msg, resp_msg, cr)).leads_to(lift_state(cm_exists(cr)))
         ),
 {
-    let pre = |s: State<SimpleReconcileState>| {
-        &&& s.message_in_flight(resp_msg)
-        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr)(s)
-    };
-    let pre_with_name_and_namespace = lift_state(|s: State<SimpleReconcileState>| {
-        &&& s.message_in_flight(resp_msg)
-        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
-        &&& reconciler_at_after_get_cr_pc_and_pending_req(req_msg, cr)(s)
-        &&& resp_is_ok_and_named_and_namespaced(resp_msg)
-    });
+    // First, show spec |= get_cr_pc /\ pending_req /\ resp_in_flight ~> error_pc /\ reconcile_done
+    let pre = reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_flight(req_msg, resp_msg, cr);
+    let post = reconciler_reconcile_done_or_error(cr);
     let input = (Option::Some(resp_msg), Option::Some(cr.object_ref()));
     let spec = partial_spec_with_invariants_and_assumptions(cr);
     spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr);
 
-    if (resp_is_ok_and_named_and_namespaced(resp_msg)) {
-        lemma_ok_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(resp_msg, req_msg, cr);
-        leads_to_weaken_temp::<State<SimpleReconcileState>>(spec, pre_with_name_and_namespace, lift_state(cm_exists(cr)), lift_state(pre), lift_state(cm_exists(cr)));
-    } else {
-        let post = reconciler_reconcile_error(cr);
-        lemma_pre_leads_to_post_by_controller(spec, simple_reconciler(), input,
-            strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr), continue_reconcile(simple_reconciler()),
-            pre, post);
+    lemma_pre_leads_to_post_by_controller(spec, simple_reconciler(), input,
+        strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr), continue_reconcile(simple_reconciler()), pre, post);
 
-        // To show that ideal_spec |= error_pc ~> init_pc /\ no_pending_req
-        // First, show that always(cr_exists) |= always(cr_key_exists) to get spec |= always(cr_key_exists) using entails_trans.
-        // Then we can use lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req.
-        implies_preserved_by_always_temp::<State<SimpleReconcileState>>(cr_exists(cr),
-            lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(cr.object_ref())));
-        entails_trans::<State<SimpleReconcileState>>(spec, always(cr_exists(cr)),
-            always(lift_state(|s: State<SimpleReconcileState>| s.resource_key_exists(cr.object_ref()))));
-        lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req(spec,
-            simple_reconciler(), cr.object_ref());
-        lemma_init_pc_and_no_pending_req_leads_to_cm_exists(cr);
+    // Show spec |= error_pc \/ reconcile_done ~> cm_exists
+    lemma_after_create_cm_pc_leads_to_cm_exists(cr);
+    lemma_error_pc_leads_to_cm_exists(cr);
+    or_leads_to_combine(partial_spec_with_invariants_and_assumptions(cr), reconciler_at_after_create_cm_pc(cr),
+        reconciler_reconcile_error(cr), cm_exists(cr));
+    temp_pred_equality(lift_state(reconciler_at_after_create_cm_pc(cr)).or(lift_state(reconciler_reconcile_error(cr))),
+        lift_state(post));
 
-        // Finally, using leads_to transitivity.
-        // 1. spec |= after_get_cr_pc /\ pending_req /\ err_resp_in_flight ~> error_pc ~> init_pc /\ no_pending_req
-        // 2. spec |= after_get_cr_pc /\ pending_req /\ err_resp_in_flight ~> init_pc /\ no_pending_req ~> after_create_cm_pc
-        leads_to_trans::<State<SimpleReconcileState>>(spec, pre, post,
-            reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref()));
-        leads_to_trans::<State<SimpleReconcileState>>(spec, pre,
-            reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref()),
-            cm_exists(cr));
-    }
+    leads_to_trans(partial_spec_with_invariants_and_assumptions(cr), pre, post, cm_exists(cr));
 }
 
 proof fn spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg: Message, req_msg: Message, cr: CustomResourceView)
@@ -812,13 +731,11 @@ proof fn spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg: Messag
     entails_always_and_n!(spec, lift_action(next(simple_reconciler())),
         lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref())),
         lift_state(resp_matches_at_most_one_pending_req(resp_msg, cr.object_ref())),
-        lift_state(crash_disabled::<SimpleReconcileState>()),
-        lift_state(matched_in_flight_resp_msg_has_same_metadata_as_cr(cr)));
+        lift_state(crash_disabled::<SimpleReconcileState>()));
     temp_pred_equality(lift_action(next_and_invariant),
         lift_action(next(simple_reconciler())).and(lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref())))
         .and(lift_state(resp_matches_at_most_one_pending_req(resp_msg, cr.object_ref())))
-        .and(lift_state(crash_disabled::<SimpleReconcileState>()))
-        .and(lift_state(matched_in_flight_resp_msg_has_same_metadata_as_cr(cr))));
+        .and(lift_state(crash_disabled::<SimpleReconcileState>())));
 }
 
 pub proof fn next_and_not_crash_preserves_init_pc_or_reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight(cr: CustomResourceView, s: State<SimpleReconcileState>, s_prime: State<SimpleReconcileState>)
@@ -848,7 +765,6 @@ pub proof fn next_and_not_crash_preserves_init_pc_or_reconciler_at_after_get_cr_
             assert(false);
         }
     }
-
 }
 
 }
