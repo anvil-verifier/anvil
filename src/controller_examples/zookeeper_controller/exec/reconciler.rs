@@ -37,22 +37,6 @@ pub enum ZookeeperReconcileStep {
     Error,
 }
 
-impl ZookeeperReconcileStep {
-    pub fn clone(&self) -> (res: ZookeeperReconcileStep)
-        ensures res == self
-    {
-        match self {
-            ZookeeperReconcileStep::Init => ZookeeperReconcileStep::Init,
-            ZookeeperReconcileStep::AfterGetZK => ZookeeperReconcileStep::AfterGetZK,
-            ZookeeperReconcileStep::AfterCreateHeadlessService => ZookeeperReconcileStep::AfterCreateHeadlessService,
-            ZookeeperReconcileStep::AfterCreateClientService => ZookeeperReconcileStep::AfterCreateClientService,
-            ZookeeperReconcileStep::AfterCreateAdminServerService => ZookeeperReconcileStep::AfterCreateAdminServerService,
-            ZookeeperReconcileStep::Done => ZookeeperReconcileStep::Done,
-            ZookeeperReconcileStep::Error => ZookeeperReconcileStep::Error,
-        }
-    }
-}
-
 pub struct ZookeeperReconciler {}
 
 #[verifier(external)]
