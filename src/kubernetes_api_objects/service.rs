@@ -79,7 +79,7 @@ impl Service {
         ensures
             self@ == old(self)@.set_metadata(metadata@),
     {
-        self.inner.metadata = metadata.into_kube_object_meta();
+        self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
@@ -87,11 +87,11 @@ impl Service {
         ensures
             self@ == old(self)@.set_spec(spec@),
     {
-        self.inner.spec = std::option::Option::Some(spec.into_kube_service_spec());
+        self.inner.spec = std::option::Option::Some(spec.into_kube());
     }
 
     #[verifier(external)]
-    pub fn into_kube_obj(self) -> k8s_openapi::api::core::v1::Service {
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::Service {
         self.inner
     }
 
@@ -100,7 +100,7 @@ impl Service {
         ensures
             res@.kind == Kind::CustomResourceKind,
     {
-        ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<k8s_openapi::api::core::v1::Service>(&()))
+        ApiResource::from_kube(kube::api::ApiResource::erase::<k8s_openapi::api::core::v1::Service>(&()))
     }
 
     // NOTE: This function assumes serde_json::to_string won't fail!
@@ -109,7 +109,7 @@ impl Service {
         ensures
             obj@ == self@.to_dynamic_object(),
     {
-        DynamicObject::from_kube_obj(
+        DynamicObject::from_kube(
             k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
         )
     }
@@ -121,7 +121,7 @@ impl Service {
         ensures
             svc@ == ServiceView::from_dynamic_object(obj@),
     {
-        Service { inner: obj.into_kube_obj().try_parse::<k8s_openapi::api::core::v1::Service>().unwrap() }
+        Service { inner: obj.into_kube().try_parse::<k8s_openapi::api::core::v1::Service>().unwrap() }
     }
 }
 
@@ -226,7 +226,7 @@ impl ServiceSpec {
             self@ == old(self)@.set_ports(ports@.map_values(|port: ServicePort| port@)),
     {
         self.inner.ports = std::option::Option::Some(
-            ports.vec.into_iter().map(|port: ServicePort| port.into_kube_service_port()).collect()
+            ports.vec.into_iter().map(|port: ServicePort| port.into_kube()).collect()
         )
     }
 
@@ -239,7 +239,7 @@ impl ServiceSpec {
     }
 
     #[verifier(external)]
-    pub fn into_kube_service_spec(self) -> k8s_openapi::api::core::v1::ServiceSpec {
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::ServiceSpec {
         self.inner
     }
 }
@@ -362,7 +362,7 @@ impl ServicePort {
     }
 
     #[verifier(external)]
-    pub fn into_kube_service_port(self) -> k8s_openapi::api::core::v1::ServicePort {
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::ServicePort {
         self.inner
     }
 }

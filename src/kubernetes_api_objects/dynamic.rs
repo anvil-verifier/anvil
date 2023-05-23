@@ -57,14 +57,14 @@ impl DynamicObject {
     pub spec fn view(&self) -> DynamicObjectView;
 
     #[verifier(external)]
-    pub fn from_kube_obj(inner: K8SDynamicObject) -> DynamicObject {
+    pub fn from_kube(inner: K8SDynamicObject) -> DynamicObject {
         DynamicObject {
             inner: inner
         }
     }
 
     #[verifier(external)]
-    pub fn into_kube_obj(self) -> K8SDynamicObject {
+    pub fn into_kube(self) -> K8SDynamicObject {
         self.inner
     }
 

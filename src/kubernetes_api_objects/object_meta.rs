@@ -38,14 +38,14 @@ impl ObjectMeta {
     }
 
     #[verifier(external)]
-    pub fn from_kube_object_meta(inner: K8SObjectMeta) -> ObjectMeta {
+    pub fn from_kube(inner: K8SObjectMeta) -> ObjectMeta {
         ObjectMeta {
             inner: inner
         }
     }
 
     #[verifier(external)]
-    pub fn into_kube_object_meta(self) -> K8SObjectMeta {
+    pub fn into_kube(self) -> K8SObjectMeta {
         self.inner
     }
 

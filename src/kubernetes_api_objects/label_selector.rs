@@ -35,7 +35,7 @@ impl LabelSelector {
     }
 
     #[verifier(external)]
-    pub fn into_kube_label_selector(self) -> k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+    pub fn into_kube(self) -> k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
         self.inner
     }
 }

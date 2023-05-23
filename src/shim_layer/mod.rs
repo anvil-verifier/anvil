@@ -131,7 +131,7 @@ where
                         std::result::Result::Ok(obj) => {
                             resp_option = Option::Some(KubeAPIResponse::GetResponse(
                                 KubeGetResponse{
-                                    res: vstd::result::Result::Ok(DynamicObject::from_kube_obj(obj)),
+                                    res: vstd::result::Result::Ok(DynamicObject::from_kube(obj)),
                                 }
                             ));
                             println!("Get done");
@@ -139,9 +139,9 @@ where
                     }
                 },
                 KubeAPIRequest::CreateRequest(create_req) => {
-                    let api = Api::<kube::api::DynamicObject>::namespaced_with(client.clone(), &create_req.obj.kube_metadata_ref().namespace.as_ref().unwrap(), &create_req.api_resource.into_kube_api_resource());
+                    let api = Api::<kube::api::DynamicObject>::namespaced_with(client.clone(), &create_req.obj.kube_metadata_ref().namespace.as_ref().unwrap(), &create_req.api_resource.into_kube());
                     let pp = PostParams::default();
-                    let obj_to_create = create_req.obj.into_kube_obj();
+                    let obj_to_create = create_req.obj.into_kube();
                     match api.create(&pp, &obj_to_create).await {
                         std::result::Result::Err(err) => {
                             resp_option = Option::Some(KubeAPIResponse::CreateResponse(
@@ -154,7 +154,7 @@ where
                         std::result::Result::Ok(obj) => {
                             resp_option = Option::Some(KubeAPIResponse::GetResponse(
                                 KubeGetResponse{
-                                    res: vstd::result::Result::Ok(DynamicObject::from_kube_obj(obj)),
+                                    res: vstd::result::Result::Ok(DynamicObject::from_kube(obj)),
                                 }
                             ));
                             println!("Create done");

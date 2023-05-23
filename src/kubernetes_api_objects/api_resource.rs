@@ -22,14 +22,14 @@ impl ApiResource {
     pub spec fn view(&self) -> ApiResourceView;
 
     #[verifier(external)]
-    pub fn from_kube_api_resource(inner: K8SApiResource) -> ApiResource {
+    pub fn from_kube(inner: K8SApiResource) -> ApiResource {
         ApiResource {
             inner: inner
         }
     }
 
     #[verifier(external)]
-    pub fn into_kube_api_resource(self) -> K8SApiResource {
+    pub fn into_kube(self) -> K8SApiResource {
         self.inner
     }
 

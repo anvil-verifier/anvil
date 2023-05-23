@@ -69,7 +69,7 @@ impl StatefulSet {
         ensures
             self@ == old(self)@.set_metadata(metadata@),
     {
-        self.inner.metadata = metadata.into_kube_object_meta();
+        self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
@@ -77,11 +77,11 @@ impl StatefulSet {
         ensures
             self@ == old(self)@.set_spec(spec@),
     {
-        self.inner.spec = std::option::Option::Some(spec.into_kube_stateful_set_spec());
+        self.inner.spec = std::option::Option::Some(spec.into_kube());
     }
 
     #[verifier(external)]
-    pub fn into_kube_obj(self) -> k8s_openapi::api::apps::v1::StatefulSet {
+    pub fn into_kube(self) -> k8s_openapi::api::apps::v1::StatefulSet {
         self.inner
     }
 
@@ -90,7 +90,7 @@ impl StatefulSet {
         ensures
             res@.kind == Kind::CustomResourceKind,
     {
-        ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<k8s_openapi::api::apps::v1::StatefulSet>(&()))
+        ApiResource::from_kube(kube::api::ApiResource::erase::<k8s_openapi::api::apps::v1::StatefulSet>(&()))
     }
 
     // NOTE: This function assumes serde_json::to_string won't fail!
@@ -99,7 +99,7 @@ impl StatefulSet {
         ensures
             obj@ == self@.to_dynamic_object(),
     {
-        DynamicObject::from_kube_obj(
+        DynamicObject::from_kube(
             k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
         )
     }
@@ -110,7 +110,7 @@ impl StatefulSet {
         ensures
             sts@ == StatefulSetView::from_dynamic_object(obj@),
     {
-        StatefulSet { inner: obj.into_kube_obj().try_parse::<k8s_openapi::api::apps::v1::StatefulSet>().unwrap() }
+        StatefulSet { inner: obj.into_kube().try_parse::<k8s_openapi::api::apps::v1::StatefulSet>().unwrap() }
     }
 }
 
@@ -205,7 +205,7 @@ impl StatefulSetSpec {
         ensures
             self@ == old(self)@.set_selector(selector@),
     {
-        self.inner.selector = selector.into_kube_label_selector()
+        self.inner.selector = selector.into_kube()
     }
 
     #[verifier(external_body)]
@@ -217,7 +217,7 @@ impl StatefulSetSpec {
     }
 
     #[verifier(external)]
-    pub fn into_kube_stateful_set_spec(self) -> k8s_openapi::api::apps::v1::StatefulSetSpec {
+    pub fn into_kube(self) -> k8s_openapi::api::apps::v1::StatefulSetSpec {
         self.inner
     }
 }

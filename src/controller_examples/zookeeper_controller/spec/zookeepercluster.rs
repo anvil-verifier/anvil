@@ -54,7 +54,7 @@ impl ZookeeperCluster {
     }
 
     #[verifier(external)]
-    pub fn into_kube_obj(self) -> deps_hack::ZookeeperCluster {
+    pub fn into_kube(self) -> deps_hack::ZookeeperCluster {
         self.inner
     }
 
@@ -63,7 +63,7 @@ impl ZookeeperCluster {
         ensures
             res@.kind == Kind::CustomResourceKind,
     {
-        ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<deps_hack::ZookeeperCluster>(&()))
+        ApiResource::from_kube(kube::api::ApiResource::erase::<deps_hack::ZookeeperCluster>(&()))
     }
 
     // NOTE: This function assumes serde_json::to_string won't fail!
@@ -73,14 +73,14 @@ impl ZookeeperCluster {
             obj@ == self@.to_dynamic_object(),
     {
         // TODO: this might be unnecessarily slow
-        DynamicObject::from_kube_obj(
+        DynamicObject::from_kube(
             k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
         )
 
-        // DynamicObject::from_kube_obj(kube::api::DynamicObject {
+        // DynamicObject::from_kube(kube::api::DynamicObject {
         //     types: std::option::Option::Some(kube::api::TypeMeta {
-        //         api_version: Self::api_resource().into_kube_api_resource().api_version,
-        //         kind: Self::api_resource().into_kube_api_resource().kind,
+        //         api_version: Self::api_resource().into_kube().api_version,
+        //         kind: Self::api_resource().into_kube().kind,
         //     }),
         //     metadata: self.inner.metadata,
         //     data: k8s_openapi::serde_json::to_value(self.inner.spec).unwrap(),
@@ -94,7 +94,7 @@ impl ZookeeperCluster {
         ensures
             zk@ == ZookeeperClusterView::from_dynamic_object(obj@),
     {
-        ZookeeperCluster { inner: obj.into_kube_obj().try_parse::<deps_hack::ZookeeperCluster>().unwrap() }
+        ZookeeperCluster { inner: obj.into_kube().try_parse::<deps_hack::ZookeeperCluster>().unwrap() }
     }
 }
 

@@ -52,7 +52,7 @@ impl Pod {
         ensures
             self@ == old(self)@.set_metadata(metadata@),
     {
-        self.inner.metadata = metadata.into_kube_object_meta();
+        self.inner.metadata = metadata.into_kube();
     }
 
     #[verifier(external_body)]
@@ -60,11 +60,11 @@ impl Pod {
         ensures
             self@ == old(self)@.set_spec(spec@),
     {
-        self.inner.spec = std::option::Option::Some(spec.into_kube_pod_spec());
+        self.inner.spec = std::option::Option::Some(spec.into_kube());
     }
 
     #[verifier(external)]
-    pub fn into_kube_obj(self) -> k8s_openapi::api::core::v1::Pod {
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::Pod {
         self.inner
     }
 
@@ -73,7 +73,7 @@ impl Pod {
         ensures
             res@.kind == Kind::CustomResourceKind,
     {
-        ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<k8s_openapi::api::core::v1::Pod>(&()))
+        ApiResource::from_kube(kube::api::ApiResource::erase::<k8s_openapi::api::core::v1::Pod>(&()))
     }
 
     // NOTE: This function assumes serde_json::to_string won't fail!
@@ -82,7 +82,7 @@ impl Pod {
         ensures
             obj@ == self@.to_dynamic_object(),
     {
-        DynamicObject::from_kube_obj(
+        DynamicObject::from_kube(
             k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
         )
     }
@@ -93,7 +93,7 @@ impl Pod {
         ensures
             pod@ == PodView::from_dynamic_object(obj@),
     {
-        Pod { inner: obj.into_kube_obj().try_parse::<k8s_openapi::api::core::v1::Pod>().unwrap() }
+        Pod { inner: obj.into_kube().try_parse::<k8s_openapi::api::core::v1::Pod>().unwrap() }
     }
 }
 
@@ -116,7 +116,7 @@ impl PodSpec {
     }
 
     #[verifier(external)]
-    pub fn into_kube_pod_spec(self) -> k8s_openapi::api::core::v1::PodSpec {
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::PodSpec {
         self.inner
     }
 }

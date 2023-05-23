@@ -38,14 +38,14 @@ impl ConfigMap {
     }
 
     #[verifier(external)]
-    pub fn from_kube_obj(inner: K8SConfigMap) -> ConfigMap {
+    pub fn from_kube(inner: K8SConfigMap) -> ConfigMap {
         ConfigMap {
             inner: inner
         }
     }
 
     #[verifier(external)]
-    pub fn into_kube_obj(self) -> K8SConfigMap {
+    pub fn into_kube(self) -> K8SConfigMap {
         self.inner
     }
 
@@ -54,7 +54,7 @@ impl ConfigMap {
         ensures
             res@.kind == Kind::ConfigMapKind,
     {
-        ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<K8SConfigMap>(&()))
+        ApiResource::from_kube(kube::api::ApiResource::erase::<K8SConfigMap>(&()))
     }
 
     /// Convert a ConfigMap to a DynamicObject
@@ -64,7 +64,7 @@ impl ConfigMap {
         ensures
             obj@ == self@.to_dynamic_object(),
     {
-        DynamicObject::from_kube_obj(
+        DynamicObject::from_kube(
             k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
         )
     }
@@ -76,7 +76,7 @@ impl ConfigMap {
         ensures
             cm@ == ConfigMapView::from_dynamic_object(obj@),
     {
-        ConfigMap {inner: obj.into_kube_obj().try_parse::<K8SConfigMap>().unwrap()}
+        ConfigMap {inner: obj.into_kube().try_parse::<K8SConfigMap>().unwrap()}
     }
 
     #[verifier(external_body)]

@@ -36,7 +36,7 @@ impl CustomResource {
         ensures
             res@.kind == Kind::CustomResourceKind,
     {
-        ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<SimpleCR>(&()))
+        ApiResource::from_kube(kube::api::ApiResource::erase::<SimpleCR>(&()))
     }
 
     #[verifier(external_body)]
@@ -44,7 +44,7 @@ impl CustomResource {
         ensures
             metadata@ == self@.metadata,
     {
-        ObjectMeta::from_kube_object_meta(self.inner.metadata.clone())
+        ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
@@ -73,7 +73,7 @@ impl CustomResource {
         ensures
             cr@ == CustomResourceView::from_dynamic_object(obj@),
     {
-        CustomResource {inner: obj.into_kube_obj().try_parse::<SimpleCR>().unwrap()}
+        CustomResource {inner: obj.into_kube().try_parse::<SimpleCR>().unwrap()}
     }
 }
 
