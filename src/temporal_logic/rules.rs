@@ -1642,22 +1642,6 @@ pub proof fn implies_preserved_by_always_auto<T>()
     };
 }
 
-pub proof fn always_p_to_always_later_p<T>(spec: TempPred<T>, p: TempPred<T>)
-    requires
-        spec.entails(always(p)),
-    ensures
-        spec.entails(always(later(p))),
-{
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies always(later(p)).satisfied_by(ex) by {
-        entails_apply::<T>(ex, spec, always(p));
-        always_propagate_forwards::<T>(ex, p, 1);
-        assert(later(always(p)).satisfied_by(ex));
-        assert forall |i| #[trigger] later(p).satisfied_by(ex.suffix(i)) by {
-            execution_equality::<T>(ex.suffix(i).suffix(1), ex.suffix(1).suffix(i));
-        }
-    }
-}
-
 /// Weaken always by implies.
 /// pre:
 ///     |= p => q
