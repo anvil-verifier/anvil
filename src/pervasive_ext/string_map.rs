@@ -12,11 +12,18 @@ impl StringMap {
     pub spec fn view(&self) -> Map<Seq<char>, Seq<char>>;
 
     #[verifier(external_body)]
-    pub fn new() -> (sm: Self)
+    pub fn new() -> (m: Self)
         ensures
-            sm@ == Map::<Seq<char>, Seq<char>>::empty(),
+            m@ == Map::<Seq<char>, Seq<char>>::empty(),
     {
         StringMap { inner: std::collections::BTreeMap::new() }
+    }
+
+    pub fn empty() -> (m: Self)
+        ensures
+            m@ == Map::<Seq<char>, Seq<char>>::empty(),
+    {
+        StringMap::new()
     }
 
     #[verifier(external_body)]
