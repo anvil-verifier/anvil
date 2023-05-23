@@ -5,7 +5,10 @@ use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
+use crate::pervasive_ext::string_map::*;
+use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
+use vstd::string::*;
 
 verus! {
 
@@ -26,6 +29,7 @@ pub struct StatefulSetView {
 
 pub struct StatefulSetSpecView {
     pub replicas: Option<int>,
+    pub service_name: StringView,
 }
 
 impl StatefulSet {
@@ -58,6 +62,38 @@ impl StatefulSet {
         todo!()
     }
 
+    #[verifier(external_body)]
+    pub fn set_name(&mut self, name: String)
+        ensures
+            self@ == old(self)@.set_name(name@),
+    {
+        self.inner.metadata.name = std::option::Option::Some(name.into_rust_string());
+    }
+
+    #[verifier(external_body)]
+    pub fn set_namespace(&mut self, namespace: String)
+        ensures
+            self@ == old(self)@.set_namespace(namespace@),
+    {
+        self.inner.metadata.namespace = std::option::Option::Some(namespace.into_rust_string());
+    }
+
+    #[verifier(external_body)]
+    pub fn set_labels(&mut self, labels: StringMap)
+        ensures
+            self@ == old(self)@.set_labels(labels@),
+    {
+        self.inner.metadata.labels = std::option::Option::Some(labels.into_rust_map());
+    }
+
+    #[verifier(external_body)]
+    pub fn set_spec(&mut self, spec: StatefulSetSpec)
+        ensures
+            self@ == old(self)@.set_spec(spec@),
+    {
+        self.inner.spec = std::option::Option::Some(spec.into_kube_stateful_set_spec());
+    }
+
     #[verifier(external)]
     pub fn into_kube_obj(self) -> k8s_openapi::api::apps::v1::StatefulSet {
         self.inner
@@ -82,8 +118,7 @@ impl StatefulSet {
         )
     }
 
-    /// Convert a DynamicObject to a ConfigMap
-    // NOTE: This function assumes try_parse won't fail!
+    /// Convert a DynamicObject to a StatefulSet
     #[verifier(external_body)]
     pub fn from_dynamic_object(obj: DynamicObject) -> (sts: StatefulSet)
         ensures
@@ -98,6 +133,34 @@ impl StatefulSetView {
         StatefulSetView {
             metadata: ObjectMetaView::default(),
             spec: Option::None,
+        }
+    }
+
+    pub open spec fn set_name(self, name: StringView) -> StatefulSetView {
+        StatefulSetView {
+            metadata: self.metadata.set_name(name),
+            ..self
+        }
+    }
+
+    pub open spec fn set_namespace(self, namespace: StringView) -> StatefulSetView {
+        StatefulSetView {
+            metadata: self.metadata.set_namespace(namespace),
+            ..self
+        }
+    }
+
+    pub open spec fn set_labels(self, labels: Map<StringView, StringView>) -> StatefulSetView {
+        StatefulSetView {
+             metadata: self.metadata.set_labels(labels),
+             ..self
+         }
+    }
+
+    pub open spec fn set_spec(self, spec: StatefulSetSpecView) -> StatefulSetView {
+        StatefulSetView {
+            spec: Option::Some(spec),
+            ..self
         }
     }
 
@@ -156,12 +219,48 @@ impl StatefulSetSpec {
             inner: k8s_openapi::api::apps::v1::StatefulSetSpec::default(),
         }
     }
+
+    #[verifier(external_body)]
+    pub fn set_replicas(&mut self, replicas: i32)
+        ensures
+            self@ == old(self)@.set_replicas(replicas as int),
+    {
+        self.inner.replicas = std::option::Option::Some(replicas)
+    }
+
+    #[verifier(external_body)]
+    pub fn set_service_name(&mut self, service_name: String)
+        ensures
+            self@ == old(self)@.set_service_name(service_name@),
+    {
+        self.inner.service_name = service_name.into_rust_string()
+    }
+
+    #[verifier(external)]
+    pub fn into_kube_stateful_set_spec(self) -> k8s_openapi::api::apps::v1::StatefulSetSpec {
+        self.inner
+    }
 }
 
 impl StatefulSetSpecView {
     pub open spec fn default() -> StatefulSetSpecView {
         StatefulSetSpecView {
             replicas: Option::None,
+            service_name: new_strlit("")@,
+        }
+    }
+
+    pub open spec fn set_replicas(self, replicas: int) -> StatefulSetSpecView {
+        StatefulSetSpecView {
+            replicas: Option::Some(replicas),
+            ..self
+        }
+    }
+
+    pub open spec fn set_service_name(self, service_name: StringView) -> StatefulSetSpecView {
+        StatefulSetSpecView {
+            service_name: service_name,
+            ..self
         }
     }
 
@@ -171,6 +270,7 @@ impl StatefulSetSpecView {
                 .insert(Self::replicas_field(), if self.replicas.is_None() {Value::Null} else {
                     Value::Int(self.replicas.get_Some_0())
                 })
+                .insert(Self::service_name_field(), Value::String(self.service_name))
         )
     }
 
@@ -179,6 +279,7 @@ impl StatefulSetSpecView {
             replicas: if value.get_Object_0()[Self::replicas_field()].is_Null() {Option::None} else {
                 Option::Some(value.get_Object_0()[Self::replicas_field()].get_Int_0())
             },
+            service_name: value.get_Object_0()[Self::service_name_field()].get_String_0(),
         }
     }
 
@@ -187,6 +288,8 @@ impl StatefulSetSpecView {
     {}
 
     pub open spec fn replicas_field() -> nat {0}
+
+    pub open spec fn service_name_field() -> nat {1}
 }
 
 }

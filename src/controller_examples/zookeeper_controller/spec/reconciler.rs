@@ -210,6 +210,7 @@ pub open spec fn make_configmap(zk: ZookeeperClusterView) -> ConfigMapView
         zk.metadata.name.is_Some(),
         zk.metadata.namespace.is_Some(),
 {
+    let labels = Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0());
     let data = Map::empty()
         .insert(new_strlit("zoo.cfg")@, make_zk_config())
         .insert(new_strlit("log4j.properties")@, make_log4j_config())
@@ -219,6 +220,7 @@ pub open spec fn make_configmap(zk: ZookeeperClusterView) -> ConfigMapView
     ConfigMapView::default()
         .set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
         .set_namespace(zk.metadata.namespace.get_Some_0())
+        .set_labels(labels)
         .set_data(data)
 }
 

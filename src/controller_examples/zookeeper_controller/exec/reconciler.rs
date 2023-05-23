@@ -4,7 +4,9 @@
 use crate::controller_examples::zookeeper_controller::common::*;
 use crate::controller_examples::zookeeper_controller::spec::reconciler as zk_spec;
 use crate::controller_examples::zookeeper_controller::spec::zookeepercluster::*;
-use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, service::*};
+use crate::kubernetes_api_objects::{
+    api_method::*, common::*, config_map::*, service::*, stateful_set::*,
+};
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::reconciler::exec::*;
@@ -324,6 +326,10 @@ fn make_configmap(zk: &ZookeeperCluster) -> (configmap: ConfigMap)
     configmap.set_name(zk.name().unwrap().concat(new_strlit("-configmap")));
     configmap.set_namespace(zk.namespace().unwrap());
 
+    let mut labels = StringMap::empty();
+    labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
+    configmap.set_labels(labels);
+
     let mut data = StringMap::empty();
     data.insert(new_strlit("zoo.cfg").to_string(), make_zk_config());
     data.insert(new_strlit("log4j.properties").to_string(), make_log4j_config());
@@ -418,6 +424,28 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
         ADMIN_SERVER_PORT=8080\n\
         CLUSTER_NAME=")).concat(name.as_str()).concat(new_strlit("\n\
         CLUSTER_SIZE=")).concat(u32_to_string(zk.replica()).as_str()).concat(new_strlit("\n"))
+}
+
+fn make_statefulset(zk: &ZookeeperCluster) -> (statefulset: StatefulSet)
+    requires
+        zk@.metadata.name.is_Some(),
+        zk@.metadata.namespace.is_Some(),
+{
+    let mut statefulset = StatefulSet::default();
+    statefulset.set_name(zk.name().unwrap());
+    statefulset.set_namespace(zk.namespace().unwrap());
+
+    let mut labels = StringMap::empty();
+    labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
+    statefulset.set_labels(labels);
+
+    let mut statefulset_spec = StatefulSetSpec::default();
+    statefulset_spec.set_replicas(zk.replica());
+    statefulset_spec.set_service_name(zk.name().unwrap().concat(new_strlit("-headless")));
+
+    statefulset.set_spec(statefulset_spec);
+
+    statefulset
 }
 
 }

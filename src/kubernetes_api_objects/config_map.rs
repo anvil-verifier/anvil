@@ -5,7 +5,7 @@ use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
-use crate::pervasive_ext::string_map;
+use crate::pervasive_ext::string_map::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -104,7 +104,15 @@ impl ConfigMap {
     }
 
     #[verifier(external_body)]
-    pub fn data(&self) -> (data: Option<string_map::StringMap>)
+    pub fn set_labels(&mut self, labels: StringMap)
+        ensures
+            self@ == old(self)@.set_labels(labels@),
+    {
+        self.inner.metadata.labels = std::option::Option::Some(labels.into_rust_map());
+    }
+
+    #[verifier(external_body)]
+    pub fn data(&self) -> (data: Option<StringMap>)
         ensures
             self@.data.is_Some() == data.is_Some(),
             data.is_Some() ==> data.get_Some_0()@ == self@.data.get_Some_0(),
@@ -113,7 +121,7 @@ impl ConfigMap {
     }
 
     #[verifier(external_body)]
-    pub fn set_data(&mut self, data: string_map::StringMap)
+    pub fn set_data(&mut self, data: StringMap)
         ensures
             self@ == old(self)@.set_data(data@),
     {
@@ -141,6 +149,13 @@ impl ConfigMapView {
             metadata: self.metadata.set_namespace(namespace),
             ..self
         }
+    }
+
+    pub open spec fn set_labels(self, labels: Map<StringView, StringView>) -> ConfigMapView {
+        ConfigMapView {
+             metadata: self.metadata.set_labels(labels),
+             ..self
+         }
     }
 
     pub open spec fn set_data(self, data: Map<StringView, StringView>) -> ConfigMapView {
