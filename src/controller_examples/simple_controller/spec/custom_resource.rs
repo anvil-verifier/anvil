@@ -7,8 +7,12 @@ use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
+use vstd::string::*;
 
 use deps_hack::SimpleCR;
+use deps_hack::SimpleCRSpec;
+
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
 
 verus! {
 
@@ -20,7 +24,7 @@ pub struct CustomResource {
 
 pub struct CustomResourceView {
     pub metadata: ObjectMetaView,
-    pub spec: Option<CustomResourceSpecView>,
+    pub spec: CustomResourceSpecView,
     pub status: Option<CustomResourceStatusView>,
 }
 
@@ -40,16 +44,17 @@ impl CustomResource {
         ensures
             metadata@ == self@.metadata,
     {
-        todo!()
+        ObjectMeta::from_kube_object_meta(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
-    pub fn spec(&self) -> (spec: Option<CustomResourceSpec>)
+    pub fn spec(&self) -> (spec: CustomResourceSpec)
         ensures
-            self@.spec.is_Some() == spec.is_Some(),
-            spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
+            spec@ == self@.spec,
     {
-        todo!()
+        CustomResourceSpec {
+            inner: self.inner.spec.clone()
+        }
     }
 
     #[verifier(external_body)]
@@ -59,6 +64,16 @@ impl CustomResource {
             status.is_Some() ==> status.get_Some_0()@ == self@.status.get_Some_0(),
     {
         todo!()
+    }
+
+    /// Convert a DynamicObject to a CustomResource
+    // NOTE: This function assumes try_parse won't fail!
+    #[verifier(external_body)]
+    pub fn from_dynamic_object(obj: DynamicObject) -> (cr: CustomResource)
+        ensures
+            cr@ == CustomResourceView::from_dynamic_object(obj@),
+    {
+        CustomResource {inner: obj.into_kube_obj().try_parse::<SimpleCR>().unwrap()}
     }
 }
 
@@ -86,9 +101,8 @@ impl ResourceView for CustomResourceView {
             kind: self.kind(),
             metadata: self.metadata,
             data: Value::Object(Map::empty()
-                                    .insert(spec_field(), if self.spec.is_None() {Value::Null} else {
-                                        Value::Object(Map::empty().insert(spec_content_field(), Value::String(self.spec.get_Some_0().content)))
-                                    })
+                                    .insert(spec_field(), Value::Object(Map::empty().insert(spec_content_field(), Value::String(self.spec.content)))
+                                    )
                                     .insert(status_field(), if self.status.is_None() {Value::Null} else {
                                         Value::Object(Map::empty().insert(status_echoed_content_field(), Value::String(self.status.get_Some_0().echoed_content)))
                                     })
@@ -99,9 +113,9 @@ impl ResourceView for CustomResourceView {
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> CustomResourceView {
         CustomResourceView {
             metadata: obj.metadata,
-            spec: if obj.data.get_Object_0()[spec_field()].is_Null() {Option::None} else {Option::Some(CustomResourceSpecView{
+            spec: CustomResourceSpecView{
                 content: obj.data.get_Object_0()[spec_field()].get_Object_0()[spec_content_field()].get_String_0(),
-            })},
+            },
             status: if obj.data.get_Object_0()[status_field()].is_Null() {Option::None} else {Option::Some(CustomResourceStatusView{
                 echoed_content: obj.data.get_Object_0()[status_field()].get_Object_0()[status_echoed_content_field()].get_String_0(),
             })},
@@ -113,7 +127,7 @@ impl ResourceView for CustomResourceView {
 
 #[verifier(external_body)]
 pub struct CustomResourceSpec {
-    // TODO: add the content
+    inner: SimpleCRSpec
 }
 
 pub struct CustomResourceSpecView {
@@ -122,6 +136,14 @@ pub struct CustomResourceSpecView {
 
 impl CustomResourceSpec {
     pub spec fn view(&self) -> CustomResourceSpecView;
+
+    #[verifier(external_body)]
+    pub fn content(&self) -> (content: String)
+        ensures
+            content@ == self@.content,
+    {
+        String::from_rust_string(self.inner.content.to_string())
+    }
 }
 
 #[verifier(external_body)]

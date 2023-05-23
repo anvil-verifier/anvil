@@ -7,7 +7,9 @@ use crate::controller_examples::simple_controller::spec::{
     reconciler,
     reconciler::{simple_reconciler, SimpleReconcileState},
 };
-use crate::kubernetes_api_objects::{api_method::*, common::*, config_map::*, resource::*};
+use crate::kubernetes_api_objects::{
+    api_method::*, common::*, config_map::*, object_meta::ObjectMetaView, resource::*,
+};
 use crate::kubernetes_cluster::{
     proof::{
         controller_runtime_liveness::reconciler_init_and_no_pending_req, controller_runtime_safety,
@@ -132,73 +134,8 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
     }
 }
 
-pub open spec fn reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
-    |s: State<SimpleReconcileState>| {
-        s.reconcile_state_contains(cr.object_ref())
-        && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_create_cm_pc()
-        ==> exists |req_msg| {
-                #[trigger] is_controller_create_cm_request_msg(req_msg, cr)
-                && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
-                && (s.message_in_flight(req_msg) || s.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()))
-            }
-    }
-}
-
-/// If the reconcile is at create_cm_done_pc, then (1) a create cm request message is sent or (2) the corresponding response is sent.
-pub proof fn lemma_always_reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr: CustomResourceView)
-    ensures
-        sm_spec(simple_reconciler()).entails(always(lift_state(reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr)))),
-{
-    let invariant = reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr);
-
-    let stronger_next = |s, s_prime: State<SimpleReconcileState>| {
-        &&& next(simple_reconciler())(s, s_prime)
-        &&& delete_cm_req_msg_not_in_flight(cr)(s)
-    };
-
-    assert forall |s, s_prime: State<SimpleReconcileState>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        next_preserves_reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr, s, s_prime);
-    };
-
-    lemma_delete_cm_req_msg_never_in_flight(cr);
-
-    strengthen_next::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), next(simple_reconciler()), delete_cm_req_msg_not_in_flight(cr), stronger_next);
-    init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), stronger_next, invariant);
-}
-
-proof fn next_preserves_reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr: CustomResourceView, s: State<SimpleReconcileState>, s_prime: State<SimpleReconcileState>)
-    requires
-        reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr)(s),
-        delete_cm_req_msg_not_in_flight(cr)(s),
-        next(simple_reconciler())(s, s_prime),
-    ensures
-        reconcile_create_cm_done_implies_pending_create_cm_req_in_flight_or_cm_exists(cr)(s_prime),
-{
-    if s_prime.reconcile_state_contains(cr.object_ref()) && s_prime.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_create_cm_pc() {
-        if s.reconcile_state_contains(cr.object_ref()) && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_create_cm_pc() {
-            let req_msg = choose |req_msg| #[trigger] is_controller_create_cm_request_msg(req_msg, cr) && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg);
-            assert(is_controller_create_cm_request_msg(req_msg, cr) && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg));
-            if s.message_in_flight(req_msg) {
-                if s.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()) {
-                    assert(s_prime.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()));
-                } else {
-                    if s_prime.message_in_flight(req_msg) {
-                        assert(s_prime.message_in_flight(req_msg));
-                    } else {
-                        assert(s_prime.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()));
-                    }
-                }
-            } else {
-                assert(s_prime.resource_key_exists(reconciler::subresource_configmap(cr.object_ref()).object_ref()));
-            }
-        } else {
-            let req_msg = controller_req_msg(reconciler::create_cm_req(cr.object_ref()), s.chan_manager.cur_chan_id);
-            assert(is_controller_create_cm_request_msg(req_msg, cr)
-                && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
-                && s_prime.message_in_flight(req_msg)
-            );
-        }
-    }
+pub open spec fn metadata_with_same_name_and_namespace(metadata1: ObjectMetaView, metadata2: ObjectMetaView) -> bool {
+    metadata1.name == metadata2.name && metadata1.namespace == metadata2.namespace
 }
 
 pub open spec fn delete_cm_req_msg_not_in_flight(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
@@ -207,7 +144,7 @@ pub open spec fn delete_cm_req_msg_not_in_flight(cr: CustomResourceView) -> Stat
             &&& #[trigger] s.message_in_flight(m)
             &&& m.dst == HostId::KubernetesAPI
             &&& m.content.is_delete_request()
-            &&& m.content.get_delete_request().key == reconciler::subresource_configmap(cr.object_ref()).object_ref()
+            &&& m.content.get_delete_request().key == reconciler::subresource_configmap(cr).object_ref()
         }
     }
 }
@@ -221,7 +158,7 @@ pub proof fn lemma_delete_cm_req_msg_never_in_flight(cr: CustomResourceView)
         assert(!exists |m: Message| s.message_in_flight(m)
             && m.dst == HostId::KubernetesAPI
             && #[trigger] m.content.is_delete_request()
-            && m.content.get_delete_request().key == reconciler::subresource_configmap(cr.object_ref()).object_ref()
+            && m.content.get_delete_request().key == reconciler::subresource_configmap(cr).object_ref()
         );
     };
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), next(simple_reconciler()), invariant);

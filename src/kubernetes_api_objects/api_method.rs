@@ -268,6 +268,18 @@ impl KubeAPIResponse {
             _ => unreached(),
         }
     }
+
+    pub fn into_get_response(self) -> (resp: KubeGetResponse)
+        requires
+            self.is_GetResponse(),
+        ensures
+            resp == self.get_GetResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::GetResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
 }
 
 pub open spec fn opt_resp_to_view(resp: &Option<KubeAPIResponse>) -> Option<APIResponse> {

@@ -64,14 +64,9 @@ impl ConfigMap {
         ensures
             obj@ == self@.to_dynamic_object(),
     {
-        DynamicObject::from_kube_obj(kube::api::DynamicObject {
-            types: std::option::Option::Some(kube::api::TypeMeta {
-                api_version: Self::api_resource().into_kube_api_resource().api_version,
-                kind: Self::api_resource().into_kube_api_resource().kind,
-            }),
-            metadata: self.inner.metadata,
-            data: k8s_openapi::serde_json::to_value(self.inner.data).unwrap(),
-        })
+        DynamicObject::from_kube_obj(
+            k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
+        )
     }
 
     /// Convert a DynamicObject to a ConfigMap
@@ -125,10 +120,9 @@ impl ConfigMap {
     #[verifier(external_body)]
     pub fn set_data(&mut self, data: string_map::StringMap)
         ensures
-            self@.data.is_Some(),
-            data@ == self@.data.get_Some_0(),
+            self@ == old(self)@.set_data(data@),
     {
-        todo!()
+        self.inner.data = std::option::Option::Some(data.get_inner_map());
     }
 }
 
@@ -150,6 +144,13 @@ impl ConfigMapView {
     pub open spec fn set_namespace(self, namespace: StringView) -> ConfigMapView {
         ConfigMapView {
             metadata: self.metadata.set_namespace(namespace),
+            ..self
+        }
+    }
+
+    pub open spec fn set_data(self, data: Map<StringView, StringView>) -> ConfigMapView {
+        ConfigMapView {
+            data: Option::Some(data),
             ..self
         }
     }
