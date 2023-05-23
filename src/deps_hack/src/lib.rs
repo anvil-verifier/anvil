@@ -33,5 +33,5 @@ pub struct SimpleCRSpec {
 #[kube(group = "anvil.dev", version = "v1", kind = "ZookeeperCluster")]
 #[kube(shortname = "zk", namespaced)]
 pub struct ZookeeperClusterSpec {
-    pub replica: u32,
+    pub replica: i32,
 }

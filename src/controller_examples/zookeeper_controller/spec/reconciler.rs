@@ -294,7 +294,7 @@ pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView
         ADMIN_SERVER_HOST=")@ + name + new_strlit("-admin-server\n\
         ADMIN_SERVER_PORT=8080\n\
         CLUSTER_NAME=")@ + name + new_strlit("\n\
-        CLUSTER_SIZE=")@ + nat_to_string_view(zk.spec.replica) + new_strlit("\n")@
+        CLUSTER_SIZE=")@ + int_to_string_view(zk.spec.replica) + new_strlit("\n")@
 }
 
 }

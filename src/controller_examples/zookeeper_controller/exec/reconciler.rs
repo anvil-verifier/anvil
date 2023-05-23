@@ -423,7 +423,7 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
         ADMIN_SERVER_HOST=")).concat(name.as_str()).concat(new_strlit("-admin-server\n\
         ADMIN_SERVER_PORT=8080\n\
         CLUSTER_NAME=")).concat(name.as_str()).concat(new_strlit("\n\
-        CLUSTER_SIZE=")).concat(u32_to_string(zk.replica()).as_str()).concat(new_strlit("\n"))
+        CLUSTER_SIZE=")).concat(i32_to_string(zk.replica()).as_str()).concat(new_strlit("\n"))
 }
 
 fn make_statefulset(zk: &ZookeeperCluster) -> (statefulset: StatefulSet)

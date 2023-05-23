@@ -46,9 +46,9 @@ impl ZookeeperCluster {
     }
 
     #[verifier(external_body)]
-    pub fn replica(&self) -> (replica: u32)
+    pub fn replica(&self) -> (replica: i32)
         ensures
-            replica as nat == self@.spec.replica,
+            replica as int == self@.spec.replica,
     {
         self.inner.spec.replica
     }
@@ -132,7 +132,7 @@ impl ResourceView for ZookeeperClusterView {
             data: Value::Object(Map::empty()
                                     .insert(spec_field(),
                                         Value::Object(Map::empty()
-                                            .insert(spec_replica_field(), Value::Nat(self.spec.replica)))
+                                            .insert(spec_replica_field(), Value::Int(self.spec.replica)))
                                     )
                                 ),
         }
@@ -142,7 +142,7 @@ impl ResourceView for ZookeeperClusterView {
         ZookeeperClusterView {
             metadata: obj.metadata,
             spec: ZookeeperClusterSpecView {
-                replica: obj.data.get_Object_0()[spec_field()].get_Object_0()[spec_replica_field()].get_Nat_0(),
+                replica: obj.data.get_Object_0()[spec_field()].get_Object_0()[spec_replica_field()].get_Int_0(),
             },
         }
     }
@@ -156,16 +156,16 @@ pub struct ZookeeperClusterSpec {
 }
 
 pub struct ZookeeperClusterSpecView {
-    pub replica: nat,
+    pub replica: int,
 }
 
 impl ZookeeperClusterSpec {
     pub spec fn view(&self) -> ZookeeperClusterSpecView;
 
     #[verifier(external_body)]
-    pub fn replica(&self) -> (replica: u32)
+    pub fn replica(&self) -> (replica: i32)
         ensures
-            replica as nat == self@.replica,
+            replica as int == self@.replica,
     {
         self.inner.replica
     }

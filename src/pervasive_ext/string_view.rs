@@ -9,20 +9,12 @@ verus! {
 pub type StringView = Seq<char>;
 
 #[verifier(external_body)]
-pub fn u32_to_string(u: u32) -> (s: String)
+pub fn i32_to_string(i: i32) -> (s: String)
     ensures
-        s@ == nat_to_string_view(u as nat),
+        s@ == int_to_string_view(i as int),
 {
-    String::from_rust_string(u.to_string())
+    String::from_rust_string(i.to_string())
 }
-
-pub closed spec fn nat_to_string_view(n: nat) -> StringView;
-
-#[verifier(external_body)]
-pub proof fn nat_to_string_view_injectivity()
-    ensures
-        forall |i: nat, j: nat| nat_to_string_view(i) == nat_to_string_view(j) ==> i == j,
-{}
 
 pub closed spec fn int_to_string_view(i: int) -> StringView;
 
