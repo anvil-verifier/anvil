@@ -75,27 +75,11 @@ impl Service {
     }
 
     #[verifier(external_body)]
-    pub fn set_name(&mut self, name: String)
+    pub fn set_metadata(&mut self, metadata: ObjectMeta)
         ensures
-            self@ == old(self)@.set_name(name@),
+            self@ == old(self)@.set_metadata(metadata@),
     {
-        self.inner.metadata.name = std::option::Option::Some(name.into_rust_string());
-    }
-
-    #[verifier(external_body)]
-    pub fn set_namespace(&mut self, namespace: String)
-        ensures
-            self@ == old(self)@.set_namespace(namespace@),
-    {
-        self.inner.metadata.namespace = std::option::Option::Some(namespace.into_rust_string());
-    }
-
-    #[verifier(external_body)]
-    pub fn set_labels(&mut self, labels: StringMap)
-        ensures
-            self@ == old(self)@.set_labels(labels@),
-    {
-        self.inner.metadata.labels = std::option::Option::Some(labels.into_rust_map());
+        self.inner.metadata = metadata.into_kube_object_meta();
     }
 
     #[verifier(external_body)]
@@ -149,23 +133,9 @@ impl ServiceView {
         }
     }
 
-    pub open spec fn set_name(self, name: StringView) -> ServiceView {
+    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ServiceView {
         ServiceView {
-            metadata: self.metadata.set_name(name),
-            ..self
-        }
-    }
-
-    pub open spec fn set_namespace(self, namespace: StringView) -> ServiceView {
-        ServiceView {
-            metadata: self.metadata.set_namespace(namespace),
-            ..self
-        }
-    }
-
-    pub open spec fn set_labels(self, labels: Map<StringView, StringView>) -> ServiceView {
-        ServiceView {
-            metadata: self.metadata.set_labels(labels),
+            metadata: metadata,
             ..self
         }
     }

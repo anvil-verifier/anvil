@@ -44,6 +44,11 @@ impl ObjectMeta {
         }
     }
 
+    #[verifier(external)]
+    pub fn into_kube_object_meta(self) -> K8SObjectMeta {
+        self.inner
+    }
+
     #[verifier(external_body)]
     pub fn name(&self) -> (name: Option<String>)
         ensures

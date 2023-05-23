@@ -4,7 +4,7 @@
 use crate::controller_examples::zookeeper_controller::common::*;
 use crate::controller_examples::zookeeper_controller::spec::zookeepercluster::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, resource::*, service::*,
+    api_method::*, common::*, config_map::*, object_meta::*, resource::*, service::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_const::*;
@@ -191,6 +191,11 @@ pub open spec fn make_service(
         zk.metadata.namespace.is_Some(),
 {
     let labels = Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0());
+    let metadata = ObjectMetaView::default()
+        .set_name(name)
+        .set_namespace(zk.metadata.namespace.get_Some_0())
+        .set_labels(labels);
+
     let selector = Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0());
     let service_spec = if !cluster_ip {
         ServiceSpecView::default().set_cluster_ip(new_strlit("None")@).set_ports(ports).set_selector(selector)
@@ -198,11 +203,7 @@ pub open spec fn make_service(
         ServiceSpecView::default().set_ports(ports).set_selector(selector)
     };
 
-    ServiceView::default()
-        .set_name(name)
-        .set_namespace(zk.metadata.namespace.get_Some_0())
-        .set_labels(labels)
-        .set_spec(service_spec)
+    ServiceView::default().set_metadata(metadata).set_spec(service_spec)
 }
 
 pub open spec fn make_configmap(zk: ZookeeperClusterView) -> ConfigMapView

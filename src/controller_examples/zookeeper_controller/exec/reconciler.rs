@@ -5,7 +5,7 @@ use crate::controller_examples::zookeeper_controller::common::*;
 use crate::controller_examples::zookeeper_controller::spec::reconciler as zk_spec;
 use crate::controller_examples::zookeeper_controller::spec::zookeepercluster::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, service::*, stateful_set::*,
+    api_method::*, common::*, config_map::*, object_meta::*, service::*, stateful_set::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
@@ -292,24 +292,24 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
     ensures
         service@ == zk_spec::make_service(zk@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip),
 {
-    let mut service = Service::default();
-    service.set_name(name);
-    service.set_namespace(zk.namespace().unwrap());
-
+    let mut metadata = ObjectMeta::default();
+    metadata.set_name(name);
+    metadata.set_namespace(zk.namespace().unwrap());
     let mut labels = StringMap::empty();
     labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
-    service.set_labels(labels);
+    metadata.set_labels(labels);
 
     let mut service_spec = ServiceSpec::default();
     if !cluster_ip {
         service_spec.set_cluster_ip(new_strlit("None").to_string());
     }
     service_spec.set_ports(ports);
-
     let mut selector = StringMap::empty();
     selector.insert(new_strlit("app").to_string(), zk.name().unwrap());
     service_spec.set_selector(selector);
 
+    let mut service = Service::default();
+    service.set_metadata(metadata);
     service.set_spec(service_spec);
 
     service
@@ -431,18 +431,19 @@ fn make_statefulset(zk: &ZookeeperCluster) -> (statefulset: StatefulSet)
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
 {
-    let mut statefulset = StatefulSet::default();
-    statefulset.set_name(zk.name().unwrap());
-    statefulset.set_namespace(zk.namespace().unwrap());
-
+    let mut metadata = ObjectMeta::default();
+    metadata.set_name(zk.name().unwrap());
+    metadata.set_namespace(zk.namespace().unwrap());
     let mut labels = StringMap::empty();
     labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
-    statefulset.set_labels(labels);
+    metadata.set_labels(labels);
 
     let mut statefulset_spec = StatefulSetSpec::default();
     statefulset_spec.set_replicas(zk.replica());
     statefulset_spec.set_service_name(zk.name().unwrap().concat(new_strlit("-headless")));
 
+    let mut statefulset = StatefulSet::default();
+    statefulset.set_metadata(metadata);
     statefulset.set_spec(statefulset_spec);
 
     statefulset
