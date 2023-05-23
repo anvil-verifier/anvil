@@ -284,6 +284,57 @@ impl Probe {
     }
 }
 
+#[verifier(external_body)]
+pub struct VolumeMount {
+    inner: k8s_openapi::api::core::v1::VolumeMount,
+}
+
+impl VolumeMount {
+    pub spec fn view(&self) -> VolumeMountView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (volume_mount: VolumeMount)
+        ensures
+            volume_mount@ == VolumeMountView::default(),
+    {
+        VolumeMount {
+            inner: k8s_openapi::api::core::v1::VolumeMount::default(),
+        }
+    }
+
+    pub fn new_with(mount_path: String, name: String) -> (volume_mount: VolumeMount)
+        ensures
+            volume_mount@ == VolumeMountView::default().set_mount_path(mount_path@).set_name(name@),
+    {
+        let mut volume_mount = Self::default();
+        volume_mount.set_mount_path(mount_path);
+        volume_mount.set_name(name);
+
+        volume_mount
+    }
+
+    #[verifier(external_body)]
+    pub fn set_mount_path(&mut self, mount_path: String)
+        ensures
+            self@ == old(self)@.set_mount_path(mount_path@),
+    {
+        self.inner.mount_path = mount_path.into_rust_string();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_name(&mut self, name: String)
+        ensures
+            self@ == old(self)@.set_name(name@),
+    {
+        self.inner.name = name.into_rust_string();
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::VolumeMount {
+        self.inner
+    }
+}
+
 pub struct PodView {
     pub metadata: ObjectMetaView,
     pub spec: Option<PodSpecView>,
@@ -403,6 +454,7 @@ pub struct ContainerView {
     pub image: Option<StringView>,
     pub name: StringView,
     pub ports: Option<Seq<ContainerPortView>>,
+    pub volume_mounts: Option<Seq<VolumeMountView>>,
 }
 
 impl ContainerView {
@@ -411,6 +463,7 @@ impl ContainerView {
             image: Option::None,
             name: new_strlit("")@,
             ports: Option::None,
+            volume_mounts: Option::None,
         }
     }
 
@@ -445,6 +498,9 @@ impl ContainerView {
                 .insert(Self::ports_field(), if self.ports.is_None() {Value::Null} else {
                     Value::Array(self.ports.get_Some_0().map_values(|port: ContainerPortView| port.marshal()))
                 })
+                .insert(Self::volume_mounts_field(), if self.volume_mounts.is_None() {Value::Null} else {
+                    Value::Array(self.volume_mounts.get_Some_0().map_values(|volume_mount: VolumeMountView| volume_mount.marshal()))
+                })
         )
     }
 
@@ -453,10 +509,13 @@ impl ContainerView {
             image: if value.get_Object_0()[Self::image_field()].is_Null() {Option::None} else {
                 Option::Some(value.get_Object_0()[Self::image_field()].get_String_0())
             },
+            name: value.get_Object_0()[Self::name_field()].get_String_0(),
             ports: if value.get_Object_0()[Self::ports_field()].is_Null() {Option::None} else {
                 Option::Some(value.get_Object_0()[Self::ports_field()].get_Array_0().map_values(|v| ContainerPortView::unmarshal(v)))
             },
-            name: value.get_Object_0()[Self::name_field()].get_String_0(),
+            volume_mounts: if value.get_Object_0()[Self::volume_mounts_field()].is_Null() {Option::None} else {
+                Option::Some(value.get_Object_0()[Self::volume_mounts_field()].get_Array_0().map_values(|v| VolumeMountView::unmarshal(v)))
+            },
         }
     }
 
@@ -467,6 +526,9 @@ impl ContainerView {
             if o.ports.is_Some() {
                 assert_seqs_equal!(o.ports.get_Some_0(), Self::unmarshal(o.marshal()).ports.get_Some_0());
             }
+            if o.volume_mounts.is_Some() {
+                assert_seqs_equal!(o.volume_mounts.get_Some_0(), Self::unmarshal(o.marshal()).volume_mounts.get_Some_0());
+            }
         }
     }
 
@@ -475,6 +537,8 @@ impl ContainerView {
     pub open spec fn name_field() -> nat {1}
 
     pub open spec fn ports_field() -> nat {2}
+
+    pub open spec fn volume_mounts_field() -> nat {3}
 }
 
 pub struct ContainerPortView {
@@ -528,6 +592,58 @@ impl ContainerPortView {
     {}
 
     pub open spec fn container_port_field() -> nat {0}
+
+    pub open spec fn name_field() -> nat {1}
+}
+
+
+pub struct VolumeMountView {
+    pub mount_path: StringView,
+    pub name: StringView,
+}
+
+impl VolumeMountView {
+    pub open spec fn default() -> VolumeMountView {
+        VolumeMountView {
+            mount_path: new_strlit("")@,
+            name: new_strlit("")@,
+        }
+    }
+
+    pub open spec fn set_mount_path(self, mount_path: StringView) -> VolumeMountView {
+        VolumeMountView {
+            mount_path: mount_path,
+            ..self
+        }
+    }
+
+    pub open spec fn set_name(self, name: StringView) -> VolumeMountView {
+        VolumeMountView {
+            name: name,
+            ..self
+        }
+    }
+
+    pub open spec fn marshal(self) -> Value {
+        Value::Object(
+            Map::empty()
+                .insert(Self::mount_path_field(), Value::String(self.mount_path))
+                .insert(Self::name_field(), Value::String(self.name))
+        )
+    }
+
+    pub open spec fn unmarshal(value: Value) -> Self {
+        VolumeMountView {
+            mount_path: value.get_Object_0()[Self::mount_path_field()].get_String_0(),
+            name: value.get_Object_0()[Self::name_field()].get_String_0(),
+        }
+    }
+
+    proof fn integrity_check()
+        ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal())
+    {}
+
+    pub open spec fn mount_path_field() -> nat {0}
 
     pub open spec fn name_field() -> nat {1}
 }
