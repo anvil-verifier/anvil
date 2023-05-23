@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::label_selector::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_map::*;
@@ -29,6 +30,7 @@ pub struct StatefulSetView {
 
 pub struct StatefulSetSpecView {
     pub replicas: Option<int>,
+    pub selector: LabelSelectorView,
     pub service_name: StringView,
 }
 
@@ -199,6 +201,14 @@ impl StatefulSetSpec {
     }
 
     #[verifier(external_body)]
+    pub fn set_selector(&mut self, selector: LabelSelector)
+        ensures
+            self@ == old(self)@.set_selector(selector@),
+    {
+        self.inner.selector = selector.into_kube_label_selector()
+    }
+
+    #[verifier(external_body)]
     pub fn set_service_name(&mut self, service_name: String)
         ensures
             self@ == old(self)@.set_service_name(service_name@),
@@ -216,6 +226,7 @@ impl StatefulSetSpecView {
     pub open spec fn default() -> StatefulSetSpecView {
         StatefulSetSpecView {
             replicas: Option::None,
+            selector: LabelSelectorView::default(),
             service_name: new_strlit("")@,
         }
     }
@@ -223,6 +234,13 @@ impl StatefulSetSpecView {
     pub open spec fn set_replicas(self, replicas: int) -> StatefulSetSpecView {
         StatefulSetSpecView {
             replicas: Option::Some(replicas),
+            ..self
+        }
+    }
+
+    pub open spec fn set_selector(self, selector: LabelSelectorView) -> StatefulSetSpecView {
+        StatefulSetSpecView {
+            selector: selector,
             ..self
         }
     }
@@ -240,6 +258,7 @@ impl StatefulSetSpecView {
                 .insert(Self::replicas_field(), if self.replicas.is_None() {Value::Null} else {
                     Value::Int(self.replicas.get_Some_0())
                 })
+                .insert(Self::selector_field(), self.selector.marshal())
                 .insert(Self::service_name_field(), Value::String(self.service_name))
         )
     }
@@ -249,6 +268,7 @@ impl StatefulSetSpecView {
             replicas: if value.get_Object_0()[Self::replicas_field()].is_Null() {Option::None} else {
                 Option::Some(value.get_Object_0()[Self::replicas_field()].get_Int_0())
             },
+            selector: LabelSelectorView::unmarshal(value.get_Object_0()[Self::selector_field()]),
             service_name: value.get_Object_0()[Self::service_name_field()].get_String_0(),
         }
     }
@@ -259,7 +279,9 @@ impl StatefulSetSpecView {
 
     pub open spec fn replicas_field() -> nat {0}
 
-    pub open spec fn service_name_field() -> nat {1}
+    pub open spec fn selector_field() -> nat {1}
+
+    pub open spec fn service_name_field() -> nat {2}
 }
 
 }

@@ -6,6 +6,7 @@ pub mod common;
 pub mod config_map;
 pub mod dynamic;
 pub mod error;
+pub mod label_selector;
 pub mod object_meta;
 pub mod persistent_volume_claim;
 pub mod pod;
