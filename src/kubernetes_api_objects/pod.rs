@@ -9,6 +9,7 @@ use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
+use vstd::vec::*;
 
 verus! {
 
@@ -115,6 +116,14 @@ impl PodSpec {
         }
     }
 
+    #[verifier(external_body)]
+    pub fn set_containers(&mut self, containers: Vec<Container>)
+        ensures
+            self@ == old(self)@.set_containers(containers@.map_values(|container: Container| container@)),
+    {
+        self.inner.containers = containers.vec.into_iter().map(|container: Container| container.into_kube()).collect()
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> k8s_openapi::api::core::v1::PodSpec {
         self.inner
@@ -138,6 +147,27 @@ impl Container {
             inner: k8s_openapi::api::core::v1::Container::default(),
         }
     }
+
+    #[verifier(external_body)]
+    pub fn set_image(&mut self, image: String)
+        ensures
+            self@ == old(self)@.set_image(image@),
+    {
+        self.inner.image = std::option::Option::Some(image.into_rust_string())
+    }
+
+    #[verifier(external_body)]
+    pub fn set_name(&mut self, name: String)
+        ensures
+            self@ == old(self)@.set_name(name@),
+    {
+        self.inner.name = name.into_rust_string()
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::Container {
+        self.inner
+    }
 }
 
 pub struct PodView {
@@ -152,7 +182,6 @@ impl PodView {
             spec: Option::None,
         }
     }
-
 
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> PodView {
         PodView {
@@ -272,6 +301,20 @@ impl ContainerView {
         ContainerView {
             image: Option::None,
             name: new_strlit("")@,
+        }
+    }
+
+    pub open spec fn set_image(self, image: StringView) -> ContainerView {
+        ContainerView {
+            image: Option::Some(image),
+            ..self
+        }
+    }
+
+    pub open spec fn set_name(self, name: StringView) -> ContainerView {
+        ContainerView {
+            name: name,
+            ..self
         }
     }
 
