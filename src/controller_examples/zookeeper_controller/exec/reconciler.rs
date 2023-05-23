@@ -5,7 +5,8 @@ use crate::controller_examples::zookeeper_controller::common::*;
 use crate::controller_examples::zookeeper_controller::spec::reconciler as zk_spec;
 use crate::controller_examples::zookeeper_controller::spec::zookeepercluster::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, object_meta::*, service::*, stateful_set::*,
+    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*, service::*,
+    stateful_set::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
@@ -438,9 +439,14 @@ fn make_statefulset(zk: &ZookeeperCluster) -> (statefulset: StatefulSet)
     labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
     metadata.set_labels(labels);
 
+    let mut selector = LabelSelector::default();
+    let mut match_labels = StringMap::empty();
+    match_labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
+    selector.set_match_labels(match_labels);
     let mut statefulset_spec = StatefulSetSpec::default();
     statefulset_spec.set_replicas(zk.replica());
     statefulset_spec.set_service_name(zk.name().unwrap().concat(new_strlit("-headless")));
+    statefulset_spec.set_selector(selector);
 
     let mut statefulset = StatefulSet::default();
     statefulset.set_metadata(metadata);
