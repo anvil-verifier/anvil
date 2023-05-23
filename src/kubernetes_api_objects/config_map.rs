@@ -64,14 +64,9 @@ impl ConfigMap {
         ensures
             obj@ == self@.to_dynamic_object(),
     {
-        DynamicObject::from_kube_obj(kube::api::DynamicObject {
-            types: std::option::Option::Some(kube::api::TypeMeta {
-                api_version: Self::api_resource().into_kube_api_resource().api_version,
-                kind: Self::api_resource().into_kube_api_resource().kind,
-            }),
-            metadata: self.inner.metadata,
-            data: k8s_openapi::serde_json::to_value(self.inner.data).unwrap(),
-        })
+        DynamicObject::from_kube_obj(
+            k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
+        )
     }
 
     /// Convert a DynamicObject to a ConfigMap
