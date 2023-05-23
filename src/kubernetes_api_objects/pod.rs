@@ -164,8 +164,122 @@ impl Container {
         self.inner.name = name.into_rust_string()
     }
 
+    #[verifier(external_body)]
+    pub fn set_ports(&mut self, ports: Vec<ContainerPort>)
+        ensures
+            self@ == old(self)@.set_ports(ports@.map_values(|port: ContainerPort| port@)),
+    {
+        self.inner.ports = std::option::Option::Some(
+            ports.vec.into_iter().map(|port: ContainerPort| port.into_kube()).collect()
+        )
+    }
+
+    /// Methods for the fields that Anvil currently does not reason about
+
+    #[verifier(external_body)]
+    pub fn set_command(&mut self, command: Vec<String>)
+        ensures
+            self@ == old(self)@,
+    {
+        self.inner.command = std::option::Option::Some(
+            command.vec.into_iter().map(|c: String| c.into_rust_string()).collect()
+        )
+    }
+
+    #[verifier(external_body)]
+    pub fn set_image_pull_policy(&mut self, image_pull_policy: String)
+        ensures
+            self@ == old(self)@,
+    {
+        self.inner.image_pull_policy = std::option::Option::Some(image_pull_policy.into_rust_string())
+    }
+
+    #[verifier(external_body)]
+    pub fn set_liveness_probe(&mut self, liveness_probe: Probe)
+        ensures
+            self@ == old(self)@,
+    {
+        self.inner.liveness_probe = std::option::Option::Some(liveness_probe.into_kube())
+    }
+
+    #[verifier(external_body)]
+    pub fn set_readiness_probe(&mut self, readiness_probe: Probe)
+        ensures
+            self@ == old(self)@,
+    {
+        self.inner.readiness_probe = std::option::Option::Some(readiness_probe.into_kube())
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> k8s_openapi::api::core::v1::Container {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct ContainerPort {
+    inner: k8s_openapi::api::core::v1::ContainerPort,
+}
+
+impl ContainerPort {
+    pub spec fn view(&self) -> ContainerPortView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (container_port: ContainerPort)
+        ensures
+            container_port@ == ContainerPortView::default(),
+    {
+        ContainerPort {
+            inner: k8s_openapi::api::core::v1::ContainerPort::default(),
+        }
+    }
+
+    pub fn new_with(name: String, port: i32) -> (container_port: ContainerPort)
+        ensures
+            container_port@ == ContainerPortView::default().set_name(name@).set_container_port(port as int),
+    {
+        let mut container_port = Self::default();
+        container_port.set_name(name);
+        container_port.set_container_port(port);
+
+        container_port
+    }
+
+    #[verifier(external_body)]
+    pub fn set_container_port(&mut self, container_port: i32)
+        ensures
+            self@ == old(self)@.set_container_port(container_port as int),
+    {
+        self.inner.container_port = container_port;
+    }
+
+    #[verifier(external_body)]
+    pub fn set_name(&mut self, name: String)
+        ensures
+            self@ == old(self)@.set_name(name@),
+    {
+        self.inner.name = std::option::Option::Some(name.into_rust_string());
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::ContainerPort {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct Probe {
+    inner: k8s_openapi::api::core::v1::Probe,
+}
+
+impl Probe {
+    #[verifier(external)]
+    pub fn from_kube(inner: k8s_openapi::api::core::v1::Probe) -> Probe {
+        Probe { inner: inner }
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::Probe {
         self.inner
     }
 }
@@ -238,14 +352,7 @@ impl ResourceView for PodView {
     }
 
     proof fn integrity_check() {
-        assert forall |o: Self| o == Self::from_dynamic_object(#[trigger] o.to_dynamic_object()) by {
-            if o.spec.is_Some() {
-                assert_seqs_equal!(
-                    o.spec.get_Some_0().containers,
-                    Self::from_dynamic_object(o.to_dynamic_object()).spec.get_Some_0().containers
-                );
-            }
-        }
+        PodSpecView::integrity_check();
     }
 }
 
@@ -284,6 +391,7 @@ impl PodSpecView {
         ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()),
     {
         assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
+            ContainerView::integrity_check();
             assert_seqs_equal!(o.containers, Self::unmarshal(o.marshal()).containers);
         }
     }
@@ -294,6 +402,7 @@ impl PodSpecView {
 pub struct ContainerView {
     pub image: Option<StringView>,
     pub name: StringView,
+    pub ports: Option<Seq<ContainerPortView>>,
 }
 
 impl ContainerView {
@@ -301,6 +410,7 @@ impl ContainerView {
         ContainerView {
             image: Option::None,
             name: new_strlit("")@,
+            ports: Option::None,
         }
     }
 
@@ -318,6 +428,13 @@ impl ContainerView {
         }
     }
 
+    pub open spec fn set_ports(self, ports: Seq<ContainerPortView>) -> ContainerView {
+        ContainerView {
+            ports: Option::Some(ports),
+            ..self
+        }
+    }
+
     pub open spec fn marshal(self) -> Value {
         Value::Object(
             Map::empty()
@@ -325,6 +442,9 @@ impl ContainerView {
                     Value::String(self.image.get_Some_0())
                 })
                 .insert(Self::name_field(), Value::String(self.name))
+                .insert(Self::ports_field(), if self.ports.is_None() {Value::Null} else {
+                    Value::Array(self.ports.get_Some_0().map_values(|port: ContainerPortView| port.marshal()))
+                })
         )
     }
 
@@ -333,15 +453,81 @@ impl ContainerView {
             image: if value.get_Object_0()[Self::image_field()].is_Null() {Option::None} else {
                 Option::Some(value.get_Object_0()[Self::image_field()].get_String_0())
             },
+            ports: if value.get_Object_0()[Self::ports_field()].is_Null() {Option::None} else {
+                Option::Some(value.get_Object_0()[Self::ports_field()].get_Array_0().map_values(|v| ContainerPortView::unmarshal(v)))
+            },
             name: value.get_Object_0()[Self::name_field()].get_String_0(),
         }
     }
 
     proof fn integrity_check()
         ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()),
-    {}
+    {
+        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
+            if o.ports.is_Some() {
+                assert_seqs_equal!(o.ports.get_Some_0(), Self::unmarshal(o.marshal()).ports.get_Some_0());
+            }
+        }
+    }
 
     pub open spec fn image_field() -> nat {0}
+
+    pub open spec fn name_field() -> nat {1}
+
+    pub open spec fn ports_field() -> nat {2}
+}
+
+pub struct ContainerPortView {
+    pub container_port: int,
+    pub name: Option<StringView>,
+}
+
+impl ContainerPortView {
+    pub open spec fn default() -> ContainerPortView {
+        ContainerPortView {
+            container_port: 0, // TODO: is this the correct default value?
+            name: Option::None,
+        }
+    }
+
+    pub open spec fn set_container_port(self, container_port: int) -> ContainerPortView {
+        ContainerPortView {
+            container_port: container_port,
+            ..self
+        }
+    }
+
+    pub open spec fn set_name(self, name: StringView) -> ContainerPortView {
+        ContainerPortView {
+            name: Option::Some(name),
+            ..self
+        }
+    }
+
+    pub open spec fn marshal(self) -> Value {
+        Value::Object(
+            Map::empty()
+                .insert(Self::container_port_field(), Value::Int(self.container_port))
+                .insert(Self::name_field(), if self.name.is_None() {Value::Null} else {
+                    Value::String(self.name.get_Some_0())
+                })
+        )
+    }
+
+    pub open spec fn unmarshal(value: Value) -> Self {
+        ContainerPortView {
+            container_port: value.get_Object_0()[Self::container_port_field()].get_Int_0(),
+            name: if value.get_Object_0()[Self::name_field()].is_Null() {Option::None} else {
+                Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
+            },
+        }
+    }
+
+    proof fn integrity_check()
+        ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal())
+    {}
+
+    pub open spec fn container_port_field() -> nat {0}
 
     pub open spec fn name_field() -> nat {1}
 }
