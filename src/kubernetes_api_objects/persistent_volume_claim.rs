@@ -6,6 +6,7 @@ use crate::kubernetes_api_objects::dynamic::*;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
+use crate::kubernetes_api_objects::resource_requirements::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -122,6 +123,14 @@ impl PersistentVolumeClaimSpec {
         self.inner.access_modes = std::option::Option::Some(
             access_modes.vec.into_iter().map(|mode: String| mode.into_rust_string()).collect()
         )
+    }
+
+    #[verifier(external_body)]
+    pub fn set_resources(&mut self, resources: ResourceRequirements)
+        ensures
+            self@ == old(self)@,
+    {
+        self.inner.resources = std::option::Option::Some(resources.into_kube())
     }
 
     #[verifier(external)]

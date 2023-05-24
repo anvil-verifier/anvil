@@ -779,7 +779,6 @@ pub struct ConfigMapVolumeSourceView {
     pub name: Option<StringView>,
 }
 
-
 impl ConfigMapVolumeSourceView {
     pub open spec fn default() -> ConfigMapVolumeSourceView {
         ConfigMapVolumeSourceView {
