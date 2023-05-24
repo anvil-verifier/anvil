@@ -4,7 +4,9 @@
 use crate::controller_examples::zookeeper_controller::common::*;
 use crate::controller_examples::zookeeper_controller::spec::zookeepercluster::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, object_meta::*, resource::*, service::*,
+    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
+    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, service::*,
+    stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_const::*;
@@ -296,6 +298,82 @@ pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView
         ADMIN_SERVER_PORT=8080\n\
         CLUSTER_NAME=")@ + name + new_strlit("\n\
         CLUSTER_SIZE=")@ + int_to_string_view(zk.spec.replica) + new_strlit("\n")@
+}
+
+pub open spec fn make_statefulset(zk: ZookeeperClusterView) -> StatefulSetView
+    recommends
+        zk.metadata.name.is_Some(),
+        zk.metadata.namespace.is_Some(),
+{
+    let name = zk.metadata.name.get_Some_0();
+    let namespace = zk.metadata.namespace.get_Some_0();
+
+    let labels = Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0());
+    let metadata = ObjectMetaView::default()
+        .set_name(name)
+        .set_namespace(zk.metadata.namespace.get_Some_0())
+        .set_labels(labels);
+
+    let spec = StatefulSetSpecView::default()
+        .set_replicas(zk.spec.replica)
+        .set_service_name(name + new_strlit("-headless")@)
+        .set_selector(LabelSelectorView::default().set_match_labels(labels))
+        .set_template(PodTemplateSpecView::default()
+            .set_metadata(ObjectMetaView::default()
+                .set_generate_name(name)
+                .set_labels(
+                    Map::empty()
+                        .insert(new_strlit("app")@, zk.metadata.name.get_Some_0())
+                        .insert(new_strlit("kind")@, new_strlit("ZookeeperMember")@)
+                )
+            )
+            .set_spec(make_zk_pod_spec(zk))
+        )
+        .set_volume_claim_templates(seq![
+            PersistentVolumeClaimView::default()
+                .set_metadata(ObjectMetaView::default()
+                    .set_name(new_strlit("data")@)
+                    .set_labels(labels)
+                )
+                .set_spec(PersistentVolumeClaimSpecView::default()
+                    .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
+                )
+        ]);
+
+    StatefulSetView::default().set_metadata(metadata).set_spec(spec)
+}
+
+pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
+    recommends
+        zk.metadata.name.is_Some(),
+        zk.metadata.namespace.is_Some(),
+{
+    PodSpecView::default()
+        .set_containers(seq![
+            ContainerView::default()
+                .set_name(new_strlit("zookeeper")@)
+                .set_image(new_strlit("pravega/zookeeper:0.2.14")@)
+                .set_volume_mounts(seq![
+                    VolumeMountView::default()
+                        .set_name(new_strlit("data")@)
+                        .set_mount_path(new_strlit("/data")@),
+                    VolumeMountView::default()
+                        .set_name(new_strlit("conf")@)
+                        .set_mount_path(new_strlit("/conf")@),
+                ])
+                .set_ports(seq![
+                    ContainerPortView::default().set_name(new_strlit("client")@).set_container_port(2181),
+                    ContainerPortView::default().set_name(new_strlit("quorum")@).set_container_port(2888),
+                    ContainerPortView::default().set_name(new_strlit("leader-election")@).set_container_port(3888),
+                    ContainerPortView::default().set_name(new_strlit("metrics")@).set_container_port(7000),
+                    ContainerPortView::default().set_name(new_strlit("admin-server")@).set_container_port(8080)
+                ])
+        ])
+        .set_volumes(seq![
+            VolumeView::default().set_name(new_strlit("conf")@).set_config_map(
+                ConfigMapVolumeSourceView::default().set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
+            )
+        ])
 }
 
 }

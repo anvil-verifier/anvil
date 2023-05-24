@@ -481,7 +481,6 @@ fn make_statefulset(zk: &ZookeeperCluster) -> (statefulset: StatefulSet)
                 pvc.set_metadata({
                     let mut metadata = ObjectMeta::default();
                     metadata.set_name(new_strlit("data").to_string());
-                    metadata.set_namespace(zk.namespace().unwrap());
                     metadata.set_labels({
                         let mut labels = StringMap::empty();
                         labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
@@ -562,7 +561,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
         let mut volumes = Vec::empty();
         volumes.push({
             let mut volume = Volume::default();
-            volume.set_name(new_strlit("name").to_string());
+            volume.set_name(new_strlit("conf").to_string());
             volume.set_config_map({
                 let mut config_map = ConfigMapVolumeSource::default();
                 config_map.set_name(zk.name().unwrap().concat(new_strlit("-configmap")));
