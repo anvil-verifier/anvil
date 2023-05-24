@@ -3,7 +3,8 @@
 #![allow(unused_imports)]
 use crate::controller_examples::simple_controller::spec::custom_resource::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, dynamic::DynamicObjectView, resource::*,
+    api_method::*, common::*, config_map::*, dynamic::DynamicObjectView, object_meta::*,
+    resource::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_const::*;
@@ -101,7 +102,12 @@ pub open spec fn error_pc() -> nat { 3 }
 
 pub open spec fn subresource_configmap(cr: CustomResourceView) -> ConfigMapView
 {
-    let config_map = ConfigMapView::default().set_name(cr.metadata.name.get_Some_0() + cm_suffix()).set_namespace(cr.metadata.namespace.get_Some_0()).set_data(Map::empty().insert(new_strlit("content")@, cr.spec.content));
+    let config_map = ConfigMapView::default()
+        .set_metadata(ObjectMetaView::default()
+            .set_name(cr.metadata.name.get_Some_0() + new_strlit("-cm")@)
+            .set_namespace(cr.metadata.namespace.get_Some_0())
+        )
+        .set_data(Map::empty().insert(new_strlit("content")@, cr.spec.content));
     config_map
 }
 

@@ -237,9 +237,11 @@ pub open spec fn make_configmap(zk: ZookeeperClusterView) -> ConfigMapView
         .insert(new_strlit("env.sh")@, make_env_config(zk));
 
     ConfigMapView::default()
-        .set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
-        .set_namespace(zk.metadata.namespace.get_Some_0())
-        .set_labels(labels)
+        .set_metadata(ObjectMetaView::default()
+            .set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
+            .set_namespace(zk.metadata.namespace.get_Some_0())
+            .set_labels(labels)
+        )
         .set_data(data)
 }
 

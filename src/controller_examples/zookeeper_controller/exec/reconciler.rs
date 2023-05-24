@@ -346,20 +346,26 @@ fn make_configmap(zk: &ZookeeperCluster) -> (configmap: ConfigMap)
         configmap@ == zk_spec::make_configmap(zk@),
 {
     let mut configmap = ConfigMap::default();
-    configmap.set_name(zk.name().unwrap().concat(new_strlit("-configmap")));
-    configmap.set_namespace(zk.namespace().unwrap());
 
-    let mut labels = StringMap::empty();
-    labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
-    configmap.set_labels(labels);
-
-    let mut data = StringMap::empty();
-    data.insert(new_strlit("zoo.cfg").to_string(), make_zk_config());
-    data.insert(new_strlit("log4j.properties").to_string(), make_log4j_config());
-    data.insert(new_strlit("log4j-quiet.properties").to_string(), make_log4j_quiet_config());
-    data.insert(new_strlit("env.sh").to_string(), make_env_config(zk));
-
-    configmap.set_data(data);
+    configmap.set_metadata({
+        let mut metadata = ObjectMeta::default();
+        metadata.set_name(zk.name().unwrap().concat(new_strlit("-configmap")));
+        metadata.set_namespace(zk.namespace().unwrap());
+        metadata.set_labels({
+            let mut labels = StringMap::empty();
+            labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
+            labels
+        });
+        metadata
+    });
+    configmap.set_data({
+        let mut data = StringMap::empty();
+        data.insert(new_strlit("zoo.cfg").to_string(), make_zk_config());
+        data.insert(new_strlit("log4j.properties").to_string(), make_log4j_config());
+        data.insert(new_strlit("log4j-quiet.properties").to_string(), make_log4j_quiet_config());
+        data.insert(new_strlit("env.sh").to_string(), make_env_config(zk));
+        data
+    });
 
     configmap
 }
