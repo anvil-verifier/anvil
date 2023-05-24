@@ -5,7 +5,8 @@ use crate::controller_examples::zookeeper_controller::common::*;
 use crate::controller_examples::zookeeper_controller::spec::reconciler as zk_spec;
 use crate::controller_examples::zookeeper_controller::spec::zookeepercluster::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*, service::*,
+    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
+    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource_requirements::*, service::*,
     stateful_set::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
@@ -432,27 +433,197 @@ fn make_statefulset(zk: &ZookeeperCluster) -> (statefulset: StatefulSet)
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
 {
-    let mut metadata = ObjectMeta::default();
-    metadata.set_name(zk.name().unwrap());
-    metadata.set_namespace(zk.namespace().unwrap());
-    let mut labels = StringMap::empty();
-    labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
-    metadata.set_labels(labels);
-
-    let mut selector = LabelSelector::default();
-    let mut match_labels = StringMap::empty();
-    match_labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
-    selector.set_match_labels(match_labels);
-    let mut statefulset_spec = StatefulSetSpec::default();
-    statefulset_spec.set_replicas(zk.replica());
-    statefulset_spec.set_service_name(zk.name().unwrap().concat(new_strlit("-headless")));
-    statefulset_spec.set_selector(selector);
-
     let mut statefulset = StatefulSet::default();
-    statefulset.set_metadata(metadata);
-    statefulset.set_spec(statefulset_spec);
-
+    statefulset.set_metadata({
+        let mut metadata = ObjectMeta::default();
+        metadata.set_name(zk.name().unwrap());
+        metadata.set_namespace(zk.namespace().unwrap());
+        metadata.set_labels({
+            let mut labels = StringMap::empty();
+            labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
+            labels
+        });
+        metadata
+    });
+    statefulset.set_spec({
+        let mut statefulset_spec = StatefulSetSpec::default();
+        statefulset_spec.set_replicas(zk.replica());
+        statefulset_spec.set_service_name(zk.name().unwrap().concat(new_strlit("-headless")));
+        statefulset_spec.set_selector({
+            let mut selector = LabelSelector::default();
+            selector.set_match_labels({
+                let mut match_labels = StringMap::empty();
+                match_labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
+                match_labels
+            });
+            selector
+        });
+        statefulset_spec.set_template({
+            let mut pod_template_spec = PodTemplateSpec::default();
+            pod_template_spec.set_metadata({
+                let mut metadata = ObjectMeta::default();
+                metadata.set_generate_name(zk.name().unwrap());
+                metadata.set_labels({
+                    let mut labels = StringMap::empty();
+                    labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
+                    labels.insert(new_strlit("kind").to_string(), new_strlit("ZookeeperMember").to_string());
+                    labels
+                });
+                metadata
+            });
+            pod_template_spec.set_spec(make_zk_pod_spec(zk));
+            pod_template_spec
+        });
+        statefulset_spec.set_volume_claim_templates({
+            let mut volume_claim_templates = Vec::empty();
+            volume_claim_templates.push({
+                let mut pvc = PersistentVolumeClaim::default();
+                pvc.set_metadata({
+                    let mut metadata = ObjectMeta::default();
+                    metadata.set_name(new_strlit("data").to_string());
+                    metadata.set_namespace(zk.namespace().unwrap());
+                    metadata.set_labels({
+                        let mut labels = StringMap::empty();
+                        labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
+                        labels
+                    });
+                    metadata
+                });
+                pvc.set_spec({
+                    let mut pvc_spec = PersistentVolumeClaimSpec::default();
+                    pvc_spec.set_access_modes({
+                        let mut access_modes = Vec::empty();
+                        access_modes.push(new_strlit("ReadWriteOnce").to_string());
+                        access_modes
+                    });
+                    pvc_spec.set_resources(make_resource_requirements());
+                    pvc_spec
+                });
+                pvc
+            });
+            volume_claim_templates
+        });
+        statefulset_spec
+    });
     statefulset
+}
+
+fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
+    requires
+        zk@.metadata.name.is_Some(),
+        zk@.metadata.namespace.is_Some(),
+{
+    let mut pod_spec = PodSpec::default();
+
+    pod_spec.set_containers({
+        let mut zk_container = Container::default();
+        zk_container.set_name(new_strlit("zookeeper").to_string());
+        zk_container.set_image(new_strlit("pravega/zookeeper:0.2.14").to_string());
+        zk_container.set_command({
+            let mut command = Vec::empty();
+            command.push(new_strlit("/usr/local/bin/zookeeperStart.sh").to_string());
+            command
+        });
+        zk_container.set_image_pull_policy(new_strlit("Always").to_string());
+        zk_container.set_volume_mounts({
+            let mut volume_mounts = Vec::empty();
+            volume_mounts.push({
+                let mut data_volume_mount = VolumeMount::default();
+                data_volume_mount.set_name(new_strlit("data").to_string());
+                data_volume_mount.set_mount_path(new_strlit("/data").to_string());
+                data_volume_mount
+            });
+            volume_mounts.push({
+                let mut conf_volume_mount = VolumeMount::default();
+                conf_volume_mount.set_name(new_strlit("conf").to_string());
+                conf_volume_mount.set_mount_path(new_strlit("/conf").to_string());
+                conf_volume_mount
+            });
+            volume_mounts
+        });
+        zk_container.set_ports({
+            let mut ports = Vec::empty();
+            ports.push(ContainerPort::new_with(new_strlit("client").to_string(), 2181));
+            ports.push(ContainerPort::new_with(new_strlit("quorum").to_string(), 2888));
+            ports.push(ContainerPort::new_with(new_strlit("leader-election").to_string(), 3888));
+            ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), 7000));
+            ports.push(ContainerPort::new_with(new_strlit("admin-server").to_string(), 8080));
+            ports
+        });
+        zk_container.set_readiness_probe(make_readiness_probe());
+        zk_container.set_liveness_probe(make_liveness_probe());
+
+        let mut containers = Vec::empty();
+        containers.push(zk_container);
+
+        containers
+    });
+    pod_spec.set_volumes({
+        let mut volumes = Vec::empty();
+        volumes.push({
+            let mut volume = Volume::default();
+            volume.set_name(new_strlit("name").to_string());
+            volume.set_config_map({
+                let mut config_map = ConfigMapVolumeSource::default();
+                config_map.set_name(zk.name().unwrap().concat(new_strlit("-configmap")));
+                config_map
+            });
+            volume
+        });
+        volumes
+    });
+
+    pod_spec
+}
+
+#[verifier(external_body)]
+fn make_readiness_probe() -> Probe
+{
+    Probe::from_kube(
+        k8s_openapi::api::core::v1::Probe {
+            exec: std::option::Option::Some(k8s_openapi::api::core::v1::ExecAction {
+                command: std::option::Option::Some(vec!["zookeeperReady.sh".to_string()]),
+            }),
+            failure_threshold: std::option::Option::Some(3),
+            initial_delay_seconds: std::option::Option::Some(10),
+            period_seconds: std::option::Option::Some(10),
+            success_threshold: std::option::Option::Some(1),
+            timeout_seconds: std::option::Option::Some(10),
+            ..k8s_openapi::api::core::v1::Probe::default()
+        }
+    )
+}
+
+#[verifier(external_body)]
+fn make_liveness_probe() -> Probe
+{
+    Probe::from_kube(
+        k8s_openapi::api::core::v1::Probe {
+            exec: std::option::Option::Some(k8s_openapi::api::core::v1::ExecAction {
+                command: std::option::Option::Some(vec!["zookeeperLive.sh".to_string()]),
+            }),
+            failure_threshold: std::option::Option::Some(3),
+            initial_delay_seconds: std::option::Option::Some(10),
+            period_seconds: std::option::Option::Some(10),
+            success_threshold: std::option::Option::Some(1),
+            timeout_seconds: std::option::Option::Some(10),
+            ..k8s_openapi::api::core::v1::Probe::default()
+        }
+    )
+}
+
+#[verifier(external_body)]
+fn make_resource_requirements() -> ResourceRequirements
+{
+    ResourceRequirements::from_kube(
+        k8s_openapi::api::core::v1::ResourceRequirements {
+            requests: std::option::Option::Some(std::collections::BTreeMap::from([(
+                "storage".to_string(),
+                k8s_openapi::apimachinery::pkg::api::resource::Quantity("20Gi".to_string()),
+            )])),
+            ..k8s_openapi::api::core::v1::ResourceRequirements::default()
+        }
+    )
 }
 
 }
