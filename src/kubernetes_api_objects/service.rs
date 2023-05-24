@@ -104,7 +104,6 @@ impl Service {
         ApiResource::from_kube(kube::api::ApiResource::erase::<k8s_openapi::api::core::v1::Service>(&()))
     }
 
-    // NOTE: This function assumes serde_json::to_string won't fail!
     #[verifier(external_body)]
     pub fn to_dynamic_object(self) -> (obj: DynamicObject)
         ensures
@@ -115,8 +114,6 @@ impl Service {
         )
     }
 
-    /// Convert a DynamicObject to a ConfigMap
-    // NOTE: This function assumes try_parse won't fail!
     #[verifier(external_body)]
     pub fn from_dynamic_object(obj: DynamicObject) -> (svc: Service)
         ensures

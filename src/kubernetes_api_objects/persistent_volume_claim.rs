@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
 use crate::kubernetes_api_objects::marshal::*;
@@ -8,6 +9,7 @@ use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
+use vstd::vec::*;
 
 verus! {
 
@@ -45,6 +47,53 @@ impl PersistentVolumeClaim {
     {
         todo!()
     }
+
+    #[verifier(external_body)]
+    pub fn set_metadata(&mut self, metadata: ObjectMeta)
+        ensures
+            self@ == old(self)@.set_metadata(metadata@),
+    {
+        self.inner.metadata = metadata.into_kube();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_spec(&mut self, spec: PersistentVolumeClaimSpec)
+        ensures
+            self@ == old(self)@.set_spec(spec@),
+    {
+        self.inner.spec = std::option::Option::Some(spec.into_kube());
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::PersistentVolumeClaim {
+        self.inner
+    }
+
+    #[verifier(external_body)]
+    pub fn api_resource() -> (res: ApiResource)
+        ensures
+            res@.kind == Kind::CustomResourceKind,
+    {
+        ApiResource::from_kube(kube::api::ApiResource::erase::<k8s_openapi::api::core::v1::PersistentVolumeClaim>(&()))
+    }
+
+    #[verifier(external_body)]
+    pub fn to_dynamic_object(self) -> (obj: DynamicObject)
+        ensures
+            obj@ == self@.to_dynamic_object(),
+    {
+        DynamicObject::from_kube(
+            k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
+        )
+    }
+
+    #[verifier(external_body)]
+    pub fn from_dynamic_object(obj: DynamicObject) -> (pvc: PersistentVolumeClaim)
+        ensures
+            pvc@ == PersistentVolumeClaimView::from_dynamic_object(obj@),
+    {
+        PersistentVolumeClaim { inner: obj.into_kube().try_parse::<k8s_openapi::api::core::v1::PersistentVolumeClaim>().unwrap() }
+    }
 }
 
 #[verifier(external_body)]
@@ -64,6 +113,21 @@ impl PersistentVolumeClaimSpec {
             inner: k8s_openapi::api::core::v1::PersistentVolumeClaimSpec::default(),
         }
     }
+
+    #[verifier(external_body)]
+    pub fn set_access_modes(&mut self, access_modes: Vec<String>)
+        ensures
+            self@ == old(self)@.set_access_modes(access_modes@.map_values(|mode: String| mode@)),
+    {
+        self.inner.access_modes = std::option::Option::Some(
+            access_modes.vec.into_iter().map(|mode: String| mode.into_rust_string()).collect()
+        )
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::PersistentVolumeClaimSpec {
+        self.inner
+    }
 }
 
 pub struct PersistentVolumeClaimView {
@@ -76,6 +140,20 @@ impl PersistentVolumeClaimView {
         PersistentVolumeClaimView {
             metadata: ObjectMetaView::default(),
             spec: Option::None,
+        }
+    }
+
+    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> PersistentVolumeClaimView {
+        PersistentVolumeClaimView {
+            metadata: metadata,
+            ..self
+        }
+    }
+
+    pub open spec fn set_spec(self, spec: PersistentVolumeClaimSpecView) -> PersistentVolumeClaimView {
+        PersistentVolumeClaimView {
+            spec: Option::Some(spec),
+            ..self
         }
     }
 

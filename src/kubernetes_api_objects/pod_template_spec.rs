@@ -24,9 +24,9 @@ impl PodTemplateSpec {
     pub spec fn view(&self) -> PodTemplateSpecView;
 
     #[verifier(external_body)]
-    pub fn default() -> (volume_mount: PodTemplateSpec)
+    pub fn default() -> (pod_template_spec: PodTemplateSpec)
         ensures
-            volume_mount@ == PodTemplateSpecView::default(),
+            pod_template_spec@ == PodTemplateSpecView::default(),
     {
         PodTemplateSpec {
             inner: k8s_openapi::api::core::v1::PodTemplateSpec::default(),
