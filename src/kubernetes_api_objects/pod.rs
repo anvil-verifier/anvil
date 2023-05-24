@@ -336,6 +336,78 @@ impl VolumeMount {
     }
 }
 
+#[verifier(external_body)]
+pub struct Volume {
+    inner: k8s_openapi::api::core::v1::Volume,
+}
+
+impl Volume {
+    pub spec fn view(&self) -> VolumeView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (volume: Volume)
+        ensures
+            volume@ == VolumeView::default(),
+    {
+        Volume {
+            inner: k8s_openapi::api::core::v1::Volume::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_name(&mut self, name: String)
+        ensures
+            self@ == old(self)@.set_name(name@),
+    {
+        self.inner.name = name.into_rust_string();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_config_map(&mut self, config_map: ConfigMapVolumeSource)
+        ensures
+            self@ == old(self)@.set_config_map(config_map@),
+    {
+        self.inner.config_map = std::option::Option::Some(config_map.into_kube());
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::Volume {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct ConfigMapVolumeSource {
+    inner: k8s_openapi::api::core::v1::ConfigMapVolumeSource,
+}
+
+impl ConfigMapVolumeSource {
+    pub spec fn view(&self) -> ConfigMapVolumeSourceView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (config_map_volume_source: ConfigMapVolumeSource)
+        ensures
+            config_map_volume_source@ == ConfigMapVolumeSourceView::default(),
+    {
+        ConfigMapVolumeSource {
+            inner: k8s_openapi::api::core::v1::ConfigMapVolumeSource::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_name(&mut self, name: String)
+        ensures
+            self@ == old(self)@.set_name(name@),
+    {
+        self.inner.name = std::option::Option::Some(name.into_rust_string());
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::ConfigMapVolumeSource {
+        self.inner
+    }
+}
+
 pub struct PodView {
     pub metadata: ObjectMetaView,
     pub spec: Option<PodSpecView>,
@@ -647,5 +719,104 @@ impl VolumeMountView {
 
     pub open spec fn name_field() -> nat {1}
 }
+
+pub struct VolumeView {
+    pub config_map: Option<ConfigMapVolumeSourceView>,
+    pub name: StringView,
+}
+
+impl VolumeView {
+    pub open spec fn default() -> VolumeView {
+        VolumeView {
+            name: new_strlit("")@,
+            config_map: Option::Some(ConfigMapVolumeSourceView::default()),
+        }
+    }
+
+    pub open spec fn set_config_map(self, config_map: ConfigMapVolumeSourceView) -> VolumeView {
+        VolumeView {
+            config_map: Option::Some(config_map),
+            ..self
+        }
+    }
+
+    pub open spec fn set_name(self, name: StringView) -> VolumeView {
+        VolumeView {
+            name: name,
+            ..self
+        }
+    }
+
+    pub open spec fn marshal(self) -> Value {
+        Value::Object(
+            Map::empty()
+                .insert(Self::config_map_field(), if self.config_map.is_None() {Value::Null} else {
+                    self.config_map.get_Some_0().marshal()
+                })
+                .insert(Self::name_field(), Value::String(self.name))
+        )
+    }
+
+    pub open spec fn unmarshal(value: Value) -> Self {
+        VolumeView {
+            config_map: if value.get_Object_0()[Self::config_map_field()].is_Null() {Option::None} else {
+                Option::Some(ConfigMapVolumeSourceView::unmarshal(value.get_Object_0()[Self::config_map_field()]))
+            },
+            name: value.get_Object_0()[Self::name_field()].get_String_0(),
+        }
+    }
+
+    proof fn integrity_check()
+        ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()),
+    {}
+
+    pub open spec fn config_map_field() -> nat {0}
+
+    pub open spec fn name_field() -> nat {1}
+}
+
+pub struct ConfigMapVolumeSourceView {
+    pub name: Option<StringView>,
+}
+
+
+impl ConfigMapVolumeSourceView {
+    pub open spec fn default() -> ConfigMapVolumeSourceView {
+        ConfigMapVolumeSourceView {
+            name: Option::None,
+        }
+    }
+
+    pub open spec fn set_name(self, name: StringView) -> ConfigMapVolumeSourceView {
+        ConfigMapVolumeSourceView {
+            name: Option::Some(name),
+            ..self
+        }
+    }
+
+    pub open spec fn marshal(self) -> Value {
+        Value::Object(
+            Map::empty()
+                .insert(Self::name_field(), if self.name.is_None() { Value::Null } else {
+                    Value::String(self.name.get_Some_0())
+                })
+        )
+    }
+
+    pub open spec fn unmarshal(value: Value) -> Self {
+        ConfigMapVolumeSourceView {
+            name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {
+                Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
+            },
+        }
+    }
+
+    proof fn integrity_check()
+        ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()),
+    {}
+
+    pub open spec fn name_field() -> nat {0}
+}
+
 
 }
