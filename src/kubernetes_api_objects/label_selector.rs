@@ -59,28 +59,28 @@ impl LabelSelectorView {
         }
     }
 
-    pub open spec fn marshal(self) -> Value {
+    pub open spec fn match_labels_field() -> nat {0}
+}
+
+impl Marshalable for LabelSelectorView {
+    open spec fn marshal(self) -> Value {
         Value::Object(
             Map::empty()
-                .insert(Self::match_labels_field(), if self.match_labels.is_None() {Value::Null} else {
+                .insert(Self::match_labels_field(), if self.match_labels.is_None() { Value::Null } else {
                     Value::StringStringMap(self.match_labels.get_Some_0())
                 })
         )
     }
 
-    pub open spec fn unmarshal(value: Value) -> Self {
+    open spec fn unmarshal(value: Value) -> Self {
         LabelSelectorView {
-            match_labels: if value.get_Object_0()[Self::match_labels_field()].is_Null() {Option::None} else {
+            match_labels: if value.get_Object_0()[Self::match_labels_field()].is_Null() { Option::None } else {
                 Option::Some(value.get_Object_0()[Self::match_labels_field()].get_StringStringMap_0())
             },
         }
     }
 
-    proof fn integrity_check()
-        ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()),
-    {}
-
-    pub open spec fn match_labels_field() -> nat {0}
+    proof fn marshal_preserves_integrity() {}
 }
 
 }

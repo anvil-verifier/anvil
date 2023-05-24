@@ -82,7 +82,13 @@ impl PodTemplateSpecView {
         }
     }
 
-    pub open spec fn marshal(self) -> Value {
+    pub open spec fn metadata_field() -> nat {0}
+
+    pub open spec fn spec_field() -> nat {1}
+}
+
+impl Marshalable for PodTemplateSpecView {
+    open spec fn marshal(self) -> Value {
         Value::Object(
             Map::empty()
                 .insert(Self::metadata_field(), if self.metadata.is_None() { Value::Null } else {
@@ -94,7 +100,7 @@ impl PodTemplateSpecView {
         )
     }
 
-    pub open spec fn unmarshal(value: Value) -> Self {
+    open spec fn unmarshal(value: Value) -> Self {
         PodTemplateSpecView {
             metadata: if value.get_Object_0()[Self::metadata_field()].is_Null() { Option::None } else {
                 Option::Some(ObjectMetaView::unmarshal(value.get_Object_0()[Self::metadata_field()]))
@@ -105,15 +111,9 @@ impl PodTemplateSpecView {
         }
     }
 
-    pub proof fn integrity_check()
-        ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal())
-    {
-        PodSpecView::integrity_check();
+    proof fn marshal_preserves_integrity() {
+        PodSpecView::marshal_preserves_integrity();
     }
-
-    pub open spec fn metadata_field() -> nat {0}
-
-    pub open spec fn spec_field() -> nat {1}
 }
 
 }

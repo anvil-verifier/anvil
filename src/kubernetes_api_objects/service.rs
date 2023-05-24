@@ -19,32 +19,6 @@ pub struct Service {
     inner: k8s_openapi::api::core::v1::Service,
 }
 
-#[verifier(external_body)]
-pub struct ServiceSpec {
-    inner: k8s_openapi::api::core::v1::ServiceSpec,
-}
-
-#[verifier(external_body)]
-pub struct ServicePort {
-    inner: k8s_openapi::api::core::v1::ServicePort,
-}
-
-pub struct ServiceView {
-    pub metadata: ObjectMetaView,
-    pub spec: Option<ServiceSpecView>,
-}
-
-pub struct ServiceSpecView {
-    pub cluster_ip: Option<StringView>,
-    pub ports: Option<Seq<ServicePortView>>,
-    pub selector: Option<Map<StringView, StringView>>,
-}
-
-pub struct ServicePortView {
-    pub name: Option<StringView>,
-    pub port: nat,
-}
-
 impl Service {
     pub spec fn view(&self) -> ServiceView;
 
@@ -123,6 +97,112 @@ impl Service {
     }
 }
 
+#[verifier(external_body)]
+pub struct ServiceSpec {
+    inner: k8s_openapi::api::core::v1::ServiceSpec,
+}
+
+impl ServiceSpec {
+    pub spec fn view(&self) -> ServiceSpecView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (service_spec: ServiceSpec)
+        ensures
+            service_spec@ == ServiceSpecView::default(),
+    {
+        ServiceSpec {
+            inner: k8s_openapi::api::core::v1::ServiceSpec::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_cluster_ip(&mut self, cluster_ip: String)
+        ensures
+            self@ == old(self)@.set_cluster_ip(cluster_ip@),
+    {
+        self.inner.cluster_ip = std::option::Option::Some(cluster_ip.into_rust_string())
+    }
+
+    #[verifier(external_body)]
+    pub fn set_ports(&mut self, ports: Vec<ServicePort>)
+        ensures
+            self@ == old(self)@.set_ports(ports@.map_values(|port: ServicePort| port@)),
+    {
+        self.inner.ports = std::option::Option::Some(
+            ports.vec.into_iter().map(|port: ServicePort| port.into_kube()).collect()
+        )
+    }
+
+    #[verifier(external_body)]
+    pub fn set_selector(&mut self, selector: StringMap)
+        ensures
+            self@ == old(self)@.set_selector(selector@),
+    {
+        self.inner.selector = std::option::Option::Some(selector.into_rust_map())
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::ServiceSpec {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct ServicePort {
+    inner: k8s_openapi::api::core::v1::ServicePort,
+}
+
+impl ServicePort {
+    pub spec fn view(&self) -> ServicePortView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (service_port: ServicePort)
+        ensures
+            service_port@ == ServicePortView::default(),
+    {
+        ServicePort {
+            inner: k8s_openapi::api::core::v1::ServicePort::default(),
+        }
+    }
+
+    pub fn new_with(name: String, port: i32) -> (service_port: ServicePort)
+        ensures
+            service_port@ == ServicePortView::default().set_name(name@).set_port(port as nat),
+    {
+        let mut service_port = Self::default();
+        service_port.set_name(name);
+        service_port.set_port(port);
+
+        service_port
+    }
+
+    #[verifier(external_body)]
+    pub fn set_name(&mut self, name: String)
+        ensures
+            self@ == old(self)@.set_name(name@),
+    {
+        self.inner.name = std::option::Option::Some(name.into_rust_string());
+    }
+
+    #[verifier(external_body)]
+    pub fn set_port(&mut self, port: i32)
+        ensures
+            self@ == old(self)@.set_port(port as nat),
+    {
+        self.inner.port = port;
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::ServicePort {
+        self.inner
+    }
+}
+
+pub struct ServiceView {
+    pub metadata: ObjectMetaView,
+    pub spec: Option<ServiceSpecView>,
+}
+
 impl ServiceView {
     pub open spec fn default() -> ServiceView {
         ServiceView {
@@ -197,49 +277,10 @@ impl ResourceView for ServiceView {
     }
 }
 
-impl ServiceSpec {
-    pub spec fn view(&self) -> ServiceSpecView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (service_spec: ServiceSpec)
-        ensures
-            service_spec@ == ServiceSpecView::default(),
-    {
-        ServiceSpec {
-            inner: k8s_openapi::api::core::v1::ServiceSpec::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn set_cluster_ip(&mut self, cluster_ip: String)
-        ensures
-            self@ == old(self)@.set_cluster_ip(cluster_ip@),
-    {
-        self.inner.cluster_ip = std::option::Option::Some(cluster_ip.into_rust_string())
-    }
-
-    #[verifier(external_body)]
-    pub fn set_ports(&mut self, ports: Vec<ServicePort>)
-        ensures
-            self@ == old(self)@.set_ports(ports@.map_values(|port: ServicePort| port@)),
-    {
-        self.inner.ports = std::option::Option::Some(
-            ports.vec.into_iter().map(|port: ServicePort| port.into_kube()).collect()
-        )
-    }
-
-    #[verifier(external_body)]
-    pub fn set_selector(&mut self, selector: StringMap)
-        ensures
-            self@ == old(self)@.set_selector(selector@),
-    {
-        self.inner.selector = std::option::Option::Some(selector.into_rust_map())
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::ServiceSpec {
-        self.inner
-    }
+pub struct ServiceSpecView {
+    pub cluster_ip: Option<StringView>,
+    pub ports: Option<Seq<ServicePortView>>,
+    pub selector: Option<Map<StringView, StringView>>,
 }
 
 impl ServiceSpecView {
@@ -250,7 +291,6 @@ impl ServiceSpecView {
             selector: Option::None,
         }
     }
-
 
     pub open spec fn set_cluster_ip(self, cluster_ip: StringView) -> ServiceSpecView {
         ServiceSpecView {
@@ -273,7 +313,15 @@ impl ServiceSpecView {
         }
     }
 
-    pub open spec fn marshal(self) -> Value {
+    pub open spec fn cluster_ip_field() -> nat {0}
+
+    pub open spec fn ports_field() -> nat {1}
+
+    pub open spec fn selector_field() -> nat {2}
+}
+
+impl Marshalable for ServiceSpecView {
+    open spec fn marshal(self) -> Value {
         Value::Object(
             Map::empty()
                 .insert(Self::cluster_ip_field(), if self.cluster_ip.is_None() {Value::Null} else {
@@ -288,7 +336,7 @@ impl ServiceSpecView {
         )
     }
 
-    pub open spec fn unmarshal(value: Value) -> Self {
+    open spec fn unmarshal(value: Value) -> Self {
         ServiceSpecView {
             cluster_ip: if value.get_Object_0()[Self::cluster_ip_field()].is_Null() {Option::None} else {
                 Option::Some(value.get_Object_0()[Self::cluster_ip_field()].get_String_0())
@@ -302,67 +350,18 @@ impl ServiceSpecView {
         }
     }
 
-    proof fn integrity_check()
-        ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal())
-    {
+    proof fn marshal_preserves_integrity() {
         assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
             if o.ports.is_Some() {
                 assert_seqs_equal!(o.ports.get_Some_0(), Self::unmarshal(o.marshal()).ports.get_Some_0());
             }
         }
     }
-
-    pub open spec fn cluster_ip_field() -> nat {0}
-
-    pub open spec fn ports_field() -> nat {1}
-
-    pub open spec fn selector_field() -> nat {2}
 }
 
-impl ServicePort {
-    pub spec fn view(&self) -> ServicePortView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (service_port: ServicePort)
-        ensures
-            service_port@ == ServicePortView::default(),
-    {
-        ServicePort {
-            inner: k8s_openapi::api::core::v1::ServicePort::default(),
-        }
-    }
-
-    pub fn new_with(name: String, port: i32) -> (service_port: ServicePort)
-        ensures
-            service_port@ == ServicePortView::default().set_name(name@).set_port(port as nat),
-    {
-        let mut service_port = Self::default();
-        service_port.set_name(name);
-        service_port.set_port(port);
-
-        service_port
-    }
-
-    #[verifier(external_body)]
-    pub fn set_name(&mut self, name: String)
-        ensures
-            self@ == old(self)@.set_name(name@),
-    {
-        self.inner.name = std::option::Option::Some(name.into_rust_string());
-    }
-
-    #[verifier(external_body)]
-    pub fn set_port(&mut self, port: i32)
-        ensures
-            self@ == old(self)@.set_port(port as nat),
-    {
-        self.inner.port = port;
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::ServicePort {
-        self.inner
-    }
+pub struct ServicePortView {
+    pub name: Option<StringView>,
+    pub port: nat,
 }
 
 impl ServicePortView {
@@ -387,32 +386,32 @@ impl ServicePortView {
         }
     }
 
-    pub open spec fn marshal(self) -> Value {
+    pub open spec fn name_field() -> nat {0}
+
+    pub open spec fn port_field() -> nat {1}
+}
+
+impl Marshalable for ServicePortView {
+    open spec fn marshal(self) -> Value {
         Value::Object(
             Map::empty()
-                .insert(Self::name_field(), if self.name.is_None() {Value::Null} else {
+                .insert(Self::name_field(), if self.name.is_None() { Value::Null } else {
                     Value::String(self.name.get_Some_0())
                 })
                 .insert(Self::port_field(), Value::Nat(self.port))
         )
     }
 
-    pub open spec fn unmarshal(value: Value) -> Self {
+    open spec fn unmarshal(value: Value) -> Self {
         ServicePortView {
-            name: if value.get_Object_0()[Self::name_field()].is_Null() {Option::None} else {
+            name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {
                 Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
             },
             port: value.get_Object_0()[Self::port_field()].get_Nat_0(),
         }
     }
 
-    proof fn integrity_check()
-        ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal())
-    {}
-
-    pub open spec fn name_field() -> nat {0}
-
-    pub open spec fn port_field() -> nat {1}
+    proof fn marshal_preserves_integrity() {}
 }
 
 }

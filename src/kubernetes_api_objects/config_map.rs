@@ -17,11 +17,6 @@ pub struct ConfigMap {
     inner: k8s_openapi::api::core::v1::ConfigMap,
 }
 
-pub struct ConfigMapView {
-    pub metadata: ObjectMetaView,
-    pub data: Option<Map<StringView, StringView>>,
-}
-
 impl ConfigMap {
     pub spec fn view(&self) -> ConfigMapView;
 
@@ -105,6 +100,11 @@ impl ConfigMap {
     {
         ConfigMap {inner: obj.into_kube().try_parse::<k8s_openapi::api::core::v1::ConfigMap>().unwrap()}
     }
+}
+
+pub struct ConfigMapView {
+    pub metadata: ObjectMetaView,
+    pub data: Option<Map<StringView, StringView>>,
 }
 
 impl ConfigMapView {

@@ -142,7 +142,21 @@ impl ObjectMetaView {
         }
     }
 
-    pub open spec fn marshal(self) -> Value {
+    pub open spec fn name_field() -> nat {0}
+
+    pub open spec fn namespace_field() -> nat {1}
+
+    pub open spec fn generate_name_field() -> nat {2}
+
+    pub open spec fn resource_version_field() -> nat {3}
+
+    pub open spec fn uid_field() -> nat {4}
+
+    pub open spec fn labels_field() -> nat {5}
+}
+
+impl Marshalable for ObjectMetaView {
+    open spec fn marshal(self) -> Value {
         Value::Object(
             Map::empty()
                 .insert(Self::name_field(), if self.name.is_None() { Value::Null } else {
@@ -166,7 +180,7 @@ impl ObjectMetaView {
         )
     }
 
-    pub open spec fn unmarshal(value: Value) -> Self {
+    open spec fn unmarshal(value: Value) -> Self {
         ObjectMetaView {
             name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {
                 Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
@@ -189,21 +203,7 @@ impl ObjectMetaView {
         }
     }
 
-    proof fn integrity_check()
-        ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal())
-    {}
-
-    pub open spec fn name_field() -> nat {0}
-
-    pub open spec fn namespace_field() -> nat {1}
-
-    pub open spec fn generate_name_field() -> nat {2}
-
-    pub open spec fn resource_version_field() -> nat {3}
-
-    pub open spec fn uid_field() -> nat {4}
-
-    pub open spec fn labels_field() -> nat {5}
+    proof fn marshal_preserves_integrity() {}
 }
 
 }

@@ -166,29 +166,6 @@ impl PersistentVolumeClaimView {
         }
     }
 
-    pub open spec fn marshal(self) -> Value {
-        Value::Object(Map::empty()
-                        .insert(Self::metadata_field(), self.metadata.marshal())
-                        .insert(Self::spec_field(), if self.spec.is_None() { Value::Null } else {
-                            self.spec.get_Some_0().marshal()
-                        }))
-    }
-
-    pub open spec fn unmarshal(value: Value) -> PersistentVolumeClaimView {
-        PersistentVolumeClaimView {
-            metadata: ObjectMetaView::unmarshal(value.get_Object_0()[Self::metadata_field()]),
-            spec: if value.get_Object_0()[Self::spec_field()].is_Null() { Option::None } else {
-                Option::Some(PersistentVolumeClaimSpecView::unmarshal(value.get_Object_0()[Self::spec_field()]))
-            },
-        }
-    }
-
-    pub proof fn marshal_preserves_integrity()
-        ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()),
-    {
-        PersistentVolumeClaimSpecView::integrity_check();
-    }
-
     pub open spec fn metadata_field() -> nat {0}
 
     pub open spec fn spec_field() -> nat {1}
@@ -243,6 +220,29 @@ impl ResourceView for PersistentVolumeClaimView {
     }
 }
 
+impl Marshalable for PersistentVolumeClaimView {
+    open spec fn marshal(self) -> Value {
+        Value::Object(Map::empty()
+                        .insert(Self::metadata_field(), self.metadata.marshal())
+                        .insert(Self::spec_field(), if self.spec.is_None() { Value::Null } else {
+                            self.spec.get_Some_0().marshal()
+                        }))
+    }
+
+    open spec fn unmarshal(value: Value) -> PersistentVolumeClaimView {
+        PersistentVolumeClaimView {
+            metadata: ObjectMetaView::unmarshal(value.get_Object_0()[Self::metadata_field()]),
+            spec: if value.get_Object_0()[Self::spec_field()].is_Null() { Option::None } else {
+                Option::Some(PersistentVolumeClaimSpecView::unmarshal(value.get_Object_0()[Self::spec_field()]))
+            },
+        }
+    }
+
+    proof fn marshal_preserves_integrity() {
+        PersistentVolumeClaimSpecView::marshal_preserves_integrity();
+    }
+}
+
 pub struct PersistentVolumeClaimSpecView {
     pub access_modes: Option<Seq<StringView>>,
 }
@@ -261,34 +261,34 @@ impl PersistentVolumeClaimSpecView {
         }
     }
 
-    pub open spec fn marshal(self) -> Value {
+    pub open spec fn access_modes_field() -> nat {0}
+}
+
+impl Marshalable for PersistentVolumeClaimSpecView {
+    open spec fn marshal(self) -> Value {
         Value::Object(
             Map::empty()
-                .insert(Self::access_modes_field(), if self.access_modes.is_None() {Value::Null} else {
+                .insert(Self::access_modes_field(), if self.access_modes.is_None() { Value::Null } else {
                     Value::Array(self.access_modes.get_Some_0().map_values(|mode: StringView| Value::String(mode)))
                 })
         )
     }
 
-    pub open spec fn unmarshal(value: Value) -> Self {
+    open spec fn unmarshal(value: Value) -> Self {
         PersistentVolumeClaimSpecView {
-            access_modes: if value.get_Object_0()[Self::access_modes_field()].is_Null() {Option::None} else {
+            access_modes: if value.get_Object_0()[Self::access_modes_field()].is_Null() { Option::None } else {
                 Option::Some(value.get_Object_0()[Self::access_modes_field()].get_Array_0().map_values(|v: Value| v.get_String_0()))
             },
         }
     }
 
-    proof fn integrity_check()
-        ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal())
-    {
+    proof fn marshal_preserves_integrity() {
         assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
             if o.access_modes.is_Some() {
                 assert_seqs_equal!(o.access_modes.get_Some_0(), Self::unmarshal(o.marshal()).access_modes.get_Some_0());
             }
         }
     }
-
-    pub open spec fn access_modes_field() -> nat {0}
 }
 
 }

@@ -23,11 +23,6 @@ pub struct StatefulSet {
     inner: k8s_openapi::api::apps::v1::StatefulSet,
 }
 
-#[verifier(external_body)]
-pub struct StatefulSetSpec {
-    inner: k8s_openapi::api::apps::v1::StatefulSetSpec,
-}
-
 impl StatefulSet {
     pub spec fn view(&self) -> StatefulSetView;
 
@@ -106,6 +101,11 @@ impl StatefulSet {
     {
         StatefulSet { inner: obj.into_kube().try_parse::<k8s_openapi::api::apps::v1::StatefulSet>().unwrap() }
     }
+}
+
+#[verifier(external_body)]
+pub struct StatefulSetSpec {
+    inner: k8s_openapi::api::apps::v1::StatefulSetSpec,
 }
 
 impl StatefulSetSpec {
@@ -237,7 +237,7 @@ impl ResourceView for StatefulSetView {
     }
 
     proof fn integrity_check() {
-        StatefulSetSpecView::integrity_check();
+        StatefulSetSpecView::marshal_preserves_integrity();
     }
 }
 
@@ -295,7 +295,19 @@ impl StatefulSetSpecView {
         }
     }
 
-    pub open spec fn marshal(self) -> Value {
+    pub open spec fn replicas_field() -> nat {0}
+
+    pub open spec fn selector_field() -> nat {1}
+
+    pub open spec fn service_name_field() -> nat {2}
+
+    pub open spec fn template_field() -> nat {3}
+
+    pub open spec fn volume_claim_templates_field() -> nat {4}
+}
+
+impl Marshalable for StatefulSetSpecView {
+    open spec fn marshal(self) -> Value {
         Value::Object(
             Map::empty()
                 .insert(Self::replicas_field(), if self.replicas.is_None() { Value::Null } else {
@@ -310,7 +322,7 @@ impl StatefulSetSpecView {
         )
     }
 
-    pub open spec fn unmarshal(value: Value) -> Self {
+    open spec fn unmarshal(value: Value) -> Self {
         StatefulSetSpecView {
             replicas: if value.get_Object_0()[Self::replicas_field()].is_Null() {Option::None} else {
                 Option::Some(value.get_Object_0()[Self::replicas_field()].get_Int_0())
@@ -324,27 +336,15 @@ impl StatefulSetSpecView {
         }
     }
 
-    proof fn integrity_check()
-        ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()),
-    {
+    proof fn marshal_preserves_integrity() {
         assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
             if o.volume_claim_templates.is_Some() {
                 PersistentVolumeClaimView::marshal_preserves_integrity();
                 assert_seqs_equal!(o.volume_claim_templates.get_Some_0(), Self::unmarshal(o.marshal()).volume_claim_templates.get_Some_0());
             }
-            PodTemplateSpecView::integrity_check();
+            PodTemplateSpecView::marshal_preserves_integrity();
         }
     }
-
-    pub open spec fn replicas_field() -> nat {0}
-
-    pub open spec fn selector_field() -> nat {1}
-
-    pub open spec fn service_name_field() -> nat {2}
-
-    pub open spec fn template_field() -> nat {3}
-
-    pub open spec fn volume_claim_templates_field() -> nat {4}
 }
 
 }
