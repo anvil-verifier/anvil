@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_view::*;
@@ -438,7 +439,7 @@ impl PodSpecView {
         }
     }
 
-    proof fn integrity_check()
+    pub proof fn integrity_check()
         ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()),
     {
         assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
@@ -595,7 +596,6 @@ impl ContainerPortView {
 
     pub open spec fn name_field() -> nat {1}
 }
-
 
 pub struct VolumeMountView {
     pub mount_path: StringView,
