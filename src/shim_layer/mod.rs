@@ -114,7 +114,6 @@ where
         // Feed the current reconcile state and get the new state and the pending request
         let (state_prime, req_option) = reconciler.reconcile_core(&cr_key, resp_option, state);
         // Pattern match the request and send requests to the Kubernetes API via kube-rs methods
-        // TODO: use dynamic object type to avoid pattern matching each concrete type
         match req_option {
             Option::Some(req) => match req {
                 KubeAPIRequest::GetRequest(get_req) => {
