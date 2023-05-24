@@ -105,7 +105,7 @@ impl PodTemplateSpecView {
         }
     }
 
-    proof fn integrity_check()
+    pub proof fn integrity_check()
         ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal())
     {
         PodSpecView::integrity_check();

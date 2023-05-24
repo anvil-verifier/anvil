@@ -166,7 +166,32 @@ impl PersistentVolumeClaimView {
         }
     }
 
-    pub open spec fn spec_field() -> nat {0}
+    pub open spec fn marshal(self) -> Value {
+        Value::Object(Map::empty()
+                        .insert(Self::metadata_field(), self.metadata.marshal())
+                        .insert(Self::spec_field(), if self.spec.is_None() { Value::Null } else {
+                            self.spec.get_Some_0().marshal()
+                        }))
+    }
+
+    pub open spec fn unmarshal(value: Value) -> PersistentVolumeClaimView {
+        PersistentVolumeClaimView {
+            metadata: ObjectMetaView::unmarshal(value.get_Object_0()[Self::metadata_field()]),
+            spec: if value.get_Object_0()[Self::spec_field()].is_Null() { Option::None } else {
+                Option::Some(PersistentVolumeClaimSpecView::unmarshal(value.get_Object_0()[Self::spec_field()]))
+            },
+        }
+    }
+
+    pub proof fn marshal_preserves_integrity()
+        ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()),
+    {
+        PersistentVolumeClaimSpecView::integrity_check();
+    }
+
+    pub open spec fn metadata_field() -> nat {0}
+
+    pub open spec fn spec_field() -> nat {1}
 }
 
 impl ResourceView for PersistentVolumeClaimView {

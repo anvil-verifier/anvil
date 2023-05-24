@@ -125,6 +125,14 @@ impl PodSpec {
         self.inner.containers = containers.vec.into_iter().map(|container: Container| container.into_kube()).collect()
     }
 
+    #[verifier(external_body)]
+    pub fn set_volumes(&mut self, volumes: Vec<Volume>)
+        ensures
+            self@ == old(self)@.set_volumes(volumes@.map_values(|vol: Volume| vol@)),
+    {
+        self.inner.volumes = std::option::Option::Some(volumes.vec.into_iter().map(|vol: Volume| vol.into_kube()).collect())
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> k8s_openapi::api::core::v1::PodSpec {
         self.inner
@@ -163,6 +171,16 @@ impl Container {
             self@ == old(self)@.set_name(name@),
     {
         self.inner.name = name.into_rust_string()
+    }
+
+    #[verifier(external_body)]
+    pub fn set_volume_mounts(&mut self, volume_mounts: Vec<VolumeMount>)
+        ensures
+            self@ == old(self)@.set_volume_mounts(volume_mounts@.map_values(|mount: VolumeMount| mount@)),
+    {
+        self.inner.volume_mounts = std::option::Option::Some(
+            volume_mounts.vec.into_iter().map(|mount: VolumeMount| mount.into_kube()).collect()
+        )
     }
 
     #[verifier(external_body)]
@@ -460,7 +478,7 @@ impl ResourceView for PodView {
             kind: self.kind(),
             metadata: self.metadata,
             data: Value::Object(Map::empty()
-                                    .insert(Self::spec_field(), if self.spec.is_None() {Value::Null} else {
+                                    .insert(Self::spec_field(), if self.spec.is_None() { Value::Null } else {
                                         self.spec.get_Some_0().marshal()
                                     })),
         }
@@ -469,7 +487,7 @@ impl ResourceView for PodView {
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> PodView {
         PodView {
             metadata: obj.metadata,
-            spec: if obj.data.get_Object_0()[Self::spec_field()].is_Null() {Option::None} else {
+            spec: if obj.data.get_Object_0()[Self::spec_field()].is_Null() { Option::None } else {
                 Option::Some(PodSpecView::unmarshal(obj.data.get_Object_0()[Self::spec_field()]))
             },
         }
@@ -482,12 +500,14 @@ impl ResourceView for PodView {
 
 pub struct PodSpecView {
     pub containers: Seq<ContainerView>,
+    pub volumes: Option<Seq<VolumeView>>,
 }
 
 impl PodSpecView {
     pub open spec fn default() -> PodSpecView {
         PodSpecView {
             containers: Seq::empty(),
+            volumes: Option::None,
         }
     }
 
@@ -498,16 +518,29 @@ impl PodSpecView {
         }
     }
 
+    pub open spec fn set_volumes(self, volumes: Seq<VolumeView>) -> PodSpecView {
+        PodSpecView {
+            volumes: Option::Some(volumes),
+            ..self
+        }
+    }
+
     pub open spec fn marshal(self) -> Value {
         Value::Object(
             Map::empty()
                 .insert(Self::containers_field(), Value::Array(self.containers.map_values(|container: ContainerView| container.marshal())))
+                .insert(Self::volumes_field(), if self.volumes.is_None() { Value::Null } else {
+                    Value::Array(self.volumes.get_Some_0().map_values(|volume: VolumeView| volume.marshal()))
+                })
         )
     }
 
     pub open spec fn unmarshal(value: Value) -> Self {
         PodSpecView {
             containers: value.get_Object_0()[Self::containers_field()].get_Array_0().map_values(|v| ContainerView::unmarshal(v)),
+            volumes: if value.get_Object_0()[Self::volumes_field()].is_Null() { Option::None } else {
+                Option::Some(value.get_Object_0()[Self::volumes_field()].get_Array_0().map_values(|v| VolumeView::unmarshal(v)))
+            },
         }
     }
 
@@ -517,10 +550,15 @@ impl PodSpecView {
         assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
             ContainerView::integrity_check();
             assert_seqs_equal!(o.containers, Self::unmarshal(o.marshal()).containers);
+            if o.volumes.is_Some() {
+                assert_seqs_equal!(o.volumes.get_Some_0(), Self::unmarshal(o.marshal()).volumes.get_Some_0());
+            }
         }
     }
 
     pub open spec fn containers_field() -> nat {0}
+
+    pub open spec fn volumes_field() -> nat {1}
 }
 
 pub struct ContainerView {
@@ -557,6 +595,13 @@ impl ContainerView {
     pub open spec fn set_ports(self, ports: Seq<ContainerPortView>) -> ContainerView {
         ContainerView {
             ports: Option::Some(ports),
+            ..self
+        }
+    }
+
+    pub open spec fn set_volume_mounts(self, volume_mounts: Seq<VolumeMountView>) -> ContainerView {
+        ContainerView {
+            volume_mounts: Option::Some(volume_mounts),
             ..self
         }
     }
