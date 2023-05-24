@@ -204,6 +204,27 @@ pub fn reconcile_core(zk_ref: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, s
                 }
             ));
             let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::AfterCreateConfigMap,
+                ..state
+            };
+            return (state_prime, req_o);
+        },
+        ZookeeperReconcileStep::AfterCreateConfigMap => {
+            if !state.zk.is_some() {
+                return (ZookeeperReconcileState { reconcile_step: ZookeeperReconcileStep::Error, ..state }, Option::None);
+            }
+            let zk = state.zk.as_ref().unwrap();
+            if !(zk.name().is_some() && zk.namespace().is_some()) {
+                return (ZookeeperReconcileState { reconcile_step: ZookeeperReconcileStep::Error, ..state }, Option::None);
+            }
+            let stateful_set = make_statefulset(zk);
+            let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                KubeCreateRequest {
+                    api_resource: StatefulSet::api_resource(),
+                    obj: stateful_set.to_dynamic_object(),
+                }
+            ));
+            let state_prime = ZookeeperReconcileState {
                 reconcile_step: ZookeeperReconcileStep::Done,
                 ..state
             };

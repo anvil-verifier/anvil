@@ -13,6 +13,7 @@ pub enum ZookeeperReconcileStep {
     AfterCreateHeadlessService,
     AfterCreateClientService,
     AfterCreateAdminServerService,
+    AfterCreateConfigMap,
     Done,
     Error,
 }

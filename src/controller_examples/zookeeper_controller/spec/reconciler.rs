@@ -124,6 +124,22 @@ pub open spec fn reconcile_core(zk_ref: ObjectRef, resp_o: Option<APIResponse>, 
                     obj: configmap.to_dynamic_object(),
                 }));
                 let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::AfterCreateConfigMap,
+                    ..state
+                };
+                (state_prime, req_o)
+            }
+        },
+        ZookeeperReconcileStep::AfterCreateConfigMap => {
+            let zk = state.zk.get_Some_0();
+            if !state.zk.is_Some() || !(zk.metadata.name.is_Some() && zk.metadata.namespace.is_Some()) {
+                reconcile_error_result(state)
+            } else {
+                let stateful_set = make_statefulset(zk);
+                let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                    obj: stateful_set.to_dynamic_object(),
+                }));
+                let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Done,
                     ..state
                 };
