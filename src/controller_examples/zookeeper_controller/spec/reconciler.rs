@@ -119,9 +119,9 @@ pub open spec fn reconcile_core(zk_ref: ObjectRef, resp_o: Option<APIResponse>, 
             if !state.zk.is_Some() || !(zk.metadata.name.is_Some() && zk.metadata.namespace.is_Some()) {
                 reconcile_error_result(state)
             } else {
-                let configmap = make_configmap(zk);
+                let config_map = make_config_map(zk);
                 let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
-                    obj: configmap.to_dynamic_object(),
+                    obj: config_map.to_dynamic_object(),
                 }));
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterCreateConfigMap,
@@ -135,7 +135,7 @@ pub open spec fn reconcile_core(zk_ref: ObjectRef, resp_o: Option<APIResponse>, 
             if !state.zk.is_Some() || !(zk.metadata.name.is_Some() && zk.metadata.namespace.is_Some()) {
                 reconcile_error_result(state)
             } else {
-                let stateful_set = make_statefulset(zk);
+                let stateful_set = make_stateful_set(zk);
                 let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
                     obj: stateful_set.to_dynamic_object(),
                 }));
@@ -171,12 +171,13 @@ pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView
         zk.metadata.name.is_Some(),
         zk.metadata.namespace.is_Some(),
 {
-    let ports = Seq::empty()
-        .push(ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(2181))
-        .push(ServicePortView::default().set_name(new_strlit("tcp-quorum")@).set_port(2888))
-        .push(ServicePortView::default().set_name(new_strlit("tcp-leader-election")@).set_port(3888))
-        .push(ServicePortView::default().set_name(new_strlit("tcp-metrics")@).set_port(7000))
-        .push(ServicePortView::default().set_name(new_strlit("tcp-admin-server")@).set_port(8080));
+    let ports = seq![
+        ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(2181),
+        ServicePortView::default().set_name(new_strlit("tcp-quorum")@).set_port(2888),
+        ServicePortView::default().set_name(new_strlit("tcp-leader-election")@).set_port(3888),
+        ServicePortView::default().set_name(new_strlit("tcp-metrics")@).set_port(7000),
+        ServicePortView::default().set_name(new_strlit("tcp-admin-server")@).set_port(8080)
+    ];
 
     make_service(zk, zk.metadata.name.get_Some_0() + new_strlit("-headless")@, ports, false)
 }
@@ -186,7 +187,7 @@ pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView
         zk.metadata.name.is_Some(),
         zk.metadata.namespace.is_Some(),
 {
-    let ports = Seq::empty().push(ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(2181));
+    let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(2181)];
 
     make_service(zk, zk.metadata.name.get_Some_0() + new_strlit("-client")@, ports, true)
 }
@@ -196,7 +197,7 @@ pub open spec fn make_admin_server_service(zk: ZookeeperClusterView) -> ServiceV
         zk.metadata.name.is_Some(),
         zk.metadata.namespace.is_Some(),
 {
-    let ports = Seq::empty().push(ServicePortView::default().set_name(new_strlit("tcp-admin-server")@).set_port(8080));
+    let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-admin-server")@).set_port(8080)];
 
     make_service(zk, zk.metadata.name.get_Some_0() + new_strlit("-admin-server")@, ports, true)
 }
@@ -208,41 +209,42 @@ pub open spec fn make_service(
         zk.metadata.name.is_Some(),
         zk.metadata.namespace.is_Some(),
 {
-    let labels = Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0());
-    let metadata = ObjectMetaView::default()
-        .set_name(name)
-        .set_namespace(zk.metadata.namespace.get_Some_0())
-        .set_labels(labels);
-
-    let selector = Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0());
-    let service_spec = if !cluster_ip {
-        ServiceSpecView::default().set_cluster_ip(new_strlit("None")@).set_ports(ports).set_selector(selector)
-    } else {
-        ServiceSpecView::default().set_ports(ports).set_selector(selector)
-    };
-
-    ServiceView::default().set_metadata(metadata).set_spec(service_spec)
+    ServiceView::default()
+        .set_metadata(ObjectMetaView::default()
+            .set_name(name)
+            .set_namespace(zk.metadata.namespace.get_Some_0())
+            .set_labels(Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()))
+        ).set_spec({
+            let spec = ServiceSpecView::default()
+                .set_ports(ports)
+                .set_selector(Map::empty()
+                    .insert(new_strlit("app")@, zk.metadata.name.get_Some_0())
+                );
+            if !cluster_ip {
+                spec.set_cluster_ip(new_strlit("None")@)
+            } else {
+                spec
+            }
+        })
 }
 
-pub open spec fn make_configmap(zk: ZookeeperClusterView) -> ConfigMapView
+pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
     recommends
         zk.metadata.name.is_Some(),
         zk.metadata.namespace.is_Some(),
 {
-    let labels = Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0());
-    let data = Map::empty()
-        .insert(new_strlit("zoo.cfg")@, make_zk_config())
-        .insert(new_strlit("log4j.properties")@, make_log4j_config())
-        .insert(new_strlit("log4j-quiet.properties")@, make_log4j_quiet_config())
-        .insert(new_strlit("env.sh")@, make_env_config(zk));
-
     ConfigMapView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
             .set_namespace(zk.metadata.namespace.get_Some_0())
-            .set_labels(labels)
+            .set_labels(Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()))
         )
-        .set_data(data)
+        .set_data(Map::empty()
+            .insert(new_strlit("zoo.cfg")@, make_zk_config())
+            .insert(new_strlit("log4j.properties")@, make_log4j_config())
+            .insert(new_strlit("log4j-quiet.properties")@, make_log4j_quiet_config())
+            .insert(new_strlit("env.sh")@, make_env_config(zk))
+        )
 }
 
 pub open spec fn make_zk_config() -> StringView {
@@ -318,7 +320,7 @@ pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView
         CLUSTER_SIZE=")@ + int_to_string_view(zk.spec.replica) + new_strlit("\n")@
 }
 
-pub open spec fn make_statefulset(zk: ZookeeperClusterView) -> StatefulSetView
+pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView
     recommends
         zk.metadata.name.is_Some(),
         zk.metadata.namespace.is_Some(),

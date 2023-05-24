@@ -196,11 +196,11 @@ pub fn reconcile_core(zk_ref: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, s
             if !(zk.name().is_some() && zk.namespace().is_some()) {
                 return (ZookeeperReconcileState { reconcile_step: ZookeeperReconcileStep::Error, ..state }, Option::None);
             }
-            let configmap = make_configmap(zk);
+            let config_map = make_config_map(zk);
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: ConfigMap::api_resource(),
-                    obj: configmap.to_dynamic_object(),
+                    obj: config_map.to_dynamic_object(),
                 }
             ));
             let state_prime = ZookeeperReconcileState {
@@ -217,7 +217,7 @@ pub fn reconcile_core(zk_ref: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, s
             if !(zk.name().is_some() && zk.namespace().is_some()) {
                 return (ZookeeperReconcileState { reconcile_step: ZookeeperReconcileStep::Error, ..state }, Option::None);
             }
-            let stateful_set = make_statefulset(zk);
+            let stateful_set = make_stateful_set(zk);
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: StatefulSet::api_resource(),
@@ -315,39 +315,45 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
     ensures
         service@ == zk_spec::make_service(zk@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip),
 {
-    let mut metadata = ObjectMeta::default();
-    metadata.set_name(name);
-    metadata.set_namespace(zk.namespace().unwrap());
-    let mut labels = StringMap::empty();
-    labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
-    metadata.set_labels(labels);
-
-    let mut service_spec = ServiceSpec::default();
-    if !cluster_ip {
-        service_spec.set_cluster_ip(new_strlit("None").to_string());
-    }
-    service_spec.set_ports(ports);
-    let mut selector = StringMap::empty();
-    selector.insert(new_strlit("app").to_string(), zk.name().unwrap());
-    service_spec.set_selector(selector);
-
     let mut service = Service::default();
-    service.set_metadata(metadata);
-    service.set_spec(service_spec);
+    service.set_metadata({
+        let mut metadata = ObjectMeta::default();
+        metadata.set_name(name);
+        metadata.set_namespace(zk.namespace().unwrap());
+        metadata.set_labels({
+            let mut labels = StringMap::empty();
+            labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
+            labels
+        });
+        metadata
+    });
+    service.set_spec({
+        let mut service_spec = ServiceSpec::default();
+        if !cluster_ip {
+            service_spec.set_cluster_ip(new_strlit("None").to_string());
+        }
+        service_spec.set_ports(ports);
+        service_spec.set_selector({
+            let mut selector = StringMap::empty();
+            selector.insert(new_strlit("app").to_string(), zk.name().unwrap());
+            selector
+        });
+        service_spec
+    });
 
     service
 }
 
-fn make_configmap(zk: &ZookeeperCluster) -> (configmap: ConfigMap)
+fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
     ensures
-        configmap@ == zk_spec::make_configmap(zk@),
+        config_map@ == zk_spec::make_config_map(zk@),
 {
-    let mut configmap = ConfigMap::default();
+    let mut config_map = ConfigMap::default();
 
-    configmap.set_metadata({
+    config_map.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(zk.name().unwrap().concat(new_strlit("-configmap")));
         metadata.set_namespace(zk.namespace().unwrap());
@@ -358,7 +364,7 @@ fn make_configmap(zk: &ZookeeperCluster) -> (configmap: ConfigMap)
         });
         metadata
     });
-    configmap.set_data({
+    config_map.set_data({
         let mut data = StringMap::empty();
         data.insert(new_strlit("zoo.cfg").to_string(), make_zk_config());
         data.insert(new_strlit("log4j.properties").to_string(), make_log4j_config());
@@ -367,7 +373,7 @@ fn make_configmap(zk: &ZookeeperCluster) -> (configmap: ConfigMap)
         data
     });
 
-    configmap
+    config_map
 }
 
 fn make_zk_config() -> (s: String)
@@ -455,15 +461,15 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
         CLUSTER_SIZE=")).concat(i32_to_string(zk.replica()).as_str()).concat(new_strlit("\n"))
 }
 
-fn make_statefulset(zk: &ZookeeperCluster) -> (statefulset: StatefulSet)
+fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
     ensures
-        statefulset@ == zk_spec::make_statefulset(zk@),
+        stateful_set@ == zk_spec::make_stateful_set(zk@),
 {
-    let mut statefulset = StatefulSet::default();
-    statefulset.set_metadata({
+    let mut stateful_set = StatefulSet::default();
+    stateful_set.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(zk.name().unwrap());
         metadata.set_namespace(zk.namespace().unwrap());
@@ -474,11 +480,11 @@ fn make_statefulset(zk: &ZookeeperCluster) -> (statefulset: StatefulSet)
         });
         metadata
     });
-    statefulset.set_spec({
-        let mut statefulset_spec = StatefulSetSpec::default();
-        statefulset_spec.set_replicas(zk.replica());
-        statefulset_spec.set_service_name(zk.name().unwrap().concat(new_strlit("-headless")));
-        statefulset_spec.set_selector({
+    stateful_set.set_spec({
+        let mut stateful_set_spec = StatefulSetSpec::default();
+        stateful_set_spec.set_replicas(zk.replica());
+        stateful_set_spec.set_service_name(zk.name().unwrap().concat(new_strlit("-headless")));
+        stateful_set_spec.set_selector({
             let mut selector = LabelSelector::default();
             selector.set_match_labels({
                 let mut match_labels = StringMap::empty();
@@ -487,7 +493,7 @@ fn make_statefulset(zk: &ZookeeperCluster) -> (statefulset: StatefulSet)
             });
             selector
         });
-        statefulset_spec.set_template({
+        stateful_set_spec.set_template({
             let mut pod_template_spec = PodTemplateSpec::default();
             pod_template_spec.set_metadata({
                 let mut metadata = ObjectMeta::default();
@@ -503,7 +509,7 @@ fn make_statefulset(zk: &ZookeeperCluster) -> (statefulset: StatefulSet)
             pod_template_spec.set_spec(make_zk_pod_spec(zk));
             pod_template_spec
         });
-        statefulset_spec.set_volume_claim_templates({
+        stateful_set_spec.set_volume_claim_templates({
             let mut volume_claim_templates = Vec::empty();
             volume_claim_templates.push({
                 let mut pvc = PersistentVolumeClaim::default();
@@ -526,7 +532,7 @@ fn make_statefulset(zk: &ZookeeperCluster) -> (statefulset: StatefulSet)
                         proof {
                             assert_seqs_equal!(
                                 access_modes@.map_values(|mode: String| mode@),
-                                zk_spec::make_statefulset(zk@).spec.get_Some_0().volume_claim_templates.get_Some_0()[0].spec.get_Some_0().access_modes.get_Some_0()
+                                zk_spec::make_stateful_set(zk@).spec.get_Some_0().volume_claim_templates.get_Some_0()[0].spec.get_Some_0().access_modes.get_Some_0()
                             );
                         }
 
@@ -541,15 +547,15 @@ fn make_statefulset(zk: &ZookeeperCluster) -> (statefulset: StatefulSet)
             proof {
                 assert_seqs_equal!(
                     volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
-                    zk_spec::make_statefulset(zk@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+                    zk_spec::make_stateful_set(zk@).spec.get_Some_0().volume_claim_templates.get_Some_0()
                 );
             }
 
             volume_claim_templates
         });
-        statefulset_spec
+        stateful_set_spec
     });
-    statefulset
+    stateful_set
 }
 
 fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
