@@ -432,6 +432,8 @@ fn make_statefulset(zk: &ZookeeperCluster) -> (statefulset: StatefulSet)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+    ensures
+        statefulset@ == zk_spec::make_statefulset(zk@),
 {
     let mut statefulset = StatefulSet::default();
     statefulset.set_metadata({
@@ -493,6 +495,14 @@ fn make_statefulset(zk: &ZookeeperCluster) -> (statefulset: StatefulSet)
                     pvc_spec.set_access_modes({
                         let mut access_modes = Vec::empty();
                         access_modes.push(new_strlit("ReadWriteOnce").to_string());
+
+                        proof {
+                            assert_seqs_equal!(
+                                access_modes@.map_values(|mode: String| mode@),
+                                zk_spec::make_statefulset(zk@).spec.get_Some_0().volume_claim_templates.get_Some_0()[0].spec.get_Some_0().access_modes.get_Some_0()
+                            );
+                        }
+
                         access_modes
                     });
                     pvc_spec.set_resources(make_resource_requirements());
@@ -500,6 +510,14 @@ fn make_statefulset(zk: &ZookeeperCluster) -> (statefulset: StatefulSet)
                 });
                 pvc
             });
+
+            proof {
+                assert_seqs_equal!(
+                    volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
+                    zk_spec::make_statefulset(zk@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+                );
+            }
+
             volume_claim_templates
         });
         statefulset_spec
@@ -511,49 +529,75 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+    ensures
+        pod_spec@ == zk_spec::make_zk_pod_spec(zk@),
 {
     let mut pod_spec = PodSpec::default();
 
     pod_spec.set_containers({
-        let mut zk_container = Container::default();
-        zk_container.set_name(new_strlit("zookeeper").to_string());
-        zk_container.set_image(new_strlit("pravega/zookeeper:0.2.14").to_string());
-        zk_container.set_command({
-            let mut command = Vec::empty();
-            command.push(new_strlit("/usr/local/bin/zookeeperStart.sh").to_string());
-            command
-        });
-        zk_container.set_image_pull_policy(new_strlit("Always").to_string());
-        zk_container.set_volume_mounts({
-            let mut volume_mounts = Vec::empty();
-            volume_mounts.push({
-                let mut data_volume_mount = VolumeMount::default();
-                data_volume_mount.set_name(new_strlit("data").to_string());
-                data_volume_mount.set_mount_path(new_strlit("/data").to_string());
-                data_volume_mount
-            });
-            volume_mounts.push({
-                let mut conf_volume_mount = VolumeMount::default();
-                conf_volume_mount.set_name(new_strlit("conf").to_string());
-                conf_volume_mount.set_mount_path(new_strlit("/conf").to_string());
-                conf_volume_mount
-            });
-            volume_mounts
-        });
-        zk_container.set_ports({
-            let mut ports = Vec::empty();
-            ports.push(ContainerPort::new_with(new_strlit("client").to_string(), 2181));
-            ports.push(ContainerPort::new_with(new_strlit("quorum").to_string(), 2888));
-            ports.push(ContainerPort::new_with(new_strlit("leader-election").to_string(), 3888));
-            ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), 7000));
-            ports.push(ContainerPort::new_with(new_strlit("admin-server").to_string(), 8080));
-            ports
-        });
-        zk_container.set_readiness_probe(make_readiness_probe());
-        zk_container.set_liveness_probe(make_liveness_probe());
-
         let mut containers = Vec::empty();
-        containers.push(zk_container);
+        containers.push({
+            let mut zk_container = Container::default();
+            zk_container.set_name(new_strlit("zookeeper").to_string());
+            zk_container.set_image(new_strlit("pravega/zookeeper:0.2.14").to_string());
+            zk_container.set_command({
+                let mut command = Vec::empty();
+                command.push(new_strlit("/usr/local/bin/zookeeperStart.sh").to_string());
+                command
+            });
+            zk_container.set_image_pull_policy(new_strlit("Always").to_string());
+            zk_container.set_volume_mounts({
+                let mut volume_mounts = Vec::empty();
+                volume_mounts.push({
+                    let mut data_volume_mount = VolumeMount::default();
+                    data_volume_mount.set_name(new_strlit("data").to_string());
+                    data_volume_mount.set_mount_path(new_strlit("/data").to_string());
+                    data_volume_mount
+                });
+                volume_mounts.push({
+                    let mut conf_volume_mount = VolumeMount::default();
+                    conf_volume_mount.set_name(new_strlit("conf").to_string());
+                    conf_volume_mount.set_mount_path(new_strlit("/conf").to_string());
+                    conf_volume_mount
+                });
+
+                proof {
+                    assert_seqs_equal!(
+                        volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@),
+                        zk_spec::make_zk_pod_spec(zk@).containers[0].volume_mounts.get_Some_0()
+                    );
+                }
+
+                volume_mounts
+            });
+            zk_container.set_ports({
+                let mut ports = Vec::empty();
+                ports.push(ContainerPort::new_with(new_strlit("client").to_string(), 2181));
+                ports.push(ContainerPort::new_with(new_strlit("quorum").to_string(), 2888));
+                ports.push(ContainerPort::new_with(new_strlit("leader-election").to_string(), 3888));
+                ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), 7000));
+                ports.push(ContainerPort::new_with(new_strlit("admin-server").to_string(), 8080));
+
+                proof {
+                    assert_seqs_equal!(
+                        ports@.map_values(|port: ContainerPort| port@),
+                        zk_spec::make_zk_pod_spec(zk@).containers[0].ports.get_Some_0()
+                    );
+                }
+
+                ports
+            });
+            zk_container.set_readiness_probe(make_readiness_probe());
+            zk_container.set_liveness_probe(make_liveness_probe());
+            zk_container
+        });
+
+        proof {
+            assert_seqs_equal!(
+                containers@.map_values(|container: Container| container@),
+                zk_spec::make_zk_pod_spec(zk@).containers
+            );
+        }
 
         containers
     });
@@ -569,6 +613,14 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
             });
             volume
         });
+
+        proof {
+            assert_seqs_equal!(
+                volumes@.map_values(|vol: Volume| vol@),
+                zk_spec::make_zk_pod_spec(zk@).volumes.get_Some_0()
+            );
+        }
+
         volumes
     });
 
