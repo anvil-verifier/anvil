@@ -170,7 +170,7 @@ where
         state = state_prime;
     }
 
-    Ok(Action::requeue(Duration::from_secs(10)))
+    Ok(Action::requeue(Duration::from_secs(60)))
 }
 
 /// error_policy defines the controller's behavior when the reconcile ends with an error.
