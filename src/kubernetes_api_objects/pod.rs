@@ -493,7 +493,7 @@ impl ResourceView for PodView {
         }
     }
 
-    proof fn integrity_check() {
+    proof fn to_dynamic_preserves_integrity() {
         PodSpecView::marshal_preserves_integrity();
     }
 }

@@ -123,7 +123,7 @@ impl ResourceView for CustomResourceView {
         }
     }
 
-    proof fn integrity_check() {}
+    proof fn to_dynamic_preserves_integrity() {}
 }
 
 #[verifier(external_body)]

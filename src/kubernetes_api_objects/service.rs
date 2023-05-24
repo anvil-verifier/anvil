@@ -265,7 +265,7 @@ impl ResourceView for ServiceView {
         }
     }
 
-    proof fn integrity_check() {
+    proof fn to_dynamic_preserves_integrity() {
         assert forall |o: Self| o == Self::from_dynamic_object(#[trigger] o.to_dynamic_object()) by {
             if o.spec.is_Some() && o.spec.get_Some_0().ports.is_Some() {
                 assert_seqs_equal!(

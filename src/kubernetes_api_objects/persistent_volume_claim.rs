@@ -208,7 +208,7 @@ impl ResourceView for PersistentVolumeClaimView {
         }
     }
 
-    proof fn integrity_check() {
+    proof fn to_dynamic_preserves_integrity() {
         assert forall |o: Self| o == Self::from_dynamic_object(#[trigger] o.to_dynamic_object()) by {
             if o.spec.is_Some() && o.spec.get_Some_0().access_modes.is_Some() {
                 assert_seqs_equal!(

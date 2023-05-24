@@ -37,7 +37,7 @@ pub trait ResourceView: Sized {
 
     /// Check if the data integrity is preserved after converting to and back from dynamic object
 
-    proof fn integrity_check()
+    proof fn to_dynamic_preserves_integrity()
         ensures forall |o: Self| o == Self::from_dynamic_object(#[trigger] o.to_dynamic_object());
 }
 

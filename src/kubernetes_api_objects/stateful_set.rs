@@ -236,7 +236,7 @@ impl ResourceView for StatefulSetView {
         }
     }
 
-    proof fn integrity_check() {
+    proof fn to_dynamic_preserves_integrity() {
         StatefulSetSpecView::marshal_preserves_integrity();
     }
 }
