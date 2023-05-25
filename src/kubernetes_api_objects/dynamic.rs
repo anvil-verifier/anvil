@@ -14,19 +14,10 @@ verus! {
 /// DynamicObject is mainly used to pass requests/response between reconcile_core and the shim layer.
 /// We use DynamicObject in KubeAPIRequest and KubeAPIResponse so that they can carry the requests and responses
 /// for all kinds of Kubernetes resource objects without exhaustive pattern matching.
-/// Note that for each Kubernetes resource object we need to implement two methods:
-/// - to_dynamic_object: converts a type K object to a DynamicObject
-/// - from_dynamic_object: converts a DynamicObject to a type K object
 
 #[verifier(external_body)]
 pub struct DynamicObject {
     inner: K8SDynamicObject,
-}
-
-pub struct DynamicObjectView {
-    pub kind: Kind,
-    pub metadata: ObjectMetaView,
-    pub data: Value,
 }
 
 impl DynamicObject {
@@ -64,6 +55,15 @@ impl DynamicObject {
     {
         DynamicObject { inner: self.inner.clone() }
     }
+}
+
+/// DynamicObjectView is the ghost type of DynamicObject.
+/// It is supposed to be used in spec and proof code.
+
+pub struct DynamicObjectView {
+    pub kind: Kind,
+    pub metadata: ObjectMetaView,
+    pub data: Value,
 }
 
 impl DynamicObjectView {

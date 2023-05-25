@@ -98,6 +98,8 @@ pub fn reconcile_error(state: &ZookeeperReconcileState) -> (res: bool)
     }
 }
 
+// TODO: make the shim layer pass zk, instead of zk_ref, to reconcile_core
+
 pub fn reconcile_core(zk_ref: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, state: ZookeeperReconcileState) -> (res: (ZookeeperReconcileState, Option<KubeAPIRequest>))
     requires
         zk_ref.kind.is_CustomResourceKind(),
@@ -241,6 +243,7 @@ pub fn reconcile_core(zk_ref: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, s
     }
 }
 
+/// Headless Service is used to assign DNS entry to each zookeeper server Pod
 fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
         zk@.metadata.name.is_Some(),
@@ -266,6 +269,7 @@ fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     make_service(zk, zk.name().unwrap().concat(new_strlit("-headless")), ports, false)
 }
 
+/// Client Service is used for any client to connect to the zookeeper server
 fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
         zk@.metadata.name.is_Some(),
@@ -287,6 +291,7 @@ fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
     make_service(zk, zk.name().unwrap().concat(new_strlit("-client")), ports, true)
 }
 
+/// Admin-server Service is used for client to connect to admin server
 fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
         zk@.metadata.name.is_Some(),
@@ -308,6 +313,7 @@ fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
     make_service(zk, zk.name().unwrap().concat(new_strlit("-admin-server")), ports, true)
 }
 
+/// make_service constructs the Service object given the name, ports and cluster_ip
 fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cluster_ip: bool) -> (service: Service)
     requires
         zk@.metadata.name.is_Some(),
@@ -344,6 +350,7 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
     service
 }
 
+/// The ConfigMap stores the configuration data of zookeeper servers
 fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
     requires
         zk@.metadata.name.is_Some(),
@@ -461,6 +468,8 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
         CLUSTER_SIZE=")).concat(i32_to_string(zk.replica()).as_str()).concat(new_strlit("\n"))
 }
 
+/// The StatefulSet manages the zookeeper server containers (as Pods)
+/// and the volumes attached to each server (as PersistentVolumeClaims)
 fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
     requires
         zk@.metadata.name.is_Some(),
@@ -482,8 +491,11 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
     });
     stateful_set.set_spec({
         let mut stateful_set_spec = StatefulSetSpec::default();
+        // Set the replica number
         stateful_set_spec.set_replicas(zk.replica());
+        // Set the headless service to assign DNS entry to each zookeeper server
         stateful_set_spec.set_service_name(zk.name().unwrap().concat(new_strlit("-headless")));
+        // Set the selector used for querying pods of this stateful set
         stateful_set_spec.set_selector({
             let mut selector = LabelSelector::default();
             selector.set_match_labels({
@@ -493,6 +505,7 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
             });
             selector
         });
+        // Set the template used for creating pods
         stateful_set_spec.set_template({
             let mut pod_template_spec = PodTemplateSpec::default();
             pod_template_spec.set_metadata({
@@ -509,6 +522,7 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
             pod_template_spec.set_spec(make_zk_pod_spec(zk));
             pod_template_spec
         });
+        // Set the templates used for creating the persistent volume claims attached to each pod
         stateful_set_spec.set_volume_claim_templates({
             let mut volume_claim_templates = Vec::empty();
             volume_claim_templates.push({

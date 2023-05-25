@@ -117,7 +117,9 @@ where
         match req_option {
             Option::Some(req) => match req {
                 KubeAPIRequest::GetRequest(get_req) => {
-                    let api = Api::<kube::api::DynamicObject>::namespaced_with(client.clone(), get_req.namespace.as_rust_string_ref(), get_req.api_resource.as_kube_api_resource_ref());
+                    let api = Api::<kube::api::DynamicObject>::namespaced_with(
+                        client.clone(), get_req.namespace.as_rust_string_ref(), get_req.api_resource.as_kube_ref()
+                    );
                     match api.get(get_req.name.as_rust_string_ref()).await {
                         std::result::Result::Err(err) => {
                             resp_option = Option::Some(KubeAPIResponse::GetResponse(
@@ -138,7 +140,9 @@ where
                     }
                 },
                 KubeAPIRequest::CreateRequest(create_req) => {
-                    let api = Api::<kube::api::DynamicObject>::namespaced_with(client.clone(), &create_req.obj.kube_metadata_ref().namespace.as_ref().unwrap(), &create_req.api_resource.into_kube());
+                    let api = Api::<kube::api::DynamicObject>::namespaced_with(
+                        client.clone(), &create_req.obj.kube_metadata_ref().namespace.as_ref().unwrap(), &create_req.api_resource.into_kube()
+                    );
                     let pp = PostParams::default();
                     let obj_to_create = create_req.obj.into_kube();
                     match api.create(&pp, &obj_to_create).await {

@@ -14,6 +14,16 @@ use vstd::vec::*;
 
 verus! {
 
+/// Service is a type of API object used for exposing a network application
+/// that is running as one or more Pods in your cluster.
+/// A Service object can be used to assign stable IP addresses and DNS names to pods.
+///
+/// This definition is a wrapper of Service defined at
+/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/service.rs.
+/// It is supposed to be used in exec controller code.
+///
+/// More detailed information: https://kubernetes.io/docs/concepts/services-networking/service/.
+
 #[verifier(external_body)]
 pub struct Service {
     inner: k8s_openapi::api::core::v1::Service,
@@ -197,6 +207,9 @@ impl ServicePort {
         self.inner
     }
 }
+
+/// ServiceView is the ghost type of Service.
+/// It is supposed to be used in spec and proof code.
 
 pub struct ServiceView {
     pub metadata: ObjectMetaView,

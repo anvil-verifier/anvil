@@ -12,6 +12,16 @@ use vstd::prelude::*;
 
 verus! {
 
+/// ConfigMap is a type of API object used to store non-confidential data in key-value pairs.
+/// A ConfigMap object can be used to set environment variables or configuration files
+/// in a Volume mounted to a Pod.
+///
+/// This definition is a wrapper of ConfigMap defined at
+/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/config_map.rs.
+/// It is supposed to be used in exec controller code.
+///
+/// More detailed information: https://kubernetes.io/docs/concepts/configuration/configmap/.
+
 #[verifier(external_body)]
 pub struct ConfigMap {
     inner: k8s_openapi::api::core::v1::ConfigMap,
@@ -101,6 +111,9 @@ impl ConfigMap {
         ConfigMap {inner: obj.into_kube().try_parse::<k8s_openapi::api::core::v1::ConfigMap>().unwrap()}
     }
 }
+
+/// ConfigMapView is the ghost type of ConfigMap.
+/// It is supposed to be used in spec and proof code.
 
 pub struct ConfigMapView {
     pub metadata: ObjectMetaView,

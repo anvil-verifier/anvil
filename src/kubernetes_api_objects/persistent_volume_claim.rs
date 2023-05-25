@@ -14,6 +14,15 @@ use vstd::vec::*;
 
 verus! {
 
+/// PersistentVolumeClaim is a type of API object representing a request for storage (typically used by a Pod).
+/// PersistentVolumeClaim objects are often defined in StatefulSet objects as the Volumes mounted to the Pods.
+///
+/// This definition is a wrapper of PersistentVolumeClaim defined at
+/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/persistent_volume_claim.rs.
+/// It is supposed to be used in exec controller code.
+///
+/// More detailed information: https://kubernetes.io/docs/concepts/storage/persistent-volumes/.
+
 #[verifier(external_body)]
 pub struct PersistentVolumeClaim {
     inner: k8s_openapi::api::core::v1::PersistentVolumeClaim,
@@ -138,6 +147,9 @@ impl PersistentVolumeClaimSpec {
         self.inner
     }
 }
+
+/// PersistentVolumeClaimView is the ghost type of PersistentVolumeClaim.
+/// It is supposed to be used in spec and proof code.
 
 pub struct PersistentVolumeClaimView {
     pub metadata: ObjectMetaView,

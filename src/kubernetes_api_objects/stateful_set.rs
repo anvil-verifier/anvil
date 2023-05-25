@@ -18,6 +18,18 @@ use vstd::vec::*;
 
 verus! {
 
+/// StatefulSet is a type of API object used for managing stateful applications,
+/// mainly a group of Pods and PersistentVolumeClaims attached to the Pods.
+/// A StatefulSet object allows different types of Volumes attached to the pods,
+/// including ConfigMaps, Secrets and PersistentVolumeClaims.
+/// It also exposes the applications using a headless service.
+///
+/// This definition is a wrapper of StatefulSet defined at
+/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/apps/v1/stateful_set.rs.
+/// It is supposed to be used in exec controller code.
+///
+/// More detailed information: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/.
+
 #[verifier(external_body)]
 pub struct StatefulSet {
     inner: k8s_openapi::api::apps::v1::StatefulSet,
@@ -168,6 +180,9 @@ impl StatefulSetSpec {
         self.inner
     }
 }
+
+/// StatefulSetView is the ghost type of StatefulSet.
+/// It is supposed to be used in spec and proof code.
 
 pub struct StatefulSetView {
     pub metadata: ObjectMetaView,

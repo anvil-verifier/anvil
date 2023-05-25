@@ -9,13 +9,15 @@ use kube::api::ApiResource as K8SApiResource;
 
 verus! {
 
+/// ApiResource is used for creating API handles for DynamicObject.
+///
+/// This definition is a wrapper of ApiResource defined at
+/// https://github.com/kube-rs/kube/blob/main/kube-core/src/discovery.rs.
+/// It is supposed to be used in exec controller code.
+
 #[verifier(external_body)]
 pub struct ApiResource {
     inner: K8SApiResource,
-}
-
-pub struct ApiResourceView {
-    pub kind: Kind,
 }
 
 impl ApiResource {
@@ -34,9 +36,16 @@ impl ApiResource {
     }
 
     #[verifier(external)]
-    pub fn as_kube_api_resource_ref(&self) -> &K8SApiResource {
+    pub fn as_kube_ref(&self) -> &K8SApiResource {
         &self.inner
     }
+}
+
+/// ApiResourceView is the ghost type of ApiResource.
+/// It is supposed to be used in spec and proof code.
+
+pub struct ApiResourceView {
+    pub kind: Kind,
 }
 
 }
