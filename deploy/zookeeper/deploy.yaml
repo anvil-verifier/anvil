@@ -89,6 +89,6 @@ spec:
         - image: ghcr.io/vmware-research/verifiable-controllers/zookeeper_controller:latest
           name: controller
           command:
-            - zookeeper_controller_unverified
+            - zookeeper_controller
             - run
       serviceAccountName: zookeeper-controller
