@@ -1,0 +1,41 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: rabbitmqclusters.anvil.dev
+spec:
+  group: anvil.dev
+  names:
+    categories: []
+    kind: RabbitmqCluster
+    plural: rabbitmqclusters
+    shortNames:
+      - rbmq
+    singular: zookeepercluster
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns: []
+      name: v1
+      schema:
+        openAPIV3Schema:
+          description: "Auto-generated derived type for RabbitmqClusterSpec via `CustomResource`"
+          properties:
+            spec:
+              properties:
+                replica:
+                  default: 1
+                  description: Replicas is the number of nodes in the RabbitMQ cluster. Each node is deployed as a Replica in a StatefulSet. Only 1, 3, 5 replicas clusters are tested. This value should be an odd number to ensure the resultant cluster can establish exactly one quorum of nodes in the event of a fragmenting network partition.
+                  format: int32
+                  minimum: 0
+                  type: integer
+                image:
+                  description: Image is the name of the RabbitMQ docker image to use for RabbitMQ nodes in the RabbitmqCluster. Must be provided together with ImagePullSecrets in order to use an image in a private registry.
+                  type: string
+                  type: object  
+              type: object
+          required:
+            - spec
+          title: RabbitmqCluster
+          type: object
+      served: true
+      storage: true
+      subresources: {}
