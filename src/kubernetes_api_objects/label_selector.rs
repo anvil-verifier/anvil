@@ -9,6 +9,15 @@ use vstd::string::*;
 
 verus! {
 
+/// LabelSelector is used to select objects that are relevant by matching the labels.
+/// Labels are key/value pairs that are attached to objects such as Pods.
+///
+/// This definition is a wrapper of LabelSelector defined at
+/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/apimachinery/pkg/apis/meta/v1/label_selector.rs.
+/// It is supposed to be used in exec controller code.
+///
+/// More detailed information: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors.
+
 #[verifier(external_body)]
 pub struct LabelSelector {
     inner: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
@@ -40,6 +49,9 @@ impl LabelSelector {
         self.inner
     }
 }
+
+/// LabelSelectorView is the ghost type of LabelSelector.
+/// It is supposed to be used in spec and proof code.
 
 pub struct LabelSelectorView {
     pub match_labels: Option<Map<StringView, StringView>>,
