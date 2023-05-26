@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 
-pub mod controller_examples;
 pub mod kubernetes_api_objects;
 pub mod kubernetes_cluster;
 pub mod pervasive_ext;
@@ -10,13 +9,13 @@ pub mod reconciler;
 pub mod shim_layer;
 pub mod state_machine;
 pub mod temporal_logic;
+#[path = "controller_examples/zookeeper_controller/mod.rs"]
+pub mod zookeeper_controller;
 
 use builtin::*;
 use builtin_macros::*;
 
-use crate::controller_examples::zookeeper_controller::exec::reconciler::{
-    ZookeeperReconcileState, ZookeeperReconciler,
-};
+use crate::zookeeper_controller::exec::reconciler::{ZookeeperReconcileState, ZookeeperReconciler};
 use anyhow::Result;
 use kube::CustomResourceExt;
 use shim_layer::run_controller;

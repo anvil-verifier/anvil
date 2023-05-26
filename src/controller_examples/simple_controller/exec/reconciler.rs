@@ -1,17 +1,17 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::controller_examples::simple_controller::spec::custom_resource::*;
-use crate::controller_examples::simple_controller::spec::reconciler::reconcile_core as reconcile_core_spec;
-use crate::controller_examples::simple_controller::spec::reconciler::reconcile_done as reconcile_done_spec;
-use crate::controller_examples::simple_controller::spec::reconciler::reconcile_error as reconcile_error_spec;
-use crate::controller_examples::simple_controller::spec::reconciler::reconcile_init_state as reconcile_init_state_spec;
-use crate::controller_examples::simple_controller::spec::reconciler::SimpleReconcileState as SimpleReconcileStateView;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, object_meta::*, resource::ResourceView,
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::reconciler::exec::*;
+use crate::simple_controller::spec::custom_resource::*;
+use crate::simple_controller::spec::reconciler::reconcile_core as reconcile_core_spec;
+use crate::simple_controller::spec::reconciler::reconcile_done as reconcile_done_spec;
+use crate::simple_controller::spec::reconciler::reconcile_error as reconcile_error_spec;
+use crate::simple_controller::spec::reconciler::reconcile_init_state as reconcile_init_state_spec;
+use crate::simple_controller::spec::reconciler::SimpleReconcileState as SimpleReconcileStateView;
 use builtin::*;
 use builtin_macros::*;
 use vstd::prelude::*;

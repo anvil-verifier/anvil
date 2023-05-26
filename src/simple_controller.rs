@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 
-pub mod controller_examples;
 pub mod kubernetes_api_objects;
 pub mod kubernetes_cluster;
 pub mod pervasive_ext;
 pub mod reconciler;
 pub mod shim_layer;
+#[path = "controller_examples/simple_controller/mod.rs"]
+pub mod simple_controller;
 pub mod state_machine;
 pub mod temporal_logic;
 
 use builtin::*;
 use builtin_macros::*;
 
-use crate::controller_examples::simple_controller::exec::reconciler::{
-    SimpleReconcileState, SimpleReconciler,
-};
+use crate::simple_controller::exec::reconciler::{SimpleReconcileState, SimpleReconciler};
 use anyhow::Result;
 use deps_hack::SimpleCR;
 use kube::CustomResourceExt;

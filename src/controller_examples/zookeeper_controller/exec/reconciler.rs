@@ -1,9 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::controller_examples::zookeeper_controller::common::*;
-use crate::controller_examples::zookeeper_controller::spec::reconciler as zk_spec;
-use crate::controller_examples::zookeeper_controller::spec::zookeepercluster::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
     persistent_volume_claim::*, pod::*, pod_template_spec::*, resource_requirements::*, service::*,
@@ -12,6 +9,9 @@ use crate::kubernetes_api_objects::{
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::reconciler::exec::*;
+use crate::zookeeper_controller::common::*;
+use crate::zookeeper_controller::spec::reconciler as zk_spec;
+use crate::zookeeper_controller::spec::zookeepercluster::*;
 use builtin::*;
 use builtin_macros::*;
 use vstd::prelude::*;

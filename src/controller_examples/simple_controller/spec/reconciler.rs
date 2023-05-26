@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::controller_examples::simple_controller::spec::custom_resource::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, dynamic::DynamicObjectView, object_meta::*,
     resource::*,
@@ -9,6 +8,7 @@ use crate::kubernetes_api_objects::{
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_const::*;
 use crate::reconciler::spec::*;
+use crate::simple_controller::spec::custom_resource::*;
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use builtin::*;
