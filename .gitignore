@@ -3,6 +3,8 @@
 .vscode/
 src/main
 src/simple_controller
+src/zookeeper_controller
 src/.verus-log/
+src/*.long-type-*.txt
 reference_controllers/simple_controller/target/
 reference_controllers/zookeeper_controller/target/

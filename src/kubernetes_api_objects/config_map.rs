@@ -3,25 +3,28 @@
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
-use crate::pervasive_ext::string_map;
+use crate::pervasive_ext::string_map::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 
-use k8s_openapi::api::core::v1::ConfigMap as K8SConfigMap;
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
-
 verus! {
+
+/// ConfigMap is a type of API object used to store non-confidential data in key-value pairs.
+/// A ConfigMap object can be used to set environment variables or configuration files
+/// in a Volume mounted to a Pod.
+///
+/// This definition is a wrapper of ConfigMap defined at
+/// https://github.com/Arnavion/k8s-openapi/blob/v0.17.0/src/v1_26/api/core/v1/config_map.rs.
+/// It is supposed to be used in exec controller code.
+///
+/// More detailed information: https://kubernetes.io/docs/concepts/configuration/configmap/.
 
 #[verifier(external_body)]
 pub struct ConfigMap {
-    inner: K8SConfigMap,
-}
-
-pub struct ConfigMapView {
-    pub metadata: ObjectMetaView,
-    pub data: Option<Map<StringView, StringView>>,
+    inner: k8s_openapi::api::core::v1::ConfigMap,
 }
 
 impl ConfigMap {
@@ -33,55 +36,8 @@ impl ConfigMap {
             config_map@ == ConfigMapView::default(),
     {
         ConfigMap {
-            inner: K8SConfigMap::default(),
+            inner: k8s_openapi::api::core::v1::ConfigMap::default(),
         }
-    }
-
-    #[verifier(external)]
-    pub fn from_kube_obj(inner: K8SConfigMap) -> ConfigMap {
-        ConfigMap {
-            inner: inner
-        }
-    }
-
-    #[verifier(external)]
-    pub fn into_kube_obj(self) -> K8SConfigMap {
-        self.inner
-    }
-
-    #[verifier(external_body)]
-    pub fn api_resource() -> (res: ApiResource)
-        ensures
-            res@.kind == Kind::ConfigMapKind,
-    {
-        ApiResource::from_kube_api_resource(kube::api::ApiResource::erase::<K8SConfigMap>(&()))
-    }
-
-    /// Convert a ConfigMap to a DynamicObject
-    // NOTE: This function assumes serde_json::to_value won't fail!
-    #[verifier(external_body)]
-    pub fn to_dynamic_object(self) -> (obj: DynamicObject)
-        ensures
-            obj@ == self@.to_dynamic_object(),
-    {
-        DynamicObject::from_kube_obj(
-            k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
-    }
-
-    /// Convert a DynamicObject to a ConfigMap
-    // NOTE: This function assumes try_parse won't fail!
-    #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (cm: ConfigMap)
-        ensures
-            cm@ == ConfigMapView::from_dynamic_object(obj@),
-    {
-        ConfigMap {inner: obj.into_kube_obj().try_parse::<K8SConfigMap>().unwrap()}
-    }
-
-    #[verifier(external)]
-    pub fn kube_metadata_ref(&self) -> &K8SObjectMeta {
-        &self.inner.metadata
     }
 
     #[verifier(external_body)]
@@ -93,23 +49,7 @@ impl ConfigMap {
     }
 
     #[verifier(external_body)]
-    pub fn set_name(&mut self, name: String)
-        ensures
-            self@ == old(self)@.set_name(name@),
-    {
-        self.inner.metadata.name = std::option::Option::Some(name.into_rust_string());
-    }
-
-    #[verifier(external_body)]
-    pub fn set_namespace(&mut self, namespace: String)
-        ensures
-            self@ == old(self)@.set_namespace(namespace@),
-    {
-        self.inner.metadata.namespace = std::option::Option::Some(namespace.into_rust_string());
-    }
-
-    #[verifier(external_body)]
-    pub fn data(&self) -> (data: Option<string_map::StringMap>)
+    pub fn data(&self) -> (data: Option<StringMap>)
         ensures
             self@.data.is_Some() == data.is_Some(),
             data.is_Some() ==> data.get_Some_0()@ == self@.data.get_Some_0(),
@@ -118,12 +58,66 @@ impl ConfigMap {
     }
 
     #[verifier(external_body)]
-    pub fn set_data(&mut self, data: string_map::StringMap)
+    pub fn set_metadata(&mut self, metadata: ObjectMeta)
+        ensures
+            self@ == old(self)@.set_metadata(metadata@),
+    {
+        self.inner.metadata = metadata.into_kube();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_data(&mut self, data: StringMap)
         ensures
             self@ == old(self)@.set_data(data@),
     {
-        self.inner.data = std::option::Option::Some(data.get_inner_map());
+        self.inner.data = std::option::Option::Some(data.into_rust_map())
     }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: k8s_openapi::api::core::v1::ConfigMap) -> ConfigMap {
+        ConfigMap {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> k8s_openapi::api::core::v1::ConfigMap {
+        self.inner
+    }
+
+    #[verifier(external_body)]
+    pub fn api_resource() -> (res: ApiResource)
+        ensures
+            res@.kind == Kind::ConfigMapKind,
+    {
+        ApiResource::from_kube(kube::api::ApiResource::erase::<k8s_openapi::api::core::v1::ConfigMap>(&()))
+    }
+
+    #[verifier(external_body)]
+    pub fn to_dynamic_object(self) -> (obj: DynamicObject)
+        ensures
+            obj@ == self@.to_dynamic_object(),
+    {
+        DynamicObject::from_kube(
+            k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
+        )
+    }
+
+    #[verifier(external_body)]
+    pub fn from_dynamic_object(obj: DynamicObject) -> (cm: ConfigMap)
+        ensures
+            cm@ == ConfigMapView::from_dynamic_object(obj@),
+    {
+        ConfigMap {inner: obj.into_kube().try_parse::<k8s_openapi::api::core::v1::ConfigMap>().unwrap()}
+    }
+}
+
+/// ConfigMapView is the ghost type of ConfigMap.
+/// It is supposed to be used in spec and proof code.
+
+pub struct ConfigMapView {
+    pub metadata: ObjectMetaView,
+    pub data: Option<Map<StringView, StringView>>,
 }
 
 impl ConfigMapView {
@@ -134,16 +128,9 @@ impl ConfigMapView {
         }
     }
 
-    pub open spec fn set_name(self, name: StringView) -> ConfigMapView {
+    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ConfigMapView {
         ConfigMapView {
-            metadata: self.metadata.set_name(name),
-            ..self
-        }
-    }
-
-    pub open spec fn set_namespace(self, namespace: StringView) -> ConfigMapView {
-        ConfigMapView {
-            metadata: self.metadata.set_namespace(namespace),
+            metadata: metadata,
             ..self
         }
     }
@@ -154,6 +141,8 @@ impl ConfigMapView {
             ..self
         }
     }
+
+    pub open spec fn data_field() -> nat {0}
 }
 
 impl ResourceView for ConfigMapView {
@@ -173,18 +162,14 @@ impl ResourceView for ConfigMapView {
         }
     }
 
-    // TODO: defining spec functions like data_field() to serve as the key of Object Map
-    // is not the ideal way. Find a more elegant way to define the keys.
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
             data: Value::Object(
                 Map::empty()
-                .insert(data_field(),
-                        if self.data.is_None() {
-                            Value::Null
-                        } else {
+                .insert(Self::data_field(),
+                        if self.data.is_None() { Value::Null } else {
                             Value::StringStringMap(self.data.get_Some_0())
                         }
                 )
@@ -195,19 +180,13 @@ impl ResourceView for ConfigMapView {
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> ConfigMapView {
         ConfigMapView {
             metadata: obj.metadata,
-            data: if obj.data.get_Object_0()[data_field()].is_Null() {
-                Option::None
-            } else {
-                Option::Some(obj.data.get_Object_0()[data_field()].get_StringStringMap_0())
+            data: if obj.data.get_Object_0()[Self::data_field()].is_Null() { Option::None } else {
+                Option::Some(obj.data.get_Object_0()[Self::data_field()].get_StringStringMap_0())
             },
         }
     }
 
-    /// Check that any config map remains unchanged after serialization and deserialization
-    proof fn integrity_check() {}
+    proof fn to_dynamic_preserves_integrity() {}
 }
-
-
-pub open spec fn data_field() -> nat {0}
 
 }

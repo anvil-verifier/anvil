@@ -8,7 +8,7 @@ use crate::controller_examples::simple_controller::spec::reconciler::reconcile_e
 use crate::controller_examples::simple_controller::spec::reconciler::reconcile_init_state as reconcile_init_state_spec;
 use crate::controller_examples::simple_controller::spec::reconciler::SimpleReconcileState as SimpleReconcileStateView;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, resource::ResourceView,
+    api_method::*, common::*, config_map::*, object_meta::*, resource::ResourceView,
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::reconciler::exec::*;
@@ -122,8 +122,12 @@ pub fn reconcile_core(cr_key: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, s
                 let mut config_map = ConfigMap::default();
                 let cr = CustomResource::from_dynamic_object(resp.into_get_response().res.unwrap());
                 if (cr.metadata().name().is_some() && cr.metadata().namespace().is_some()) {
-                    config_map.set_name(cr.metadata().name().unwrap().clone().concat(new_strlit("-cm")));
-                    config_map.set_namespace(cr.metadata().namespace().unwrap().clone());
+                    config_map.set_metadata({
+                        let mut metadata = ObjectMeta::default();
+                        metadata.set_name(cr.metadata().name().unwrap().clone().concat(new_strlit("-cm")));
+                        metadata.set_namespace(cr.metadata().namespace().unwrap().clone());
+                        metadata
+                    });
                     let mut cr_map = StringMap::new();
                     cr_map.insert(String::from_str(new_strlit("content")), cr.spec().content());
                     config_map.set_data(cr_map);

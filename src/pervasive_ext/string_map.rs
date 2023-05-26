@@ -12,11 +12,18 @@ impl StringMap {
     pub spec fn view(&self) -> Map<Seq<char>, Seq<char>>;
 
     #[verifier(external_body)]
-    pub fn new() -> (sm: Self)
+    pub fn new() -> (m: Self)
         ensures
-            sm@ == Map::<Seq<char>, Seq<char>>::empty(),
+            m@ == Map::<Seq<char>, Seq<char>>::empty(),
     {
         StringMap { inner: std::collections::BTreeMap::new() }
+    }
+
+    pub fn empty() -> (m: Self)
+        ensures
+            m@ == Map::<Seq<char>, Seq<char>>::empty(),
+    {
+        StringMap::new()
     }
 
     #[verifier(external_body)]
@@ -45,7 +52,14 @@ impl StringMap {
     }
 
     #[verifier(external)]
-    pub fn get_inner_map(self) -> std::collections::BTreeMap<std::string::String, std::string::String> {
+    pub fn from_rust_map(inner: std::collections::BTreeMap<std::string::String, std::string::String>) -> StringMap
+    {
+        StringMap { inner: inner }
+    }
+
+    #[verifier(external)]
+    pub fn into_rust_map(self) -> std::collections::BTreeMap<std::string::String, std::string::String>
+    {
         self.inner
     }
 }
