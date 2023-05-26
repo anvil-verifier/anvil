@@ -9,8 +9,15 @@ use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::StringView;
 use vstd::prelude::*;
+<<<<<<< HEAD
 use vstd::seq_lib::*;
 use vstd::vec::*;
+=======
+
+use deps_hack::k8s_openapi::api::core::v1::Service as K8SService;
+use deps_hack::k8s_openapi::api::core::v1::ServiceSpec as K8SServiceSpec;
+use deps_hack::k8s_openapi::api::core::v1::ServiceStatus as K8SServiceStatus;
+>>>>>>> change the verified crate to only depend on deps-hack, which simplifies the build
 
 verus! {
 

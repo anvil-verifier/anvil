@@ -6,8 +6,8 @@ use crate::kubernetes_api_objects::object_meta::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
-use kube::api::DynamicObject as K8SDynamicObject;
+use deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
+use deps_hack::kube::api::DynamicObject as K8SDynamicObject;
 
 verus! {
 
