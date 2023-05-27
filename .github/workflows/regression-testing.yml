@@ -31,3 +31,5 @@ jobs:
           vargo build --release
       - name: Build simple controller
         run: VERUS_DIR=$PWD/verus ./build.sh simple_controller.rs --time
+      - name: Build zookeeper controller
+        run: VERUS_DIR=$PWD/verus ./build.sh zookeeper_controller.rs --time
