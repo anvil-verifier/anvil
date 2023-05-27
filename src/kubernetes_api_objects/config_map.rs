@@ -24,7 +24,7 @@ verus! {
 
 #[verifier(external_body)]
 pub struct ConfigMap {
-    inner: k8s_openapi::api::core::v1::ConfigMap,
+    inner: deps_hack::k8s_openapi::api::core::v1::ConfigMap,
 }
 
 impl ConfigMap {
@@ -36,7 +36,7 @@ impl ConfigMap {
             config_map@ == ConfigMapView::default(),
     {
         ConfigMap {
-            inner: k8s_openapi::api::core::v1::ConfigMap::default(),
+            inner: deps_hack::k8s_openapi::api::core::v1::ConfigMap::default(),
         }
     }
 
@@ -74,14 +74,14 @@ impl ConfigMap {
     }
 
     #[verifier(external)]
-    pub fn from_kube(inner: k8s_openapi::api::core::v1::ConfigMap) -> ConfigMap {
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ConfigMap) -> ConfigMap {
         ConfigMap {
             inner: inner
         }
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::ConfigMap {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ConfigMap {
         self.inner
     }
 
@@ -90,7 +90,7 @@ impl ConfigMap {
         ensures
             res@.kind == Kind::ConfigMapKind,
     {
-        ApiResource::from_kube(kube::api::ApiResource::erase::<k8s_openapi::api::core::v1::ConfigMap>(&()))
+        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::ConfigMap>(&()))
     }
 
     #[verifier(external_body)]
@@ -99,7 +99,7 @@ impl ConfigMap {
             obj@ == self@.to_dynamic_object(),
     {
         DynamicObject::from_kube(
-            k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
+            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
         )
     }
 
@@ -108,7 +108,7 @@ impl ConfigMap {
         ensures
             cm@ == ConfigMapView::from_dynamic_object(obj@),
     {
-        ConfigMap {inner: obj.into_kube().try_parse::<k8s_openapi::api::core::v1::ConfigMap>().unwrap()}
+        ConfigMap {inner: obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::ConfigMap>().unwrap()}
     }
 }
 

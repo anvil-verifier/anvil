@@ -26,7 +26,7 @@ verus! {
 
 #[verifier(external_body)]
 pub struct Service {
-    inner: k8s_openapi::api::core::v1::Service,
+    inner: deps_hack::k8s_openapi::api::core::v1::Service,
 }
 
 impl Service {
@@ -38,7 +38,7 @@ impl Service {
             service@ == ServiceView::default(),
     {
         Service {
-            inner: k8s_openapi::api::core::v1::Service::default(),
+            inner: deps_hack::k8s_openapi::api::core::v1::Service::default(),
         }
     }
 
@@ -76,7 +76,7 @@ impl Service {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::Service {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Service {
         self.inner
     }
 
@@ -85,7 +85,7 @@ impl Service {
         ensures
             res@.kind == Kind::CustomResourceKind,
     {
-        ApiResource::from_kube(kube::api::ApiResource::erase::<k8s_openapi::api::core::v1::Service>(&()))
+        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::Service>(&()))
     }
 
     #[verifier(external_body)]
@@ -94,7 +94,7 @@ impl Service {
             obj@ == self@.to_dynamic_object(),
     {
         DynamicObject::from_kube(
-            k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
+            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
         )
     }
 
@@ -103,13 +103,13 @@ impl Service {
         ensures
             svc@ == ServiceView::from_dynamic_object(obj@),
     {
-        Service { inner: obj.into_kube().try_parse::<k8s_openapi::api::core::v1::Service>().unwrap() }
+        Service { inner: obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::Service>().unwrap() }
     }
 }
 
 #[verifier(external_body)]
 pub struct ServiceSpec {
-    inner: k8s_openapi::api::core::v1::ServiceSpec,
+    inner: deps_hack::k8s_openapi::api::core::v1::ServiceSpec,
 }
 
 impl ServiceSpec {
@@ -121,7 +121,7 @@ impl ServiceSpec {
             service_spec@ == ServiceSpecView::default(),
     {
         ServiceSpec {
-            inner: k8s_openapi::api::core::v1::ServiceSpec::default(),
+            inner: deps_hack::k8s_openapi::api::core::v1::ServiceSpec::default(),
         }
     }
 
@@ -152,14 +152,14 @@ impl ServiceSpec {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::ServiceSpec {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServiceSpec {
         self.inner
     }
 }
 
 #[verifier(external_body)]
 pub struct ServicePort {
-    inner: k8s_openapi::api::core::v1::ServicePort,
+    inner: deps_hack::k8s_openapi::api::core::v1::ServicePort,
 }
 
 impl ServicePort {
@@ -171,7 +171,7 @@ impl ServicePort {
             service_port@ == ServicePortView::default(),
     {
         ServicePort {
-            inner: k8s_openapi::api::core::v1::ServicePort::default(),
+            inner: deps_hack::k8s_openapi::api::core::v1::ServicePort::default(),
         }
     }
 
@@ -203,7 +203,7 @@ impl ServicePort {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::ServicePort {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServicePort {
         self.inner
     }
 }

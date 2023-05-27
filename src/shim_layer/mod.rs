@@ -3,20 +3,20 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*};
 use crate::reconciler::exec::*;
-use anyhow::Result;
 use builtin::*;
 use builtin_macros::*;
 use core::fmt::Debug;
 use core::hash::Hash;
-use deps_hack::Error;
-use futures::StreamExt;
-use futures::TryFuture;
-use kube::{
+use deps_hack::anyhow::Result;
+use deps_hack::futures::StreamExt;
+use deps_hack::futures::TryFuture;
+use deps_hack::kube::{
     api::{Api, ListParams, ObjectMeta, PostParams, Resource},
     runtime::controller::{Action, Controller},
     Client, CustomResource, CustomResourceExt,
 };
-use serde::de::DeserializeOwned;
+use deps_hack::serde::de::DeserializeOwned;
+use deps_hack::Error;
 use std::sync::Arc;
 use std::time::Duration;
 use vstd::{option::*, string::*};
@@ -117,7 +117,7 @@ where
         match req_option {
             Option::Some(req) => match req {
                 KubeAPIRequest::GetRequest(get_req) => {
-                    let api = Api::<kube::api::DynamicObject>::namespaced_with(
+                    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
                         client.clone(), get_req.namespace.as_rust_string_ref(), get_req.api_resource.as_kube_ref()
                     );
                     match api.get(get_req.name.as_rust_string_ref()).await {
@@ -140,7 +140,7 @@ where
                     }
                 },
                 KubeAPIRequest::CreateRequest(create_req) => {
-                    let api = Api::<kube::api::DynamicObject>::namespaced_with(
+                    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
                         client.clone(), &create_req.obj.kube_metadata_ref().namespace.as_ref().unwrap(), &create_req.api_resource.into_kube()
                     );
                     let pp = PostParams::default();
@@ -199,9 +199,9 @@ pub struct Data {
 
 // TODO: revisit the translation; the current implementation is too coarse grained.
 #[verifier(external)]
-pub fn kube_error_to_ghost(error: &kube::Error) -> APIError {
+pub fn kube_error_to_ghost(error: &deps_hack::kube::Error) -> APIError {
     match error {
-        kube::Error::Api(error_resp) => {
+        deps_hack::kube::Error::Api(error_resp) => {
             if error_resp.code == 404 {
                 APIError::ObjectNotFound
             } else if error_resp.code == 403 {

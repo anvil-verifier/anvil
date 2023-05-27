@@ -20,7 +20,7 @@ verus! {
 
 #[verifier(external_body)]
 pub struct LabelSelector {
-    inner: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
+    inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector,
 }
 
 impl LabelSelector {
@@ -32,7 +32,7 @@ impl LabelSelector {
             object_meta@ == LabelSelectorView::default(),
     {
         LabelSelector {
-            inner: k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector::default(),
+            inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector::default(),
         }
     }
 
@@ -45,7 +45,7 @@ impl LabelSelector {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
         self.inner
     }
 }

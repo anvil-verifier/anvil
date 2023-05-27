@@ -6,17 +6,17 @@ verus! {
 
 #[verifier(external_body)]
 pub struct ResourceRequirements {
-    inner: k8s_openapi::api::core::v1::ResourceRequirements
+    inner: deps_hack::k8s_openapi::api::core::v1::ResourceRequirements
 }
 
 impl ResourceRequirements {
     #[verifier(external)]
-    pub fn from_kube(inner: k8s_openapi::api::core::v1::ResourceRequirements) -> ResourceRequirements {
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ResourceRequirements) -> ResourceRequirements {
         ResourceRequirements { inner: inner }
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::ResourceRequirements {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
         self.inner
     }
 }

@@ -678,8 +678,8 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
 fn make_readiness_probe() -> Probe
 {
     Probe::from_kube(
-        k8s_openapi::api::core::v1::Probe {
-            exec: std::option::Option::Some(k8s_openapi::api::core::v1::ExecAction {
+        deps_hack::k8s_openapi::api::core::v1::Probe {
+            exec: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::ExecAction {
                 command: std::option::Option::Some(vec!["zookeeperReady.sh".to_string()]),
             }),
             failure_threshold: std::option::Option::Some(3),
@@ -687,7 +687,7 @@ fn make_readiness_probe() -> Probe
             period_seconds: std::option::Option::Some(10),
             success_threshold: std::option::Option::Some(1),
             timeout_seconds: std::option::Option::Some(10),
-            ..k8s_openapi::api::core::v1::Probe::default()
+            ..deps_hack::k8s_openapi::api::core::v1::Probe::default()
         }
     )
 }
@@ -696,8 +696,8 @@ fn make_readiness_probe() -> Probe
 fn make_liveness_probe() -> Probe
 {
     Probe::from_kube(
-        k8s_openapi::api::core::v1::Probe {
-            exec: std::option::Option::Some(k8s_openapi::api::core::v1::ExecAction {
+        deps_hack::k8s_openapi::api::core::v1::Probe {
+            exec: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::ExecAction {
                 command: std::option::Option::Some(vec!["zookeeperLive.sh".to_string()]),
             }),
             failure_threshold: std::option::Option::Some(3),
@@ -705,7 +705,7 @@ fn make_liveness_probe() -> Probe
             period_seconds: std::option::Option::Some(10),
             success_threshold: std::option::Option::Some(1),
             timeout_seconds: std::option::Option::Some(10),
-            ..k8s_openapi::api::core::v1::Probe::default()
+            ..deps_hack::k8s_openapi::api::core::v1::Probe::default()
         }
     )
 }
@@ -714,12 +714,12 @@ fn make_liveness_probe() -> Probe
 fn make_resource_requirements() -> ResourceRequirements
 {
     ResourceRequirements::from_kube(
-        k8s_openapi::api::core::v1::ResourceRequirements {
+        deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
             requests: std::option::Option::Some(std::collections::BTreeMap::from([(
                 "storage".to_string(),
-                k8s_openapi::apimachinery::pkg::api::resource::Quantity("20Gi".to_string()),
+                deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity("20Gi".to_string()),
             )])),
-            ..k8s_openapi::api::core::v1::ResourceRequirements::default()
+            ..deps_hack::k8s_openapi::api::core::v1::ResourceRequirements::default()
         }
     )
 }

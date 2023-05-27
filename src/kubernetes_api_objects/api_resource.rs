@@ -4,8 +4,8 @@ use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use vstd::prelude::*;
 
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
-use kube::api::ApiResource as K8SApiResource;
+use deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
+use deps_hack::kube::api::ApiResource as K8SApiResource;
 
 verus! {
 
