@@ -25,7 +25,7 @@ verus! {
 
 #[verifier(external_body)]
 pub struct PersistentVolumeClaim {
-    inner: k8s_openapi::api::core::v1::PersistentVolumeClaim,
+    inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim,
 }
 
 impl PersistentVolumeClaim {
@@ -37,7 +37,7 @@ impl PersistentVolumeClaim {
             pvc@ == PersistentVolumeClaimView::default(),
     {
         PersistentVolumeClaim {
-            inner: k8s_openapi::api::core::v1::PersistentVolumeClaim::default(),
+            inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim::default(),
         }
     }
 
@@ -75,7 +75,7 @@ impl PersistentVolumeClaim {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::PersistentVolumeClaim {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim {
         self.inner
     }
 
@@ -84,7 +84,7 @@ impl PersistentVolumeClaim {
         ensures
             res@.kind == Kind::CustomResourceKind,
     {
-        ApiResource::from_kube(kube::api::ApiResource::erase::<k8s_openapi::api::core::v1::PersistentVolumeClaim>(&()))
+        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim>(&()))
     }
 
     #[verifier(external_body)]
@@ -93,7 +93,7 @@ impl PersistentVolumeClaim {
             obj@ == self@.to_dynamic_object(),
     {
         DynamicObject::from_kube(
-            k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
+            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
         )
     }
 
@@ -102,13 +102,13 @@ impl PersistentVolumeClaim {
         ensures
             pvc@ == PersistentVolumeClaimView::from_dynamic_object(obj@),
     {
-        PersistentVolumeClaim { inner: obj.into_kube().try_parse::<k8s_openapi::api::core::v1::PersistentVolumeClaim>().unwrap() }
+        PersistentVolumeClaim { inner: obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim>().unwrap() }
     }
 }
 
 #[verifier(external_body)]
 pub struct PersistentVolumeClaimSpec {
-    inner: k8s_openapi::api::core::v1::PersistentVolumeClaimSpec,
+    inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec,
 }
 
 impl PersistentVolumeClaimSpec {
@@ -120,7 +120,7 @@ impl PersistentVolumeClaimSpec {
             pvc_spec@ == PersistentVolumeClaimSpecView::default(),
     {
         PersistentVolumeClaimSpec {
-            inner: k8s_openapi::api::core::v1::PersistentVolumeClaimSpec::default(),
+            inner: deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec::default(),
         }
     }
 
@@ -143,7 +143,7 @@ impl PersistentVolumeClaimSpec {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::PersistentVolumeClaimSpec {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaimSpec {
         self.inner
     }
 }

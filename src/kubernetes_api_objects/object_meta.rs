@@ -20,7 +20,7 @@ verus! {
 
 #[verifier(external_body)]
 pub struct ObjectMeta {
-    inner: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta,
+    inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta,
 }
 
 impl ObjectMeta {
@@ -32,7 +32,7 @@ impl ObjectMeta {
             object_meta@ == ObjectMetaView::default(),
     {
         ObjectMeta {
-            inner: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
+            inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default(),
         }
     }
 
@@ -93,12 +93,12 @@ impl ObjectMeta {
     }
 
     #[verifier(external)]
-    pub fn from_kube(inner: k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta) -> ObjectMeta {
+    pub fn from_kube(inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta) -> ObjectMeta {
         ObjectMeta { inner: inner }
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
         self.inner
     }
 }

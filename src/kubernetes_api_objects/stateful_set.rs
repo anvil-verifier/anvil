@@ -32,7 +32,7 @@ verus! {
 
 #[verifier(external_body)]
 pub struct StatefulSet {
-    inner: k8s_openapi::api::apps::v1::StatefulSet,
+    inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSet,
 }
 
 impl StatefulSet {
@@ -44,7 +44,7 @@ impl StatefulSet {
             stateful_set@ == StatefulSetView::default(),
     {
         StatefulSet {
-            inner: k8s_openapi::api::apps::v1::StatefulSet::default(),
+            inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSet::default(),
         }
     }
 
@@ -82,7 +82,7 @@ impl StatefulSet {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::apps::v1::StatefulSet {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSet {
         self.inner
     }
 
@@ -91,7 +91,7 @@ impl StatefulSet {
         ensures
             res@.kind == Kind::CustomResourceKind,
     {
-        ApiResource::from_kube(kube::api::ApiResource::erase::<k8s_openapi::api::apps::v1::StatefulSet>(&()))
+        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::apps::v1::StatefulSet>(&()))
     }
 
     // NOTE: This function assumes serde_json::to_string won't fail!
@@ -101,7 +101,7 @@ impl StatefulSet {
             obj@ == self@.to_dynamic_object(),
     {
         DynamicObject::from_kube(
-            k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
+            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
         )
     }
 
@@ -111,13 +111,13 @@ impl StatefulSet {
         ensures
             sts@ == StatefulSetView::from_dynamic_object(obj@),
     {
-        StatefulSet { inner: obj.into_kube().try_parse::<k8s_openapi::api::apps::v1::StatefulSet>().unwrap() }
+        StatefulSet { inner: obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::apps::v1::StatefulSet>().unwrap() }
     }
 }
 
 #[verifier(external_body)]
 pub struct StatefulSetSpec {
-    inner: k8s_openapi::api::apps::v1::StatefulSetSpec,
+    inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec,
 }
 
 impl StatefulSetSpec {
@@ -129,7 +129,7 @@ impl StatefulSetSpec {
             stateful_set_spec@ == StatefulSetSpecView::default(),
     {
         StatefulSetSpec {
-            inner: k8s_openapi::api::apps::v1::StatefulSetSpec::default(),
+            inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec::default(),
         }
     }
 
@@ -176,7 +176,7 @@ impl StatefulSetSpec {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::apps::v1::StatefulSetSpec {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec {
         self.inner
     }
 }

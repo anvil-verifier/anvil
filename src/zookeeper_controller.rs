@@ -16,8 +16,10 @@ use builtin::*;
 use builtin_macros::*;
 
 use crate::zookeeper_controller::exec::reconciler::{ZookeeperReconcileState, ZookeeperReconciler};
-use anyhow::Result;
-use kube::CustomResourceExt;
+use deps_hack::anyhow::Result;
+use deps_hack::kube::CustomResourceExt;
+use deps_hack::serde_yaml;
+use deps_hack::tokio;
 use shim_layer::run_controller;
 use std::env;
 

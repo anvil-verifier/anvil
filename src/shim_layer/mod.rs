@@ -117,7 +117,7 @@ where
         match req_option {
             Option::Some(req) => match req {
                 KubeAPIRequest::GetRequest(get_req) => {
-                    let api = Api::<kube::api::DynamicObject>::namespaced_with(
+                    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
                         client.clone(), get_req.namespace.as_rust_string_ref(), get_req.api_resource.as_kube_ref()
                     );
                     match api.get(get_req.name.as_rust_string_ref()).await {
@@ -140,7 +140,7 @@ where
                     }
                 },
                 KubeAPIRequest::CreateRequest(create_req) => {
-                    let api = Api::<kube::api::DynamicObject>::namespaced_with(
+                    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
                         client.clone(), &create_req.obj.kube_metadata_ref().namespace.as_ref().unwrap(), &create_req.api_resource.into_kube()
                     );
                     let pp = PostParams::default();

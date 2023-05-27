@@ -16,14 +16,13 @@ use builtin::*;
 use builtin_macros::*;
 
 use crate::simple_controller::exec::reconciler::{SimpleReconcileState, SimpleReconciler};
-use anyhow::Result;
+use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
+use deps_hack::serde_yaml;
+use deps_hack::tokio;
 use deps_hack::SimpleCR;
 use shim_layer::run_controller;
 use std::env;
-
-use deps_hack::serde_yaml;
-use deps_hack::tokio;
 
 verus! {
 

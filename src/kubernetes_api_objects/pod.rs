@@ -28,7 +28,7 @@ verus! {
 
 #[verifier(external_body)]
 pub struct Pod {
-    inner: k8s_openapi::api::core::v1::Pod,
+    inner: deps_hack::k8s_openapi::api::core::v1::Pod,
 }
 
 impl Pod {
@@ -40,7 +40,7 @@ impl Pod {
             pod@ == PodView::default(),
     {
         Pod {
-            inner: k8s_openapi::api::core::v1::Pod::default(),
+            inner: deps_hack::k8s_openapi::api::core::v1::Pod::default(),
         }
     }
 
@@ -78,7 +78,7 @@ impl Pod {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::Pod {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Pod {
         self.inner
     }
 
@@ -87,7 +87,7 @@ impl Pod {
         ensures
             res@.kind == Kind::CustomResourceKind,
     {
-        ApiResource::from_kube(kube::api::ApiResource::erase::<k8s_openapi::api::core::v1::Pod>(&()))
+        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::Pod>(&()))
     }
 
     // NOTE: This function assumes serde_json::to_string won't fail!
@@ -97,7 +97,7 @@ impl Pod {
             obj@ == self@.to_dynamic_object(),
     {
         DynamicObject::from_kube(
-            k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
+            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
         )
     }
 
@@ -107,13 +107,13 @@ impl Pod {
         ensures
             pod@ == PodView::from_dynamic_object(obj@),
     {
-        Pod { inner: obj.into_kube().try_parse::<k8s_openapi::api::core::v1::Pod>().unwrap() }
+        Pod { inner: obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::Pod>().unwrap() }
     }
 }
 
 #[verifier(external_body)]
 pub struct PodSpec {
-    inner: k8s_openapi::api::core::v1::PodSpec,
+    inner: deps_hack::k8s_openapi::api::core::v1::PodSpec,
 }
 
 impl PodSpec {
@@ -125,7 +125,7 @@ impl PodSpec {
             pod_spec@ == PodSpecView::default(),
     {
         PodSpec {
-            inner: k8s_openapi::api::core::v1::PodSpec::default(),
+            inner: deps_hack::k8s_openapi::api::core::v1::PodSpec::default(),
         }
     }
 
@@ -146,14 +146,14 @@ impl PodSpec {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::PodSpec {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSpec {
         self.inner
     }
 }
 
 #[verifier(external_body)]
 pub struct Container {
-    inner: k8s_openapi::api::core::v1::Container,
+    inner: deps_hack::k8s_openapi::api::core::v1::Container,
 }
 
 impl Container {
@@ -165,7 +165,7 @@ impl Container {
             container@ == ContainerView::default(),
     {
         Container {
-            inner: k8s_openapi::api::core::v1::Container::default(),
+            inner: deps_hack::k8s_openapi::api::core::v1::Container::default(),
         }
     }
 
@@ -242,14 +242,14 @@ impl Container {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::Container {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Container {
         self.inner
     }
 }
 
 #[verifier(external_body)]
 pub struct ContainerPort {
-    inner: k8s_openapi::api::core::v1::ContainerPort,
+    inner: deps_hack::k8s_openapi::api::core::v1::ContainerPort,
 }
 
 impl ContainerPort {
@@ -261,7 +261,7 @@ impl ContainerPort {
             container_port@ == ContainerPortView::default(),
     {
         ContainerPort {
-            inner: k8s_openapi::api::core::v1::ContainerPort::default(),
+            inner: deps_hack::k8s_openapi::api::core::v1::ContainerPort::default(),
         }
     }
 
@@ -293,31 +293,31 @@ impl ContainerPort {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::ContainerPort {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ContainerPort {
         self.inner
     }
 }
 
 #[verifier(external_body)]
 pub struct Probe {
-    inner: k8s_openapi::api::core::v1::Probe,
+    inner: deps_hack::k8s_openapi::api::core::v1::Probe,
 }
 
 impl Probe {
     #[verifier(external)]
-    pub fn from_kube(inner: k8s_openapi::api::core::v1::Probe) -> Probe {
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Probe) -> Probe {
         Probe { inner: inner }
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::Probe {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Probe {
         self.inner
     }
 }
 
 #[verifier(external_body)]
 pub struct VolumeMount {
-    inner: k8s_openapi::api::core::v1::VolumeMount,
+    inner: deps_hack::k8s_openapi::api::core::v1::VolumeMount,
 }
 
 impl VolumeMount {
@@ -329,7 +329,7 @@ impl VolumeMount {
             volume_mount@ == VolumeMountView::default(),
     {
         VolumeMount {
-            inner: k8s_openapi::api::core::v1::VolumeMount::default(),
+            inner: deps_hack::k8s_openapi::api::core::v1::VolumeMount::default(),
         }
     }
 
@@ -361,14 +361,14 @@ impl VolumeMount {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::VolumeMount {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::VolumeMount {
         self.inner
     }
 }
 
 #[verifier(external_body)]
 pub struct Volume {
-    inner: k8s_openapi::api::core::v1::Volume,
+    inner: deps_hack::k8s_openapi::api::core::v1::Volume,
 }
 
 impl Volume {
@@ -380,7 +380,7 @@ impl Volume {
             volume@ == VolumeView::default(),
     {
         Volume {
-            inner: k8s_openapi::api::core::v1::Volume::default(),
+            inner: deps_hack::k8s_openapi::api::core::v1::Volume::default(),
         }
     }
 
@@ -401,14 +401,14 @@ impl Volume {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::Volume {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Volume {
         self.inner
     }
 }
 
 #[verifier(external_body)]
 pub struct ConfigMapVolumeSource {
-    inner: k8s_openapi::api::core::v1::ConfigMapVolumeSource,
+    inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource,
 }
 
 impl ConfigMapVolumeSource {
@@ -420,7 +420,7 @@ impl ConfigMapVolumeSource {
             config_map_volume_source@ == ConfigMapVolumeSourceView::default(),
     {
         ConfigMapVolumeSource {
-            inner: k8s_openapi::api::core::v1::ConfigMapVolumeSource::default(),
+            inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource::default(),
         }
     }
 
@@ -433,7 +433,7 @@ impl ConfigMapVolumeSource {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::ConfigMapVolumeSource {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource {
         self.inner
     }
 }

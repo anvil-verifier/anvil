@@ -63,7 +63,7 @@ impl ZookeeperCluster {
         ensures
             res@.kind == Kind::CustomResourceKind,
     {
-        ApiResource::from_kube(kube::api::ApiResource::erase::<deps_hack::ZookeeperCluster>(&()))
+        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::ZookeeperCluster>(&()))
     }
 
     // NOTE: This function assumes serde_json::to_string won't fail!
@@ -74,17 +74,8 @@ impl ZookeeperCluster {
     {
         // TODO: this might be unnecessarily slow
         DynamicObject::from_kube(
-            k8s_openapi::serde_json::from_str(&k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
+            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
         )
-
-        // DynamicObject::from_kube(kube::api::DynamicObject {
-        //     types: std::option::Option::Some(kube::api::TypeMeta {
-        //         api_version: Self::api_resource().into_kube().api_version,
-        //         kind: Self::api_resource().into_kube().kind,
-        //     }),
-        //     metadata: self.inner.metadata,
-        //     data: k8s_openapi::serde_json::to_value(self.inner.spec).unwrap(),
-        // })
     }
 
     /// Convert a DynamicObject to a ConfigMap

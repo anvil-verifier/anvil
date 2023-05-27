@@ -17,7 +17,7 @@ verus! {
 
 #[verifier(external_body)]
 pub struct PodTemplateSpec {
-    inner: k8s_openapi::api::core::v1::PodTemplateSpec,
+    inner: deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec,
 }
 
 impl PodTemplateSpec {
@@ -29,7 +29,7 @@ impl PodTemplateSpec {
             pod_template_spec@ == PodTemplateSpecView::default(),
     {
         PodTemplateSpec {
-            inner: k8s_openapi::api::core::v1::PodTemplateSpec::default(),
+            inner: deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec::default(),
         }
     }
 
@@ -50,7 +50,7 @@ impl PodTemplateSpec {
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> k8s_openapi::api::core::v1::PodTemplateSpec {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec {
         self.inner
     }
 }

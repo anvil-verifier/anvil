@@ -37,7 +37,7 @@ impl CustomResource {
         ensures
             res@.kind == Kind::CustomResourceKind,
     {
-        ApiResource::from_kube(kube::api::ApiResource::erase::<SimpleCR>(&()))
+        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<SimpleCR>(&()))
     }
 
     #[verifier(external_body)]
