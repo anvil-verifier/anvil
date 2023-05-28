@@ -5,4 +5,4 @@ src/main
 src/*-controller
 src/.verus-log/
 src/*.long-type-*.txt
-reference_controllers/*-controller/target/
+reference-controllers/*-controller/target/
