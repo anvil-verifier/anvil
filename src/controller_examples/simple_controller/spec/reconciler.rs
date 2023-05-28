@@ -6,7 +6,6 @@ use crate::kubernetes_api_objects::{
     resource::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
-use crate::pervasive_ext::string_const::*;
 use crate::reconciler::spec::*;
 use crate::simple_controller::spec::custom_resource::*;
 use crate::state_machine::{action::*, state_machine::*};
