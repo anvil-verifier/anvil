@@ -1,23 +1,15 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::temporal_logic::defs::*;
+use builtin::*;
+use builtin_macros::*;
 use vstd::map::*;
 use vstd::seq::*;
 use vstd::set::*;
 use vstd::string::*;
-use crate::temporal_logic::defs::*;
-use builtin::*;
-use builtin_macros::*;
 
 verus! {
-
-// #[is_variant]
-// pub enum ResourceObj {
-//     CustomResource,
-//     StatefulSet,
-//     Pod,
-//     Volume,
-// }
 
 #[is_variant]
 pub enum ResourceKind {
@@ -92,18 +84,6 @@ pub struct CState {
  * Controllers rely on the response from the k8s and its local cache to make decision.
  *
  */
-
-pub open spec fn sts_suffix() -> Seq<char> {
-    new_strlit("_sts")@
-}
-
-pub open spec fn pod_suffix() -> Seq<char> {
-    new_strlit("_pod")@
-}
-
-pub open spec fn vol_suffix() -> Seq<char> {
-    new_strlit("_vol")@
-}
 
 pub open spec fn message_sent(s: CState, m: Message) -> bool {
     s.messages.contains(m)
@@ -181,7 +161,7 @@ pub open spec fn controller_send_create_sts(msg: Message) -> ActionPred<CState> 
     |s, s_prime| {
         &&& controller_send_create_sts_pre(msg)(s)
         &&& s_prime == CState {
-            messages: s.messages.insert(create_req_msg(ResourceKey{name: msg.get_CreateResponse_0().obj.key.name + sts_suffix(), kind: ResourceKind::StatefulSetKind})),
+            messages: s.messages.insert(create_req_msg(ResourceKey{name: msg.get_CreateResponse_0().obj.key.name + new_strlit("-sts")@, kind: ResourceKind::StatefulSetKind})),
             ..s
         }
     }
@@ -199,7 +179,7 @@ pub open spec fn controller_send_delete_sts(msg: Message) -> ActionPred<CState> 
     |s, s_prime| {
         &&& controller_send_delete_sts_pre(msg)(s)
         &&& s_prime == CState {
-            messages: s.messages.insert(delete_req_msg(ResourceKey{name: msg.get_DeleteResponse_0().key.name + sts_suffix(), kind: ResourceKind::StatefulSetKind})),
+            messages: s.messages.insert(delete_req_msg(ResourceKey{name: msg.get_DeleteResponse_0().key.name + new_strlit("-sts")@, kind: ResourceKind::StatefulSetKind})),
             ..s
         }
     }
@@ -238,16 +218,16 @@ pub open spec fn update_messages_with(s: CState, msg: Message) -> Set<Message>
     if msg.is_CreateRequest() {
         if msg.get_CreateRequest_0().obj.key.kind.is_StatefulSetKind() {
             s.messages.insert(create_resp_msg(msg.get_CreateRequest_0().obj.key))
-                .insert(create_req_msg(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + pod_suffix(), kind: ResourceKind::PodKind}))
-                .insert(create_req_msg(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + vol_suffix(), kind: ResourceKind::VolumeKind}))
+                .insert(create_req_msg(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + new_strlit("-pod")@, kind: ResourceKind::PodKind}))
+                .insert(create_req_msg(ResourceKey{name: msg.get_CreateRequest_0().obj.key.name + new_strlit("-vol")@, kind: ResourceKind::VolumeKind}))
         } else {
             s.messages.insert(create_resp_msg(msg.get_CreateRequest_0().obj.key))
         }
     } else {
         if msg.get_DeleteRequest_0().key.kind.is_StatefulSetKind() {
             s.messages.insert(delete_resp_msg(msg.get_DeleteRequest_0().key))
-                .insert(delete_req_msg(ResourceKey{name: msg.get_DeleteRequest_0().key.name + pod_suffix(), kind: ResourceKind::PodKind}))
-                .insert(delete_req_msg(ResourceKey{name: msg.get_DeleteRequest_0().key.name + vol_suffix(), kind: ResourceKind::VolumeKind}))
+                .insert(delete_req_msg(ResourceKey{name: msg.get_DeleteRequest_0().key.name + new_strlit("-pod")@, kind: ResourceKind::PodKind}))
+                .insert(delete_req_msg(ResourceKey{name: msg.get_DeleteRequest_0().key.name + new_strlit("-vol")@, kind: ResourceKind::VolumeKind}))
         } else {
             s.messages.insert(delete_resp_msg(msg.get_DeleteRequest_0().key))
         }
@@ -267,8 +247,8 @@ pub open spec fn k8s_handle_request(msg: Message) -> ActionPred<CState> {
 
 pub open spec fn k8s_attach_vol_to_pod_pre(sts_name: Seq<char>) -> StatePred<CState> {
     |s| {
-        &&& resource_exists(s, ResourceKey{name: sts_name + pod_suffix(), kind: ResourceKind::PodKind})
-        &&& resource_exists(s, ResourceKey{name: sts_name + vol_suffix(), kind: ResourceKind::VolumeKind})
+        &&& resource_exists(s, ResourceKey{name: sts_name + new_strlit("-pod")@, kind: ResourceKind::PodKind})
+        &&& resource_exists(s, ResourceKey{name: sts_name + new_strlit("-vol")@, kind: ResourceKind::VolumeKind})
     }
 }
 
@@ -334,7 +314,7 @@ pub proof fn controller_send_create_sts_enabled(msg: Message)
     assert forall |s| #[trigger] controller_send_create_sts_pre(msg)(s)
     implies enabled(controller_send_create_sts(msg))(s) by {
         let witness_s_prime = CState {
-            messages: s.messages.insert(create_req_msg(ResourceKey{name: msg.get_CreateResponse_0().obj.key.name + sts_suffix(), kind: ResourceKind::StatefulSetKind})),
+            messages: s.messages.insert(create_req_msg(ResourceKey{name: msg.get_CreateResponse_0().obj.key.name + new_strlit("-sts")@, kind: ResourceKind::StatefulSetKind})),
             ..s
         };
         assert(controller_send_create_sts(msg)(s, witness_s_prime));
@@ -349,7 +329,7 @@ pub proof fn controller_send_delete_sts_enabled(msg: Message)
     assert forall |s| #[trigger] controller_send_delete_sts_pre(msg)(s)
     implies enabled(controller_send_delete_sts(msg))(s) by {
         let witness_s_prime = CState {
-            messages: s.messages.insert(delete_req_msg(ResourceKey{name: msg.get_DeleteResponse_0().key.name + sts_suffix(), kind: ResourceKind::StatefulSetKind})),
+            messages: s.messages.insert(delete_req_msg(ResourceKey{name: msg.get_DeleteResponse_0().key.name + new_strlit("-sts")@, kind: ResourceKind::StatefulSetKind})),
             ..s
         };
         assert(controller_send_delete_sts(msg)(s, witness_s_prime));
