@@ -1,13 +1,14 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use vstd::seq::*;
+use crate::concurrent::state_machine::*;
 use crate::pervasive_ext::seq_lemmas::*;
 use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
-use crate::tla_examples::concurrent::state_machine::*;
 use builtin::*;
 use builtin_macros::*;
+use vstd::seq::*;
+use vstd::string::*;
 
 verus! {
 
@@ -53,17 +54,17 @@ pub proof fn lemma_always_delete_cr_resp_not_sent_implies_delete_sts_req_not_sen
         sm_spec().entails(always(
             lift_state(|s: CState| !message_sent(s, delete_cr_resp_msg))
                 .implies(lift_state(|s| !message_sent(s, delete_req_msg(ResourceKey{
-                    name: delete_cr_resp_msg.get_DeleteResponse_0().key.name + sts_suffix(),
+                    name: delete_cr_resp_msg.get_DeleteResponse_0().key.name + new_strlit("-sts")@,
                     kind: ResourceKind::StatefulSetKind
                 }))))
         )),
 {
-    seq_unequal_preserved_by_add_auto::<char>(sts_suffix());
+    seq_unequal_preserved_by_add_auto::<char>(new_strlit("-sts")@);
     init_invariant::<CState>(sm_spec(),
         init(),
         next(),
         |s: CState| !message_sent(s, delete_cr_resp_msg) ==> !message_sent(s, delete_req_msg(ResourceKey{
-            name: delete_cr_resp_msg.get_DeleteResponse_0().key.name + sts_suffix(),
+            name: delete_cr_resp_msg.get_DeleteResponse_0().key.name + new_strlit("-sts")@,
             kind: ResourceKind::StatefulSetKind
         }))
     );
@@ -80,28 +81,28 @@ pub proof fn lemma_always_delete_sts_req_not_sent_implies_delete_pod_and_vol_req
             lift_state(|s: CState| !message_sent(s, delete_sts_req_msg))
             .implies(lift_state(
                 |s| !message_sent(s, delete_req_msg(ResourceKey{
-                    name: delete_sts_req_msg.get_DeleteRequest_0().key.name + pod_suffix(),
+                    name: delete_sts_req_msg.get_DeleteRequest_0().key.name + new_strlit("-pod")@,
                     kind: ResourceKind::PodKind
                 }))
                 && !message_sent(s, delete_req_msg(ResourceKey{
-                    name: delete_sts_req_msg.get_DeleteRequest_0().key.name + vol_suffix(),
+                    name: delete_sts_req_msg.get_DeleteRequest_0().key.name + new_strlit("-vol")@,
                     kind: ResourceKind::VolumeKind
                 })))
             )
         )),
 {
-    seq_unequal_preserved_by_add_auto::<char>(pod_suffix());
-    seq_unequal_preserved_by_add_auto::<char>(vol_suffix());
+    seq_unequal_preserved_by_add_auto::<char>(new_strlit("-pod")@);
+    seq_unequal_preserved_by_add_auto::<char>(new_strlit("-vol")@);
     init_invariant::<CState>(sm_spec(),
         init(),
         next(),
         |s: CState| !message_sent(s, delete_sts_req_msg)
         ==> !message_sent(s, delete_req_msg(ResourceKey{
-                name: delete_sts_req_msg.get_DeleteRequest_0().key.name + pod_suffix(),
+                name: delete_sts_req_msg.get_DeleteRequest_0().key.name + new_strlit("-pod")@,
                 kind: ResourceKind::PodKind
             }))
             && !message_sent(s, delete_req_msg(ResourceKey{
-                name: delete_sts_req_msg.get_DeleteRequest_0().key.name + vol_suffix(),
+                name: delete_sts_req_msg.get_DeleteRequest_0().key.name + new_strlit("-vol")@,
                 kind: ResourceKind::VolumeKind
             }))
     );
@@ -114,10 +115,10 @@ pub proof fn lemma_always_attached_and_delete_req_not_sent_implies_res_exists(st
         sm_spec().entails(always(lift_state(
             |s: CState| {
                 s.attached.contains(sts_name)
-                && !message_sent(s, delete_req_msg(ResourceKey{name: sts_name + pod_suffix(), kind: ResourceKind::PodKind}))
-                && !message_sent(s, delete_req_msg(ResourceKey{name: sts_name + vol_suffix(), kind: ResourceKind::VolumeKind}))
-                ==> resource_exists(s, ResourceKey{name: sts_name + pod_suffix(), kind: ResourceKind::PodKind})
-                    && resource_exists(s, ResourceKey{name: sts_name + vol_suffix(), kind: ResourceKind::VolumeKind})
+                && !message_sent(s, delete_req_msg(ResourceKey{name: sts_name + new_strlit("-pod")@, kind: ResourceKind::PodKind}))
+                && !message_sent(s, delete_req_msg(ResourceKey{name: sts_name + new_strlit("-vol")@, kind: ResourceKind::VolumeKind}))
+                ==> resource_exists(s, ResourceKey{name: sts_name + new_strlit("-pod")@, kind: ResourceKind::PodKind})
+                    && resource_exists(s, ResourceKey{name: sts_name + new_strlit("-vol")@, kind: ResourceKind::VolumeKind})
             }
         ))),
 {
@@ -126,10 +127,10 @@ pub proof fn lemma_always_attached_and_delete_req_not_sent_implies_res_exists(st
         next(),
         |s: CState| {
             s.attached.contains(sts_name)
-            && !message_sent(s, delete_req_msg(ResourceKey{name: sts_name + pod_suffix(), kind: ResourceKind::PodKind}))
-            && !message_sent(s, delete_req_msg(ResourceKey{name: sts_name + vol_suffix(), kind: ResourceKind::VolumeKind}))
-            ==> resource_exists(s, ResourceKey{name: sts_name + pod_suffix(), kind: ResourceKind::PodKind})
-                && resource_exists(s, ResourceKey{name: sts_name + vol_suffix(), kind: ResourceKind::VolumeKind})
+            && !message_sent(s, delete_req_msg(ResourceKey{name: sts_name + new_strlit("-pod")@, kind: ResourceKind::PodKind}))
+            && !message_sent(s, delete_req_msg(ResourceKey{name: sts_name + new_strlit("-vol")@, kind: ResourceKind::VolumeKind}))
+            ==> resource_exists(s, ResourceKey{name: sts_name + new_strlit("-pod")@, kind: ResourceKind::PodKind})
+                && resource_exists(s, ResourceKey{name: sts_name + new_strlit("-vol")@, kind: ResourceKind::VolumeKind})
         }
     );
 }
