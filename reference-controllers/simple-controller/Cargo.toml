@@ -1,5 +1,5 @@
 [package]
-name = "zookeeper_controller_unverified"
+name = "simple-controller"
 version = "0.1.0"
 edition = "2021"
 

@@ -171,10 +171,10 @@ spec:
         app.kubernetes.io/name: simple-controller
     spec:
       containers:
-        - image: ghcr.io/vmware-research/verifiable-controllers/simple_controller:latest
+        - image: ghcr.io/vmware-research/verifiable-controllers/simple-controller:latest
           name: controller
           command:
-            - simple_controller
+            - simple-controller
             - run
           resources:
             limits:

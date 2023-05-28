@@ -16,13 +16,13 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build simple controller image
         run: |
-          cp docker/simple_controller_build/Dockerfile .
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/simple_controller:latest .
+          cp docker/simple-controller/Dockerfile .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/simple-controller:latest .
       - name: Push simple controller image
-        run: docker push ghcr.io/${{ env.IMAGE_NAME }}/simple_controller:latest
+        run: docker push ghcr.io/${{ env.IMAGE_NAME }}/simple-controller:latest
       - name: Build zookeeper controller image
         run: |
-          cp docker/zookeeper_controller_build/Dockerfile .
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/zookeeper_controller:latest .
+          cp docker/zookeeper-controller/Dockerfile .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/zookeeper-controller:latest .
       - name: Push zookeeper controller image
-        run: docker push ghcr.io/${{ env.IMAGE_NAME }}/zookeeper_controller:latest
+        run: docker push ghcr.io/${{ env.IMAGE_NAME }}/zookeeper-controller:latest
