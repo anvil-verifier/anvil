@@ -2,7 +2,8 @@
 !.gitignore
 .vscode/
 src/main
+src/tla_examples/main
 src/*-controller
-src/.verus-log/
 src/*.long-type-*.txt
+src/.verus-log/
 reference-controllers/*-controller/target/
