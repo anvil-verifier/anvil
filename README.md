@@ -17,26 +17,26 @@ You cannot compile the verifiable-controllers codebase with a standard rust comp
 
 * A Verus installation, using the `main` branch
 
-### Build and run
+### Build the verified Zookeeper controller
 
 Set `VERUS_DIR` to the path to Verus
 ```
 export VERUS_DIR=<path-to-verus>
 ```
 
-To build and verify the simple controller:
+To build and verify the zookeeper controller:
 ```
-$: ./build.sh simple_controller.rs
+$: ./build.sh zookeeper_controller.rs -o zookeeper-controller
 ```
 For Mac users, you might need to manually add `ssl` to `LIBRARY_PATH` to build it.
 
-### Deploy
+### Deploy the verified Zookeeper controller
 
-To deploy the verified simple controller to a Kubernetes cluster:
+To deploy the verified zookeeper controller to a Kubernetes cluster:
 ```
-$: ./deploy.sh simple
+$: ./deploy.sh zookeeper
 ```
-This script will deploy the simple controller image (hosted at [our repo](https://github.com/vmware-research/verifiable-controllers/pkgs/container/verifiable-controllers%2Fsimple_controller)) inside your Kubernetes cluster.
+This script will deploy the zookeeper controller image (hosted at [our repo](https://github.com/vmware-research/verifiable-controllers/packages)) inside your Kubernetes cluster.
 
 ## Documentation
 
