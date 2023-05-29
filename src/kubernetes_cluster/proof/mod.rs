@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 pub mod cluster;
-// pub mod controller_runtime_liveness;
+pub mod controller_runtime_liveness;
 pub mod controller_runtime_safety;
 pub mod kubernetes_api_liveness;
 pub mod kubernetes_api_safety;

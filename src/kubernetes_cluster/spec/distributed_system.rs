@@ -7,8 +7,8 @@ use crate::kubernetes_cluster::spec::{
     client::{client, ClientActionInput, ClientState},
     controller::{
         common::{
-            init_controller_state, insert_scheduled_reconcile, ControllerAction,
-            ControllerActionInput, ControllerState, OngoingReconcile,
+            init_controller_state, ControllerAction, ControllerActionInput, ControllerState,
+            OngoingReconcile,
         },
         state_machine::controller,
     },
@@ -167,11 +167,14 @@ pub open spec fn schedule_controller_reconcile<K: ResourceView, T>() -> Action<S
         precondition: |input: ObjectRef, s: State<K, T>| {
             &&& s.resource_key_exists(input)
             &&& input.kind.is_CustomResourceKind()
-            // TODO: we should have a K::can_convert_from_dynamic() here
+            // TODO: we should have something like K::can_convert_from_dynamic() here
         },
         transition: |input: ObjectRef, s: State<K, T>| {
             (State {
-                controller_state: insert_scheduled_reconcile(s.controller_state, K::from_dynamic_object(s.resource_obj_of(input))),
+                controller_state: ControllerState {
+                    scheduled_reconciles: s.controller_state.scheduled_reconciles.insert(input, K::from_dynamic_object(s.resource_obj_of(input))),
+                    ..s.controller_state
+                },
                 ..s
             }, ())
         }

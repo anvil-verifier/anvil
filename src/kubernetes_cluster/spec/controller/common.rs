@@ -46,13 +46,6 @@ pub open spec fn controller_req_msg(req: APIRequest, req_id: nat) -> Message {
     form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req, req_id))
 }
 
-pub open spec fn insert_scheduled_reconcile<K: ResourceView, T>(s: ControllerState<K, T>, obj: K) -> ControllerState<K, T> {
-    ControllerState {
-        scheduled_reconciles: s.scheduled_reconciles.insert(obj.object_ref(), obj),
-        ..s
-    }
-}
-
 pub open spec fn init_controller_state<K: ResourceView, T>() -> ControllerState<K, T> {
     ControllerState {
         ongoing_reconciles: Map::empty(),
