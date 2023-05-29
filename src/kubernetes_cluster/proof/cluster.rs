@@ -55,7 +55,7 @@ pub proof fn valid_stable_sm_partial_spec<K: ResourceView, T>(reconciler: Reconc
     always_p_stable::<State<K, T>>(lift_action(next(reconciler)));
     valid_stable_tla_forall_action_weak_fairness::<K, T, Option<Message>, ()>(kubernetes_api_next());
     valid_stable_tla_forall_action_weak_fairness::<K, T, (Option<Message>, Option<ObjectRef>), ()>(controller_next(reconciler));
-    valid_stable_tla_forall_action_weak_fairness::<K, T, K, ()>(schedule_controller_reconcile());
+    valid_stable_tla_forall_action_weak_fairness::<K, T, ObjectRef, ()>(schedule_controller_reconcile());
     valid_stable_action_weak_fairness::<K, T, ()>(disable_crash());
 
     stable_and_n!(

@@ -162,14 +162,16 @@ pub open spec fn controller_next<K: ResourceView, T>(reconciler: Reconciler<K, T
 ///
 /// Note this action abstracts away a lot of implementation details in the Kubernetes API and controller runtime framework,
 /// such as the list-then-watch pattern.
-pub open spec fn schedule_controller_reconcile<K: ResourceView, T>() -> Action<State<K, T>, K, ()> {
+pub open spec fn schedule_controller_reconcile<K: ResourceView, T>() -> Action<State<K, T>, ObjectRef, ()> {
     Action {
-        precondition: |input: K, s: State<K, T>| {
-            s.resource_obj_exists(input.to_dynamic_object())
+        precondition: |input: ObjectRef, s: State<K, T>| {
+            &&& s.resource_key_exists(input)
+            &&& input.kind.is_CustomResourceKind()
+            // TODO: we should have a K::can_convert_from_dynamic() here
         },
-        transition: |input: K, s: State<K, T>| {
+        transition: |input: ObjectRef, s: State<K, T>| {
             (State {
-                controller_state: insert_scheduled_reconcile(s.controller_state, input),
+                controller_state: insert_scheduled_reconcile(s.controller_state, K::from_dynamic_object(s.resource_obj_of(input))),
                 ..s
             }, ())
         }
@@ -254,7 +256,7 @@ pub enum Step<K> {
     KubernetesAPIStep(Option<Message>),
     ControllerStep((Option<Message>, Option<ObjectRef>)),
     ClientStep((Option<Message>, K)),
-    ScheduleControllerReconcileStep(K),
+    ScheduleControllerReconcileStep(ObjectRef),
     RestartController(),
     DisableCrash(),
     StutterStep(),
