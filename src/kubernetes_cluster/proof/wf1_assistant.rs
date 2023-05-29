@@ -26,29 +26,50 @@ use vstd::{option::*, seq::*, set::*};
 
 verus! {
 
-pub proof fn kubernetes_api_action_pre_implies_next_pre<K: ResourceView, T>(action: KubernetesAPIAction, input: Option<Message>)
+pub proof fn kubernetes_api_action_pre_implies_next_pre<K: ResourceView, T>(
+    action: KubernetesAPIAction, input: Option<Message>
+)
     requires
         kubernetes_api().actions.contains(action),
     ensures
-        valid(lift_state(kubernetes_api_action_pre::<K, T>(action, input)).implies(lift_state(kubernetes_api_next().pre(input)))),
+        valid(
+            lift_state(kubernetes_api_action_pre::<K, T>(action, input))
+                .implies(lift_state(kubernetes_api_next().pre(input)))
+        ),
 {
-    assert forall |s: State<K, T>| #[trigger] kubernetes_api_action_pre(action, input)(s) implies kubernetes_api_next().pre(input)(s) by {
-        exists_next_kubernetes_api_step(action, KubernetesAPIActionInput{recv: input, chan_manager: s.chan_manager}, s.kubernetes_api_state);
+    assert forall |s: State<K, T>| #[trigger] kubernetes_api_action_pre(action, input)(s)
+    implies kubernetes_api_next().pre(input)(s) by {
+        exists_next_kubernetes_api_step(
+            action, KubernetesAPIActionInput{recv: input, chan_manager: s.chan_manager}, s.kubernetes_api_state
+        );
     };
 }
 
-pub proof fn controller_action_pre_implies_next_pre<K: ResourceView, T>(reconciler: Reconciler<K, T>, action: ControllerAction<K, T>, input: (Option<Message>, Option<ObjectRef>))
+pub proof fn controller_action_pre_implies_next_pre<K: ResourceView, T>(
+    reconciler: Reconciler<K, T>, action: ControllerAction<K, T>, input: (Option<Message>, Option<ObjectRef>)
+)
     requires
         controller(reconciler).actions.contains(action),
     ensures
-        valid(lift_state(controller_action_pre(reconciler, action, input)).implies(lift_state(controller_next(reconciler).pre(input)))),
+        valid(
+            lift_state(controller_action_pre(reconciler, action, input))
+                .implies(lift_state(controller_next(reconciler).pre(input)))
+        ),
 {
-    assert forall |s| #[trigger] controller_action_pre(reconciler, action, input)(s) implies controller_next(reconciler).pre(input)(s) by {
-        exists_next_controller_step(reconciler, action, ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager}, s.controller_state);
+    assert forall |s| #[trigger] controller_action_pre(reconciler, action, input)(s)
+    implies controller_next(reconciler).pre(input)(s) by {
+        exists_next_controller_step(
+            reconciler,
+            action,
+            ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager},
+            s.controller_state
+        );
     };
 }
 
-pub proof fn exists_next_kubernetes_api_step(action: KubernetesAPIAction, input: KubernetesAPIActionInput, s: KubernetesAPIState)
+pub proof fn exists_next_kubernetes_api_step(
+    action: KubernetesAPIAction, input: KubernetesAPIActionInput, s: KubernetesAPIState
+)
     requires
         kubernetes_api().actions.contains(action),
         (action.precondition)(input, s),
@@ -58,7 +79,9 @@ pub proof fn exists_next_kubernetes_api_step(action: KubernetesAPIAction, input:
     assert(((kubernetes_api().step_to_action)(KubernetesAPIStep::HandleRequest).precondition)(input, s));
 }
 
-pub proof fn exists_next_controller_step<K: ResourceView, T>(reconciler: Reconciler<K, T>, action: ControllerAction<K, T>, input: ControllerActionInput, s: ControllerState<K, T>)
+pub proof fn exists_next_controller_step<K: ResourceView, T>(
+    reconciler: Reconciler<K, T>, action: ControllerAction<K, T>, input: ControllerActionInput, s: ControllerState<K, T>
+)
     requires
         controller(reconciler).actions.contains(action),
         (action.precondition)(input, s),

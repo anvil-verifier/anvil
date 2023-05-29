@@ -31,23 +31,26 @@ verus! {
 
 /// run_controller prepares and runs the controller. It requires:
 /// K: the custom resource type
-/// T: the reconciler type
-/// S: the local state of the reconciler
+/// ResourceWrapperType: the resource wrapper type
+/// ReconcilerType: the reconciler type
+/// ReconcileStateType: the local state of the reconciler
 #[verifier(external)]
-pub async fn run_controller<K, R, T, S>() -> Result<()>
+pub async fn run_controller<K, ResourceWrapperType, ReconcilerType, ReconcileStateType>() -> Result<()>
 where
     K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Send + Serialize + Sync + 'static,
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
-    R: ResourceWrapper<K> + Send,
-    T: Reconciler<R, S> + Send + Sync + Default,
-    S: Send
+    ResourceWrapperType: ResourceWrapper<K> + Send,
+    ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType> + Send + Sync + Default,
+    ReconcileStateType: Send
 {
     let client = Client::try_default().await?;
     let crs = Api::<K>::all(client.clone());
 
     // Build the async closure on top of reconcile_with
     let reconcile = |cr: Arc<K>, ctx: Arc<Data>| async move {
-        return reconcile_with::<K, R, T, S>(&T::default(), cr, ctx).await;
+        return reconcile_with::<K, ResourceWrapperType, ReconcilerType, ReconcileStateType>(
+            &ReconcilerType::default(), cr, ctx
+        ).await;
     };
 
     println!("starting controller");
@@ -67,33 +70,28 @@ where
 }
 
 /// reconcile_with implements the reconcile function by repeatedly invoking reconciler.reconcile_core.
-/// reconcile_with will be invoked by kube-rs whenever kube-rs's watcher receives any event defined as relevant to the controller.
+/// reconcile_with will be invoked by kube-rs whenever kube-rs's watcher receives any relevant event to the controller.
 /// In each invocation, reconcile_with invokes reconciler.reconcile_core in a loop:
-/// it starts with reconciler.reconcile_init_state, and in each iteration it invokes reconciler.reconcile_core with the new state
-/// returned by the previous invocation.
+/// it starts with reconciler.reconcile_init_state, and in each iteration it invokes reconciler.reconcile_core
+/// with the new state returned by the previous invocation.
 /// For each request from reconciler.reconcile_core, it invokes kube-rs APIs to send the request to the Kubernetes API.
-/// It ends the loop when the reconciler reports the reconcile is done (reconciler.reconcile_done) or encounters error (reconciler.reconcile_error).
+/// It ends the loop when the reconciler reports the reconcile is done (reconciler.reconcile_done)
+/// or encounters error (reconciler.reconcile_error).
 
 #[verifier(external)]
-pub async fn reconcile_with<K, R, T, S>(reconciler: &T, cr: Arc<K>, ctx: Arc<Data>) -> Result<Action, Error>
+pub async fn reconcile_with<K, ResourceWrapperType, ReconcilerType, ReconcileStateType>(
+    reconciler: &ReconcilerType, cr: Arc<K>, ctx: Arc<Data>
+) -> Result<Action, Error>
 where
     K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Serialize,
     K::DynamicType: Default + Clone + Debug,
-    R: ResourceWrapper<K>,
-    T: Reconciler<R, S>,
+    ResourceWrapperType: ResourceWrapper<K>,
+    ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType>,
 {
     let client = &ctx.client;
 
-    let cr_name = cr
-        .meta()
-        .name
-        .as_ref()
-        .ok_or_else(|| Error::MissingObjectKey(".metadata.name"))?;
-    let cr_ns = cr
-        .meta()
-        .namespace
-        .as_ref()
-        .ok_or_else(|| Error::MissingObjectKey(".metadata.namespace"))?;
+    let cr_name = cr.meta().name.as_ref().ok_or_else(|| Error::MissingObjectKey(".metadata.name"))?;
+    let cr_ns = cr.meta().namespace.as_ref().ok_or_else(|| Error::MissingObjectKey(".metadata.namespace"))?;
 
     // Prepare the input for calling reconcile_core
     let cr_api = Api::<K>::namespaced(client.clone(), &cr_ns);
@@ -112,7 +110,7 @@ where
     let cr = get_cr_resp.unwrap();
     println!("Get cr {}", deps_hack::k8s_openapi::serde_json::to_string(&cr).unwrap());
 
-    let cr_wrapper = R::from_kube(cr);
+    let cr_wrapper = ResourceWrapperType::from_kube(cr);
     let mut state = reconciler.reconcile_init_state();
     let mut resp_option: Option<KubeAPIResponse> = Option::None;
 
@@ -157,7 +155,9 @@ where
                 },
                 KubeAPIRequest::CreateRequest(create_req) => {
                     let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                        client.clone(), &create_req.obj.kube_metadata_ref().namespace.as_ref().unwrap(), &create_req.api_resource.into_kube()
+                        client.clone(),
+                        &create_req.obj.kube_metadata_ref().namespace.as_ref().unwrap(),
+                        create_req.api_resource.as_kube_ref()
                     );
                     let pp = PostParams::default();
                     let obj_to_create = create_req.obj.into_kube();

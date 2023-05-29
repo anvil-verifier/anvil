@@ -44,7 +44,9 @@ pub open spec fn reconcile_error(state: ZookeeperReconcileState) -> bool {
     }
 }
 
-pub open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<APIResponse>, state: ZookeeperReconcileState) -> (ZookeeperReconcileState, Option<APIRequest>)
+pub open spec fn reconcile_core(
+    zk: ZookeeperClusterView, resp_o: Option<APIResponse>, state: ZookeeperReconcileState
+) -> (ZookeeperReconcileState, Option<APIRequest>)
     recommends
         zk.metadata.name.is_Some(),
         zk.metadata.namespace.is_Some(),

@@ -44,7 +44,9 @@ impl Reconciler<ZookeeperCluster, ZookeeperReconcileState> for ZookeeperReconcil
         reconcile_init_state()
     }
 
-    fn reconcile_core(&self, zk: &ZookeeperCluster, resp_o: Option<KubeAPIResponse>, state: ZookeeperReconcileState) -> (ZookeeperReconcileState, Option<KubeAPIRequest>) {
+    fn reconcile_core(
+        &self, zk: &ZookeeperCluster, resp_o: Option<KubeAPIResponse>, state: ZookeeperReconcileState
+    ) -> (ZookeeperReconcileState, Option<KubeAPIRequest>) {
         reconcile_core(zk, resp_o, state)
     }
 
@@ -92,7 +94,9 @@ pub fn reconcile_error(state: &ZookeeperReconcileState) -> (res: bool)
 
 // TODO: make the shim layer pass zk, instead of zk_ref, to reconcile_core
 
-pub fn reconcile_core(zk: &ZookeeperCluster, resp_o: Option<KubeAPIResponse>, state: ZookeeperReconcileState) -> (res: (ZookeeperReconcileState, Option<KubeAPIRequest>))
+pub fn reconcile_core(
+    zk: &ZookeeperCluster, resp_o: Option<KubeAPIResponse>, state: ZookeeperReconcileState
+) -> (res: (ZookeeperReconcileState, Option<KubeAPIRequest>))
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
@@ -485,7 +489,9 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
                         proof {
                             assert_seqs_equal!(
                                 access_modes@.map_values(|mode: String| mode@),
-                                zk_spec::make_stateful_set(zk@).spec.get_Some_0().volume_claim_templates.get_Some_0()[0].spec.get_Some_0().access_modes.get_Some_0()
+                                zk_spec::make_stateful_set(zk@)
+                                    .spec.get_Some_0().volume_claim_templates.get_Some_0()[0]
+                                    .spec.get_Some_0().access_modes.get_Some_0()
                             );
                         }
 

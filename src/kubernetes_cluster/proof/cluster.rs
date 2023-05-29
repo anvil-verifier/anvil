@@ -37,7 +37,9 @@ proof fn valid_stable_action_weak_fairness<K: ResourceView, T, Output>(action: A
 }
 
 /// Prove weak_fairness for all input is stable.
-proof fn valid_stable_tla_forall_action_weak_fairness<K: ResourceView, T, Input, Output>(action: Action<State<K, T>, Input, Output>)
+proof fn valid_stable_tla_forall_action_weak_fairness<K: ResourceView, T, Input, Output>(
+    action: Action<State<K, T>, Input, Output>
+)
     ensures
         valid(stable(tla_forall(|input| action.weak_fairness(input)))),
 {
@@ -66,7 +68,9 @@ pub proof fn valid_stable_sm_partial_spec<K: ResourceView, T>(reconciler: Reconc
     );
 }
 
-pub proof fn lemma_true_leads_to_crash_always_disabled<K: ResourceView, T>(spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>)
+pub proof fn lemma_true_leads_to_crash_always_disabled<K: ResourceView, T>(
+    spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>
+)
     requires
         spec.entails(always(lift_action(next(reconciler)))),
         spec.entails(disable_crash().weak_fairness(())),
@@ -78,7 +82,9 @@ pub proof fn lemma_true_leads_to_crash_always_disabled<K: ResourceView, T>(spec:
     leads_to_stable_temp::<State<K, T>>(spec, lift_action(next(reconciler)), true_pred(), lift_state(crash_disabled::<K, T>()));
 }
 
-pub proof fn lemma_any_pred_leads_to_crash_always_disabled<K: ResourceView, T>(spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>, any_pred: TempPred<State<K, T>>)
+pub proof fn lemma_any_pred_leads_to_crash_always_disabled<K: ResourceView, T>(
+    spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>, any_pred: TempPred<State<K, T>>
+)
     requires
         spec.entails(always(lift_action(next(reconciler)))),
         spec.entails(disable_crash().weak_fairness(())),
