@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
 use crate::reconciler::exec::*;
 use builtin::*;
 use builtin_macros::*;
@@ -15,7 +15,8 @@ use deps_hack::kube::{
     runtime::controller::{Action, Controller},
     Client, CustomResource, CustomResourceExt,
 };
-use deps_hack::serde::de::DeserializeOwned;
+use deps_hack::kube_core::{ErrorResponse, NamespaceResourceScope};
+use deps_hack::serde::{de::DeserializeOwned, Serialize};
 use deps_hack::Error;
 use std::sync::Arc;
 use std::time::Duration;
@@ -33,11 +34,12 @@ verus! {
 /// T: the reconciler type
 /// S: the local state of the reconciler
 #[verifier(external)]
-pub async fn run_controller<K, T, S>() -> Result<()>
+pub async fn run_controller<K, R, T, S>() -> Result<()>
 where
-    K: Clone + Resource + CustomResourceExt + DeserializeOwned + Debug + Send + Sync + 'static,
+    K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Send + Serialize + Sync + 'static,
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
-    T: Reconciler<S> + Send + Sync + Default,
+    R: ResourceWrapper<K> + Send,
+    T: Reconciler<R, S> + Send + Sync + Default,
     S: Send
 {
     let client = Client::try_default().await?;
@@ -45,7 +47,7 @@ where
 
     // Build the async closure on top of reconcile_with
     let reconcile = |cr: Arc<K>, ctx: Arc<Data>| async move {
-        return reconcile_with::<K, T, S>(&T::default(), cr, ctx).await;
+        return reconcile_with::<K, R, T, S>(&T::default(), cr, ctx).await;
     };
 
     println!("starting controller");
@@ -73,10 +75,12 @@ where
 /// It ends the loop when the reconciler reports the reconcile is done (reconciler.reconcile_done) or encounters error (reconciler.reconcile_error).
 
 #[verifier(external)]
-pub async fn reconcile_with<K, T, S>(reconciler: &T, cr: Arc<K>, ctx: Arc<Data>) -> Result<Action, Error>
+pub async fn reconcile_with<K, R, T, S>(reconciler: &T, cr: Arc<K>, ctx: Arc<Data>) -> Result<Action, Error>
 where
-    K: Resource,
-    T: Reconciler<S>,
+    K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Serialize,
+    K::DynamicType: Default + Clone + Debug,
+    R: ResourceWrapper<K>,
+    T: Reconciler<R, S>,
 {
     let client = &ctx.client;
 
@@ -92,11 +96,23 @@ where
         .ok_or_else(|| Error::MissingObjectKey(".metadata.namespace"))?;
 
     // Prepare the input for calling reconcile_core
-    let cr_key = KubeObjectRef {
-        kind: Kind::CustomResourceKind,
-        name: String::from_rust_string(cr_name.clone()),
-        namespace: String::from_rust_string(cr_ns.clone()),
-    };
+    let cr_api = Api::<K>::namespaced(client.clone(), &cr_ns);
+    let get_cr_resp = cr_api.get(&cr_name).await;
+    match get_cr_resp {
+        Err(deps_hack::kube_client::error::Error::Api(ErrorResponse { reason, .. })) if &reason == "NotFound" => {
+            println!("{} not found, end reconcile", cr_name);
+            return Ok(Action::await_change());
+        },
+        Err(err) => {
+            println!("Get cr failed with error: {}, will retry reconcile", err);
+            return Ok(Action::requeue(Duration::from_secs(60)));
+        },
+        _ => {},
+    }
+    let cr = get_cr_resp.unwrap();
+    println!("Get cr {}", deps_hack::k8s_openapi::serde_json::to_string(&cr).unwrap());
+
+    let cr_wrapper = R::from_kube(cr);
     let mut state = reconciler.reconcile_init_state();
     let mut resp_option: Option<KubeAPIResponse> = Option::None;
 
@@ -112,7 +128,7 @@ where
             return Err(Error::APIError);
         }
         // Feed the current reconcile state and get the new state and the pending request
-        let (state_prime, req_option) = reconciler.reconcile_core(&cr_key, resp_option, state);
+        let (state_prime, req_option) = reconciler.reconcile_core(&cr_wrapper, resp_option, state);
         // Pattern match the request and send requests to the Kubernetes API via kube-rs methods
         match req_option {
             Option::Some(req) => match req {
@@ -127,7 +143,7 @@ where
                                     res: vstd::result::Result::Err(kube_error_to_ghost(&err)),
                                 }
                             ));
-                            println!("Get failed {}", err);
+                            println!("Get failed with error: {}", err);
                         },
                         std::result::Result::Ok(obj) => {
                             resp_option = Option::Some(KubeAPIResponse::GetResponse(
@@ -152,7 +168,7 @@ where
                                     res: vstd::result::Result::Err(kube_error_to_ghost(&err)),
                                 }
                             ));
-                            println!("Create failed {}", err);
+                            println!("Create failed with error: {}", err);
                         },
                         std::result::Result::Ok(obj) => {
                             resp_option = Option::Some(KubeAPIResponse::GetResponse(
@@ -173,7 +189,7 @@ where
         state = state_prime;
     }
 
-    Ok(Action::requeue(Duration::from_secs(60)))
+    return Ok(Action::requeue(Duration::from_secs(60)));
 }
 
 /// error_policy defines the controller's behavior when the reconcile ends with an error.
