@@ -38,3 +38,12 @@ pub struct SimpleCRSpec {
 pub struct ZookeeperClusterSpec {
     pub replica: i32,
 }
+
+#[derive(
+    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
+#[kube(group = "anvil.dev", version = "v1", kind = "RabbitmqCluster")]
+#[kube(shortname = "rbmq", namespaced)]
+pub struct RabbitmqClusterSpec {
+    pub replica: i32,
+}
