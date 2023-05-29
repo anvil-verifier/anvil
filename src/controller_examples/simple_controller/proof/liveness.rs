@@ -39,7 +39,7 @@ spec fn cr_exists(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState
 
 spec fn cr_matched(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState>> {
     lift_state(|s: State<SimpleReconcileState>|
-        s.resource_key_exists(reconciler::subresource_configmap(cr).object_ref()))
+        s.resource_key_exists(reconciler::make_config_map(cr).object_ref()))
 }
 
 /// Proof strategy:
@@ -608,13 +608,13 @@ proof fn lemma_after_get_cr_pc_and_ok_resp_in_flight_leads_to_cm_exists(req_msg:
                 s.message_in_flight(msg)
                 && msg.dst == HostId::KubernetesAPI
                 && #[trigger] msg.content.is_create_request()
-                && msg.content.get_create_request().obj == reconciler::subresource_configmap(cr).to_dynamic_object()
+                && msg.content.get_create_request().obj == reconciler::make_config_map(cr).to_dynamic_object()
             };
             let kube_pre = |s: State<SimpleReconcileState>| {
                 &&& s.message_in_flight(req_msg)
                 &&& req_msg.dst == HostId::KubernetesAPI
                 &&& req_msg.content.is_create_request()
-                &&& req_msg.content.get_create_request().obj == reconciler::subresource_configmap(cr).to_dynamic_object()
+                &&& req_msg.content.get_create_request().obj == reconciler::make_config_map(cr).to_dynamic_object()
             };
             kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api(spec, simple_reconciler(), Option::Some(req_msg), next(simple_reconciler()), handle_request(), kube_pre, cm_exists(cr));
             instantiate_entailed_leads_to(ex, i, spec, lift_state(kube_pre), lift_state(cm_exists(cr)));

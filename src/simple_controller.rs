@@ -16,11 +16,11 @@ use builtin::*;
 use builtin_macros::*;
 
 use crate::simple_controller::exec::reconciler::{SimpleReconcileState, SimpleReconciler};
+use crate::simple_controller::spec::custom_resource::CustomResource;
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
 use deps_hack::tokio;
-use deps_hack::SimpleCR;
 use shim_layer::run_controller;
 use std::env;
 
@@ -34,10 +34,10 @@ async fn main() -> Result<()> {
 
     if cmd == String::from("export") {
         println!("exporting custom resource definition");
-        println!("{}", serde_yaml::to_string(&SimpleCR::crd())?);
+        println!("{}", serde_yaml::to_string(&deps_hack::SimpleCR::crd())?);
     } else if cmd == String::from("run") {
         println!("running simple-controller");
-        run_controller::<SimpleCR, SimpleReconciler, SimpleReconcileState>().await?;
+        run_controller::<deps_hack::SimpleCR, CustomResource, SimpleReconciler, SimpleReconcileState>().await?;
         println!("controller terminated");
     } else {
         println!("wrong command; please use \"export\" or \"run\"");

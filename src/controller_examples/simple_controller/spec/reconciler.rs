@@ -29,10 +29,9 @@ pub struct SimpleReconcileState {
 pub open spec fn simple_reconciler() -> Reconciler<CustomResourceView, SimpleReconcileState> {
     Reconciler {
         reconcile_init_state: || reconcile_init_state(),
-        reconcile_core: |cr_key: ObjectRef, resp_o: Option<APIResponse>, state: SimpleReconcileState| reconcile_core(cr_key, resp_o, state),
+        reconcile_core: |cr: CustomResourceView, resp_o: Option<APIResponse>, state: SimpleReconcileState| reconcile_core(cr, resp_o, state),
         reconcile_done: |state: SimpleReconcileState| reconcile_done(state),
         reconcile_error: |state: SimpleReconcileState| reconcile_error(state),
-        consume_kubernetes_resource_type: |cr: CustomResourceView| cr,
     }
 }
 
@@ -45,37 +44,19 @@ pub open spec fn reconcile_init_state() -> SimpleReconcileState {
 /// This is a highly simplified reconcile core spec:
 /// it sends requests to create a configmap for the cr.
 /// TODO: make the reconcile_core create more resources such as a statefulset
-pub open spec fn reconcile_core(cr_key: ObjectRef, resp_o: Option<APIResponse>, state: SimpleReconcileState) -> (SimpleReconcileState, Option<APIRequest>)
+pub open spec fn reconcile_core(cr: CustomResourceView, resp_o: Option<APIResponse>, state: SimpleReconcileState) -> (SimpleReconcileState, Option<APIRequest>)
     recommends
-        cr_key.kind.is_CustomResourceKind(),
+        cr.metadata.name.is_Some(),
+        cr.metadata.namespace.is_Some(),
 {
     let pc = state.reconcile_pc;
     if pc == init_pc() {
         let state_prime = SimpleReconcileState {
-            reconcile_pc: after_get_cr_pc(),
+            reconcile_pc: after_create_cm_pc(),
+            ..state
         };
-        let req_o = Option::Some(APIRequest::GetRequest(GetRequest{key: cr_key}));
+        let req_o = Option::Some(create_cm_req(cr));
         (state_prime, req_o)
-    } else if pc == after_get_cr_pc() {
-        if resp_o.is_Some() && resp_o.get_Some_0().is_GetResponse() && resp_o.get_Some_0().get_GetResponse_0().res.is_Ok() {
-            let cr = CustomResourceView::from_dynamic_object(resp_o.get_Some_0().get_GetResponse_0().res.get_Ok_0());
-            if (cr.metadata.name.is_Some() && cr.metadata.namespace.is_Some()) {
-                let state_prime = SimpleReconcileState {
-                    reconcile_pc: after_create_cm_pc(),
-                };
-                (state_prime, Option::Some(create_cm_req(cr)))
-            } else {
-                let state_prime = SimpleReconcileState {
-                    reconcile_pc: error_pc(),
-                };
-                (state_prime, Option::None)
-            }
-        } else {
-            let state_prime = SimpleReconcileState {
-                reconcile_pc: error_pc(),
-            };
-            (state_prime, Option::None)
-        }
     } else {
         (state, Option::None)
     }
@@ -87,19 +68,16 @@ pub open spec fn reconcile_done(state: SimpleReconcileState) -> bool {
 
 pub open spec fn reconcile_error(state: SimpleReconcileState) -> bool {
     &&& state.reconcile_pc !== init_pc()
-    &&& state.reconcile_pc !== after_get_cr_pc()
     &&& state.reconcile_pc !== after_create_cm_pc()
 }
 
 pub open spec fn init_pc() -> nat { 0 }
 
-pub open spec fn after_get_cr_pc() -> nat { 1 }
+pub open spec fn after_create_cm_pc() -> nat { 1 }
 
-pub open spec fn after_create_cm_pc() -> nat { 2 }
+pub open spec fn error_pc() -> nat { 2 }
 
-pub open spec fn error_pc() -> nat { 3 }
-
-pub open spec fn subresource_configmap(cr: CustomResourceView) -> ConfigMapView
+pub open spec fn make_config_map(cr: CustomResourceView) -> ConfigMapView
 {
     let config_map = ConfigMapView::default()
         .set_metadata(ObjectMetaView::default()
@@ -113,7 +91,7 @@ pub open spec fn subresource_configmap(cr: CustomResourceView) -> ConfigMapView
 pub open spec fn create_cm_req(cr: CustomResourceView) -> APIRequest
 {
     APIRequest::CreateRequest(CreateRequest{
-        obj: subresource_configmap(cr).to_dynamic_object(),
+        obj: make_config_map(cr).to_dynamic_object(),
     })
 }
 

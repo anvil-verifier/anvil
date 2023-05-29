@@ -138,7 +138,7 @@ pub open spec fn reconciler_at_after_create_cm_pc_and_req_in_flight_and_cm_creat
             s.message_in_flight(req_msg)
             && req_msg.dst == HostId::KubernetesAPI
             && req_msg.content.is_create_request()
-            && req_msg.content.get_create_request().obj == reconciler::subresource_configmap(cr).to_dynamic_object()
+            && req_msg.content.get_create_request().obj == reconciler::make_config_map(cr).to_dynamic_object()
     }
 }
 
@@ -172,7 +172,7 @@ pub open spec fn reconciler_reconcile_done_or_error(cr: CustomResourceView) -> S
 }
 
 pub open spec fn cm_exists(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
-    |s: State<SimpleReconcileState>| s.resource_key_exists(reconciler::subresource_configmap(cr).object_ref())
+    |s: State<SimpleReconcileState>| s.resource_key_exists(reconciler::make_config_map(cr).object_ref())
 }
 
 pub open spec fn is_controller_get_cr_request_msg(msg: Message, cr: CustomResourceView) -> bool {
@@ -186,7 +186,7 @@ pub open spec fn is_controller_create_cm_request_msg(msg: Message, cr: CustomRes
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI
     &&& msg.content.is_create_request()
-    &&& msg.content.get_create_request().obj == reconciler::subresource_configmap(cr).to_dynamic_object()
+    &&& msg.content.get_create_request().obj == reconciler::make_config_map(cr).to_dynamic_object()
 }
 
 }

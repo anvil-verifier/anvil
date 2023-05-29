@@ -144,7 +144,7 @@ pub open spec fn delete_cm_req_msg_not_in_flight(cr: CustomResourceView) -> Stat
             &&& #[trigger] s.message_in_flight(m)
             &&& m.dst == HostId::KubernetesAPI
             &&& m.content.is_delete_request()
-            &&& m.content.get_delete_request().key == reconciler::subresource_configmap(cr).object_ref()
+            &&& m.content.get_delete_request().key == reconciler::make_config_map(cr).object_ref()
         }
     }
 }
@@ -158,7 +158,7 @@ pub proof fn lemma_delete_cm_req_msg_never_in_flight(cr: CustomResourceView)
         assert(!exists |m: Message| s.message_in_flight(m)
             && m.dst == HostId::KubernetesAPI
             && #[trigger] m.content.is_delete_request()
-            && m.content.get_delete_request().key == reconciler::subresource_configmap(cr).object_ref()
+            && m.content.get_delete_request().key == reconciler::make_config_map(cr).object_ref()
         );
     };
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), next(simple_reconciler()), invariant);
