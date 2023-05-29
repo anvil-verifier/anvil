@@ -161,8 +161,8 @@ pub open spec fn controller_next<K: ResourceView, T>(reconciler: Reconciler<K, T
 /// infinitely frequently invoked for it. The assumption that cr always exists and the weak fairness assumption on this
 /// action allow us to prove reconcile is always eventually scheduled.
 ///
-/// This action abstracts away a lot of implementation details in the Kubernetes API and controller runtime
-/// framework, such as the list-then-watch pattern.
+/// This action abstracts away a lot of implementation details in the Kubernetes API and kube framework,
+/// such as the list-then-watch pattern.
 ///
 /// In general, this action assumes the following key behavior:
 /// (1) The kube library always invokes `reconcile_with` (defined in the shim layer) whenever a cr object gets created
