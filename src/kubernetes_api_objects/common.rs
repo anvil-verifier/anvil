@@ -14,6 +14,7 @@ pub enum Kind {
     PodKind,
     StatefulSetKind,
     ServiceKind,
+    SecretKind,
 }
 
 pub struct ObjectRef {
