@@ -8,6 +8,7 @@ use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_map::*;
 use crate::pervasive_ext::string_view::*;
+use deps_hack::k8s_openapi::ByteString;
 use vstd::prelude::*;
 
 verus! {
@@ -70,7 +71,12 @@ impl Secret {
         ensures
             self@ == old(self)@.set_data(data@),
     {
-        self.inner.data = std::option::Option::Some(data.into_rust_map()) // TODO: convert StringMap to String:ByteString map
+        let string_map = data.into_rust_map();
+        let mut binary_map: std::collections::BTreeMap<std::string::String, ByteString> = std::collections::BTreeMap::new();
+        for (key, value) in string_map {
+            binary_map.insert(key, ByteString(value.into_bytes()));
+        }
+        self.inner.data = std::option::Option::Some(binary_map) // TODO: convert StringMap to String:ByteString map
     }
 
     #[verifier(external_body)]
@@ -78,7 +84,7 @@ impl Secret {
         ensures
             self@ == old(self)@.set_type(type_@),
     {
-        self.inner.type_ = std::option::Option::Some(type_)
+        self.inner.type_ = std::option::Option::Some(type_.into_rust_string())
     }
 
     #[verifier(external)]
@@ -134,6 +140,7 @@ impl SecretView {
         SecretView {
             metadata: ObjectMetaView::default(),
             data: Option::None,
+            type_: Option::None,
         }
     }
 
