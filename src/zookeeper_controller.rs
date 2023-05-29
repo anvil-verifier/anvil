@@ -16,6 +16,7 @@ use builtin::*;
 use builtin_macros::*;
 
 use crate::zookeeper_controller::exec::reconciler::{ZookeeperReconcileState, ZookeeperReconciler};
+use crate::zookeeper_controller::spec::zookeepercluster::ZookeeperCluster;
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
@@ -36,7 +37,7 @@ async fn main() -> Result<()> {
         println!("{}", serde_yaml::to_string(&deps_hack::ZookeeperCluster::crd())?);
     } else if cmd == String::from("run") {
         println!("running zookeeper-controller");
-        run_controller::<deps_hack::ZookeeperCluster, ZookeeperReconciler, ZookeeperReconcileState>().await?;
+        run_controller::<deps_hack::ZookeeperCluster, ZookeeperCluster, ZookeeperReconciler, ZookeeperReconcileState>().await?;
         println!("controller terminated");
     } else {
         println!("wrong command; please use \"export\" or \"run\"");
