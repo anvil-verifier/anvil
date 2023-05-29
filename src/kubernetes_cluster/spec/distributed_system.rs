@@ -156,12 +156,26 @@ pub open spec fn controller_next<K: ResourceView, T>(reconciler: Reconciler<K, T
     }
 }
 
-/// This is action checks whether a custom resource exists in the Kubernetes API and if so schedule a controller reconcile for it.
-/// It is used to set up the assumption for liveness proof: for a existing cr, the reconcile is infinitely frequently invoked for it.
-/// The assumption that cr always exists and the weak fairness assumption on this action allow us to prove reconcile is always eventually scheduled.
+/// This action checks whether a custom resource exists in the Kubernetes API and if so schedule a controller
+/// reconcile for it. It is used to set up the assumption for liveness proof: for a existing cr, the reconcile is
+/// infinitely frequently invoked for it. The assumption that cr always exists and the weak fairness assumption on this
+/// action allow us to prove reconcile is always eventually scheduled.
 ///
-/// Note this action abstracts away a lot of implementation details in the Kubernetes API and controller runtime framework,
-/// such as the list-then-watch pattern.
+/// This action abstracts away a lot of implementation details in the Kubernetes API and controller runtime
+/// framework, such as the list-then-watch pattern.
+///
+/// In general, this action assumes the following key behavior:
+/// (1) The kube library always invokes `reconcile_with` (defined in the shim layer) whenever a cr object gets created
+///   -- so the first creation event will schedule a reconcile
+/// (2) The shim layer always re-queues `reconcile_with` unless the corresponding cr object does not exist,
+/// and the kube library always eventually invokes the re-queued `reconcile_with`
+///   -- so as long as the cr still exists, the reconcile will still be scheduled over and over again
+/// (3) The shim layer always performs a quorum read to etcd to get the cr object and passes it to `reconcile_core`
+///   -- so the reconcile is scheduled with the most recent view of the cr object when this action happens
+/// (4) The shim layer never invokes `reconcile_core` if the cr object does not exist
+///   -- this is not assumed by `schedule_controller_reconcile` because it never talks about what should happen if the
+///   cr object does not exist, but it is still important because `schedule_controller_reconcile` is the only
+///   action that can schedule a reconcile in our state machine.
 pub open spec fn schedule_controller_reconcile<K: ResourceView, T>() -> Action<State<K, T>, ObjectRef, ()> {
     Action {
         precondition: |input: ObjectRef, s: State<K, T>| {
