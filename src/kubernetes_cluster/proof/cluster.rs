@@ -29,22 +29,22 @@ use vstd::{map::*, option::*, seq::*, set::*};
 verus! {
 
 /// Prove weak_fairness is stable.
-proof fn valid_stable_action_weak_fairness<T, Output>(action: Action<State<T>, (), Output>)
+proof fn valid_stable_action_weak_fairness<K: ResourceView, T, Output>(action: Action<State<K, T>, (), Output>)
     ensures
         valid(stable(action.weak_fairness(()))),
 {
     let split_always = always(lift_state(action.pre(()))).implies(eventually(lift_action(action.forward(()))));
-    always_p_stable::<State<T>>(split_always);
+    always_p_stable::<State<K, T>>(split_always);
 }
 
 /// Prove weak_fairness for all input is stable.
-proof fn valid_stable_tla_forall_action_weak_fairness<T, Input, Output>(action: Action<State<T>, Input, Output>)
+proof fn valid_stable_tla_forall_action_weak_fairness<K: ResourceView, T, Input, Output>(action: Action<State<K, T>, Input, Output>)
     ensures
         valid(stable(tla_forall(|input| action.weak_fairness(input)))),
 {
     let split_always = |input| always(lift_state(action.pre(input))).implies(eventually(lift_action(action.forward(input))));
-    tla_forall_always_equality_variant::<State<T>, Input>(|input| action.weak_fairness(input), split_always);
-    always_p_stable::<State<T>>(tla_forall(split_always));
+    tla_forall_always_equality_variant::<State<K, T>, Input>(|input| action.weak_fairness(input), split_always);
+    always_p_stable::<State<K, T>>(tla_forall(split_always));
 }
 
 /// Prove partial_spec is stable.
@@ -52,11 +52,11 @@ pub proof fn valid_stable_sm_partial_spec<K: ResourceView, T>(reconciler: Reconc
     ensures
         valid(stable(sm_partial_spec(reconciler))),
 {
-    always_p_stable::<State<T>>(lift_action(next(reconciler)));
-    valid_stable_tla_forall_action_weak_fairness::<T, Option<Message>, ()>(kubernetes_api_next());
-    valid_stable_tla_forall_action_weak_fairness::<T, (Option<Message>, Option<ObjectRef>), ()>(controller_next(reconciler));
-    valid_stable_tla_forall_action_weak_fairness::<T, ObjectRef, ()>(schedule_controller_reconcile());
-    valid_stable_action_weak_fairness::<T, ()>(disable_crash());
+    always_p_stable::<State<K, T>>(lift_action(next(reconciler)));
+    valid_stable_tla_forall_action_weak_fairness::<K, T, Option<Message>, ()>(kubernetes_api_next());
+    valid_stable_tla_forall_action_weak_fairness::<K, T, (Option<Message>, Option<ObjectRef>), ()>(controller_next(reconciler));
+    valid_stable_tla_forall_action_weak_fairness::<K, T, K, ()>(schedule_controller_reconcile());
+    valid_stable_action_weak_fairness::<K, T, ()>(disable_crash());
 
     stable_and_n!(
         always(lift_action(next(reconciler))),
@@ -67,28 +67,28 @@ pub proof fn valid_stable_sm_partial_spec<K: ResourceView, T>(reconciler: Reconc
     );
 }
 
-pub proof fn lemma_true_leads_to_crash_always_disabled<K: ResourceView, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>)
+pub proof fn lemma_true_leads_to_crash_always_disabled<K: ResourceView, T>(spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>)
     requires
         spec.entails(always(lift_action(next(reconciler)))),
         spec.entails(disable_crash().weak_fairness(())),
     ensures
-        spec.entails(true_pred().leads_to(always(lift_state(crash_disabled::<T>())))),
+        spec.entails(true_pred().leads_to(always(lift_state(crash_disabled::<K, T>())))),
 {
-    let true_state = |s: State<T>| true;
-    disable_crash().wf1((), spec, next(reconciler), true_state, crash_disabled::<T>());
-    leads_to_stable_temp::<State<T>>(spec, lift_action(next(reconciler)), true_pred(), lift_state(crash_disabled::<T>()));
+    let true_state = |s: State<K, T>| true;
+    disable_crash().wf1((), spec, next(reconciler), true_state, crash_disabled::<K, T>());
+    leads_to_stable_temp::<State<K, T>>(spec, lift_action(next(reconciler)), true_pred(), lift_state(crash_disabled::<K, T>()));
 }
 
-pub proof fn lemma_any_pred_leads_to_crash_always_disabled<K: ResourceView, T>(spec: TempPred<State<T>>, reconciler: Reconciler<K, T>, any_pred: TempPred<State<T>>)
+pub proof fn lemma_any_pred_leads_to_crash_always_disabled<K: ResourceView, T>(spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>, any_pred: TempPred<State<K, T>>)
     requires
         spec.entails(always(lift_action(next(reconciler)))),
         spec.entails(disable_crash().weak_fairness(())),
     ensures
-        spec.entails(any_pred.leads_to(always(lift_state(crash_disabled::<T>())))),
+        spec.entails(any_pred.leads_to(always(lift_state(crash_disabled::<K, T>())))),
 {
-    valid_implies_implies_leads_to::<State<T>>(spec, any_pred, true_pred());
+    valid_implies_implies_leads_to::<State<K, T>>(spec, any_pred, true_pred());
     lemma_true_leads_to_crash_always_disabled::<K, T>(spec, reconciler);
-    leads_to_trans_temp::<State<T>>(spec, any_pred, true_pred(), always(lift_state(crash_disabled::<T>())));
+    leads_to_trans_temp::<State<K, T>>(spec, any_pred, true_pred(), always(lift_state(crash_disabled::<K, T>())));
 }
 
 }
