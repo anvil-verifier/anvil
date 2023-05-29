@@ -70,7 +70,15 @@ impl Secret {
         ensures
             self@ == old(self)@.set_data(data@),
     {
-        self.inner.data = std::option::Option::Some(data.into_rust_map())
+        self.inner.data = std::option::Option::Some(data.into_rust_map()) // TODO: convert StringMap to String:ByteString map
+    }
+
+    #[verifier(external_body)]
+    pub fn set_type(&mut self, type_: String)
+        ensures
+            self@ == old(self)@.set_type(type_@),
+    {
+        self.inner.type_ = std::option::Option::Some(type_)
     }
 
     #[verifier(external)]
@@ -117,7 +125,8 @@ impl Secret {
 
 pub struct SecretView {
     pub metadata: ObjectMetaView,
-    pub data: Option<Map<StringView, StringView>>,
+    pub data: Option<Map<StringView, StringView>>, // For view, String:String map is used instead of String:Bytestring map.
+    pub type_: Option<StringView>,
 }
 
 impl SecretView {
@@ -142,7 +151,16 @@ impl SecretView {
         }
     }
 
+    pub open spec fn set_type(self, type_: StringView) -> SecretView {
+        SecretView {
+            type_: Option::Some(type_),
+            ..self
+        }
+    }
+
     pub open spec fn data_field() -> nat {0}
+
+    pub open spec fn type_field() -> nat {1}
 }
 
 impl ResourceView for SecretView {
@@ -172,6 +190,10 @@ impl ResourceView for SecretView {
                         if self.data.is_None() { Value::Null } else {
                             Value::StringStringMap(self.data.get_Some_0())
                         }
+                ).insert(Self::type_field(),
+                         if self.type_.is_None() { Value::Null } else {
+                             Value::String(self.type_.get_Some_0())
+                         }
                 )
             ),
         }
@@ -182,6 +204,9 @@ impl ResourceView for SecretView {
             metadata: obj.metadata,
             data: if obj.data.get_Object_0()[Self::data_field()].is_Null() { Option::None } else {
                 Option::Some(obj.data.get_Object_0()[Self::data_field()].get_StringStringMap_0())
+            },
+            type_: if obj.data.get_Object_0()[Self::type_field()].is_Null() { Option::None } else {
+                Option::Some(obj.data.get_Object_0()[Self::type_field()].get_String_0())
             },
         }
     }
