@@ -155,9 +155,7 @@ where
                 },
                 KubeAPIRequest::CreateRequest(create_req) => {
                     let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                        client.clone(),
-                        &create_req.obj.kube_metadata_ref().namespace.as_ref().unwrap(),
-                        create_req.api_resource.as_kube_ref()
+                        client.clone(), create_req.namespace.as_rust_string_ref(), create_req.api_resource.as_kube_ref()
                     );
                     let pp = PostParams::default();
                     let obj_to_create = create_req.obj.into_kube();

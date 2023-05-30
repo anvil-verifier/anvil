@@ -55,16 +55,20 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
 {
     let req = msg.content.get_create_request();
     if s.resources.dom().contains(req.obj.object_ref()) {
-        // Creation fails
+        // Creation fails because the object already exists
         let result = Result::Err(APIError::ObjectAlreadyExists);
+        let resp = form_create_resp_msg(msg, result);
+        (s.resources, resp, Option::None)
+    } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
+        // Creation fails because the namespace of the provided object does not match the namespace sent on the request
+        let result = Result::Err(APIError::BadRequest);
         let resp = form_create_resp_msg(msg, result);
         (s.resources, resp, Option::None)
     } else {
         // Creation succeeds
         let result = Result::Ok(req.obj);
         let resp = form_create_resp_msg(msg, result);
-        // The cluster state is updated, so we send a notification to the custom controller
-        // TODO: notification should be sent to custom controller selectively
+        // The cluster state is updated, so we send a notification to the built-in controllers
         let notify = added_event(req.obj);
         (s.resources.insert(req.obj.object_ref(), req.obj), resp, Option::Some(notify))
     }

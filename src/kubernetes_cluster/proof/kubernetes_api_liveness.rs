@@ -198,6 +198,7 @@ pub proof fn lemma_create_req_leads_to_res_exists<K: ResourceView, T>(spec: Temp
                 &&& msg.dst == HostId::KubernetesAPI
                 &&& msg.content.is_create_request()
                 &&& msg.content.get_create_request().obj == res
+                &&& msg.content.get_create_request().obj.metadata.namespace.is_None()
             })
                 .leads_to(lift_state(|s: State<K, T>| s.resource_key_exists(res.object_ref())))
         ),
@@ -207,6 +208,7 @@ pub proof fn lemma_create_req_leads_to_res_exists<K: ResourceView, T>(spec: Temp
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_create_request()
         &&& msg.content.get_create_request().obj == res
+        &&& msg.content.get_create_request().obj.metadata.namespace.is_None()
     };
     let post = |s: State<K, T>| {
         s.resource_key_exists(res.object_ref())
