@@ -99,7 +99,158 @@ pub fn reconcile_error(state: &RabbitmqReconcileState) -> (res: bool)
 }
 
 // TODO: make the shim layer pass rabbitmq, instead of rabbitmq_ref, to reconcile_core
+pub fn reconcile_core(rabbitmq_ref: &KubeObjectRef, resp_o: Option<KubeAPIResponse>, state: RabbitmqReconcileState) -> (res: (RabbitmqReconcileState, Option<KubeAPIRequest>))
+    requires
+        rabbitmq_ref.kind.is_CustomResourceKind(),
+    ensures
+        (res.0.to_view(), opt_req_to_view(&res.1)) == rabbitmq_spec::reconcile_core(rabbitmq_ref.to_view(), opt_resp_to_view(&resp_o), state.to_view()),
+{
+    let step = state.reconcile_step;
+    match step{
+        RabbitmqReconcileStep::Init => {
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterGetRabbitmq,
+                ..state
+            };
+            let req_o = Option::Some(KubeAPIRequest::GetRequest(
+                KubeGetRequest{
+                    api_resource: RabbitmqCluster::api_resource(),
+                    name: rabbitmq_ref.name.clone(),
+                    namespace: rabbitmq_ref.namespace.clone(),
+                }
+            ));
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterGetRabbitmq => {
+            if !resp_o.is_some() {
+                return (RabbitmqReconcileState { reconcile_step: RabbitmqReconcileStep::Error, ..state }, Option::None);
+            }
+            let resp = resp_o.unwrap();
+            if !(resp.is_get_response() && resp.as_get_response_ref().res.is_ok()) {
+                return (RabbitmqReconcileState { reconcile_step: RabbitmqReconcileStep::Error, ..state }, Option::None);
+            }
+            let rabbitmq = RabbitmqCluster::from_dynamic_object(resp.into_get_response().res.unwrap());
+            if !(rabbitmq.name().is_some() && rabbitmq.namespace().is_some()) {
+                return (RabbitmqReconcileState { reconcile_step: RabbitmqReconcileStep::Error, ..state }, Option::None);
+            }
+            let headless_service = make_headless_service(&rabbitmq);
+            let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                KubeCreateRequest {
+                    api_resource: Service::api_resource(),
+                    obj: headless_service.to_dynamic_object(),
+                }
+            ));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateHeadlessService,
+                rabbitmq: Option::Some(rabbitmq),
+                ..state
+            };
+            return (state_prime, req_o);
+        },
+        _ => {
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: step,
+                ..state
+            };
+            let req_o = Option::None;
+            (state_prime, req_o)
+        }
+
+    }
 
 
+}
+
+
+pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        service@ == rabbitmq_spec::make_headless_service(rabbitmq@)
+{
+    let mut ports = Vec::new();
+    ports.push(ServicePort::new_with(new_strlit("epmd").to_string(), 4369));
+    ports.push(ServicePort::new_with(new_strlit("cluster-rpc").to_string(), 25672));
+
+
+    proof {
+        assert_seqs_equal!(
+            ports@.map_values(|port: ServicePort| port@),
+            rabbitmq_spec::make_headless_service(rabbitmq@).spec.get_Some_0().ports.get_Some_0()
+        );
+    }
+
+    make_service(rabbitmq, rabbitmq.name().unwrap().concat(new_strlit("-nodes")), ports, false)
+}
+
+pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        service@ == rabbitmq_spec::make_main_service(rabbitmq@)
+{
+    let mut ports = Vec::new();
+    ports.push({
+        let mut temp = ServicePort::new_with(new_strlit("amqp").to_string(), 5672);
+        temp.set_app_protocol(new_strlit("amqp").to_string());
+        temp
+    }
+    );
+    ports.push({
+        let mut temp = ServicePort::new_with(new_strlit("management").to_string(), 15672);
+        temp.set_app_protocol(new_strlit("http").to_string());
+        temp
+    });
+
+
+    proof {
+        assert_seqs_equal!(
+            ports@.map_values(|port: ServicePort| port@),
+            rabbitmq_spec::make_main_service(rabbitmq@).spec.get_Some_0().ports.get_Some_0()
+        );
+    }
+
+    make_service(rabbitmq, rabbitmq.name().unwrap(), ports, false)
+}
+
+pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServicePort>, cluster_ip: bool) -> (service: Service)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        service@ == rabbitmq_spec::make_service(rabbitmq@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip)
+{
+    let mut service = Service::default();
+    service.set_metadata({
+        let mut metadata = ObjectMeta::default();
+        metadata.set_name(name);
+        metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_labels({
+            let mut labels = StringMap::empty();
+            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+            labels
+        });
+        metadata
+    });
+    service.set_spec({
+        let mut service_spec = ServiceSpec::default();
+        if !cluster_ip {
+            service_spec.set_cluster_ip(new_strlit("None").to_string());
+        }
+        service_spec.set_ports(ports);
+        service_spec.set_selector({
+            let mut selector = StringMap::empty();
+            selector.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+            selector
+        });
+        service_spec.set_publish_not_ready_addresses(true);
+        service_spec
+    });
+
+    service
+
+}
 
 }

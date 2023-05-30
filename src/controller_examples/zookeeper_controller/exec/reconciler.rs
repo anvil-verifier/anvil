@@ -65,7 +65,7 @@ impl Default for ZookeeperReconciler {
 
 pub fn reconcile_init_state() -> (state: ZookeeperReconcileState)
     ensures
-        state.to_view() == zk_spec::reconcile_init_state(),
+        state.to_view() == zk_spec::reconcile_init_state(), // aren't two functions the same?
 {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
