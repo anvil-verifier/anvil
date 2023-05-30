@@ -142,52 +142,7 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp<K: ResourceView, T>(spec: Tem
     );
 }
 
-pub proof fn lemma_get_req_leads_to_ok_resp_if_never_delete<K: ResourceView, T>(spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>, msg: Message, res: DynamicObjectView)
-    requires
-        spec.entails(always(lift_action(next(reconciler)))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
-    ensures
-        spec.entails(
-            lift_state(|s: State<K, T>| {
-                &&& s.message_in_flight(msg)
-                &&& msg.dst == HostId::KubernetesAPI
-                &&& msg.content.is_get_request()
-                &&& msg.content.get_get_request().key == res.object_ref()
-                &&& s.resource_obj_exists(res)
-            })
-            .and(always(lift_state(|s: State<K, T>| {
-                forall |other: Message|
-                !{
-                    &&& #[trigger] s.message_in_flight(other)
-                    &&& other.dst == HostId::KubernetesAPI
-                    &&& other.content.is_delete_request()
-                    &&& other.content.get_delete_request().key == res.object_ref()
-                }
-            })))
-                .leads_to(lift_state(|s: State<K, T>| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(res)))))
-        ),
-{
-    let pre = |s: State<K, T>| {
-        &&& s.message_in_flight(msg)
-        &&& msg.dst == HostId::KubernetesAPI
-        &&& msg.content.is_get_request()
-        &&& msg.content.get_get_request().key == res.object_ref()
-        &&& s.resource_obj_exists(res)
-    };
-    let assumption = |s: State<K, T>| {
-        forall |other: Message|
-            !{
-                &&& #[trigger] s.message_in_flight(other)
-                &&& other.dst == HostId::KubernetesAPI
-                &&& other.content.is_delete_request()
-                &&& other.content.get_delete_request().key == res.object_ref()
-            }
-    };
-    let post = |s: State<K, T>| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(res)));
-    lemma_pre_leads_to_post_with_assumption_by_kubernetes_api(spec, reconciler, Option::Some(msg), next(reconciler), handle_request(), assumption, pre, post);
-}
-
-pub proof fn lemma_create_req_leads_to_res_exists<K: ResourceView, T>(spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>, msg: Message, res: DynamicObjectView)
+pub proof fn lemma_create_req_leads_to_res_exists<K: ResourceView, T>(spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>, msg: Message)
     requires
         spec.entails(always(lift_action(next(reconciler)))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
@@ -197,22 +152,27 @@ pub proof fn lemma_create_req_leads_to_res_exists<K: ResourceView, T>(spec: Temp
                 &&& s.message_in_flight(msg)
                 &&& msg.dst == HostId::KubernetesAPI
                 &&& msg.content.is_create_request()
-                &&& msg.content.get_create_request().obj == res
                 &&& msg.content.get_create_request().obj.metadata.namespace.is_None()
             })
-                .leads_to(lift_state(|s: State<K, T>| s.resource_key_exists(res.object_ref())))
+                .leads_to(lift_state(|s: State<K, T>|
+                    s.resource_key_exists(
+                        msg.content.get_create_request().obj.set_namespace(
+                            msg.content.get_create_request().namespace
+                        ).object_ref()
+                    )
+                ))
         ),
 {
     let pre = |s: State<K, T>| {
         &&& s.message_in_flight(msg)
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_create_request()
-        &&& msg.content.get_create_request().obj == res
         &&& msg.content.get_create_request().obj.metadata.namespace.is_None()
     };
-    let post = |s: State<K, T>| {
-        s.resource_key_exists(res.object_ref())
-    };
+    let post = |s: State<K, T>|
+        s.resource_key_exists(
+            msg.content.get_create_request().obj.set_namespace(msg.content.get_create_request().namespace).object_ref()
+        );
     lemma_pre_leads_to_post_by_kubernetes_api(spec, reconciler, Option::Some(msg), next(reconciler), handle_request(), pre, post);
 }
 

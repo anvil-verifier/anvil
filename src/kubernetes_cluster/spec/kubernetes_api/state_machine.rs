@@ -1,7 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*};
+use crate::kubernetes_api_objects::{
+    api_method::*, common::*, dynamic::*, error::*, object_meta::*,
+};
 use crate::kubernetes_cluster::spec::{
     channel::*,
     kubernetes_api::{builtin_controllers::statefulset_controller, common::*},
@@ -54,23 +56,24 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
         msg.content.is_create_request(),
 {
     let req = msg.content.get_create_request();
-    if s.resources.dom().contains(req.obj.object_ref()) {
-        // Creation fails because the object already exists
-        let result = Result::Err(APIError::ObjectAlreadyExists);
-        let resp = form_create_resp_msg(msg, result);
-        (s.resources, resp, Option::None)
-    } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
+    if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Creation fails because the namespace of the provided object does not match the namespace sent on the request
         let result = Result::Err(APIError::BadRequest);
         let resp = form_create_resp_msg(msg, result);
         (s.resources, resp, Option::None)
+    } else if s.resources.dom().contains(req.obj.set_namespace(req.namespace).object_ref()) {
+        // Creation fails because the object already exists
+        let result = Result::Err(APIError::ObjectAlreadyExists);
+        let resp = form_create_resp_msg(msg, result);
+        (s.resources, resp, Option::None)
     } else {
         // Creation succeeds
-        let result = Result::Ok(req.obj);
+        let created_obj = req.obj.set_namespace(req.namespace); // Set the namespace of the created object
+        let result = Result::Ok(created_obj);
         let resp = form_create_resp_msg(msg, result);
         // The cluster state is updated, so we send a notification to the built-in controllers
-        let notify = added_event(req.obj);
-        (s.resources.insert(req.obj.object_ref(), req.obj), resp, Option::Some(notify))
+        let notify = added_event(created_obj);
+        (s.resources.insert(created_obj.object_ref(), created_obj), resp, Option::Some(notify))
     }
 }
 
