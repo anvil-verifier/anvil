@@ -210,6 +210,14 @@ impl ServicePort {
         self.inner.port = port;
     }
 
+    #[verifier(external_body)]
+    pub fn set_app_protocol(&mut self, app_protocol: String)
+        ensures
+            self@ == old(self)@.set_app_protocol(app_protocol@),
+    {
+        self.inner.app_protocol = std::option::Option::Some(app_protocol.into_rust_string());
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServicePort {
         self.inner
@@ -400,6 +408,7 @@ impl Marshalable for ServiceSpecView {
 pub struct ServicePortView {
     pub name: Option<StringView>,
     pub port: nat,
+    pub app_protocol: Option<StringView>,
 }
 
 impl ServicePortView {
@@ -407,6 +416,7 @@ impl ServicePortView {
         ServicePortView {
             name: Option::None,
             port: 0, // TODO: is this the correct default value?
+            app_protocol: Option::None,
         }
     }
 
@@ -424,9 +434,18 @@ impl ServicePortView {
         }
     }
 
+    pub open spec fn set_app_protocol(self, app_protocol: StringView) -> ServicePortView {
+        ServicePortView {
+            app_protocol: Option::Some(app_protocol),
+            ..self
+        }
+    }
+
     pub open spec fn name_field() -> nat {0}
 
     pub open spec fn port_field() -> nat {1}
+
+    pub open spec fn app_protocol_field() -> nat {2}
 }
 
 impl Marshalable for ServicePortView {
@@ -437,6 +456,9 @@ impl Marshalable for ServicePortView {
                     Value::String(self.name.get_Some_0())
                 })
                 .insert(Self::port_field(), Value::Nat(self.port))
+                .insert(Self::app_protocol_field(), if self.app_protocol.is_None() { Value::Null } else {
+                    Value::String(self.app_protocol.get_Some_0())
+                })
         )
     }
 
@@ -446,6 +468,9 @@ impl Marshalable for ServicePortView {
                 Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
             },
             port: value.get_Object_0()[Self::port_field()].get_Nat_0(),
+            app_protocol: if value.get_Object_0()[Self::app_protocol_field()].is_Null() { Option::None } else {
+                Option::Some(value.get_Object_0()[Self::app_protocol_field()].get_String_0())
+            },
         }
     }
 

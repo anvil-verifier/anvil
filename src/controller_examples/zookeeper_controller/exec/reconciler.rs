@@ -46,7 +46,7 @@ impl ZookeeperReconcileState {
 pub struct ZookeeperReconciler {}
 
 #[verifier(external)]
-impl Reconciler<ZookeeperReconcileState> for ZookeeperReconciler {
+impl Reconciler<ZookeeperReconcileState> for ZookeeperReconciler { // why object function instead of direct function?
     fn reconcile_init_state(&self) -> ZookeeperReconcileState {
         reconcile_init_state()
     }
@@ -70,7 +70,7 @@ impl Default for ZookeeperReconciler {
 
 pub fn reconcile_init_state() -> (state: ZookeeperReconcileState)
     ensures
-        state.to_view() == zk_spec::reconcile_init_state(),
+        state.to_view() == zk_spec::reconcile_init_state(), // aren't two functions the same?
 {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
