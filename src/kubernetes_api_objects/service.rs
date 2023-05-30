@@ -151,6 +151,14 @@ impl ServiceSpec {
         self.inner.selector = std::option::Option::Some(selector.into_rust_map())
     }
 
+    #[verifier(external_body)]
+    pub fn set_publish_not_ready_addresses(&mut self, publish_not_ready_addresses: bool)
+        ensures
+            self@ == old(self)@.set_publish_not_ready_addresses(publish_not_ready_addresses),
+    {
+        self.inner.publish_not_ready_addresses = std::option::Option::Some(publish_not_ready_addresses);
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServiceSpec {
         self.inner
@@ -294,6 +302,7 @@ pub struct ServiceSpecView {
     pub cluster_ip: Option<StringView>,
     pub ports: Option<Seq<ServicePortView>>,
     pub selector: Option<Map<StringView, StringView>>,
+    pub publish_not_ready_addresses: Option<bool>,
 }
 
 impl ServiceSpecView {
@@ -302,6 +311,7 @@ impl ServiceSpecView {
             cluster_ip: Option::None,
             ports: Option::None,
             selector: Option::None,
+            publish_not_ready_addresses: Option::None,
         }
     }
 
@@ -326,11 +336,20 @@ impl ServiceSpecView {
         }
     }
 
+    pub open spec fn set_publish_not_ready_addresses(self, publish_not_ready_addresses: bool) -> ServiceSpecView {
+        ServiceSpecView {
+            publish_not_ready_addresses: Option::Some(publish_not_ready_addresses),
+            ..self
+        }
+    }
+
     pub open spec fn cluster_ip_field() -> nat {0}
 
     pub open spec fn ports_field() -> nat {1}
 
     pub open spec fn selector_field() -> nat {2}
+
+    pub open spec fn publish_not_ready_addresses_field() -> nat {3}
 }
 
 impl Marshalable for ServiceSpecView {
@@ -346,6 +365,9 @@ impl Marshalable for ServiceSpecView {
                 .insert(Self::selector_field(), if self.selector.is_None() {Value::Null} else {
                     Value::StringStringMap(self.selector.get_Some_0())
                 })
+                .insert(Self::publish_not_ready_addresses_field(), if self.publish_not_ready_addresses.is_None() {Value::Null} else {
+                    Value::Bool(self.publish_not_ready_addresses.get_Some_0())
+                })
         )
     }
 
@@ -359,6 +381,9 @@ impl Marshalable for ServiceSpecView {
             },
             selector: if value.get_Object_0()[Self::selector_field()].is_Null() {Option::None} else {
                 Option::Some(value.get_Object_0()[Self::selector_field()].get_StringStringMap_0())
+            },
+            publish_not_ready_addresses: if value.get_Object_0()[Self::publish_not_ready_addresses_field()].is_Null() {Option::None} else {
+                Option::Some(value.get_Object_0()[Self::publish_not_ready_addresses_field()].get_Bool_0())
             },
         }
     }
