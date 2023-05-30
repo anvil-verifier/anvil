@@ -106,6 +106,7 @@ pub fn reconcile_core(cr: &CustomResource, resp_o: Option<KubeAPIResponse>, stat
         let req_o = Option::Some(KubeAPIRequest::CreateRequest(
             KubeCreateRequest {
                 api_resource: ConfigMap::api_resource(),
+                namespace: cr.metadata().namespace().unwrap(),
                 obj: config_map.to_dynamic_object(),
             }
         ));

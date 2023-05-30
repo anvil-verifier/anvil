@@ -82,7 +82,6 @@ pub open spec fn make_config_map(cr: CustomResourceView) -> ConfigMapView
     let config_map = ConfigMapView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(cr.metadata.name.get_Some_0() + new_strlit("-cm")@)
-            .set_namespace(cr.metadata.namespace.get_Some_0())
         )
         .set_data(Map::empty().insert(new_strlit("content")@, cr.spec.content));
     config_map
@@ -91,6 +90,7 @@ pub open spec fn make_config_map(cr: CustomResourceView) -> ConfigMapView
 pub open spec fn create_cm_req(cr: CustomResourceView) -> APIRequest
 {
     APIRequest::CreateRequest(CreateRequest{
+        namespace: cr.metadata.namespace.get_Some_0(),
         obj: make_config_map(cr).to_dynamic_object(),
     })
 }
