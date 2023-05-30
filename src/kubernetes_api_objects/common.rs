@@ -12,6 +12,7 @@ pub enum Kind {
     CustomResourceKind,
     PersistentVolumeClaimKind,
     PodKind,
+    RoleKind,
     StatefulSetKind,
     ServiceKind,
     ServiceAccountKind,

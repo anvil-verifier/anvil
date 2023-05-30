@@ -14,6 +14,8 @@ pub mod pod;
 pub mod pod_template_spec;
 pub mod resource;
 pub mod resource_requirements;
+pub mod role;
 pub mod secret;
 pub mod service;
+pub mod service_account;
 pub mod stateful_set;
