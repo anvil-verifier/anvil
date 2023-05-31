@@ -251,11 +251,13 @@ name = "deps_hack"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.13.1",
  "futures",
  "k8s-openapi",
  "kube",
  "kube-client",
  "kube-derive",
+ "rand",
  "schemars",
  "serde",
  "serde_json",
