@@ -333,6 +333,36 @@ fn random_encoded_string(data_len: usize) -> (cookie: String)
 }
 
 
+pub fn make_default_user_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        secret@ == rabbitmq_spec::make_default_user_secret(rabbitmq@)
+{
+    let mut data = StringMap::empty();
+    data.insert(new_strlit("username").to_string(), new_strlit("user").to_string());
+    data.insert(new_strlit("password").to_string(), new_strlit("changeme").to_string());
+    data.insert(new_strlit("type").to_string(), new_strlit("rabbitmq").to_string());
+    data.insert(new_strlit("host").to_string(),
+            rabbitmq.name().unwrap().concat(new_strlit(".")).concat(rabbitmq.namespace().unwrap().as_str()).concat(new_strlit(".svc"))
+    );
+    data.insert(new_strlit("provider").to_string(), new_strlit("rabbitmq").to_string());
+    data.insert(new_strlit("default_user.conf").to_string(), new_strlit("default_user = user\ndefault_pass = changeme").to_string());
+    data.insert(new_strlit(".port").to_string(), new_strlit("5672").to_string());
+
+
+    proof {
+        assert_maps_equal!(
+            data@,
+            rabbitmq_spec::make_default_user_secret(rabbitmq@).data.get_Some_0()
+        );
+    }
+
+    make_secret(rabbitmq, rabbitmq.name().unwrap().concat(new_strlit("-default-user")), data)
+}
+
+
 
 
 pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) -> (secret: Secret)

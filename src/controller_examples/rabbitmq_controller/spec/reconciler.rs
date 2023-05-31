@@ -205,6 +205,28 @@ pub open spec fn make_erlang_secret(rabbitmq: RabbitmqClusterView) -> SecretView
 
 pub closed spec fn random_encoded_string(length: usize) -> StringView;
 
+pub open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> SecretView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let data = Map::empty()
+        .insert(new_strlit("username")@, new_strlit("user")@)
+        .insert(new_strlit("password")@, new_strlit("changeme")@)
+        .insert(new_strlit("type")@, new_strlit("rabbitmq")@)
+        .insert(new_strlit("host")@,
+            rabbitmq.metadata.name.get_Some_0() + new_strlit(".")@ + rabbitmq.metadata.namespace.get_Some_0() + new_strlit(".svc")@,
+        )
+        .insert(new_strlit("provider")@, new_strlit("rabbitmq")@)
+        .insert(new_strlit("default_user.conf")@, new_strlit("default_user = user\ndefault_pass = changeme")@)
+        .insert(new_strlit(".port")@, new_strlit("5672")@);
+
+
+    make_secret(rabbitmq, rabbitmq.metadata.name.get_Some_0() + new_strlit("-default-user")@, data)
+}
+
+
+
 pub open spec fn make_secret(
     rabbitmq: RabbitmqClusterView, name: StringView, data: Map<StringView, StringView>
 ) -> SecretView
