@@ -13,17 +13,18 @@ use vstd::{map::*, multiset::*, option::*, seq::*, set::*};
 
 verus! {
 
-pub open spec fn run_scheduled_reconcile<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ControllerAction<T> {
+pub open spec fn run_scheduled_reconcile<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ControllerAction<K, T> {
     Action {
-        precondition: |input: ControllerActionInput, s: ControllerState<T>| {
+        precondition: |input: ControllerActionInput, s: ControllerState<K, T>| {
             &&& input.scheduled_cr_key.is_Some()
-            &&& s.scheduled_reconciles.contains(input.scheduled_cr_key.get_Some_0())
+            &&& s.scheduled_reconciles.contains_key(input.scheduled_cr_key.get_Some_0())
             &&& input.recv.is_None()
             &&& !s.ongoing_reconciles.dom().contains(input.scheduled_cr_key.get_Some_0())
         },
-        transition: |input: ControllerActionInput, s: ControllerState<T>| {
+        transition: |input: ControllerActionInput, s: ControllerState<K, T>| {
             let cr_key = input.scheduled_cr_key.get_Some_0();
             let initialized_ongoing_reconcile = OngoingReconcile {
+                triggering_cr: s.scheduled_reconciles[cr_key],
                 pending_req_msg: Option::None,
                 local_state: (reconciler.reconcile_init_state)(),
             };
@@ -38,9 +39,9 @@ pub open spec fn run_scheduled_reconcile<K: ResourceView, T>(reconciler: Reconci
     }
 }
 
-pub open spec fn continue_reconcile<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ControllerAction<T> {
+pub open spec fn continue_reconcile<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ControllerAction<K, T> {
     Action {
-        precondition: |input: ControllerActionInput, s: ControllerState<T>| {
+        precondition: |input: ControllerActionInput, s: ControllerState<K, T>| {
             if input.scheduled_cr_key.is_Some() {
                 let cr_key = input.scheduled_cr_key.get_Some_0();
 
@@ -58,7 +59,7 @@ pub open spec fn continue_reconcile<K: ResourceView, T>(reconciler: Reconciler<K
                 false
             }
         },
-        transition: |input: ControllerActionInput, s: ControllerState<T>| {
+        transition: |input: ControllerActionInput, s: ControllerState<K, T>| {
             let resp_o = if input.recv.is_Some() {
                 Option::Some(input.recv.get_Some_0().content.get_APIResponse_0())
             } else {
@@ -67,7 +68,7 @@ pub open spec fn continue_reconcile<K: ResourceView, T>(reconciler: Reconciler<K
             let cr_key = input.scheduled_cr_key.get_Some_0();
             let reconcile_state = s.ongoing_reconciles[cr_key];
 
-            let (local_state_prime, req_o) = (reconciler.reconcile_core)(cr_key, resp_o, reconcile_state.local_state);
+            let (local_state_prime, req_o) = (reconciler.reconcile_core)(reconcile_state.triggering_cr, resp_o, reconcile_state.local_state);
 
             let (chan_manager_prime, pending_req_msg) = if req_o.is_Some() {
                 (input.chan_manager.allocate().0, Option::Some(controller_req_msg(req_o.get_Some_0(), input.chan_manager.allocate().1)))
@@ -78,6 +79,7 @@ pub open spec fn continue_reconcile<K: ResourceView, T>(reconciler: Reconciler<K
             let reconcile_state_prime = OngoingReconcile {
                 pending_req_msg: pending_req_msg,
                 local_state: local_state_prime,
+                ..reconcile_state
             };
             let s_prime = ControllerState {
                 ongoing_reconciles: s.ongoing_reconciles.insert(cr_key, reconcile_state_prime),
@@ -93,9 +95,9 @@ pub open spec fn continue_reconcile<K: ResourceView, T>(reconciler: Reconciler<K
     }
 }
 
-pub open spec fn end_reconcile<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ControllerAction<T> {
+pub open spec fn end_reconcile<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ControllerAction<K, T> {
     Action {
-        precondition: |input: ControllerActionInput, s: ControllerState<T>| {
+        precondition: |input: ControllerActionInput, s: ControllerState<K, T>| {
             if input.scheduled_cr_key.is_Some() {
                 let cr_key = input.scheduled_cr_key.get_Some_0();
 
@@ -106,7 +108,7 @@ pub open spec fn end_reconcile<K: ResourceView, T>(reconciler: Reconciler<K, T>)
                 false
             }
         },
-        transition: |input: ControllerActionInput, s: ControllerState<T>| {
+        transition: |input: ControllerActionInput, s: ControllerState<K, T>| {
             let cr_key = input.scheduled_cr_key.get_Some_0();
             let s_prime = ControllerState {
                 ongoing_reconciles: s.ongoing_reconciles.remove(cr_key),

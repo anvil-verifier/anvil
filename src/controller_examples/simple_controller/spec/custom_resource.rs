@@ -10,17 +10,12 @@ use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
-use deps_hack::SimpleCR;
-use deps_hack::SimpleCRSpec;
-
-use deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
-
 verus! {
 
 // TODO: CustomResource should be defined by the controller developer
 #[verifier(external_body)]
 pub struct CustomResource {
-    inner: SimpleCR
+    inner: deps_hack::SimpleCR
 }
 
 pub struct CustomResourceView {
@@ -37,7 +32,7 @@ impl CustomResource {
         ensures
             res@.kind == Kind::CustomResourceKind,
     {
-        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<SimpleCR>(&()))
+        ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::SimpleCR>(&()))
     }
 
     #[verifier(external_body)]
@@ -74,7 +69,21 @@ impl CustomResource {
         ensures
             cr@ == CustomResourceView::from_dynamic_object(obj@),
     {
-        CustomResource {inner: obj.into_kube().try_parse::<SimpleCR>().unwrap()}
+        CustomResource {inner: obj.into_kube().try_parse::<deps_hack::SimpleCR>().unwrap()}
+    }
+}
+
+impl ResourceWrapper<deps_hack::SimpleCR> for CustomResource {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::SimpleCR) -> CustomResource {
+        CustomResource {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::SimpleCR {
+        self.inner
     }
 }
 
@@ -128,7 +137,7 @@ impl ResourceView for CustomResourceView {
 
 #[verifier(external_body)]
 pub struct CustomResourceSpec {
-    inner: SimpleCRSpec
+    inner: deps_hack::SimpleCRSpec
 }
 
 pub struct CustomResourceSpecView {

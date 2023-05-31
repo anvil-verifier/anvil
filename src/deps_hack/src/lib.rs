@@ -3,6 +3,7 @@ pub use futures;
 pub use k8s_openapi;
 pub use kube;
 pub use kube_client;
+pub use kube_core;
 pub use kube_derive;
 pub use schemars;
 pub use serde;

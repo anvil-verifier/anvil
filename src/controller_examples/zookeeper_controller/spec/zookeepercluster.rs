@@ -53,11 +53,6 @@ impl ZookeeperCluster {
         self.inner.spec.replica
     }
 
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::ZookeeperCluster {
-        self.inner
-    }
-
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
@@ -86,6 +81,20 @@ impl ZookeeperCluster {
             zk@ == ZookeeperClusterView::from_dynamic_object(obj@),
     {
         ZookeeperCluster { inner: obj.into_kube().try_parse::<deps_hack::ZookeeperCluster>().unwrap() }
+    }
+}
+
+impl ResourceWrapper<deps_hack::ZookeeperCluster> for ZookeeperCluster {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::ZookeeperCluster) -> ZookeeperCluster {
+        ZookeeperCluster {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::ZookeeperCluster {
+        self.inner
     }
 }
 

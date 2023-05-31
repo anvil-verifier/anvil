@@ -255,6 +255,7 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "kube-client",
+ "kube-core",
  "kube-derive",
  "schemars",
  "serde",
