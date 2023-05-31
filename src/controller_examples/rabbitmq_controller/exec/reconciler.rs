@@ -14,6 +14,7 @@ use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
 use crate::reconciler::exec::*;
 use builtin::*;
 use builtin_macros::*;
+use vstd::map::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
@@ -147,6 +148,48 @@ pub fn reconcile_core(rabbitmq_ref: &KubeObjectRef, resp_o: Option<KubeAPIRespon
             };
             return (state_prime, req_o);
         },
+        RabbitmqReconcileStep::AfterCreateHeadlessService => {
+            if !state.rabbitmq.is_some() {
+                return (RabbitmqReconcileState { reconcile_step: RabbitmqReconcileStep::Error, ..state }, Option::None);
+            }
+            let rabbitmq = state.rabbitmq.as_ref().unwrap();
+            if !(rabbitmq.name().is_some() && rabbitmq.namespace().is_some()) {
+                return (RabbitmqReconcileState { reconcile_step: RabbitmqReconcileStep::Error, ..state }, Option::None);
+            }
+            let main_service = make_main_service(rabbitmq);
+            let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                KubeCreateRequest {
+                    api_resource: Service::api_resource(),
+                    obj: main_service.to_dynamic_object(),
+                }
+            ));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateService,
+                ..state
+            };
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterCreateService => {
+            if !state.rabbitmq.is_some() {
+                return (RabbitmqReconcileState { reconcile_step: RabbitmqReconcileStep::Error, ..state }, Option::None);
+            }
+            let rabbitmq = state.rabbitmq.as_ref().unwrap();
+            if !(rabbitmq.name().is_some() && rabbitmq.namespace().is_some()) {
+                return (RabbitmqReconcileState { reconcile_step: RabbitmqReconcileStep::Error, ..state }, Option::None);
+            }
+            let erlang_secret = make_erlang_secret(rabbitmq);
+            let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                KubeCreateRequest {
+                    api_resource: Secret::api_resource(),
+                    obj: erlang_secret.to_dynamic_object(),
+                }
+            ));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateErlangCookieSecret,
+                ..state
+            };
+            return (state_prime, req_o);
+        },
         _ => {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: step,
@@ -250,6 +293,70 @@ pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServiceP
     });
 
     service
+
+}
+
+
+pub fn make_erlang_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        secret@ == rabbitmq_spec::make_erlang_secret(rabbitmq@)
+{
+    let mut data = StringMap::empty();
+    let cookie = random_encoded_string(24);
+    data.insert(new_strlit(".erlang.cookie").to_string(), cookie);
+
+
+    proof {
+        assert_maps_equal!(
+            data@,
+            rabbitmq_spec::make_erlang_secret(rabbitmq@).data.get_Some_0()
+        );
+    }
+
+    make_secret(rabbitmq, rabbitmq.name().unwrap().concat(new_strlit("-erlang-cookie")), data)
+}
+
+#[verifier(external_body)]
+fn random_encoded_string(data_len: usize) -> (cookie: String)
+    ensures
+        cookie@ == rabbitmq_spec::random_encoded_string(data_len),
+{
+    let mut ret_string = new_strlit("").to_string().into_rust_string();
+    for i in 0..data_len {
+        let chunk = deps_hack::rand::random::<u8>();
+        ret_string.push(chunk as char);
+    }
+    String::from_rust_string(ret_string)
+}
+
+
+
+
+pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) -> (secret: Secret)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        secret@ == rabbitmq_spec::make_secret(rabbitmq@, name@, data@)
+{
+    let mut secret = Secret::default();
+    secret.set_metadata({
+        let mut metadata = ObjectMeta::default();
+        metadata.set_name(name);
+        metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_labels({
+            let mut labels = StringMap::empty();
+            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+            labels
+        });
+        metadata
+    });
+    secret.set_data(data);
+
+    secret
 
 }
 

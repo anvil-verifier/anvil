@@ -3,8 +3,8 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
-    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, service::*,
-    stateful_set::*,
+    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, role::*,
+    role_binding::*, secret::*, service::*, service_account::*, stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
@@ -76,6 +76,38 @@ pub open spec fn reconcile_core(rabbitmq_ref: ObjectRef, resp_o: Option<APIRespo
                 let state_prime = RabbitmqReconcileState {
                     reconcile_step: RabbitmqReconcileStep::AfterCreateHeadlessService,
                     rabbitmq: Option::Some(rabbitmq),
+                    ..state
+                };
+                (state_prime, req_o)
+            }
+        },
+        RabbitmqReconcileStep::AfterCreateHeadlessService => {
+            let rabbitmq = state.rabbitmq.get_Some_0();
+            if !state.rabbitmq.is_Some() || !(rabbitmq.metadata.name.is_Some() && rabbitmq.metadata.namespace.is_Some()) {
+                reconcile_error_result(state)
+            } else {
+                let main_service = make_main_service(rabbitmq);
+                let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                    obj: main_service.to_dynamic_object(),
+                }));
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterCreateService,
+                    ..state
+                };
+                (state_prime, req_o)
+            }
+        },
+        RabbitmqReconcileStep::AfterCreateService => {
+            let rabbitmq = state.rabbitmq.get_Some_0();
+            if !state.rabbitmq.is_Some() || !(rabbitmq.metadata.name.is_Some() && rabbitmq.metadata.namespace.is_Some()) {
+                reconcile_error_result(state)
+            } else {
+                let erlang_secret = make_erlang_secret(rabbitmq);
+                let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                    obj: erlang_secret.to_dynamic_object(),
+                }));
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterCreateErlangCookieSecret,
                     ..state
                 };
                 (state_prime, req_o)
@@ -157,5 +189,35 @@ pub open spec fn make_service(
         })
 }
 
+
+pub open spec fn make_erlang_secret(rabbitmq: RabbitmqClusterView) -> SecretView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let cookie = random_encoded_string(24);
+    let data = Map::empty()
+        .insert(new_strlit(".erlang.cookie")@, cookie);
+
+
+    make_secret(rabbitmq, rabbitmq.metadata.name.get_Some_0() + new_strlit("-erlang-cookie")@, data)
+}
+
+pub closed spec fn random_encoded_string(length: usize) -> StringView;
+
+pub open spec fn make_secret(
+    rabbitmq: RabbitmqClusterView, name: StringView, data: Map<StringView, StringView>
+) -> SecretView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    SecretView::default()
+        .set_metadata(ObjectMetaView::default()
+            .set_name(name)
+            .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
+            .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+        ).set_data(data)
+}
 
 }
