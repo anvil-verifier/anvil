@@ -1,13 +1,14 @@
 // Nightly clippy (0.1.64) considers Drop a side effect, see https://github.com/rust-lang/rust-clippy/issues/9608
 #![allow(clippy::unnecessary_lazy_evaluations)]
 
+pub mod common;
 pub mod resources;
 pub mod zookeepercluster_types;
 
 use anyhow::Result;
 use futures::StreamExt;
 use k8s_openapi::api::apps::v1 as appsv1;
-use k8s_openapi::api::core::v1 as corev1;
+use k8s_openapi::api::core::v1::{self as corev1, ConfigMap};
 use kube::{
     api::{Api, ListParams, PostParams},
     runtime::controller::{Action, Controller},
@@ -19,7 +20,9 @@ use std::{env, sync::Arc};
 use thiserror::Error;
 use tokio::time::Duration;
 use tracing::*;
+use zookeeper::{Acl, CreateMode, WatchedEvent, Watcher, ZkError, ZooKeeper};
 
+use crate::common::{cluster_size_zk_node_path, zk_service_uri};
 use crate::resources::*;
 use crate::zookeepercluster_types::*;
 
@@ -27,41 +30,32 @@ use crate::zookeepercluster_types::*;
 enum Error {
     #[error("Failed to get CR: {0}")]
     CRGetFailed(#[source] kube::Error),
-    #[error("Failed to create ConfigMap: {0}")]
-    ConfigMapCreationFailed(#[source] kube::Error),
-    #[error("Failed to create Service: {0}")]
-    ServiceCreationFailed(#[source] kube::Error),
-    #[error("Failed to create StatefulSet: {0}")]
-    StatefulSetCreationFailed(#[source] kube::Error),
+    #[error("Failed to reconcile ConfigMap: {0}")]
+    ReconcileConfigMapFailed(#[source] kube::Error),
+    #[error("Failed to reconcile Service: {0}")]
+    ReconcileServiceFailed(#[source] kube::Error),
+    #[error("Failed to reconcile StatefulSet: {0}")]
+    ReconcileStatefulSetFailed(#[source] kube::Error),
+    #[error("Failed to get StatefulSet: {0}")]
+    GetStatefulSetFailed(#[source] kube::Error),
+    #[error("Failed to reconcile the zk node to store cluster size: {0}")]
+    ClusterSizeZKNodeCreationFailed(#[source] ZkError),
     #[error("MissingObjectKey: {0}")]
     MissingObjectKey(&'static str),
 }
 
-/// Controller triggers this whenever our main object or our children changed
-async fn reconcile(zk: Arc<ZookeeperCluster>, ctx: Arc<Data>) -> Result<Action, Error> {
-    let client = &ctx.client;
+struct LoggingWatcher;
+impl Watcher for LoggingWatcher {
+    fn handle(&self, e: WatchedEvent) {
+        info!("{:?}", e)
+    }
+}
 
-    let zk_name = zk
-        .metadata
-        .name
-        .as_ref()
-        .ok_or_else(|| Error::MissingObjectKey(".metadata.name"))?;
-    let zk_ns = zk
-        .metadata
-        .namespace
-        .as_ref()
-        .ok_or_else(|| Error::MissingObjectKey(".metadata.namespace"))?;
-
-    let zk_api = Api::<ZookeeperCluster>::namespaced(client.clone(), &zk_ns);
-    let svc_api = Api::<corev1::Service>::namespaced(client.clone(), &zk_ns);
-    let cm_api = Api::<corev1::ConfigMap>::namespaced(client.clone(), &zk_ns);
-    let sts_api = Api::<appsv1::StatefulSet>::namespaced(client.clone(), &zk_ns);
-
-    // Get the ZookeeperCluster custom resource before taking any reconciliation actions.
-    zk_api.get(&zk_name).await.map_err(Error::CRGetFailed)?;
-
+async fn reconcile_headless_service(zk: &ZookeeperCluster, client: Client) -> Result<(), Error> {
     // Create the ZookeeperCluster headless service.
     // The headless service is used to assign a domain name for each zookeeper replica.
+    let svc_api =
+        Api::<corev1::Service>::namespaced(client.clone(), zk.metadata.namespace.as_ref().unwrap());
     let headless_service = make_headless_service(&zk);
     info!(
         "Create headless service: {}",
@@ -73,14 +67,21 @@ async fn reconcile(zk: Arc<ZookeeperCluster>, ctx: Arc<Data>) -> Result<Action, 
     {
         Err(e) => match e {
             kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
-                if reason.clone() == "AlreadyExists" => {}
-            _ => return Err(Error::ServiceCreationFailed(e)),
+                if reason.clone() == "AlreadyExists" =>
+            {
+                return Ok(())
+            }
+            _ => return Err(Error::ReconcileServiceFailed(e)),
         },
-        _ => {}
+        _ => return Ok(()),
     }
+}
 
+async fn reconcile_client_service(zk: &ZookeeperCluster, client: Client) -> Result<(), Error> {
     // Create the ZookeeperCluster client service.
     // The client service provides a stable ip and domain name to connect to the client port.
+    let svc_api =
+        Api::<corev1::Service>::namespaced(client.clone(), zk.metadata.namespace.as_ref().unwrap());
     let client_service = make_client_service(&zk);
     info!(
         "Create client service: {}",
@@ -92,14 +93,24 @@ async fn reconcile(zk: Arc<ZookeeperCluster>, ctx: Arc<Data>) -> Result<Action, 
     {
         Err(e) => match e {
             kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
-                if reason.clone() == "AlreadyExists" => {}
-            _ => return Err(Error::ServiceCreationFailed(e)),
+                if reason.clone() == "AlreadyExists" =>
+            {
+                return Ok(())
+            }
+            _ => return Err(Error::ReconcileServiceFailed(e)),
         },
-        _ => {}
+        _ => return Ok(()),
     }
+}
 
+async fn reconcile_admin_server_service(
+    zk: &ZookeeperCluster,
+    client: Client,
+) -> Result<(), Error> {
     // Create the ZookeeperCluster client service.
     // The client service provides a stable ip and domain name to connect to the admin server port.
+    let svc_api =
+        Api::<corev1::Service>::namespaced(client.clone(), zk.metadata.namespace.as_ref().unwrap());
     let admin_server_service = make_admin_server_service(&zk);
     info!(
         "Create admin server service: {}",
@@ -111,47 +122,191 @@ async fn reconcile(zk: Arc<ZookeeperCluster>, ctx: Arc<Data>) -> Result<Action, 
     {
         Err(e) => match e {
             kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
-                if reason.clone() == "AlreadyExists" => {}
-            _ => return Err(Error::ServiceCreationFailed(e)),
+                if reason.clone() == "AlreadyExists" =>
+            {
+                return Ok(())
+            }
+            _ => return Err(Error::ReconcileServiceFailed(e)),
         },
-        _ => {}
+        _ => return Ok(()),
     }
+}
 
-    // Create the ZookeeperCluster configmap.
+async fn reconcile_config_map(zk: &ZookeeperCluster, client: Client) -> Result<(), Error> {
+    // Reconcile the ZookeeperCluster configmap.
     // The configmap stores the configuration data for zookeeper.
+    let cm_api = Api::<corev1::ConfigMap>::namespaced(
+        client.clone(),
+        zk.metadata.namespace.as_ref().unwrap(),
+    );
     let cm = make_configmap(&zk);
-    info!("Create configmap: {}", cm.metadata.name.as_ref().unwrap());
-    match cm_api.create(&PostParams::default(), &cm).await {
-        Err(e) => match e {
-            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
-                if reason.clone() == "AlreadyExists" => {}
-            _ => return Err(Error::ConfigMapCreationFailed(e)),
-        },
-        _ => {}
-    }
+    let cm_name = cm.metadata.name.as_ref().unwrap();
+    let cm_o = cm_api
+        .get_opt(cm_name)
+        .await
+        .map_err(Error::ReconcileConfigMapFailed)?;
 
+    if cm_o.is_some() {
+        info!("Update configmap: {}", cm_name);
+        let updated_cm = ConfigMap {
+            data: cm.data,
+            ..cm_o.unwrap()
+        };
+        cm_api
+            .replace(cm_name, &PostParams::default(), &updated_cm)
+            .await
+            .map_err(Error::ReconcileConfigMapFailed)?;
+        Ok(())
+    } else {
+        info!("Create configmap: {}", cm_name);
+        cm_api
+            .create(&PostParams::default(), &cm)
+            .await
+            .map_err(Error::ReconcileConfigMapFailed)?;
+        Ok(())
+    }
+}
+
+async fn reconcile_stateful_set(zk: &ZookeeperCluster, client: Client) -> Result<(), Error> {
     // Create the ZookeeperCluster statefulset.
     // The statefulset hosts all the zookeeper pods and volumes.
-    let sts = make_statefulset(&zk);
-    info!(
-        "Create statefulset: {}",
-        sts.metadata.name.as_ref().unwrap()
+    let sts_api = Api::<appsv1::StatefulSet>::namespaced(
+        client.clone(),
+        zk.metadata.namespace.as_ref().unwrap(),
     );
-    match sts_api.create(&PostParams::default(), &sts).await {
-        Err(e) => match e {
-            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
-                if reason.clone() == "AlreadyExists" => {}
-            _ => return Err(Error::StatefulSetCreationFailed(e)),
-        },
+    let sts = make_statefulset(&zk);
+    let sts_name = sts.metadata.name.as_ref().unwrap();
+    let sts_o = sts_api
+        .get_opt(sts_name)
+        .await
+        .map_err(Error::ReconcileStatefulSetFailed)?;
+
+    if sts_o.is_some() {
+        info!("Update statefulset: {}", sts_name);
+        let mut updated_sts = sts_o.unwrap();
+        let mut updated_sts_spec = updated_sts.spec.unwrap();
+        updated_sts_spec.replicas = sts.spec.unwrap().replicas;
+        updated_sts.spec = Some(updated_sts_spec);
+        sts_api
+            .replace(sts_name, &PostParams::default(), &updated_sts)
+            .await
+            .map_err(Error::ReconcileStatefulSetFailed)?;
+        Ok(())
+    } else {
+        info!("Create statefulset: {}", sts_name);
+        sts_api
+            .create(&PostParams::default(), &sts)
+            .await
+            .map_err(Error::ReconcileStatefulSetFailed)?;
+        Ok(())
+    }
+}
+
+async fn reconcile_zk_node(zk: &ZookeeperCluster, client: Client) -> Result<(), Error> {
+    // Another way to remove a zk member: pod exec the following
+    // java -Dlog4j.configuration=file:/conf/log4j-quiet.properties -jar /opt/libs/zu.jar remove zookeeper-client:2181 id_to_remove
+    let sts_api = Api::<appsv1::StatefulSet>::namespaced(
+        client.clone(),
+        zk.metadata.namespace.as_ref().unwrap(),
+    );
+    let sts = sts_api
+        .get(zk.metadata.name.as_ref().unwrap())
+        .await
+        .map_err(Error::GetStatefulSetFailed)?;
+    if sts.status.is_some()
+        && sts.status.clone().unwrap().ready_replicas.is_some()
+        && sts.status.unwrap().ready_replicas.unwrap() == zk.spec.replica
+    {
+        let path = cluster_size_zk_node_path(zk);
+        info!("Try to create {} node since all replicas are ready", path);
+        let zk_client = ZooKeeper::connect(
+            zk_service_uri(zk).as_str(),
+            Duration::from_secs(10),
+            LoggingWatcher,
+        )
+        .map_err(Error::ClusterSizeZKNodeCreationFailed)?;
+        match zk_client
+            .exists(&path, false)
+            .map_err(Error::ClusterSizeZKNodeCreationFailed)?
+        {
+            Some(_) => Ok(()),
+            None => {
+                // First create the parent node
+                zk_client
+                    .create(
+                        "/zookeeper-operator",
+                        format!("CLUSTER_SIZE={}", zk.spec.replica)
+                            .as_str()
+                            .as_bytes()
+                            .to_vec(),
+                        Acl::open_unsafe().clone(),
+                        CreateMode::Persistent,
+                    )
+                    .map_err(Error::ClusterSizeZKNodeCreationFailed)?;
+                zk_client
+                    .create(
+                        &path,
+                        format!("CLUSTER_SIZE={}", zk.spec.replica)
+                            .as_str()
+                            .as_bytes()
+                            .to_vec(),
+                        Acl::open_unsafe().clone(),
+                        CreateMode::Persistent,
+                    )
+                    .map_err(Error::ClusterSizeZKNodeCreationFailed)?;
+                Ok(())
+            }
+        }
+    } else {
+        Ok(())
+    }
+}
+
+/// Controller triggers this whenever our main object or our children changed
+async fn reconcile(zk_from_cache: Arc<ZookeeperCluster>, ctx: Arc<Data>) -> Result<Action, Error> {
+    let client = &ctx.client;
+
+    let zk_name = zk_from_cache
+        .metadata
+        .name
+        .as_ref()
+        .ok_or_else(|| Error::MissingObjectKey(".metadata.name"))?;
+    let zk_ns = zk_from_cache
+        .metadata
+        .namespace
+        .as_ref()
+        .ok_or_else(|| Error::MissingObjectKey(".metadata.namespace"))?;
+
+    let zk_api = Api::<ZookeeperCluster>::namespaced(client.clone(), &zk_ns);
+
+    // Get the ZookeeperCluster custom resource before taking any reconciliation actions.
+    let get_result = zk_api.get(&zk_name).await;
+    match get_result {
+        Err(kube_client::error::Error::Api(kube_core::ErrorResponse { reason, .. }))
+            if &reason == "NotFound" =>
+        {
+            info!("{} not found, end reconcile", zk_name);
+            return Ok(Action::await_change());
+        }
+        Err(e) => return Err(Error::CRGetFailed(e)),
         _ => {}
     }
+    let zk = get_result.unwrap();
+
+    reconcile_headless_service(&zk, client.clone()).await?;
+    reconcile_client_service(&zk, client.clone()).await?;
+    reconcile_admin_server_service(&zk, client.clone()).await?;
+    reconcile_config_map(&zk, client.clone()).await?;
+    reconcile_stateful_set(&zk, client.clone()).await?;
+    // reconcile_zk_node(&zk, client.clone()).await?;
 
     Ok(Action::requeue(Duration::from_secs(60)))
 }
 
 /// The controller triggers this on reconcile errors
-fn error_policy(_object: Arc<ZookeeperCluster>, _error: &Error, _ctx: Arc<Data>) -> Action {
-    Action::requeue(Duration::from_secs(1))
+fn error_policy(_object: Arc<ZookeeperCluster>, error: &Error, _ctx: Arc<Data>) -> Action {
+    warn!("Reconcile failed due to error: {}", error);
+    Action::requeue(Duration::from_secs(10))
 }
 
 // Data we want access to in error/reconcile calls

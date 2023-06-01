@@ -5,12 +5,13 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1 as metav1;
 use kube::api::{ObjectMeta, Resource};
 use std::{collections::BTreeMap, vec};
 
+use crate::common::*;
 use crate::zookeepercluster_types::*;
 
 pub fn make_statefulset(zk: &ZookeeperCluster) -> appsv1::StatefulSet {
     appsv1::StatefulSet {
         metadata: ObjectMeta {
-            name: zk.meta().name.clone(),
+            name: Some(stateful_set_name(zk)),
             namespace: zk.meta().namespace.clone(),
             labels: Some(BTreeMap::from([(
                 "app".to_string(),
@@ -20,7 +21,7 @@ pub fn make_statefulset(zk: &ZookeeperCluster) -> appsv1::StatefulSet {
         },
         spec: Some(appsv1::StatefulSetSpec {
             replicas: Some(zk.spec.replica),
-            service_name: zk.meta().name.as_ref().unwrap().clone() + "-headless",
+            service_name: headless_service_name(zk),
             selector: metav1::LabelSelector {
                 match_labels: Some(BTreeMap::from([(
                     "app".to_string(),
@@ -152,7 +153,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> corev1::PodSpec {
 pub fn make_headless_service(zk: &ZookeeperCluster) -> corev1::Service {
     make_service(
         zk,
-        zk.meta().name.as_ref().unwrap().clone() + "-headless",
+        headless_service_name(zk),
         vec![
             corev1::ServicePort {
                 name: Some("tcp-client".to_string()),
@@ -187,7 +188,7 @@ pub fn make_headless_service(zk: &ZookeeperCluster) -> corev1::Service {
 pub fn make_client_service(zk: &ZookeeperCluster) -> corev1::Service {
     make_service(
         zk,
-        zk.meta().name.as_ref().unwrap().clone() + "-client",
+        client_service_name(zk),
         vec![corev1::ServicePort {
             name: Some("tcp-client".to_string()),
             port: 2181,
@@ -200,7 +201,7 @@ pub fn make_client_service(zk: &ZookeeperCluster) -> corev1::Service {
 pub fn make_admin_server_service(zk: &ZookeeperCluster) -> corev1::Service {
     make_service(
         zk,
-        zk.meta().name.as_ref().unwrap().clone() + "-admin-server",
+        admin_server_service_name(zk),
         vec![corev1::ServicePort {
             name: Some("tcp-admin-server".to_string()),
             port: 8080,
@@ -247,7 +248,7 @@ fn make_service(
 pub fn make_configmap(zk: &ZookeeperCluster) -> corev1::ConfigMap {
     corev1::ConfigMap {
         metadata: ObjectMeta {
-            name: Some(zk.meta().name.as_ref().unwrap().clone() + "-configmap"),
+            name: Some(config_map_name(zk)),
             namespace: zk.meta().namespace.clone(),
             labels: Some(BTreeMap::from([(
                 "app".to_string(),
