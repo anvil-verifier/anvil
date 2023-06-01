@@ -10,7 +10,6 @@ verus! {
 pub enum SimpleReconcileStep {
     Init,
     AfterCreateConfigMap,
-    Done,
     Error,
 }
 
