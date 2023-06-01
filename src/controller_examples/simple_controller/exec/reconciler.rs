@@ -6,6 +6,7 @@ use crate::kubernetes_api_objects::{
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::reconciler::exec::*;
+use crate::simple_controller::common::*;
 use crate::simple_controller::spec::custom_resource::*;
 use crate::simple_controller::spec::reconciler as simple_spec;
 use builtin::*;
@@ -19,13 +20,13 @@ verus! {
 /// of reconcile() (i.e., multiple calls to reconcile_core()).
 /// Its view is simple_spec::SimpleReconcileState.
 pub struct SimpleReconcileState {
-    pub reconcile_pc: u64,
+    pub reconcile_step: SimpleReconcileStep,
 }
 
 impl SimpleReconcileState {
     pub open spec fn to_view(&self) -> simple_spec::SimpleReconcileState {
         simple_spec::SimpleReconcileState {
-            reconcile_pc: self.reconcile_pc as nat,
+            reconcile_step: self.reconcile_step,
         }
     }
 }
@@ -35,9 +36,7 @@ pub struct SimpleReconciler {}
 #[verifier(external)]
 impl Reconciler<CustomResource, SimpleReconcileState> for SimpleReconciler {
     fn reconcile_init_state(&self) -> SimpleReconcileState {
-        SimpleReconcileState {
-            reconcile_pc: init_pc(),
-        }
+        reconcile_init_state()
     }
 
     fn reconcile_core(&self, cr: &CustomResource, resp_o: Option<KubeAPIResponse>, state: SimpleReconcileState) -> (SimpleReconcileState, Option<KubeAPIRequest>) {
@@ -45,11 +44,11 @@ impl Reconciler<CustomResource, SimpleReconcileState> for SimpleReconciler {
     }
 
     fn reconcile_done(&self, state: &SimpleReconcileState) -> bool {
-        state.reconcile_pc == after_create_cm_pc()
+        reconcile_done(state)
     }
 
     fn reconcile_error(&self, state: &SimpleReconcileState) -> bool {
-        state.reconcile_pc != init_pc() && state.reconcile_pc != after_create_cm_pc()
+        reconcile_error(state)
     }
 }
 
@@ -62,7 +61,7 @@ pub fn reconcile_init_state() -> (res: SimpleReconcileState)
         simple_spec::reconcile_init_state() == res.to_view(),
 {
     SimpleReconcileState {
-        reconcile_pc: init_pc(),
+        reconcile_step: SimpleReconcileStep::Init,
     }
 }
 
@@ -70,14 +69,21 @@ pub fn reconcile_done(state: &SimpleReconcileState) -> (res: bool)
     ensures
         simple_spec::reconcile_done(state.to_view()) == res,
 {
-    state.reconcile_pc == after_create_cm_pc()
+    match state.reconcile_step {
+        SimpleReconcileStep::AfterCreateConfigMap => true,
+        _ => false,
+    }
 }
 
 pub fn reconcile_error(state: &SimpleReconcileState) -> (res: bool)
     ensures
         simple_spec::reconcile_error(state.to_view()) == res,
 {
-    state.reconcile_pc != init_pc() && state.reconcile_pc != after_create_cm_pc()
+    match state.reconcile_step {
+        SimpleReconcileStep::Init => false,
+        SimpleReconcileStep::AfterCreateConfigMap => false,
+        _ => true,
+    }
 }
 
 /// reconcile_core is the exec implementation of the core reconciliation logic.
@@ -96,23 +102,31 @@ pub fn reconcile_core(cr: &CustomResource, resp_o: Option<KubeAPIResponse>, stat
     ensures
         (res.0.to_view(), opt_req_to_view(&res.1)) == simple_spec::reconcile_core(cr@, opt_resp_to_view(&resp_o), state.to_view()),
 {
-    let pc = state.reconcile_pc;
-    if pc == init_pc() {
-        let state_prime = SimpleReconcileState {
-            reconcile_pc: after_create_cm_pc(),
-            ..state
-        };
-        let config_map = make_configmap(cr);
-        let req_o = Option::Some(KubeAPIRequest::CreateRequest(
-            KubeCreateRequest {
-                api_resource: ConfigMap::api_resource(),
-                namespace: cr.metadata().namespace().unwrap(),
-                obj: config_map.to_dynamic_object(),
-            }
-        ));
-        return (state_prime, req_o);
-    } else {
-        return (state, Option::None);
+    let step = state.reconcile_step;
+    match step {
+        SimpleReconcileStep::Init => {
+            let state_prime = SimpleReconcileState {
+                reconcile_step: SimpleReconcileStep::AfterCreateConfigMap,
+                ..state
+            };
+            let config_map = make_configmap(cr);
+            let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                KubeCreateRequest {
+                    api_resource: ConfigMap::api_resource(),
+                    namespace: cr.metadata().namespace().unwrap(),
+                    obj: config_map.to_dynamic_object(),
+                }
+            ));
+            (state_prime, req_o)
+        }
+        _ => {
+            let state_prime = SimpleReconcileState {
+                reconcile_step: step,
+                ..state
+            };
+            let req_o = Option::None;
+            (state_prime, req_o)
+        }
     }
 }
 
@@ -136,17 +150,5 @@ pub fn make_configmap(cr: &CustomResource) -> (cm: ConfigMap)
     });
     config_map
 }
-
-pub fn init_pc() -> (res: u64)
-    ensures res as nat == 0,
-{ 0 }
-
-pub fn after_create_cm_pc() -> (res: u64)
-    ensures res as nat == 1,
-{ 1 }
-
-pub fn error_pc() -> (res: u64)
-    ensures res as nat == 2,
-{ 2 }
 
 }
