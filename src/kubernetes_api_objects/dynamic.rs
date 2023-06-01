@@ -78,6 +78,16 @@ impl DynamicObjectView {
             namespace: self.metadata.namespace.get_Some_0(),
         }
     }
+
+    pub open spec fn set_namespace(self, namespace: StringView) -> DynamicObjectView {
+        DynamicObjectView {
+            metadata: ObjectMetaView {
+                namespace: Option::Some(namespace),
+                ..self.metadata
+            },
+            ..self
+        }
+    }
 }
 
 }

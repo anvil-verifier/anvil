@@ -42,6 +42,7 @@ pub struct ListRequest {
 /// CreateRequest creates the obj.
 
 pub struct CreateRequest {
+    pub namespace: StringView,
     pub obj: DynamicObjectView,
 }
 
@@ -90,6 +91,7 @@ pub struct KubeListRequest {
 
 pub struct KubeCreateRequest {
     pub api_resource: ApiResource,
+    pub namespace: String,
     pub obj: DynamicObject,
 }
 
@@ -116,6 +118,7 @@ impl KubeAPIRequest {
                 namespace: list_req.namespace@,
             }),
             KubeAPIRequest::CreateRequest(create_req) => APIRequest::CreateRequest(CreateRequest {
+                namespace: create_req.namespace@,
                 obj: create_req.obj@,
             }),
             KubeAPIRequest::DeleteRequest(delete_req) => APIRequest::DeleteRequest(DeleteRequest {

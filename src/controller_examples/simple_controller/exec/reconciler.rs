@@ -106,6 +106,7 @@ pub fn reconcile_core(cr: &CustomResource, resp_o: Option<KubeAPIResponse>, stat
         let req_o = Option::Some(KubeAPIRequest::CreateRequest(
             KubeCreateRequest {
                 api_resource: ConfigMap::api_resource(),
+                namespace: cr.metadata().namespace().unwrap(),
                 obj: config_map.to_dynamic_object(),
             }
         ));
@@ -126,7 +127,6 @@ pub fn make_configmap(cr: &CustomResource) -> (cm: ConfigMap)
     config_map.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(cr.metadata().name().unwrap().clone().concat(new_strlit("-cm")));
-        metadata.set_namespace(cr.metadata().namespace().unwrap().clone());
         metadata
     });
     config_map.set_data({

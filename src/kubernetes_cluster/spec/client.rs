@@ -41,7 +41,7 @@ pub open spec fn send_create_cr<K: ResourceView>() -> ClientAction<K> {
             &&& input.recv.is_None()
         },
         transition: |input: ClientActionInput<K>, s: ClientState| {
-            (ClientState{}, (Multiset::singleton(client_req_msg(create_req_msg_content(input.cr.to_dynamic_object(), input.chan_manager.allocate().1))), input.chan_manager.allocate().0))
+            (ClientState{}, (Multiset::singleton(client_req_msg(create_req_msg_content(input.cr.metadata().namespace.get_Some_0(), input.cr.to_dynamic_object(), input.chan_manager.allocate().1))), input.chan_manager.allocate().0))
         },
     }
 }

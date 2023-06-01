@@ -265,8 +265,9 @@ pub open spec fn list_req_msg_content(kind: Kind, namespace: StringView, req_id:
     }), req_id)
 }
 
-pub open spec fn create_req_msg_content(obj: DynamicObjectView, req_id: nat) -> MessageContent {
+pub open spec fn create_req_msg_content(namespace: StringView, obj: DynamicObjectView, req_id: nat) -> MessageContent {
     MessageContent::APIRequest(APIRequest::CreateRequest(CreateRequest{
+        namespace: namespace,
         obj: obj,
     }), req_id)
 }
