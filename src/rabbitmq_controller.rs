@@ -16,6 +16,7 @@ use builtin::*;
 use builtin_macros::*;
 
 use crate::rabbitmq_controller::exec::reconciler::{RabbitmqReconcileState, RabbitmqReconciler};
+use crate::rabbitmq_controller::spec::rabbitmqcluster::RabbitmqCluster;
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
@@ -36,7 +37,7 @@ async fn main() -> Result<()> {
         println!("{}", serde_yaml::to_string(&deps_hack::RabbitmqCluster::crd())?);
     } else if cmd == String::from("run") {
         println!("running rabbitmq-controller");
-        run_controller::<deps_hack::RabbitmqCluster, RabbitmqReconciler, RabbitmqReconcileState>().await?;
+        run_controller::<deps_hack::RabbitmqCluster, RabbitmqCluster, RabbitmqReconciler, RabbitmqReconcileState>().await?;
         println!("controller terminated");
     } else {
         println!("wrong command; please use \"export\" or \"run\"");

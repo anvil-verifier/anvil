@@ -89,6 +89,20 @@ impl RabbitmqCluster {
     }
 }
 
+impl ResourceWrapper<deps_hack::RabbitmqCluster> for RabbitmqCluster {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::RabbitmqCluster) -> RabbitmqCluster {
+        RabbitmqCluster {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::RabbitmqCluster {
+        self.inner
+    }
+}
+
 impl RabbitmqClusterView {
     pub open spec fn name(self) -> Option<StringView> {
         self.metadata.name

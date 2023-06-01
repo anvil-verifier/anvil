@@ -9,7 +9,6 @@ verus! {
 #[is_variant]
 pub enum RabbitmqReconcileStep {
     Init,
-    AfterGetRabbitmq,
     AfterCreateHeadlessService,
     AfterCreateService,
     AfterCreateErlangCookieSecret,

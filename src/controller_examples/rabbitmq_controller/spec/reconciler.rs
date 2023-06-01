@@ -22,14 +22,11 @@ verus! {
 
 pub struct RabbitmqReconcileState {
     pub reconcile_step: RabbitmqReconcileStep,
-
-    pub rabbitmq: Option<RabbitmqClusterView>,
 }
 
 pub open spec fn reconcile_init_state() -> RabbitmqReconcileState {
     RabbitmqReconcileState {
         reconcile_step: RabbitmqReconcileStep::Init,
-        rabbitmq: Option::None,
     }
 }
 
@@ -47,71 +44,78 @@ pub open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool {
     }
 }
 
-pub open spec fn reconcile_core(rabbitmq_ref: ObjectRef, resp_o: Option<APIResponse>, state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<APIRequest>)
+pub open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<APIResponse>, state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<APIRequest>)
     recommends
-        rabbitmq_ref.kind.is_CustomResourceKind(),
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
 {
     let step = state.reconcile_step;
     match step{
         RabbitmqReconcileStep::Init => {
+            let headless_service = make_headless_service(rabbitmq);
+            let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                obj: headless_service.to_dynamic_object(),
+            }));
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterGetRabbitmq,
+                reconcile_step: RabbitmqReconcileStep::AfterCreateHeadlessService,
                 ..state
             };
-            let req_o =  Option::Some(APIRequest::GetRequest(GetRequest{key: rabbitmq_ref}));
             (state_prime, req_o)
         },
-        RabbitmqReconcileStep::AfterGetRabbitmq => {
-            let resp = resp_o.get_Some_0();
-            let rabbitmq = RabbitmqClusterView::from_dynamic_object(resp.get_GetResponse_0().res.get_Ok_0());
-            if !resp_o.is_Some()
-                || !(resp.is_GetResponse() && resp.get_GetResponse_0().res.is_Ok())
-                || !(rabbitmq.metadata.name.is_Some() && rabbitmq.metadata.namespace.is_Some()) {
-                reconcile_error_result(state)
-            } else {
-                let headless_service = make_headless_service(rabbitmq);
-                let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
-                    obj: headless_service.to_dynamic_object(),
-                }));
-                let state_prime = RabbitmqReconcileState {
-                    reconcile_step: RabbitmqReconcileStep::AfterCreateHeadlessService,
-                    rabbitmq: Option::Some(rabbitmq),
-                    ..state
-                };
-                (state_prime, req_o)
-            }
-        },
         RabbitmqReconcileStep::AfterCreateHeadlessService => {
-            let rabbitmq = state.rabbitmq.get_Some_0();
-            if !state.rabbitmq.is_Some() || !(rabbitmq.metadata.name.is_Some() && rabbitmq.metadata.namespace.is_Some()) {
-                reconcile_error_result(state)
-            } else {
-                let main_service = make_main_service(rabbitmq);
-                let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
-                    obj: main_service.to_dynamic_object(),
-                }));
-                let state_prime = RabbitmqReconcileState {
-                    reconcile_step: RabbitmqReconcileStep::AfterCreateService,
-                    ..state
-                };
-                (state_prime, req_o)
-            }
+            let main_service = make_main_service(rabbitmq);
+            let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                obj: main_service.to_dynamic_object(),
+            }));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateService,
+                ..state
+            };
+            (state_prime, req_o)
         },
         RabbitmqReconcileStep::AfterCreateService => {
-            let rabbitmq = state.rabbitmq.get_Some_0();
-            if !state.rabbitmq.is_Some() || !(rabbitmq.metadata.name.is_Some() && rabbitmq.metadata.namespace.is_Some()) {
-                reconcile_error_result(state)
-            } else {
-                let erlang_secret = make_erlang_secret(rabbitmq);
-                let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
-                    obj: erlang_secret.to_dynamic_object(),
-                }));
-                let state_prime = RabbitmqReconcileState {
-                    reconcile_step: RabbitmqReconcileStep::AfterCreateErlangCookieSecret,
-                    ..state
-                };
-                (state_prime, req_o)
-            }
+            let erlang_secret = make_erlang_secret(rabbitmq);
+            let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                obj: erlang_secret.to_dynamic_object(),
+            }));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateErlangCookieSecret,
+                ..state
+            };
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterCreateErlangCookieSecret => {
+            let default_user_secret = make_default_user_secret(rabbitmq);
+            let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                obj: default_user_secret.to_dynamic_object(),
+            }));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateDefaultUserSecret,
+                ..state
+            };
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterCreateDefaultUserSecret => {
+            let plugins_config_map = make_plugins_config_map(rabbitmq);
+            let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                obj: plugins_config_map.to_dynamic_object(),
+            }));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreatePluginsConfigMap,
+                ..state
+            };
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterCreatePluginsConfigMap => {
+            let server_config_map = make_server_config_map(rabbitmq);
+            let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                obj: server_config_map.to_dynamic_object(),
+            }));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateServerConfigMap,
+                ..state
+            };
+            (state_prime, req_o)
         },
         _ => {
             let state_prime = RabbitmqReconcileState {
@@ -240,6 +244,57 @@ pub open spec fn make_secret(
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
         ).set_data(data)
+}
+
+
+pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> ConfigMapView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ConfigMapView::default()
+        .set_metadata(ObjectMetaView::default()
+            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-plugins-conf")@)
+            .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
+            .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+        )
+        .set_data(Map::empty()
+            .insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_management].")@)
+        )
+}
+
+pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> ConfigMapView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ConfigMapView::default()
+        .set_metadata(ObjectMetaView::default()
+            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server-conf")@)
+            .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
+            .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+        )
+        .set_data(Map::empty()
+            .insert(new_strlit("operatorDefaults.conf")@, default_rbmq_config(rabbitmq))
+            .insert(new_strlit("userDefineConfiguration.conf")@, new_strlit("total_memory_available_override_value = 1717986919\n")@)
+        )
+}
+
+pub open spec fn default_rbmq_config(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let name = rabbitmq.metadata.name.get_Some_0();
+
+    new_strlit(
+        "queue_master_locator = min-masters\n\
+        disk_free_limit.absolute = 2GB\n\
+        cluster_partition_handling = pause_minority\n\
+        cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s\n\
+        cluster_formation.k8s.host = kubernetes.default\n\
+        cluster_formation.k8s.address_type = hostname\n"
+    )@ + new_strlit("cluster_formation.target_cluster_size_hint = {}\n")@ + int_to_string_view(rabbitmq.spec.replica) + new_strlit("cluster_name = {}\n")@ + name
 }
 
 }
