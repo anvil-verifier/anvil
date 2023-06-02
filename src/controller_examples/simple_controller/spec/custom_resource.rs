@@ -62,10 +62,23 @@ impl CustomResource {
         todo!()
     }
 
+
+    // NOTE: This function assumes serde_json::to_string won't fail!
+    #[verifier(external_body)]
+    fn to_dynamic_object(self) -> (obj: DynamicObject)
+        ensures
+            obj@ == self@.to_dynamic_object(),
+    {
+        // TODO: this might be unnecessarily slow
+        DynamicObject::from_kube(
+            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
+        )
+    }
+
     /// Convert a DynamicObject to a CustomResource
     // NOTE: This function assumes try_parse won't fail!
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (cr: CustomResource)
+    fn from_dynamic_object(obj: DynamicObject) -> (cr: CustomResource)
         ensures
             cr@ == CustomResourceView::from_dynamic_object(obj@),
     {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::object_meta::*;
+use crate::kubernetes_api_objects::resource::*;
 use vstd::prelude::*;
 
 use deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
@@ -24,20 +25,22 @@ impl ApiResource {
     pub spec fn view(&self) -> ApiResourceView;
 
     #[verifier(external)]
-    pub fn from_kube(inner: K8SApiResource) -> ApiResource {
+    pub fn as_kube_ref(&self) -> &K8SApiResource {
+        &self.inner
+    }
+}
+
+impl ResourceWrapper<K8SApiResource> for ApiResource {
+    #[verifier(external)]
+    fn from_kube(inner: K8SApiResource) -> ApiResource {
         ApiResource {
             inner: inner
         }
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> K8SApiResource {
+    fn into_kube(self) -> K8SApiResource {
         self.inner
-    }
-
-    #[verifier(external)]
-    pub fn as_kube_ref(&self) -> &K8SApiResource {
-        &self.inner
     }
 }
 

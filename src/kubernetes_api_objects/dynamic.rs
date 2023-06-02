@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
+use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -24,18 +25,6 @@ impl DynamicObject {
     pub spec fn view(&self) -> DynamicObjectView;
 
     #[verifier(external)]
-    pub fn from_kube(inner: K8SDynamicObject) -> DynamicObject {
-        DynamicObject {
-            inner: inner
-        }
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> K8SDynamicObject {
-        self.inner
-    }
-
-    #[verifier(external)]
     pub fn kube_metadata_ref(&self) -> &K8SObjectMeta {
         &self.inner.metadata
     }
@@ -54,6 +43,20 @@ impl DynamicObject {
             obj == self,
     {
         DynamicObject { inner: self.inner.clone() }
+    }
+}
+
+impl ResourceWrapper<K8SDynamicObject> for DynamicObject {
+    #[verifier(external)]
+    fn from_kube(inner: K8SDynamicObject) -> DynamicObject {
+        DynamicObject {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> K8SDynamicObject {
+        self.inner
     }
 }
 
