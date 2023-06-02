@@ -184,6 +184,7 @@ pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
         APIResponse::ListResponse(list_resp) => list_resp.res.is_Ok(),
         APIResponse::CreateResponse(create_resp) => create_resp.res.is_Ok(),
         APIResponse::DeleteResponse(delete_resp) => delete_resp.res.is_Ok(),
+        APIResponse::UpdateResponse(update_resp) => update_resp.res.is_Ok(),
     }
 }
 
@@ -198,7 +199,8 @@ pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -
         APIResponse::GetResponse(_) => req_msg.content.get_APIRequest_0().is_GetRequest(),
         APIResponse::ListResponse(_) => req_msg.content.get_APIRequest_0().is_ListRequest(),
         APIResponse::CreateResponse(_) => req_msg.content.get_APIRequest_0().is_CreateRequest(),
-        APIResponse::DeleteResponse(_) => req_msg.content.get_APIRequest_0().is_DeleteRequest()
+        APIResponse::DeleteResponse(_) => req_msg.content.get_APIRequest_0().is_DeleteRequest(),
+        APIResponse::UpdateResponse(_) => req_msg.content.get_APIRequest_0().is_UpdateRequest(),
     }
 }
 
