@@ -73,18 +73,6 @@ impl ConfigMap {
         self.inner.data = std::option::Option::Some(data.into_rust_map())
     }
 
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ConfigMap) -> ConfigMap {
-        ConfigMap {
-            inner: inner
-        }
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ConfigMap {
-        self.inner
-    }
-
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
@@ -109,6 +97,20 @@ impl ConfigMap {
             cm@ == ConfigMapView::from_dynamic_object(obj@),
     {
         ConfigMap {inner: obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::ConfigMap>().unwrap()}
+    }
+}
+
+impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::ConfigMap> for ConfigMap {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ConfigMap) -> ConfigMap {
+        ConfigMap {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ConfigMap {
+        self.inner
     }
 }
 
