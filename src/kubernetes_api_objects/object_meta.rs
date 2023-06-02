@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::marshal::*;
+use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_map::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -92,13 +93,17 @@ impl ObjectMeta {
         self.inner.labels = std::option::Option::Some(labels.into_rust_map());
     }
 
+
+}
+
+impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta> for ObjectMeta {
     #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta) -> ObjectMeta {
+    fn from_kube(inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta) -> ObjectMeta {
         ObjectMeta { inner: inner }
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
+    fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
         self.inner
     }
 }
@@ -193,27 +198,40 @@ impl Marshalable for ObjectMetaView {
         )
     }
 
-    open spec fn unmarshal(value: Value) -> Self {
-        ObjectMetaView {
-            name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
-            },
-            namespace: if value.get_Object_0()[Self::namespace_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::namespace_field()].get_String_0())
-            },
-            generate_name: if value.get_Object_0()[Self::generate_name_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::generate_name_field()].get_String_0())
-            },
-            resource_version: if value.get_Object_0()[Self::resource_version_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::resource_version_field()].get_Nat_0())
-            },
-            uid: if value.get_Object_0()[Self::uid_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::uid_field()].get_String_0())
-            },
-            labels: if value.get_Object_0()[Self::labels_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::labels_field()].get_StringStringMap_0())
-            },
+    open spec fn unmarshal(value: Value) -> Result<Self, Error> {
+        if value.is_Object() {
+            let obj_value = value.get_Object_0();
+            if !((obj_value[Self::name_field()].is_Null() || obj_value[Self::name_field()].is_String())
+            && (obj_value[Self::namespace_field()].is_Null() || obj_value[Self::namespace_field()].is_String())
+            && (obj_value[Self::generate_name_field()].is_Null() || obj_value[Self::generate_name_field()].is_String())
+            && (obj_value[Self::resource_version_field()].is_Null() || obj_value[Self::resource_version_field()].is_Nat())
+            && (obj_value[Self::uid_field()].is_Null() || obj_value[Self::uid_field()].is_String())
+            && (obj_value[Self::labels_field()].is_Null() || obj_value[Self::labels_field()].is_Null().is_StringStringMap())) {
+                return Result::Err(Error::TypeError);
+            }
+            let res = ObjectMetaView {
+                name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {
+                    Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
+                },
+                namespace: if value.get_Object_0()[Self::namespace_field()].is_Null() { Option::None } else {
+                    Option::Some(value.get_Object_0()[Self::namespace_field()].get_String_0())
+                },
+                generate_name: if value.get_Object_0()[Self::generate_name_field()].is_Null() { Option::None } else {
+                    Option::Some(value.get_Object_0()[Self::generate_name_field()].get_String_0())
+                },
+                resource_version: if value.get_Object_0()[Self::resource_version_field()].is_Null() { Option::None } else {
+                    Option::Some(value.get_Object_0()[Self::resource_version_field()].get_Nat_0())
+                },
+                uid: if value.get_Object_0()[Self::uid_field()].is_Null() { Option::None } else {
+                    Option::Some(value.get_Object_0()[Self::uid_field()].get_String_0())
+                },
+                labels: if value.get_Object_0()[Self::labels_field()].is_Null() { Option::None } else {
+                    Option::Some(value.get_Object_0()[Self::labels_field()].get_StringStringMap_0())
+                },
+            };
+            return Result::Ok(res);
         }
+        return Result::Err(Error::TypeError);
     }
 
     proof fn marshal_preserves_integrity() {}
