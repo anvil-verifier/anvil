@@ -175,6 +175,14 @@ impl StatefulSetSpec {
         )
     }
 
+    #[verifier(external_body)]
+    pub fn set_pod_management_policy(&mut self, pod_management_policy: String)
+        ensures
+            self@ == old(self)@.set_pod_management_policy(pod_management_policy@),
+    {
+        self.inner.pod_management_policy = std::option::Option::Some(pod_management_policy.into_rust_string())
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec {
         self.inner
@@ -262,6 +270,7 @@ pub struct StatefulSetSpecView {
     pub service_name: StringView,
     pub template: PodTemplateSpecView,
     pub volume_claim_templates: Option<Seq<PersistentVolumeClaimView>>,
+    pub pod_management_policy: Option<StringView>,
 }
 
 impl StatefulSetSpecView {
@@ -272,6 +281,7 @@ impl StatefulSetSpecView {
             service_name: new_strlit("")@,
             template: PodTemplateSpecView::default(),
             volume_claim_templates: Option::None,
+            pod_management_policy: Option::None,
         }
     }
 
@@ -310,6 +320,13 @@ impl StatefulSetSpecView {
         }
     }
 
+    pub open spec fn set_pod_management_policy(self, pod_management_policy: StringView) -> StatefulSetSpecView {
+        StatefulSetSpecView {
+            pod_management_policy: Option::Some(pod_management_policy),
+            ..self
+        }
+    }
+
     pub open spec fn replicas_field() -> nat {0}
 
     pub open spec fn selector_field() -> nat {1}
@@ -319,6 +336,8 @@ impl StatefulSetSpecView {
     pub open spec fn template_field() -> nat {3}
 
     pub open spec fn volume_claim_templates_field() -> nat {4}
+
+    pub open spec fn pod_management_policy_field() -> nat {5}
 }
 
 impl Marshalable for StatefulSetSpecView {
@@ -334,6 +353,9 @@ impl Marshalable for StatefulSetSpecView {
                 .insert(Self::volume_claim_templates_field(), if self.volume_claim_templates.is_None() { Value::Null } else {
                     Value::Array(self.volume_claim_templates.get_Some_0().map_values(|pvc: PersistentVolumeClaimView| pvc.marshal()))
                 })
+                .insert(Self::pod_management_policy_field(), if self.pod_management_policy.is_None() { Value::Null } else {
+                    Value::String(self.pod_management_policy.get_Some_0())
+                })
         )
     }
 
@@ -347,6 +369,9 @@ impl Marshalable for StatefulSetSpecView {
             template: PodTemplateSpecView::unmarshal(value.get_Object_0()[Self::template_field()]),
             volume_claim_templates: if value.get_Object_0()[Self::volume_claim_templates_field()].is_Null() { Option::None } else {
                 Option::Some(value.get_Object_0()[Self::volume_claim_templates_field()].get_Array_0().map_values(|v| PersistentVolumeClaimView::unmarshal(v)))
+            },
+            pod_management_policy: if value.get_Object_0()[Self::pod_management_policy_field()].is_Null() { Option::None } else {
+                Option::Some(value.get_Object_0()[Self::pod_management_policy_field()].get_String_0())
             },
         }
     }

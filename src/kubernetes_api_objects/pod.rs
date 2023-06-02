@@ -360,6 +360,14 @@ impl VolumeMount {
         self.inner.name = name.into_rust_string();
     }
 
+    #[verifier(external_body)]
+    pub fn set_sub_path(&mut self, sub_path: String)
+        ensures
+            self@ == old(self)@.set_sub_path(sub_path@),
+    {
+        self.inner.sub_path = std::option::Option::Some(sub_path.into_rust_string());
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::VolumeMount {
         self.inner
@@ -1109,6 +1117,7 @@ impl Marshalable for ContainerPortView {
 pub struct VolumeMountView {
     pub mount_path: StringView,
     pub name: StringView,
+    pub sub_path: Option<StringView>,
 }
 
 impl VolumeMountView {
@@ -1116,6 +1125,7 @@ impl VolumeMountView {
         VolumeMountView {
             mount_path: new_strlit("")@,
             name: new_strlit("")@,
+            sub_path: Option::None,
         }
     }
 
@@ -1133,9 +1143,18 @@ impl VolumeMountView {
         }
     }
 
+    pub open spec fn set_sub_path(self, sub_path: StringView) -> VolumeMountView {
+        VolumeMountView {
+            sub_path: Option::Some(sub_path),
+            ..self
+        }
+    }
+
     pub open spec fn mount_path_field() -> nat {0}
 
     pub open spec fn name_field() -> nat {1}
+
+    pub open spec fn sub_path_field() -> nat {2}
 }
 
 impl Marshalable for VolumeMountView {
@@ -1144,6 +1163,9 @@ impl Marshalable for VolumeMountView {
             Map::empty()
                 .insert(Self::mount_path_field(), Value::String(self.mount_path))
                 .insert(Self::name_field(), Value::String(self.name))
+                .insert(Self::sub_path_field(), if self.sub_path.is_None() { Value::Null } else {
+                    Value::String(self.sub_path.get_Some_0())
+                })
         )
     }
 
@@ -1151,6 +1173,9 @@ impl Marshalable for VolumeMountView {
         VolumeMountView {
             mount_path: value.get_Object_0()[Self::mount_path_field()].get_String_0(),
             name: value.get_Object_0()[Self::name_field()].get_String_0(),
+            sub_path: if value.get_Object_0()[Self::sub_path_field()].is_Null() { Option::None } else {
+                Option::Some(value.get_Object_0()[Self::sub_path_field()].get_String_0())
+            },
         }
     }
 
