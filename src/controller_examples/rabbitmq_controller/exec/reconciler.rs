@@ -685,21 +685,6 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
             });
             selector
         });
-        // Set the template used for creating pods
-        stateful_set_spec.set_template({
-            let mut pod_template_spec = PodTemplateSpec::default();
-            pod_template_spec.set_metadata({
-                let mut metadata = ObjectMeta::default();
-                metadata.set_labels({
-                    let mut labels = StringMap::empty();
-                    labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-                    labels
-                });
-                metadata
-            });
-            // pod_template_spec.set_spec(make_rabbitmq_pod_spec(rabbitmq));
-            pod_template_spec
-        });
         // Set the templates used for creating the persistent volume claims attached to each pod
         stateful_set_spec.set_volume_claim_templates({ // TODO: Add PodManagementPolicy
             let mut volume_claim_templates = Vec::empty();
@@ -745,8 +730,24 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
                     rabbitmq_spec::make_stateful_set(rabbitmq@).spec.get_Some_0().volume_claim_templates.get_Some_0()
                 );
             }
-
             volume_claim_templates
+        });
+        // Set management policy
+        stateful_set_spec.set_pod_management_policy(new_strlit("Parallel").to_string());
+        // Set the template used for creating pods
+        stateful_set_spec.set_template({
+            let mut pod_template_spec = PodTemplateSpec::default();
+            pod_template_spec.set_metadata({
+                let mut metadata = ObjectMeta::default();
+                metadata.set_labels({
+                    let mut labels = StringMap::empty();
+                    labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+                    labels
+                });
+                metadata
+            });
+            pod_template_spec.set_spec(make_rabbitmq_pod_spec(rabbitmq));
+            pod_template_spec
         });
         stateful_set_spec
     });
@@ -761,51 +762,154 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     ensures
         // pod_spec@ == rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@),
 {
-    // let mut volumes = Vec::empty();
-    // volumes.push({
-    //     let mut volume = Volume::default();
-    //     volume.set_name(new_strlit("plugins-conf").to_string());
-    //     volume.set_config_map({
-    //         let mut config_map = ConfigMapVolumeSource::default();
-    //         config_map.set_name(rabbitmq.name().unwrap().concat(new_strlit("-plugins-conf")));
-    //         config_map
-    //     });
-    //     volume
-    // }).push({
-    //     let mut volume = Volume::default();
-    //     volume.set_name(new_strlit("rabbitmq-confd").to_string());
-    //     volume.set_config_map({
-    //         let mut config_map = ConfigMapVolumeSource::default();
-    //         config_map.set_name(rabbitmq.name().unwrap().concat(new_strlit("-configmap")));
-    //         config_map
-    //     });
-    //     volume
-    // }).push({
-    //     let mut volume = Volume::default();
-    //     volume.set_name(new_strlit("conf").to_string());
-    //     volume.set_config_map({
-    //         let mut config_map = ConfigMapVolumeSource::default();
-    //         config_map.set_name(rabbitmq.name().unwrap().concat(new_strlit("-configmap")));
-    //         config_map
-    //     });
-    //     volume
-    // }).push({
-    //     let mut volume = Volume::default();
-    //     volume.set_name(new_strlit("conf").to_string());
-    //     volume.set_config_map({
-    //         let mut config_map = ConfigMapVolumeSource::default();
-    //         config_map.set_name(rabbitmq.name().unwrap().concat(new_strlit("-configmap")));
-    //         config_map
-    //     });
-    //     volume
-    // });
+    let readiness_probe_port = new_strlit("amqp").to_string();
+    let mut volumes = Vec::empty();
+    volumes.push({
+        let mut volume = Volume::default();
+        volume.set_name(new_strlit("plugins-conf").to_string());
+        volume.set_config_map({
+            let mut config_map = ConfigMapVolumeSource::default();
+            config_map.set_name(rabbitmq.name().unwrap().concat(new_strlit("-plugins-conf")));
+            config_map
+        });
+        volume
+    });
+    volumes.push({
+        let mut volume = Volume::default();
+        volume.set_name(new_strlit("rabbitmq-confd").to_string());
+        volume.set_projected({
+            let mut projected = ProjectedVolumeSource::default();
+            projected.set_sources({
+                let mut sources = Vec::empty();
+                sources.push({
+                    let mut volume_projection = VolumeProjection::default();
+                    volume_projection.set_config_map({
+                        let mut config_map = ConfigMapProjection::default();
+                        config_map.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server-conf")));
+                        config_map.set_items({
+                            let mut items = Vec::empty();
+                            items.push({
+                                let mut key_to_path = KeyToPath::default();
+                                key_to_path.set_key(new_strlit("operatorDefaults.conf").to_string());
+                                key_to_path.set_path(new_strlit("operatorDefaults.conf").to_string());
+                                key_to_path
+                            });
+                            items.push({
+                                let mut key_to_path = KeyToPath::default();
+                                key_to_path.set_key(new_strlit("userDefineConfiguration.conf").to_string());
+                                key_to_path.set_path(new_strlit("userDefineConfiguration.conf").to_string());
+                                key_to_path
+                            });
+                            proof {
+                                assert_seqs_equal!(
+                                    items@.map_values(|item: KeyToPath| item@),
+                                    rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).volumes.get_Some_0()[1].projected.get_Some_0()
+                                    .sources.get_Some_0()[0].config_map.get_Some_0().items.get_Some_0()
+                                );
+                            }
+                            items
+                        });
+                        config_map
+                    });
+                    volume_projection
+                });
+                sources.push({
+                    let mut volume_projection = VolumeProjection::default();
+                    volume_projection.set_secret({
+                        let mut secret = SecretProjection::default();
+                        secret.set_name(rabbitmq.name().unwrap().concat(new_strlit("-default-user")));
+                        secret.set_items({
+                            let mut items = Vec::empty();
+                            items.push({
+                                let mut key_to_path = KeyToPath::default();
+                                key_to_path.set_key(new_strlit("default_user.conf").to_string());
+                                key_to_path.set_path(new_strlit("default_user.conf").to_string());
+                                key_to_path
+                            });
+                            proof {
+                                assert_seqs_equal!(
+                                    items@.map_values(|item: KeyToPath| item@),
+                                    rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).volumes.get_Some_0()[1].projected.get_Some_0()
+                                    .sources.get_Some_0()[1].secret.get_Some_0().items.get_Some_0()
+                                );
+                            }
+                            items
+                        });
+                        secret
+                    });
+                    volume_projection
+                });
+                proof {
+                    assert_seqs_equal!(
+                        sources@.map_values(|source: VolumeProjection| source@),
+                        rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).volumes.get_Some_0()[1].projected.get_Some_0()
+                        .sources.get_Some_0()
+                    );
+                }
+                sources
+            });
+            projected
+        });
+        volume
+    });
+    volumes.push({
+        let mut volume = Volume::default();
+        volume.set_name(new_strlit("rabbitmq-erlang-cookie").to_string());
+        volume.set_empty_dir();
+        volume
+    });
+    volumes.push({
+        let mut volume = Volume::default();
+        volume.set_name(new_strlit("erlang-cookie-secret").to_string());
+        volume.set_secret({
+            let mut secret = SecretVolumeSource::default();
+            secret.set_secret_name(rabbitmq.name().unwrap().concat(new_strlit("-erlang-cookie")));
+            secret
+        });
+        volume
+    });
+    volumes.push({
+        let mut volume = Volume::default();
+        volume.set_name(new_strlit("rabbitmq-plugins").to_string());
+        volume.set_empty_dir();
+        volume
+    });
+    volumes.push({
+        let mut volume = Volume::default();
+        volume.set_name(new_strlit("pod-info").to_string());
+        volume.set_downward_api({
+            let mut downward_api = DownwardAPIVolumeSource::default();
+            downward_api.set_items({
+                let mut items = Vec::empty();
+                items.push({
+                    let mut downward_api_volume_file = DownwardAPIVolumeFile::default();
+                    downward_api_volume_file.set_path(new_strlit("skipPreStopChecks").to_string());
+                    downward_api_volume_file.set_field_ref({
+                        let mut object_field_selector = ObjectFieldSelector::default();
+                        object_field_selector.set_field_path(new_strlit("metadata.labels['skipPreStopChecks']").to_string());
+                        object_field_selector
+                    });
+                    downward_api_volume_file
+                });
+                proof {
+                    assert_seqs_equal!(
+                        items@.map_values(|item: DownwardAPIVolumeFile| item@),
+                        rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).volumes.get_Some_0()[5].downward_api.get_Some_0().items.get_Some_0()
+                    );
+                }
+                items
+            });
+            downward_api
+        });
+        volume
+    });
 
-    // proof {
-    //     assert_seqs_equal!(
-    //         volumes@.map_values(|vol: Volume| vol@),
-    //         rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).volumes.get_Some_0()
-    //     );
-    // }
+    proof {
+        assert_seqs_equal!(
+            volumes@.map_values(|vol: Volume| vol@),
+            rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).volumes.get_Some_0()
+        );
+    }
 
 
 

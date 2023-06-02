@@ -381,7 +381,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView) -> StatefulSet
                         .insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0())
                 )
             )
-            // .set_spec(make_rabbitmq_pod_spec(rabbitmq))
+            .set_spec(make_rabbitmq_pod_spec(rabbitmq))
         )
         .set_volume_claim_templates(seq![
             PersistentVolumeClaimView::default()
@@ -393,12 +393,96 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView) -> StatefulSet
                 .set_spec(PersistentVolumeClaimSpecView::default()
                     .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
                 )
-        ]);
+        ])
+        .set_pod_management_policy(new_strlit("Parallel")@);
 
     StatefulSetView::default().set_metadata(metadata).set_spec(spec)
 }
 
 
+pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpecView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let volumes = seq![
+        VolumeView::default()
+            .set_name(new_strlit("plugins-conf")@)
+            .set_config_map(ConfigMapVolumeSourceView::default()
+                .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-plugins-conf")@)
+            ),
+        VolumeView::default()
+            .set_name(new_strlit("rabbitmq-confd")@)
+            .set_projected(ProjectedVolumeSourceView::default()
+                .set_sources(seq![
+                    VolumeProjectionView::default()
+                        .set_config_map(ConfigMapProjectionView::default()
+                            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server-conf")@)
+                            .set_items(seq![
+                                KeyToPathView::default()
+                                    .set_key(new_strlit("operatorDefaults.conf")@)
+                                    .set_path(new_strlit("operatorDefaults.conf")@),
+                                KeyToPathView::default()
+                                    .set_key(new_strlit("userDefineConfiguration.conf")@)
+                                    .set_path(new_strlit("userDefineConfiguration.conf")@),
+                            ])
+                        ),
+                    VolumeProjectionView::default()
+                        .set_secret(SecretProjectionView::default()
+                            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-default-user")@)
+                            .set_items(seq![
+                                KeyToPathView::default()
+                                    .set_key(new_strlit("default_user.conf")@)
+                                    .set_path(new_strlit("default_user.conf")@),
+                            ])
+                        ),
+                ])
+            ),
+        VolumeView::default()
+            .set_name(new_strlit("rabbitmq-erlang-cookie")@),
+        VolumeView::default()
+            .set_name(new_strlit("erlang-cookie-secret")@)
+            .set_secret(SecretVolumeSourceView::default()
+                .set_secret_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-erlang-cookie")@)
+            ),
+        VolumeView::default()
+            .set_name(new_strlit("rabbitmq-plugins")@),
+        VolumeView::default()
+            .set_name(new_strlit("pod-info")@)
+            .set_downward_api(DownwardAPIVolumeSourceView::default()
+                .set_items(seq![
+                    DownwardAPIVolumeFileView::default()
+                        .set_path(new_strlit("skipPreStopChecks")@)
+                        .set_field_ref(ObjectFieldSelectorView::default()
+                            .set_field_path(new_strlit("metadata.labels['skipPreStopChecks']")@)
+                        ),
+                ])
+            ),
+    ];
+
+    PodSpecView::default()
+        .set_containers(seq![
+            ContainerView::default()
+                .set_name(new_strlit("rabbitmq")@)
+                .set_image(new_strlit("rabbitmq:3.11.10-management")@)
+                // .set_volume_mounts(seq![
+                //     VolumeMountView::default()
+                //         .set_name(new_strlit("data")@)
+                //         .set_mount_path(new_strlit("/data")@),
+                //     VolumeMountView::default()
+                //         .set_name(new_strlit("conf")@)
+                //         .set_mount_path(new_strlit("/conf")@),
+                // ])
+                // .set_ports(seq![
+                //     ContainerPortView::default().set_name(new_strlit("client")@).set_container_port(2181),
+                //     ContainerPortView::default().set_name(new_strlit("quorum")@).set_container_port(2888),
+                //     ContainerPortView::default().set_name(new_strlit("leader-election")@).set_container_port(3888),
+                //     ContainerPortView::default().set_name(new_strlit("metrics")@).set_container_port(7000),
+                //     ContainerPortView::default().set_name(new_strlit("admin-server")@).set_container_port(8080)
+                // ])
+        ])
+        .set_volumes(volumes)
+}
 
 
 
