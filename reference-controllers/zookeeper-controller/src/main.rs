@@ -205,6 +205,8 @@ async fn reconcile_stateful_set(zk: &ZookeeperCluster, client: Client) -> Result
 async fn reconcile_zk_node(zk: &ZookeeperCluster, client: Client) -> Result<(), Error> {
     // Another way to remove a zk member: pod exec the following
     // java -Dlog4j.configuration=file:/conf/log4j-quiet.properties -jar /opt/libs/zu.jar remove zookeeper-client:2181 id_to_remove
+    // or
+    // ./zkCli.sh reconfig -remove 2,3
     let sts_api = Api::<appsv1::StatefulSet>::namespaced(
         client.clone(),
         zk.metadata.namespace.as_ref().unwrap(),
