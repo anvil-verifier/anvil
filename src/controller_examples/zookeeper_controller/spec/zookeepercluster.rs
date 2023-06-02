@@ -60,20 +60,6 @@ impl ZookeeperCluster {
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::ZookeeperCluster>(&()))
     }
-}
-
-impl ResourceWrapper<deps_hack::ZookeeperCluster> for ZookeeperCluster {
-    #[verifier(external)]
-    fn from_kube(inner: deps_hack::ZookeeperCluster) -> ZookeeperCluster {
-        ZookeeperCluster {
-            inner: inner
-        }
-    }
-
-    #[verifier(external)]
-    fn into_kube(self) -> deps_hack::ZookeeperCluster {
-        self.inner
-    }
 
     // NOTE: This function assumes serde_json::to_string won't fail!
     #[verifier(external_body)]
@@ -95,6 +81,20 @@ impl ResourceWrapper<deps_hack::ZookeeperCluster> for ZookeeperCluster {
             zk@ == ZookeeperClusterView::from_dynamic_object(obj@),
     {
         ZookeeperCluster { inner: obj.into_kube().try_parse::<deps_hack::ZookeeperCluster>().unwrap() }
+    }
+}
+
+impl ResourceWrapper<deps_hack::ZookeeperCluster> for ZookeeperCluster {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::ZookeeperCluster) -> ZookeeperCluster {
+        ZookeeperCluster {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::ZookeeperCluster {
+        self.inner
     }
 }
 
