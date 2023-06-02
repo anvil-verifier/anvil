@@ -570,6 +570,7 @@ impl Marshalable for PodSpecView {
             ContainerView::marshal_preserves_integrity();
             assert_seqs_equal!(o.containers, Self::unmarshal(o.marshal()).containers);
             if o.volumes.is_Some() {
+                VolumeView::marshal_preserves_integrity();
                 assert_seqs_equal!(o.volumes.get_Some_0(), Self::unmarshal(o.marshal()).volumes.get_Some_0());
             }
         }
@@ -783,6 +784,7 @@ impl Marshalable for VolumeMountView {
 pub struct VolumeView {
     pub config_map: Option<ConfigMapVolumeSourceView>,
     pub name: StringView,
+    pub projected: Option<ProjectedVolumeSourceView>,
 }
 
 impl VolumeView {
@@ -790,6 +792,7 @@ impl VolumeView {
         VolumeView {
             name: new_strlit("")@,
             config_map: Option::Some(ConfigMapVolumeSourceView::default()),
+            projected: Option::Some(ProjectedVolumeSourceView::default()),
         }
     }
 
@@ -807,9 +810,18 @@ impl VolumeView {
         }
     }
 
+    pub open spec fn set_projected(self, projected: ProjectedVolumeSourceView) -> VolumeView {
+        VolumeView {
+            projected: Option::Some(projected),
+            ..self
+        }
+    }
+
     pub open spec fn config_map_field() -> nat {0}
 
     pub open spec fn name_field() -> nat {1}
+
+    pub open spec fn projected_field() -> nat {2}
 }
 
 impl Marshalable for VolumeView {
@@ -820,6 +832,9 @@ impl Marshalable for VolumeView {
                     self.config_map.get_Some_0().marshal()
                 })
                 .insert(Self::name_field(), Value::String(self.name))
+                .insert(Self::projected_field(), if self.projected.is_None() { Value::Null } else {
+                    self.projected.get_Some_0().marshal()
+                })
         )
     }
 
@@ -829,10 +844,15 @@ impl Marshalable for VolumeView {
                 Option::Some(ConfigMapVolumeSourceView::unmarshal(value.get_Object_0()[Self::config_map_field()]))
             },
             name: value.get_Object_0()[Self::name_field()].get_String_0(),
+            projected: if value.get_Object_0()[Self::projected_field()].is_Null() { Option::None } else {
+                Option::Some(ProjectedVolumeSourceView::unmarshal(value.get_Object_0()[Self::projected_field()]))
+            },
         }
     }
 
-    proof fn marshal_preserves_integrity() {}
+    proof fn marshal_preserves_integrity() {
+        ProjectedVolumeSourceView::marshal_preserves_integrity();
+    }
 }
 
 pub struct ConfigMapVolumeSourceView {
@@ -871,6 +891,313 @@ impl Marshalable for ConfigMapVolumeSourceView {
             name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {
                 Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
             },
+        }
+    }
+
+    proof fn marshal_preserves_integrity() {}
+}
+
+pub struct ProjectedVolumeSourceView {
+    pub sources: Option<Seq<VolumeProjectionView>>,
+}
+
+impl ProjectedVolumeSourceView {
+    pub open spec fn default() -> ProjectedVolumeSourceView {
+        ProjectedVolumeSourceView {
+            sources: Option::None,
+        }
+    }
+
+    pub open spec fn set_sources(self, sources: Seq<VolumeProjectionView>) -> ProjectedVolumeSourceView {
+        ProjectedVolumeSourceView {
+            sources: Option::Some(sources),
+            ..self
+        }
+    }
+
+    pub open spec fn sources_field() -> nat {0}
+}
+
+impl Marshalable for ProjectedVolumeSourceView{
+    open spec fn marshal(self) -> Value {
+        Value::Object(
+            Map::empty()
+                .insert(Self::sources_field(), if self.sources.is_None() { Value::Null } else {
+                    Value::Array(self.sources.get_Some_0().map_values(|x: VolumeProjectionView| x.marshal()))
+                })
+        )
+    }
+
+    open spec fn unmarshal(value: Value) -> Self {
+        ProjectedVolumeSourceView {
+            sources: if value.get_Object_0()[Self::sources_field()].is_Null() { Option::None } else {
+                Option::Some(value.get_Object_0()[Self::sources_field()].get_Array_0().map_values(|x| VolumeProjectionView::unmarshal(x)))
+            },
+        }
+    }
+
+    proof fn marshal_preserves_integrity() {
+        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
+            if o.sources.is_Some() {
+                VolumeProjectionView::marshal_preserves_integrity();
+                assert_seqs_equal!(o.sources.get_Some_0(), Self::unmarshal(o.marshal()).sources.get_Some_0());
+            }
+        }
+    }
+}
+
+
+pub struct VolumeProjectionView {
+    pub config_map: Option<ConfigMapProjectionView>,
+    pub secret: Option<SecretProjectionView>,
+}
+
+impl VolumeProjectionView {
+    pub open spec fn default() -> VolumeProjectionView {
+        VolumeProjectionView {
+            config_map: Option::None,
+            secret: Option::None,
+        }
+    }
+
+    pub open spec fn set_config_map(self, config_map: ConfigMapProjectionView) -> VolumeProjectionView {
+        VolumeProjectionView {
+            config_map: Option::Some(config_map),
+            ..self
+        }
+    }
+
+    pub open spec fn set_secret(self, secret: SecretProjectionView) -> VolumeProjectionView {
+        VolumeProjectionView {
+            secret: Option::Some(secret),
+            ..self
+        }
+    }
+
+    pub open spec fn config_map_field() -> nat {0}
+
+    pub open spec fn secret_field() -> nat {1}
+}
+
+impl Marshalable for VolumeProjectionView {
+    open spec fn marshal(self) -> Value {
+        Value::Object(
+            Map::empty()
+                .insert(Self::config_map_field(), if self.config_map.is_None() { Value::Null } else {
+                    self.config_map.get_Some_0().marshal()
+                })
+                .insert(Self::secret_field(), if self.secret.is_None() { Value::Null } else {
+                    self.secret.get_Some_0().marshal()
+                })
+        )
+    }
+
+    open spec fn unmarshal(value: Value) -> Self {
+        VolumeProjectionView {
+            config_map: if value.get_Object_0()[Self::config_map_field()].is_Null() { Option::None } else {
+                Option::Some(ConfigMapProjectionView::unmarshal(value.get_Object_0()[Self::config_map_field()]))
+            },
+            secret: if value.get_Object_0()[Self::secret_field()].is_Null() { Option::None } else {
+                Option::Some(SecretProjectionView::unmarshal(value.get_Object_0()[Self::secret_field()]))
+            },
+        }
+    }
+
+    proof fn marshal_preserves_integrity() {
+        ConfigMapProjectionView::marshal_preserves_integrity();
+        SecretProjectionView::marshal_preserves_integrity();
+    }
+}
+
+
+
+
+
+pub struct ConfigMapProjectionView {
+    pub items: Option<Seq<KeyToPathView>>,
+    pub name: Option<StringView>
+}
+
+impl ConfigMapProjectionView {
+    pub open spec fn default() -> ConfigMapProjectionView {
+        ConfigMapProjectionView {
+            items: Option::None,
+            name: Option::None,
+        }
+    }
+
+    pub open spec fn set_items(self, items: Seq<KeyToPathView>) -> ConfigMapProjectionView {
+        ConfigMapProjectionView {
+            items: Option::Some(items),
+            ..self
+        }
+    }
+
+    pub open spec fn set_name(self, name: StringView) -> ConfigMapProjectionView {
+        ConfigMapProjectionView {
+            name: Option::Some(name),
+            ..self
+        }
+    }
+
+    pub open spec fn items_field() -> nat {0}
+
+    pub open spec fn name_field() -> nat {1}
+}
+
+impl Marshalable for ConfigMapProjectionView {
+    open spec fn marshal(self) -> Value {
+        Value::Object(
+            Map::empty()
+                .insert(Self::items_field(), if self.items.is_None() { Value::Null } else {
+                    Value::Array(self.items.get_Some_0().map_values(|x: KeyToPathView| x.marshal()))
+                })
+                .insert(Self::name_field(), if self.name.is_None() { Value::Null } else {
+                    Value::String(self.name.get_Some_0())
+                })
+        )
+    }
+
+    open spec fn unmarshal(value: Value) -> Self {
+        ConfigMapProjectionView {
+            items: if value.get_Object_0()[Self::items_field()].is_Null() { Option::None } else {
+                Option::Some(value.get_Object_0()[Self::items_field()].get_Array_0().map_values(|x| KeyToPathView::unmarshal(x)))
+            },
+            name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {
+                Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
+            },
+        }
+    }
+
+    proof fn marshal_preserves_integrity() {
+        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
+            if o.items.is_Some() {
+                assert_seqs_equal!(o.items.get_Some_0(), Self::unmarshal(o.marshal()).items.get_Some_0());
+            }
+        }
+    }
+}
+
+
+
+
+
+pub struct SecretProjectionView {
+    pub items: Option<Seq<KeyToPathView>>,
+    pub name: Option<StringView>
+}
+
+impl SecretProjectionView {
+    pub open spec fn default() -> SecretProjectionView {
+        SecretProjectionView {
+            items: Option::None,
+            name: Option::None,
+        }
+    }
+
+    pub open spec fn set_items(self, items: Seq<KeyToPathView>) -> SecretProjectionView {
+        SecretProjectionView {
+            items: Option::Some(items),
+            ..self
+        }
+    }
+
+    pub open spec fn set_name(self, name: StringView) -> SecretProjectionView {
+        SecretProjectionView {
+            name: Option::Some(name),
+            ..self
+        }
+    }
+
+    pub open spec fn items_field() -> nat {0}
+
+    pub open spec fn name_field() -> nat {1}
+}
+
+impl Marshalable for SecretProjectionView {
+    open spec fn marshal(self) -> Value {
+        Value::Object(
+            Map::empty()
+                .insert(Self::items_field(), if self.items.is_None() { Value::Null } else {
+                    Value::Array(self.items.get_Some_0().map_values(|x: KeyToPathView| x.marshal()))
+                })
+                .insert(Self::name_field(), if self.name.is_None() { Value::Null } else {
+                    Value::String(self.name.get_Some_0())
+                })
+        )
+    }
+
+    open spec fn unmarshal(value: Value) -> Self {
+        SecretProjectionView {
+            items: if value.get_Object_0()[Self::items_field()].is_Null() { Option::None } else {
+                Option::Some(value.get_Object_0()[Self::items_field()].get_Array_0().map_values(|x| KeyToPathView::unmarshal(x)))
+            },
+            name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {
+                Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
+            },
+        }
+    }
+
+    proof fn marshal_preserves_integrity() {
+        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
+            if o.items.is_Some() {
+                assert_seqs_equal!(o.items.get_Some_0(), Self::unmarshal(o.marshal()).items.get_Some_0());
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+pub struct KeyToPathView {
+    pub key: StringView,
+    pub path: StringView,
+}
+
+impl KeyToPathView {
+    pub open spec fn default() -> KeyToPathView {
+        KeyToPathView {
+            key: new_strlit("")@,
+            path: new_strlit("")@,
+        }
+    }
+
+    pub open spec fn set_key(self, key: StringView) -> KeyToPathView {
+        KeyToPathView {
+            key,
+            ..self
+        }
+    }
+
+    pub open spec fn set_path(self, path: StringView) -> KeyToPathView {
+        KeyToPathView {
+            path,
+            ..self
+        }
+    }
+
+    pub open spec fn key_field() -> nat {0}
+
+    pub open spec fn path_field() -> nat {1}
+}
+
+impl Marshalable for KeyToPathView {
+    open spec fn marshal(self) -> Value {
+        Value::Object(
+            Map::empty()
+                .insert(Self::key_field(), Value::String(self.key))
+                .insert(Self::path_field(), Value::String(self.path))
+        )
+    }
+
+    open spec fn unmarshal(value: Value) -> Self {
+        KeyToPathView {
+            key: value.get_Object_0()[Self::key_field()].get_String_0(),
+            path: value.get_Object_0()[Self::path_field()].get_String_0(),
         }
     }
 

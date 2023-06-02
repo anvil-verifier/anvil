@@ -37,11 +37,7 @@ async fn main() -> Result<()> {
         println!("{}", serde_yaml::to_string(&deps_hack::RabbitmqCluster::crd())?);
     } else if cmd == String::from("run") {
         println!("running rabbitmq-controller");
-<<<<<<< HEAD
         run_controller::<deps_hack::RabbitmqCluster, RabbitmqCluster, RabbitmqReconciler, RabbitmqReconcileState>().await?;
-=======
-        run_controller::<deps_hack::RabbitmqCluster, RabbitmqReconciler, RabbitmqReconcileState>().await?;
->>>>>>> b8a1e542db70b308f60f81e1fac35e492983f6b6
         println!("controller terminated");
     } else {
         println!("wrong command; please use \"export\" or \"run\"");

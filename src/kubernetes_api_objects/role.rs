@@ -283,12 +283,12 @@ impl Marshalable for PolicyRuleView {
         Value::Object(
             Map::empty()
                 .insert(Self::api_groups_field(), if self.api_groups.is_None() {Value::Null} else {
-                    Value::Array(self.api_groups.get_Some_0().map_values(|v| Value::String(v)))
+                    Value::Array(self.api_groups.get_Some_0().map_values(|v: StringView| Value::String(v)))
                 })
                 .insert(Self::resources_field(), if self.resources.is_None() {Value::Null} else {
-                    Value::Array(self.resources.get_Some_0().map_values(|v| Value::String(v)))
+                    Value::Array(self.resources.get_Some_0().map_values(|v: StringView| Value::String(v)))
                 })
-                .insert(Self::verbs_field(), Value::Array(self.verbs.map_values(|v| Value::String(v))))
+                .insert(Self::verbs_field(), Value::Array(self.verbs.map_values(|v: StringView| Value::String(v))))
         )
     }
 

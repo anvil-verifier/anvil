@@ -4,7 +4,7 @@
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
     persistent_volume_claim::*, pod::*, pod_template_spec::*, resource_requirements::*, role::*,
-    role_binding::*, secret::*, service::*, stateful_set::*,
+    role_binding::*, secret::*, service::*, service_account::*, stateful_set::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
@@ -27,9 +27,6 @@ pub struct RabbitmqReconcileState {
     // reconcile_step, like a program counter, is used to track the progress of reconcile_core
     // since reconcile_core is frequently "trapped" into the controller_runtime spec.
     pub reconcile_step: RabbitmqReconcileStep,
-
-    // The custom resource object that the controller is currently reconciling for
-    pub rabbitmq: Option<RabbitmqCluster>,
 }
 
 impl RabbitmqReconcileState {
@@ -71,7 +68,6 @@ pub fn reconcile_init_state() -> (state: RabbitmqReconcileState)
 {
     RabbitmqReconcileState {
         reconcile_step: RabbitmqReconcileStep::Init,
-        rabbitmq: Option::None,
     }
 }
 
@@ -470,6 +466,422 @@ fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> (s: String)
     .concat(i32_to_string(rabbitmq.replica()).as_str())
     .concat(new_strlit("cluster_name = {}\n"))
     .concat(rabbitmq.name().unwrap().as_str())
+}
+
+fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: ServiceAccount)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        service_account@ == rabbitmq_spec::make_service_account(rabbitmq@),
+{
+    let mut service_account = ServiceAccount::default();
+    service_account.set_metadata({
+        let mut metadata = ObjectMeta::default();
+        metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
+        metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_labels({
+            let mut labels = StringMap::empty();
+            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+            labels
+        });
+        metadata
+    });
+
+    service_account
+}
+
+
+fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        role@ == rabbitmq_spec::make_role(rabbitmq@),
+{
+    let mut role = Role::default();
+    role.set_metadata({
+        let mut metadata = ObjectMeta::default();
+        metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-peer-discorvery")));
+        metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_labels({
+            let mut labels = StringMap::empty();
+            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+            labels
+        });
+        metadata
+    });
+    role.set_policy_rules({
+        let mut rules = Vec::empty();
+        rules.push({
+            let mut rule = PolicyRule::default();
+            rule.set_api_groups({
+                let mut api_groups = Vec::empty();
+                api_groups.push(new_strlit("").to_string());
+                proof{
+                    assert_seqs_equal!(
+                        api_groups@.map_values(|p: String| p@),
+                        rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[0].api_groups.get_Some_0()
+                    );
+                }
+                api_groups
+            });
+            rule.set_resources({
+                let mut resources = Vec::empty();
+                resources.push(new_strlit("endpoints").to_string());
+                proof{
+                    assert_seqs_equal!(
+                        resources@.map_values(|p: String| p@),
+                        rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[0].resources.get_Some_0()
+                    );
+                }
+                resources
+            });
+            rule.set_verbs({
+                let mut verbs = Vec::empty();
+                verbs.push(new_strlit("get").to_string());
+                proof{
+                    assert_seqs_equal!(
+                        verbs@.map_values(|p: String| p@),
+                        rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[0].verbs
+                    );
+                }
+                verbs
+            });
+            rule
+        });
+        rules.push({
+            let mut rule = PolicyRule::default();
+            rule.set_api_groups({
+                let mut api_groups = Vec::empty();
+                api_groups.push(new_strlit("").to_string());
+                proof{
+                    assert_seqs_equal!(
+                        api_groups@.map_values(|p: String| p@),
+                        rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[1].api_groups.get_Some_0()
+                    );
+                }
+                api_groups
+            });
+            rule.set_resources({
+                let mut resources = Vec::empty();
+                resources.push(new_strlit("events").to_string());
+                proof{
+                    assert_seqs_equal!(
+                        resources@.map_values(|p: String| p@),
+                        rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[1].resources.get_Some_0()
+                    );
+                }
+                resources
+            });
+            rule.set_verbs({
+                let mut verbs = Vec::empty();
+                verbs.push(new_strlit("create").to_string());
+                proof{
+                    assert_seqs_equal!(
+                        verbs@.map_values(|p: String| p@),
+                        rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[1].verbs
+                    );
+                }
+                verbs
+            });
+            rule
+        });
+        proof{
+            assert_seqs_equal!(
+                rules@.map_values(|p: PolicyRule| p@),
+                rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()
+            );
+        }
+
+        rules
+    });
+
+    role
+}
+
+
+fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        role_binding@ == rabbitmq_spec::make_role_binding(rabbitmq@),
+{
+    let mut role_binding = RoleBinding::default();
+    role_binding.set_metadata({
+        let mut metadata = ObjectMeta::default();
+        metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
+        metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_labels({
+            let mut labels = StringMap::empty();
+            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+            labels
+        });
+        metadata
+    });
+    role_binding.set_role_ref({
+        let mut role_ref = RoleRef::default();
+        role_ref.set_api_group(new_strlit("rbac.authorization.k8s.io").to_string());
+        role_ref.set_kind(new_strlit("Role").to_string());
+        role_ref.set_name(rabbitmq.name().unwrap().concat(new_strlit("-peer-discorvery")));
+        role_ref
+    });
+    role_binding.set_subjects({
+        let mut subjects = Vec::empty();
+        subjects.push({
+            let mut subject = Subject::default();
+            subject.set_kind(new_strlit("ServiceAccount").to_string());
+            subject.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
+            subject.set_namespace(rabbitmq.namespace().unwrap());
+            subject
+        });
+        proof{
+            assert_seqs_equal!(
+                subjects@.map_values(|p: Subject| p@),
+                rabbitmq_spec::make_role_binding(rabbitmq@).subjects.get_Some_0()
+            );
+        }
+        subjects
+    });
+
+    role_binding
+}
+
+
+
+fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        stateful_set@ == rabbitmq_spec::make_stateful_set(rabbitmq@),
+{
+    let mut stateful_set = StatefulSet::default();
+    stateful_set.set_metadata({
+        let mut metadata = ObjectMeta::default();
+        metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
+        metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_labels({
+            let mut labels = StringMap::empty();
+            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+            labels
+        });
+        metadata
+    });
+    stateful_set.set_spec({
+        let mut stateful_set_spec = StatefulSetSpec::default();
+        // Set the replica number
+        stateful_set_spec.set_replicas(rabbitmq.replica());
+        // Set the headless service to assign DNS entry to each Rabbitmq server
+        stateful_set_spec.set_service_name(rabbitmq.name().unwrap().concat(new_strlit("-nodes")));
+        // Set the selector used for querying pods of this stateful set
+        stateful_set_spec.set_selector({
+            let mut selector = LabelSelector::default();
+            selector.set_match_labels({
+                let mut match_labels = StringMap::empty();
+                match_labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+                match_labels
+            });
+            selector
+        });
+        // Set the template used for creating pods
+        stateful_set_spec.set_template({
+            let mut pod_template_spec = PodTemplateSpec::default();
+            pod_template_spec.set_metadata({
+                let mut metadata = ObjectMeta::default();
+                metadata.set_labels({
+                    let mut labels = StringMap::empty();
+                    labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+                    labels
+                });
+                metadata
+            });
+            // pod_template_spec.set_spec(make_rabbitmq_pod_spec(rabbitmq));
+            pod_template_spec
+        });
+        // Set the templates used for creating the persistent volume claims attached to each pod
+        stateful_set_spec.set_volume_claim_templates({ // TODO: Add PodManagementPolicy
+            let mut volume_claim_templates = Vec::empty();
+            volume_claim_templates.push({
+                let mut pvc = PersistentVolumeClaim::default();
+                pvc.set_metadata({
+                    let mut metadata = ObjectMeta::default();
+                    metadata.set_name(new_strlit("persistence").to_string());
+                    metadata.set_namespace(rabbitmq.namespace().unwrap());
+                    metadata.set_labels({
+                        let mut labels = StringMap::empty();
+                        labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+                        labels
+                    });
+                    metadata
+                });
+                pvc.set_spec({
+                    let mut pvc_spec = PersistentVolumeClaimSpec::default();
+                    pvc_spec.set_access_modes({
+                        let mut access_modes = Vec::empty();
+                        access_modes.push(new_strlit("ReadWriteOnce").to_string());
+
+                        proof {
+                            assert_seqs_equal!(
+                                access_modes@.map_values(|mode: String| mode@),
+                                rabbitmq_spec::make_stateful_set(rabbitmq@)
+                                    .spec.get_Some_0().volume_claim_templates.get_Some_0()[0]
+                                    .spec.get_Some_0().access_modes.get_Some_0()
+                            );
+                        }
+
+                        access_modes
+                    });
+                    // pvc_spec.set_resources(make_resource_requirements());
+                    pvc_spec
+                });
+                pvc
+            });
+
+            proof {
+                assert_seqs_equal!(
+                    volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
+                    rabbitmq_spec::make_stateful_set(rabbitmq@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+                );
+            }
+
+            volume_claim_templates
+        });
+        stateful_set_spec
+    });
+    stateful_set
+}
+
+
+fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        // pod_spec@ == rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@),
+{
+    // let mut volumes = Vec::empty();
+    // volumes.push({
+    //     let mut volume = Volume::default();
+    //     volume.set_name(new_strlit("plugins-conf").to_string());
+    //     volume.set_config_map({
+    //         let mut config_map = ConfigMapVolumeSource::default();
+    //         config_map.set_name(rabbitmq.name().unwrap().concat(new_strlit("-plugins-conf")));
+    //         config_map
+    //     });
+    //     volume
+    // }).push({
+    //     let mut volume = Volume::default();
+    //     volume.set_name(new_strlit("rabbitmq-confd").to_string());
+    //     volume.set_config_map({
+    //         let mut config_map = ConfigMapVolumeSource::default();
+    //         config_map.set_name(rabbitmq.name().unwrap().concat(new_strlit("-configmap")));
+    //         config_map
+    //     });
+    //     volume
+    // }).push({
+    //     let mut volume = Volume::default();
+    //     volume.set_name(new_strlit("conf").to_string());
+    //     volume.set_config_map({
+    //         let mut config_map = ConfigMapVolumeSource::default();
+    //         config_map.set_name(rabbitmq.name().unwrap().concat(new_strlit("-configmap")));
+    //         config_map
+    //     });
+    //     volume
+    // }).push({
+    //     let mut volume = Volume::default();
+    //     volume.set_name(new_strlit("conf").to_string());
+    //     volume.set_config_map({
+    //         let mut config_map = ConfigMapVolumeSource::default();
+    //         config_map.set_name(rabbitmq.name().unwrap().concat(new_strlit("-configmap")));
+    //         config_map
+    //     });
+    //     volume
+    // });
+
+    // proof {
+    //     assert_seqs_equal!(
+    //         volumes@.map_values(|vol: Volume| vol@),
+    //         rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).volumes.get_Some_0()
+    //     );
+    // }
+
+
+
+    let mut pod_spec = PodSpec::default();
+
+    pod_spec.set_containers({
+        let mut containers = Vec::empty();
+        containers.push({
+            let mut rabbitmq_container = Container::default();
+            rabbitmq_container.set_name(new_strlit("rabbitmq").to_string());
+            rabbitmq_container.set_image(new_strlit("rabbitmq:3.11.10-management").to_string());
+            rabbitmq_container.set_command({
+                let mut command = Vec::empty();
+                command.push(new_strlit("/usr/local/bin/RabbitmqStart.sh").to_string());
+                command
+            });
+            // TODO: rabbitmq_container.set_resources();
+            // rabbitmq_container.set_image_pull_policy(new_strlit("Always").to_string());
+            // rabbitmq_container.set_volume_mounts({
+            //     let mut volume_mounts = Vec::empty();
+            //     volume_mounts.push({
+            //         let mut data_volume_mount = VolumeMount::default();
+            //         data_volume_mount.set_name(new_strlit("data").to_string());
+            //         data_volume_mount.set_mount_path(new_strlit("/data").to_string());
+            //         data_volume_mount
+            //     });
+            //     volume_mounts.push({
+            //         let mut conf_volume_mount = VolumeMount::default();
+            //         conf_volume_mount.set_name(new_strlit("conf").to_string());
+            //         conf_volume_mount.set_mount_path(new_strlit("/conf").to_string());
+            //         conf_volume_mount
+            //     });
+
+            //     proof {
+            //         assert_seqs_equal!(
+            //             volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@),
+            //             rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).containers[0].volume_mounts.get_Some_0()
+            //         );
+            //     }
+
+            //     volume_mounts
+            // });
+            // rabbitmq_container.set_ports({
+            //     let mut ports = Vec::empty();
+            //     ports.push(ContainerPort::new_with(new_strlit("client").to_string(), 2181));
+            //     ports.push(ContainerPort::new_with(new_strlit("quorum").to_string(), 2888));
+            //     ports.push(ContainerPort::new_with(new_strlit("leader-election").to_string(), 3888));
+            //     ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), 7000));
+            //     ports.push(ContainerPort::new_with(new_strlit("admin-server").to_string(), 8080));
+
+            //     proof {
+            //         assert_seqs_equal!(
+            //             ports@.map_values(|port: ContainerPort| port@),
+            //             rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).containers[0].ports.get_Some_0()
+            //         );
+            //     }
+
+            //     ports
+            // });
+            // rabbitmq_container.set_readiness_probe(make_readiness_probe());
+            // rabbitmq_container.set_liveness_probe(make_liveness_probe());
+            rabbitmq_container
+        });
+
+        // proof {
+        //     assert_seqs_equal!(
+        //         containers@.map_values(|container: Container| container@),
+        //         rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).containers
+        //     );
+        // }
+
+        containers
+    });
+    // pod_spec.set_volumes(volumes);
+
+    pod_spec
 }
 
 }

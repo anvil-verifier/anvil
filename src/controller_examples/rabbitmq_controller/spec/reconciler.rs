@@ -297,4 +297,114 @@ pub open spec fn default_rbmq_config(rabbitmq: RabbitmqClusterView) -> StringVie
     )@ + new_strlit("cluster_formation.target_cluster_size_hint = {}\n")@ + int_to_string_view(rabbitmq.spec.replica) + new_strlit("cluster_name = {}\n")@ + name
 }
 
+pub open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceAccountView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ServiceAccountView::default()
+        .set_metadata(ObjectMetaView::default()
+            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
+            .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
+            .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+        )
+
+}
+
+
+
+pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    RoleView::default()
+        .set_metadata(ObjectMetaView::default()
+            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-peer-discorvery")@)
+            .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
+            .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+        ).set_policy_rules(
+            seq![
+                PolicyRuleView::default().set_api_groups(seq![new_strlit("")@]).set_resources(seq![new_strlit("endpoints")@]).set_verbs(seq![new_strlit("get")@]),
+                PolicyRuleView::default().set_api_groups(seq![new_strlit("")@]).set_resources(seq![new_strlit("events")@]).set_verbs(seq![new_strlit("create")@]),
+            ]
+        )
+
+}
+
+
+pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBindingView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    RoleBindingView::default()
+        .set_metadata(ObjectMetaView::default()
+            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
+            .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
+            .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+        ).set_role_ref(RoleRefView::default()
+            .set_api_group(new_strlit("rbac.authorization.k8s.io")@)
+            .set_kind(new_strlit("Role")@)
+            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-peer-discorvery")@)
+        ).set_subjects(seq![SubjectView::default()
+            .set_kind(new_strlit("ServiceAccount")@)
+            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
+            .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
+        ])
+}
+
+
+pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView) -> StatefulSetView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let name = rabbitmq.metadata.name.get_Some_0();
+    let sts_name = rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@;
+    let namespace = rabbitmq.metadata.namespace.get_Some_0();
+
+    let labels = Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0());
+    let metadata = ObjectMetaView::default()
+        .set_name(sts_name)
+        .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
+        .set_labels(labels);
+
+    let spec = StatefulSetSpecView::default()
+        .set_replicas(rabbitmq.spec.replica)
+        .set_service_name(name + new_strlit("-nodes")@)
+        .set_selector(LabelSelectorView::default().set_match_labels(labels))
+        .set_template(PodTemplateSpecView::default()
+            .set_metadata(ObjectMetaView::default()
+                .set_labels(
+                    Map::empty()
+                        .insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0())
+                )
+            )
+            // .set_spec(make_rabbitmq_pod_spec(rabbitmq))
+        )
+        .set_volume_claim_templates(seq![
+            PersistentVolumeClaimView::default()
+                .set_metadata(ObjectMetaView::default()
+                    .set_name(new_strlit("persistence")@)
+                    .set_namespace(namespace)
+                    .set_labels(labels)
+                )
+                .set_spec(PersistentVolumeClaimSpecView::default()
+                    .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
+                )
+        ]);
+
+    StatefulSetView::default().set_metadata(metadata).set_spec(spec)
+}
+
+
+
+
+
+
+
+
+
+
 }

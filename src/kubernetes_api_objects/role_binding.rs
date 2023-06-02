@@ -65,6 +65,15 @@ impl RoleBinding {
         self.inner.role_ref = role_ref.into_kube();
     }
 
+    #[verifier(external_body)]
+    pub fn set_subjects(&mut self, subjects: Vec<Subject>)
+        ensures
+            self@ == old(self)@.set_subjects(subjects@.map_values(|s: Subject| s@)),
+    {
+        self.inner.subjects = std::option::Option::Some(
+            subjects.vec.into_iter().map(|s: Subject| s.into_kube()).collect()
+        );
+    }
 
 
     #[verifier(external)]
