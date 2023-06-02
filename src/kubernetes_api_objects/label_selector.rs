@@ -38,7 +38,7 @@ impl LabelSelector {
     }
 
     #[verifier(external_body)]
-    fn set_match_labels(&mut self, match_labels: StringMap)
+    pub fn set_match_labels(&mut self, match_labels: StringMap)
         ensures
             self@ == old(self)@.set_match_labels(match_labels@),
     {

@@ -73,7 +73,7 @@ impl ZookeeperCluster {
         )
     }
 
-    /// Convert a DynamicObject to a ZookeeperCluster
+    /// Convert a DynamicObject to a ConfigMap
     // NOTE: This function assumes try_parse won't fail!
     #[verifier(external_body)]
     pub fn from_dynamic_object(obj: DynamicObject) -> (zk: ZookeeperCluster)
