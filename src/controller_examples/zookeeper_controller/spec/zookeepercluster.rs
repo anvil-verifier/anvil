@@ -60,28 +60,6 @@ impl ZookeeperCluster {
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::ZookeeperCluster>(&()))
     }
-
-    // NOTE: This function assumes serde_json::to_string won't fail!
-    #[verifier(external_body)]
-    pub fn to_dynamic_object(self) -> (obj: DynamicObject)
-        ensures
-            obj@ == self@.to_dynamic_object(),
-    {
-        // TODO: this might be unnecessarily slow
-        DynamicObject::from_kube(
-            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
-        )
-    }
-
-    /// Convert a DynamicObject to a ConfigMap
-    // NOTE: This function assumes try_parse won't fail!
-    #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (zk: ZookeeperCluster)
-        ensures
-            zk@ == ZookeeperClusterView::from_dynamic_object(obj@),
-    {
-        ZookeeperCluster { inner: obj.into_kube().try_parse::<deps_hack::ZookeeperCluster>().unwrap() }
-    }
 }
 
 impl ResourceWrapper<deps_hack::ZookeeperCluster> for ZookeeperCluster {
@@ -95,6 +73,28 @@ impl ResourceWrapper<deps_hack::ZookeeperCluster> for ZookeeperCluster {
     #[verifier(external)]
     fn into_kube(self) -> deps_hack::ZookeeperCluster {
         self.inner
+    }
+
+    // NOTE: This function assumes serde_json::to_string won't fail!
+    #[verifier(external_body)]
+    pub fn to_dynamic_object(self) -> (obj: DynamicObject)
+        ensures
+            obj@ == self@.to_dynamic_object(),
+    {
+        // TODO: this might be unnecessarily slow
+        DynamicObject::from_kube(
+            deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
+        )
+    }
+
+    /// Convert a DynamicObject to a ZookeeperCluster
+    // NOTE: This function assumes try_parse won't fail!
+    #[verifier(external_body)]
+    pub fn from_dynamic_object(obj: DynamicObject) -> (zk: ZookeeperCluster)
+        ensures
+            zk@ == ZookeeperClusterView::from_dynamic_object(obj@),
+    {
+        ZookeeperCluster { inner: obj.into_kube().try_parse::<deps_hack::ZookeeperCluster>().unwrap() }
     }
 }
 

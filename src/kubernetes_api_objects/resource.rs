@@ -11,7 +11,7 @@ use deps_hack::kube::api::DynamicObject as K8SDynamicObject;
 
 verus! {
 
-/// This trait defines the methods that each ghost type of Kubernetes resource object should implement
+/// This trait defines the methods that each wrapper of Kubernetes resource object should implement
 pub trait ResourceWrapper<T>: Sized {
     fn from_kube(inner: T) -> Self;
 
