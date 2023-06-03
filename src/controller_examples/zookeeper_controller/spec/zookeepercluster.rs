@@ -1,7 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::{
-    api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, resource::*,
+    api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError, marshal::*,
+    object_meta::*, resource::*,
 };
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -73,14 +74,19 @@ impl ZookeeperCluster {
         )
     }
 
-    /// Convert a DynamicObject to a ConfigMap
-    // NOTE: This function assumes try_parse won't fail!
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (zk: ZookeeperCluster)
+    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<ZookeeperCluster, ParseDynamicObjectError>)
         ensures
-            zk@ == ZookeeperClusterView::from_dynamic_object(obj@),
+            res.is_Ok() == ZookeeperClusterView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == ZookeeperClusterView::from_dynamic_object(obj@).get_Ok_0(),
     {
-        ZookeeperCluster { inner: obj.into_kube().try_parse::<deps_hack::ZookeeperCluster>().unwrap() }
+        let parse_result = obj.into_kube().try_parse::<deps_hack::ZookeeperCluster>();
+        if parse_result.is_ok() {
+            let res = ZookeeperCluster { inner: parse_result.unwrap() };
+            Result::Ok(res)
+        } else {
+            Result::Err(ParseDynamicObjectError::Error)
+        }
     }
 }
 
@@ -138,12 +144,35 @@ impl ResourceView for ZookeeperClusterView {
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> ZookeeperClusterView {
-        ZookeeperClusterView {
-            metadata: obj.metadata,
-            spec: ZookeeperClusterSpecView {
-                replica: obj.data.get_Object_0()[spec_field()].get_Object_0()[spec_replica_field()].get_Int_0(),
-            },
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ZookeeperClusterView, ParseDynamicObjectError> {
+        if obj.data.is_Object() {
+            let obj_data = obj.get_Object_0();
+            if obj_data.dom().contains(spec_field()) {
+                let data_spec = obj_data[spec_field()];
+                if (data_spec.is_Object()) {
+                    let obj_data_spec = data_spec.get_Object_0();
+                    if obj_data_spec.dom().contains(spec_replica_field()) {
+                        let data_spec_replica = obj_data_spec[spec_replica_field()];
+                        if data_spec_replica.is_Int() {
+                            let res = ZookeeperClusterView {
+                                metadata: obj.metadata,
+                                spec: ZookeeperClusterSpecView {
+                                    replica: data_spec_replica.get_Int_0(),
+                                },
+                            };
+                            Result::Ok(res)
+                        }
+                    } else {
+                        Result::Err(ParseDynamicObjectError::MissingField)
+                    }
+                } else {
+                    Result::Err(ParseDynamicObjectError::UnexpectedType)
+                }
+            } else {
+                Result::Err(ParseDynamicObjectError::MissingField)
+            }
+        } else {
+            Result::Err(ParseDynamicObjectError::UnexpectedType)
         }
     }
 

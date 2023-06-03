@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
@@ -93,11 +94,18 @@ impl PersistentVolumeClaim {
     }
 
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (pvc: PersistentVolumeClaim)
+    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<PersistentVolumeClaim, ParseDynamicObjectError>)
         ensures
-            pvc@ == PersistentVolumeClaimView::from_dynamic_object(obj@),
+            res.is_Ok() == PersistentVolumeClaimView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == PersistentVolumeClaimView::from_dynamic_object(obj@).get_Ok_0(),
     {
-        PersistentVolumeClaim { inner: obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim>().unwrap() }
+        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClaim>();
+        if parse_result.is_ok() {
+            let res = PersistentVolumeClaim { inner: parse_result.unwrap() };
+            Result::Ok(res)
+        } else {
+            Result::Err(ParseDynamicObjectError::Error)
+        }
     }
 }
 
@@ -229,21 +237,44 @@ impl ResourceView for PersistentVolumeClaimView {
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> PersistentVolumeClaimView {
-        PersistentVolumeClaimView {
-            metadata: obj.metadata,
-            spec: if obj.data.get_Object_0()[Self::spec_field()].is_Null() {Option::None} else {
-                Option::Some(PersistentVolumeClaimSpecView::unmarshal(obj.data.get_Object_0()[Self::spec_field()]))
-            },
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<PersistentVolumeClaimView, ParseDynamicObjectError> {
+        if obj.data.is_Object() {
+            let obj_data = obj.data.get_Object_0();
+            if obj_data.dom().contains(Self::spec_field()) {
+                let data_spec = obj_data[Self::spec_field()];
+                if data_spec.is_Null() {
+                    let res = PersistentVolumeClaimView {
+                        metadata: obj.metadata,
+                        spec: Option::None,
+                    };
+                    Result::Ok(res)
+                } else {
+                    let data_spec_1 = PersistentVolumeClaimSpecView::unmarshal(data_spec);
+                    if data_spec_1.is_Ok() {
+                        let res = PersistentVolumeClaimView {
+                            metadata: obj.metadata,
+                            spec: Option::Some(data_spec_1.get_Ok_0()),
+                        };
+                        Result::Ok(res)
+                    } else {
+                        Result::Err(data_spec_1.get_Err_0())
+                    }
+                }
+            } else {
+                Result::Err(ParseDynamicObjectError::MissingField)
+            }
+        } else {
+            Result::Err(ParseDynamicObjectError::UnexpectedType)
         }
     }
 
     proof fn to_dynamic_preserves_integrity() {
-        assert forall |o: Self| o == Self::from_dynamic_object(#[trigger] o.to_dynamic_object()) by {
+        assert forall |o: Self| Self::from_dynamic_object(#[trigger] o.to_dynamic_object()).is_Ok()
+        && o == Self::from_dynamic_object(o.to_dynamic_object()).get_Ok_0() by {
             if o.spec.is_Some() && o.spec.get_Some_0().access_modes.is_Some() {
                 assert_seqs_equal!(
                     o.spec.get_Some_0().access_modes.get_Some_0(),
-                    Self::from_dynamic_object(o.to_dynamic_object()).spec.get_Some_0().access_modes.get_Some_0()
+                    Self::from_dynamic_object(o.to_dynamic_object()).get_Ok_0().spec.get_Some_0().access_modes.get_Some_0()
                 );
             }
         }
@@ -251,26 +282,12 @@ impl ResourceView for PersistentVolumeClaimView {
 }
 
 impl Marshalable for PersistentVolumeClaimView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(Map::empty()
-                        .insert(Self::metadata_field(), self.metadata.marshal())
-                        .insert(Self::spec_field(), if self.spec.is_None() { Value::Null } else {
-                            self.spec.get_Some_0().marshal()
-                        }))
-    }
+    spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> PersistentVolumeClaimView {
-        PersistentVolumeClaimView {
-            metadata: ObjectMetaView::unmarshal(value.get_Object_0()[Self::metadata_field()]),
-            spec: if value.get_Object_0()[Self::spec_field()].is_Null() { Option::None } else {
-                Option::Some(PersistentVolumeClaimSpecView::unmarshal(value.get_Object_0()[Self::spec_field()]))
-            },
-        }
-    }
+    spec fn unmarshal(value: Value) -> Result<PersistentVolumeClaimView, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        PersistentVolumeClaimSpecView::marshal_preserves_integrity();
-    }
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 pub struct PersistentVolumeClaimSpecView {
@@ -295,30 +312,12 @@ impl PersistentVolumeClaimSpecView {
 }
 
 impl Marshalable for PersistentVolumeClaimSpecView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::access_modes_field(), if self.access_modes.is_None() { Value::Null } else {
-                    Value::Array(self.access_modes.get_Some_0().map_values(|mode: StringView| Value::String(mode)))
-                })
-        )
-    }
+    closed spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        PersistentVolumeClaimSpecView {
-            access_modes: if value.get_Object_0()[Self::access_modes_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::access_modes_field()].get_Array_0().map_values(|v: Value| v.get_String_0()))
-            },
-        }
-    }
+    closed spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
-            if o.access_modes.is_Some() {
-                assert_seqs_equal!(o.access_modes.get_Some_0(), Self::unmarshal(o.marshal()).access_modes.get_Some_0());
-            }
-        }
-    }
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 }

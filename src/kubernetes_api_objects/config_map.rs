@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
@@ -92,11 +93,18 @@ impl ConfigMap {
     }
 
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (cm: ConfigMap)
+    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<ConfigMap, ParseDynamicObjectError>)
         ensures
-            cm@ == ConfigMapView::from_dynamic_object(obj@),
+            res.is_Ok() == ConfigMapView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == ConfigMapView::from_dynamic_object(obj@).get_Ok_0(),
     {
-        ConfigMap {inner: obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::ConfigMap>().unwrap()}
+        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::ConfigMap>();
+        if parse_result.is_ok() {
+            let res = ConfigMap { inner: parse_result.unwrap() };
+            Result::Ok(res)
+        } else {
+            Result::Err(ParseDynamicObjectError::Error)
+        }
     }
 }
 
@@ -179,12 +187,31 @@ impl ResourceView for ConfigMapView {
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> ConfigMapView {
-        ConfigMapView {
-            metadata: obj.metadata,
-            data: if obj.data.get_Object_0()[Self::data_field()].is_Null() { Option::None } else {
-                Option::Some(obj.data.get_Object_0()[Self::data_field()].get_StringStringMap_0())
-            },
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ConfigMapView, ParseDynamicObjectError> {
+        if obj.data.is_Object() {
+            let obj_data = obj.data.get_Object_0();
+            if obj_data.dom().contains(Self::data_field()) {
+                let data_data = obj_data[Self::data_field()];
+                if data_data.is_Null() {
+                    let res = ConfigMapView {
+                        metadata: obj.metadata,
+                        data: Option::None,
+                    };
+                    Result::Ok(res)
+                } else if data_data.is_StringStringMap() {
+                    let res = ConfigMapView {
+                        metadata: obj.metadata,
+                        data: Option::Some(data_data.get_StringStringMap_0()),
+                    };
+                    Result::Ok(res)
+                } else {
+                    Result::Err(ParseDynamicObjectError::UnexpectedType)
+                }
+            } else {
+                Result::Err(ParseDynamicObjectError::MissingField)
+            }
+        } else {
+            Result::Err(ParseDynamicObjectError::UnexpectedType)
         }
     }
 

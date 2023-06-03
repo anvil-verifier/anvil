@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -32,16 +33,16 @@ pub enum Value {
 pub trait Marshalable: Sized {
     /// Marshal the object to a Value
 
-    open spec fn marshal(self) -> Value;
+    spec fn marshal(self) -> Value;
 
     /// Unmarshal the object back from a Value
 
-    open spec fn unmarshal(value: Value) -> Self;
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
     /// Check if the data integrity is preserved after marshaling and unmarshaling
-
     proof fn marshal_preserves_integrity()
-        ensures forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal());
+        ensures
+            forall |o: Self| Self::unmarshal(#[trigger] o.marshal()).is_Ok() && o == Self::unmarshal(o.marshal()).get_Ok_0();
 }
 
 }

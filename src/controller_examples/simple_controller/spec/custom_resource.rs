@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
@@ -78,11 +79,18 @@ impl CustomResource {
     /// Convert a DynamicObject to a CustomResource
     // NOTE: This function assumes try_parse won't fail!
     #[verifier(external_body)]
-    fn from_dynamic_object(obj: DynamicObject) -> (cr: CustomResource)
+    fn from_dynamic_object(obj: DynamicObject) -> (res: Result<CustomResource, ParseDynamicObjectError>)
         ensures
-            cr@ == CustomResourceView::from_dynamic_object(obj@),
+            res.is_Ok() == CustomResourceView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == CustomResourceView::from_dynamic_object(obj@).get_Ok_0(),
     {
-        CustomResource {inner: obj.into_kube().try_parse::<deps_hack::SimpleCR>().unwrap()}
+        let parse_result = obj.into_kube().try_parse::<deps_hack::SimpleCR>();
+        if parse_result.is_ok() {
+            let res = CustomResource { inner: parse_result.unwrap() };
+            Result::Ok(res)
+        } else {
+            Result::Err(ParseDynamicObjectError::Error)
+        }
     }
 }
 
@@ -133,15 +141,56 @@ impl ResourceView for CustomResourceView {
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> CustomResourceView {
-        CustomResourceView {
-            metadata: obj.metadata,
-            spec: CustomResourceSpecView{
-                content: obj.data.get_Object_0()[spec_field()].get_Object_0()[spec_content_field()].get_String_0(),
-            },
-            status: if obj.data.get_Object_0()[status_field()].is_Null() {Option::None} else {Option::Some(CustomResourceStatusView{
-                echoed_content: obj.data.get_Object_0()[status_field()].get_Object_0()[status_echoed_content_field()].get_String_0(),
-            })},
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<CustomResourceView, ParseDynamicObjectError> {
+        if obj.data.is_Object() {
+            let obj_data = obj.data.get_Object_0();
+            if obj_data.dom().contains(spec_field()) && obj_data.dom().contains(status_field()) {
+                let data_spec = obj_data[spec_field()];
+                let data_status = obj_data[status_field()];
+                if data_spec.is_Object() && (data_status.is_Null() || data_status.is_Object()) {
+                    let obj_data_spec = data_spec.get_Object_0();
+                    if obj_data_spec.dom().contains(spec_content_field()) {
+                        let data_spec_content = obj_data_spec[spec_content_field()];
+                        if data_spec_content.is_String() {
+                            if data_status.is_Null() {
+                                let res = CustomResourceView {
+                                    metadata: obj.metadata,
+                                    spec: CustomResourceSpecView { content: data_spec_content.get_String_0(), },
+                                    status: Option::None,
+                                };
+                                Result::Ok(res)
+                            } else {
+                                let obj_data_status = data_status.get_Object_0();
+                                if obj_data_status.dom().contains(status_echoed_content_field()) {
+                                    let data_status_echo_content = obj_data_status[status_echoed_content_field()];
+                                    if data_status_echo_content.is_String() {
+                                        let res = CustomResourceView {
+                                            metadata: obj.metadata,
+                                            spec: CustomResourceSpecView { content: data_spec_content.get_String_0(), },
+                                            status: Option::Some(CustomResourceStatusView { echoed_content: data_status_echo_content.get_String_0(), }),
+                                        };
+                                        Result::Ok(res)
+                                    } else {
+                                        Result::Err(ParseDynamicObjectError::UnexpectedType)
+                                    }
+                                } else {
+                                    Result::Err(ParseDynamicObjectError::MissingField)
+                                }
+                            }
+                        } else {
+                            Result::Err(ParseDynamicObjectError::UnexpectedType)
+                        }
+                    } else {
+                        Result::Err(ParseDynamicObjectError::MissingField)
+                    }
+                } else {
+                    Result::Err(ParseDynamicObjectError::UnexpectedType)
+                }
+            } else {
+                Result::Err(ParseDynamicObjectError::MissingField)
+            }
+        } else {
+            Result::Err(ParseDynamicObjectError::UnexpectedType)
         }
     }
 
