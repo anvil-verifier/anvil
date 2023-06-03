@@ -11,8 +11,10 @@ verus! {
 #[is_variant]
 pub enum APIError {
     BadRequest,
+    Conflict,
     ObjectNotFound,
     ObjectAlreadyExists,
+    NotSupported,
     Other
 }
 

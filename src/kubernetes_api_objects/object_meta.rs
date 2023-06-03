@@ -158,6 +158,13 @@ impl ObjectMetaView {
         }
     }
 
+    pub open spec fn set_resource_version(self, resource_version: nat) -> ObjectMetaView {
+        ObjectMetaView {
+            resource_version: Option::Some(resource_version),
+            ..self
+        }
+    }
+
     pub open spec fn name_field() -> nat {0}
 
     pub open spec fn namespace_field() -> nat {1}
