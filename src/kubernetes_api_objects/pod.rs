@@ -556,13 +556,42 @@ impl Marshalable for PodSpecView {
         )
     }
 
-    open spec fn unmarshal(value: Value) -> Self {
-        PodSpecView {
-            containers: value.get_Object_0()[Self::containers_field()].get_Array_0().map_values(|v| ContainerView::unmarshal(v)),
-            volumes: if value.get_Object_0()[Self::volumes_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::volumes_field()].get_Array_0().map_values(|v| VolumeView::unmarshal(v)))
-            },
+    open spec fn unmarshal(value: Value) -> Result<Self, MarshalError> {
+        if value.is_Object() {
+            let obj_value = value.get_Object_0();
+            if !(obj_value[Self::containers_field()].is_Array()
+            && (obj_value[Self::volumes_field()].is_Null() || obj_value[Self::volumes_field()].is_Array())) {
+                return Result::Err(());
+            }
+            let container_values = obj_value[Self::containers_field()].get_Array_0();
+            // I don't know how to avoid writing such verbose code ...
+            for i in 0..container_values.len() {
+                if ContainerView::unmarshal(container_values[i]).is_Err() {
+                    return Result::Err(());
+                }
+            }
+            let containers = container_values.map_values(|v| ContainerView::unmarshal(v).get_Ok_0());
+            if obj_value[Self::volumes_field()].is_Null() {
+                let res = PodSpecView {
+                    containers: containers,
+                    volumes: Option::None,
+                };
+                return Result::Ok(res);
+            } else {
+                let volume_values = obj_value[Self::volumes_field()].get_Array_0();
+                for i in 0..volume_values.len() {
+                    if VolumeView::unmarshal(volume_values[i]).is_Err() {
+                        return Result::Err(());
+                    }
+                }
+                let res = PodSpecView {
+                    containers: containers,
+                    volumes: Option::Some(volume_values.map_values(|v| VolumeView::unmarshal(v))),
+                };
+                return Result::Ok(res);
+            }
         }
+        return Result::Err(());
     }
 
     proof fn marshal_preserves_integrity() {
@@ -647,19 +676,43 @@ impl Marshalable for ContainerView {
         )
     }
 
-    open spec fn unmarshal(value: Value) -> Self {
-        ContainerView {
-            image: if value.get_Object_0()[Self::image_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::image_field()].get_String_0())
-            },
-            name: value.get_Object_0()[Self::name_field()].get_String_0(),
-            ports: if value.get_Object_0()[Self::ports_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::ports_field()].get_Array_0().map_values(|v| ContainerPortView::unmarshal(v)))
-            },
-            volume_mounts: if value.get_Object_0()[Self::volume_mounts_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::volume_mounts_field()].get_Array_0().map_values(|v| VolumeMountView::unmarshal(v)))
-            },
+    open spec fn unmarshal(value: Value) -> Result<Self, MarshalError> {
+        if value.is_Object() {
+            let obj_value = value.get_Object_0();
+            if !((obj_value[Self::image_field()].is_Null() || obj_value[Self::image_field()].is_String())
+            && obj_value[Self::name_field()].is_String()
+            && (obj_value[Self::ports_field()].is_Null() || obj_value[Self::ports_field()].is_Array())
+            && (obj_value[Self::volume_mounts_field()].is_Null() || obj_value[Self::volume_mounts_field()].is_Array())) {
+                return Result::Err(());
+            }
+            let mut res = ContainerView {
+                image: Option::None, ports::Option::None, volume_mounts::Option::None,
+                name: obj_value[Self::name_field()].get_String_0(),
+            };
+            if obj_value[Self::image_field()].is_String() {
+                res.image = Option::Some(obj_value[Self::image_field()].get_String_0());
+            }
+            if obj_value[Self::ports_field()].is_Array() {
+                let port_values = obj_value[Self::ports_field()].get_Array_0();
+                for i in 0..port_values.len() {
+                    if ContainerPortView::unmarshal(port_values[i]).is_Err() {
+                        return Result::Err(ContainerPortView::unmarshal(port_values[i])..get_Err_0());
+                    }
+                }
+                res.ports = Option::Some(port_values.map_values(|v| ContainerPortView::unmarshal(v)));
+            }
+            if obj_value[Self::volume_mounts_field()].is_Array() {
+                let volume_mount_values = obj_value[Self::volume_mounts_field()].get_Array_0();
+                for i in 0..volume_mount_values.len() {
+                    if VolumeMountView::unmarshal(volume_mount_values[i]).is_Err() {
+                        return Result::Err(());
+                    }
+                }
+                res.volume_mounts = Option::Some(volume_mount_values.map_values(|v| VolumeMountView::unmarshal(v)));
+            }
+            return Result::Ok(res);
         }
+        return Result::Err(());
     }
 
     proof fn marshal_preserves_integrity() {
@@ -717,7 +770,7 @@ impl Marshalable for ContainerPortView {
         )
     }
 
-    open spec fn unmarshal(value: Value) -> Self {
+    open spec fn unmarshal(value: Value) -> Result<Self, MarshalError> {
         ContainerPortView {
             container_port: value.get_Object_0()[Self::container_port_field()].get_Int_0(),
             name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {

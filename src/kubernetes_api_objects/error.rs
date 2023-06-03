@@ -16,4 +16,9 @@ pub enum APIError {
     Other
 }
 
+pub enum MarshalError {
+    MissingField,
+    UnexpectedType
+}
+
 }

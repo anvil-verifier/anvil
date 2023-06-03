@@ -84,7 +84,7 @@ impl Marshalable for LabelSelectorView {
         )
     }
 
-    open spec fn unmarshal(value: Value) -> Result<Self, Error> {
+    open spec fn unmarshal(value: Value) -> Result<Self, MarshalError> {
         if value.is_Object() {
             let obj_value = value.get_Object_0();
             if obj_value[Self::match_labels_field()].is_Null() {
@@ -97,7 +97,7 @@ impl Marshalable for LabelSelectorView {
                 return Result::Ok(res);
             }
         }
-        return Result::Err(Error::TypeError);
+        return Result::Err(());
     }
 
     proof fn marshal_preserves_integrity() {}

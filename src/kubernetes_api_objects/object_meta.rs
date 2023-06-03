@@ -92,8 +92,6 @@ impl ObjectMeta {
     {
         self.inner.labels = std::option::Option::Some(labels.into_rust_map());
     }
-
-
 }
 
 impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta> for ObjectMeta {
@@ -198,7 +196,7 @@ impl Marshalable for ObjectMetaView {
         )
     }
 
-    open spec fn unmarshal(value: Value) -> Result<Self, Error> {
+    open spec fn unmarshal(value: Value) -> Result<Self, MarshalError> {
         if value.is_Object() {
             let obj_value = value.get_Object_0();
             if !((obj_value[Self::name_field()].is_Null() || obj_value[Self::name_field()].is_String())
@@ -207,7 +205,7 @@ impl Marshalable for ObjectMetaView {
             && (obj_value[Self::resource_version_field()].is_Null() || obj_value[Self::resource_version_field()].is_Nat())
             && (obj_value[Self::uid_field()].is_Null() || obj_value[Self::uid_field()].is_String())
             && (obj_value[Self::labels_field()].is_Null() || obj_value[Self::labels_field()].is_Null().is_StringStringMap())) {
-                return Result::Err(Error::TypeError);
+                return Result::Err(());
             }
             let res = ObjectMetaView {
                 name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {
@@ -231,7 +229,7 @@ impl Marshalable for ObjectMetaView {
             };
             return Result::Ok(res);
         }
-        return Result::Err(Error::TypeError);
+        return Result::Err(());
     }
 
     proof fn marshal_preserves_integrity() {}

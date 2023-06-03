@@ -100,15 +100,28 @@ impl Marshalable for PodTemplateSpecView {
         )
     }
 
-    open spec fn unmarshal(value: Value) -> Self {
-        PodTemplateSpecView {
-            metadata: if value.get_Object_0()[Self::metadata_field()].is_Null() { Option::None } else {
-                Option::Some(ObjectMetaView::unmarshal(value.get_Object_0()[Self::metadata_field()]))
-            },
-            spec: if value.get_Object_0()[Self::spec_field()].is_Null() { Option::None } else {
-                Option::Some(PodSpecView::unmarshal(value.get_Object_0()[Self::spec_field()]))
-            },
+    open spec fn unmarshal(value: Value) -> Result<Self, MarshalError> {
+        if (value.is_Object()) {
+            let obj_value = value.get_Object_0();
+            let mut res = PodTemplateSpecView { Option::None, Option::None, };
+            if !obj_value[Self::metadata_field()].is_Null() {
+                let metadata = ObjectMetaView::unmarshal(obj_value[Self::metadata_field()]);
+                if metadata.is_Ok() {
+                    res.metadata = Option::Some(metadata.get_Ok_0());
+                } else {
+                    return Result::Err(());
+                }
+            }
+            if !obj_value[Self::spec_field()].is_Null() {
+                let spec = PodSpecView::unmarshal(obj_value[Self::spec_field()]);
+                if (spec.is_Ok()) {
+                    res.spec = spec.get_Ok_0();
+                } else {
+                    return Result::Err(());
+                }
+            }
         }
+        return Result::Err(());
     }
 
     proof fn marshal_preserves_integrity() {

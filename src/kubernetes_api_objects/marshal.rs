@@ -41,7 +41,7 @@ pub trait Marshalable: Sized {
 
     /// Unmarshal the object back from a Value
 
-    open spec fn unmarshal(value: Value) -> Result<Self, Error>;
+    open spec fn unmarshal(value: Value) -> Result<Self, MarshalError>;
 
     /// Check if the data integrity is preserved after marshaling and unmarshaling
 
