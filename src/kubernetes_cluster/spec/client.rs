@@ -15,8 +15,9 @@ verus! {
 pub struct ClientState {}
 
 pub enum Step {
-    SendCreateCR,
-    SendDeleteCR,
+    CreateCustomResource,
+    UpdateCustomResource,
+    DeleteCustomResource,
 }
 
 pub struct ClientActionInput<K> {
@@ -35,24 +36,49 @@ pub open spec fn client_req_msg(msg_content: MessageContent) -> Message {
     form_msg(HostId::Client, HostId::KubernetesAPI, msg_content)
 }
 
-pub open spec fn send_create_cr<K: ResourceView>() -> ClientAction<K> {
+pub open spec fn create_custom_resource<K: ResourceView>() -> ClientAction<K> {
     Action {
         precondition: |input: ClientActionInput<K>, s: ClientState| {
-            &&& input.recv.is_None()
+            input.recv.is_None()
         },
         transition: |input: ClientActionInput<K>, s: ClientState| {
-            (ClientState{}, (Multiset::singleton(client_req_msg(create_req_msg_content(input.cr.metadata().namespace.get_Some_0(), input.cr.to_dynamic_object(), input.chan_manager.allocate().1))), input.chan_manager.allocate().0))
+            let create_req_msg = client_req_msg(create_req_msg_content(
+                input.cr.metadata().namespace.get_Some_0(),
+                input.cr.to_dynamic_object(),
+                input.chan_manager.allocate().1
+            ));
+
+            (ClientState{}, (Multiset::singleton(create_req_msg), input.chan_manager.allocate().0))
         },
     }
 }
 
-pub open spec fn send_delete_cr<K: ResourceView>() -> ClientAction<K> {
+pub open spec fn delete_custom_resource<K: ResourceView>() -> ClientAction<K> {
     Action {
         precondition: |input: ClientActionInput<K>, s: ClientState| {
-            &&& input.recv.is_None()
+            input.recv.is_None()
         },
         transition: |input: ClientActionInput<K>, s: ClientState| {
-            (ClientState{}, (Multiset::singleton(client_req_msg(delete_req_msg_content(input.cr.object_ref(), input.chan_manager.allocate().1))), input.chan_manager.allocate().0))
+            let delete_req_msg = client_req_msg(delete_req_msg_content(
+                input.cr.object_ref(), input.chan_manager.allocate().1
+            ));
+
+            (ClientState{}, (Multiset::singleton(delete_req_msg), input.chan_manager.allocate().0))
+        },
+    }
+}
+
+pub open spec fn update_custom_resource<K: ResourceView>() -> ClientAction<K> {
+    Action {
+        precondition: |input: ClientActionInput<K>, s: ClientState| {
+            input.recv.is_None()
+        },
+        transition: |input: ClientActionInput<K>, s: ClientState| {
+            let update_req_msg = client_req_msg(update_req_msg_content(
+                input.cr.object_ref(), input.cr.to_dynamic_object(), input.chan_manager.allocate().1
+            ));
+
+            (ClientState{}, (Multiset::singleton(update_req_msg), input.chan_manager.allocate().0))
         },
     }
 }
@@ -60,13 +86,14 @@ pub open spec fn send_delete_cr<K: ResourceView>() -> ClientAction<K> {
 pub open spec fn client<K: ResourceView>() -> ClientStateMachine<K> {
     StateMachine {
         init: |s: ClientState| {
-            s == ClientState {}
+            true
         },
-        actions: set![send_create_cr(), send_delete_cr()],
+        actions: set![create_custom_resource(), delete_custom_resource(), update_custom_resource()],
         step_to_action: |step: Step| {
             match step {
-                Step::SendCreateCR => send_create_cr(),
-                Step::SendDeleteCR => send_delete_cr(),
+                Step::CreateCustomResource => create_custom_resource(),
+                Step::UpdateCustomResource => update_custom_resource(),
+                Step::DeleteCustomResource => delete_custom_resource(),
             }
         },
         action_input: |step: Step, input: ClientActionInput<K>| {

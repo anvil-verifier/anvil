@@ -298,6 +298,13 @@ pub open spec fn delete_req_msg_content(key: ObjectRef, req_id: nat) -> MessageC
     }), req_id)
 }
 
+pub open spec fn update_req_msg_content(key: ObjectRef, obj: DynamicObjectView, req_id: nat) -> MessageContent {
+    MessageContent::APIRequest(APIRequest::UpdateRequest(UpdateRequest{
+        key: key,
+        obj: obj,
+    }), req_id)
+}
+
 pub open spec fn get_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::GetResponse(GetResponse{
         res: res,
