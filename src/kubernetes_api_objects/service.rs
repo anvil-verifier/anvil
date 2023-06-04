@@ -311,15 +311,6 @@ impl ResourceView for ServiceView {
     proof fn to_dynamic_preserves_integrity() {
         ServiceSpecView::marshal_preserves_integrity();
         ServiceSpecView::marshal_returns_non_null();
-        // assert forall |o: Self| Self::from_dynamic_object(#[trigger] o.to_dynamic_object()).is_Ok()
-        // && o == Self::from_dynamic_object(o.to_dynamic_object()).get_Ok_0() by {
-        //     if o.spec.is_Some() && o.spec.get_Some_0().ports.is_Some() {
-        //         assert_seqs_equal!(
-        //             o.spec.get_Some_0().ports.get_Some_0(),
-        //             Self::from_dynamic_object(o.to_dynamic_object()).get_Ok_0().spec.get_Some_0().ports.get_Some_0()
-        //         );
-        //     }
-        // }
     }
 }
 

@@ -22,7 +22,6 @@ pub struct CustomResource {
 pub struct CustomResourceView {
     pub metadata: ObjectMetaView,
     pub spec: CustomResourceSpecView,
-    pub status: Option<CustomResourceStatusView>,
 }
 
 impl CustomResource {
@@ -53,16 +52,6 @@ impl CustomResource {
             inner: self.inner.spec.clone()
         }
     }
-
-    #[verifier(external_body)]
-    pub fn status(&self) -> (status: Option<CustomResourceStatus>)
-        ensures
-            self@.status.is_Some() == status.is_Some(),
-            status.is_Some() ==> status.get_Some_0()@ == self@.status.get_Some_0(),
-    {
-        todo!()
-    }
-
 
     // NOTE: This function assumes serde_json::to_string won't fail!
     #[verifier(external_body)]
@@ -131,66 +120,25 @@ impl ResourceView for CustomResourceView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(Map::empty()
-                                    .insert(spec_field(), Value::Object(Map::empty().insert(spec_content_field(), Value::String(self.spec.content)))
-                                    )
-                                    .insert(status_field(), if self.status.is_None() {Value::Null} else {
-                                        Value::Object(Map::empty().insert(status_echoed_content_field(), Value::String(self.status.get_Some_0().echoed_content)))
-                                    })
-                                ),
+            data: Value::Object(Map::empty().insert(spec_field(), self.spec.marshal())),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<CustomResourceView, ParseDynamicObjectError> {
-        if obj.data.is_Object() {
-            let obj_data = obj.data.get_Object_0();
-            if obj_data.dom().contains(spec_field()) && obj_data.dom().contains(status_field()) {
-                let data_spec = obj_data[spec_field()];
-                let data_status = obj_data[status_field()];
-                if data_spec.is_Object() && (data_status.is_Null() || data_status.is_Object()) {
-                    let obj_data_spec = data_spec.get_Object_0();
-                    if obj_data_spec.dom().contains(spec_content_field()) {
-                        let data_spec_content = obj_data_spec[spec_content_field()];
-                        if data_spec_content.is_String() {
-                            if data_status.is_Null() {
-                                let res = CustomResourceView {
-                                    metadata: obj.metadata,
-                                    spec: CustomResourceSpecView { content: data_spec_content.get_String_0(), },
-                                    status: Option::None,
-                                };
-                                Result::Ok(res)
-                            } else {
-                                let obj_data_status = data_status.get_Object_0();
-                                if obj_data_status.dom().contains(status_echoed_content_field()) {
-                                    let data_status_echo_content = obj_data_status[status_echoed_content_field()];
-                                    if data_status_echo_content.is_String() {
-                                        let res = CustomResourceView {
-                                            metadata: obj.metadata,
-                                            spec: CustomResourceSpecView { content: data_spec_content.get_String_0(), },
-                                            status: Option::Some(CustomResourceStatusView { echoed_content: data_status_echo_content.get_String_0(), }),
-                                        };
-                                        Result::Ok(res)
-                                    } else {
-                                        Result::Err(ParseDynamicObjectError::UnexpectedType)
-                                    }
-                                } else {
-                                    Result::Err(ParseDynamicObjectError::MissingField)
-                                }
-                            }
-                        } else {
-                            Result::Err(ParseDynamicObjectError::UnexpectedType)
-                        }
-                    } else {
-                        Result::Err(ParseDynamicObjectError::MissingField)
-                    }
-                } else {
-                    Result::Err(ParseDynamicObjectError::UnexpectedType)
-                }
-            } else {
-                Result::Err(ParseDynamicObjectError::MissingField)
-            }
-        } else {
+        let data_object = obj.data.get_Some_0();
+        let data_spec_unmarshal = CustomResourceSpecView::unmarshal(data_object[spec_field()]);
+        if !obj.data.is_Object() {
             Result::Err(ParseDynamicObjectError::UnexpectedType)
+        } else if !obj.data.get_Some_0().dom().contains(spec_field()) {
+            Result::Err(ParseDynamicObjectError::MissingField)
+        } else if data_spec_unmarshal.is_Err() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else {
+            let res = CustomResourceView {
+                metadata: obj.metadata,
+                spec: data_spec_unmarshal.get_Ok_0(),
+            };
+            Result::Ok(res)
         }
     }
 
@@ -218,25 +166,21 @@ impl CustomResourceSpec {
     }
 }
 
-#[verifier(external_body)]
-pub struct CustomResourceStatus {
-    // TODO: add the content
+impl Marshalable for CustomResourceSpecView {
+    spec fn marshal(self) -> Value;
+
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
-pub struct CustomResourceStatusView {
-    pub echoed_content: StringView,
-}
-
-impl CustomResourceStatus {
-    pub spec fn view(&self) -> CustomResourceStatusView;
-}
 
 pub open spec fn spec_field() -> nat {0}
 
-pub open spec fn status_field() -> nat {1}
-
 pub open spec fn spec_content_field() -> nat {0}
-
-pub open spec fn status_echoed_content_field() -> nat {0}
 
 }

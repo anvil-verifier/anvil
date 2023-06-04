@@ -20,6 +20,7 @@ pub enum ParseDynamicObjectError {
     MissingField,
     UnexpectedType,
     Error,
+    UnmarshalError,
 }
 
 }
