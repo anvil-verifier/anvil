@@ -29,6 +29,12 @@ pub fn make_statefulset(zk: &ZookeeperCluster) -> appsv1::StatefulSet {
                 )])),
                 ..metav1::LabelSelector::default()
             },
+            persistent_volume_claim_retention_policy: Some(
+                appsv1::StatefulSetPersistentVolumeClaimRetentionPolicy {
+                    when_deleted: Some("Delete".to_string()),
+                    when_scaled: Some("Delete".to_string()),
+                },
+            ),
             template: corev1::PodTemplateSpec {
                 metadata: Some(metav1::ObjectMeta {
                     generate_name: zk.meta().name.clone(),
