@@ -146,7 +146,7 @@ impl ResourceView for ZookeeperClusterView {
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ZookeeperClusterView, ParseDynamicObjectError> {
         if obj.data.is_Object() {
-            let obj_data = obj.get_Object_0();
+            let obj_data = obj.data.get_Object_0();
             if obj_data.dom().contains(spec_field()) {
                 let data_spec = obj_data[spec_field()];
                 if (data_spec.is_Object()) {
@@ -161,6 +161,8 @@ impl ResourceView for ZookeeperClusterView {
                                 },
                             };
                             Result::Ok(res)
+                        } else {
+                            Result::Err(ParseDynamicObjectError::UnexpectedType)
                         }
                     } else {
                         Result::Err(ParseDynamicObjectError::MissingField)
