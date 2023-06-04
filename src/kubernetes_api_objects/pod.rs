@@ -476,7 +476,16 @@ impl PodView {
         }
     }
 
-    pub open spec fn spec_field() -> nat {0}
+    pub closed spec fn marshal_spec(s: Option<PodSpecView>) -> Value;
+
+    pub closed spec fn unmarshal_spec(v: Value) -> Result<Option<PodSpecView>, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    pub proof fn spec_integrity_is_preserved_by_marshal()
+        ensures
+            forall |s: Option<PodSpecView>|
+                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
+                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for PodView {
@@ -500,41 +509,23 @@ impl ResourceView for PodView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(Map::empty()
-                                    .insert(Self::spec_field(), if self.spec.is_None() { Value::Null } else {
-                                        self.spec.get_Some_0().marshal()
-                                    })),
+            data: PodView::marshal_spec(self.spec),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<PodView, ParseDynamicObjectError> {
-        let data_object = obj.data.get_Object_0();
-        let data_spec = data_object[Self::spec_field()];
-        let data_spec_unmarshal = PodSpecView::unmarshal(data_spec);
-        if !obj.data.is_Object() {
-            Result::Err(ParseDynamicObjectError::UnexpectedType)
-        } else if !data_object.dom().contains(Self::spec_field()) {
-            Result::Err(ParseDynamicObjectError::MissingField)
-        } else if !data_spec.is_Null() && data_spec_unmarshal.is_Err() {
+        if !PodView::unmarshal_spec(obj.data).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
-        } else if data_spec.is_Null() {
-            let res = PodView {
-                metadata: obj.metadata,
-                spec: Option::None,
-            };
-            Result::Ok(res)
         } else {
-            let res = PodView {
+            Result::Ok(PodView {
                 metadata: obj.metadata,
-                spec: Option::Some(data_spec_unmarshal.get_Ok_0()),
-            };
-            Result::Ok(res)
+                spec: PodView::unmarshal_spec(obj.data).get_Ok_0(),
+            })
         }
     }
 
     proof fn to_dynamic_preserves_integrity() {
-        PodSpecView::marshal_preserves_integrity();
-        PodSpecView::marshal_returns_non_null();
+        PodView::spec_integrity_is_preserved_by_marshal();
     }
 }
 
@@ -564,10 +555,6 @@ impl PodSpecView {
             ..self
         }
     }
-
-    pub open spec fn containers_field() -> nat {0}
-
-    pub open spec fn volumes_field() -> nat {1}
 }
 
 impl Marshalable for PodSpecView {
@@ -626,14 +613,6 @@ impl ContainerView {
             ..self
         }
     }
-
-    pub open spec fn image_field() -> nat {0}
-
-    pub open spec fn name_field() -> nat {1}
-
-    pub open spec fn ports_field() -> nat {2}
-
-    pub open spec fn volume_mounts_field() -> nat {3}
 }
 
 impl Marshalable for ContainerView {
@@ -718,10 +697,6 @@ impl VolumeMountView {
             ..self
         }
     }
-
-    pub open spec fn mount_path_field() -> nat {0}
-
-    pub open spec fn name_field() -> nat {1}
 }
 
 impl Marshalable for VolumeMountView {
@@ -762,10 +737,6 @@ impl VolumeView {
             ..self
         }
     }
-
-    pub open spec fn config_map_field() -> nat {0}
-
-    pub open spec fn name_field() -> nat {1}
 }
 
 impl Marshalable for VolumeView {
@@ -797,8 +768,6 @@ impl ConfigMapVolumeSourceView {
             ..self
         }
     }
-
-    pub open spec fn name_field() -> nat {0}
 }
 
 impl Marshalable for ConfigMapVolumeSourceView {

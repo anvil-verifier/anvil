@@ -130,6 +130,8 @@ pub struct ConfigMapView {
     pub data: Option<Map<StringView, StringView>>,
 }
 
+type ConfigMapSpecView = (Option<Map<StringView, StringView>>, ());
+
 impl ConfigMapView {
     pub open spec fn default() -> ConfigMapView {
         ConfigMapView {
@@ -152,7 +154,16 @@ impl ConfigMapView {
         }
     }
 
-    pub open spec fn data_field() -> nat {0}
+    pub closed spec fn marshal_spec(s: ConfigMapSpecView) -> Value;
+
+    pub closed spec fn unmarshal_spec(v: Value) -> Result<ConfigMapSpecView, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    pub proof fn spec_integrity_is_preserved_by_marshal()
+        ensures
+            forall |s: ConfigMapSpecView|
+                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
+                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for ConfigMapView {
@@ -176,42 +187,24 @@ impl ResourceView for ConfigMapView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(
-                Map::empty()
-                .insert(Self::data_field(),
-                        if self.data.is_None() { Value::Null } else {
-                            Value::StringStringMap(self.data.get_Some_0())
-                        }
-                )
-            ),
+            data: ConfigMapView::marshal_spec((self.data, ())),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ConfigMapView, ParseDynamicObjectError> {
-        let data_object = obj.data.get_Object_0();
-        let data_data = data_object[Self::data_field()];
-        if !obj.data.is_Object() {
-            Result::Err(ParseDynamicObjectError::UnexpectedType)
-        } else if !data_object.dom().contains(Self::data_field()) {
-            Result::Err(ParseDynamicObjectError::MissingField)
-        } else if !data_data.is_Null() && !data_data.is_StringStringMap() {
-            Result::Err(ParseDynamicObjectError::UnexpectedType)
-        } else if data_data.is_Null() {
-            let res = ConfigMapView {
-                metadata: obj.metadata,
-                data: Option::None,
-            };
-            Result::Ok(res)
+        if !ConfigMapView::unmarshal_spec(obj.data).is_Ok() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            let res = ConfigMapView {
+            Result::Ok(ConfigMapView {
                 metadata: obj.metadata,
-                data: Option::Some(data_data.get_StringStringMap_0()),
-            };
-            Result::Ok(res)
+                data: ConfigMapView::unmarshal_spec(obj.data).get_Ok_0().0,
+            })
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {}
+    proof fn to_dynamic_preserves_integrity() {
+        ConfigMapView::spec_integrity_is_preserved_by_marshal();
+    }
 }
 
 }

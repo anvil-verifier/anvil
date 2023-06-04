@@ -112,6 +112,17 @@ impl ZookeeperClusterView {
     pub open spec fn namespace(self) -> Option<StringView> {
         self.metadata.namespace
     }
+
+    pub closed spec fn marshal_spec(s: ZookeeperClusterSpecView) -> Value;
+
+    pub closed spec fn unmarshal_spec(v: Value) -> Result<ZookeeperClusterSpecView, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    pub proof fn spec_integrity_is_preserved_by_marshal()
+        ensures
+            forall |s: ZookeeperClusterSpecView|
+                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
+                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for ZookeeperClusterView {
@@ -135,31 +146,23 @@ impl ResourceView for ZookeeperClusterView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(Map::empty().insert(spec_field(), self.spec.marshal())),
+            data: ZookeeperClusterView::marshal_spec(self.spec),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ZookeeperClusterView, ParseDynamicObjectError> {
-        let data_object = obj.data.get_Object_0();
-        let data_spec_unmarshal = ZookeeperClusterSpecView::unmarshal(data_object[spec_field()]);
-        if !obj.data.is_Object() {
-            Result::Err(ParseDynamicObjectError::UnexpectedType)
-        } else if !data_object.dom().contains(spec_field()){
-            Result::Err(ParseDynamicObjectError::MissingField)
-        } else if data_spec_unmarshal.is_Err() {
+        if !ZookeeperClusterView::unmarshal_spec(obj.data).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            let res = ZookeeperClusterView {
+            Result::Ok(ZookeeperClusterView {
                 metadata: obj.metadata,
-                spec: data_spec_unmarshal.get_Ok_0(),
-            };
-            Result::Ok(res)
+                spec: ZookeeperClusterView::unmarshal_spec(obj.data).get_Ok_0(),
+            })
         }
     }
 
     proof fn to_dynamic_preserves_integrity() {
-        ZookeeperClusterSpecView::marshal_preserves_integrity();
-        ZookeeperClusterSpecView::marshal_returns_non_null();
+        ZookeeperClusterView::spec_integrity_is_preserved_by_marshal();
     }
 }
 
@@ -197,11 +200,5 @@ impl Marshalable for ZookeeperClusterSpecView {
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
-
-pub open spec fn spec_field() -> nat {0}
-
-pub open spec fn status_field() -> nat {1}
-
-pub open spec fn spec_replica_field() -> nat {0}
 
 }
