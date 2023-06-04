@@ -125,11 +125,11 @@ impl ResourceView for CustomResourceView {
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<CustomResourceView, ParseDynamicObjectError> {
-        let data_object = obj.data.get_Some_0();
+        let data_object = obj.data.get_Object_0();
         let data_spec_unmarshal = CustomResourceSpecView::unmarshal(data_object[spec_field()]);
         if !obj.data.is_Object() {
             Result::Err(ParseDynamicObjectError::UnexpectedType)
-        } else if !obj.data.get_Some_0().dom().contains(spec_field()) {
+        } else if !data_object.dom().contains(spec_field()) {
             Result::Err(ParseDynamicObjectError::MissingField)
         } else if data_spec_unmarshal.is_Err() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
@@ -142,7 +142,10 @@ impl ResourceView for CustomResourceView {
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {}
+    proof fn to_dynamic_preserves_integrity() {
+        CustomResourceSpecView::marshal_preserves_integrity();
+        CustomResourceSpecView::marshal_returns_non_null();
+    }
 }
 
 #[verifier(external_body)]
