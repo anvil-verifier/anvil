@@ -94,7 +94,7 @@ impl Marshalable for PodTemplateSpecView {
     spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
-    proof fn marshal_returns_non_null(o: Self) {}
+    proof fn marshal_returns_non_null() {}
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}

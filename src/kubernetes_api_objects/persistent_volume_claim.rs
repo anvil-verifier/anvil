@@ -270,23 +270,8 @@ impl ResourceView for PersistentVolumeClaimView {
     }
 
     proof fn to_dynamic_preserves_integrity() {
-        assert forall |o: Self| Self::from_dynamic_object(#[trigger] o.to_dynamic_object()).is_Ok()
-        && o == Self::from_dynamic_object(o.to_dynamic_object()).get_Ok_0() by {
-            let dyn_obj = o.to_dynamic_object();
-            assert(dyn_obj.data.is_Object());
-            PersistentVolumeClaimSpecView::marshal_preserves_integrity();
-            assert(Self::from_dynamic_object(dyn_obj).is_Ok());
-            let res = Self::from_dynamic_object(dyn_obj).get_Ok_0();
-            assert(res.metadata == o.metadata);
-            if o.spec.is_None() {
-                assert(o == Self::from_dynamic_object(dyn_obj).get_Ok_0());
-            } else {
-                assert(PersistentVolumeClaimSpecView::unmarshal(o.spec.get_Some_0().marshal()).is_Ok());
-                assert(o.spec.get_Some_0() == PersistentVolumeClaimSpecView::unmarshal(o.spec.get_Some_0().marshal()).get_Ok_0());
-                assert(res.spec.is_Some());
-                assert(res.spec.get_Some_0() == o.spec.get_Some_0());
-            }
-        }
+        PersistentVolumeClaimSpecView::marshal_preserves_integrity();
+        PersistentVolumeClaimSpecView::marshal_returns_non_null();
     }
 }
 
@@ -296,7 +281,7 @@ impl Marshalable for PersistentVolumeClaimView {
     spec fn unmarshal(value: Value) -> Result<PersistentVolumeClaimView, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
-    proof fn marshal_returns_non_null(o: Self) {}
+    proof fn marshal_returns_non_null() {}
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
@@ -329,7 +314,7 @@ impl Marshalable for PersistentVolumeClaimSpecView {
     closed spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
-    proof fn marshal_returns_non_null(o: Self) {}
+    proof fn marshal_returns_non_null() {}
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}

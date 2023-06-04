@@ -309,15 +309,17 @@ impl ResourceView for ServiceView {
     }
 
     proof fn to_dynamic_preserves_integrity() {
-        assert forall |o: Self| Self::from_dynamic_object(#[trigger] o.to_dynamic_object()).is_Ok()
-        && o == Self::from_dynamic_object(o.to_dynamic_object()).get_Ok_0() by {
-            if o.spec.is_Some() && o.spec.get_Some_0().ports.is_Some() {
-                assert_seqs_equal!(
-                    o.spec.get_Some_0().ports.get_Some_0(),
-                    Self::from_dynamic_object(o.to_dynamic_object()).get_Ok_0().spec.get_Some_0().ports.get_Some_0()
-                );
-            }
-        }
+        ServiceSpecView::marshal_preserves_integrity();
+        ServiceSpecView::marshal_returns_non_null();
+        // assert forall |o: Self| Self::from_dynamic_object(#[trigger] o.to_dynamic_object()).is_Ok()
+        // && o == Self::from_dynamic_object(o.to_dynamic_object()).get_Ok_0() by {
+        //     if o.spec.is_Some() && o.spec.get_Some_0().ports.is_Some() {
+        //         assert_seqs_equal!(
+        //             o.spec.get_Some_0().ports.get_Some_0(),
+        //             Self::from_dynamic_object(o.to_dynamic_object()).get_Ok_0().spec.get_Some_0().ports.get_Some_0()
+        //         );
+        //     }
+        // }
     }
 }
 
@@ -370,7 +372,7 @@ impl Marshalable for ServiceSpecView {
     spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
-    proof fn marshal_returns_non_null(o: Self) {}
+    proof fn marshal_returns_non_null() {}
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
@@ -414,7 +416,7 @@ impl Marshalable for ServicePortView {
     spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
-    proof fn marshal_returns_non_null(o: Self) {}
+    proof fn marshal_returns_non_null() {}
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
