@@ -103,7 +103,7 @@ impl ConfigMap {
             let res = ConfigMap { inner: parse_result.unwrap() };
             Result::Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::Error)
+            Result::Err(ParseDynamicObjectError::ExecError)
         }
     }
 }

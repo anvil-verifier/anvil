@@ -104,7 +104,7 @@ impl PersistentVolumeClaim {
             let res = PersistentVolumeClaim { inner: parse_result.unwrap() };
             Result::Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::Error)
+            Result::Err(ParseDynamicObjectError::ExecError)
         }
     }
 }
