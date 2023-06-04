@@ -39,6 +39,9 @@ pub trait Marshalable: Sized {
 
     spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
+    proof fn marshal_returns_non_null(o: Self)
+        ensures !o.marshal().is_Null();
+
     /// Check if the data integrity is preserved after marshaling and unmarshaling
     proof fn marshal_preserves_integrity()
         ensures

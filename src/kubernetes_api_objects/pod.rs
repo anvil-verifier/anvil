@@ -581,6 +581,9 @@ impl Marshalable for PodSpecView {
     spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
+    proof fn marshal_returns_non_null(o: Self) {}
+
+    #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
 
@@ -644,6 +647,9 @@ impl Marshalable for ContainerView {
     spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
+    proof fn marshal_returns_non_null(o: Self) {}
+
+    #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
 
@@ -683,6 +689,9 @@ impl Marshalable for ContainerPortView {
     spec fn marshal(self) -> Value;
 
     spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null(o: Self) {}
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
@@ -726,6 +735,9 @@ impl Marshalable for VolumeMountView {
     spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
+    proof fn marshal_returns_non_null(o: Self) {}
+
+    #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
 
@@ -767,6 +779,9 @@ impl Marshalable for VolumeView {
     spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
+    proof fn marshal_returns_non_null(o: Self) {}
+
+    #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
 
@@ -795,6 +810,9 @@ impl Marshalable for ConfigMapVolumeSourceView {
     spec fn marshal(self) -> Value;
 
     spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null(o: Self) {}
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
