@@ -188,30 +188,26 @@ impl ResourceView for ConfigMapView {
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ConfigMapView, ParseDynamicObjectError> {
-        if obj.data.is_Object() {
-            let obj_data = obj.data.get_Object_0();
-            if obj_data.dom().contains(Self::data_field()) {
-                let data_data = obj_data[Self::data_field()];
-                if data_data.is_Null() {
-                    let res = ConfigMapView {
-                        metadata: obj.metadata,
-                        data: Option::None,
-                    };
-                    Result::Ok(res)
-                } else if data_data.is_StringStringMap() {
-                    let res = ConfigMapView {
-                        metadata: obj.metadata,
-                        data: Option::Some(data_data.get_StringStringMap_0()),
-                    };
-                    Result::Ok(res)
-                } else {
-                    Result::Err(ParseDynamicObjectError::UnexpectedType)
-                }
-            } else {
-                Result::Err(ParseDynamicObjectError::MissingField)
-            }
-        } else {
+        let data_object = obj.data.get_Object_0();
+        let data_data = data_object[Self::data_field()];
+        if !obj.data.is_Object() {
             Result::Err(ParseDynamicObjectError::UnexpectedType)
+        } else if !data_object.dom().contains(Self::data_field()) {
+            Result::Err(ParseDynamicObjectError::MissingField)
+        } else if !data_data.is_Null() && !data_data.is_StringStringMap() {
+            Result::Err(ParseDynamicObjectError::UnexpectedType)
+        } else if data_data.is_Null() {
+            let res = ConfigMapView {
+                metadata: obj.metadata,
+                data: Option::None,
+            };
+            Result::Ok(res)
+        } else {
+            let res = ConfigMapView {
+                metadata: obj.metadata,
+                data: Option::Some(data_data.get_StringStringMap_0()),
+            };
+            Result::Ok(res)
         }
     }
 

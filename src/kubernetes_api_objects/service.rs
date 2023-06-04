@@ -278,33 +278,27 @@ impl ResourceView for ServiceView {
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ServiceView, ParseDynamicObjectError> {
-        if obj.data.is_Object() {
-            let obj_data = obj.data.get_Object_0();
-            if obj_data.dom().contains(Self::spec_field()) {
-                let data_spec = obj_data[Self::spec_field()];
-                if data_spec.is_Null() {
-                    let res = ServiceView {
-                        metadata: obj.metadata,
-                        spec: Option::None,
-                    };
-                    Result::Ok(res)
-                } else {
-                    let data_spec_1 = ServiceSpecView::unmarshal(data_spec);
-                    if data_spec_1.is_Ok() {
-                        let res = ServiceView {
-                            metadata: obj.metadata,
-                            spec: Option::Some(data_spec_1.get_Ok_0()),
-                        };
-                        Result::Ok(res)
-                    } else {
-                        Result::Err(data_spec_1.get_Err_0())
-                    }
-                }
-            } else {
-                Result::Err(ParseDynamicObjectError::MissingField)
-            }
-        } else {
+        let data_object = obj.data.get_Object_0();
+        let data_spec = data_object[Self::spec_field()];
+        let data_spec_unmarshal = ServiceSpecView::unmarshal(data_spec);
+        if !obj.data.is_Object() {
             Result::Err(ParseDynamicObjectError::UnexpectedType)
+        } else if !data_object.dom().contains(Self::spec_field()) {
+            Result::Err(ParseDynamicObjectError::MissingField)
+        } else if !data_spec.is_Null() && data_spec_unmarshal.is_Err() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else if data_spec.is_Null() {
+            let res = ServiceView {
+                metadata: obj.metadata,
+                spec: Option::None,
+            };
+            Result::Ok(res)
+        } else {
+            let res = ServiceView {
+                metadata: obj.metadata,
+                spec: Option::Some(data_spec_unmarshal.get_Ok_0()),
+            };
+            Result::Ok(res)
         }
     }
 

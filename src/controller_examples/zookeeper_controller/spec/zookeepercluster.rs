@@ -135,50 +135,32 @@ impl ResourceView for ZookeeperClusterView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(Map::empty()
-                                    .insert(spec_field(),
-                                        Value::Object(Map::empty()
-                                            .insert(spec_replica_field(), Value::Int(self.spec.replica)))
-                                    )
-                                ),
+            data: Value::Object(Map::empty().insert(spec_field(), self.spec.marshal())),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ZookeeperClusterView, ParseDynamicObjectError> {
-        if obj.data.is_Object() {
-            let obj_data = obj.data.get_Object_0();
-            if obj_data.dom().contains(spec_field()) {
-                let data_spec = obj_data[spec_field()];
-                if (data_spec.is_Object()) {
-                    let obj_data_spec = data_spec.get_Object_0();
-                    if obj_data_spec.dom().contains(spec_replica_field()) {
-                        let data_spec_replica = obj_data_spec[spec_replica_field()];
-                        if data_spec_replica.is_Int() {
-                            let res = ZookeeperClusterView {
-                                metadata: obj.metadata,
-                                spec: ZookeeperClusterSpecView {
-                                    replica: data_spec_replica.get_Int_0(),
-                                },
-                            };
-                            Result::Ok(res)
-                        } else {
-                            Result::Err(ParseDynamicObjectError::UnexpectedType)
-                        }
-                    } else {
-                        Result::Err(ParseDynamicObjectError::MissingField)
-                    }
-                } else {
-                    Result::Err(ParseDynamicObjectError::UnexpectedType)
-                }
-            } else {
-                Result::Err(ParseDynamicObjectError::MissingField)
-            }
-        } else {
+        let data_object = obj.data.get_Object_0();
+        let data_spec_unmarshal = ZookeeperClusterSpecView::unmarshal(data_object[spec_field()]);
+        if !obj.data.is_Object() {
             Result::Err(ParseDynamicObjectError::UnexpectedType)
+        } else if !data_object.dom().contains(spec_field()){
+            Result::Err(ParseDynamicObjectError::MissingField)
+        } else if data_spec_unmarshal.is_Err() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else {
+            let res = ZookeeperClusterView {
+                metadata: obj.metadata,
+                spec: data_spec_unmarshal.get_Ok_0(),
+            };
+            Result::Ok(res)
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {}
+    proof fn to_dynamic_preserves_integrity() {
+        ZookeeperClusterSpecView::marshal_preserves_integrity();
+        ZookeeperClusterSpecView::marshal_returns_non_null();
+    }
 }
 
 #[verifier(external_body)]
@@ -203,6 +185,18 @@ impl ZookeeperClusterSpec {
 }
 
 impl ZookeeperClusterSpecView {}
+
+impl Marshalable for ZookeeperClusterSpecView {
+    spec fn marshal(self) -> Value;
+
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
+}
 
 pub open spec fn spec_field() -> nat {0}
 
