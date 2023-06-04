@@ -107,6 +107,18 @@ impl MessageContent {
         self.get_APIRequest_0().get_DeleteRequest_0()
     }
 
+    pub open spec fn is_update_request(self) -> bool {
+        &&& self.is_APIRequest()
+        &&& self.get_APIRequest_0().is_UpdateRequest()
+    }
+
+    pub open spec fn get_update_request(self) -> UpdateRequest
+        recommends
+            self.is_update_request()
+    {
+        self.get_APIRequest_0().get_UpdateRequest_0()
+    }
+
     pub open spec fn get_req_id(self) -> nat
         recommends
             self.is_APIRequest()
@@ -184,6 +196,7 @@ pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
         APIResponse::ListResponse(list_resp) => list_resp.res.is_Ok(),
         APIResponse::CreateResponse(create_resp) => create_resp.res.is_Ok(),
         APIResponse::DeleteResponse(delete_resp) => delete_resp.res.is_Ok(),
+        APIResponse::UpdateResponse(update_resp) => update_resp.res.is_Ok(),
     }
 }
 
@@ -198,7 +211,8 @@ pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -
         APIResponse::GetResponse(_) => req_msg.content.get_APIRequest_0().is_GetRequest(),
         APIResponse::ListResponse(_) => req_msg.content.get_APIRequest_0().is_ListRequest(),
         APIResponse::CreateResponse(_) => req_msg.content.get_APIRequest_0().is_CreateRequest(),
-        APIResponse::DeleteResponse(_) => req_msg.content.get_APIRequest_0().is_DeleteRequest()
+        APIResponse::DeleteResponse(_) => req_msg.content.get_APIRequest_0().is_DeleteRequest(),
+        APIResponse::UpdateResponse(_) => req_msg.content.get_APIRequest_0().is_UpdateRequest(),
     }
 }
 
@@ -232,6 +246,12 @@ pub open spec fn form_delete_resp_msg(req_msg: Message, result: Result<DynamicOb
     recommends req_msg.content.is_delete_request(),
 {
     form_msg(req_msg.dst, req_msg.src, delete_resp_msg_content(result, req_msg.content.get_req_id()))
+}
+
+pub open spec fn form_update_resp_msg(req_msg: Message, result: Result<DynamicObjectView, APIError>) -> Message
+    recommends req_msg.content.is_update_request(),
+{
+    form_msg(req_msg.dst, req_msg.src, update_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
 pub open spec fn added_event(obj: DynamicObjectView) -> WatchEvent {
@@ -278,6 +298,13 @@ pub open spec fn delete_req_msg_content(key: ObjectRef, req_id: nat) -> MessageC
     }), req_id)
 }
 
+pub open spec fn update_req_msg_content(key: ObjectRef, obj: DynamicObjectView, req_id: nat) -> MessageContent {
+    MessageContent::APIRequest(APIRequest::UpdateRequest(UpdateRequest{
+        key: key,
+        obj: obj,
+    }), req_id)
+}
+
 pub open spec fn get_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::GetResponse(GetResponse{
         res: res,
@@ -298,6 +325,12 @@ pub open spec fn create_resp_msg_content(res: Result<DynamicObjectView, APIError
 
 pub open spec fn delete_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: nat) -> MessageContent {
     MessageContent::APIResponse(APIResponse::DeleteResponse(DeleteResponse{
+        res: res,
+    }), resp_id)
+}
+
+pub open spec fn update_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: nat) -> MessageContent {
+    MessageContent::APIResponse(APIResponse::UpdateResponse(UpdateResponse{
         res: res,
     }), resp_id)
 }

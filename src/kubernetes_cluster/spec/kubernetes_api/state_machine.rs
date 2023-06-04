@@ -18,6 +18,19 @@ use vstd::{map::*, multiset::*, option::*, result::*, seq::*, set::*};
 
 verus! {
 
+// TODO:
+// + Need more validation checks like name/namespace format check
+//
+// + Create and update should ignore the status fields provided by the object
+//
+// + Delete should be done in two phases
+//
+// + Update should not update the rv if the object remains unchanged
+//
+// + Set uid when creating and set deletiontimestamp when deleting
+//
+// + Support more operations like List
+
 pub open spec fn handle_get_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<WatchEvent>)
     recommends
         msg.content.is_get_request(),
@@ -68,7 +81,8 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
         (s.resources, resp, Option::None)
     } else {
         // Creation succeeds
-        let created_obj = req.obj.set_namespace(req.namespace); // Set the namespace of the created object
+        // Set the namespace and the resource_version of the created object
+        let created_obj = req.obj.set_namespace(req.namespace).set_resource_version(s.resource_version_counter);
         let result = Result::Ok(created_obj);
         let resp = form_create_resp_msg(msg, result);
         // The cluster state is updated, so we send a notification to the built-in controllers
@@ -99,25 +113,58 @@ pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (
     }
 }
 
+pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<WatchEvent>)
+    recommends
+        msg.content.is_update_request(),
+{
+    let req = msg.content.get_update_request();
+    if req.obj.object_ref() != req.key {
+        // Update fails because the kind/namespace/name of the provided object
+        // does not match the kind/namespace/name sent on the request
+        let result = Result::Err(APIError::BadRequest);
+        let resp = form_update_resp_msg(msg, result);
+        (s.resources, resp, Option::None)
+    } else if !s.resources.dom().contains(req.key) {
+        // Update fails because the object already exists
+        let result = Result::Err(APIError::ObjectNotFound);
+        let resp = form_update_resp_msg(msg, result);
+        (s.resources, resp, Option::None)
+    } else if req.obj.metadata.resource_version.is_Some()
+        && req.obj.metadata.resource_version != s.resources[req.key].metadata.resource_version {
+        // Update fails because the object has a wrong rv
+        let result = Result::Err(APIError::Conflict);
+        let resp = form_update_resp_msg(msg, result);
+        (s.resources, resp, Option::None)
+    } else {
+        // Update succeeds
+        // Updates the resource version of the object
+        let updated_obj = req.obj.set_resource_version(s.resource_version_counter);
+        let result = Result::Ok(updated_obj);
+        let resp = form_update_resp_msg(msg, result);
+        // The cluster state is updated, so we send a notification to the built-in controllers
+        let notify = modified_event(updated_obj);
+        (s.resources.insert(updated_obj.object_ref(), updated_obj), resp, Option::Some(notify))
+    }
+}
+
 // etcd is modeled as a centralized map that handles get/create/delete
-// TODO: support list/update/statusupdate
 pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<WatchEvent>)
     recommends
         msg.content.is_APIRequest(),
 {
-    if msg.content.is_get_request() {
-        handle_get_request(msg, s)
-    } else if msg.content.is_list_request() {
-        handle_list_request(msg, s)
-    } else if msg.content.is_create_request() {
-        handle_create_request(msg, s)
-    } else {
-        handle_delete_request(msg, s)
+    match msg.content.get_APIRequest_0() {
+        APIRequest::GetRequest(_) => handle_get_request(msg, s),
+        APIRequest::ListRequest(_) => handle_list_request(msg, s),
+        APIRequest::CreateRequest(_) => handle_create_request(msg, s),
+        APIRequest::DeleteRequest(_) => handle_delete_request(msg, s),
+        APIRequest::UpdateRequest(_) => handle_update_request(msg, s),
     }
 }
 
 /// Collect the requests from the builtin controllers
-pub open spec fn transition_by_builtin_controllers(event: WatchEvent, s: KubernetesAPIState, chan_manager: ChannelManager) -> (ChannelManager, Multiset<Message>) {
+pub open spec fn transition_by_builtin_controllers(
+    event: WatchEvent, s: KubernetesAPIState, chan_manager: ChannelManager
+) -> (ChannelManager, Multiset<Message>) {
     // We only have spec of statefulset_controller for now
     statefulset_controller::transition_by_statefulset_controller(event, s, chan_manager)
 }
@@ -156,12 +203,16 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
             let input_chan_manager = input.chan_manager;
 
             let (etcd_state, etcd_resp, etcd_notify_o) = transition_by_etcd(input_msg.get_Some_0(), s);
+            let rv_counter_increment = if etcd_notify_o.is_Some() { 1 as nat } else { 0 as nat };
             let s_after_etcd_transition = KubernetesAPIState {
                 resources: etcd_state,
+                resource_version_counter: s.resource_version_counter + rv_counter_increment,
                 ..s
             };
             if etcd_notify_o.is_Some() {
-                let (chan_manager_prime, controller_requests) = transition_by_builtin_controllers(etcd_notify_o.get_Some_0(), s_after_etcd_transition, input_chan_manager);
+                let (chan_manager_prime, controller_requests) = transition_by_builtin_controllers(
+                    etcd_notify_o.get_Some_0(), s_after_etcd_transition, input_chan_manager
+                );
                 let s_prime = KubernetesAPIState {
                     ..s_after_etcd_transition
                 };
@@ -176,8 +227,8 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
 
 pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine {
     StateMachine {
-        init: |s: KubernetesAPIState| s == KubernetesAPIState {
-            resources: Map::empty(),
+        init: |s: KubernetesAPIState| {
+            s.resources == Map::<ObjectRef, DynamicObjectView>::empty()
         },
         actions: set![handle_request()],
         step_to_action: |step: KubernetesAPIStep| {
