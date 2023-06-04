@@ -7,7 +7,7 @@ pub mod zookeepercluster_types;
 
 use anyhow::Result;
 use futures::StreamExt;
-use k8s_openapi::api::apps::v1 as appsv1;
+use k8s_openapi::api::apps::v1::{self as appsv1, StatefulSet};
 use k8s_openapi::api::core::v1::{self as corev1, ConfigMap};
 use kube::{
     api::{Api, ListParams, PostParams},
@@ -147,9 +147,20 @@ async fn reconcile_config_map(zk: &ZookeeperCluster, client: Client) -> Result<(
         .map_err(Error::ReconcileConfigMapFailed)?;
 
     if cm_o.is_some() {
+        info!(
+            "Current rv of configmap: {}",
+            cm_o.as_ref()
+                .unwrap()
+                .metadata
+                .resource_version
+                .as_ref()
+                .unwrap()
+        );
         info!("Update configmap: {}", cm_name);
         let updated_cm = ConfigMap {
             data: cm.data,
+            binary_data: cm.binary_data,
+            immutable: cm.immutable,
             ..cm_o.unwrap()
         };
         cm_api
@@ -182,11 +193,21 @@ async fn reconcile_stateful_set(zk: &ZookeeperCluster, client: Client) -> Result
         .map_err(Error::ReconcileStatefulSetFailed)?;
 
     if sts_o.is_some() {
+        info!(
+            "Current rv of statefulset: {}",
+            sts_o
+                .as_ref()
+                .unwrap()
+                .metadata
+                .resource_version
+                .as_ref()
+                .unwrap()
+        );
         info!("Update statefulset: {}", sts_name);
-        let mut updated_sts = sts_o.unwrap();
-        let mut updated_sts_spec = updated_sts.spec.unwrap();
-        updated_sts_spec.replicas = sts.spec.unwrap().replicas;
-        updated_sts.spec = Some(updated_sts_spec);
+        let updated_sts = StatefulSet {
+            spec: sts.spec,
+            ..sts_o.unwrap()
+        };
         sts_api
             .replace(sts_name, &PostParams::default(), &updated_sts)
             .await
