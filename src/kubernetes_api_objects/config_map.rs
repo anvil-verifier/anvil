@@ -130,6 +130,14 @@ pub struct ConfigMapView {
     pub data: Option<Map<StringView, StringView>>,
 }
 
+/// This ConfigMapSpecView is defined only to call marshal_spec and unmarshal_spec conveniently
+/// Unlike most other Kubernetes objects, a ConfigMap does not have a spec field,
+/// but its data, binary_data and immutable fields are treated similarly as spec of other objects.
+/// Here we use a tuple to wrap around ConfigMap's fields (we will implement more fields like binary_data later)
+/// instead of defining another struct.
+///
+/// We use a unit type in the tuple because there has to be at least two members in a tuple.
+/// The unit type will be replaced once we support other fields than data.
 type ConfigMapSpecView = (Option<Map<StringView, StringView>>, ());
 
 impl ConfigMapView {
