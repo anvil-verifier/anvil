@@ -19,8 +19,8 @@ pub enum APIError {
 pub enum ParseDynamicObjectError {
     MissingField,
     UnexpectedType,
-    Error,
     UnmarshalError,
+    ExecError,
 }
 
 }
