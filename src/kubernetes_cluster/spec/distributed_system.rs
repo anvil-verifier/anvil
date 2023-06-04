@@ -186,7 +186,7 @@ pub open spec fn schedule_controller_reconcile<K: ResourceView, T>() -> Action<S
         transition: |input: ObjectRef, s: State<K, T>| {
             (State {
                 controller_state: ControllerState {
-                    scheduled_reconciles: s.controller_state.scheduled_reconciles.insert(input, K::from_dynamic_object(s.resource_obj_of(input))),
+                    scheduled_reconciles: s.controller_state.scheduled_reconciles.insert(input, K::from_dynamic_object(s.resource_obj_of(input)).get_Ok_0()),
                     ..s.controller_state
                 },
                 ..s

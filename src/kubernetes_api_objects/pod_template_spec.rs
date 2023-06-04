@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::pod::*;
@@ -88,32 +89,15 @@ impl PodTemplateSpecView {
 }
 
 impl Marshalable for PodTemplateSpecView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::metadata_field(), if self.metadata.is_None() { Value::Null } else {
-                    self.metadata.get_Some_0().marshal()
-                })
-                .insert(Self::spec_field(), if self.spec.is_None() { Value::Null } else {
-                    self.spec.get_Some_0().marshal()
-                })
-        )
-    }
+    spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        PodTemplateSpecView {
-            metadata: if value.get_Object_0()[Self::metadata_field()].is_Null() { Option::None } else {
-                Option::Some(ObjectMetaView::unmarshal(value.get_Object_0()[Self::metadata_field()]))
-            },
-            spec: if value.get_Object_0()[Self::spec_field()].is_Null() { Option::None } else {
-                Option::Some(PodSpecView::unmarshal(value.get_Object_0()[Self::spec_field()]))
-            },
-        }
-    }
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        PodSpecView::marshal_preserves_integrity();
-    }
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 }

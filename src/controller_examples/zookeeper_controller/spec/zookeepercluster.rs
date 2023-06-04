@@ -1,7 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::{
-    api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, resource::*,
+    api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError, marshal::*,
+    object_meta::*, resource::*,
 };
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -73,14 +74,19 @@ impl ZookeeperCluster {
         )
     }
 
-    /// Convert a DynamicObject to a ConfigMap
-    // NOTE: This function assumes try_parse won't fail!
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (zk: ZookeeperCluster)
+    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<ZookeeperCluster, ParseDynamicObjectError>)
         ensures
-            zk@ == ZookeeperClusterView::from_dynamic_object(obj@),
+            res.is_Ok() == ZookeeperClusterView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == ZookeeperClusterView::from_dynamic_object(obj@).get_Ok_0(),
     {
-        ZookeeperCluster { inner: obj.into_kube().try_parse::<deps_hack::ZookeeperCluster>().unwrap() }
+        let parse_result = obj.into_kube().try_parse::<deps_hack::ZookeeperCluster>();
+        if parse_result.is_ok() {
+            let res = ZookeeperCluster { inner: parse_result.unwrap() };
+            Result::Ok(res)
+        } else {
+            Result::Err(ParseDynamicObjectError::ExecError)
+        }
     }
 }
 
@@ -129,25 +135,32 @@ impl ResourceView for ZookeeperClusterView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(Map::empty()
-                                    .insert(spec_field(),
-                                        Value::Object(Map::empty()
-                                            .insert(spec_replica_field(), Value::Int(self.spec.replica)))
-                                    )
-                                ),
+            data: Value::Object(Map::empty().insert(spec_field(), self.spec.marshal())),
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> ZookeeperClusterView {
-        ZookeeperClusterView {
-            metadata: obj.metadata,
-            spec: ZookeeperClusterSpecView {
-                replica: obj.data.get_Object_0()[spec_field()].get_Object_0()[spec_replica_field()].get_Int_0(),
-            },
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ZookeeperClusterView, ParseDynamicObjectError> {
+        let data_object = obj.data.get_Object_0();
+        let data_spec_unmarshal = ZookeeperClusterSpecView::unmarshal(data_object[spec_field()]);
+        if !obj.data.is_Object() {
+            Result::Err(ParseDynamicObjectError::UnexpectedType)
+        } else if !data_object.dom().contains(spec_field()){
+            Result::Err(ParseDynamicObjectError::MissingField)
+        } else if data_spec_unmarshal.is_Err() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else {
+            let res = ZookeeperClusterView {
+                metadata: obj.metadata,
+                spec: data_spec_unmarshal.get_Ok_0(),
+            };
+            Result::Ok(res)
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {}
+    proof fn to_dynamic_preserves_integrity() {
+        ZookeeperClusterSpecView::marshal_preserves_integrity();
+        ZookeeperClusterSpecView::marshal_returns_non_null();
+    }
 }
 
 #[verifier(external_body)]
@@ -172,6 +185,18 @@ impl ZookeeperClusterSpec {
 }
 
 impl ZookeeperClusterSpecView {}
+
+impl Marshalable for ZookeeperClusterSpecView {
+    spec fn marshal(self) -> Value;
+
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
+}
 
 pub open spec fn spec_field() -> nat {0}
 

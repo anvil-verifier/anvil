@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_map::*;
@@ -179,53 +180,14 @@ impl ObjectMetaView {
 }
 
 impl Marshalable for ObjectMetaView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::name_field(), if self.name.is_None() { Value::Null } else {
-                    Value::String(self.name.get_Some_0())
-                })
-                .insert(Self::namespace_field(), if self.namespace.is_None() { Value::Null } else {
-                    Value::String(self.namespace.get_Some_0())
-                })
-                .insert(Self::generate_name_field(), if self.generate_name.is_None() { Value::Null } else {
-                    Value::String(self.generate_name.get_Some_0())
-                })
-                .insert(Self::resource_version_field(), if self.resource_version.is_None() { Value::Null } else {
-                    Value::Nat(self.resource_version.get_Some_0())
-                })
-                .insert(Self::uid_field(), if self.uid.is_None() { Value::Null } else {
-                    Value::String(self.uid.get_Some_0())
-                })
-                .insert(Self::labels_field(), if self.labels.is_None() { Value::Null } else {
-                    Value::StringStringMap(self.labels.get_Some_0())
-                })
-        )
-    }
+    closed spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        ObjectMetaView {
-            name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
-            },
-            namespace: if value.get_Object_0()[Self::namespace_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::namespace_field()].get_String_0())
-            },
-            generate_name: if value.get_Object_0()[Self::generate_name_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::generate_name_field()].get_String_0())
-            },
-            resource_version: if value.get_Object_0()[Self::resource_version_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::resource_version_field()].get_Nat_0())
-            },
-            uid: if value.get_Object_0()[Self::uid_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::uid_field()].get_String_0())
-            },
-            labels: if value.get_Object_0()[Self::labels_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::labels_field()].get_StringStringMap_0())
-            },
-        }
-    }
+    closed spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
 

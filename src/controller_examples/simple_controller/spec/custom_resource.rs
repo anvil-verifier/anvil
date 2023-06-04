@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
@@ -21,7 +22,6 @@ pub struct CustomResource {
 pub struct CustomResourceView {
     pub metadata: ObjectMetaView,
     pub spec: CustomResourceSpecView,
-    pub status: Option<CustomResourceStatusView>,
 }
 
 impl CustomResource {
@@ -53,16 +53,6 @@ impl CustomResource {
         }
     }
 
-    #[verifier(external_body)]
-    pub fn status(&self) -> (status: Option<CustomResourceStatus>)
-        ensures
-            self@.status.is_Some() == status.is_Some(),
-            status.is_Some() ==> status.get_Some_0()@ == self@.status.get_Some_0(),
-    {
-        todo!()
-    }
-
-
     // NOTE: This function assumes serde_json::to_string won't fail!
     #[verifier(external_body)]
     fn to_dynamic_object(self) -> (obj: DynamicObject)
@@ -78,11 +68,18 @@ impl CustomResource {
     /// Convert a DynamicObject to a CustomResource
     // NOTE: This function assumes try_parse won't fail!
     #[verifier(external_body)]
-    fn from_dynamic_object(obj: DynamicObject) -> (cr: CustomResource)
+    fn from_dynamic_object(obj: DynamicObject) -> (res: Result<CustomResource, ParseDynamicObjectError>)
         ensures
-            cr@ == CustomResourceView::from_dynamic_object(obj@),
+            res.is_Ok() == CustomResourceView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == CustomResourceView::from_dynamic_object(obj@).get_Ok_0(),
     {
-        CustomResource {inner: obj.into_kube().try_parse::<deps_hack::SimpleCR>().unwrap()}
+        let parse_result = obj.into_kube().try_parse::<deps_hack::SimpleCR>();
+        if parse_result.is_ok() {
+            let res = CustomResource { inner: parse_result.unwrap() };
+            Result::Ok(res)
+        } else {
+            Result::Err(ParseDynamicObjectError::ExecError)
+        }
     }
 }
 
@@ -123,29 +120,32 @@ impl ResourceView for CustomResourceView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(Map::empty()
-                                    .insert(spec_field(), Value::Object(Map::empty().insert(spec_content_field(), Value::String(self.spec.content)))
-                                    )
-                                    .insert(status_field(), if self.status.is_None() {Value::Null} else {
-                                        Value::Object(Map::empty().insert(status_echoed_content_field(), Value::String(self.status.get_Some_0().echoed_content)))
-                                    })
-                                ),
+            data: Value::Object(Map::empty().insert(spec_field(), self.spec.marshal())),
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> CustomResourceView {
-        CustomResourceView {
-            metadata: obj.metadata,
-            spec: CustomResourceSpecView{
-                content: obj.data.get_Object_0()[spec_field()].get_Object_0()[spec_content_field()].get_String_0(),
-            },
-            status: if obj.data.get_Object_0()[status_field()].is_Null() {Option::None} else {Option::Some(CustomResourceStatusView{
-                echoed_content: obj.data.get_Object_0()[status_field()].get_Object_0()[status_echoed_content_field()].get_String_0(),
-            })},
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<CustomResourceView, ParseDynamicObjectError> {
+        let data_object = obj.data.get_Object_0();
+        let data_spec_unmarshal = CustomResourceSpecView::unmarshal(data_object[spec_field()]);
+        if !obj.data.is_Object() {
+            Result::Err(ParseDynamicObjectError::UnexpectedType)
+        } else if !data_object.dom().contains(spec_field()) {
+            Result::Err(ParseDynamicObjectError::MissingField)
+        } else if data_spec_unmarshal.is_Err() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else {
+            let res = CustomResourceView {
+                metadata: obj.metadata,
+                spec: data_spec_unmarshal.get_Ok_0(),
+            };
+            Result::Ok(res)
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {}
+    proof fn to_dynamic_preserves_integrity() {
+        CustomResourceSpecView::marshal_preserves_integrity();
+        CustomResourceSpecView::marshal_returns_non_null();
+    }
 }
 
 #[verifier(external_body)]
@@ -169,25 +169,21 @@ impl CustomResourceSpec {
     }
 }
 
-#[verifier(external_body)]
-pub struct CustomResourceStatus {
-    // TODO: add the content
+impl Marshalable for CustomResourceSpecView {
+    spec fn marshal(self) -> Value;
+
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
-pub struct CustomResourceStatusView {
-    pub echoed_content: StringView,
-}
-
-impl CustomResourceStatus {
-    pub spec fn view(&self) -> CustomResourceStatusView;
-}
 
 pub open spec fn spec_field() -> nat {0}
 
-pub open spec fn status_field() -> nat {1}
-
 pub open spec fn spec_content_field() -> nat {0}
-
-pub open spec fn status_echoed_content_field() -> nat {0}
 
 }

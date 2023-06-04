@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -40,12 +41,14 @@ pub trait ResourceView: Sized {
 
     /// Convert back from a dynamic object
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Self;
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<Self, ParseDynamicObjectError>;
 
     /// Check if the data integrity is preserved after converting to and back from dynamic object
 
     proof fn to_dynamic_preserves_integrity()
-        ensures forall |o: Self| o == Self::from_dynamic_object(#[trigger] o.to_dynamic_object());
+        ensures
+            forall |o: Self| Self::from_dynamic_object(#[trigger] o.to_dynamic_object()).is_Ok()
+                            && o == Self::from_dynamic_object(o.to_dynamic_object()).get_Ok_0();
 }
 
 }

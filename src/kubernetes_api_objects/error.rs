@@ -18,4 +18,11 @@ pub enum APIError {
     Other
 }
 
+pub enum ParseDynamicObjectError {
+    MissingField,
+    UnexpectedType,
+    UnmarshalError,
+    ExecError,
+}
+
 }

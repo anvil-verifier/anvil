@@ -3,8 +3,8 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
-    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource_requirements::*, service::*,
-    stateful_set::*,
+    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
+    resource_requirements::*, service::*, stateful_set::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
