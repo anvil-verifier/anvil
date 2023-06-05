@@ -12,7 +12,6 @@ pub fn make_statefulset(zk: &ZookeeperCluster) -> appsv1::StatefulSet {
     appsv1::StatefulSet {
         metadata: ObjectMeta {
             name: Some(stateful_set_name(zk)),
-            namespace: zk.meta().namespace.clone(),
             labels: Some(BTreeMap::from([(
                 "app".to_string(),
                 zk.meta().name.as_ref().unwrap().clone(),
@@ -226,7 +225,6 @@ fn make_service(
     corev1::Service {
         metadata: ObjectMeta {
             name: Some(name),
-            namespace: zk.meta().namespace.clone(),
             owner_references: Some(vec![zk.controller_owner_ref(&()).unwrap()]),
             labels: Some(BTreeMap::from([(
                 "app".to_string(),
@@ -255,7 +253,6 @@ pub fn make_configmap(zk: &ZookeeperCluster) -> corev1::ConfigMap {
     corev1::ConfigMap {
         metadata: ObjectMeta {
             name: Some(config_map_name(zk)),
-            namespace: zk.meta().namespace.clone(),
             labels: Some(BTreeMap::from([(
                 "app".to_string(),
                 zk.meta().name.as_ref().unwrap().clone(),
