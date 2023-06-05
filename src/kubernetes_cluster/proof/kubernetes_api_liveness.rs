@@ -262,4 +262,106 @@ pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<K: Resourc
     );
 }
 
+pub proof fn lemma_pending_requests_are_eventually_consumed<K: ResourceView, T>(
+    spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>, chan_id: nat,
+)
+    requires
+        spec.entails(lift_state(|s: State<K, T>| s.chan_manager.cur_chan_id == chan_id)),
+        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+    ensures
+        spec.entails(
+            true_pred().leads_to(lift_state(|s: State<K, T>| {
+                ! exists |msg: Message|
+                    #[trigger] s.message_in_flight(msg)
+                    && msg.dst.is_KubernetesAPI()
+                    && msg.content.is_APIRequest()
+                    && msg.content.get_msg_id() < chan_id
+            }))
+        )
+{
+    let pending_requests_num_are_no_more_than_n = |msg_num: nat| lift_state(|s: State<K, T>| {
+        s.network_state.in_flight.filter(
+            |msg: Message|
+                msg.dst.is_KubernetesAPI()
+                && msg.content.is_APIRequest()
+                && msg.content.get_msg_id() < chan_id
+        ).len() <= msg_num
+    });
+    let no_more_pending_requests = lift_state(|s: State<K, T>| {
+        ! exists |msg: Message|
+            #[trigger] s.message_in_flight(msg)
+            && msg.dst.is_KubernetesAPI()
+            && msg.content.is_APIRequest()
+            && msg.content.get_msg_id() < chan_id
+    });
+    assert forall |msg_num: nat|
+    spec.entails(#[trigger] pending_requests_num_are_no_more_than_n(msg_num).leads_to(no_more_pending_requests)) by {
+        lemma_pending_requests_number_is_eventually_zero(spec, reconciler, chan_id, msg_num);
+    }
+    leads_to_exists_intro(spec, pending_requests_num_are_no_more_than_n, no_more_pending_requests);
+    there_exists_n_that_pending_requests_num_are_no_more_than_n::<K, T>(chan_id);
+}
+
+proof fn there_exists_n_that_pending_requests_num_are_no_more_than_n<K: ResourceView, T>(chan_id: nat)
+    ensures
+        tla_exists(|msg_num: nat| lift_state(|s: State<K, T>| {
+            s.network_state.in_flight.filter(
+                |msg: Message|
+                    msg.dst.is_KubernetesAPI()
+                    && msg.content.is_APIRequest()
+                    && msg.content.get_msg_id() < chan_id
+            ).len() <= msg_num
+        })) == true_pred::<State<K, T>>(),
+{
+    let pending_requests_num_are_no_more_than_n = |msg_num: nat| lift_state(|s: State<K, T>| {
+        s.network_state.in_flight.filter(
+            |msg: Message|
+                msg.dst.is_KubernetesAPI()
+                && msg.content.is_APIRequest()
+                && msg.content.get_msg_id() < chan_id
+        ).len() <= msg_num
+    });
+    assert forall |ex| #[trigger] true_pred().satisfied_by(ex) implies
+    tla_exists(pending_requests_num_are_no_more_than_n).satisfied_by(ex) by {
+        let current_msg_num = ex.head().network_state.in_flight.filter(
+            |msg: Message|
+                msg.dst.is_KubernetesAPI()
+                && msg.content.is_APIRequest()
+                && msg.content.get_msg_id() < chan_id
+        ).len();
+        assert(pending_requests_num_are_no_more_than_n(current_msg_num).satisfied_by(ex));
+    }
+    temp_pred_equality(tla_exists(pending_requests_num_are_no_more_than_n), true_pred());
+}
+
+#[verifier(external_body)]
+proof fn lemma_pending_requests_number_is_eventually_zero<K: ResourceView, T>(
+    spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>, chan_id: nat, msg_num: nat,
+)
+    requires
+        spec.entails(lift_state(|s: State<K, T>| s.chan_manager.cur_chan_id == chan_id)),
+        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+    ensures
+        spec.entails(
+            lift_state(|s: State<K, T>| {
+                s.network_state.in_flight.filter(
+                    |msg: Message|
+                        msg.dst.is_KubernetesAPI()
+                        && msg.content.is_APIRequest()
+                        && msg.content.get_msg_id() < chan_id
+                ).len() <= msg_num
+            }).leads_to(lift_state(|s: State<K, T>| {
+                ! exists |msg: Message|
+                    #[trigger] s.message_in_flight(msg)
+                    && msg.dst.is_KubernetesAPI()
+                    && msg.content.is_APIRequest()
+                    && msg.content.get_msg_id() < chan_id
+            }))
+        )
+    decreases
+        msg_num
+{}
+
 }
