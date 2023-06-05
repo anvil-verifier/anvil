@@ -153,6 +153,14 @@ impl PodSpec {
         self.inner.init_containers = std::option::Option::Some(init_containers.vec.into_iter().map(|container: Container| container.into_kube()).collect())
     }
 
+    #[verifier(external_body)]
+    pub fn set_service_account_name(&mut self, service_account: String)
+        ensures
+            self@ == old(self)@.set_service_account_name(service_account@),
+    {
+        self.inner.service_account_name = std::option::Option::Some(service_account.into_rust_string())
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSpec {
         self.inner
@@ -937,6 +945,7 @@ pub struct PodSpecView {
     pub containers: Seq<ContainerView>,
     pub volumes: Option<Seq<VolumeView>>,
     pub init_containers: Option<Seq<ContainerView>>,
+    pub service_account_name: Option<StringView>,
 }
 
 impl PodSpecView {
@@ -945,6 +954,7 @@ impl PodSpecView {
             containers: Seq::empty(),
             volumes: Option::None,
             init_containers: Option::None,
+            service_account_name: Option::None,
         }
     }
 
@@ -969,11 +979,20 @@ impl PodSpecView {
         }
     }
 
+    pub open spec fn set_service_account_name(self, service_account_name: StringView) -> PodSpecView {
+        PodSpecView {
+            service_account_name: Option::Some(service_account_name),
+            ..self
+        }
+    }
+
     pub open spec fn containers_field() -> nat {0}
 
     pub open spec fn volumes_field() -> nat {1}
 
     pub open spec fn init_containers_field() -> nat {2}
+
+    pub open spec fn service_account_name_field() -> nat {3}
 }
 
 impl Marshalable for PodSpecView {
@@ -987,6 +1006,9 @@ impl Marshalable for PodSpecView {
                 .insert(Self::init_containers_field(), if self.init_containers.is_None() { Value::Null } else {
                     Value::Array(self.init_containers.get_Some_0().map_values(|container: ContainerView| container.marshal()))
                 })
+                .insert(Self::service_account_name_field(), if self.service_account_name.is_None() { Value::Null } else {
+                    Value::String(self.service_account_name.get_Some_0())
+                })
         )
     }
 
@@ -998,6 +1020,9 @@ impl Marshalable for PodSpecView {
             },
             init_containers: if value.get_Object_0()[Self::init_containers_field()].is_Null() { Option::None } else {
                 Option::Some(value.get_Object_0()[Self::init_containers_field()].get_Array_0().map_values(|v| ContainerView::unmarshal(v)))
+            },
+            service_account_name: if value.get_Object_0()[Self::service_account_name_field()].is_Null() { Option::None } else {
+                Option::Some(value.get_Object_0()[Self::service_account_name_field()].get_String_0())
             },
         }
     }

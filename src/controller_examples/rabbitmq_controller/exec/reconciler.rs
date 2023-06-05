@@ -306,7 +306,7 @@ pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
         );
     }
 
-    make_service(rabbitmq, rabbitmq.name().unwrap(), ports, false)
+    make_service(rabbitmq, rabbitmq.name().unwrap(), ports, true)
 }
 
 pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServicePort>, cluster_ip: bool) -> (service: Service)
@@ -375,12 +375,8 @@ fn random_encoded_string(data_len: usize) -> (cookie: String)
     ensures
         cookie@ == rabbitmq_spec::random_encoded_string(data_len),
 {
-    let mut ret_string = new_strlit("").to_string().into_rust_string();
-    for i in 0..data_len {
-        let chunk = deps_hack::rand::random::<u8>();
-        ret_string.push(chunk as char);
-    }
-    String::from_rust_string(ret_string)
+    let random_bytes: std::vec::Vec<std::primitive::u8> = (0..data_len).map(|_| deps_hack::rand::random::<std::primitive::u8>()).collect();
+   String::from_rust_string(deps_hack::base64::encode(random_bytes))
 }
 
 
@@ -518,10 +514,12 @@ fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> (s: String)
         cluster_formation.k8s.host = kubernetes.default\n\
         cluster_formation.k8s.address_type = hostname\n"
     ).to_string()
-    .concat(new_strlit("cluster_formation.target_cluster_size_hint = {}\n"))
+    .concat(new_strlit("cluster_formation.target_cluster_size_hint = "))
     .concat(i32_to_string(rabbitmq.replica()).as_str())
-    .concat(new_strlit("cluster_name = {}\n"))
+    .concat(new_strlit("\n"))
+    .concat(new_strlit("cluster_name = "))
     .concat(rabbitmq.name().unwrap().as_str())
+    .concat(new_strlit("\n"))
 }
 
 fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: ServiceAccount)
@@ -558,7 +556,7 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
     let mut role = Role::default();
     role.set_metadata({
         let mut metadata = ObjectMeta::default();
-        metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-peer-discorvery")));
+        metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-peer-discovery")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
         metadata.set_labels({
             let mut labels = StringMap::empty();
@@ -680,7 +678,7 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
         let mut role_ref = RoleRef::default();
         role_ref.set_api_group(new_strlit("rbac.authorization.k8s.io").to_string());
         role_ref.set_kind(new_strlit("Role").to_string());
-        role_ref.set_name(rabbitmq.name().unwrap().concat(new_strlit("-peer-discorvery")));
+        role_ref.set_name(rabbitmq.name().unwrap().concat(new_strlit("-peer-discovery")));
         role_ref
     });
     role_binding.set_subjects({
@@ -969,6 +967,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
 
 
     let mut pod_spec = PodSpec::default();
+    pod_spec.set_service_account_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
     pod_spec.set_init_containers({
         let mut containers = Vec::empty();
         containers.push({
@@ -1054,11 +1053,6 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
             let mut rabbitmq_container = Container::default();
             rabbitmq_container.set_name(new_strlit("rabbitmq").to_string());
             rabbitmq_container.set_image(new_strlit("rabbitmq:3.11.10-management").to_string());
-            rabbitmq_container.set_command({
-                let mut command = Vec::empty();
-                command.push(new_strlit("/usr/local/bin/RabbitmqStart.sh").to_string());
-                command
-            });
             rabbitmq_container.set_env(make_env_vars(&rabbitmq));
             // rabbitmq_container.set_resources(make_container_resource_requirements());
             rabbitmq_container.set_volume_mounts({
@@ -1159,7 +1153,7 @@ fn make_readiness_probe() -> Probe
     Probe::from_kube(
         deps_hack::k8s_openapi::api::core::v1::Probe {
             failure_threshold: std::option::Option::Some(3),
-            initial_delay_seconds: std::option::Option::Some(10),
+            initial_delay_seconds: std::option::Option::Some(50),
             period_seconds: std::option::Option::Some(10),
             success_threshold: std::option::Option::Some(1),
             timeout_seconds: std::option::Option::Some(5),

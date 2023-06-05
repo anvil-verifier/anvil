@@ -208,7 +208,7 @@ pub open spec fn make_main_service(rabbitmq: RabbitmqClusterView) -> ServiceView
     ];
 
 
-    make_service(rabbitmq, rabbitmq.metadata.name.get_Some_0(), ports, false)
+    make_service(rabbitmq, rabbitmq.metadata.name.get_Some_0(), ports, true)
 }
 
 pub open spec fn make_service(
@@ -338,7 +338,8 @@ pub open spec fn default_rbmq_config(rabbitmq: RabbitmqClusterView) -> StringVie
         cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s\n\
         cluster_formation.k8s.host = kubernetes.default\n\
         cluster_formation.k8s.address_type = hostname\n"
-    )@ + new_strlit("cluster_formation.target_cluster_size_hint = {}\n")@ + int_to_string_view(rabbitmq.spec.replica) + new_strlit("cluster_name = {}\n")@ + name
+    )@ + new_strlit("cluster_formation.target_cluster_size_hint = ")@ + int_to_string_view(rabbitmq.spec.replica) + new_strlit("\n")@
+     + new_strlit("cluster_name = ")@ + name + new_strlit("\n")@
 }
 
 pub open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceAccountView
@@ -364,7 +365,7 @@ pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView
 {
     RoleView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-peer-discorvery")@)
+            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-peer-discovery")@)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
         ).set_policy_rules(
@@ -390,7 +391,7 @@ pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBinding
         ).set_role_ref(RoleRefView::default()
             .set_api_group(new_strlit("rbac.authorization.k8s.io")@)
             .set_kind(new_strlit("Role")@)
-            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-peer-discorvery")@)
+            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-peer-discovery")@)
         ).set_subjects(seq![SubjectView::default()
             .set_kind(new_strlit("ServiceAccount")@)
             .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
@@ -505,6 +506,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
     ];
 
     PodSpecView::default()
+        .set_service_account_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
         .set_init_containers(seq![
             ContainerView::default()
                 .set_name(new_strlit("setup-container")@)

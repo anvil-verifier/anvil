@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 
 pub fn role_binding_build(rabbitmq: &RabbitmqCluster) -> rbacv1::RoleBinding {
     let role_binding_name = rabbitmq.metadata.name.clone().unwrap() + "-server";
-    let role_name = rabbitmq.metadata.name.clone().unwrap() + "-peer-discorvery";
+    let role_name = rabbitmq.metadata.name.clone().unwrap() + "-peer-discovery";
     rbacv1::RoleBinding {
         metadata: metav1::ObjectMeta {
             name: Some(role_binding_name.clone()),

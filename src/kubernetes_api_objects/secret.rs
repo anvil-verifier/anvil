@@ -76,7 +76,7 @@ impl Secret {
         for (key, value) in string_map {
             binary_map.insert(key, ByteString(value.into_bytes()));
         }
-        self.inner.data = std::option::Option::Some(binary_map) // TODO: convert StringMap to String:ByteString map
+        self.inner.data = std::option::Option::Some(binary_map)
     }
 
     #[verifier(external_body)]
