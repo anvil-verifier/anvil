@@ -150,6 +150,17 @@ pub open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<AP
             };
             (state_prime, req_o)
         },
+        RabbitmqReconcileStep::AfterCreateRoleBinding => {
+            let stateful_set = make_stateful_set(rabbitmq);
+            let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                obj: stateful_set.to_dynamic_object(),
+            }));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Done,
+                ..state
+            };
+            (state_prime, req_o)
+        },
         _ => {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: step,
@@ -494,6 +505,35 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
     ];
 
     PodSpecView::default()
+        .set_init_containers(seq![
+            ContainerView::default()
+                .set_name(new_strlit("setup-container")@)
+                .set_image(new_strlit("rabbitmq:3.11.10-management")@)
+                .set_volume_mounts(seq![
+                    VolumeMountView::default()
+                        .set_name(new_strlit("plugins-conf")@)
+                        .set_mount_path(new_strlit("/tmp/rabbitmq-plugins/")@),
+                    VolumeMountView::default()
+                        .set_name(new_strlit("rabbitmq-erlang-cookie")@)
+                        .set_mount_path(new_strlit("/var/lib/rabbitmq/")@),
+                    VolumeMountView::default()
+                        .set_name(new_strlit("erlang-cookie-secret")@)
+                        .set_mount_path(new_strlit("/tmp/erlang-cookie-secret/")@),
+                    VolumeMountView::default()
+                        .set_name(new_strlit("rabbitmq-plugins")@)
+                        .set_mount_path(new_strlit("/operator")@),
+                    VolumeMountView::default()
+                        .set_name(new_strlit("persistence")@)
+                        .set_mount_path(new_strlit("/var/lib/rabbitmq/mnesia/")@),
+                    VolumeMountView::default()
+                        .set_name(new_strlit("rabbitmq-confd")@)
+                        .set_mount_path(new_strlit("/etc/pod-info/")@),
+                    VolumeMountView::default()
+                        .set_name(new_strlit("rabbitmq-confd")@)
+                        .set_mount_path(new_strlit("/tmp/default_user.conf")@)
+                        .set_sub_path(new_strlit("default_user.conf")@),
+                ])
+        ])
         .set_containers(seq![
             ContainerView::default()
                 .set_name(new_strlit("rabbitmq")@)

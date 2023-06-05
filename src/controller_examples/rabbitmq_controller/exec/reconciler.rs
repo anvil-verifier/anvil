@@ -227,6 +227,20 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
             };
             return (state_prime, req_o);
         },
+        RabbitmqReconcileStep::AfterCreateRoleBinding => {
+            let stateful_set = make_stateful_set(rabbitmq);
+            let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                KubeCreateRequest {
+                    api_resource: StatefulSet::api_resource(),
+                    obj: stateful_set.to_dynamic_object(),
+                }
+            ));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Done,
+                ..state
+            };
+            return (state_prime, req_o);
+        },
         _ => {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: step,
@@ -760,7 +774,7 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
 
                         access_modes
                     });
-                    // pvc_spec.set_resources(make_resource_requirements());
+                    pvc_spec.set_resources(make_pvc_resource_requirements());
                     pvc_spec
                 });
                 pvc
@@ -955,7 +969,85 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
 
 
     let mut pod_spec = PodSpec::default();
+    pod_spec.set_init_containers({
+        let mut containers = Vec::empty();
+        containers.push({
+            let mut rabbitmq_container = Container::default();
+            rabbitmq_container.set_name(new_strlit("setup-container").to_string());
+            rabbitmq_container.set_image(new_strlit("rabbitmq:3.11.10-management").to_string());
+            rabbitmq_container.set_command({
+                let mut command = Vec::empty();
+                command.push(new_strlit("sh").to_string());
+                command.push(new_strlit("-c").to_string());
+                command.push(new_strlit("cp /tmp/erlang-cookie-secret/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie && chmod 600 /var/lib/rabbitmq/.erlang.cookie ; cp /tmp/rabbitmq-plugins/enabled_plugins /operator/enabled_plugins ; echo '[default]' > /var/lib/rabbitmq/.rabbitmqadmin.conf && sed -e 's/default_user/username/' -e 's/default_pass/password/' /tmp/default_user.conf >> /var/lib/rabbitmq/.rabbitmqadmin.conf && chmod 600 /var/lib/rabbitmq/.rabbitmqadmin.conf ; sleep 30").to_string());
+                command
+            });
+            rabbitmq_container.set_volume_mounts({
+                let mut volume_mounts = Vec::empty();
+                volume_mounts.push({
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("plugins-conf").to_string());
+                    volume_mount.set_mount_path(new_strlit("/tmp/rabbitmq-plugins/").to_string());
+                    volume_mount
+                });
+                volume_mounts.push({
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("rabbitmq-erlang-cookie").to_string());
+                    volume_mount.set_mount_path(new_strlit("/var/lib/rabbitmq/").to_string());
+                    volume_mount
+                });
+                volume_mounts.push({
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("erlang-cookie-secret").to_string());
+                    volume_mount.set_mount_path(new_strlit("/tmp/erlang-cookie-secret/").to_string());
+                    volume_mount
+                });
+                volume_mounts.push({
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("rabbitmq-plugins").to_string());
+                    volume_mount.set_mount_path(new_strlit("/operator").to_string());
+                    volume_mount
+                });
+                volume_mounts.push({
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("persistence").to_string());
+                    volume_mount.set_mount_path(new_strlit("/var/lib/rabbitmq/mnesia/").to_string());
+                    volume_mount
+                });
+                volume_mounts.push({
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("rabbitmq-confd").to_string());
+                    volume_mount.set_mount_path(new_strlit("/etc/pod-info/").to_string());
+                    volume_mount
+                });
+                volume_mounts.push({
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("rabbitmq-confd").to_string());
+                    volume_mount.set_mount_path(new_strlit("/tmp/default_user.conf").to_string());
+                    volume_mount.set_sub_path(new_strlit("default_user.conf").to_string());
+                    volume_mount
+                });
 
+                proof {
+                    assert_seqs_equal!(
+                        volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@),
+                        rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).init_containers.unwrap()[0].volume_mounts.get_Some_0()
+                    );
+                }
+                volume_mounts
+            });
+            rabbitmq_container
+        });
+
+        proof {
+            assert_seqs_equal!(
+                containers@.map_values(|container: Container| container@),
+                rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).init_containers.unwrap()
+            );
+        }
+
+        containers
+    });
     pod_spec.set_containers({
         let mut containers = Vec::empty();
         containers.push({
@@ -967,53 +1059,54 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                 command.push(new_strlit("/usr/local/bin/RabbitmqStart.sh").to_string());
                 command
             });
-            // TODO: rabbitmq_container.set_resources();
+            rabbitmq_container.set_env(make_env_vars(&rabbitmq));
+            // rabbitmq_container.set_resources(make_container_resource_requirements());
             rabbitmq_container.set_volume_mounts({
                 let mut volume_mounts = Vec::empty();
                 volume_mounts.push({
-                    let mut data_volume_mount = VolumeMount::default();
-                    data_volume_mount.set_name(new_strlit("rabbitmq-erlang-cookie").to_string());
-                    data_volume_mount.set_mount_path(new_strlit("/var/lib/rabbitmq/").to_string());
-                    data_volume_mount
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("rabbitmq-erlang-cookie").to_string());
+                    volume_mount.set_mount_path(new_strlit("/var/lib/rabbitmq/").to_string());
+                    volume_mount
                 });
                 volume_mounts.push({
-                    let mut conf_volume_mount = VolumeMount::default();
-                    conf_volume_mount.set_name(new_strlit("persistence").to_string());
-                    conf_volume_mount.set_mount_path(new_strlit("/var/lib/rabbitmq/mnesia/").to_string());
-                    conf_volume_mount
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("persistence").to_string());
+                    volume_mount.set_mount_path(new_strlit("/var/lib/rabbitmq/mnesia/").to_string());
+                    volume_mount
                 });
                 volume_mounts.push({
-                    let mut conf_volume_mount = VolumeMount::default();
-                    conf_volume_mount.set_name(new_strlit("rabbitmq-plugins").to_string());
-                    conf_volume_mount.set_mount_path(new_strlit("/operator").to_string());
-                    conf_volume_mount
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("rabbitmq-plugins").to_string());
+                    volume_mount.set_mount_path(new_strlit("/operator").to_string());
+                    volume_mount
                 });
                 volume_mounts.push({
-                    let mut conf_volume_mount = VolumeMount::default();
-                    conf_volume_mount.set_name(new_strlit("rabbitmq-confd").to_string());
-                    conf_volume_mount.set_mount_path(new_strlit("/etc/rabbitmq/conf.d/10-operatorDefaults.conf").to_string());
-                    conf_volume_mount.set_sub_path(new_strlit("operatorDefaults.conf").to_string());
-                    conf_volume_mount
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("rabbitmq-confd").to_string());
+                    volume_mount.set_mount_path(new_strlit("/etc/rabbitmq/conf.d/10-operatorDefaults.conf").to_string());
+                    volume_mount.set_sub_path(new_strlit("operatorDefaults.conf").to_string());
+                    volume_mount
                 });
                 volume_mounts.push({
-                    let mut conf_volume_mount = VolumeMount::default();
-                    conf_volume_mount.set_name(new_strlit("rabbitmq-confd").to_string());
-                    conf_volume_mount.set_mount_path(new_strlit("/etc/rabbitmq/conf.d/90-userDefinedConfiguration.conf").to_string());
-                    conf_volume_mount.set_sub_path(new_strlit("userDefinedConfiguration.conf").to_string());
-                    conf_volume_mount
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("rabbitmq-confd").to_string());
+                    volume_mount.set_mount_path(new_strlit("/etc/rabbitmq/conf.d/90-userDefinedConfiguration.conf").to_string());
+                    volume_mount.set_sub_path(new_strlit("userDefinedConfiguration.conf").to_string());
+                    volume_mount
                 });
                 volume_mounts.push({
-                    let mut conf_volume_mount = VolumeMount::default();
-                    conf_volume_mount.set_name(new_strlit("pod-info").to_string());
-                    conf_volume_mount.set_mount_path(new_strlit("/etc/pod-info/").to_string());
-                    conf_volume_mount
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("pod-info").to_string());
+                    volume_mount.set_mount_path(new_strlit("/etc/pod-info/").to_string());
+                    volume_mount
                 });
                 volume_mounts.push({
-                    let mut conf_volume_mount = VolumeMount::default();
-                    conf_volume_mount.set_name(new_strlit("rabbitmq-confd").to_string());
-                    conf_volume_mount.set_mount_path(new_strlit("/etc/rabbitmq/conf.d/11-default_user.conf").to_string());
-                    conf_volume_mount.set_sub_path(new_strlit("default_user.conf").to_string());
-                    conf_volume_mount
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("rabbitmq-confd").to_string());
+                    volume_mount.set_mount_path(new_strlit("/etc/rabbitmq/conf.d/11-default_user.conf").to_string());
+                    volume_mount.set_sub_path(new_strlit("default_user.conf").to_string());
+                    volume_mount
                 });
 
                 proof {
@@ -1055,6 +1148,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     });
     pod_spec.set_volumes(volumes);
 
+
     pod_spec
 }
 
@@ -1078,6 +1172,106 @@ fn make_readiness_probe() -> Probe
     )
 }
 
+#[verifier(external_body)]
+fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> {
+    let mut env_vars = Vec::empty();
+    env_vars.push(
+        EnvVar::from_kube(
+            deps_hack::k8s_openapi::api::core::v1::EnvVar {
+            name: new_strlit("MY_POD_NAME").to_string().into_rust_string(),
+            value_from: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
+                field_ref: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
+                    field_path: new_strlit("metadata.name").to_string().into_rust_string(),
+                    api_version: std::option::Option::Some(new_strlit("v1").to_string().into_rust_string()),
+                    ..deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default()
+                }),
+                ..deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default()
+            }),
+            ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
+        }
+        )
+    );
+    env_vars.push(
+        EnvVar::from_kube(
+            deps_hack::k8s_openapi::api::core::v1::EnvVar {
+            name: new_strlit("MY_POD_NAMESPACE").to_string().into_rust_string(),
+            value_from: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
+                field_ref: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
+                    field_path: new_strlit("metadata.namespace").to_string().into_rust_string(),
+                    api_version: std::option::Option::Some( new_strlit("v1").to_string().into_rust_string()),
+                    ..deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default()
+                }),
+                ..deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default()
+            }),
+            ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
+            }
+        )
+    );
+    env_vars.push(
+        EnvVar::from_kube(
+            deps_hack::k8s_openapi::api::core::v1::EnvVar {
+            name: new_strlit("K8S_SERVICE_NAME").to_string().into_rust_string(),
+            value: std::option::Option::Some(rabbitmq.name().unwrap().concat(new_strlit("-nodes")).into_rust_string() ),
+            ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
+            }
+        )
+    );
+    env_vars.push(
+        EnvVar::from_kube(
+            deps_hack::k8s_openapi::api::core::v1::EnvVar {
+                name: new_strlit("RABBITMQ_ENABLED_PLUGINS_FILE").to_string().into_rust_string(),
+                value: std::option::Option::Some(new_strlit("/operator/enabled_plugins").to_string().into_rust_string()),
+                ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
+            },
+        )
+    );
+    env_vars.push(
+        EnvVar::from_kube(
+            deps_hack::k8s_openapi::api::core::v1::EnvVar {
+                name: new_strlit("RABBITMQ_USE_LONGNAME").to_string().into_rust_string(),
+                value: std::option::Option::Some(new_strlit("true").to_string().into_rust_string()),
+                ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
+            },
+        )
+    );
+    env_vars.push(
+        EnvVar::from_kube(
+            deps_hack::k8s_openapi::api::core::v1::EnvVar {
+                name: new_strlit("RABBITMQ_NODENAME").to_string().into_rust_string(),
+                value: std::option::Option::Some(new_strlit("rabbit@$(MY_POD_NAME).$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)").to_string().into_rust_string()),
+                ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
+            },
+        )
+    );
+    env_vars.push(
+        EnvVar::from_kube(
+            deps_hack::k8s_openapi::api::core::v1::EnvVar {
+                name: new_strlit("K8S_HOSTNAME_SUFFIX").to_string().into_rust_string(),
+                value: std::option::Option::Some(new_strlit(".$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)").to_string().into_rust_string()),
+                ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
+            },
+        )
+    );
 
+    env_vars
+
+
+}
+
+
+
+#[verifier(external_body)]
+fn make_pvc_resource_requirements() -> ResourceRequirements
+{
+    ResourceRequirements::from_kube(
+        deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
+            requests: std::option::Option::Some(std::collections::BTreeMap::from([(
+                "storage".to_string(),
+                deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity("10Gi".to_string()),
+            )])),
+            ..deps_hack::k8s_openapi::api::core::v1::ResourceRequirements::default()
+        }
+    )
+}
 
 }

@@ -145,6 +145,14 @@ impl PodSpec {
         self.inner.volumes = std::option::Option::Some(volumes.vec.into_iter().map(|vol: Volume| vol.into_kube()).collect())
     }
 
+    #[verifier(external_body)]
+    pub fn set_init_containers(&mut self, init_containers: Vec<Container>)
+        ensures
+            self@ == old(self)@.set_init_containers(init_containers@.map_values(|container: Container| container@)),
+    {
+        self.inner.init_containers = std::option::Option::Some(init_containers.vec.into_iter().map(|container: Container| container.into_kube()).collect())
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSpec {
         self.inner
@@ -241,6 +249,16 @@ impl Container {
         self.inner.readiness_probe = std::option::Option::Some(readiness_probe.into_kube())
     }
 
+    #[verifier(external_body)]
+    pub fn set_env(&mut self, env: Vec<EnvVar>)
+        ensures
+            self@ == old(self)@,
+    {
+        self.inner.env = std::option::Option::Some(
+            env.vec.into_iter().map(|e: EnvVar| e.into_kube()).collect()
+        )
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Container {
         self.inner
@@ -314,6 +332,24 @@ impl Probe {
         self.inner
     }
 }
+
+#[verifier(external_body)]
+pub struct EnvVar {
+    inner: deps_hack::k8s_openapi::api::core::v1::EnvVar,
+}
+
+impl EnvVar {
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::EnvVar) -> EnvVar {
+        EnvVar { inner: inner }
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EnvVar {
+        self.inner
+    }
+}
+
 
 #[verifier(external_body)]
 pub struct VolumeMount {
@@ -900,6 +936,7 @@ impl ResourceView for PodView {
 pub struct PodSpecView {
     pub containers: Seq<ContainerView>,
     pub volumes: Option<Seq<VolumeView>>,
+    pub init_containers: Option<Seq<ContainerView>>,
 }
 
 impl PodSpecView {
@@ -907,6 +944,7 @@ impl PodSpecView {
         PodSpecView {
             containers: Seq::empty(),
             volumes: Option::None,
+            init_containers: Option::None,
         }
     }
 
@@ -924,9 +962,18 @@ impl PodSpecView {
         }
     }
 
+    pub open spec fn set_init_containers(self, init_containers: Seq<ContainerView>) -> PodSpecView {
+        PodSpecView {
+            init_containers: Option::Some(init_containers),
+            ..self
+        }
+    }
+
     pub open spec fn containers_field() -> nat {0}
 
     pub open spec fn volumes_field() -> nat {1}
+
+    pub open spec fn init_containers_field() -> nat {2}
 }
 
 impl Marshalable for PodSpecView {
@@ -937,6 +984,9 @@ impl Marshalable for PodSpecView {
                 .insert(Self::volumes_field(), if self.volumes.is_None() { Value::Null } else {
                     Value::Array(self.volumes.get_Some_0().map_values(|volume: VolumeView| volume.marshal()))
                 })
+                .insert(Self::init_containers_field(), if self.init_containers.is_None() { Value::Null } else {
+                    Value::Array(self.init_containers.get_Some_0().map_values(|container: ContainerView| container.marshal()))
+                })
         )
     }
 
@@ -945,6 +995,9 @@ impl Marshalable for PodSpecView {
             containers: value.get_Object_0()[Self::containers_field()].get_Array_0().map_values(|v| ContainerView::unmarshal(v)),
             volumes: if value.get_Object_0()[Self::volumes_field()].is_Null() { Option::None } else {
                 Option::Some(value.get_Object_0()[Self::volumes_field()].get_Array_0().map_values(|v| VolumeView::unmarshal(v)))
+            },
+            init_containers: if value.get_Object_0()[Self::init_containers_field()].is_Null() { Option::None } else {
+                Option::Some(value.get_Object_0()[Self::init_containers_field()].get_Array_0().map_values(|v| ContainerView::unmarshal(v)))
             },
         }
     }
@@ -956,6 +1009,10 @@ impl Marshalable for PodSpecView {
             if o.volumes.is_Some() {
                 VolumeView::marshal_preserves_integrity();
                 assert_seqs_equal!(o.volumes.get_Some_0(), Self::unmarshal(o.marshal()).volumes.get_Some_0());
+            }
+            if o.init_containers.is_Some() {
+                ContainerView::marshal_preserves_integrity();
+                assert_seqs_equal!(o.init_containers.get_Some_0(), Self::unmarshal(o.marshal()).init_containers.get_Some_0());
             }
         }
     }
