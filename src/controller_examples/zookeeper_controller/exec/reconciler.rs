@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
+    api_method::*, common::*, config_map::*, error::*, label_selector::*, object_meta::*,
     persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
     resource_requirements::*, service::*, stateful_set::*,
 };
@@ -180,27 +180,31 @@ pub fn reconcile_core(
             return (state_prime, req_o);
         },
         ZookeeperReconcileStep::AfterGetStatefulSet => {
-            if resp_o.is_some() && resp_o.as_ref().is_get_response() {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_get_response() {
                 let stateful_set = make_stateful_set(zk);
-                let get_sts_resp = resp_o.unwrap().into_get_response();
+                let get_sts_resp = resp_o.unwrap().into_get_response().res;
                 if get_sts_resp.is_ok() {
                     // update
                     let old_sts_o = get_sts_resp.unwrap();
-                    let update_sts = StatefulSet::from_dynamic_object(old_sts_o).set_spec(stateful_set.spec());
-                    let req_o = Option::Some(KubeAPIRequest::UpdateRequest(
-                        KubeUpdateRequest {
-                            api_resource: StatefulSet::api_resource(),
-                            name: update_sts.metadata().name().unwrap(),
-                            namespace: update_sts.metadata().namespace().unwrap(),
-                            obj: update_sts.to_dynamic_object(),
-                        }
-                    ));
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Done,
-                        ..state
-                    };
-                    return (state_prime, req_o);
-                } else if get_sts_resp.unwrap_err() == APIError::ObjectNotFound {
+                    let update_sts = StatefulSet::from_dynamic_object(old_sts_o);
+                    if update_sts.is_ok() {
+                        let mut update_sts = update_sts.unwrap();
+                        update_sts.set_spec(stateful_set.spec().unwrap());
+                        let req_o = Option::Some(KubeAPIRequest::UpdateRequest(
+                            KubeUpdateRequest {
+                                api_resource: StatefulSet::api_resource(),
+                                name: stateful_set.metadata().name().unwrap(),
+                                namespace: zk.namespace().unwrap(),
+                                obj: update_sts.to_dynamic_object(),
+                            }
+                        ));
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::Done,
+                            ..state
+                        };
+                        return (state_prime, req_o);
+                    }
+                } else if get_sts_resp.unwrap_err().is_object_not_found() {
                     // create
                     let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                         KubeCreateRequest {

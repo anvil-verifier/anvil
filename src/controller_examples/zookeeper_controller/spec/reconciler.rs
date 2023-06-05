@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
+    api_method::*, common::*, config_map::*, error::*, label_selector::*, object_meta::*,
     persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, service::*,
     stateful_set::*,
 };
@@ -102,9 +102,12 @@ pub open spec fn reconcile_core(
             (state_prime, req_o)
         },
         ZookeeperReconcileStep::AfterCreateConfigMap => {
+            let stateful_set = make_stateful_set(zk);
             let req_o = Option::Some(APIRequest::GetRequest(GetRequest{
-                name: zk.metadata.name.get_Some_0(),
-                namespace: zk.metadata.namespace.get_Some_0(),
+                key: ObjectRef {
+                    kind: stateful_set.kind(),
+                    ..zk.object_ref()
+                }
             }));
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
@@ -112,32 +115,43 @@ pub open spec fn reconcile_core(
             };
             (state_prime, req_o)
         },
-        ZookeeperReconcileStep::AfterGetStatefulSet {
+        ZookeeperReconcileStep::AfterGetStatefulSet => {
             let stateful_set = make_stateful_set(zk);
-            let get_sts_resp = resp_o.get_GetResponse_0();
-            if resp_o.is_Some() && resp_o.is_GetResponse() {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_GetResponse() {
+                let get_sts_resp = resp_o.get_Some_0().get_GetResponse_0().res;
                 if get_sts_resp.is_Ok() {
                     // update
                     let old_sts_o = get_sts_resp.get_Ok_0();
-                    let update_sts = StatefulSetView::from_dynamic_object(old_sts_o);
-                    update_sts.spec = stateful_set.spec;
-                    let req_o = Option::Some(APIRequest::UpdateRequest(
-                        UpdateRequest {
-                            name: update_sts.metadata.name,
-                            namespace: update_sts.metadata.namespace,
-                            obj: update_sts.to_dynamic_object(),
-                        }
-                    ));
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Done,
-                        ..state
-                    };
-                    (state_prime, req_o)
-                } else if get_sts_resp.get_Err_0() == APIError::ObjectNotFound {
+                    let update_sts_obj = StatefulSetView::from_dynamic_object(old_sts_o);
+                    if update_sts_obj.is_Ok() {
+                        let req_o = Option::Some(APIRequest::UpdateRequest(
+                            UpdateRequest {
+                                key: ObjectRef {
+                                    kind: stateful_set.kind(),
+                                    name: stateful_set.metadata.name.get_Some_0(),
+                                    namespace: zk.metadata.namespace.get_Some_0(),
+                                },
+                                obj: update_sts_obj.get_Ok_0().set_spec(stateful_set.spec.get_Some_0()).to_dynamic_object(),
+                            }
+                        ));
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::Done,
+                            ..state
+                        };
+                        (state_prime, req_o)
+                    } else {
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::Error,
+                            ..state
+                        };
+                        let req_o = Option::None;
+                        (state_prime, req_o)
+                    }
+                } else if get_sts_resp.get_Err_0().is_ObjectNotFound() {
                     // create
                     let req_o = Option::Some(APIRequest::CreateRequest(
                         CreateRequest {
-                            namespace: zk.metadata.namespace
+                            namespace: zk.metadata.namespace.get_Some_0(),
                             obj: stateful_set.to_dynamic_object(),
                         }
                     ));
@@ -145,7 +159,7 @@ pub open spec fn reconcile_core(
                         reconcile_step: ZookeeperReconcileStep::Done,
                         ..state
                     };
-                    return (state_prime, req_o);
+                    (state_prime, req_o)
                 } else {
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::Error,
@@ -162,7 +176,6 @@ pub open spec fn reconcile_core(
                 let req_o = Option::None;
                 (state_prime, req_o)
             }
-
         },
         _ => {
             let state_prime = ZookeeperReconcileState {

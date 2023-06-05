@@ -66,7 +66,7 @@ impl StatefulSet {
         if self.inner.spec.is_none() {
             Option::None
         } else {
-            Option::Some(StatefulSetSpec::from_kube(self.inner.spec.get_some().clone()))
+            Option::Some(StatefulSetSpec::from_kube(self.inner.spec.as_ref().unwrap().clone()))
         }
     }
 
@@ -86,15 +86,10 @@ impl StatefulSet {
         self.inner.spec = std::option::Option::Some(spec.into_kube());
     }
 
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSet {
-        self.inner
-    }
-
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
-            res@.kind == Kind::CustomResourceKind,
+            res@.kind == Kind::StatefulSetKind,
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::apps::v1::StatefulSet>(&()))
     }
@@ -124,6 +119,18 @@ impl StatefulSet {
         } else {
             Result::Err(ParseDynamicObjectError::ExecError)
         }
+    }
+}
+
+impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSet> for StatefulSet {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSet) -> StatefulSet {
+        StatefulSet { inner: inner }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSet {
+        self.inner
     }
 }
 
@@ -187,8 +194,17 @@ impl StatefulSetSpec {
         )
     }
 
+
+}
+
+impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec> for StatefulSetSpec {
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec {
+    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec) -> StatefulSetSpec {
+        StatefulSetSpec { inner: inner }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec {
         self.inner
     }
 }

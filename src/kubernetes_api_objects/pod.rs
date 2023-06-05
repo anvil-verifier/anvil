@@ -86,7 +86,7 @@ impl Pod {
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
-            res@.kind == Kind::CustomResourceKind,
+            res@.kind == Kind::PodKind,
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::Pod>(&()))
     }
