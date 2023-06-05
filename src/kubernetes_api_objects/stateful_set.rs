@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::label_selector::*;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
@@ -107,11 +108,18 @@ impl StatefulSet {
 
     /// Convert a DynamicObject to a StatefulSet
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (sts: StatefulSet)
+    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<StatefulSet, ParseDynamicObjectError>)
         ensures
-            sts@ == StatefulSetView::from_dynamic_object(obj@),
+            res.is_Ok() == StatefulSetView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == StatefulSetView::from_dynamic_object(obj@).get_Ok_0(),
     {
-        StatefulSet { inner: obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::apps::v1::StatefulSet>().unwrap() }
+        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::apps::v1::StatefulSet>();
+        if parse_result.is_ok() {
+            let res = StatefulSet { inner: parse_result.unwrap() };
+            Result::Ok(res)
+        } else {
+            Result::Err(ParseDynamicObjectError::ExecError)
+        }
     }
 }
 
@@ -219,7 +227,16 @@ impl StatefulSetView {
         }
     }
 
-    pub open spec fn spec_field() -> nat {0}
+    pub closed spec fn marshal_spec(s: Option<StatefulSetSpecView>) -> Value;
+
+    pub closed spec fn unmarshal_spec(v: Value) -> Result<Option<StatefulSetSpecView>, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    pub proof fn spec_integrity_is_preserved_by_marshal()
+        ensures
+            forall |s: Option<StatefulSetSpecView>|
+                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
+                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for StatefulSetView {
@@ -243,24 +260,23 @@ impl ResourceView for StatefulSetView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(Map::empty()
-                                    .insert(Self::spec_field(), if self.spec.is_None() {Value::Null} else {
-                                        self.spec.get_Some_0().marshal()
-                                    })),
+            data: StatefulSetView::marshal_spec(self.spec),
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> StatefulSetView {
-        StatefulSetView {
-            metadata: obj.metadata,
-            spec: if obj.data.get_Object_0()[Self::spec_field()].is_Null() {Option::None} else {
-                Option::Some(StatefulSetSpecView::unmarshal(obj.data.get_Object_0()[Self::spec_field()]))
-            },
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<StatefulSetView, ParseDynamicObjectError> {
+        if !StatefulSetView::unmarshal_spec(obj.data).is_Ok() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else {
+            Result::Ok(StatefulSetView {
+                metadata: obj.metadata,
+                spec: StatefulSetView::unmarshal_spec(obj.data).get_Ok_0(),
+            })
         }
     }
 
     proof fn to_dynamic_preserves_integrity() {
-        StatefulSetSpecView::marshal_preserves_integrity();
+        StatefulSetView::spec_integrity_is_preserved_by_marshal();
     }
 }
 
@@ -327,64 +343,19 @@ impl StatefulSetSpecView {
         }
     }
 
-    pub open spec fn replicas_field() -> nat {0}
-
-    pub open spec fn selector_field() -> nat {1}
-
-    pub open spec fn service_name_field() -> nat {2}
-
-    pub open spec fn template_field() -> nat {3}
-
-    pub open spec fn volume_claim_templates_field() -> nat {4}
-
     pub open spec fn pod_management_policy_field() -> nat {5}
 }
 
 impl Marshalable for StatefulSetSpecView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::replicas_field(), if self.replicas.is_None() { Value::Null } else {
-                    Value::Int(self.replicas.get_Some_0())
-                })
-                .insert(Self::selector_field(), self.selector.marshal())
-                .insert(Self::service_name_field(), Value::String(self.service_name))
-                .insert(Self::template_field(), self.template.marshal())
-                .insert(Self::volume_claim_templates_field(), if self.volume_claim_templates.is_None() { Value::Null } else {
-                    Value::Array(self.volume_claim_templates.get_Some_0().map_values(|pvc: PersistentVolumeClaimView| pvc.marshal()))
-                })
-                .insert(Self::pod_management_policy_field(), if self.pod_management_policy.is_None() { Value::Null } else {
-                    Value::String(self.pod_management_policy.get_Some_0())
-                })
-        )
-    }
+    spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        StatefulSetSpecView {
-            replicas: if value.get_Object_0()[Self::replicas_field()].is_Null() {Option::None} else {
-                Option::Some(value.get_Object_0()[Self::replicas_field()].get_Int_0())
-            },
-            selector: LabelSelectorView::unmarshal(value.get_Object_0()[Self::selector_field()]),
-            service_name: value.get_Object_0()[Self::service_name_field()].get_String_0(),
-            template: PodTemplateSpecView::unmarshal(value.get_Object_0()[Self::template_field()]),
-            volume_claim_templates: if value.get_Object_0()[Self::volume_claim_templates_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::volume_claim_templates_field()].get_Array_0().map_values(|v| PersistentVolumeClaimView::unmarshal(v)))
-            },
-            pod_management_policy: if value.get_Object_0()[Self::pod_management_policy_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::pod_management_policy_field()].get_String_0())
-            },
-        }
-    }
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
-            if o.volume_claim_templates.is_Some() {
-                PersistentVolumeClaimView::marshal_preserves_integrity();
-                assert_seqs_equal!(o.volume_claim_templates.get_Some_0(), Self::unmarshal(o.marshal()).volume_claim_templates.get_Some_0());
-            }
-            PodTemplateSpecView::marshal_preserves_integrity();
-        }
-    }
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 }

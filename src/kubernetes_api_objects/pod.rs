@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
@@ -103,11 +104,18 @@ impl Pod {
 
     /// Convert a DynamicObject to a Pod
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (pod: Pod)
+    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<Pod, ParseDynamicObjectError>)
         ensures
-            pod@ == PodView::from_dynamic_object(obj@),
+            res.is_Ok() == PodView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == PodView::from_dynamic_object(obj@).get_Ok_0(),
     {
-        Pod { inner: obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::Pod>().unwrap() }
+        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::Pod>();
+        if parse_result.is_ok() {
+            let res = Pod { inner: parse_result.unwrap() };
+            Result::Ok(res)
+        } else {
+            Result::Err(ParseDynamicObjectError::ExecError)
+        }
     }
 }
 
@@ -896,7 +904,16 @@ impl PodView {
         }
     }
 
-    pub open spec fn spec_field() -> nat {0}
+    pub closed spec fn marshal_spec(s: Option<PodSpecView>) -> Value;
+
+    pub closed spec fn unmarshal_spec(v: Value) -> Result<Option<PodSpecView>, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    pub proof fn spec_integrity_is_preserved_by_marshal()
+        ensures
+            forall |s: Option<PodSpecView>|
+                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
+                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for PodView {
@@ -920,24 +937,23 @@ impl ResourceView for PodView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(Map::empty()
-                                    .insert(Self::spec_field(), if self.spec.is_None() { Value::Null } else {
-                                        self.spec.get_Some_0().marshal()
-                                    })),
+            data: PodView::marshal_spec(self.spec),
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> PodView {
-        PodView {
-            metadata: obj.metadata,
-            spec: if obj.data.get_Object_0()[Self::spec_field()].is_Null() { Option::None } else {
-                Option::Some(PodSpecView::unmarshal(obj.data.get_Object_0()[Self::spec_field()]))
-            },
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<PodView, ParseDynamicObjectError> {
+        if !PodView::unmarshal_spec(obj.data).is_Ok() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else {
+            Result::Ok(PodView {
+                metadata: obj.metadata,
+                spec: PodView::unmarshal_spec(obj.data).get_Ok_0(),
+            })
         }
     }
 
     proof fn to_dynamic_preserves_integrity() {
-        PodSpecView::marshal_preserves_integrity();
+        PodView::spec_integrity_is_preserved_by_marshal();
     }
 }
 
@@ -986,61 +1002,21 @@ impl PodSpecView {
         }
     }
 
-    pub open spec fn containers_field() -> nat {0}
-
-    pub open spec fn volumes_field() -> nat {1}
-
     pub open spec fn init_containers_field() -> nat {2}
 
     pub open spec fn service_account_name_field() -> nat {3}
 }
 
 impl Marshalable for PodSpecView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::containers_field(), Value::Array(self.containers.map_values(|container: ContainerView| container.marshal())))
-                .insert(Self::volumes_field(), if self.volumes.is_None() { Value::Null } else {
-                    Value::Array(self.volumes.get_Some_0().map_values(|volume: VolumeView| volume.marshal()))
-                })
-                .insert(Self::init_containers_field(), if self.init_containers.is_None() { Value::Null } else {
-                    Value::Array(self.init_containers.get_Some_0().map_values(|container: ContainerView| container.marshal()))
-                })
-                .insert(Self::service_account_name_field(), if self.service_account_name.is_None() { Value::Null } else {
-                    Value::String(self.service_account_name.get_Some_0())
-                })
-        )
-    }
+    spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        PodSpecView {
-            containers: value.get_Object_0()[Self::containers_field()].get_Array_0().map_values(|v| ContainerView::unmarshal(v)),
-            volumes: if value.get_Object_0()[Self::volumes_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::volumes_field()].get_Array_0().map_values(|v| VolumeView::unmarshal(v)))
-            },
-            init_containers: if value.get_Object_0()[Self::init_containers_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::init_containers_field()].get_Array_0().map_values(|v| ContainerView::unmarshal(v)))
-            },
-            service_account_name: if value.get_Object_0()[Self::service_account_name_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::service_account_name_field()].get_String_0())
-            },
-        }
-    }
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
-            ContainerView::marshal_preserves_integrity();
-            assert_seqs_equal!(o.containers, Self::unmarshal(o.marshal()).containers);
-            if o.volumes.is_Some() {
-                VolumeView::marshal_preserves_integrity();
-                assert_seqs_equal!(o.volumes.get_Some_0(), Self::unmarshal(o.marshal()).volumes.get_Some_0());
-            }
-            if o.init_containers.is_Some() {
-                ContainerView::marshal_preserves_integrity();
-                assert_seqs_equal!(o.init_containers.get_Some_0(), Self::unmarshal(o.marshal()).init_containers.get_Some_0());
-            }
-        }
-    }
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 pub struct ContainerView {
@@ -1087,58 +1063,18 @@ impl ContainerView {
             ..self
         }
     }
-
-    pub open spec fn image_field() -> nat {0}
-
-    pub open spec fn name_field() -> nat {1}
-
-    pub open spec fn ports_field() -> nat {2}
-
-    pub open spec fn volume_mounts_field() -> nat {3}
 }
 
 impl Marshalable for ContainerView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::image_field(), if self.image.is_None() { Value::Null } else {
-                    Value::String(self.image.get_Some_0())
-                })
-                .insert(Self::name_field(), Value::String(self.name))
-                .insert(Self::ports_field(), if self.ports.is_None() { Value::Null } else {
-                    Value::Array(self.ports.get_Some_0().map_values(|port: ContainerPortView| port.marshal()))
-                })
-                .insert(Self::volume_mounts_field(), if self.volume_mounts.is_None() { Value::Null } else {
-                    Value::Array(self.volume_mounts.get_Some_0().map_values(|volume_mount: VolumeMountView| volume_mount.marshal()))
-                })
-        )
-    }
+    spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        ContainerView {
-            image: if value.get_Object_0()[Self::image_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::image_field()].get_String_0())
-            },
-            name: value.get_Object_0()[Self::name_field()].get_String_0(),
-            ports: if value.get_Object_0()[Self::ports_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::ports_field()].get_Array_0().map_values(|v| ContainerPortView::unmarshal(v)))
-            },
-            volume_mounts: if value.get_Object_0()[Self::volume_mounts_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::volume_mounts_field()].get_Array_0().map_values(|v| VolumeMountView::unmarshal(v)))
-            },
-        }
-    }
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
-            if o.ports.is_Some() {
-                assert_seqs_equal!(o.ports.get_Some_0(), Self::unmarshal(o.marshal()).ports.get_Some_0());
-            }
-            if o.volume_mounts.is_Some() {
-                assert_seqs_equal!(o.volume_mounts.get_Some_0(), Self::unmarshal(o.marshal()).volume_mounts.get_Some_0());
-            }
-        }
-    }
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 pub struct ContainerPortView {
@@ -1174,25 +1110,14 @@ impl ContainerPortView {
 }
 
 impl Marshalable for ContainerPortView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::container_port_field(), Value::Int(self.container_port))
-                .insert(Self::name_field(), if self.name.is_None() { Value::Null } else {
-                    Value::String(self.name.get_Some_0())
-                })
-        )
-    }
+    spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        ContainerPortView {
-            container_port: value.get_Object_0()[Self::container_port_field()].get_Int_0(),
-            name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
-            },
-        }
-    }
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
 
@@ -1232,35 +1157,18 @@ impl VolumeMountView {
         }
     }
 
-    pub open spec fn mount_path_field() -> nat {0}
-
-    pub open spec fn name_field() -> nat {1}
-
     pub open spec fn sub_path_field() -> nat {2}
 }
 
 impl Marshalable for VolumeMountView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::mount_path_field(), Value::String(self.mount_path))
-                .insert(Self::name_field(), Value::String(self.name))
-                .insert(Self::sub_path_field(), if self.sub_path.is_None() { Value::Null } else {
-                    Value::String(self.sub_path.get_Some_0())
-                })
-        )
-    }
+    spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        VolumeMountView {
-            mount_path: value.get_Object_0()[Self::mount_path_field()].get_String_0(),
-            name: value.get_Object_0()[Self::name_field()].get_String_0(),
-            sub_path: if value.get_Object_0()[Self::sub_path_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::sub_path_field()].get_String_0())
-            },
-        }
-    }
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
 
@@ -1318,10 +1226,6 @@ impl VolumeView {
         }
     }
 
-    pub open spec fn config_map_field() -> nat {0}
-
-    pub open spec fn name_field() -> nat {1}
-
     pub open spec fn projected_field() -> nat {2}
 
     pub open spec fn secret_field() -> nat {3}
@@ -1331,47 +1235,15 @@ impl VolumeView {
 
 
 impl Marshalable for VolumeView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::config_map_field(), if self.config_map.is_None() { Value::Null } else {
-                    self.config_map.get_Some_0().marshal()
-                })
-                .insert(Self::name_field(), Value::String(self.name))
-                .insert(Self::projected_field(), if self.projected.is_None() { Value::Null } else {
-                    self.projected.get_Some_0().marshal()
-                })
-                .insert(Self::secret_field(), if self.secret.is_None() { Value::Null } else {
-                    self.secret.get_Some_0().marshal()
-                })
-                .insert(Self::downward_api_field(), if self.downward_api.is_None() { Value::Null } else {
-                    self.downward_api.get_Some_0().marshal()
-                })
-        )
-    }
+    spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        VolumeView {
-            config_map: if value.get_Object_0()[Self::config_map_field()].is_Null() { Option::None } else {
-                Option::Some(ConfigMapVolumeSourceView::unmarshal(value.get_Object_0()[Self::config_map_field()]))
-            },
-            name: value.get_Object_0()[Self::name_field()].get_String_0(),
-            projected: if value.get_Object_0()[Self::projected_field()].is_Null() { Option::None } else {
-                Option::Some(ProjectedVolumeSourceView::unmarshal(value.get_Object_0()[Self::projected_field()]))
-            },
-            secret: if value.get_Object_0()[Self::secret_field()].is_Null() { Option::None } else {
-                Option::Some(SecretVolumeSourceView::unmarshal(value.get_Object_0()[Self::secret_field()]))
-            },
-            downward_api: if value.get_Object_0()[Self::downward_api_field()].is_Null() { Option::None } else {
-                Option::Some(DownwardAPIVolumeSourceView::unmarshal(value.get_Object_0()[Self::downward_api_field()]))
-            },
-        }
-    }
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        ProjectedVolumeSourceView::marshal_preserves_integrity();
-        DownwardAPIVolumeSourceView::marshal_preserves_integrity();
-    }
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 pub struct ConfigMapVolumeSourceView {
@@ -1391,28 +1263,17 @@ impl ConfigMapVolumeSourceView {
             ..self
         }
     }
-
-    pub open spec fn name_field() -> nat {0}
 }
 
 impl Marshalable for ConfigMapVolumeSourceView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::name_field(), if self.name.is_None() { Value::Null } else {
-                    Value::String(self.name.get_Some_0())
-                })
-        )
-    }
+    spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        ConfigMapVolumeSourceView {
-            name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
-            },
-        }
-    }
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
 

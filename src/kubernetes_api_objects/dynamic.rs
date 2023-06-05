@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
+use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 
@@ -22,18 +23,6 @@ pub struct DynamicObject {
 
 impl DynamicObject {
     pub spec fn view(&self) -> DynamicObjectView;
-
-    #[verifier(external)]
-    pub fn from_kube(inner: K8SDynamicObject) -> DynamicObject {
-        DynamicObject {
-            inner: inner
-        }
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> K8SDynamicObject {
-        self.inner
-    }
 
     #[verifier(external)]
     pub fn kube_metadata_ref(&self) -> &K8SObjectMeta {
@@ -57,6 +46,20 @@ impl DynamicObject {
     }
 }
 
+impl ResourceWrapper<K8SDynamicObject> for DynamicObject {
+    #[verifier(external)]
+    fn from_kube(inner: K8SDynamicObject) -> DynamicObject {
+        DynamicObject {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> K8SDynamicObject {
+        self.inner
+    }
+}
+
 /// DynamicObjectView is the ghost type of DynamicObject.
 /// It is supposed to be used in spec and proof code.
 
@@ -76,6 +79,26 @@ impl DynamicObjectView {
             kind: self.kind,
             name: self.metadata.name.get_Some_0(),
             namespace: self.metadata.namespace.get_Some_0(),
+        }
+    }
+
+    pub open spec fn set_namespace(self, namespace: StringView) -> DynamicObjectView {
+        DynamicObjectView {
+            metadata: ObjectMetaView {
+                namespace: Option::Some(namespace),
+                ..self.metadata
+            },
+            ..self
+        }
+    }
+
+    pub open spec fn set_resource_version(self, resource_version: nat) -> DynamicObjectView {
+        DynamicObjectView {
+            metadata: ObjectMetaView {
+                resource_version: Option::Some(resource_version),
+                ..self.metadata
+            },
+            ..self
         }
     }
 }

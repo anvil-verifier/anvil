@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
@@ -99,11 +100,18 @@ impl Service {
     }
 
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (svc: Service)
+    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<Service, ParseDynamicObjectError>)
         ensures
-            svc@ == ServiceView::from_dynamic_object(obj@),
+            res.is_Ok() == ServiceView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == ServiceView::from_dynamic_object(obj@).get_Ok_0(),
     {
-        Service { inner: obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::Service>().unwrap() }
+        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::Service>();
+        if parse_result.is_ok() {
+            let res = Service { inner: parse_result.unwrap() };
+            Result::Ok(res)
+        } else {
+            Result::Err(ParseDynamicObjectError::ExecError)
+        }
     }
 }
 
@@ -254,7 +262,16 @@ impl ServiceView {
         }
     }
 
-    pub open spec fn spec_field() -> nat {0}
+    pub closed spec fn marshal_spec(s: Option<ServiceSpecView>) -> Value;
+
+    pub closed spec fn unmarshal_spec(v: Value) -> Result<Option<ServiceSpecView>, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    pub proof fn spec_integrity_is_preserved_by_marshal()
+        ensures
+            forall |s: Option<ServiceSpecView>|
+                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
+                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for ServiceView {
@@ -278,31 +295,23 @@ impl ResourceView for ServiceView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(Map::empty()
-                                    .insert(Self::spec_field(), if self.spec.is_None() {Value::Null} else {
-                                        self.spec.get_Some_0().marshal()
-                                    })),
+            data: ServiceView::marshal_spec(self.spec),
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> ServiceView {
-        ServiceView {
-            metadata: obj.metadata,
-            spec: if obj.data.get_Object_0()[Self::spec_field()].is_Null() {Option::None} else {
-                Option::Some(ServiceSpecView::unmarshal(obj.data.get_Object_0()[Self::spec_field()]))
-            },
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ServiceView, ParseDynamicObjectError> {
+        if !ServiceView::unmarshal_spec(obj.data).is_Ok() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else {
+            Result::Ok(ServiceView {
+                metadata: obj.metadata,
+                spec: ServiceView::unmarshal_spec(obj.data).get_Ok_0(),
+            })
         }
     }
 
     proof fn to_dynamic_preserves_integrity() {
-        assert forall |o: Self| o == Self::from_dynamic_object(#[trigger] o.to_dynamic_object()) by {
-            if o.spec.is_Some() && o.spec.get_Some_0().ports.is_Some() {
-                assert_seqs_equal!(
-                    o.spec.get_Some_0().ports.get_Some_0(),
-                    Self::from_dynamic_object(o.to_dynamic_object()).spec.get_Some_0().ports.get_Some_0()
-                );
-            }
-        }
+        ServiceView::spec_integrity_is_preserved_by_marshal();
     }
 }
 
@@ -351,58 +360,19 @@ impl ServiceSpecView {
         }
     }
 
-    pub open spec fn cluster_ip_field() -> nat {0}
-
-    pub open spec fn ports_field() -> nat {1}
-
-    pub open spec fn selector_field() -> nat {2}
-
     pub open spec fn publish_not_ready_addresses_field() -> nat {3}
 }
 
 impl Marshalable for ServiceSpecView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::cluster_ip_field(), if self.cluster_ip.is_None() {Value::Null} else {
-                    Value::String(self.cluster_ip.get_Some_0())
-                })
-                .insert(Self::ports_field(), if self.ports.is_None() {Value::Null} else {
-                    Value::Array(self.ports.get_Some_0().map_values(|port: ServicePortView| port.marshal()))
-                })
-                .insert(Self::selector_field(), if self.selector.is_None() {Value::Null} else {
-                    Value::StringStringMap(self.selector.get_Some_0())
-                })
-                .insert(Self::publish_not_ready_addresses_field(), if self.publish_not_ready_addresses.is_None() {Value::Null} else {
-                    Value::Bool(self.publish_not_ready_addresses.get_Some_0())
-                })
-        )
-    }
+    spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        ServiceSpecView {
-            cluster_ip: if value.get_Object_0()[Self::cluster_ip_field()].is_Null() {Option::None} else {
-                Option::Some(value.get_Object_0()[Self::cluster_ip_field()].get_String_0())
-            },
-            ports: if value.get_Object_0()[Self::ports_field()].is_Null() {Option::None} else {
-                Option::Some(value.get_Object_0()[Self::ports_field()].get_Array_0().map_values(|v| ServicePortView::unmarshal(v)))
-            },
-            selector: if value.get_Object_0()[Self::selector_field()].is_Null() {Option::None} else {
-                Option::Some(value.get_Object_0()[Self::selector_field()].get_StringStringMap_0())
-            },
-            publish_not_ready_addresses: if value.get_Object_0()[Self::publish_not_ready_addresses_field()].is_Null() {Option::None} else {
-                Option::Some(value.get_Object_0()[Self::publish_not_ready_addresses_field()].get_Bool_0())
-            },
-        }
-    }
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
-            if o.ports.is_Some() {
-                assert_seqs_equal!(o.ports.get_Some_0(), Self::unmarshal(o.marshal()).ports.get_Some_0());
-            }
-        }
-    }
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 pub struct ServicePortView {
@@ -441,39 +411,18 @@ impl ServicePortView {
         }
     }
 
-    pub open spec fn name_field() -> nat {0}
-
-    pub open spec fn port_field() -> nat {1}
-
     pub open spec fn app_protocol_field() -> nat {2}
 }
 
 impl Marshalable for ServicePortView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::name_field(), if self.name.is_None() { Value::Null } else {
-                    Value::String(self.name.get_Some_0())
-                })
-                .insert(Self::port_field(), Value::Nat(self.port))
-                .insert(Self::app_protocol_field(), if self.app_protocol.is_None() { Value::Null } else {
-                    Value::String(self.app_protocol.get_Some_0())
-                })
-        )
-    }
+    spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        ServicePortView {
-            name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
-            },
-            port: value.get_Object_0()[Self::port_field()].get_Nat_0(),
-            app_protocol: if value.get_Object_0()[Self::app_protocol_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::app_protocol_field()].get_String_0())
-            },
-        }
-    }
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
 

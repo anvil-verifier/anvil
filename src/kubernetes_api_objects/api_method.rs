@@ -24,6 +24,7 @@ pub enum APIRequest {
     ListRequest(ListRequest),
     CreateRequest(CreateRequest),
     DeleteRequest(DeleteRequest),
+    UpdateRequest(UpdateRequest),
 }
 
 /// GetRequest gets an object with the key (kind, name and namespace).
@@ -42,6 +43,7 @@ pub struct ListRequest {
 /// CreateRequest creates the obj.
 
 pub struct CreateRequest {
+    pub namespace: StringView,
     pub obj: DynamicObjectView,
 }
 
@@ -49,6 +51,13 @@ pub struct CreateRequest {
 
 pub struct DeleteRequest {
     pub key: ObjectRef,
+}
+
+/// UpdateRequest replaces the existing obj with a new one.
+
+pub struct UpdateRequest {
+    pub key: ObjectRef,
+    pub obj: DynamicObjectView,
 }
 
 /// KubeAPIRequest represents API requests used in executable.
@@ -67,6 +76,7 @@ pub enum KubeAPIRequest {
     ListRequest(KubeListRequest),
     CreateRequest(KubeCreateRequest),
     DeleteRequest(KubeDeleteRequest),
+    UpdateRequest(KubeUpdateRequest),
 }
 
 /// KubeGetRequest has the name as the parameter of Api.get(), and namespace to instantiate an Api.
@@ -90,6 +100,7 @@ pub struct KubeListRequest {
 
 pub struct KubeCreateRequest {
     pub api_resource: ApiResource,
+    pub namespace: String,
     pub obj: DynamicObject,
 }
 
@@ -99,6 +110,15 @@ pub struct KubeDeleteRequest {
     pub api_resource: ApiResource,
     pub name: String,
     pub namespace: String,
+}
+
+/// KubeUpdateRequest has the obj as the parameter of Api.replace().
+
+pub struct KubeUpdateRequest {
+    pub api_resource: ApiResource,
+    pub name: String,
+    pub namespace: String,
+    pub obj: DynamicObject,
 }
 
 impl KubeAPIRequest {
@@ -116,6 +136,7 @@ impl KubeAPIRequest {
                 namespace: list_req.namespace@,
             }),
             KubeAPIRequest::CreateRequest(create_req) => APIRequest::CreateRequest(CreateRequest {
+                namespace: create_req.namespace@,
                 obj: create_req.obj@,
             }),
             KubeAPIRequest::DeleteRequest(delete_req) => APIRequest::DeleteRequest(DeleteRequest {
@@ -124,6 +145,14 @@ impl KubeAPIRequest {
                     name: delete_req.name@,
                     namespace: delete_req.namespace@,
                 }
+            }),
+            KubeAPIRequest::UpdateRequest(update_req) => APIRequest::UpdateRequest(UpdateRequest {
+                key: ObjectRef {
+                    kind: update_req.api_resource@.kind,
+                    name: update_req.name@,
+                    namespace: update_req.namespace@,
+                },
+                obj: update_req.obj@,
             }),
         }
     }
@@ -144,6 +173,7 @@ pub enum APIResponse {
     ListResponse(ListResponse),
     CreateResponse(CreateResponse),
     DeleteResponse(DeleteResponse),
+    UpdateResponse(UpdateResponse),
 }
 
 /// GetResponse has the object returned by GetRequest.
@@ -171,6 +201,12 @@ pub struct DeleteResponse {
     pub res: Result<DynamicObjectView, APIError>,
 }
 
+/// UpdateResponse has the object updated by CreateRequest.
+
+pub struct UpdateResponse {
+    pub res: Result<DynamicObjectView, APIError>,
+}
+
 /// KubeAPIResponse represents API results used in executable.
 ///
 /// KubeAPIResponse wraps around the results returned by the methods of kube::api::Api.
@@ -182,6 +218,7 @@ pub enum KubeAPIResponse {
     ListResponse(KubeListResponse),
     CreateResponse(KubeCreateResponse),
     DeleteResponse(KubeDeleteResponse),
+    UpdateResponse(KubeUpdateResponse),
 }
 
 /// KubeGetResponse has the object returned by KubeGetRequest.
@@ -206,6 +243,12 @@ pub struct KubeCreateResponse {
 
 // TODO: need major revision here; DeleteResponse could be one of: (1) object is being deleted, (2) object is deleted, (3) error.
 pub struct KubeDeleteResponse {
+    pub res: Result<DynamicObject, APIError>,
+}
+
+/// KubeUpdateResponse has the object updated by KubeUpdateRequest.
+
+pub struct KubeUpdateResponse {
     pub res: Result<DynamicObject, APIError>,
 }
 
@@ -243,6 +286,9 @@ impl KubeAPIResponse {
             }),
             KubeAPIResponse::DeleteResponse(delete_resp) => APIResponse::DeleteResponse(DeleteResponse {
                 res: result_obj_to_view(delete_resp.res),
+            }),
+            KubeAPIResponse::UpdateResponse(update_resp) => APIResponse::UpdateResponse(UpdateResponse {
+                res: result_obj_to_view(update_resp.res),
             }),
         }
     }

@@ -10,11 +10,19 @@ verus! {
 // TODO: implement other error types
 #[is_variant]
 pub enum APIError {
+    BadRequest,
+    Conflict,
     ObjectNotFound,
     ObjectAlreadyExists,
+    NotSupported,
     Other
 }
 
-pub struct ParseDynamicObjectError {}
+pub enum ParseDynamicObjectError {
+    MissingField,
+    UnexpectedType,
+    UnmarshalError,
+    ExecError,
+}
 
 }

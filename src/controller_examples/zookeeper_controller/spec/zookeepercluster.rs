@@ -1,7 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::{
-    api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, resource::*,
+    api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError, marshal::*,
+    object_meta::*, resource::*,
 };
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -73,14 +74,19 @@ impl ZookeeperCluster {
         )
     }
 
-    /// Convert a DynamicObject to a ConfigMap
-    // NOTE: This function assumes try_parse won't fail!
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (zk: ZookeeperCluster)
+    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<ZookeeperCluster, ParseDynamicObjectError>)
         ensures
-            zk@ == ZookeeperClusterView::from_dynamic_object(obj@),
+            res.is_Ok() == ZookeeperClusterView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == ZookeeperClusterView::from_dynamic_object(obj@).get_Ok_0(),
     {
-        ZookeeperCluster { inner: obj.into_kube().try_parse::<deps_hack::ZookeeperCluster>().unwrap() }
+        let parse_result = obj.into_kube().try_parse::<deps_hack::ZookeeperCluster>();
+        if parse_result.is_ok() {
+            let res = ZookeeperCluster { inner: parse_result.unwrap() };
+            Result::Ok(res)
+        } else {
+            Result::Err(ParseDynamicObjectError::ExecError)
+        }
     }
 }
 
@@ -106,6 +112,17 @@ impl ZookeeperClusterView {
     pub open spec fn namespace(self) -> Option<StringView> {
         self.metadata.namespace
     }
+
+    pub closed spec fn marshal_spec(s: ZookeeperClusterSpecView) -> Value;
+
+    pub closed spec fn unmarshal_spec(v: Value) -> Result<ZookeeperClusterSpecView, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    pub proof fn spec_integrity_is_preserved_by_marshal()
+        ensures
+            forall |s: ZookeeperClusterSpecView|
+                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
+                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for ZookeeperClusterView {
@@ -129,25 +146,24 @@ impl ResourceView for ZookeeperClusterView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(Map::empty()
-                                    .insert(spec_field(),
-                                        Value::Object(Map::empty()
-                                            .insert(spec_replica_field(), Value::Int(self.spec.replica)))
-                                    )
-                                ),
+            data: ZookeeperClusterView::marshal_spec(self.spec),
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> ZookeeperClusterView {
-        ZookeeperClusterView {
-            metadata: obj.metadata,
-            spec: ZookeeperClusterSpecView {
-                replica: obj.data.get_Object_0()[spec_field()].get_Object_0()[spec_replica_field()].get_Int_0(),
-            },
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ZookeeperClusterView, ParseDynamicObjectError> {
+        if !ZookeeperClusterView::unmarshal_spec(obj.data).is_Ok() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else {
+            Result::Ok(ZookeeperClusterView {
+                metadata: obj.metadata,
+                spec: ZookeeperClusterView::unmarshal_spec(obj.data).get_Ok_0(),
+            })
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {}
+    proof fn to_dynamic_preserves_integrity() {
+        ZookeeperClusterView::spec_integrity_is_preserved_by_marshal();
+    }
 }
 
 #[verifier(external_body)]
@@ -173,10 +189,16 @@ impl ZookeeperClusterSpec {
 
 impl ZookeeperClusterSpecView {}
 
-pub open spec fn spec_field() -> nat {0}
+impl Marshalable for ZookeeperClusterSpecView {
+    spec fn marshal(self) -> Value;
 
-pub open spec fn status_field() -> nat {1}
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-pub open spec fn spec_replica_field() -> nat {0}
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
+}
 
 }

@@ -15,6 +15,7 @@ verus! {
 pub type EtcdState = Map<ObjectRef, DynamicObjectView>;
 
 pub struct KubernetesAPIState {
+    pub resource_version_counter: nat,
     pub resources: EtcdState,
 }
 

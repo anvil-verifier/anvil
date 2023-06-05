@@ -56,6 +56,7 @@ pub open spec fn reconcile_core(
         ZookeeperReconcileStep::Init => {
             let headless_service = make_headless_service(zk);
             let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: zk.metadata.namespace.get_Some_0(),
                 obj: headless_service.to_dynamic_object(),
             }));
             let state_prime = ZookeeperReconcileState {
@@ -67,6 +68,7 @@ pub open spec fn reconcile_core(
         ZookeeperReconcileStep::AfterCreateHeadlessService => {
             let client_service = make_client_service(zk);
             let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: zk.metadata.namespace.get_Some_0(),
                 obj: client_service.to_dynamic_object(),
             }));
             let state_prime = ZookeeperReconcileState {
@@ -78,6 +80,7 @@ pub open spec fn reconcile_core(
         ZookeeperReconcileStep::AfterCreateClientService => {
             let admin_server_service = make_admin_server_service(zk);
             let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: zk.metadata.namespace.get_Some_0(),
                 obj: admin_server_service.to_dynamic_object(),
             }));
             let state_prime = ZookeeperReconcileState {
@@ -89,6 +92,7 @@ pub open spec fn reconcile_core(
         ZookeeperReconcileStep::AfterCreateAdminServerService => {
             let config_map = make_config_map(zk);
             let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: zk.metadata.namespace.get_Some_0(),
                 obj: config_map.to_dynamic_object(),
             }));
             let state_prime = ZookeeperReconcileState {
@@ -100,6 +104,7 @@ pub open spec fn reconcile_core(
         ZookeeperReconcileStep::AfterCreateConfigMap => {
             let stateful_set = make_stateful_set(zk);
             let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: zk.metadata.namespace.get_Some_0(),
                 obj: stateful_set.to_dynamic_object(),
             }));
             let state_prime = ZookeeperReconcileState {
@@ -174,7 +179,6 @@ pub open spec fn make_service(
     ServiceView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(name)
-            .set_namespace(zk.metadata.namespace.get_Some_0())
             .set_labels(Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()))
         ).set_spec({
             let spec = ServiceSpecView::default()
@@ -198,7 +202,6 @@ pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
     ConfigMapView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
-            .set_namespace(zk.metadata.namespace.get_Some_0())
             .set_labels(Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()))
         )
         .set_data(Map::empty()
@@ -293,7 +296,6 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView
     let labels = Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0());
     let metadata = ObjectMetaView::default()
         .set_name(name)
-        .set_namespace(zk.metadata.namespace.get_Some_0())
         .set_labels(labels);
 
     let spec = StatefulSetSpecView::default()

@@ -1,7 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
+use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_map::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -43,9 +45,18 @@ impl LabelSelector {
     {
         self.inner.match_labels = std::option::Option::Some(match_labels.into_rust_map());
     }
+}
+
+impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector> for LabelSelector {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector) -> LabelSelector {
+        LabelSelector {
+            inner: inner
+        }
+    }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
+    fn into_kube(self) -> deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector {
         self.inner
     }
 }
@@ -75,23 +86,15 @@ impl LabelSelectorView {
 }
 
 impl Marshalable for LabelSelectorView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::match_labels_field(), if self.match_labels.is_None() { Value::Null } else {
-                    Value::StringStringMap(self.match_labels.get_Some_0())
-                })
-        )
-    }
 
-    open spec fn unmarshal(value: Value) -> Self {
-        LabelSelectorView {
-            match_labels: if value.get_Object_0()[Self::match_labels_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::match_labels_field()].get_StringStringMap_0())
-            },
-        }
-    }
+    spec fn marshal(self) -> Value;
 
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
 
