@@ -54,7 +54,7 @@ impl StatefulSet {
         ensures
             metadata@ == self@.metadata,
     {
-        todo!()
+        ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
@@ -63,7 +63,11 @@ impl StatefulSet {
             self@.spec.is_Some() == spec.is_Some(),
             spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
     {
-        todo!()
+        if self.inner.spec.is_none() {
+            Option::None
+        } else {
+            Option::Some(StatefulSetSpec::from_kube(self.inner.spec.get_some().clone()))
+        }
     }
 
     #[verifier(external_body)]
