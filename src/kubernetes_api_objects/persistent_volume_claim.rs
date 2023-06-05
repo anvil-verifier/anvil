@@ -204,9 +204,16 @@ impl PersistentVolumeClaimView {
         }
     }
 
-    pub open spec fn metadata_field() -> nat {0}
+    pub closed spec fn marshal_spec(s: Option<PersistentVolumeClaimSpecView>) -> Value;
 
-    pub open spec fn spec_field() -> nat {1}
+    pub closed spec fn unmarshal_spec(v: Value) -> Result<Option<PersistentVolumeClaimSpecView>, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    pub proof fn spec_integrity_is_preserved_by_marshal()
+        ensures
+            forall |s: Option<PersistentVolumeClaimSpecView>|
+                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
+                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for PersistentVolumeClaimView {
@@ -230,41 +237,23 @@ impl ResourceView for PersistentVolumeClaimView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(Map::empty()
-                                    .insert(Self::spec_field(),
-                                        if self.spec.is_None() {Value::Null} else {self.spec.get_Some_0().marshal()})),
+            data: PersistentVolumeClaimView::marshal_spec(self.spec),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<PersistentVolumeClaimView, ParseDynamicObjectError> {
-        // if obj.kind != Self::kind()
-        let data_object = obj.data.get_Object_0();
-        let data_spec = data_object[Self::spec_field()];
-        let data_spec_unmarshal = PersistentVolumeClaimSpecView::unmarshal(data_spec);
-        if !obj.data.is_Object() {
-            Result::Err(ParseDynamicObjectError::UnexpectedType)
-        } else if !data_object.dom().contains(Self::spec_field()) {
-            Result::Err(ParseDynamicObjectError::MissingField)
-        } else if !data_spec.is_Null() && data_spec_unmarshal.is_Err() {
+        if !PersistentVolumeClaimView::unmarshal_spec(obj.data).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
-        } else if data_spec.is_Null() {
-            let res = PersistentVolumeClaimView {
-                metadata: obj.metadata,
-                spec: Option::None,
-            };
-            Result::Ok(res)
         } else {
-            let res = PersistentVolumeClaimView {
+            Result::Ok(PersistentVolumeClaimView {
                 metadata: obj.metadata,
-                spec: Option::Some(data_spec_unmarshal.get_Ok_0()),
-            };
-            Result::Ok(res)
+                spec: PersistentVolumeClaimView::unmarshal_spec(obj.data).get_Ok_0(),
+            })
         }
     }
 
     proof fn to_dynamic_preserves_integrity() {
-        PersistentVolumeClaimSpecView::marshal_preserves_integrity();
-        PersistentVolumeClaimSpecView::marshal_returns_non_null();
+        PersistentVolumeClaimView::spec_integrity_is_preserved_by_marshal();
     }
 }
 
@@ -297,8 +286,6 @@ impl PersistentVolumeClaimSpecView {
             ..self
         }
     }
-
-    pub open spec fn access_modes_field() -> nat {0}
 }
 
 impl Marshalable for PersistentVolumeClaimSpecView {
