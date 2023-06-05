@@ -185,6 +185,48 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
             };
             return (state_prime, req_o);
         },
+        RabbitmqReconcileStep::AfterCreateServerConfigMap => {
+            let service_account = make_service_account(rabbitmq);
+            let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                KubeCreateRequest {
+                    api_resource: ServiceAccount::api_resource(),
+                    obj: service_account.to_dynamic_object(),
+                }
+            ));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
+                ..state
+            };
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterCreateServiceAccount => {
+            let role = make_role(rabbitmq);
+            let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                KubeCreateRequest {
+                    api_resource: Role::api_resource(),
+                    obj: role.to_dynamic_object(),
+                }
+            ));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateRole,
+                ..state
+            };
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterCreateRole => {
+            let role_binding = make_role_binding(rabbitmq);
+            let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                KubeCreateRequest {
+                    api_resource: RoleBinding::api_resource(),
+                    obj: role_binding.to_dynamic_object(),
+                }
+            ));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateRoleBinding,
+                ..state
+            };
+            return (state_prime, req_o);
+        },
         _ => {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: step,
@@ -760,9 +802,8 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        // pod_spec@ == rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@),
+        pod_spec@ == rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@),
 {
-    let readiness_probe_port = new_strlit("amqp").to_string();
     let mut volumes = Vec::empty();
     volumes.push({
         let mut volume = Volume::default();
@@ -999,8 +1040,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
 
                 ports
             });
-            // rabbitmq_container.set_readiness_probe(make_readiness_probe());
-            // rabbitmq_container.set_liveness_probe(make_liveness_probe());
+            rabbitmq_container.set_readiness_probe(make_readiness_probe());
             rabbitmq_container
         });
 
@@ -1017,5 +1057,27 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
 
     pod_spec
 }
+
+
+#[verifier(external_body)]
+fn make_readiness_probe() -> Probe
+{
+    Probe::from_kube(
+        deps_hack::k8s_openapi::api::core::v1::Probe {
+            failure_threshold: std::option::Option::Some(3),
+            initial_delay_seconds: std::option::Option::Some(10),
+            period_seconds: std::option::Option::Some(10),
+            success_threshold: std::option::Option::Some(1),
+            timeout_seconds: std::option::Option::Some(5),
+            tcp_socket: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::TCPSocketAction{
+                port: deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::String(new_strlit("amqp").to_string().into_rust_string()),
+                ..deps_hack::k8s_openapi::api::core::v1::TCPSocketAction::default()
+            }),
+            ..deps_hack::k8s_openapi::api::core::v1::Probe::default()
+        }
+    )
+}
+
+
 
 }

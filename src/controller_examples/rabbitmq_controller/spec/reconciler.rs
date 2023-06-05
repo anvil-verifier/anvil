@@ -117,6 +117,39 @@ pub open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<AP
             };
             (state_prime, req_o)
         },
+        RabbitmqReconcileStep::AfterCreateServerConfigMap => {
+            let service_account = make_service_account(rabbitmq);
+            let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                obj: service_account.to_dynamic_object(),
+            }));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
+                ..state
+            };
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterCreateServiceAccount => {
+            let role = make_role(rabbitmq);
+            let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                obj: role.to_dynamic_object(),
+            }));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateRole,
+                ..state
+            };
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterCreateRole => {
+            let role_binding = make_role_binding(rabbitmq);
+            let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                obj: role_binding.to_dynamic_object(),
+            }));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateRoleBinding,
+                ..state
+            };
+            (state_prime, req_o)
+        },
         _ => {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: step,
