@@ -16,7 +16,7 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build Verus image
         run: |
-          cd docker/verus_build
+          cd docker/verus
           docker build -t ghcr.io/${{ env.IMAGE_NAME }}/verus:latest .
       - name: Push Verus image
         run: docker push ghcr.io/${{ env.IMAGE_NAME }}/verus:latest
