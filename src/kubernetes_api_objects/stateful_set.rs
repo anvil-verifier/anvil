@@ -194,6 +194,15 @@ impl StatefulSetSpec {
         )
     }
 
+    #[verifier(external_body)]
+    pub fn set_pod_management_policy(&mut self, pod_management_policy: String)
+        ensures
+            self@ == old(self)@.set_pod_management_policy(pod_management_policy@),
+    {
+        self.inner.pod_management_policy = std::option::Option::Some(pod_management_policy.into_rust_string())
+    }
+
+
 
 }
 
