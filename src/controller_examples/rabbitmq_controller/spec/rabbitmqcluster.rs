@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, resource::*,
 };
@@ -78,14 +79,19 @@ impl RabbitmqCluster {
         )
     }
 
-    /// Convert a DynamicObject to a ConfigMap
-    // NOTE: This function assumes try_parse won't fail!
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (rabbitmq: RabbitmqCluster)
+    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<RabbitmqCluster, ParseDynamicObjectError>)
         ensures
-            rabbitmq@ == RabbitmqClusterView::from_dynamic_object(obj@),
+            res.is_Ok() == RabbitmqClusterView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == RabbitmqClusterView::from_dynamic_object(obj@).get_Ok_0(),
     {
-        RabbitmqCluster { inner: obj.into_kube().try_parse::<deps_hack::RabbitmqCluster>().unwrap() }
+        let parse_result = obj.into_kube().try_parse::<deps_hack::RabbitmqCluster>();
+        if parse_result.is_ok() {
+            let res = RabbitmqCluster { inner: parse_result.unwrap() };
+            Result::Ok(res)
+        } else {
+            Result::Err(ParseDynamicObjectError::ExecError)
+        }
     }
 }
 
@@ -111,6 +117,17 @@ impl RabbitmqClusterView {
     pub open spec fn namespace(self) -> Option<StringView> {
         self.metadata.namespace
     }
+
+    pub closed spec fn marshal_spec(s: RabbitmqClusterSpecView) -> Value;
+
+    pub closed spec fn unmarshal_spec(v: Value) -> Result<RabbitmqClusterSpecView, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    pub proof fn spec_integrity_is_preserved_by_marshal()
+        ensures
+            forall |s: RabbitmqClusterSpecView|
+                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
+                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for RabbitmqClusterView {
@@ -134,25 +151,24 @@ impl ResourceView for RabbitmqClusterView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(Map::empty()
-                                    .insert(spec_field(),
-                                        Value::Object(Map::empty()
-                                            .insert(spec_replica_field(), Value::Int(self.spec.replica)))
-                                    )
-                                ),
+            data: RabbitmqClusterView::marshal_spec(self.spec)
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> RabbitmqClusterView {
-        RabbitmqClusterView {
-            metadata: obj.metadata,
-            spec: RabbitmqClusterSpecView {
-                replica: obj.data.get_Object_0()[spec_field()].get_Object_0()[spec_replica_field()].get_Int_0(),
-            },
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<RabbitmqClusterView, ParseDynamicObjectError> {
+        if !RabbitmqClusterView::unmarshal_spec(obj.data).is_Ok() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else {
+            Result::Ok(RabbitmqClusterView {
+                metadata: obj.metadata,
+                spec: RabbitmqClusterView::unmarshal_spec(obj.data).get_Ok_0(),
+            })
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {}
+    proof fn to_dynamic_preserves_integrity() {
+        RabbitmqClusterView::spec_integrity_is_preserved_by_marshal();
+    }
 }
 
 #[verifier(external_body)]
@@ -178,10 +194,17 @@ impl RabbitmqClusterSpec {
 
 impl RabbitmqClusterSpecView {}
 
-pub open spec fn spec_field() -> nat {0}
+impl Marshalable for RabbitmqClusterSpecView {
+    spec fn marshal(self) -> Value;
 
-pub open spec fn status_field() -> nat {1}
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-pub open spec fn spec_replica_field() -> nat {0}
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
+}
+
 
 }

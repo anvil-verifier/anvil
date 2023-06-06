@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
@@ -100,11 +101,18 @@ impl RoleBinding {
     }
 
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (svc: RoleBinding)
+    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<RoleBinding, ParseDynamicObjectError>)
         ensures
-            svc@ == RoleBindingView::from_dynamic_object(obj@),
+            res.is_Ok() == RoleBindingView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == RoleBindingView::from_dynamic_object(obj@).get_Ok_0(),
     {
-        RoleBinding { inner: obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::rbac::v1::RoleBinding>().unwrap() }
+        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::rbac::v1::RoleBinding>();
+        if parse_result.is_ok() {
+            let res = RoleBinding { inner: parse_result.unwrap() };
+            Result::Ok(res)
+        } else {
+            Result::Err(ParseDynamicObjectError::ExecError)
+        }
     }
 }
 
@@ -219,6 +227,8 @@ pub struct RoleBindingView {
     pub subjects: Option<Seq<SubjectView>>,
 }
 
+type RoleBindingSpecView = (RoleRefView, Option<Seq<SubjectView>>);
+
 impl RoleBindingView {
     pub open spec fn default() -> RoleBindingView {
         RoleBindingView {
@@ -249,9 +259,17 @@ impl RoleBindingView {
         }
     }
 
-    pub open spec fn role_ref_field() -> nat {0}
+    pub closed spec fn marshal_spec(s: RoleBindingSpecView) -> Value;
 
-    pub open spec fn subjects_field() -> nat {1}
+    pub closed spec fn unmarshal_spec(v: Value) -> Result<RoleBindingSpecView, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    pub proof fn spec_integrity_is_preserved_by_marshal()
+        ensures
+            forall |s: RoleBindingSpecView|
+                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
+                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
+
 }
 
 impl ResourceView for RoleBindingView {
@@ -275,35 +293,24 @@ impl ResourceView for RoleBindingView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(Map::empty()
-                .insert(Self::role_ref_field(), self.role_ref.marshal())
-                .insert(Self::subjects_field(), if self.subjects.is_None() {Value::Null} else {
-                    Value::Array(self.subjects.get_Some_0().map_values(|v:SubjectView| v.marshal()))
-                })
-            ),
+            data: RoleBindingView::marshal_spec((self.role_ref, self.subjects)),
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> RoleBindingView {
-        RoleBindingView {
-            metadata: obj.metadata,
-            role_ref: RoleRefView::unmarshal(obj.data.get_Object_0()[Self::role_ref_field()]),
-            subjects: if obj.data.get_Object_0()[Self::subjects_field()].is_Null() {Option::None} else {
-                Option::Some(obj.data.get_Object_0()[Self::subjects_field()].get_Array_0().map_values(|v: Value| SubjectView::unmarshal(v)))
-            },
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<RoleBindingView, ParseDynamicObjectError> {
+        if !RoleBindingView::unmarshal_spec(obj.data).is_Ok() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else {
+            Result::Ok(RoleBindingView {
+                metadata: obj.metadata,
+                role_ref: RoleBindingView::unmarshal_spec(obj.data).get_Ok_0().0,
+                subjects: RoleBindingView::unmarshal_spec(obj.data).get_Ok_0().1,
+            })
         }
     }
 
     proof fn to_dynamic_preserves_integrity() {
-        assert forall |o: Self| o == Self::from_dynamic_object(#[trigger] o.to_dynamic_object()) by {
-            if o.subjects.is_Some() {
-                SubjectView::marshal_preserves_integrity();
-                assert_seqs_equal!(
-                    o.subjects.get_Some_0(),
-                    Self::from_dynamic_object(o.to_dynamic_object()).subjects.get_Some_0()
-                );
-            }
-        }
+        RoleBindingView::spec_integrity_is_preserved_by_marshal();
     }
 }
 
@@ -351,28 +358,15 @@ impl RoleRefView {
 }
 
 impl Marshalable for RoleRefView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::api_group_field(), Value::String(self.api_group))
-                .insert(Self::kind_field(), Value::String(self.kind))
-                .insert(Self::name_field(), Value::String(self.name))
-        )
-    }
+    open spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        RoleRefView {
-            api_group: value.get_Object_0()[Self::api_group_field()].get_String_0(),
-            kind: value.get_Object_0()[Self::kind_field()].get_String_0(),
-            name: value.get_Object_0()[Self::name_field()].get_String_0(),
-        }
-    }
+    open spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
-        }
-    }
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
 
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 
@@ -422,32 +416,15 @@ impl SubjectView {
 }
 
 impl Marshalable for SubjectView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::kind_field(), Value::String(self.kind))
-                .insert(Self::name_field(), Value::String(self.name))
-                .insert(Self::namespace_field(), if self.namespace.is_None() {Value::Null} else {
-                    Value::String(self.namespace.get_Some_0())
-                })
-        )
-    }
+    open spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        SubjectView {
-            kind: value.get_Object_0()[Self::kind_field()].get_String_0(),
-            name: value.get_Object_0()[Self::name_field()].get_String_0(),
-            namespace: if value.get_Object_0()[Self::namespace_field()].is_Null() {Option::None} else {
-                Option::Some(value.get_Object_0()[Self::namespace_field()].get_String_0())
-            },
-        }
-    }
+    open spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
-        }
-    }
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
 
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 

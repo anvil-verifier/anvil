@@ -1,10 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
-    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource_requirements::*, role::*,
-    role_binding::*, secret::*, service::*, service_account::*, stateful_set::*,
+    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
+    resource_requirements::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
+    stateful_set::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
@@ -106,6 +108,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: Service::api_resource(),
+                    namespace: rabbitmq.namespace().unwrap(),
                     obj: headless_service.to_dynamic_object(),
                 }
             ));
@@ -120,6 +123,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: Service::api_resource(),
+                    namespace: rabbitmq.namespace().unwrap(),
                     obj: main_service.to_dynamic_object(),
                 }
             ));
@@ -134,6 +138,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: Secret::api_resource(),
+                    namespace: rabbitmq.namespace().unwrap(),
                     obj: erlang_secret.to_dynamic_object(),
                 }
             ));
@@ -148,6 +153,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: Secret::api_resource(),
+                    namespace: rabbitmq.namespace().unwrap(),
                     obj: default_user_secret.to_dynamic_object(),
                 }
             ));
@@ -162,6 +168,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: ConfigMap::api_resource(),
+                    namespace: rabbitmq.namespace().unwrap(),
                     obj: plugins_config_map.to_dynamic_object(),
                 }
             ));
@@ -176,6 +183,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: ConfigMap::api_resource(),
+                    namespace: rabbitmq.namespace().unwrap(),
                     obj: server_config_map.to_dynamic_object(),
                 }
             ));
@@ -190,6 +198,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: ServiceAccount::api_resource(),
+                    namespace: rabbitmq.namespace().unwrap(),
                     obj: service_account.to_dynamic_object(),
                 }
             ));
@@ -204,6 +213,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: Role::api_resource(),
+                    namespace: rabbitmq.namespace().unwrap(),
                     obj: role.to_dynamic_object(),
                 }
             ));
@@ -218,6 +228,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: RoleBinding::api_resource(),
+                    namespace: rabbitmq.namespace().unwrap(),
                     obj: role_binding.to_dynamic_object(),
                 }
             ));
@@ -232,6 +243,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: StatefulSet::api_resource(),
+                    namespace: rabbitmq.namespace().unwrap(),
                     obj: stateful_set.to_dynamic_object(),
                 }
             ));
@@ -1251,7 +1263,6 @@ fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> {
 
 
 }
-
 
 
 #[verifier(external_body)]

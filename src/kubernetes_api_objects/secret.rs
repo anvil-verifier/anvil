@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
@@ -118,11 +119,18 @@ impl Secret {
     }
 
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (cm: Secret)
+    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<Secret, ParseDynamicObjectError>)
         ensures
-            cm@ == SecretView::from_dynamic_object(obj@),
+            res.is_Ok() == SecretView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == SecretView::from_dynamic_object(obj@).get_Ok_0(),
     {
-        Secret {inner: obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::Secret>().unwrap()}
+        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::Secret>();
+        if parse_result.is_ok() {
+            let res = Secret { inner: parse_result.unwrap() };
+            Result::Ok(res)
+        } else {
+            Result::Err(ParseDynamicObjectError::ExecError)
+        }
     }
 }
 
@@ -134,6 +142,8 @@ pub struct SecretView {
     pub data: Option<Map<StringView, StringView>>, // For view, String:String map is used instead of String:Bytestring map.
     pub type_: Option<StringView>,
 }
+
+type SecretSpecView = (Option<Map<StringView, StringView>>, Option<StringView>);
 
 impl SecretView {
     pub open spec fn default() -> SecretView {
@@ -165,9 +175,16 @@ impl SecretView {
         }
     }
 
-    pub open spec fn data_field() -> nat {0}
+    pub open spec fn marshal_spec(s: SecretSpecView) -> Value;
 
-    pub open spec fn type_field() -> nat {1}
+    pub open spec fn unmarshal_spec(v: Value) -> Result<SecretSpecView, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    pub proof fn spec_integrity_is_preserved_by_marshal()
+        ensures
+            forall |s: SecretSpecView|
+                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
+                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for SecretView {
@@ -191,34 +208,25 @@ impl ResourceView for SecretView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(
-                Map::empty()
-                .insert(Self::data_field(),
-                        if self.data.is_None() { Value::Null } else {
-                            Value::StringStringMap(self.data.get_Some_0())
-                        }
-                ).insert(Self::type_field(),
-                         if self.type_.is_None() { Value::Null } else {
-                             Value::String(self.type_.get_Some_0())
-                         }
-                )
-            ),
+            data: SecretView::marshal_spec((self.data, self.type_)),
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> SecretView {
-        SecretView {
-            metadata: obj.metadata,
-            data: if obj.data.get_Object_0()[Self::data_field()].is_Null() { Option::None } else {
-                Option::Some(obj.data.get_Object_0()[Self::data_field()].get_StringStringMap_0())
-            },
-            type_: if obj.data.get_Object_0()[Self::type_field()].is_Null() { Option::None } else {
-                Option::Some(obj.data.get_Object_0()[Self::type_field()].get_String_0())
-            },
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<SecretView, ParseDynamicObjectError> {
+        if !SecretView::unmarshal_spec(obj.data).is_Ok() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else {
+            Result::Ok(SecretView {
+                metadata: obj.metadata,
+                data: SecretView::unmarshal_spec(obj.data).get_Ok_0().0,
+                type_: SecretView::unmarshal_spec(obj.data).get_Ok_0().1,
+            })
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {}
+    proof fn to_dynamic_preserves_integrity() {
+        SecretView::spec_integrity_is_preserved_by_marshal();
+    }
 }
 
 }

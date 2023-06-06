@@ -54,6 +54,7 @@ pub open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<AP
         RabbitmqReconcileStep::Init => {
             let headless_service = make_headless_service(rabbitmq);
             let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: rabbitmq.metadata.namespace.get_Some_0(),
                 obj: headless_service.to_dynamic_object(),
             }));
             let state_prime = RabbitmqReconcileState {
@@ -65,6 +66,7 @@ pub open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<AP
         RabbitmqReconcileStep::AfterCreateHeadlessService => {
             let main_service = make_main_service(rabbitmq);
             let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: rabbitmq.metadata.namespace.get_Some_0(),
                 obj: main_service.to_dynamic_object(),
             }));
             let state_prime = RabbitmqReconcileState {
@@ -76,6 +78,7 @@ pub open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<AP
         RabbitmqReconcileStep::AfterCreateService => {
             let erlang_secret = make_erlang_secret(rabbitmq);
             let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: rabbitmq.metadata.namespace.get_Some_0(),
                 obj: erlang_secret.to_dynamic_object(),
             }));
             let state_prime = RabbitmqReconcileState {
@@ -87,6 +90,7 @@ pub open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<AP
         RabbitmqReconcileStep::AfterCreateErlangCookieSecret => {
             let default_user_secret = make_default_user_secret(rabbitmq);
             let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: rabbitmq.metadata.namespace.get_Some_0(),
                 obj: default_user_secret.to_dynamic_object(),
             }));
             let state_prime = RabbitmqReconcileState {
@@ -98,6 +102,7 @@ pub open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<AP
         RabbitmqReconcileStep::AfterCreateDefaultUserSecret => {
             let plugins_config_map = make_plugins_config_map(rabbitmq);
             let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: rabbitmq.metadata.namespace.get_Some_0(),
                 obj: plugins_config_map.to_dynamic_object(),
             }));
             let state_prime = RabbitmqReconcileState {
@@ -109,6 +114,7 @@ pub open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<AP
         RabbitmqReconcileStep::AfterCreatePluginsConfigMap => {
             let server_config_map = make_server_config_map(rabbitmq);
             let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: rabbitmq.metadata.namespace.get_Some_0(),
                 obj: server_config_map.to_dynamic_object(),
             }));
             let state_prime = RabbitmqReconcileState {
@@ -120,6 +126,7 @@ pub open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<AP
         RabbitmqReconcileStep::AfterCreateServerConfigMap => {
             let service_account = make_service_account(rabbitmq);
             let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: rabbitmq.metadata.namespace.get_Some_0(),
                 obj: service_account.to_dynamic_object(),
             }));
             let state_prime = RabbitmqReconcileState {
@@ -131,6 +138,7 @@ pub open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<AP
         RabbitmqReconcileStep::AfterCreateServiceAccount => {
             let role = make_role(rabbitmq);
             let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: rabbitmq.metadata.namespace.get_Some_0(),
                 obj: role.to_dynamic_object(),
             }));
             let state_prime = RabbitmqReconcileState {
@@ -142,6 +150,7 @@ pub open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<AP
         RabbitmqReconcileStep::AfterCreateRole => {
             let role_binding = make_role_binding(rabbitmq);
             let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: rabbitmq.metadata.namespace.get_Some_0(),
                 obj: role_binding.to_dynamic_object(),
             }));
             let state_prime = RabbitmqReconcileState {
@@ -153,6 +162,7 @@ pub open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<AP
         RabbitmqReconcileStep::AfterCreateRoleBinding => {
             let stateful_set = make_stateful_set(rabbitmq);
             let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: rabbitmq.metadata.namespace.get_Some_0(),
                 obj: stateful_set.to_dynamic_object(),
             }));
             let state_prime = RabbitmqReconcileState {

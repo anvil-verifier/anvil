@@ -1299,23 +1299,14 @@ impl SecretVolumeSourceView {
 }
 
 impl Marshalable for SecretVolumeSourceView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::secret_name_field(), if self.secret_name.is_None() { Value::Null } else {
-                    Value::String(self.secret_name.get_Some_0())
-                })
-        )
-    }
+    open spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        SecretVolumeSourceView {
-            secret_name: if value.get_Object_0()[Self::secret_name_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::secret_name_field()].get_String_0())
-            },
-        }
-    }
+    open spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
 
@@ -1343,31 +1334,15 @@ impl ProjectedVolumeSourceView {
 }
 
 impl Marshalable for ProjectedVolumeSourceView{
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::sources_field(), if self.sources.is_None() { Value::Null } else {
-                    Value::Array(self.sources.get_Some_0().map_values(|x: VolumeProjectionView| x.marshal()))
-                })
-        )
-    }
+    open spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        ProjectedVolumeSourceView {
-            sources: if value.get_Object_0()[Self::sources_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::sources_field()].get_Array_0().map_values(|x| VolumeProjectionView::unmarshal(x)))
-            },
-        }
-    }
+    open spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
-            if o.sources.is_Some() {
-                VolumeProjectionView::marshal_preserves_integrity();
-                assert_seqs_equal!(o.sources.get_Some_0(), Self::unmarshal(o.marshal()).sources.get_Some_0());
-            }
-        }
-    }
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 
@@ -1398,39 +1373,18 @@ impl VolumeProjectionView {
         }
     }
 
-    pub open spec fn config_map_field() -> nat {0}
-
-    pub open spec fn secret_field() -> nat {1}
 }
 
 impl Marshalable for VolumeProjectionView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::config_map_field(), if self.config_map.is_None() { Value::Null } else {
-                    self.config_map.get_Some_0().marshal()
-                })
-                .insert(Self::secret_field(), if self.secret.is_None() { Value::Null } else {
-                    self.secret.get_Some_0().marshal()
-                })
-        )
-    }
+    open spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        VolumeProjectionView {
-            config_map: if value.get_Object_0()[Self::config_map_field()].is_Null() { Option::None } else {
-                Option::Some(ConfigMapProjectionView::unmarshal(value.get_Object_0()[Self::config_map_field()]))
-            },
-            secret: if value.get_Object_0()[Self::secret_field()].is_Null() { Option::None } else {
-                Option::Some(SecretProjectionView::unmarshal(value.get_Object_0()[Self::secret_field()]))
-            },
-        }
-    }
+    open spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        ConfigMapProjectionView::marshal_preserves_integrity();
-        SecretProjectionView::marshal_preserves_integrity();
-    }
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 
@@ -1470,36 +1424,15 @@ impl ConfigMapProjectionView {
 }
 
 impl Marshalable for ConfigMapProjectionView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::items_field(), if self.items.is_None() { Value::Null } else {
-                    Value::Array(self.items.get_Some_0().map_values(|x: KeyToPathView| x.marshal()))
-                })
-                .insert(Self::name_field(), if self.name.is_None() { Value::Null } else {
-                    Value::String(self.name.get_Some_0())
-                })
-        )
-    }
+    open spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        ConfigMapProjectionView {
-            items: if value.get_Object_0()[Self::items_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::items_field()].get_Array_0().map_values(|x| KeyToPathView::unmarshal(x)))
-            },
-            name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
-            },
-        }
-    }
+    open spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
-            if o.items.is_Some() {
-                assert_seqs_equal!(o.items.get_Some_0(), Self::unmarshal(o.marshal()).items.get_Some_0());
-            }
-        }
-    }
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 
@@ -1539,36 +1472,15 @@ impl SecretProjectionView {
 }
 
 impl Marshalable for SecretProjectionView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::items_field(), if self.items.is_None() { Value::Null } else {
-                    Value::Array(self.items.get_Some_0().map_values(|x: KeyToPathView| x.marshal()))
-                })
-                .insert(Self::name_field(), if self.name.is_None() { Value::Null } else {
-                    Value::String(self.name.get_Some_0())
-                })
-        )
-    }
+    open spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        SecretProjectionView {
-            items: if value.get_Object_0()[Self::items_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::items_field()].get_Array_0().map_values(|x| KeyToPathView::unmarshal(x)))
-            },
-            name: if value.get_Object_0()[Self::name_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::name_field()].get_String_0())
-            },
-        }
-    }
+    open spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
-            if o.items.is_Some() {
-                assert_seqs_equal!(o.items.get_Some_0(), Self::unmarshal(o.marshal()).items.get_Some_0());
-            }
-        }
-    }
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 pub struct KeyToPathView {
@@ -1604,21 +1516,14 @@ impl KeyToPathView {
 }
 
 impl Marshalable for KeyToPathView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::key_field(), Value::String(self.key))
-                .insert(Self::path_field(), Value::String(self.path))
-        )
-    }
+    open spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        KeyToPathView {
-            key: value.get_Object_0()[Self::key_field()].get_String_0(),
-            path: value.get_Object_0()[Self::path_field()].get_String_0(),
-        }
-    }
+    open spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
 
@@ -1643,30 +1548,15 @@ impl DownwardAPIVolumeSourceView {
 }
 
 impl Marshalable for DownwardAPIVolumeSourceView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::items_field(), if self.items.is_None() { Value::Null } else {
-                    Value::Array(self.items.get_Some_0().map_values(|x: DownwardAPIVolumeFileView| x.marshal()))
-                })
-        )
-    }
+    open spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        DownwardAPIVolumeSourceView {
-            items: if value.get_Object_0()[Self::items_field()].is_Null() { Option::None } else {
-                Option::Some(value.get_Object_0()[Self::items_field()].get_Array_0().map_values(|x| DownwardAPIVolumeFileView::unmarshal(x)))
-            },
-        }
-    }
+    open spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
-            if o.items.is_Some() {
-                assert_seqs_equal!(o.items.get_Some_0(), Self::unmarshal(o.marshal()).items.get_Some_0());
-            }
-        }
-    }
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 pub struct DownwardAPIVolumeFileView {
@@ -1701,25 +1591,14 @@ impl DownwardAPIVolumeFileView {
 }
 
 impl Marshalable for DownwardAPIVolumeFileView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::field_ref_field(), if self.field_ref.is_None() { Value::Null } else {
-                    self.field_ref.get_Some_0().marshal()
-                })
-                .insert(Self::path_field(), Value::String(self.path))
-        )
-    }
+    open spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        DownwardAPIVolumeFileView {
-            field_ref: if value.get_Object_0()[Self::field_ref_field()].is_Null() { Option::None } else {
-                Option::Some(ObjectFieldSelectorView::unmarshal(value.get_Object_0()[Self::field_ref_field()]))
-            },
-            path: value.get_Object_0()[Self::path_field()].get_String_0(),
-        }
-    }
+    open spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
 
@@ -1743,19 +1622,14 @@ impl ObjectFieldSelectorView {
     pub open spec fn field_path_field() -> nat {0}
 }
 impl Marshalable for ObjectFieldSelectorView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::field_path_field(), Value::String(self.field_path))
-        )
-    }
+    open spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        ObjectFieldSelectorView {
-            field_path: value.get_Object_0()[Self::field_path_field()].get_String_0(),
-        }
-    }
+    open spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
 

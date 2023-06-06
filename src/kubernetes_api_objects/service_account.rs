@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
@@ -87,11 +88,18 @@ impl ServiceAccount {
     }
 
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (cm: ServiceAccount)
+    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<ServiceAccount, ParseDynamicObjectError>)
         ensures
-            cm@ == ServiceAccountView::from_dynamic_object(obj@),
+            res.is_Ok() == ServiceAccountView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == ServiceAccountView::from_dynamic_object(obj@).get_Ok_0(),
     {
-        ServiceAccount {inner: obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::ServiceAccount>().unwrap()}
+        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::ServiceAccount>();
+        if parse_result.is_ok() {
+            let res = ServiceAccount { inner: parse_result.unwrap() };
+            Result::Ok(res)
+        } else {
+            Result::Err(ParseDynamicObjectError::ExecError)
+        }
     }
 }
 
@@ -101,6 +109,7 @@ impl ServiceAccount {
 pub struct ServiceAccountView {
     pub metadata: ObjectMetaView,
 }
+type ServiceAccountSpecView = ();
 
 impl ServiceAccountView {
     pub open spec fn default() -> ServiceAccountView {
@@ -143,13 +152,16 @@ impl ResourceView for ServiceAccountView {
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> ServiceAccountView {
-        ServiceAccountView {
-            metadata: obj.metadata,
-        }
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ServiceAccountView, ParseDynamicObjectError> {
+            Result::Ok(ServiceAccountView {
+                metadata: obj.metadata,
+            })
     }
 
-    proof fn to_dynamic_preserves_integrity() {}
+
+    proof fn to_dynamic_preserves_integrity() {
+
+    }
 }
 
 }

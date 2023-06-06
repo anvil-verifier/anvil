@@ -3,6 +3,7 @@
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::dynamic::*;
+use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
@@ -89,11 +90,18 @@ impl Role {
     }
 
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (svc: Role)
+    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<Role, ParseDynamicObjectError>)
         ensures
-            svc@ == RoleView::from_dynamic_object(obj@),
+            res.is_Ok() == RoleView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == RoleView::from_dynamic_object(obj@).get_Ok_0(),
     {
-        Role { inner: obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::rbac::v1::Role>().unwrap() }
+        let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::rbac::v1::Role>();
+        if parse_result.is_ok() {
+            let res = Role { inner: parse_result.unwrap() };
+            Result::Ok(res)
+        } else {
+            Result::Err(ParseDynamicObjectError::ExecError)
+        }
     }
 }
 
@@ -159,6 +167,8 @@ pub struct RoleView {
     pub policy_rules: Option<Seq<PolicyRuleView>>,
 }
 
+type RoleSpecView = (Option<Seq<PolicyRuleView>>, ());
+
 impl RoleView {
     pub open spec fn default() -> RoleView {
         RoleView {
@@ -181,7 +191,16 @@ impl RoleView {
         }
     }
 
-    pub open spec fn policy_rules_field() -> nat {0}
+    pub closed spec fn marshal_spec(s: RoleSpecView) -> Value;
+
+    pub closed spec fn unmarshal_spec(v: Value) -> Result<RoleSpecView, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    pub proof fn spec_integrity_is_preserved_by_marshal()
+        ensures
+            forall |s: RoleSpecView|
+                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
+                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for RoleView {
@@ -205,33 +224,23 @@ impl ResourceView for RoleView {
         DynamicObjectView {
             kind: self.kind(),
             metadata: self.metadata,
-            data: Value::Object(Map::empty()
-                                    .insert(Self::policy_rules_field(), if self.policy_rules.is_None() {Value::Null} else {
-                                    Value::Array(self.policy_rules.get_Some_0().map_values(|v: PolicyRuleView| v.marshal())) // marshal or to dynamic object?
-                })
-            ),
+            data: RoleView::marshal_spec((self.policy_rules, ())),
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> RoleView {
-        RoleView {
-            metadata: obj.metadata,
-            policy_rules: if obj.data.get_Object_0()[Self::policy_rules_field()].is_Null() {Option::None} else {
-                Option::Some(obj.data.get_Object_0()[Self::policy_rules_field()].get_Array_0().map_values(|v: Value| PolicyRuleView::unmarshal(v)))
-            },
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<RoleView, ParseDynamicObjectError> {
+        if !RoleView::unmarshal_spec(obj.data).is_Ok() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else {
+            Result::Ok(RoleView {
+                metadata: obj.metadata,
+                policy_rules: RoleView::unmarshal_spec(obj.data).get_Ok_0().0,
+            })
         }
     }
 
     proof fn to_dynamic_preserves_integrity() {
-        assert forall |o: Self| o == Self::from_dynamic_object(#[trigger] o.to_dynamic_object()) by {
-            if o.policy_rules.is_Some() {
-                PolicyRuleView::marshal_preserves_integrity();
-                assert_seqs_equal!(
-                    o.policy_rules.get_Some_0(),
-                    Self::from_dynamic_object(o.to_dynamic_object()).policy_rules.get_Some_0()
-                );
-            }
-        }
+        RoleView::spec_integrity_is_preserved_by_marshal();
     }
 }
 
@@ -271,60 +280,18 @@ impl PolicyRuleView {
         }
     }
 
-    pub open spec fn api_groups_field() -> nat {0}
-
-    pub open spec fn resources_field() -> nat {1}
-
-    pub open spec fn verbs_field() -> nat {2}
 }
 
 impl Marshalable for PolicyRuleView {
-    open spec fn marshal(self) -> Value {
-        Value::Object(
-            Map::empty()
-                .insert(Self::api_groups_field(), if self.api_groups.is_None() {Value::Null} else {
-                    Value::Array(self.api_groups.get_Some_0().map_values(|v: StringView| Value::String(v)))
-                })
-                .insert(Self::resources_field(), if self.resources.is_None() {Value::Null} else {
-                    Value::Array(self.resources.get_Some_0().map_values(|v: StringView| Value::String(v)))
-                })
-                .insert(Self::verbs_field(), Value::Array(self.verbs.map_values(|v: StringView| Value::String(v))))
-        )
-    }
+    open spec fn marshal(self) -> Value;
 
-    open spec fn unmarshal(value: Value) -> Self {
-        PolicyRuleView {
-            api_groups: if value.get_Object_0()[Self::api_groups_field()].is_Null() {Option::None} else {
-                Option::Some(value.get_Object_0()[Self::api_groups_field()].get_Array_0().map_values(|v: Value| v.get_String_0()))
-            },
-            resources: if value.get_Object_0()[Self::resources_field()].is_Null() {Option::None} else {
-                Option::Some(value.get_Object_0()[Self::resources_field()].get_Array_0().map_values(|v: Value| v.get_String_0()))
-            },
-            verbs: value.get_Object_0()[Self::verbs_field()].get_Array_0().map_values(|v: Value| v.get_String_0()),
-        }
-    }
+    open spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
-    proof fn marshal_preserves_integrity() {
-        assert forall |o: Self| o == Self::unmarshal(#[trigger] o.marshal()) by {
-            if o.api_groups.is_Some() {
-                assert_seqs_equal!(
-                    o.api_groups.get_Some_0(),
-                    Self::unmarshal(o.marshal()).api_groups.get_Some_0()
-                );
-            }
-            if o.resources.is_Some() {
-                assert_seqs_equal!(
-                    o.resources.get_Some_0(),
-                    Self::unmarshal(o.marshal()).resources.get_Some_0()
-                );
-            }
-            assert_seqs_equal!(
-                o.verbs,
-                Self::unmarshal(o.marshal()).verbs
-            );
-        }
-    }
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
 
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
 }
 
 }
