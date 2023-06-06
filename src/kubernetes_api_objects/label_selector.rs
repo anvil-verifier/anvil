@@ -82,7 +82,6 @@ impl LabelSelectorView {
         }
     }
 
-    pub open spec fn match_labels_field() -> nat {0}
 }
 
 impl Marshalable for LabelSelectorView {
