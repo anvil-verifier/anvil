@@ -84,7 +84,7 @@ impl Service {
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
-            res@.kind == Kind::ServiceKind,
+            res@.kind == ServiceView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::Service>(&()))
     }
@@ -279,13 +279,13 @@ impl ResourceView for ServiceView {
         self.metadata
     }
 
-    open spec fn kind(self) -> Kind {
+    open spec fn kind() -> Kind {
         Kind::ServiceKind
     }
 
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
-            kind: self.kind(),
+            kind: Self::kind(),
             name: self.metadata.name.get_Some_0(),
             namespace: self.metadata.namespace.get_Some_0(),
         }
@@ -293,7 +293,7 @@ impl ResourceView for ServiceView {
 
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
-            kind: self.kind(),
+            kind: Self::kind(),
             metadata: self.metadata,
             data: ServiceView::marshal_spec(self.spec),
         }
