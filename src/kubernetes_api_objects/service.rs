@@ -359,8 +359,6 @@ impl ServiceSpecView {
             ..self
         }
     }
-
-    pub open spec fn publish_not_ready_addresses_field() -> nat {3}
 }
 
 impl Marshalable for ServiceSpecView {
@@ -410,8 +408,6 @@ impl ServicePortView {
             ..self
         }
     }
-
-    pub open spec fn app_protocol_field() -> nat {2}
 }
 
 impl Marshalable for ServicePortView {

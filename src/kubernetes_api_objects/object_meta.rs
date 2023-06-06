@@ -165,18 +165,6 @@ impl ObjectMetaView {
             ..self
         }
     }
-
-    pub open spec fn name_field() -> nat {0}
-
-    pub open spec fn namespace_field() -> nat {1}
-
-    pub open spec fn generate_name_field() -> nat {2}
-
-    pub open spec fn resource_version_field() -> nat {3}
-
-    pub open spec fn uid_field() -> nat {4}
-
-    pub open spec fn labels_field() -> nat {5}
 }
 
 impl Marshalable for ObjectMetaView {

@@ -585,11 +585,4 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
         .set_volumes(volumes)
 }
 
-
-
-
-
-
-
-
 }

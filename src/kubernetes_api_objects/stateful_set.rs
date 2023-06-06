@@ -363,8 +363,6 @@ impl StatefulSetSpecView {
             ..self
         }
     }
-
-    pub open spec fn pod_management_policy_field() -> nat {5}
 }
 
 impl Marshalable for StatefulSetSpecView {

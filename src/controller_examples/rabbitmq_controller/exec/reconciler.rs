@@ -66,7 +66,7 @@ impl Default for RabbitmqReconciler {
 
 pub fn reconcile_init_state() -> (state: RabbitmqReconcileState)
     ensures
-        state.to_view() == rabbitmq_spec::reconcile_init_state(), // aren't two functions the same?
+        state.to_view() == rabbitmq_spec::reconcile_init_state(),
 {
     RabbitmqReconcileState {
         reconcile_step: RabbitmqReconcileStep::Init,
@@ -93,7 +93,6 @@ pub fn reconcile_error(state: &RabbitmqReconcileState) -> (res: bool)
     }
 }
 
-// TODO: make the shim layer pass rabbitmq, instead of rabbitmq_ref, to reconcile_core
 pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse>, state: RabbitmqReconcileState) -> (res: (RabbitmqReconcileState, Option<KubeAPIRequest>))
     requires
         rabbitmq@.metadata.name.is_Some(),

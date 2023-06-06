@@ -837,11 +837,11 @@ impl DownwardAPIVolumeFile {
     }
 }
 
-
 #[verifier(external_body)]
 pub struct ObjectFieldSelector {
     inner: deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector,
 }
+
 impl ObjectFieldSelector {
     pub spec fn view(&self) -> ObjectFieldSelectorView;
 
@@ -868,11 +868,6 @@ impl ObjectFieldSelector {
         self.inner
     }
 }
-
-
-
-
-
 
 /// PodView is the ghost type of Pod.
 /// It is supposed to be used in spec and proof code.
@@ -1001,10 +996,6 @@ impl PodSpecView {
             ..self
         }
     }
-
-    pub open spec fn init_containers_field() -> nat {2}
-
-    pub open spec fn service_account_name_field() -> nat {3}
 }
 
 impl Marshalable for PodSpecView {
@@ -1103,10 +1094,6 @@ impl ContainerPortView {
             ..self
         }
     }
-
-    pub open spec fn container_port_field() -> nat {0}
-
-    pub open spec fn name_field() -> nat {1}
 }
 
 impl Marshalable for ContainerPortView {
@@ -1156,8 +1143,6 @@ impl VolumeMountView {
             ..self
         }
     }
-
-    pub open spec fn sub_path_field() -> nat {2}
 }
 
 impl Marshalable for VolumeMountView {
@@ -1225,12 +1210,6 @@ impl VolumeView {
             ..self
         }
     }
-
-    pub open spec fn projected_field() -> nat {2}
-
-    pub open spec fn secret_field() -> nat {3}
-
-    pub open spec fn downward_api_field() -> nat {4}
 }
 
 
@@ -1294,8 +1273,6 @@ impl SecretVolumeSourceView {
             ..self
         }
     }
-
-    pub open spec fn secret_name_field() -> nat {0}
 }
 
 impl Marshalable for SecretVolumeSourceView {
@@ -1329,8 +1306,6 @@ impl ProjectedVolumeSourceView {
             ..self
         }
     }
-
-    pub open spec fn sources_field() -> nat {0}
 }
 
 impl Marshalable for ProjectedVolumeSourceView{
@@ -1417,10 +1392,6 @@ impl ConfigMapProjectionView {
             ..self
         }
     }
-
-    pub open spec fn items_field() -> nat {0}
-
-    pub open spec fn name_field() -> nat {1}
 }
 
 impl Marshalable for ConfigMapProjectionView {
@@ -1465,10 +1436,6 @@ impl SecretProjectionView {
             ..self
         }
     }
-
-    pub open spec fn items_field() -> nat {0}
-
-    pub open spec fn name_field() -> nat {1}
 }
 
 impl Marshalable for SecretProjectionView {
@@ -1509,10 +1476,6 @@ impl KeyToPathView {
             ..self
         }
     }
-
-    pub open spec fn key_field() -> nat {0}
-
-    pub open spec fn path_field() -> nat {1}
 }
 
 impl Marshalable for KeyToPathView {
@@ -1543,8 +1506,6 @@ impl DownwardAPIVolumeSourceView {
             ..self
         }
     }
-
-    pub open spec fn items_field() -> nat {0}
 }
 
 impl Marshalable for DownwardAPIVolumeSourceView {
@@ -1584,10 +1545,6 @@ impl DownwardAPIVolumeFileView {
             ..self
         }
     }
-
-    pub open spec fn field_ref_field() -> nat {0}
-
-    pub open spec fn path_field() -> nat {1}
 }
 
 impl Marshalable for DownwardAPIVolumeFileView {
@@ -1618,9 +1575,8 @@ impl ObjectFieldSelectorView {
             ..self
         }
     }
-
-    pub open spec fn field_path_field() -> nat {0}
 }
+
 impl Marshalable for ObjectFieldSelectorView {
     open spec fn marshal(self) -> Value;
 

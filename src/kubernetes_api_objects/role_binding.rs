@@ -85,7 +85,7 @@ impl RoleBinding {
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
-            res@.kind == Kind::CustomResourceKind,
+            res@.kind == Kind::RoleBindingKind,
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::rbac::v1::RoleBinding>(&()))
     }
@@ -349,12 +349,6 @@ impl RoleRefView {
             ..self
         }
     }
-
-    pub open spec fn api_group_field() -> nat {0}
-
-    pub open spec fn kind_field() -> nat {1}
-
-    pub open spec fn name_field() -> nat {2}
 }
 
 impl Marshalable for RoleRefView {
@@ -407,12 +401,6 @@ impl SubjectView {
             ..self
         }
     }
-
-    pub open spec fn kind_field() -> nat {0}
-
-    pub open spec fn name_field() -> nat {1}
-
-    pub open spec fn namespace_field() -> nat {2}
 }
 
 impl Marshalable for SubjectView {

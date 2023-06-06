@@ -82,10 +82,6 @@ impl PodTemplateSpecView {
             ..self
         }
     }
-
-    pub open spec fn metadata_field() -> nat {0}
-
-    pub open spec fn spec_field() -> nat {1}
 }
 
 impl Marshalable for PodTemplateSpecView {

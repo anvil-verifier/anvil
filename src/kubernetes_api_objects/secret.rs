@@ -67,6 +67,7 @@ impl Secret {
         self.inner.metadata = metadata.into_kube();
     }
 
+    // @TODO: data is a map of string to bytestring. May support it in the future.
     #[verifier(external_body)]
     pub fn set_data(&mut self, data: StringMap)
         ensures
