@@ -185,17 +185,16 @@ pub fn reconcile_core(
                 let get_sts_resp = resp_o.unwrap().into_get_response().res;
                 if get_sts_resp.is_ok() {
                     // update
-                    let old_sts_o = get_sts_resp.unwrap();
-                    let update_sts = StatefulSet::from_dynamic_object(old_sts_o);
-                    if update_sts.is_ok() {
-                        let mut update_sts = update_sts.unwrap();
-                        update_sts.set_spec(stateful_set.spec().unwrap());
+                    let found_stateful_set = StatefulSet::from_dynamic_object(get_sts_resp.unwrap());
+                    if found_stateful_set.is_ok() {
+                        let mut new_stateful_set = found_stateful_set.unwrap();
+                        new_stateful_set.set_spec(stateful_set.spec().unwrap());
                         let req_o = Option::Some(KubeAPIRequest::UpdateRequest(
                             KubeUpdateRequest {
                                 api_resource: StatefulSet::api_resource(),
                                 name: stateful_set.metadata().name().unwrap(),
                                 namespace: zk.namespace().unwrap(),
-                                obj: update_sts.to_dynamic_object(),
+                                obj: new_stateful_set.to_dynamic_object(),
                             }
                         ));
                         let state_prime = ZookeeperReconcileState {

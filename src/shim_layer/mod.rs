@@ -184,7 +184,7 @@ where
                     );
                     let pp = PostParams::default();
                     let obj_to_update = update_req.obj.into_kube();
-                    match api.replace(update_req.name.as_rust_string_ref(), &&pp, &obj_to_update).await {
+                    match api.replace(update_req.name.as_rust_string_ref(), &pp, &obj_to_update).await {
                         std::result::Result::Err(err) => {
                             resp_option = Option::Some(KubeAPIResponse::UpdateResponse(
                                 KubeUpdateResponse{
