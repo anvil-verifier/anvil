@@ -9,7 +9,6 @@ use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_map::*;
 use crate::pervasive_ext::string_view::*;
-use deps_hack::k8s_openapi::ByteString;
 use vstd::prelude::*;
 
 verus! {
@@ -74,9 +73,9 @@ impl Secret {
             self@ == old(self)@.set_data(data@),
     {
         let string_map = data.into_rust_map();
-        let mut binary_map: std::collections::BTreeMap<std::string::String, ByteString> = std::collections::BTreeMap::new();
+        let mut binary_map: std::collections::BTreeMap<std::string::String, deps_hack::k8s_openapi::ByteString> = std::collections::BTreeMap::new();
         for (key, value) in string_map {
-            binary_map.insert(key, ByteString(value.into_bytes()));
+            binary_map.insert(key, deps_hack::k8s_openapi::ByteString(value.into_bytes()));
         }
         self.inner.data = std::option::Option::Some(binary_map)
     }
@@ -140,7 +139,7 @@ impl Secret {
 
 pub struct SecretView {
     pub metadata: ObjectMetaView,
-    pub data: Option<Map<StringView, StringView>>, // For view, String:String map is used instead of String:Bytestring map.
+    pub data: Option<Map<StringView, StringView>>, // For view, <String, String> map is used instead of <String, Bytestring> map for now.
     pub type_: Option<StringView>,
 }
 
