@@ -34,7 +34,7 @@ pub open spec fn reconciler_init_and_no_pending_req<K: ResourceView, T, Reconcil
 ) -> StatePred<State<K, T>> {
     |s: State<K, T>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
+        &&& s.reconcile_state_of(cr_key).local_state == reconciler.reconcile_init_state()
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
     }
 }
@@ -109,7 +109,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle<K: ResourceView, T, Re
         sm_spec(reconciler).entails(
             lift_state(|s: State<K, T>| {
                 &&& s.reconcile_state_contains(cr_key)
-                &&& (reconciler.reconcile_done)(s.reconcile_state_of(cr_key).local_state)
+                &&& reconciler.reconcile_done(s.reconcile_state_of(cr_key).local_state)
             })
                 .leads_to(lift_state(|s: State<K, T>| {
                     &&& !s.reconcile_state_contains(cr_key)
@@ -118,7 +118,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle<K: ResourceView, T, Re
 {
     let pre = |s: State<K, T>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& (reconciler.reconcile_done)(s.reconcile_state_of(cr_key).local_state)
+        &&& reconciler.reconcile_done(s.reconcile_state_of(cr_key).local_state)
     };
     let post = |s: State<K, T>| {
         &&& !s.reconcile_state_contains(cr_key)
@@ -138,7 +138,7 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle<K: ResourceView, T, R
         sm_partial_spec(reconciler).entails(
             lift_state(|s: State<K, T>| {
                 &&& s.reconcile_state_contains(cr_key)
-                &&& (reconciler.reconcile_error)(s.reconcile_state_of(cr_key).local_state)
+                &&& reconciler.reconcile_error(s.reconcile_state_of(cr_key).local_state)
             })
                 .leads_to(lift_state(|s: State<K, T>| {
                     &&& !s.reconcile_state_contains(cr_key)
@@ -147,7 +147,7 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle<K: ResourceView, T, R
 {
     let pre = |s: State<K, T>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& (reconciler.reconcile_error)(s.reconcile_state_of(cr_key).local_state)
+        &&& reconciler.reconcile_error(s.reconcile_state_of(cr_key).local_state)
     };
     let post = |s: State<K, T>| {
         &&& !s.reconcile_state_contains(cr_key)
@@ -174,7 +174,7 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<K: Resou
             })
                 .leads_to(lift_state(|s: State<K, T>| {
                     &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
+                    &&& s.reconcile_state_of(cr_key).local_state == reconciler.reconcile_init_state()
                     &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
                 }))
         ),
@@ -185,7 +185,7 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init<K: Resou
     };
     let post = |s: State<K, T>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
+        &&& s.reconcile_state_of(cr_key).local_state == reconciler.reconcile_init_state()
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
     };
     let stronger_next = |s, s_prime: State<K, T>| {
@@ -261,7 +261,7 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_in
             lift_state(|s: State<K, T>| {!s.reconcile_state_contains(cr_key)})
             .leads_to(lift_state(|s: State<K, T>| {
                 &&& s.reconcile_state_contains(cr_key)
-                &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
+                &&& s.reconcile_state_of(cr_key).local_state == reconciler.reconcile_init_state()
                 &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
             }))
     ),
@@ -298,7 +298,7 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
         spec.entails(
             lift_state(|s: State<K, T>| {
                 &&& s.reconcile_state_contains(cr_key)
-                &&& (reconciler.reconcile_error)(s.reconcile_state_of(cr_key).local_state)
+                &&& reconciler.reconcile_error(s.reconcile_state_of(cr_key).local_state)
             })
                 .leads_to(lift_state(reconciler_init_and_no_pending_req(reconciler, cr_key)))
         ),
@@ -309,7 +309,7 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
         sm_partial_spec(reconciler),
         lift_state(|s: State<K, T>| {
             &&& s.reconcile_state_contains(cr_key)
-            &&& (reconciler.reconcile_error)(s.reconcile_state_of(cr_key).local_state)
+            &&& reconciler.reconcile_error(s.reconcile_state_of(cr_key).local_state)
         })
             .leads_to(lift_state(|s: State<K, T>| !s.reconcile_state_contains(cr_key)))
     );
@@ -340,11 +340,11 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
         partial_spec_with_always_cr_key_exists_and_crash_disabled(reconciler, cr_key),
         lift_state(|s: State<K, T>| {
             &&& s.reconcile_state_contains(cr_key)
-            &&& (reconciler.reconcile_error)(s.reconcile_state_of(cr_key).local_state)
+            &&& reconciler.reconcile_error(s.reconcile_state_of(cr_key).local_state)
         })
             .leads_to(lift_state(|s: State<K, T>| {
                 &&& s.reconcile_state_contains(cr_key)
-                &&& s.reconcile_state_of(cr_key).local_state == (reconciler.reconcile_init_state)()
+                &&& s.reconcile_state_of(cr_key).local_state == reconciler.reconcile_init_state()
                 &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
             }))
     );

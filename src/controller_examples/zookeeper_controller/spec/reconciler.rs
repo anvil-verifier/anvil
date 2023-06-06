@@ -45,8 +45,8 @@ impl Reconciler<ZookeeperClusterView, ZookeeperReconcileState> for ZookeeperReco
     }
 }
 
-impl Default for ZookeeperReconciler {
-    fn default() -> ZookeeperReconciler { ZookeeperReconciler{} }
+impl ZookeeperReconciler {
+    pub open spec fn default() -> ZookeeperReconciler { ZookeeperReconciler{} }
 }
 
 pub open spec fn reconcile_init_state() -> ZookeeperReconcileState {

@@ -92,7 +92,7 @@ pub proof fn lemma_any_pred_leads_to_crash_always_disabled<K: ResourceView, T, R
         spec.entails(any_pred.leads_to(always(lift_state(crash_disabled::<K, T>())))),
 {
     valid_implies_implies_leads_to::<State<K, T>>(spec, any_pred, true_pred());
-    lemma_true_leads_to_crash_always_disabled::<K, T>(spec, reconciler);
+    lemma_true_leads_to_crash_always_disabled::<K, T, ReconcilerType>(spec, reconciler);
     leads_to_trans_temp::<State<K, T>>(spec, any_pred, true_pred(), always(lift_state(crash_disabled::<K, T>())));
 }
 

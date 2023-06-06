@@ -48,8 +48,12 @@ impl Reconciler<CustomResourceView, SimpleReconcileState> for SimpleReconciler {
     }
 }
 
-impl Default for SimpleReconciler {
-    fn default() -> SimpleReconciler { SimpleReconciler{} }
+impl SimpleReconciler {
+    pub open spec fn default() -> SimpleReconciler { SimpleReconciler{} }
+}
+
+pub open spec fn simple_reconciler() -> SimpleReconciler {
+    SimpleReconciler::default()
 }
 
 pub open spec fn reconcile_init_state() -> SimpleReconcileState {

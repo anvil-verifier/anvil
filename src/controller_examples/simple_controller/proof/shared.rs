@@ -152,22 +152,22 @@ pub open spec fn reconciler_at_after_create_cm_pc(cr: CustomResourceView) -> Sta
 pub open spec fn reconciler_reconcile_done(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
-        &&& (simple_reconciler().reconcile_done)(s.reconcile_state_of(cr.object_ref()).local_state)
+        &&& simple_reconciler().reconcile_done(s.reconcile_state_of(cr.object_ref()).local_state)
     }
 }
 
 pub open spec fn reconciler_reconcile_error(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
-        &&& (simple_reconciler().reconcile_error)(s.reconcile_state_of(cr.object_ref()).local_state)
+        &&& simple_reconciler().reconcile_error(s.reconcile_state_of(cr.object_ref()).local_state)
     }
 }
 
 pub open spec fn reconciler_reconcile_done_or_error(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         s.reconcile_state_contains(cr.object_ref())
-        && ((simple_reconciler().reconcile_done)(s.reconcile_state_of(cr.object_ref()).local_state) ||
-        (simple_reconciler().reconcile_error)(s.reconcile_state_of(cr.object_ref()).local_state))
+        && (simple_reconciler().reconcile_done(s.reconcile_state_of(cr.object_ref()).local_state) ||
+        simple_reconciler().reconcile_error(s.reconcile_state_of(cr.object_ref()).local_state))
     }
 }
 
