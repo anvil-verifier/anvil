@@ -54,7 +54,7 @@ impl StatefulSet {
         ensures
             metadata@ == self@.metadata,
     {
-        todo!()
+        ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
@@ -63,7 +63,11 @@ impl StatefulSet {
             self@.spec.is_Some() == spec.is_Some(),
             spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
     {
-        todo!()
+        if self.inner.spec.is_none() {
+            Option::None
+        } else {
+            Option::Some(StatefulSetSpec::from_kube(self.inner.spec.as_ref().unwrap().clone()))
+        }
     }
 
     #[verifier(external_body)]
@@ -82,15 +86,10 @@ impl StatefulSet {
         self.inner.spec = std::option::Option::Some(spec.into_kube());
     }
 
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSet {
-        self.inner
-    }
-
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
-            res@.kind == Kind::CustomResourceKind,
+            res@.kind == Kind::StatefulSetKind,
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::apps::v1::StatefulSet>(&()))
     }
@@ -120,6 +119,18 @@ impl StatefulSet {
         } else {
             Result::Err(ParseDynamicObjectError::ExecError)
         }
+    }
+}
+
+impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSet> for StatefulSet {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSet) -> StatefulSet {
+        StatefulSet { inner: inner }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSet {
+        self.inner
     }
 }
 
@@ -183,16 +194,17 @@ impl StatefulSetSpec {
         )
     }
 
-    #[verifier(external_body)]
-    pub fn set_pod_management_policy(&mut self, pod_management_policy: String)
-        ensures
-            self@ == old(self)@.set_pod_management_policy(pod_management_policy@),
-    {
-        self.inner.pod_management_policy = std::option::Option::Some(pod_management_policy.into_rust_string())
+
+}
+
+impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec> for StatefulSetSpec {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec) -> StatefulSetSpec {
+        StatefulSetSpec { inner: inner }
     }
 
     #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec {
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec {
         self.inner
     }
 }

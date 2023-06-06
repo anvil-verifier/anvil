@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
+    api_method::*, common::*, config_map::*, error::*, label_selector::*, object_meta::*,
     persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
     resource_requirements::*, service::*, stateful_set::*,
 };
@@ -166,27 +166,74 @@ pub fn reconcile_core(
             return (state_prime, req_o);
         },
         ZookeeperReconcileStep::AfterCreateConfigMap => {
-            let stateful_set = make_stateful_set(zk);
-            let req_o = Option::Some(KubeAPIRequest::CreateRequest(
-                KubeCreateRequest {
+            let req_o = Option::Some(KubeAPIRequest::GetRequest(
+                KubeGetRequest {
                     api_resource: StatefulSet::api_resource(),
+                    name: zk.name().unwrap(),
                     namespace: zk.namespace().unwrap(),
-                    obj: stateful_set.to_dynamic_object(),
                 }
             ));
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::Done,
+                reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
                 ..state
             };
             return (state_prime, req_o);
         },
+        ZookeeperReconcileStep::AfterGetStatefulSet => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_get_response() {
+                let stateful_set = make_stateful_set(zk);
+                let get_sts_resp = resp_o.unwrap().into_get_response().res;
+                if get_sts_resp.is_ok() {
+                    // update
+                    let found_stateful_set = StatefulSet::from_dynamic_object(get_sts_resp.unwrap());
+                    if found_stateful_set.is_ok() {
+                        let mut new_stateful_set = found_stateful_set.unwrap();
+                        new_stateful_set.set_spec(stateful_set.spec().unwrap());
+                        let req_o = Option::Some(KubeAPIRequest::UpdateRequest(
+                            KubeUpdateRequest {
+                                api_resource: StatefulSet::api_resource(),
+                                name: stateful_set.metadata().name().unwrap(),
+                                namespace: zk.namespace().unwrap(),
+                                obj: new_stateful_set.to_dynamic_object(),
+                            }
+                        ));
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::Done,
+                            ..state
+                        };
+                        return (state_prime, req_o);
+                    }
+                } else if get_sts_resp.unwrap_err().is_object_not_found() {
+                    // create
+                    let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                        KubeCreateRequest {
+                            api_resource: StatefulSet::api_resource(),
+                            namespace: zk.namespace().unwrap(),
+                            obj: stateful_set.to_dynamic_object(),
+                        }
+                    ));
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::Done,
+                        ..state
+                    };
+                    return (state_prime, req_o);
+                }
+            }
+            // return error state
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            let req_o = Option::None;
+            return (state_prime, req_o);
+        }
         _ => {
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: step,
                 ..state
             };
             let req_o = Option::None;
-            (state_prime, req_o)
+            return (state_prime, req_o);
         }
     }
 }

@@ -48,7 +48,7 @@ impl Service {
         ensures
             metadata@ == self@.metadata,
     {
-        todo!()
+        ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
@@ -84,7 +84,7 @@ impl Service {
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
-            res@.kind == Kind::CustomResourceKind,
+            res@.kind == Kind::ServiceKind,
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::Service>(&()))
     }
