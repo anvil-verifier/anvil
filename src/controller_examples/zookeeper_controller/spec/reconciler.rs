@@ -121,7 +121,7 @@ pub open spec fn reconcile_core(
                 let get_sts_resp = resp_o.get_Some_0().get_GetResponse_0().res;
                 if get_sts_resp.is_Ok() {
                     // update
-                    let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0(););
+                    let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0());
                     if found_stateful_set.is_Ok() {
                         let req_o = Option::Some(APIRequest::UpdateRequest(
                             UpdateRequest {
