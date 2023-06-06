@@ -871,23 +871,6 @@ pub proof fn leads_to_exists_intro<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) ->
     };
 }
 
-/// If we have proved that forall |a| spec |= p.and(a_to_q(a)) ~> r,
-/// and we know that exists |a| a_to_q(a) is always true,
-/// then we can conclude spec |= p ~> r
-pub proof fn merge_all_cases_for_leads_to<T, A>(spec: TempPred<T>, p: TempPred<T>, a_to_q: FnSpec(A) -> TempPred<T>, r: TempPred<T>)
-    requires
-        forall |a: A| #[trigger] spec.entails(p.and(a_to_q(a)).leads_to(r)),
-        tla_exists(a_to_q) == true_pred::<T>(),
-    ensures
-        spec.entails(p.leads_to(r)),
-{
-    let a_to_p_and_q = |a: A| p.and(a_to_q(a));
-    leads_to_exists_intro(spec, a_to_p_and_q, r);
-    a_to_temp_pred_equality(|a: A| p.and(a_to_q(a)), |a: A| a_to_q(a).and(p));
-    tla_exists_and_equality(a_to_q, p);
-    temp_pred_equality(true_pred::<T>().and(p), p);
-}
-
 /// This lemmas instantiates tla_forall for a.
 pub proof fn use_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPred<T>, a: A)
     requires
