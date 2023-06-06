@@ -194,6 +194,15 @@ impl StatefulSetSpec {
         )
     }
 
+    #[verifier(external_body)]
+    pub fn set_pod_management_policy(&mut self, pod_management_policy: String)
+        ensures
+            self@ == old(self)@.set_pod_management_policy(pod_management_policy@),
+    {
+        self.inner.pod_management_policy = std::option::Option::Some(pod_management_policy.into_rust_string())
+    }
+
+
 
 }
 
@@ -298,6 +307,7 @@ pub struct StatefulSetSpecView {
     pub service_name: StringView,
     pub template: PodTemplateSpecView,
     pub volume_claim_templates: Option<Seq<PersistentVolumeClaimView>>,
+    pub pod_management_policy: Option<StringView>,
 }
 
 impl StatefulSetSpecView {
@@ -308,6 +318,7 @@ impl StatefulSetSpecView {
             service_name: new_strlit("")@,
             template: PodTemplateSpecView::default(),
             volume_claim_templates: Option::None,
+            pod_management_policy: Option::None,
         }
     }
 
@@ -342,6 +353,13 @@ impl StatefulSetSpecView {
     pub open spec fn set_volume_claim_templates(self, volume_claim_templates: Seq<PersistentVolumeClaimView>) -> StatefulSetSpecView {
         StatefulSetSpecView {
             volume_claim_templates: Option::Some(volume_claim_templates),
+            ..self
+        }
+    }
+
+    pub open spec fn set_pod_management_policy(self, pod_management_policy: StringView) -> StatefulSetSpecView {
+        StatefulSetSpecView {
+            pod_management_policy: Option::Some(pod_management_policy),
             ..self
         }
     }

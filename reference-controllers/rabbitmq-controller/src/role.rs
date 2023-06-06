@@ -15,7 +15,7 @@ use kube_core::{self, Resource};
 use std::collections::BTreeMap;
 
 pub fn role_build(rabbitmq: &RabbitmqCluster) -> rbacv1::Role {
-    let name = rabbitmq.metadata.name.clone().unwrap() + "-peer-discorvery";
+    let name = rabbitmq.metadata.name.clone().unwrap() + "-peer-discovery";
     rbacv1::Role {
         metadata: metav1::ObjectMeta {
             name: Some(name),

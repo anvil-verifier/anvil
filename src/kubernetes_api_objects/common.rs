@@ -12,8 +12,12 @@ pub enum Kind {
     CustomResourceKind,
     PersistentVolumeClaimKind,
     PodKind,
+    RoleKind,
+    RoleBindingKind,
     StatefulSetKind,
     ServiceKind,
+    ServiceAccountKind,
+    SecretKind,
 }
 
 pub struct ObjectRef {

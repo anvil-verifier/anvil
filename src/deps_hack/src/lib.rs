@@ -1,10 +1,12 @@
 pub use anyhow;
+pub use base64;
 pub use futures;
 pub use k8s_openapi;
 pub use kube;
 pub use kube_client;
 pub use kube_core;
 pub use kube_derive;
+pub use rand;
 pub use schemars;
 pub use serde;
 pub use serde_json;
@@ -36,5 +38,14 @@ pub struct SimpleCRSpec {
 #[kube(group = "anvil.dev", version = "v1", kind = "ZookeeperCluster")]
 #[kube(shortname = "zk", namespaced)]
 pub struct ZookeeperClusterSpec {
+    pub replica: i32,
+}
+
+#[derive(
+    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
+#[kube(group = "anvil.dev", version = "v1", kind = "RabbitmqCluster")]
+#[kube(shortname = "rbmq", namespaced)]
+pub struct RabbitmqClusterSpec {
     pub replica: i32,
 }

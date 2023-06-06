@@ -159,6 +159,14 @@ impl ServiceSpec {
         self.inner.selector = std::option::Option::Some(selector.into_rust_map())
     }
 
+    #[verifier(external_body)]
+    pub fn set_publish_not_ready_addresses(&mut self, publish_not_ready_addresses: bool)
+        ensures
+            self@ == old(self)@.set_publish_not_ready_addresses(publish_not_ready_addresses),
+    {
+        self.inner.publish_not_ready_addresses = std::option::Option::Some(publish_not_ready_addresses);
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ServiceSpec {
         self.inner
@@ -208,6 +216,14 @@ impl ServicePort {
             self@ == old(self)@.set_port(port as nat),
     {
         self.inner.port = port;
+    }
+
+    #[verifier(external_body)]
+    pub fn set_app_protocol(&mut self, app_protocol: String)
+        ensures
+            self@ == old(self)@.set_app_protocol(app_protocol@),
+    {
+        self.inner.app_protocol = std::option::Option::Some(app_protocol.into_rust_string());
     }
 
     #[verifier(external)]
@@ -303,6 +319,7 @@ pub struct ServiceSpecView {
     pub cluster_ip: Option<StringView>,
     pub ports: Option<Seq<ServicePortView>>,
     pub selector: Option<Map<StringView, StringView>>,
+    pub publish_not_ready_addresses: Option<bool>,
 }
 
 impl ServiceSpecView {
@@ -311,6 +328,7 @@ impl ServiceSpecView {
             cluster_ip: Option::None,
             ports: Option::None,
             selector: Option::None,
+            publish_not_ready_addresses: Option::None,
         }
     }
 
@@ -334,6 +352,13 @@ impl ServiceSpecView {
             ..self
         }
     }
+
+    pub open spec fn set_publish_not_ready_addresses(self, publish_not_ready_addresses: bool) -> ServiceSpecView {
+        ServiceSpecView {
+            publish_not_ready_addresses: Option::Some(publish_not_ready_addresses),
+            ..self
+        }
+    }
 }
 
 impl Marshalable for ServiceSpecView {
@@ -351,6 +376,7 @@ impl Marshalable for ServiceSpecView {
 pub struct ServicePortView {
     pub name: Option<StringView>,
     pub port: nat,
+    pub app_protocol: Option<StringView>,
 }
 
 impl ServicePortView {
@@ -358,6 +384,7 @@ impl ServicePortView {
         ServicePortView {
             name: Option::None,
             port: 0, // TODO: is this the correct default value?
+            app_protocol: Option::None,
         }
     }
 
@@ -371,6 +398,13 @@ impl ServicePortView {
     pub open spec fn set_port(self, port: nat) -> ServicePortView {
         ServicePortView {
             port: port,
+            ..self
+        }
+    }
+
+    pub open spec fn set_app_protocol(self, app_protocol: StringView) -> ServicePortView {
+        ServicePortView {
+            app_protocol: Option::Some(app_protocol),
             ..self
         }
     }
