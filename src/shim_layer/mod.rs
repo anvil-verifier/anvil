@@ -69,14 +69,14 @@ where
     Ok(())
 }
 
-/// reconcile_with implements the reconcile function by repeatedly invoking ReconcilerType::reconcile_core.
+/// reconcile_with implements the reconcile function by repeatedly invoking reconciler.reconcile_core.
 /// reconcile_with will be invoked by kube-rs whenever kube-rs's watcher receives any relevant event to the controller.
-/// In each invocation, reconcile_with invokes ReconcilerType::reconcile_core in a loop:
-/// it starts with ReconcilerType::reconcile_init_state, and in each iteration it invokes ReconcilerType::reconcile_core
+/// In each invocation, reconcile_with invokes reconciler.reconcile_core in a loop:
+/// it starts with reconciler.reconcile_init_state, and in each iteration it invokes reconciler.reconcile_core
 /// with the new state returned by the previous invocation.
-/// For each request from ReconcilerType::reconcile_core, it invokes kube-rs APIs to send the request to the Kubernetes API.
-/// It ends the loop when the reconciler reports the reconcile is done (ReconcilerType::reconcile_done)
-/// or encounters error (ReconcilerType::reconcile_error).
+/// For each request from reconciler.reconcile_core, it invokes kube-rs APIs to send the request to the Kubernetes API.
+/// It ends the loop when the reconciler reports the reconcile is done (reconciler.reconcile_done)
+/// or encounters error (reconciler.reconcile_error).
 
 #[verifier(external)]
 pub async fn reconcile_with<K, ResourceWrapperType, ReconcilerType, ReconcileStateType>(
