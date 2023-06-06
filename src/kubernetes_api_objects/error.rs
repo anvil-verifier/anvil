@@ -25,4 +25,15 @@ pub enum ParseDynamicObjectError {
     ExecError,
 }
 
+impl APIError {
+    pub fn is_object_not_found(&self) -> (res: bool)
+        ensures res <==> self.is_ObjectNotFound(),
+    {
+        match self {
+            APIError::ObjectNotFound => true,
+            _ => false,
+        }
+    }
+}
+
 }

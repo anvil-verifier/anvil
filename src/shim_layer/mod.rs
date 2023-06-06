@@ -178,6 +178,31 @@ where
                         },
                     }
                 },
+                KubeAPIRequest::UpdateRequest(update_req) => {
+                    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+                        client.clone(), update_req.namespace.as_rust_string_ref(), update_req.api_resource.as_kube_ref()
+                    );
+                    let pp = PostParams::default();
+                    let obj_to_update = update_req.obj.into_kube();
+                    match api.replace(update_req.name.as_rust_string_ref(), &pp, &obj_to_update).await {
+                        std::result::Result::Err(err) => {
+                            resp_option = Option::Some(KubeAPIResponse::UpdateResponse(
+                                KubeUpdateResponse{
+                                    res: vstd::result::Result::Err(kube_error_to_ghost(&err)),
+                                }
+                            ));
+                            println!("Update failed with error: {}", err);
+                        },
+                        std::result::Result::Ok(obj) => {
+                            resp_option = Option::Some(KubeAPIResponse::UpdateResponse(
+                                KubeUpdateResponse{
+                                    res: vstd::result::Result::Ok(DynamicObject::from_kube(obj)),
+                                }
+                            ));
+                            println!("Update done");
+                        },
+                    }
+                },
                 _ => {
                     panic!("Not supported yet");
                 }
