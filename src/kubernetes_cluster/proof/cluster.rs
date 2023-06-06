@@ -49,7 +49,7 @@ proof fn valid_stable_tla_forall_action_weak_fairness<K: ResourceView, T, Input,
 }
 
 /// Prove partial_spec is stable.
-pub proof fn valid_stable_sm_partial_spec<K: ResourceView, T>(reconciler: Reconciler<K, T>)
+pub proof fn valid_stable_sm_partial_spec<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(reconciler: ReconcilerType)
     ensures
         valid(stable(sm_partial_spec(reconciler))),
 {
@@ -68,8 +68,8 @@ pub proof fn valid_stable_sm_partial_spec<K: ResourceView, T>(reconciler: Reconc
     );
 }
 
-pub proof fn lemma_true_leads_to_crash_always_disabled<K: ResourceView, T>(
-    spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>
+pub proof fn lemma_true_leads_to_crash_always_disabled<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, reconciler: ReconcilerType
 )
     requires
         spec.entails(always(lift_action(next(reconciler)))),
@@ -82,8 +82,8 @@ pub proof fn lemma_true_leads_to_crash_always_disabled<K: ResourceView, T>(
     leads_to_stable_temp::<State<K, T>>(spec, lift_action(next(reconciler)), true_pred(), lift_state(crash_disabled::<K, T>()));
 }
 
-pub proof fn lemma_any_pred_leads_to_crash_always_disabled<K: ResourceView, T>(
-    spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>, any_pred: TempPred<State<K, T>>
+pub proof fn lemma_any_pred_leads_to_crash_always_disabled<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, reconciler: ReconcilerType, any_pred: TempPred<State<K, T>>
 )
     requires
         spec.entails(always(lift_action(next(reconciler)))),

@@ -15,7 +15,8 @@ use vstd::{map::*, option::*, seq::*, set::*, string::*};
 
 verus! {
 
-pub open spec fn controller<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ControllerStateMachine<K, T> {
+pub open spec fn controller<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>
+    (reconciler: ReconcilerType) -> ControllerStateMachine<K, T> {
     StateMachine {
         init: |s: ControllerState<K, T>| {
             s == init_controller_state::<K, T>()

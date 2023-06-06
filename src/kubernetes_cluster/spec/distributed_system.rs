@@ -75,7 +75,7 @@ impl<K: ResourceView, T> State<K, T> {
     }
 }
 
-pub open spec fn init<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> StatePred<State<K, T>> {
+pub open spec fn init<K: ResourceView, T, ReconcilerType: Reconciler<K ,T>>(reconciler: ReconcilerType) -> StatePred<State<K, T>> {
     |s: State<K, T>| {
         &&& (kubernetes_api().init)(s.kubernetes_api_state)
         &&& (controller(reconciler).init)(s.controller_state)
@@ -125,7 +125,7 @@ pub open spec fn kubernetes_api_next<K: ResourceView, T>() -> Action<State<K, T>
     }
 }
 
-pub open spec fn controller_next<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> Action<State<K, T>, (Option<Message>, Option<ObjectRef>), ()> {
+pub open spec fn controller_next<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(reconciler: ReconcilerType) -> Action<State<K, T>, (Option<Message>, Option<ObjectRef>), ()> {
     let result = |input: (Option<Message>, Option<ObjectRef>), s: State<K, T>| {
         let host_result = controller(reconciler).next_result(
             ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager},
@@ -279,7 +279,8 @@ pub enum Step<K> {
     StutterStep(),
 }
 
-pub open spec fn next_step<K: ResourceView, T>(reconciler: Reconciler<K, T>, s: State<K, T>, s_prime: State<K, T>, step: Step<K>) -> bool {
+pub open spec fn next_step<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>
+    (reconciler: ReconcilerType, s: State<K, T>, s_prime: State<K, T>, step: Step<K>) -> bool {
     match step {
         Step::KubernetesAPIStep(input) => kubernetes_api_next().forward(input)(s, s_prime),
         Step::ControllerStep(input) => controller_next(reconciler).forward(input)(s, s_prime),
@@ -294,18 +295,19 @@ pub open spec fn next_step<K: ResourceView, T>(reconciler: Reconciler<K, T>, s: 
 /// `next` chooses:
 /// * which host to take the next action (`Step`)
 /// * whether to deliver a message and which message to deliver (`Option<Message>` in `Step`)
-pub open spec fn next<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ActionPred<State<K, T>> {
+pub open spec fn next<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>
+    (reconciler: ReconcilerType) -> ActionPred<State<K, T>> {
     |s: State<K, T>, s_prime: State<K, T>| exists |step: Step<K>| next_step(reconciler, s, s_prime, step)
 }
 
 /// We install the reconciler to the Kubernetes cluster state machine spec
 /// TODO: develop a struct for the compound state machine and make reconciler its member
 /// so that we don't have to pass reconciler to init and next in the proof.
-pub open spec fn sm_spec<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> TempPred<State<K, T>> {
+pub open spec fn sm_spec<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(reconciler: ReconcilerType) -> TempPred<State<K, T>> {
     lift_state(init(reconciler)).and(sm_partial_spec(reconciler))
 }
 
-pub open spec fn sm_partial_spec<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> TempPred<State<K, T>> {
+pub open spec fn sm_partial_spec<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(reconciler: ReconcilerType) -> TempPred<State<K, T>> {
     always(lift_action(next(reconciler)))
     .and(tla_forall(|input| kubernetes_api_next().weak_fairness(input)))
     .and(tla_forall(|input| controller_next(reconciler).weak_fairness(input)))
@@ -332,7 +334,7 @@ pub open spec fn kubernetes_api_action_pre<K: ResourceView, T>(action: Kubernete
     }
 }
 
-pub open spec fn controller_action_pre<K: ResourceView, T>(reconciler: Reconciler<K, T>, action: ControllerAction<K, T>, input: (Option<Message>, Option<ObjectRef>)) -> StatePred<State<K, T>> {
+pub open spec fn controller_action_pre<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(reconciler: ReconcilerType, action: ControllerAction<K, T>, input: (Option<Message>, Option<ObjectRef>)) -> StatePred<State<K, T>> {
     |s: State<K, T>| {
         let host_result = controller(reconciler).next_action_result(
             action,

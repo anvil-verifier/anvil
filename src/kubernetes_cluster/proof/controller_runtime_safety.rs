@@ -28,9 +28,8 @@ pub open spec fn every_in_flight_msg_has_lower_id_than_chan_manager<K: ResourceV
     }
 }
 
-pub proof fn lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager<K: ResourceView, T>(
-    reconciler: Reconciler<K, T>
-)
+pub proof fn lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager
+    <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(reconciler: ReconcilerType)
     ensures
         sm_spec(reconciler).entails(always(lift_state(every_in_flight_msg_has_lower_id_than_chan_manager()))),
 {
