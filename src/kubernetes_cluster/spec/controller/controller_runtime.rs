@@ -13,8 +13,7 @@ use vstd::{map::*, multiset::*, option::*, seq::*, set::*};
 
 verus! {
 
-pub open spec fn run_scheduled_reconcile<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(reconciler: ReconcilerType)
-        -> ControllerAction<K, T> {
+pub open spec fn run_scheduled_reconcile<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>() -> ControllerAction<K, T> {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState<K, T>| {
             &&& input.scheduled_cr_key.is_Some()
@@ -27,7 +26,7 @@ pub open spec fn run_scheduled_reconcile<K: ResourceView, T, ReconcilerType: Rec
             let initialized_ongoing_reconcile = OngoingReconcile {
                 triggering_cr: s.scheduled_reconciles[cr_key],
                 pending_req_msg: Option::None,
-                local_state: reconciler.reconcile_init_state(),
+                local_state: ReconcilerType::reconcile_init_state(),
             };
             let s_prime = ControllerState {
                 ongoing_reconciles: s.ongoing_reconciles.insert(cr_key, initialized_ongoing_reconcile),
@@ -40,15 +39,15 @@ pub open spec fn run_scheduled_reconcile<K: ResourceView, T, ReconcilerType: Rec
     }
 }
 
-pub open spec fn continue_reconcile<K: ResourceView, T, ReconcilerType: Reconciler<K ,T>>(reconciler: ReconcilerType) -> ControllerAction<K, T> {
+pub open spec fn continue_reconcile<K: ResourceView, T, ReconcilerType: Reconciler<K ,T>>() -> ControllerAction<K, T> {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState<K, T>| {
             if input.scheduled_cr_key.is_Some() {
                 let cr_key = input.scheduled_cr_key.get_Some_0();
 
                 &&& s.ongoing_reconciles.dom().contains(cr_key)
-                &&& !reconciler.reconcile_done(s.ongoing_reconciles[cr_key].local_state)
-                &&& !reconciler.reconcile_error(s.ongoing_reconciles[cr_key].local_state)
+                &&& !ReconcilerType::reconcile_done(s.ongoing_reconciles[cr_key].local_state)
+                &&& !ReconcilerType::reconcile_error(s.ongoing_reconciles[cr_key].local_state)
                 &&& if input.recv.is_Some() {
                     &&& input.recv.get_Some_0().content.is_APIResponse()
                     &&& s.ongoing_reconciles[cr_key].pending_req_msg.is_Some()
@@ -69,7 +68,7 @@ pub open spec fn continue_reconcile<K: ResourceView, T, ReconcilerType: Reconcil
             let cr_key = input.scheduled_cr_key.get_Some_0();
             let reconcile_state = s.ongoing_reconciles[cr_key];
 
-            let (local_state_prime, req_o) = reconciler.reconcile_core(reconcile_state.triggering_cr, resp_o, reconcile_state.local_state);
+            let (local_state_prime, req_o) = ReconcilerType::reconcile_core(reconcile_state.triggering_cr, resp_o, reconcile_state.local_state);
 
             let (chan_manager_prime, pending_req_msg) = if req_o.is_Some() {
                 (input.chan_manager.allocate().0, Option::Some(controller_req_msg(req_o.get_Some_0(), input.chan_manager.allocate().1)))
@@ -96,14 +95,14 @@ pub open spec fn continue_reconcile<K: ResourceView, T, ReconcilerType: Reconcil
     }
 }
 
-pub open spec fn end_reconcile<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(reconciler: ReconcilerType) -> ControllerAction<K, T> {
+pub open spec fn end_reconcile<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>() -> ControllerAction<K, T> {
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState<K, T>| {
             if input.scheduled_cr_key.is_Some() {
                 let cr_key = input.scheduled_cr_key.get_Some_0();
 
                 &&& s.ongoing_reconciles.dom().contains(cr_key)
-                &&& (reconciler.reconcile_done(s.ongoing_reconciles[cr_key].local_state) || reconciler.reconcile_error(s.ongoing_reconciles[cr_key].local_state))
+                &&& (ReconcilerType::reconcile_done(s.ongoing_reconciles[cr_key].local_state) || ReconcilerType::reconcile_error(s.ongoing_reconciles[cr_key].local_state))
                 &&& input.recv.is_None()
             } else {
                 false

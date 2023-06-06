@@ -30,30 +30,26 @@ pub struct SimpleReconcileState {
 pub struct SimpleReconciler {}
 
 impl Reconciler<CustomResourceView, SimpleReconcileState> for SimpleReconciler {
-    open spec fn reconcile_init_state(self) -> SimpleReconcileState {
+    open spec fn reconcile_init_state() -> SimpleReconcileState {
         reconcile_init_state()
     }
 
-    open spec fn reconcile_core(self, cr: CustomResourceView, resp_o: Option<APIResponse>, state: SimpleReconcileState)
+    open spec fn reconcile_core(cr: CustomResourceView, resp_o: Option<APIResponse>, state: SimpleReconcileState)
         -> (SimpleReconcileState, Option<APIRequest>) {
         reconcile_core(cr, resp_o, state)
     }
 
-    open spec fn reconcile_done(self, state: SimpleReconcileState) -> bool {
+    open spec fn reconcile_done(state: SimpleReconcileState) -> bool {
         reconcile_done(state)
     }
 
-    open spec fn reconcile_error(self, state: SimpleReconcileState) -> bool {
+    open spec fn reconcile_error(state: SimpleReconcileState) -> bool {
         reconcile_error(state)
     }
 }
 
-impl SimpleReconciler {
-    pub open spec fn default() -> SimpleReconciler { SimpleReconciler{} }
-}
-
 pub open spec fn simple_reconciler() -> SimpleReconciler {
-    SimpleReconciler::default()
+    SimpleReconciler{}
 }
 
 pub open spec fn reconcile_init_state() -> SimpleReconcileState {

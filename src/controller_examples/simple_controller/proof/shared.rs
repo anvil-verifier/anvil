@@ -7,6 +7,7 @@ use crate::kubernetes_cluster::spec::{
     distributed_system::*,
     message::*,
 };
+use crate::simple_controller::spec::*;
 use crate::simple_controller::spec::{
     custom_resource::*,
     reconciler,
@@ -25,14 +26,14 @@ pub closed spec fn dummy_trigger<A>(x: A);
 pub open spec fn reconciler_at_init_pc(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
-        &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::init_pc()
+        &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == SimpleReconcileStep::Init)
     }
 }
 
 pub open spec fn reconciler_at_init_pc_and_no_pending_req(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
-        &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::init_pc()
+        &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == SimpleReconcileStep::Init)
         &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_None()
     }
 }

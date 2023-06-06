@@ -46,20 +46,19 @@ pub proof fn kubernetes_api_action_pre_implies_next_pre<K: ResourceView, T>(
 }
 
 pub proof fn controller_action_pre_implies_next_pre<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
-    reconciler: ReconcilerType, action: ControllerAction<K, T>, input: (Option<Message>, Option<ObjectRef>)
+    action: ControllerAction<K, T>, input: (Option<Message>, Option<ObjectRef>)
 )
     requires
-        controller(reconciler).actions.contains(action),
+        controller::<K, T, ReconcilerType>().actions.contains(action),
     ensures
         valid(
-            lift_state(controller_action_pre(reconciler, action, input))
-                .implies(lift_state(controller_next(reconciler).pre(input)))
+            lift_state(controller_action_pre::<K, T, ReconcilerType>(action, input))
+                .implies(lift_state(controller_next::<K, T, ReconcilerType>().pre(input)))
         ),
 {
-    assert forall |s| #[trigger] controller_action_pre(reconciler, action, input)(s)
-    implies controller_next(reconciler).pre(input)(s) by {
-        exists_next_controller_step(
-            reconciler,
+    assert forall |s| #[trigger] controller_action_pre::<K, T, ReconcilerType>(action, input)(s)
+    implies controller_next::<K, T, ReconcilerType>().pre(input)(s) by {
+        exists_next_controller_step::<K, T, ReconcilerType>(
             action,
             ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager},
             s.controller_state
@@ -80,23 +79,23 @@ pub proof fn exists_next_kubernetes_api_step(
 }
 
 pub proof fn exists_next_controller_step<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
-    reconciler: ReconcilerType, action: ControllerAction<K, T>, input: ControllerActionInput, s: ControllerState<K, T>
+    action: ControllerAction<K, T>, input: ControllerActionInput, s: ControllerState<K, T>
 )
     requires
-        controller(reconciler).actions.contains(action),
+        controller::<K, T, ReconcilerType>().actions.contains(action),
         (action.precondition)(input, s),
     ensures
-        exists |step| (#[trigger] (controller(reconciler).step_to_action)(step).precondition)(input, s),
+        exists |step| (#[trigger] (controller::<K, T, ReconcilerType>().step_to_action)(step).precondition)(input, s),
 {
-    if action == run_scheduled_reconcile(reconciler) {
+    if action == run_scheduled_reconcile::<K, T, ReconcilerType>() {
         let step = ControllerStep::RunScheduledReconcile;
-        assert(((controller(reconciler).step_to_action)(step).precondition)(input, s));
-    } else if action == continue_reconcile(reconciler) {
+        assert(((controller::<K, T, ReconcilerType>().step_to_action)(step).precondition)(input, s));
+    } else if action == continue_reconcile::<K, T, ReconcilerType>() {
         let step = ControllerStep::ContinueReconcile;
-        assert(((controller(reconciler).step_to_action)(step).precondition)(input, s));
+        assert(((controller::<K, T, ReconcilerType>().step_to_action)(step).precondition)(input, s));
     } else {
         let step = ControllerStep::EndReconcile;
-        assert(((controller(reconciler).step_to_action)(step).precondition)(input, s));
+        assert(((controller::<K, T, ReconcilerType>().step_to_action)(step).precondition)(input, s));
     }
 }
 

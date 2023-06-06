@@ -21,7 +21,7 @@ use vstd::{option::*, result::*};
 verus! {
 
 pub proof fn lemma_pre_leads_to_post_by_kubernetes_api<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
-    spec: TempPred<State<K, T>>, reconciler: ReconcilerType, input: Option<Message>, next: ActionPred<State<K, T>>, action: KubernetesAPIAction, pre: StatePred<State<K, T>>, post: StatePred<State<K, T>>)
+    spec: TempPred<State<K, T>>, input: Option<Message>, next: ActionPred<State<K, T>>, action: KubernetesAPIAction, pre: StatePred<State<K, T>>, post: StatePred<State<K, T>>)
     requires
         kubernetes_api().actions.contains(action),
         forall |s, s_prime: State<K, T>| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
@@ -41,7 +41,7 @@ pub proof fn lemma_pre_leads_to_post_by_kubernetes_api<K: ResourceView, T, Recon
 }
 
 pub proof fn lemma_pre_leads_to_post_with_assumption_by_kubernetes_api<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
-    spec: TempPred<State<K, T>>, reconciler: ReconcilerType, input: Option<Message>, next: ActionPred<State<K, T>>, action: KubernetesAPIAction, assumption: StatePred<State<K, T>>, pre: StatePred<State<K, T>>, post: StatePred<State<K, T>>)
+    spec: TempPred<State<K, T>>, input: Option<Message>, next: ActionPred<State<K, T>>, action: KubernetesAPIAction, assumption: StatePred<State<K, T>>, pre: StatePred<State<K, T>>, post: StatePred<State<K, T>>)
     requires
         kubernetes_api().actions.contains(action),
         forall |s, s_prime: State<K, T>| pre(s) && #[trigger] next(s, s_prime) && assumption(s) ==> pre(s_prime) || post(s_prime),
@@ -60,9 +60,11 @@ pub proof fn lemma_pre_leads_to_post_with_assumption_by_kubernetes_api<K: Resour
     kubernetes_api_next().wf1_assume(input, spec, next, assumption, pre, post);
 }
 
-pub proof fn lemma_get_req_leads_to_some_resp<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, reconciler: ReconcilerType, msg: Message, key: ObjectRef)
+pub proof fn lemma_get_req_leads_to_some_resp<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, msg: Message, key: ObjectRef
+)
     requires
-        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
         spec.entails(
@@ -93,7 +95,7 @@ pub proof fn lemma_get_req_leads_to_some_resp<K: ResourceView, T, ReconcilerType
         &&& #[trigger] s.message_in_flight(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
     };
-    assert forall |s, s_prime: State<K, T>| pre(s) && #[trigger] next(reconciler)(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime)
+    assert forall |s, s_prime: State<K, T>| pre(s) && #[trigger] next::<K, T, ReconcilerType>()(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
         if s.resource_key_exists(key) {
             let ok_resp_msg = form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)));
@@ -105,12 +107,14 @@ pub proof fn lemma_get_req_leads_to_some_resp<K: ResourceView, T, ReconcilerType
             assert(resp_msg_matches_req_msg(err_resp_msg, msg));
         }
     };
-    lemma_pre_leads_to_post_by_kubernetes_api(spec, reconciler, input, next(reconciler), handle_request(), pre, post);
+    lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(spec, input, next::<K, T, ReconcilerType>(), handle_request(), pre, post);
 }
 
-pub proof fn lemma_get_req_leads_to_ok_or_err_resp<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, reconciler: ReconcilerType, msg: Message, key: ObjectRef)
+pub proof fn lemma_get_req_leads_to_ok_or_err_resp<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, msg: Message, key: ObjectRef
+)
     requires
-        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
         spec.entails(
@@ -136,7 +140,7 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp<K: ResourceView, T, Reconcile
         ||| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key))))
         ||| s.message_in_flight(form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound)))
     };
-    lemma_pre_leads_to_post_by_kubernetes_api(spec, reconciler, Option::Some(msg), next(reconciler), handle_request(), pre, post);
+    lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(spec, Option::Some(msg), next::<K, T, ReconcilerType>(), handle_request(), pre, post);
     temp_pred_equality::<State<K, T>>(
         lift_state(post),
         lift_state(|s: State<K, T>| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)))))
@@ -144,9 +148,11 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp<K: ResourceView, T, Reconcile
     );
 }
 
-pub proof fn lemma_create_req_leads_to_res_exists<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, reconciler: ReconcilerType, msg: Message)
+pub proof fn lemma_create_req_leads_to_res_exists<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, msg: Message
+)
     requires
-        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
         spec.entails(
@@ -175,12 +181,14 @@ pub proof fn lemma_create_req_leads_to_res_exists<K: ResourceView, T, Reconciler
         s.resource_key_exists(
             msg.content.get_create_request().obj.set_namespace(msg.content.get_create_request().namespace).object_ref()
         );
-    lemma_pre_leads_to_post_by_kubernetes_api(spec, reconciler, Option::Some(msg), next(reconciler), handle_request(), pre, post);
+    lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(spec, Option::Some(msg), next::<K, T, ReconcilerType>(), handle_request(), pre, post);
 }
 
-pub proof fn lemma_delete_req_leads_to_res_not_exists<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, reconciler: ReconcilerType, msg: Message, res: DynamicObjectView)
+pub proof fn lemma_delete_req_leads_to_res_not_exists<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, msg: Message, res: DynamicObjectView
+)
     requires
-        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
         spec.entails(
@@ -202,12 +210,12 @@ pub proof fn lemma_delete_req_leads_to_res_not_exists<K: ResourceView, T, Reconc
     let post = |s: State<K, T>| {
         !s.resource_obj_exists(res)
     };
-    lemma_pre_leads_to_post_by_kubernetes_api(spec, reconciler, Option::Some(msg), next(reconciler), handle_request(), pre, post);
+    lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(spec, Option::Some(msg), next::<K, T, ReconcilerType>(), handle_request(), pre, post);
 }
 
-pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, reconciler: ReconcilerType, msg: Message, res: DynamicObjectView)
+pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, msg: Message, res: DynamicObjectView)
     requires
-        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
         spec.entails(always(
@@ -222,7 +230,7 @@ pub proof fn lemma_always_res_always_exists_implies_delete_never_sent<K: Resourc
                 })))
         )),
 {
-    lemma_delete_req_leads_to_res_not_exists(spec, reconciler, msg, res);
+    lemma_delete_req_leads_to_res_not_exists::<K, T, ReconcilerType>(spec, msg, res);
     leads_to_contraposition::<State<K, T>>(spec,
         |s: State<K, T>| {
             &&& s.message_in_flight(msg)
