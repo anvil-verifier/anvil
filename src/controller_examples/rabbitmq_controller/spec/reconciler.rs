@@ -526,17 +526,6 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
             ),
         VolumeView::default()
             .set_name(new_strlit("rabbitmq-plugins")@),
-        VolumeView::default()
-            .set_name(new_strlit("pod-info")@)
-            .set_downward_api(DownwardAPIVolumeSourceView::default()
-                .set_items(seq![
-                    DownwardAPIVolumeFileView::default()
-                        .set_path(new_strlit("skipPreStopChecks")@)
-                        .set_field_ref(ObjectFieldSelectorView::default()
-                            .set_field_path(new_strlit("metadata.labels['skipPreStopChecks']")@)
-                        ),
-                ])
-            ),
     ];
 
     PodSpecView::default()

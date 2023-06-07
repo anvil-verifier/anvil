@@ -938,35 +938,6 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         volume.set_empty_dir();
         volume
     });
-    volumes.push({
-        let mut volume = Volume::default();
-        volume.set_name(new_strlit("pod-info").to_string());
-        volume.set_downward_api({
-            let mut downward_api = DownwardAPIVolumeSource::default();
-            downward_api.set_items({
-                let mut items = Vec::empty();
-                items.push({
-                    let mut downward_api_volume_file = DownwardAPIVolumeFile::default();
-                    downward_api_volume_file.set_path(new_strlit("skipPreStopChecks").to_string());
-                    downward_api_volume_file.set_field_ref({
-                        let mut object_field_selector = ObjectFieldSelector::default();
-                        object_field_selector.set_field_path(new_strlit("metadata.labels['skipPreStopChecks']").to_string());
-                        object_field_selector
-                    });
-                    downward_api_volume_file
-                });
-                proof {
-                    assert_seqs_equal!(
-                        items@.map_values(|item: DownwardAPIVolumeFile| item@),
-                        rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).volumes.get_Some_0()[5].downward_api.get_Some_0().items.get_Some_0()
-                    );
-                }
-                items
-            });
-            downward_api
-        });
-        volume
-    });
 
     proof {
         assert_seqs_equal!(
