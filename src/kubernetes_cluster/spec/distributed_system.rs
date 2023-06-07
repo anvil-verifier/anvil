@@ -84,7 +84,6 @@ pub open spec fn init<K: ResourceView, T, ReconcilerType: Reconciler<K ,T>>() ->
         &&& (controller::<K, T, ReconcilerType>().init)(s.controller_state)
         &&& (client::<K>().init)(s.client_state)
         &&& (network().init)(s.network_state)
-        &&& s.rest_id_allocator == RestIdAllocator::init()
         &&& s.crash_enabled
     }
 }
@@ -213,8 +212,9 @@ pub open spec fn restart_controller<K: ResourceView, T>() -> Action<State<K, T>,
     }
 }
 
-/// This action sets s.crash_enabled to false.
-/// This is used to constraint the crash behavior: the controller eventually stops crashing.
+/// This action disallows the controller to crash from this point.
+/// This is used to constraint the crash behavior for liveness proof:
+/// the controller eventually stops crashing.
 pub open spec fn disable_crash<K: ResourceView, T>() -> Action<State<K, T>, (), ()> {
     Action {
         precondition: |input: (), s: State<K, T>| {

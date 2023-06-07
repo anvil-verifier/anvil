@@ -29,22 +29,25 @@ pub enum HostId {
 
 pub type RestId = nat;
 
-/// RestIdAllocator allocates new rest id for each request sent by the controller.
-/// The response will carry the same rest id.
-
+// RestIdAllocator allocates unique RestId for each request sent by the controller.
+// The Kubernetes API state machine ensures the response will carry the same RestId.
 pub struct RestIdAllocator {
     pub rest_id_counter: RestId,
 }
 
 impl RestIdAllocator {
-    pub open spec fn init() -> Self {
-        RestIdAllocator {
-            rest_id_counter: 0,
-        }
-    }
-
-    /// allocate returns rest_id_counter and another RestIdAllocator with an incremented rest_id_counter
-
+    // allocate a RestId which is the current rest_id_counter
+    // and also returns a new RestIdAllocator with a different rest_id_counter.
+    //
+    // An important assumption of RestIdAllocator is that the user (i.e., state machine)
+    // after allocating one RestId, will use the returned new RestIdAllocator
+    // to allocate the next RestId.
+    // With this assumption, the user of RestIdAllocator always gets a RestId
+    // which differs from all the RestIds allocated before because the
+    // returned RestIdAllocator has a incremented rest_id_counter.
+    //
+    // Besides the uniqueness, the allocated RestId can also serve as a timestamp
+    // if we need to say some Rest messages are sent before the others.
     pub open spec fn allocate(self) -> (Self, RestId) {
         (RestIdAllocator {
             rest_id_counter: self.rest_id_counter + 1,
