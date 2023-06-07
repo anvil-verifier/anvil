@@ -31,8 +31,9 @@ impl Reconciler<ZookeeperClusterView, ZookeeperReconcileState> for ZookeeperReco
         reconcile_init_state()
     }
 
-    open spec fn reconcile_core(zk: ZookeeperClusterView, resp_o: Option<APIResponse>, state: ZookeeperReconcileState)
-        -> (ZookeeperReconcileState, Option<APIRequest>) {
+    open spec fn reconcile_core(
+        zk: ZookeeperClusterView, resp_o: Option<APIResponse>, state: ZookeeperReconcileState
+    ) -> (ZookeeperReconcileState, Option<APIRequest>) {
         reconcile_core(zk, resp_o, state)
     }
 
