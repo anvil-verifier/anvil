@@ -496,16 +496,16 @@ proof fn pending_requests_num_decreases<K: ResourceView, T, ReconcilerType: Reco
         match step {
             Step::KubernetesAPIStep(input) => {
                 if pending_req_multiset.count(input.get_Some_0()) > 0 {
-                    assert_multisets_equal!(pending_req_multiset.remove(input.get_Some_0()), pending_req_multiset_prime);
+                    assert(pending_req_multiset.remove(input.get_Some_0()) =~= pending_req_multiset_prime);
                 } else {
-                    assert_multisets_equal!(pending_req_multiset, pending_req_multiset_prime);
+                    assert(pending_req_multiset =~= pending_req_multiset_prime);
                 }
             },
             Step::ControllerStep(input) => {
-                assert_multisets_equal!(pending_req_multiset, pending_req_multiset_prime);
+                assert(pending_req_multiset =~= pending_req_multiset_prime);
             },
             Step::ClientStep(input) => {
-                assert_multisets_equal!(pending_req_multiset, pending_req_multiset_prime);
+                assert(pending_req_multiset =~= pending_req_multiset_prime);
             },
             _ => {}
         }
@@ -514,7 +514,7 @@ proof fn pending_requests_num_decreases<K: ResourceView, T, ReconcilerType: Reco
     implies post(s_prime) by {
         let pending_req_multiset = s.network_state.in_flight.filter(api_request_msg_before(chan_id));
         let pending_req_multiset_prime = s_prime.network_state.in_flight.filter(api_request_msg_before(chan_id));
-        assert_multisets_equal!(pending_req_multiset.remove(msg), pending_req_multiset_prime);
+        assert(pending_req_multiset.remove(msg) =~= pending_req_multiset_prime);
     }
     lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(
         spec, input, stronger_next, handle_request(), pre, post
