@@ -16,6 +16,7 @@ use crate::kubernetes_cluster::{
         message::*,
     },
 };
+use crate::simple_controller::common::*;
 use crate::simple_controller::proof::shared::*;
 use crate::simple_controller::spec::{
     custom_resource::*,
@@ -37,9 +38,9 @@ pub proof fn lemma_always_reconcile_init_pc_and_no_pending_req(cr: CustomResourc
 {
     let invariant = |s: State<SimpleReconcileState>| {
         s.reconcile_state_contains(cr.object_ref())
-        && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::init_pc()
+        && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == SimpleReconcileStep::Init)
         ==> s.reconcile_state_contains(cr.object_ref())
-            && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::init_pc()
+            && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == SimpleReconcileStep::Init)
             && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_None()
     };
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), next(simple_reconciler()), invariant);

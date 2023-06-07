@@ -15,21 +15,21 @@ use vstd::{map::*, option::*, seq::*, set::*, string::*};
 
 verus! {
 
-pub open spec fn controller<K: ResourceView, T>(reconciler: Reconciler<K, T>) -> ControllerStateMachine<K, T> {
+pub open spec fn controller<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>() -> ControllerStateMachine<K, T> {
     StateMachine {
         init: |s: ControllerState<K, T>| {
             s == init_controller_state::<K, T>()
         },
         actions: set![
-            run_scheduled_reconcile(reconciler),
-            continue_reconcile(reconciler),
-            end_reconcile(reconciler)
+            run_scheduled_reconcile::<K, T, ReconcilerType>(),
+            continue_reconcile::<K, T, ReconcilerType>(),
+            end_reconcile::<K, T, ReconcilerType>()
         ],
         step_to_action: |step: ControllerStep| {
             match step {
-                ControllerStep::RunScheduledReconcile => run_scheduled_reconcile(reconciler),
-                ControllerStep::ContinueReconcile => continue_reconcile(reconciler),
-                ControllerStep::EndReconcile => end_reconcile(reconciler),
+                ControllerStep::RunScheduledReconcile => run_scheduled_reconcile::<K, T, ReconcilerType>(),
+                ControllerStep::ContinueReconcile => continue_reconcile::<K, T, ReconcilerType>(),
+                ControllerStep::EndReconcile => end_reconcile::<K, T, ReconcilerType>(),
             }
         },
         action_input: |step: ControllerStep, input: ControllerActionInput| {

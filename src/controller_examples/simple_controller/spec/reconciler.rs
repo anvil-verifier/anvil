@@ -27,13 +27,30 @@ pub struct SimpleReconcileState {
 
 /// We use Reconciler to pack up everything specific to the custom controller,
 /// including reconcile function (reconcile_core) and triggering conditions (reconcile_trigger)
-pub open spec fn simple_reconciler() -> Reconciler<CustomResourceView, SimpleReconcileState> {
-    Reconciler {
-        reconcile_init_state: || reconcile_init_state(),
-        reconcile_core: |cr: CustomResourceView, resp_o: Option<APIResponse>, state: SimpleReconcileState| reconcile_core(cr, resp_o, state),
-        reconcile_done: |state: SimpleReconcileState| reconcile_done(state),
-        reconcile_error: |state: SimpleReconcileState| reconcile_error(state),
+pub struct SimpleReconciler {}
+
+impl Reconciler<CustomResourceView, SimpleReconcileState> for SimpleReconciler {
+    open spec fn reconcile_init_state() -> SimpleReconcileState {
+        reconcile_init_state()
     }
+
+    open spec fn reconcile_core(
+        cr: CustomResourceView, resp_o: Option<APIResponse>, state: SimpleReconcileState
+    ) -> (SimpleReconcileState, Option<APIRequest>) {
+        reconcile_core(cr, resp_o, state)
+    }
+
+    open spec fn reconcile_done(state: SimpleReconcileState) -> bool {
+        reconcile_done(state)
+    }
+
+    open spec fn reconcile_error(state: SimpleReconcileState) -> bool {
+        reconcile_error(state)
+    }
+}
+
+pub open spec fn simple_reconciler() -> SimpleReconciler {
+    SimpleReconciler{}
 }
 
 pub open spec fn reconcile_init_state() -> SimpleReconcileState {
@@ -60,7 +77,9 @@ pub open spec fn reconcile_error(state: SimpleReconcileState) -> bool {
 /// This is a highly simplified reconcile core spec:
 /// it sends requests to create a configmap for the cr.
 /// TODO: make the reconcile_core create more resources such as a statefulset
-pub open spec fn reconcile_core(cr: CustomResourceView, resp_o: Option<APIResponse>, state: SimpleReconcileState) -> (SimpleReconcileState, Option<APIRequest>)
+pub open spec fn reconcile_core(
+    cr: CustomResourceView, resp_o: Option<APIResponse>, state: SimpleReconcileState
+) -> (SimpleReconcileState, Option<APIRequest>)
     recommends
         cr.metadata.name.is_Some(),
         cr.metadata.namespace.is_Some(),

@@ -24,6 +24,28 @@ pub struct RabbitmqReconcileState {
     pub reconcile_step: RabbitmqReconcileStep,
 }
 
+pub struct RabbitmqReconciler {}
+
+impl Reconciler<RabbitmqClusterView, RabbitmqReconcileState> for RabbitmqReconciler {
+    open spec fn reconcile_init_state() -> RabbitmqReconcileState {
+        reconcile_init_state()
+    }
+
+    open spec fn reconcile_core(
+        rabbitmq: RabbitmqClusterView, resp_o: Option<APIResponse>, state: RabbitmqReconcileState
+    ) -> (RabbitmqReconcileState, Option<APIRequest>) {
+        reconcile_core(rabbitmq, resp_o, state)
+    }
+
+    open spec fn reconcile_done(state: RabbitmqReconcileState) -> bool {
+        reconcile_done(state)
+    }
+
+    open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool {
+        reconcile_error(state)
+    }
+}
+
 pub open spec fn reconcile_init_state() -> RabbitmqReconcileState {
     RabbitmqReconcileState {
         reconcile_step: RabbitmqReconcileStep::Init,
@@ -44,7 +66,9 @@ pub open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool {
     }
 }
 
-pub open spec fn reconcile_core(rabbitmq: RabbitmqClusterView, resp_o: Option<APIResponse>, state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<APIRequest>)
+pub open spec fn reconcile_core(
+    rabbitmq: RabbitmqClusterView, resp_o: Option<APIResponse>, state: RabbitmqReconcileState
+) -> (RabbitmqReconcileState, Option<APIRequest>)
     recommends
         rabbitmq.metadata.name.is_Some(),
         rabbitmq.metadata.namespace.is_Some(),

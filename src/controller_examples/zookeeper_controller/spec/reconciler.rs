@@ -24,6 +24,28 @@ pub struct ZookeeperReconcileState {
     pub reconcile_step: ZookeeperReconcileStep,
 }
 
+pub struct ZookeeperReconciler {}
+
+impl Reconciler<ZookeeperClusterView, ZookeeperReconcileState> for ZookeeperReconciler {
+    open spec fn reconcile_init_state() -> ZookeeperReconcileState {
+        reconcile_init_state()
+    }
+
+    open spec fn reconcile_core(
+        zk: ZookeeperClusterView, resp_o: Option<APIResponse>, state: ZookeeperReconcileState
+    ) -> (ZookeeperReconcileState, Option<APIRequest>) {
+        reconcile_core(zk, resp_o, state)
+    }
+
+    open spec fn reconcile_done(state: ZookeeperReconcileState) -> bool {
+        reconcile_done(state)
+    }
+
+    open spec fn reconcile_error(state: ZookeeperReconcileState) -> bool {
+        reconcile_error(state)
+    }
+}
+
 pub open spec fn reconcile_init_state() -> ZookeeperReconcileState {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
