@@ -272,12 +272,12 @@ pub open spec fn api_request_msg_before(chan_id: nat) -> FnSpec(Message) -> bool
 // All the APIRequest messages with a smaller id than chan_id will eventually leave the network.
 // The intuition is that (1) The number of such APIRequest messages are bounded by chan_id,
 // and (2) weak fairness assumption ensures each message will eventually be handled by Kubernetes.
-pub proof fn lemma_pending_requests_are_eventually_consumed<K: ResourceView, T>(
-    spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>, chan_id: nat,
+pub proof fn lemma_pending_requests_are_eventually_consumed<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, chan_id: nat,
 )
     requires
         spec.entails(always(lift_state(|s: State<K, T>| s.chan_id_is_no_smaller_than(chan_id)))),
-        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
         spec.entails(
@@ -306,7 +306,7 @@ pub proof fn lemma_pending_requests_are_eventually_consumed<K: ResourceView, T>(
     assert forall |msg_num: nat|
         spec.entails(#[trigger] pending_requests_num_is_n(msg_num).leads_to(no_more_pending_requests))
     by {
-        lemma_pending_requests_number_is_n_leads_to_no_pending_requests(spec, reconciler, chan_id, msg_num);
+        lemma_pending_requests_number_is_n_leads_to_no_pending_requests::<K, T, ReconcilerType>(spec, chan_id, msg_num);
     }
     leads_to_exists_intro(spec, pending_requests_num_is_n, no_more_pending_requests);
 
@@ -325,12 +325,12 @@ pub proof fn lemma_pending_requests_are_eventually_consumed<K: ResourceView, T>(
 
 // This is an inductive proof to show that if there are msg_num requests with id lower than chan_id in the network,
 // then eventually all of them will be gone.
-proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests<K: ResourceView, T>(
-    spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>, chan_id: nat, msg_num: nat,
+proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, chan_id: nat, msg_num: nat,
 )
     requires
         spec.entails(always(lift_state(|s: State<K, T>| s.chan_id_is_no_smaller_than(chan_id)))),
-        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
         spec.entails(
@@ -430,7 +430,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests<K: Reso
             #[trigger] pending_requests_num_is_msg_num_and_pending_req_in_flight(msg)
                 .leads_to(pending_requests_num_is_msg_num_minus_1)
         ) by {
-            pending_requests_num_decreases(spec, reconciler, chan_id, msg_num, msg);
+            pending_requests_num_decreases::<K, T, ReconcilerType>(spec, chan_id, msg_num, msg);
         }
         leads_to_exists_intro(
             spec, pending_requests_num_is_msg_num_and_pending_req_in_flight, pending_requests_num_is_msg_num_minus_1
@@ -448,20 +448,20 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests<K: Reso
             );
         });
         // We use the inductive hypothesis here.
-        lemma_pending_requests_number_is_n_leads_to_no_pending_requests(spec, reconciler, chan_id, (msg_num - 1) as nat);
+        lemma_pending_requests_number_is_n_leads_to_no_pending_requests::<K, T, ReconcilerType>(spec, chan_id, (msg_num - 1) as nat);
         leads_to_trans_temp(
             spec, pending_requests_num_is_msg_num, pending_requests_num_is_msg_num_minus_1, no_more_pending_requests
         );
     }
 }
 
-proof fn pending_requests_num_decreases<K: ResourceView, T>(
-    spec: TempPred<State<K, T>>, reconciler: Reconciler<K, T>, chan_id: nat, msg_num: nat, msg: Message
+proof fn pending_requests_num_decreases<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, chan_id: nat, msg_num: nat, msg: Message
 )
     requires
         msg_num > 0,
         spec.entails(always(lift_state(|s: State<K, T>| s.chan_id_is_no_smaller_than(chan_id)))),
-        spec.entails(always(lift_action(next(reconciler)))),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
         spec.entails(
@@ -483,17 +483,16 @@ proof fn pending_requests_num_decreases<K: ResourceView, T>(
     };
     let input = Option::Some(msg);
     let stronger_next = |s, s_prime: State<K, T>| {
-        &&& next(reconciler)(s, s_prime)
+        &&& next::<K, T, ReconcilerType>()(s, s_prime)
         &&& s.chan_id_is_no_smaller_than(chan_id)
     };
-    strengthen_next::<State<K, T>>(spec, next(reconciler), |s: State<K, T>| s.chan_id_is_no_smaller_than(chan_id), stronger_next);
+    strengthen_next::<State<K, T>>(spec, next::<K, T, ReconcilerType>(), |s: State<K, T>| s.chan_id_is_no_smaller_than(chan_id), stronger_next);
 
     assert forall |s, s_prime: State<K, T>| pre(s) && #[trigger] stronger_next(s, s_prime)
     implies pre(s_prime) || post(s_prime) by {
         let pending_req_multiset = s.network_state.in_flight.filter(api_request_msg_before(chan_id));
         let pending_req_multiset_prime = s_prime.network_state.in_flight.filter(api_request_msg_before(chan_id));
-        let step = choose |step| next_step(reconciler, s, s_prime, step);
-        assert(next_step(reconciler, s, s_prime, step));
+        let step = choose |step| next_step::<K, T, ReconcilerType>(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
                 if pending_req_multiset.count(input.get_Some_0()) > 0 {
@@ -517,8 +516,8 @@ proof fn pending_requests_num_decreases<K: ResourceView, T>(
         let pending_req_multiset_prime = s_prime.network_state.in_flight.filter(api_request_msg_before(chan_id));
         assert_multisets_equal!(pending_req_multiset.remove(msg), pending_req_multiset_prime);
     }
-    lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, reconciler, input, stronger_next, handle_request(), pre, post
+    lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(
+        spec, input, stronger_next, handle_request(), pre, post
     );
 }
 
