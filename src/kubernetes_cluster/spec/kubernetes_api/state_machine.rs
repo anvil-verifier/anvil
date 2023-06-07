@@ -142,6 +142,7 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
         (s.resources, resp, Option::None)
     } else if update_is_noop(req.obj, s.resources[req.key]) {
         // Update is a noop because there is nothing to update
+        // so the resource version counter does not increase here
         let result = Result::Ok(s.resources[req.key]);
         let resp = form_update_resp_msg(msg, result);
         (s.resources, resp, Option::None)
