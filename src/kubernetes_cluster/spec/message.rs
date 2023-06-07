@@ -27,12 +27,37 @@ pub enum HostId {
     Client,
 }
 
-// Each MessageContent is a request/response and a nat number that represents the channel id
-// TODO: revisit this design
+pub type RestId = nat;
+
+/// RestIdAllocator allocates new rest id for each request sent by the controller.
+/// The response will carry the same rest id.
+
+pub struct RestIdAllocator {
+    pub rest_id_counter: RestId,
+}
+
+impl RestIdAllocator {
+    pub open spec fn init() -> Self {
+        RestIdAllocator {
+            rest_id_counter: 0,
+        }
+    }
+
+    /// allocate returns rest_id_counter and another RestIdAllocator with an incremented rest_id_counter
+
+    pub open spec fn allocate(self) -> (Self, RestId) {
+        (RestIdAllocator {
+            rest_id_counter: self.rest_id_counter + 1,
+        }, self.rest_id_counter)
+    }
+}
+
+/// Each MessageContent is a request/response and a rest id
+
 #[is_variant]
 pub enum MessageContent {
-    APIRequest(APIRequest, nat),
-    APIResponse(APIResponse, nat),
+    APIRequest(APIRequest, RestId),
+    APIResponse(APIResponse, RestId),
 }
 
 // WatchEvent is actually also a type of message
@@ -57,7 +82,7 @@ pub struct DeletedEvent {
     pub obj: DynamicObjectView,
 }
 
-// We implement some handy methods for pattern matching and retrieving information from MessageContent
+// Some handy methods for pattern matching and retrieving information from MessageContent
 impl MessageContent {
     pub open spec fn is_get_request(self) -> bool {
         &&& self.is_APIRequest()
@@ -119,7 +144,7 @@ impl MessageContent {
         self.get_APIRequest_0().get_UpdateRequest_0()
     }
 
-    pub open spec fn get_req_id(self) -> nat
+    pub open spec fn get_req_id(self) -> RestId
         recommends
             self.is_APIRequest()
     {
@@ -174,14 +199,14 @@ impl MessageContent {
         self.get_APIResponse_0().get_ListResponse_0()
     }
 
-    pub open spec fn get_resp_id(self) -> nat
+    pub open spec fn get_resp_id(self) -> RestId
         recommends
             self.is_APIResponse()
     {
         self.get_APIResponse_1()
     }
 
-    pub open spec fn get_msg_id(self) -> nat
+    pub open spec fn get_rest_id(self) -> RestId
     {
         match self {
             MessageContent::APIRequest(_, _) => self.get_APIRequest_1(),
@@ -272,64 +297,64 @@ pub open spec fn deleted_event(obj: DynamicObjectView) -> WatchEvent {
     })
 }
 
-pub open spec fn get_req_msg_content(key: ObjectRef, req_id: nat) -> MessageContent {
+pub open spec fn get_req_msg_content(key: ObjectRef, req_id: RestId) -> MessageContent {
     MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{
         key: key,
     }), req_id)
 }
 
-pub open spec fn list_req_msg_content(kind: Kind, namespace: StringView, req_id: nat) -> MessageContent {
+pub open spec fn list_req_msg_content(kind: Kind, namespace: StringView, req_id: RestId) -> MessageContent {
     MessageContent::APIRequest(APIRequest::ListRequest(ListRequest{
         kind: kind,
         namespace: namespace,
     }), req_id)
 }
 
-pub open spec fn create_req_msg_content(namespace: StringView, obj: DynamicObjectView, req_id: nat) -> MessageContent {
+pub open spec fn create_req_msg_content(namespace: StringView, obj: DynamicObjectView, req_id: RestId) -> MessageContent {
     MessageContent::APIRequest(APIRequest::CreateRequest(CreateRequest{
         namespace: namespace,
         obj: obj,
     }), req_id)
 }
 
-pub open spec fn delete_req_msg_content(key: ObjectRef, req_id: nat) -> MessageContent {
+pub open spec fn delete_req_msg_content(key: ObjectRef, req_id: RestId) -> MessageContent {
     MessageContent::APIRequest(APIRequest::DeleteRequest(DeleteRequest{
         key: key,
     }), req_id)
 }
 
-pub open spec fn update_req_msg_content(key: ObjectRef, obj: DynamicObjectView, req_id: nat) -> MessageContent {
+pub open spec fn update_req_msg_content(key: ObjectRef, obj: DynamicObjectView, req_id: RestId) -> MessageContent {
     MessageContent::APIRequest(APIRequest::UpdateRequest(UpdateRequest{
         key: key,
         obj: obj,
     }), req_id)
 }
 
-pub open spec fn get_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn get_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent {
     MessageContent::APIResponse(APIResponse::GetResponse(GetResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn list_resp_msg_content(res: Result<Seq<DynamicObjectView>, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn list_resp_msg_content(res: Result<Seq<DynamicObjectView>, APIError>, resp_id: RestId) -> MessageContent {
     MessageContent::APIResponse(APIResponse::ListResponse(ListResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn create_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn create_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent {
     MessageContent::APIResponse(APIResponse::CreateResponse(CreateResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn delete_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn delete_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent {
     MessageContent::APIResponse(APIResponse::DeleteResponse(DeleteResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn update_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: nat) -> MessageContent {
+pub open spec fn update_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent {
     MessageContent::APIResponse(APIResponse::UpdateResponse(UpdateResponse{
         res: res,
     }), resp_id)

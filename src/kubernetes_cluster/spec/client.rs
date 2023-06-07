@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::resource::ResourceView;
-use crate::kubernetes_cluster::spec::{channel::*, message::*};
+use crate::kubernetes_cluster::spec::message::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
@@ -23,10 +23,10 @@ pub enum Step {
 pub struct ClientActionInput<K> {
     pub recv: Option<Message>,
     pub cr: K,
-    pub chan_manager: ChannelManager,
+    pub rest_id_allocator: RestIdAllocator,
 }
 
-pub type ClientActionOutput = (Multiset<Message>, ChannelManager);
+pub type ClientActionOutput = (Multiset<Message>, RestIdAllocator);
 
 pub type ClientStateMachine<K> = StateMachine<ClientState, ClientActionInput<K>, ClientActionInput<K>, ClientActionOutput, Step>;
 
@@ -45,10 +45,10 @@ pub open spec fn create_custom_resource<K: ResourceView>() -> ClientAction<K> {
             let create_req_msg = client_req_msg(create_req_msg_content(
                 input.cr.metadata().namespace.get_Some_0(),
                 input.cr.to_dynamic_object(),
-                input.chan_manager.allocate().1
+                input.rest_id_allocator.allocate().1
             ));
 
-            (ClientState{}, (Multiset::singleton(create_req_msg), input.chan_manager.allocate().0))
+            (ClientState{}, (Multiset::singleton(create_req_msg), input.rest_id_allocator.allocate().0))
         },
     }
 }
@@ -60,10 +60,10 @@ pub open spec fn delete_custom_resource<K: ResourceView>() -> ClientAction<K> {
         },
         transition: |input: ClientActionInput<K>, s: ClientState| {
             let delete_req_msg = client_req_msg(delete_req_msg_content(
-                input.cr.object_ref(), input.chan_manager.allocate().1
+                input.cr.object_ref(), input.rest_id_allocator.allocate().1
             ));
 
-            (ClientState{}, (Multiset::singleton(delete_req_msg), input.chan_manager.allocate().0))
+            (ClientState{}, (Multiset::singleton(delete_req_msg), input.rest_id_allocator.allocate().0))
         },
     }
 }
@@ -75,10 +75,10 @@ pub open spec fn update_custom_resource<K: ResourceView>() -> ClientAction<K> {
         },
         transition: |input: ClientActionInput<K>, s: ClientState| {
             let update_req_msg = client_req_msg(update_req_msg_content(
-                input.cr.object_ref(), input.cr.to_dynamic_object(), input.chan_manager.allocate().1
+                input.cr.object_ref(), input.cr.to_dynamic_object(), input.rest_id_allocator.allocate().1
             ));
 
-            (ClientState{}, (Multiset::singleton(update_req_msg), input.chan_manager.allocate().0))
+            (ClientState{}, (Multiset::singleton(update_req_msg), input.rest_id_allocator.allocate().0))
         },
     }
 }

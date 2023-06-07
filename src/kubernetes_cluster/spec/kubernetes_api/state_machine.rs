@@ -5,7 +5,6 @@ use crate::kubernetes_api_objects::{
     api_method::*, common::*, dynamic::*, error::*, object_meta::*,
 };
 use crate::kubernetes_cluster::spec::{
-    channel::*,
     kubernetes_api::{builtin_controllers::statefulset_controller, common::*},
     message::*,
 };
@@ -163,10 +162,10 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Etc
 
 /// Collect the requests from the builtin controllers
 pub open spec fn transition_by_builtin_controllers(
-    event: WatchEvent, s: KubernetesAPIState, chan_manager: ChannelManager
-) -> (ChannelManager, Multiset<Message>) {
+    event: WatchEvent, s: KubernetesAPIState, rest_id_allocator: RestIdAllocator
+) -> (RestIdAllocator, Multiset<Message>) {
     // We only have spec of statefulset_controller for now
-    statefulset_controller::transition_by_statefulset_controller(event, s, chan_manager)
+    statefulset_controller::transition_by_statefulset_controller(event, s, rest_id_allocator)
 }
 
 pub open spec fn handle_request() -> KubernetesAPIAction {
@@ -200,7 +199,7 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
             //  and making built-in controllers immediately activated by updates to cluster state;
             // (c) baking them into one action, which makes them atomic.
             let input_msg = input.recv;
-            let input_chan_manager = input.chan_manager;
+            let input_rest_id_allocator = input.rest_id_allocator;
 
             let (etcd_state, etcd_resp, etcd_notify_o) = transition_by_etcd(input_msg.get_Some_0(), s);
             let rv_counter_increment = if etcd_notify_o.is_Some() { 1 as nat } else { 0 as nat };
@@ -210,16 +209,16 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
                 ..s
             };
             if etcd_notify_o.is_Some() {
-                let (chan_manager_prime, controller_requests) = transition_by_builtin_controllers(
-                    etcd_notify_o.get_Some_0(), s_after_etcd_transition, input_chan_manager
+                let (rest_id_allocator_prime, controller_requests) = transition_by_builtin_controllers(
+                    etcd_notify_o.get_Some_0(), s_after_etcd_transition, input_rest_id_allocator
                 );
                 let s_prime = KubernetesAPIState {
                     ..s_after_etcd_transition
                 };
-                (s_prime, (Multiset::empty().insert(etcd_resp).add(controller_requests), chan_manager_prime))
+                (s_prime, (Multiset::empty().insert(etcd_resp).add(controller_requests), rest_id_allocator_prime))
             } else {
                 let s_prime = s_after_etcd_transition;
-                (s_prime, (Multiset::singleton(etcd_resp), input_chan_manager))
+                (s_prime, (Multiset::singleton(etcd_resp), input_rest_id_allocator))
             }
         },
     }

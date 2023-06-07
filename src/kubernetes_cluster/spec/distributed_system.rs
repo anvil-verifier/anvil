@@ -3,7 +3,6 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, resource::*};
 use crate::kubernetes_cluster::spec::{
-    channel::*,
     client::{client, ClientActionInput, ClientState},
     controller::{
         common::{
@@ -33,7 +32,7 @@ pub struct State<K: ResourceView, T> {
     pub controller_state: ControllerState<K, T>,
     pub client_state: ClientState,
     pub network_state: NetworkState,
-    pub chan_manager: ChannelManager,
+    pub rest_id_allocator: RestIdAllocator,
     pub crash_enabled: bool,
 }
 
@@ -74,8 +73,8 @@ impl<K: ResourceView, T> State<K, T> {
         self.controller_state.scheduled_reconciles.contains_key(key)
     }
 
-    pub open spec fn chan_id_is_no_smaller_than(self, chan_id: nat) -> bool {
-        self.chan_manager.cur_chan_id >= chan_id
+    pub open spec fn rest_id_is_no_smaller_than(self, rest_id: nat) -> bool {
+        self.rest_id_allocator.rest_id_counter >= rest_id
     }
 }
 
@@ -85,7 +84,7 @@ pub open spec fn init<K: ResourceView, T, ReconcilerType: Reconciler<K ,T>>() ->
         &&& (controller::<K, T, ReconcilerType>().init)(s.controller_state)
         &&& (client::<K>().init)(s.client_state)
         &&& (network().init)(s.network_state)
-        &&& s.chan_manager == ChannelManager::init()
+        &&& s.rest_id_allocator == RestIdAllocator::init()
         &&& s.crash_enabled
     }
 }
@@ -101,7 +100,7 @@ pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostI
 pub open spec fn kubernetes_api_next<K: ResourceView, T>() -> Action<State<K, T>, Option<Message>, ()> {
     let result = |input: Option<Message>, s: State<K, T>| {
         let host_result = kubernetes_api().next_result(
-            KubernetesAPIActionInput{recv: input, chan_manager: s.chan_manager},
+            KubernetesAPIActionInput{recv: input, rest_id_allocator: s.rest_id_allocator},
             s.kubernetes_api_state
         );
         let msg_ops = MessageOps {
@@ -122,7 +121,7 @@ pub open spec fn kubernetes_api_next<K: ResourceView, T>() -> Action<State<K, T>
             (State {
                 kubernetes_api_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
-                chan_manager: result(input, s).0.get_Enabled_1().1,
+                rest_id_allocator: result(input, s).0.get_Enabled_1().1,
                 ..s
             }, ())
         },
@@ -132,7 +131,7 @@ pub open spec fn kubernetes_api_next<K: ResourceView, T>() -> Action<State<K, T>
 pub open spec fn controller_next<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>() -> Action<State<K, T>, (Option<Message>, Option<ObjectRef>), ()> {
     let result = |input: (Option<Message>, Option<ObjectRef>), s: State<K, T>| {
         let host_result = controller::<K, T, ReconcilerType>().next_result(
-            ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager},
+            ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, rest_id_allocator: s.rest_id_allocator},
             s.controller_state
         );
         let msg_ops = MessageOps {
@@ -153,7 +152,7 @@ pub open spec fn controller_next<K: ResourceView, T, ReconcilerType: Reconciler<
             (State {
                 controller_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
-                chan_manager: result(input, s).0.get_Enabled_1().1,
+                rest_id_allocator: result(input, s).0.get_Enabled_1().1,
                 ..s
             }, ())
         },
@@ -233,7 +232,7 @@ pub open spec fn disable_crash<K: ResourceView, T>() -> Action<State<K, T>, (), 
 pub open spec fn client_next<K: ResourceView, T>() -> Action<State<K, T>, (Option<Message>, K), ()> {
     let result = |input: (Option<Message>, K), s: State<K, T>| {
         let host_result = client().next_result(
-            ClientActionInput{recv: input.0, cr: input.1, chan_manager: s.chan_manager},
+            ClientActionInput{recv: input.0, cr: input.1, rest_id_allocator: s.rest_id_allocator},
             s.client_state
         );
         let msg_ops = MessageOps {
@@ -254,7 +253,7 @@ pub open spec fn client_next<K: ResourceView, T>() -> Action<State<K, T>, (Optio
             (State {
                 client_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
-                chan_manager: result(input, s).0.get_Enabled_1().1,
+                rest_id_allocator: result(input, s).0.get_Enabled_1().1,
                 ..s
             }, ())
         },
@@ -323,7 +322,7 @@ pub open spec fn kubernetes_api_action_pre<K: ResourceView, T>(action: Kubernete
     |s: State<K, T>| {
         let host_result = kubernetes_api().next_action_result(
             action,
-            KubernetesAPIActionInput{recv: input, chan_manager: s.chan_manager},
+            KubernetesAPIActionInput{recv: input, rest_id_allocator: s.rest_id_allocator},
             s.kubernetes_api_state
         );
         let msg_ops = MessageOps {
@@ -342,7 +341,7 @@ pub open spec fn controller_action_pre<K: ResourceView, T, ReconcilerType: Recon
     |s: State<K, T>| {
         let host_result = controller::<K, T, ReconcilerType>().next_action_result(
             action,
-            ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager},
+            ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, rest_id_allocator: s.rest_id_allocator},
             s.controller_state
         );
         let msg_ops = MessageOps {
