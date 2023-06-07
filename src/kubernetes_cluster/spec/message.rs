@@ -36,7 +36,7 @@ pub struct RestIdAllocator {
 }
 
 impl RestIdAllocator {
-    // allocate a RestId which is the current rest_id_counter
+    // Allocate a RestId which is the current rest_id_counter
     // and also returns a new RestIdAllocator with a different rest_id_counter.
     //
     // An important assumption of RestIdAllocator is that the user (i.e., state machine)
