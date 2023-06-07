@@ -28,7 +28,7 @@ pub trait ResourceView: Sized {
 
     /// Get the kind of the object
 
-    open spec fn kind(self) -> Kind;
+    open spec fn kind() -> Kind;
 
     /// Get the reference of the object,
     /// which consists of kind, name and namespace

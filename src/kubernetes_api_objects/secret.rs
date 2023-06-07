@@ -103,7 +103,7 @@ impl Secret {
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
-            res@.kind == Kind::SecretKind,
+            res@.kind == SecretView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::k8s_openapi::api::core::v1::Secret>(&()))
     }
@@ -192,13 +192,13 @@ impl ResourceView for SecretView {
         self.metadata
     }
 
-    open spec fn kind(self) -> Kind {
+    open spec fn kind() -> Kind {
         Kind::SecretKind
     }
 
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
-            kind: self.kind(),
+            kind: Self::kind(),
             name: self.metadata.name.get_Some_0(),
             namespace: self.metadata.namespace.get_Some_0(),
         }
@@ -206,7 +206,7 @@ impl ResourceView for SecretView {
 
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
-            kind: self.kind(),
+            kind: Self::kind(),
             metadata: self.metadata,
             data: SecretView::marshal_spec((self.data, self.type_)),
         }

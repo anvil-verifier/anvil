@@ -30,7 +30,7 @@ impl CustomResource {
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
-            res@.kind == Kind::CustomResourceKind,
+            res@.kind == CustomResourceView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::SimpleCR>(&()))
     }
@@ -115,13 +115,13 @@ impl ResourceView for CustomResourceView {
         self.metadata
     }
 
-    open spec fn kind(self) -> Kind {
+    open spec fn kind() -> Kind {
         Kind::CustomResourceKind
     }
 
     open spec fn object_ref(self) -> ObjectRef {
         ObjectRef {
-            kind: self.kind(),
+            kind: Self::kind(),
             name: self.metadata.name.get_Some_0(),
             namespace: self.metadata.namespace.get_Some_0(),
         }
@@ -129,7 +129,7 @@ impl ResourceView for CustomResourceView {
 
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
-            kind: self.kind(),
+            kind: Self::kind(),
             metadata: self.metadata,
             data: CustomResourceView::marshal_spec(self.spec),
         }
