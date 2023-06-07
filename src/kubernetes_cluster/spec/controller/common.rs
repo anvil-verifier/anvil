@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
-use crate::kubernetes_cluster::spec::{channel::*, message::*};
+use crate::kubernetes_cluster::spec::message::*;
 use crate::reconciler::spec::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -33,10 +33,10 @@ pub enum ControllerStep {
 pub struct ControllerActionInput {
     pub recv: Option<Message>,
     pub scheduled_cr_key: Option<ObjectRef>,
-    pub chan_manager: ChannelManager,
+    pub rest_id_allocator: RestIdAllocator,
 }
 
-pub type ControllerActionOutput = (Multiset<Message>, ChannelManager);
+pub type ControllerActionOutput = (Multiset<Message>, RestIdAllocator);
 
 pub type ControllerStateMachine<K, T> = StateMachine<ControllerState<K, T>, ControllerActionInput, ControllerActionInput, ControllerActionOutput, ControllerStep>;
 

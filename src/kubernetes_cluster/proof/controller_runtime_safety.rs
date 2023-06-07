@@ -20,43 +20,43 @@ use vstd::{option::*, result::*};
 
 verus! {
 
-pub open spec fn every_in_flight_msg_has_lower_id_than_chan_manager<K: ResourceView, T>() -> StatePred<State<K, T>> {
+pub open spec fn every_in_flight_msg_has_lower_id_than_allocator<K: ResourceView, T>() -> StatePred<State<K, T>> {
     |s: State<K, T>| {
         forall |msg: Message|
             #[trigger] s.message_in_flight(msg)
-            ==> msg.content.get_msg_id() < s.chan_manager.cur_chan_id
+            ==> msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter
     }
 }
 
-pub proof fn lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager
+pub proof fn lemma_always_every_in_flight_msg_has_lower_id_than_allocator
     <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>()
     ensures
-        sm_spec::<K, T, ReconcilerType>().entails(always(lift_state(every_in_flight_msg_has_lower_id_than_chan_manager()))),
+        sm_spec::<K, T, ReconcilerType>().entails(always(lift_state(every_in_flight_msg_has_lower_id_than_allocator()))),
 {
-    let invariant = every_in_flight_msg_has_lower_id_than_chan_manager::<K, T>();
+    let invariant = every_in_flight_msg_has_lower_id_than_allocator::<K, T>();
     assert forall |s, s_prime: State<K, T>| invariant(s) && #[trigger] next::<K, T, ReconcilerType>()(s, s_prime) implies
     invariant(s_prime) by {
-        next_preserves_every_in_flight_msg_has_lower_id_than_chan_manager::<K, T, ReconcilerType>(s, s_prime);
+        next_preserves_every_in_flight_msg_has_lower_id_than_allocator::<K, T, ReconcilerType>(s, s_prime);
     };
     init_invariant::<State<K, T>>(sm_spec::<K, T, ReconcilerType>(), init::<K, T, ReconcilerType>(), next::<K, T, ReconcilerType>(), invariant);
 }
 
-proof fn next_preserves_every_in_flight_msg_has_lower_id_than_chan_manager<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
     s: State<K, T>, s_prime: State<K, T>
 )
     requires
-        every_in_flight_msg_has_lower_id_than_chan_manager::<K, T>()(s), next::<K, T, ReconcilerType>()(s, s_prime),
+        every_in_flight_msg_has_lower_id_than_allocator::<K, T>()(s), next::<K, T, ReconcilerType>()(s, s_prime),
     ensures
-        every_in_flight_msg_has_lower_id_than_chan_manager::<K, T>()(s_prime),
+        every_in_flight_msg_has_lower_id_than_allocator::<K, T>()(s_prime),
 {
     assert forall |msg: Message| #[trigger] s_prime.message_in_flight(msg) implies
-    msg.content.get_msg_id() < s_prime.chan_manager.cur_chan_id by {
-        assert(s.chan_manager.cur_chan_id <= s_prime.chan_manager.cur_chan_id);
+    msg.content.get_rest_id() < s_prime.rest_id_allocator.rest_id_counter by {
+        assert(s.rest_id_allocator.rest_id_counter <= s_prime.rest_id_allocator.rest_id_counter);
         if (s.message_in_flight(msg)) {
-            assert(msg.content.get_msg_id() < s.chan_manager.cur_chan_id);
+            assert(msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
         } else {
             match msg.content {
-                MessageContent::APIRequest(_, _) => assert(s.chan_manager.cur_chan_id < s_prime.chan_manager.cur_chan_id),
+                MessageContent::APIRequest(_, _) => assert(s.rest_id_allocator.rest_id_counter < s_prime.rest_id_allocator.rest_id_counter),
                 MessageContent::APIResponse(_, id) => {
                     let next_step = choose |step: Step<K>| next_step::<K, T, ReconcilerType>(s, s_prime, step);
                     let input = next_step.get_KubernetesAPIStep_0().get_Some_0();
@@ -85,11 +85,11 @@ pub proof fn lemma_always_every_in_flight_req_is_unique<K: ResourceView, T, Reco
     let invariant = every_in_flight_req_is_unique::<K, T>();
     let stronger_next = |s, s_prime: State<K, T>| {
         &&& next::<K, T, ReconcilerType>()(s, s_prime)
-        &&& every_in_flight_msg_has_lower_id_than_chan_manager()(s)
+        &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
     };
-    lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager::<K, T, ReconcilerType>();
+    lemma_always_every_in_flight_msg_has_lower_id_than_allocator::<K, T, ReconcilerType>();
     strengthen_next::<State<K, T>>(
-        sm_spec::<K, T, ReconcilerType>(), next::<K, T, ReconcilerType>(), every_in_flight_msg_has_lower_id_than_chan_manager(), stronger_next
+        sm_spec::<K, T, ReconcilerType>(), next::<K, T, ReconcilerType>(), every_in_flight_msg_has_lower_id_than_allocator(), stronger_next
     );
     assert forall |s, s_prime: State<K, T>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies
     invariant(s_prime) by {
@@ -111,7 +111,7 @@ pub open spec fn every_in_flight_msg_has_unique_id<K: ResourceView, T>() -> Stat
                 forall |other_msg: Message|
                     #[trigger] s.message_in_flight(other_msg)
                     && msg != other_msg
-                    ==> msg.content.get_msg_id() != other_msg.content.get_msg_id()
+                    ==> msg.content.get_rest_id() != other_msg.content.get_rest_id()
             )
     }
 }
@@ -125,21 +125,21 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id<K: ResourceView, T, 
     let invariant = every_in_flight_msg_has_unique_id::<K, T>();
     let stronger_next = |s, s_prime: State<K, T>| {
         next::<K, T, ReconcilerType>()(s, s_prime)
-        && every_in_flight_msg_has_lower_id_than_chan_manager::<K, T>()(s)
+        && every_in_flight_msg_has_lower_id_than_allocator::<K, T>()(s)
         && every_in_flight_req_is_unique::<K, T>()(s)
     };
-    lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager::<K, T, ReconcilerType>();
+    lemma_always_every_in_flight_msg_has_lower_id_than_allocator::<K, T, ReconcilerType>();
     lemma_always_every_in_flight_req_is_unique::<K, T, ReconcilerType>();
     entails_always_and_n!(
         sm_spec::<K, T, ReconcilerType>(),
         lift_action(next::<K, T, ReconcilerType>()),
-        lift_state(every_in_flight_msg_has_lower_id_than_chan_manager::<K, T>()),
+        lift_state(every_in_flight_msg_has_lower_id_than_allocator::<K, T>()),
         lift_state(every_in_flight_req_is_unique::<K, T>())
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(next::<K, T, ReconcilerType>())
-            .and(lift_state(every_in_flight_msg_has_lower_id_than_chan_manager::<K, T>()))
+            .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator::<K, T>()))
             .and(lift_state(every_in_flight_req_is_unique::<K, T>()))
     );
     assert forall |s, s_prime: State<K, T>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies
@@ -154,7 +154,7 @@ proof fn next_and_unique_lower_msg_id_preserves_in_flight_msg_has_unique_id<K: R
 )
     requires
         next::<K, T, ReconcilerType>()(s, s_prime),
-        every_in_flight_msg_has_lower_id_than_chan_manager::<K, T>()(s),
+        every_in_flight_msg_has_lower_id_than_allocator::<K, T>()(s),
         every_in_flight_req_is_unique::<K, T>()(s),
         every_in_flight_msg_has_unique_id::<K, T>()(s), // the invariant
     ensures
@@ -162,13 +162,13 @@ proof fn next_and_unique_lower_msg_id_preserves_in_flight_msg_has_unique_id<K: R
 {
     assert forall |msg: Message| #[trigger] s_prime.message_in_flight(msg) implies
     (forall |other_msg: Message| #[trigger] s_prime.message_in_flight(other_msg) && msg != other_msg
-        ==> msg.content.get_msg_id() != other_msg.content.get_msg_id()) by {
+        ==> msg.content.get_rest_id() != other_msg.content.get_rest_id()) by {
         assert forall |other_msg: Message| #[trigger] s_prime.message_in_flight(other_msg) && msg != other_msg implies
-        msg.content.get_msg_id() != other_msg.content.get_msg_id() by {
+        msg.content.get_rest_id() != other_msg.content.get_rest_id() by {
             // At most one message will be added to the network_state.in_flight for each action.
             assert(s.message_in_flight(msg) || s.message_in_flight(other_msg));
             if (s.message_in_flight(msg) && s.message_in_flight(other_msg)) {
-                assert(msg.content.get_msg_id() != other_msg.content.get_msg_id());
+                assert(msg.content.get_rest_id() != other_msg.content.get_rest_id());
             } else {
                 if (s.message_in_flight(msg)) {
                     newly_added_msg_have_different_id_from_existing_ones::<K, T, ReconcilerType>(s, s_prime, msg, other_msg);
@@ -185,7 +185,7 @@ proof fn newly_added_msg_have_different_id_from_existing_ones<K: ResourceView, T
 )
     requires
         next::<K, T, ReconcilerType>()(s, s_prime),
-        every_in_flight_msg_has_lower_id_than_chan_manager::<K, T>()(s),
+        every_in_flight_msg_has_lower_id_than_allocator::<K, T>()(s),
         every_in_flight_req_is_unique::<K, T>()(s),
         s.message_in_flight(msg_1),
         !s.message_in_flight(msg_2),
@@ -193,13 +193,13 @@ proof fn newly_added_msg_have_different_id_from_existing_ones<K: ResourceView, T
         s_prime.message_in_flight(msg_2),
         every_in_flight_msg_has_unique_id::<K, T>()(s), // the invariant
     ensures
-        msg_1.content.get_msg_id() != msg_2.content.get_msg_id(),
+        msg_1.content.get_rest_id() != msg_2.content.get_rest_id(),
 {
     if (msg_2.content.is_APIResponse()) {
         let next_step = choose |step: Step<K>| next_step::<K, T, ReconcilerType>(s, s_prime, step);
         let input = next_step.get_KubernetesAPIStep_0();
         assert(s.network_state.in_flight.count(input.get_Some_0()) <= 1);
-        assert(msg_1.content.get_msg_id() != msg_2.content.get_msg_id());
+        assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
     }
 }
 
@@ -231,22 +231,22 @@ pub proof fn lemma_always_every_in_flight_or_pending_req_has_unique_id<K: Resour
     let invariant = every_in_flight_or_pending_req_has_unique_id::<K, T>();
     let stronger_next = |s, s_prime: State<K, T>| {
         next::<K, T, ReconcilerType>()(s, s_prime)
-        && every_in_flight_msg_has_lower_id_than_chan_manager::<K, T>()(s)
-        && pending_req_has_lower_req_id_than_chan_manager::<K, T>()(s)
+        && every_in_flight_msg_has_lower_id_than_allocator::<K, T>()(s)
+        && pending_req_has_lower_req_id_than_allocator::<K, T>()(s)
     };
-    lemma_always_every_in_flight_msg_has_lower_id_than_chan_manager::<K, T, ReconcilerType>();
-    lemma_always_pending_req_has_lower_req_id_than_chan_manager::<K, T, ReconcilerType>();
+    lemma_always_every_in_flight_msg_has_lower_id_than_allocator::<K, T, ReconcilerType>();
+    lemma_always_pending_req_has_lower_req_id_than_allocator::<K, T, ReconcilerType>();
     entails_always_and_n!(
         sm_spec::<K, T, ReconcilerType>(),
         lift_action(next::<K, T, ReconcilerType>()),
-        lift_state(every_in_flight_msg_has_lower_id_than_chan_manager::<K, T>()),
-        lift_state(pending_req_has_lower_req_id_than_chan_manager::<K, T>())
+        lift_state(every_in_flight_msg_has_lower_id_than_allocator::<K, T>()),
+        lift_state(pending_req_has_lower_req_id_than_allocator::<K, T>())
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(next::<K, T, ReconcilerType>())
-            .and(lift_state(every_in_flight_msg_has_lower_id_than_chan_manager::<K, T>()))
-            .and(lift_state(pending_req_has_lower_req_id_than_chan_manager::<K, T>()))
+            .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator::<K, T>()))
+            .and(lift_state(pending_req_has_lower_req_id_than_allocator::<K, T>()))
     );
     assert forall |s, s_prime: State<K, T>| invariant(s) && #[trigger] stronger_next(s, s_prime)
     implies invariant(s_prime) by {
@@ -265,20 +265,20 @@ pub proof fn lemma_always_every_in_flight_or_pending_req_has_unique_id<K: Resour
     init_invariant::<State<K, T>>(sm_spec::<K, T, ReconcilerType>(), init::<K, T, ReconcilerType>(), stronger_next, invariant);
 }
 
-pub open spec fn pending_req_has_lower_req_id_than_chan_manager<K: ResourceView, T>() -> StatePred<State<K, T>> {
+pub open spec fn pending_req_has_lower_req_id_than_allocator<K: ResourceView, T>() -> StatePred<State<K, T>> {
     |s: State<K, T>| {
         forall |cr_key: ObjectRef|
             #[trigger] s.reconcile_state_contains(cr_key)
             && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
-            ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_req_id() < s.chan_manager.cur_chan_id
+            ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_req_id() < s.rest_id_allocator.rest_id_counter
     }
 }
 
-pub proof fn lemma_always_pending_req_has_lower_req_id_than_chan_manager<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>()
+pub proof fn lemma_always_pending_req_has_lower_req_id_than_allocator<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>()
     ensures
-        sm_spec::<K, T, ReconcilerType>().entails(always(lift_state(pending_req_has_lower_req_id_than_chan_manager()))),
+        sm_spec::<K, T, ReconcilerType>().entails(always(lift_state(pending_req_has_lower_req_id_than_allocator()))),
 {
-    let invariant = pending_req_has_lower_req_id_than_chan_manager::<K, T>();
+    let invariant = pending_req_has_lower_req_id_than_allocator::<K, T>();
     init_invariant::<State<K, T>>(
         sm_spec::<K, T, ReconcilerType>(), init::<K, T, ReconcilerType>(), next::<K, T, ReconcilerType>(), invariant
     );
@@ -359,13 +359,13 @@ pub proof fn lemma_always_resp_matches_at_most_one_pending_req<K: ResourceView, 
     let invariant = resp_matches_at_most_one_pending_req::<K, T>(resp_msg, cr_key);
     let stronger_next = |s, s_prime: State<K, T>| {
         &&& next::<K, T, ReconcilerType>()(s, s_prime)
-        &&& pending_req_has_lower_req_id_than_chan_manager()(s)
+        &&& pending_req_has_lower_req_id_than_allocator()(s)
     };
 
-    lemma_always_pending_req_has_lower_req_id_than_chan_manager::<K, T, ReconcilerType>();
+    lemma_always_pending_req_has_lower_req_id_than_allocator::<K, T, ReconcilerType>();
 
     strengthen_next::<State<K, T>>(
-        sm_spec::<K, T, ReconcilerType>(), next::<K, T, ReconcilerType>(), pending_req_has_lower_req_id_than_chan_manager(), stronger_next
+        sm_spec::<K, T, ReconcilerType>(), next::<K, T, ReconcilerType>(), pending_req_has_lower_req_id_than_allocator(), stronger_next
     );
     init_invariant::<State<K, T>>(sm_spec::<K, T, ReconcilerType>(), init::<K, T, ReconcilerType>(), stronger_next, invariant);
 }
@@ -419,14 +419,14 @@ pub proof fn lemma_always_each_resp_matches_at_most_one_pending_req<K: ResourceV
     let invariant = each_resp_matches_at_most_one_pending_req::<K, T>(cr_key);
     let stronger_next = |s, s_prime: State<K, T>| {
         &&& next::<K, T, ReconcilerType>()(s, s_prime)
-        &&& pending_req_has_lower_req_id_than_chan_manager()(s)
+        &&& pending_req_has_lower_req_id_than_allocator()(s)
     };
 
-    lemma_always_pending_req_has_lower_req_id_than_chan_manager::<K, T, ReconcilerType>();
+    lemma_always_pending_req_has_lower_req_id_than_allocator::<K, T, ReconcilerType>();
 
     strengthen_next::<State<K, T>>(
         sm_spec::<K, T, ReconcilerType>(), next::<K, T, ReconcilerType>(),
-        pending_req_has_lower_req_id_than_chan_manager(), stronger_next
+        pending_req_has_lower_req_id_than_allocator(), stronger_next
     );
     init_invariant::<State<K, T>>(sm_spec::<K, T, ReconcilerType>(), init::<K, T, ReconcilerType>(), stronger_next, invariant);
 }

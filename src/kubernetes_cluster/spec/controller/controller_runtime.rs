@@ -34,7 +34,7 @@ pub open spec fn run_scheduled_reconcile<K: ResourceView, T, ReconcilerType: Rec
                 ..s
             };
             let send = Multiset::empty();
-            (s_prime, (send, input.chan_manager))
+            (s_prime, (send, input.rest_id_allocator))
         },
     }
 }
@@ -70,10 +70,10 @@ pub open spec fn continue_reconcile<K: ResourceView, T, ReconcilerType: Reconcil
 
             let (local_state_prime, req_o) = ReconcilerType::reconcile_core(reconcile_state.triggering_cr, resp_o, reconcile_state.local_state);
 
-            let (chan_manager_prime, pending_req_msg) = if req_o.is_Some() {
-                (input.chan_manager.allocate().0, Option::Some(controller_req_msg(req_o.get_Some_0(), input.chan_manager.allocate().1)))
+            let (rest_id_allocator_prime, pending_req_msg) = if req_o.is_Some() {
+                (input.rest_id_allocator.allocate().0, Option::Some(controller_req_msg(req_o.get_Some_0(), input.rest_id_allocator.allocate().1)))
             } else {
-                (input.chan_manager, Option::None)
+                (input.rest_id_allocator, Option::None)
             };
 
             let reconcile_state_prime = OngoingReconcile {
@@ -90,7 +90,7 @@ pub open spec fn continue_reconcile<K: ResourceView, T, ReconcilerType: Reconcil
             } else {
                 Multiset::empty()
             };
-            (s_prime, (send, chan_manager_prime))
+            (s_prime, (send, rest_id_allocator_prime))
         }
     }
 }
@@ -114,7 +114,7 @@ pub open spec fn end_reconcile<K: ResourceView, T, ReconcilerType: Reconciler<K,
                 ongoing_reconciles: s.ongoing_reconciles.remove(cr_key),
                 ..s
             };
-            (s_prime, (Multiset::empty(), input.chan_manager))
+            (s_prime, (Multiset::empty(), input.rest_id_allocator))
         }
     }
 }

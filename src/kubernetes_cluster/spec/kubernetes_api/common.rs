@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*};
-use crate::kubernetes_cluster::spec::{channel::*, message::*};
+use crate::kubernetes_cluster::spec::message::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
@@ -25,10 +25,10 @@ pub enum KubernetesAPIStep {
 
 pub struct KubernetesAPIActionInput {
     pub recv: Option<Message>,
-    pub chan_manager: ChannelManager,
+    pub rest_id_allocator: RestIdAllocator,
 }
 
-pub type KubernetesAPIActionOutput = (Multiset<Message>, ChannelManager);
+pub type KubernetesAPIActionOutput = (Multiset<Message>, RestIdAllocator);
 
 pub type KubernetesAPIStateMachine = StateMachine<KubernetesAPIState, KubernetesAPIActionInput, KubernetesAPIActionInput, KubernetesAPIActionOutput, KubernetesAPIStep>;
 

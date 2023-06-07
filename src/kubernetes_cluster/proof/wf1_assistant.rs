@@ -40,7 +40,7 @@ pub proof fn kubernetes_api_action_pre_implies_next_pre<K: ResourceView, T>(
     assert forall |s: State<K, T>| #[trigger] kubernetes_api_action_pre(action, input)(s)
     implies kubernetes_api_next().pre(input)(s) by {
         exists_next_kubernetes_api_step(
-            action, KubernetesAPIActionInput{recv: input, chan_manager: s.chan_manager}, s.kubernetes_api_state
+            action, KubernetesAPIActionInput{recv: input, rest_id_allocator: s.rest_id_allocator}, s.kubernetes_api_state
         );
     };
 }
@@ -60,7 +60,7 @@ pub proof fn controller_action_pre_implies_next_pre<K: ResourceView, T, Reconcil
     implies controller_next::<K, T, ReconcilerType>().pre(input)(s) by {
         exists_next_controller_step::<K, T, ReconcilerType>(
             action,
-            ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, chan_manager: s.chan_manager},
+            ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, rest_id_allocator: s.rest_id_allocator},
             s.controller_state
         );
     };
