@@ -5,12 +5,12 @@ use crate::kubernetes_api_objects::{common::*, resource::*};
 use crate::kubernetes_cluster::{
     proof::{kubernetes_api_safety, wf1_assistant::controller_action_pre_implies_next_pre},
     spec::{
+        cluster::*,
         controller::common::ControllerAction,
         controller::controller_runtime::{
             continue_reconcile, end_reconcile, run_scheduled_reconcile,
         },
         controller::state_machine::controller,
-        distributed_system::*,
         message::*,
     },
 };

@@ -5,11 +5,11 @@ use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
     client,
     client::{client, ClientActionInput, ClientState},
+    cluster::*,
     controller::common::{
         ControllerAction, ControllerActionInput, ControllerState, OngoingReconcile,
     },
     controller::state_machine::controller,
-    distributed_system::*,
     kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
     kubernetes_api::state_machine::kubernetes_api,
     message::*,

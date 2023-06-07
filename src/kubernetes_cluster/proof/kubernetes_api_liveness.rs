@@ -5,7 +5,7 @@ use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error:
 use crate::kubernetes_cluster::{
     proof::wf1_assistant::kubernetes_api_action_pre_implies_next_pre,
     spec::{
-        distributed_system::*,
+        cluster::*,
         kubernetes_api::common::KubernetesAPIAction,
         kubernetes_api::state_machine::{handle_request, kubernetes_api},
         message::*,

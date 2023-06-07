@@ -4,7 +4,7 @@
 use crate::kubernetes_api_objects::{common::*, config_map::*, resource::*};
 use crate::kubernetes_cluster::spec::{
     controller::common::{controller_req_msg, ControllerAction, ControllerActionInput},
-    distributed_system::*,
+    cluster::*,
     message::*,
 };
 use crate::simple_controller::spec::*;
