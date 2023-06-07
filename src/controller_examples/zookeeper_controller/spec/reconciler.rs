@@ -127,7 +127,7 @@ pub open spec fn reconcile_core(
             let req_o = Option::Some(APIRequest::GetRequest(GetRequest{
                 key: ObjectRef {
                     kind: StatefulSetView::kind(),
-                    name: make_stateful_set(zk).metadata.name.get_Some_0(),
+                    name: make_stateful_set_name(zk),
                     namespace: zk.metadata.namespace.get_Some_0(),
                 }
             }));
@@ -370,12 +370,19 @@ pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView
         CLUSTER_SIZE=")@ + int_to_string_view(zk.spec.replica) + new_strlit("\n")@
 }
 
+pub open spec fn make_stateful_set_name(zk: ZookeeperClusterView) -> StringView
+    recommends
+        zk.metadata.name.is_Some(),
+{
+    zk.metadata.name.get_Some_0()
+}
+
 pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView
     recommends
         zk.metadata.name.is_Some(),
         zk.metadata.namespace.is_Some(),
 {
-    let name = zk.metadata.name.get_Some_0();
+    let name = make_stateful_set_name(zk);
     let namespace = zk.metadata.namespace.get_Some_0();
 
     let labels = Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0());

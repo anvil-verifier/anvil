@@ -169,7 +169,7 @@ pub fn reconcile_core(
             let req_o = Option::Some(KubeAPIRequest::GetRequest(
                 KubeGetRequest {
                     api_resource: StatefulSet::api_resource(),
-                    name: zk.name().unwrap(),
+                    name: make_stateful_set_name(zk),
                     namespace: zk.namespace().unwrap(),
                 }
             ));
@@ -461,6 +461,15 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
         CLUSTER_SIZE=")).concat(i32_to_string(zk.replica()).as_str()).concat(new_strlit("\n"))
 }
 
+fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
+    requires
+        zk@.metadata.name.is_Some(),
+    ensures
+        name@ == zk_spec::make_stateful_set_name(zk@),
+{
+    zk.name().unwrap()
+}
+
 /// The StatefulSet manages the zookeeper server containers (as Pods)
 /// and the volumes attached to each server (as PersistentVolumeClaims)
 fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
@@ -473,7 +482,7 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
     let mut stateful_set = StatefulSet::default();
     stateful_set.set_metadata({
         let mut metadata = ObjectMeta::default();
-        metadata.set_name(zk.name().unwrap());
+        metadata.set_name(make_stateful_set_name(zk));
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
