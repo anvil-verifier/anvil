@@ -55,8 +55,7 @@ impl RestIdAllocator {
     }
 }
 
-/// Each MessageContent is a request/response and a rest id
-
+// Each MessageContent is a request/response and a rest id
 #[is_variant]
 pub enum MessageContent {
     APIRequest(APIRequest, RestId),
