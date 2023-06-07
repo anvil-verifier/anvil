@@ -237,17 +237,17 @@ impl ResourceView for PersistentVolumeClaimView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            data: PersistentVolumeClaimView::marshal_spec(self.spec),
+            spec: PersistentVolumeClaimView::marshal_spec(self.spec),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<PersistentVolumeClaimView, ParseDynamicObjectError> {
-        if !PersistentVolumeClaimView::unmarshal_spec(obj.data).is_Ok() {
+        if !PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(PersistentVolumeClaimView {
                 metadata: obj.metadata,
-                spec: PersistentVolumeClaimView::unmarshal_spec(obj.data).get_Ok_0(),
+                spec: PersistentVolumeClaimView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
         }
     }

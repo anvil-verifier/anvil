@@ -151,17 +151,17 @@ impl ResourceView for RabbitmqClusterView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            data: RabbitmqClusterView::marshal_spec(self.spec)
+            spec: RabbitmqClusterView::marshal_spec(self.spec)
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<RabbitmqClusterView, ParseDynamicObjectError> {
-        if !RabbitmqClusterView::unmarshal_spec(obj.data).is_Ok() {
+        if !RabbitmqClusterView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(RabbitmqClusterView {
                 metadata: obj.metadata,
-                spec: RabbitmqClusterView::unmarshal_spec(obj.data).get_Ok_0(),
+                spec: RabbitmqClusterView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
         }
     }

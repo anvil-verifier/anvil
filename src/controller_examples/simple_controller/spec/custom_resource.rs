@@ -131,17 +131,17 @@ impl ResourceView for CustomResourceView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            data: CustomResourceView::marshal_spec(self.spec),
+            spec: CustomResourceView::marshal_spec(self.spec),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<CustomResourceView, ParseDynamicObjectError> {
-        if !CustomResourceView::unmarshal_spec(obj.data).is_Ok() {
+        if !CustomResourceView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(CustomResourceView {
                 metadata: obj.metadata,
-                spec: CustomResourceView::unmarshal_spec(obj.data).get_Ok_0(),
+                spec: CustomResourceView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
         }
     }

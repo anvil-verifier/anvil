@@ -148,7 +148,7 @@ impl ResourceView for ServiceAccountView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            data: Value::Null,
+            spec: Value::Null,
         }
     }
 

@@ -195,17 +195,17 @@ impl ResourceView for ConfigMapView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            data: ConfigMapView::marshal_spec((self.data, ())),
+            spec: ConfigMapView::marshal_spec((self.data, ())),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ConfigMapView, ParseDynamicObjectError> {
-        if !ConfigMapView::unmarshal_spec(obj.data).is_Ok() {
+        if !ConfigMapView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(ConfigMapView {
                 metadata: obj.metadata,
-                data: ConfigMapView::unmarshal_spec(obj.data).get_Ok_0().0,
+                data: ConfigMapView::unmarshal_spec(obj.spec).get_Ok_0().0,
             })
         }
     }

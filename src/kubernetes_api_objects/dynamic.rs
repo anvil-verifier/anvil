@@ -66,7 +66,8 @@ impl ResourceWrapper<K8SDynamicObject> for DynamicObject {
 pub struct DynamicObjectView {
     pub kind: Kind,
     pub metadata: ObjectMetaView,
-    pub data: Value,
+    pub spec: Value,
+    // TODO: add status, which will also be a Value
 }
 
 impl DynamicObjectView {

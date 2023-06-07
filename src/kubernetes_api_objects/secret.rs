@@ -208,18 +208,18 @@ impl ResourceView for SecretView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            data: SecretView::marshal_spec((self.data, self.type_)),
+            spec: SecretView::marshal_spec((self.data, self.type_)),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<SecretView, ParseDynamicObjectError> {
-        if !SecretView::unmarshal_spec(obj.data).is_Ok() {
+        if !SecretView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(SecretView {
                 metadata: obj.metadata,
-                data: SecretView::unmarshal_spec(obj.data).get_Ok_0().0,
-                type_: SecretView::unmarshal_spec(obj.data).get_Ok_0().1,
+                data: SecretView::unmarshal_spec(obj.spec).get_Ok_0().0,
+                type_: SecretView::unmarshal_spec(obj.spec).get_Ok_0().1,
             })
         }
     }

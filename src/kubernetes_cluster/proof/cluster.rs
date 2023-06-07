@@ -14,7 +14,7 @@ use crate::kubernetes_cluster::spec::{
     kubernetes_api::state_machine::kubernetes_api,
     message::*,
     network,
-    network::{multiset_contains_msg, network, NetworkState},
+    network::{network, NetworkState},
 };
 use crate::reconciler::spec::Reconciler;
 use crate::state_machine::action::*;

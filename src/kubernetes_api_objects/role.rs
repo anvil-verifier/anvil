@@ -224,17 +224,17 @@ impl ResourceView for RoleView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            data: RoleView::marshal_spec((self.policy_rules, ())),
+            spec: RoleView::marshal_spec((self.policy_rules, ())),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<RoleView, ParseDynamicObjectError> {
-        if !RoleView::unmarshal_spec(obj.data).is_Ok() {
+        if !RoleView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(RoleView {
                 metadata: obj.metadata,
-                policy_rules: RoleView::unmarshal_spec(obj.data).get_Ok_0().0,
+                policy_rules: RoleView::unmarshal_spec(obj.spec).get_Ok_0().0,
             })
         }
     }

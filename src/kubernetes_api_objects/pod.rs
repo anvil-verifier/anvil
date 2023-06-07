@@ -932,17 +932,17 @@ impl ResourceView for PodView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            data: PodView::marshal_spec(self.spec),
+            spec: PodView::marshal_spec(self.spec),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<PodView, ParseDynamicObjectError> {
-        if !PodView::unmarshal_spec(obj.data).is_Ok() {
+        if !PodView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(PodView {
                 metadata: obj.metadata,
-                spec: PodView::unmarshal_spec(obj.data).get_Ok_0(),
+                spec: PodView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
         }
     }

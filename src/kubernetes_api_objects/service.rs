@@ -295,17 +295,17 @@ impl ResourceView for ServiceView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            data: ServiceView::marshal_spec(self.spec),
+            spec: ServiceView::marshal_spec(self.spec),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ServiceView, ParseDynamicObjectError> {
-        if !ServiceView::unmarshal_spec(obj.data).is_Ok() {
+        if !ServiceView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(ServiceView {
                 metadata: obj.metadata,
-                spec: ServiceView::unmarshal_spec(obj.data).get_Ok_0(),
+                spec: ServiceView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
         }
     }

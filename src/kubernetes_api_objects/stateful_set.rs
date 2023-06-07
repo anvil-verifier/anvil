@@ -281,17 +281,17 @@ impl ResourceView for StatefulSetView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            data: StatefulSetView::marshal_spec(self.spec),
+            spec: StatefulSetView::marshal_spec(self.spec),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<StatefulSetView, ParseDynamicObjectError> {
-        if !StatefulSetView::unmarshal_spec(obj.data).is_Ok() {
+        if !StatefulSetView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(StatefulSetView {
                 metadata: obj.metadata,
-                spec: StatefulSetView::unmarshal_spec(obj.data).get_Ok_0(),
+                spec: StatefulSetView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
         }
     }

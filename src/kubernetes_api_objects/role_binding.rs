@@ -293,18 +293,18 @@ impl ResourceView for RoleBindingView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            data: RoleBindingView::marshal_spec((self.role_ref, self.subjects)),
+            spec: RoleBindingView::marshal_spec((self.role_ref, self.subjects)),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<RoleBindingView, ParseDynamicObjectError> {
-        if !RoleBindingView::unmarshal_spec(obj.data).is_Ok() {
+        if !RoleBindingView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(RoleBindingView {
                 metadata: obj.metadata,
-                role_ref: RoleBindingView::unmarshal_spec(obj.data).get_Ok_0().0,
-                subjects: RoleBindingView::unmarshal_spec(obj.data).get_Ok_0().1,
+                role_ref: RoleBindingView::unmarshal_spec(obj.spec).get_Ok_0().0,
+                subjects: RoleBindingView::unmarshal_spec(obj.spec).get_Ok_0().1,
             })
         }
     }
