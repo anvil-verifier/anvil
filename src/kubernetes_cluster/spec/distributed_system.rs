@@ -73,6 +73,10 @@ impl<K: ResourceView, T> State<K, T> {
     pub open spec fn reconcile_scheduled_for(self, key: ObjectRef) -> bool {
         self.controller_state.scheduled_reconciles.contains_key(key)
     }
+
+    pub open spec fn chan_id_is_no_smaller_than(self, chan_id: nat) -> bool {
+        self.chan_manager.cur_chan_id >= chan_id
+    }
 }
 
 pub open spec fn init<K: ResourceView, T, ReconcilerType: Reconciler<K ,T>>() -> StatePred<State<K, T>> {
