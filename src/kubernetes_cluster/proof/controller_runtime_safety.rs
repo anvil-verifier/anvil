@@ -295,7 +295,7 @@ pub open spec fn resp_matches_at_most_one_pending_req<K: ResourceView, T>(
             forall |other_key: ObjectRef|
                 #[trigger] s.reconcile_state_contains(other_key)
                 && s.reconcile_state_of(other_key).pending_req_msg.is_Some()
-                && other_key !== cr_key
+                && other_key != cr_key
                 ==> !resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(other_key).pending_req_msg.get_Some_0())
             )
     }
@@ -402,7 +402,7 @@ pub open spec fn each_resp_matches_at_most_one_pending_req<K: ResourceView, T>(
                 forall |other_key: ObjectRef|
                     #[trigger] s.reconcile_state_contains(other_key)
                     && s.reconcile_state_of(other_key).pending_req_msg.is_Some()
-                    && other_key !== cr_key
+                    && other_key != cr_key
                     ==> !resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(other_key).pending_req_msg.get_Some_0())
                 )
     }
