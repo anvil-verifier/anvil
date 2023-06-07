@@ -102,11 +102,10 @@ pub open spec fn reconcile_core(
             (state_prime, req_o)
         },
         ZookeeperReconcileStep::AfterCreateConfigMap => {
-            let stateful_set = make_stateful_set(zk);
             let req_o = Option::Some(APIRequest::GetRequest(GetRequest{
                 key: ObjectRef {
                     kind: StatefulSetView::kind(),
-                    name: stateful_set.metadata.name.get_Some_0(),
+                    name: make_stateful_set(zk).metadata.name.get_Some_0(),
                     namespace: zk.metadata.namespace.get_Some_0(),
                 }
             }));
