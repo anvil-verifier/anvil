@@ -16,7 +16,7 @@ use crate::kubernetes_cluster::spec::{
         state_machine::kubernetes_api,
     },
     message::*,
-    network::{multiset_contains_msg, network, NetworkState},
+    network::{network, NetworkState},
 };
 use crate::reconciler::spec::Reconciler;
 use crate::state_machine::{action::*, state_machine::*};
@@ -39,7 +39,7 @@ pub struct State<K: ResourceView, T> {
 impl<K: ResourceView, T> State<K, T> {
     #[verifier(inline)]
     pub open spec fn message_in_flight(self, msg: Message) -> bool {
-        multiset_contains_msg(self.network_state.in_flight, msg)
+        self.network_state.in_flight.contains(msg)
     }
 
     pub open spec fn resource_key_exists(self, key: ObjectRef) -> bool {

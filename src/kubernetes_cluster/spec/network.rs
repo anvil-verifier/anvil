@@ -2,19 +2,14 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_cluster::spec::message::*;
-use vstd::{multiset::*, option::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
 use builtin::*;
 use builtin_macros::*;
+use vstd::{multiset::*, option::*};
 
 verus! {
-
-// TODO: this can be better replaced by a Multiset::contains() method with some axioms
-pub open spec fn multiset_contains_msg(mset: Multiset<Message>, m: Message) -> bool {
-    mset.count(m) > 0
-}
 
 pub struct NetworkState {
     pub in_flight: Multiset<Message>,
@@ -23,7 +18,7 @@ pub struct NetworkState {
 pub open spec fn deliver() -> Action<NetworkState, MessageOps, ()> {
     Action {
         precondition: |msg_ops: MessageOps, s: NetworkState| {
-            msg_ops.recv.is_Some() ==> multiset_contains_msg(s.in_flight, msg_ops.recv.get_Some_0())
+            msg_ops.recv.is_Some() ==> s.in_flight.contains(msg_ops.recv.get_Some_0())
         },
         transition: |msg_ops: MessageOps, s: NetworkState| {
             if msg_ops.recv.is_Some() {
