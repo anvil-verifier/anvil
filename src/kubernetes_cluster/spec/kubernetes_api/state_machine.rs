@@ -112,6 +112,12 @@ pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (
     }
 }
 
+pub open spec fn update_is_noop(o1: DynamicObjectView, o2: DynamicObjectView) -> bool {
+    &&& o1.metadata.generate_name == o2.metadata.generate_name
+    &&& o1.metadata.labels == o2.metadata.labels
+    &&& o1.spec == o2.spec
+}
+
 pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<WatchEvent>)
     recommends
         msg.content.is_update_request(),
@@ -124,7 +130,7 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
         let resp = form_update_resp_msg(msg, result);
         (s.resources, resp, Option::None)
     } else if !s.resources.dom().contains(req.key) {
-        // Update fails because the object already exists
+        // Update fails because the object does not exist
         let result = Result::Err(APIError::ObjectNotFound);
         let resp = form_update_resp_msg(msg, result);
         (s.resources, resp, Option::None)
@@ -132,6 +138,12 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
         && req.obj.metadata.resource_version != s.resources[req.key].metadata.resource_version {
         // Update fails because the object has a wrong rv
         let result = Result::Err(APIError::Conflict);
+        let resp = form_update_resp_msg(msg, result);
+        (s.resources, resp, Option::None)
+    } else if update_is_noop(req.obj, s.resources[req.key]) {
+        // Update is a noop because there is nothing to update
+        // so the resource version counter does not increase here
+        let result = Result::Ok(s.resources[req.key]);
         let resp = form_update_resp_msg(msg, result);
         (s.resources, resp, Option::None)
     } else {
