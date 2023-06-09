@@ -215,9 +215,6 @@ impl Subject {
     }
 }
 
-
-
-
 /// RoleBindingView is the ghost type of RoleBinding.
 /// It is supposed to be used in spec and proof code.
 
@@ -289,6 +286,8 @@ impl ResourceView for RoleBindingView {
         }
     }
 
+    proof fn object_ref_is_well_formed() {}
+
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
@@ -298,7 +297,9 @@ impl ResourceView for RoleBindingView {
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<RoleBindingView, ParseDynamicObjectError> {
-        if !RoleBindingView::unmarshal_spec(obj.spec).is_Ok() {
+        if obj.kind != Self::kind() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !RoleBindingView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(RoleBindingView {
@@ -312,6 +313,10 @@ impl ResourceView for RoleBindingView {
     proof fn to_dynamic_preserves_integrity() {
         RoleBindingView::spec_integrity_is_preserved_by_marshal();
     }
+
+    proof fn from_dynamic_preserves_metadata() {}
+
+    proof fn from_dynamic_preserves_kind() {}
 }
 
 pub struct RoleRefView {

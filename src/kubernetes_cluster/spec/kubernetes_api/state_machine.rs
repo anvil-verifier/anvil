@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, dynamic::*, error::*, object_meta::*,
+    api_method::*, common::*, config_map::*, dynamic::*, error::*, object_meta::*,
+    persistent_volume_claim::*, pod::*, resource::*, role::*, role_binding::*, secret::*,
+    service::*, service_account::*, stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
     kubernetes_api::{builtin_controllers::statefulset_controller, common::*},
@@ -29,6 +31,19 @@ verus! {
 // + Set uid when creating and set deletiontimestamp when deleting
 //
 // + Support more operations like List
+
+// TODO: maybe make it a method of DynamicObjectView?
+pub open spec fn object_has_well_formed_spec(obj: DynamicObjectView) -> bool {
+    &&& obj.kind == ConfigMapView::kind() ==> ConfigMapView::unmarshal_spec(obj.spec).is_Ok()
+    &&& obj.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok()
+    &&& obj.kind == PodView::kind() ==> PodView::unmarshal_spec(obj.spec).is_Ok()
+    &&& obj.kind == RoleBindingView::kind() ==> RoleBindingView::unmarshal_spec(obj.spec).is_Ok()
+    &&& obj.kind == RoleView::kind() ==> RoleView::unmarshal_spec(obj.spec).is_Ok()
+    &&& obj.kind == SecretView::kind() ==> SecretView::unmarshal_spec(obj.spec).is_Ok()
+    &&& obj.kind == ServiceView::kind() ==> ServiceView::unmarshal_spec(obj.spec).is_Ok()
+    &&& obj.kind == StatefulSetView::kind() ==> StatefulSetView::unmarshal_spec(obj.spec).is_Ok()
+    // &&& obj.kind == ServiceAccountView::kind() ==> ServiceAccountView::unmarshal_spec(obj.spec).is_Ok()
+}
 
 pub open spec fn handle_get_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<WatchEvent>)
     recommends
@@ -68,9 +83,19 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
         msg.content.is_create_request(),
 {
     let req = msg.content.get_create_request();
-    if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
+    if req.obj.metadata.name.is_None() {
+        // Creation fails because the name of the provided object is not provided
+        let result = Result::Err(APIError::Invalid);
+        let resp = form_create_resp_msg(msg, result);
+        (s.resources, resp, Option::None)
+    } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Creation fails because the namespace of the provided object does not match the namespace sent on the request
         let result = Result::Err(APIError::BadRequest);
+        let resp = form_create_resp_msg(msg, result);
+        (s.resources, resp, Option::None)
+    } else if !object_has_well_formed_spec(req.obj) {
+        // Creation fails because the spec of the provided object is not well formed
+        let result = Result::Err(APIError::BadRequest); // TODO: should the error be BadRequest?
         let resp = form_create_resp_msg(msg, result);
         (s.resources, resp, Option::None)
     } else if s.resources.dom().contains(req.obj.set_namespace(req.namespace).object_ref()) {
@@ -123,11 +148,34 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
         msg.content.is_update_request(),
 {
     let req = msg.content.get_update_request();
-    if req.obj.object_ref() != req.key {
-        // Update fails because the kind/namespace/name of the provided object
-        // does not match the kind/namespace/name sent on the request
+    if req.obj.metadata.name.is_None() {
+        // Update fails because the name of the object is not provided
         let result = Result::Err(APIError::BadRequest);
         let resp = form_update_resp_msg(msg, result);
+        (s.resources, resp, Option::None)
+    } else if req.key.name != req.obj.metadata.name.get_Some_0() {
+        // Update fails because the name of the provided object
+        // does not match the name sent on the request
+        let result = Result::Err(APIError::BadRequest);
+        let resp = form_update_resp_msg(msg, result);
+        (s.resources, resp, Option::None)
+    } else if req.obj.metadata.namespace.is_Some()
+        && req.key.namespace != req.obj.metadata.namespace.get_Some_0() {
+        // Update fails because the namespace of the provided object
+        // does not match the namespace sent on the request
+        let result = Result::Err(APIError::BadRequest);
+        let resp = form_update_resp_msg(msg, result);
+        (s.resources, resp, Option::None)
+    } else if req.obj.kind != req.key.kind {
+        // Update fails because the kind of the provided object
+        // does not match the kind sent on the request
+        let result = Result::Err(APIError::BadRequest);
+        let resp = form_update_resp_msg(msg, result);
+        (s.resources, resp, Option::None)
+    } else if !object_has_well_formed_spec(req.obj) {
+        // Update fails because the spec of the provided object is not well formed
+        let result = Result::Err(APIError::BadRequest); // TODO: should the error be BadRequest?
+        let resp = form_create_resp_msg(msg, result);
         (s.resources, resp, Option::None)
     } else if !s.resources.dom().contains(req.key) {
         // Update fails because the object does not exist
@@ -149,7 +197,7 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
     } else {
         // Update succeeds
         // Updates the resource version of the object
-        let updated_obj = req.obj.set_resource_version(s.resource_version_counter);
+        let updated_obj = req.obj.set_namespace(req.key.namespace).set_resource_version(s.resource_version_counter);
         let result = Result::Ok(updated_obj);
         let resp = form_update_resp_msg(msg, result);
         // The cluster state is updated, so we send a notification to the built-in controllers

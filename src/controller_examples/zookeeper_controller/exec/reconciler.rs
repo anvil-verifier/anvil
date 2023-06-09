@@ -198,7 +198,7 @@ pub fn reconcile_core(
                             }
                         ));
                         let state_prime = ZookeeperReconcileState {
-                            reconcile_step: ZookeeperReconcileStep::Done,
+                            reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
                             ..state
                         };
                         return (state_prime, req_o);
@@ -213,7 +213,7 @@ pub fn reconcile_core(
                         }
                     ));
                     let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Done,
+                        reconcile_step: ZookeeperReconcileStep::AfterCreateStatefulSet,
                         ..state
                     };
                     return (state_prime, req_o);
@@ -226,7 +226,23 @@ pub fn reconcile_core(
             };
             let req_o = Option::None;
             return (state_prime, req_o);
-        }
+        },
+        ZookeeperReconcileStep::AfterCreateStatefulSet => {
+            let req_o = Option::None;
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Done,
+                ..state
+            };
+            return (state_prime, req_o);
+        },
+        ZookeeperReconcileStep::AfterUpdateStatefulSet => {
+            let req_o = Option::None;
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Done,
+                ..state
+            };
+            return (state_prime, req_o);
+        },
         _ => {
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: step,
@@ -465,7 +481,7 @@ fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
     requires
         zk@.metadata.name.is_Some(),
     ensures
-        name@ == zk_spec::make_stateful_set_name(zk@),
+        name@ == zk_spec::make_stateful_set_name(zk@.metadata.name.get_Some_0()),
 {
     zk.metadata().name().unwrap()
 }

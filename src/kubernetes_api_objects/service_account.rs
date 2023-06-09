@@ -144,6 +144,8 @@ impl ResourceView for ServiceAccountView {
         }
     }
 
+    proof fn object_ref_is_well_formed() {}
+
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
@@ -153,15 +155,20 @@ impl ResourceView for ServiceAccountView {
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ServiceAccountView, ParseDynamicObjectError> {
-            Result::Ok(ServiceAccountView {
-                metadata: obj.metadata,
-            })
+            if obj.kind != Self::kind() {
+                Result::Err(ParseDynamicObjectError::UnmarshalError)
+            } else {
+                Result::Ok(ServiceAccountView {
+                    metadata: obj.metadata,
+                })
+            }
     }
 
+    proof fn to_dynamic_preserves_integrity() {}
 
-    proof fn to_dynamic_preserves_integrity() {
+    proof fn from_dynamic_preserves_metadata() {}
 
-    }
+    proof fn from_dynamic_preserves_kind() {}
 }
 
 }

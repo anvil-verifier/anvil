@@ -14,6 +14,8 @@ pub enum ZookeeperReconcileStep {
     AfterCreateAdminServerService,
     AfterCreateConfigMap,
     AfterGetStatefulSet,
+    AfterCreateStatefulSet,
+    AfterUpdateStatefulSet,
     Done,
     Error,
 }

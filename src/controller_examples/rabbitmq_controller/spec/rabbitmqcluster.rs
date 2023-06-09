@@ -147,6 +147,8 @@ impl ResourceView for RabbitmqClusterView {
         }
     }
 
+    proof fn object_ref_is_well_formed() {}
+
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
@@ -156,7 +158,9 @@ impl ResourceView for RabbitmqClusterView {
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<RabbitmqClusterView, ParseDynamicObjectError> {
-        if !RabbitmqClusterView::unmarshal_spec(obj.spec).is_Ok() {
+        if obj.kind != Self::kind() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !RabbitmqClusterView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(RabbitmqClusterView {
@@ -169,6 +173,10 @@ impl ResourceView for RabbitmqClusterView {
     proof fn to_dynamic_preserves_integrity() {
         RabbitmqClusterView::spec_integrity_is_preserved_by_marshal();
     }
+
+    proof fn from_dynamic_preserves_metadata() {}
+
+    proof fn from_dynamic_preserves_kind() {}
 }
 
 #[verifier(external_body)]
