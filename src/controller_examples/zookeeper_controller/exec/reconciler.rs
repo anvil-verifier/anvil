@@ -110,7 +110,7 @@ pub fn reconcile_core(
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: Service::api_resource(),
-                    namespace: zk.namespace().unwrap(),
+                    namespace: zk.metadata().namespace().unwrap(),
                     obj: headless_service.to_dynamic_object(),
                 }
             ));
@@ -125,7 +125,7 @@ pub fn reconcile_core(
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: Service::api_resource(),
-                    namespace: zk.namespace().unwrap(),
+                    namespace: zk.metadata().namespace().unwrap(),
                     obj: client_service.to_dynamic_object(),
                 }
             ));
@@ -140,7 +140,7 @@ pub fn reconcile_core(
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: Service::api_resource(),
-                    namespace: zk.namespace().unwrap(),
+                    namespace: zk.metadata().namespace().unwrap(),
                     obj: admin_server_service.to_dynamic_object(),
                 }
             ));
@@ -155,7 +155,7 @@ pub fn reconcile_core(
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
                     api_resource: ConfigMap::api_resource(),
-                    namespace: zk.namespace().unwrap(),
+                    namespace: zk.metadata().namespace().unwrap(),
                     obj: config_map.to_dynamic_object(),
                 }
             ));
@@ -170,7 +170,7 @@ pub fn reconcile_core(
                 KubeGetRequest {
                     api_resource: StatefulSet::api_resource(),
                     name: make_stateful_set_name(zk),
-                    namespace: zk.namespace().unwrap(),
+                    namespace: zk.metadata().namespace().unwrap(),
                 }
             ));
             let state_prime = ZookeeperReconcileState {
@@ -193,7 +193,7 @@ pub fn reconcile_core(
                             KubeUpdateRequest {
                                 api_resource: StatefulSet::api_resource(),
                                 name: stateful_set.metadata().name().unwrap(),
-                                namespace: zk.namespace().unwrap(),
+                                namespace: zk.metadata().namespace().unwrap(),
                                 obj: new_stateful_set.to_dynamic_object(),
                             }
                         ));
@@ -208,7 +208,7 @@ pub fn reconcile_core(
                     let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                         KubeCreateRequest {
                             api_resource: StatefulSet::api_resource(),
-                            namespace: zk.namespace().unwrap(),
+                            namespace: zk.metadata().namespace().unwrap(),
                             obj: stateful_set.to_dynamic_object(),
                         }
                     ));
@@ -261,7 +261,7 @@ fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
         );
     }
 
-    make_service(zk, zk.name().unwrap().concat(new_strlit("-headless")), ports, false)
+    make_service(zk, zk.metadata().name().unwrap().concat(new_strlit("-headless")), ports, false)
 }
 
 /// Client Service is used for any client to connect to the zookeeper server
@@ -283,7 +283,7 @@ fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
         );
     }
 
-    make_service(zk, zk.name().unwrap().concat(new_strlit("-client")), ports, true)
+    make_service(zk, zk.metadata().name().unwrap().concat(new_strlit("-client")), ports, true)
 }
 
 /// Admin-server Service is used for client to connect to admin server
@@ -305,7 +305,7 @@ fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
         );
     }
 
-    make_service(zk, zk.name().unwrap().concat(new_strlit("-admin-server")), ports, true)
+    make_service(zk, zk.metadata().name().unwrap().concat(new_strlit("-admin-server")), ports, true)
 }
 
 /// make_service constructs the Service object given the name, ports and cluster_ip
@@ -322,7 +322,7 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
         metadata.set_name(name);
         metadata.set_labels({
             let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
+            labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
             labels
         });
         metadata
@@ -335,7 +335,7 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
         service_spec.set_ports(ports);
         service_spec.set_selector({
             let mut selector = StringMap::empty();
-            selector.insert(new_strlit("app").to_string(), zk.name().unwrap());
+            selector.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
             selector
         });
         service_spec
@@ -356,10 +356,10 @@ fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
 
     config_map.set_metadata({
         let mut metadata = ObjectMeta::default();
-        metadata.set_name(zk.name().unwrap().concat(new_strlit("-configmap")));
+        metadata.set_name(zk.metadata().name().unwrap().concat(new_strlit("-configmap")));
         metadata.set_labels({
             let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
+            labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
             labels
         });
         metadata
@@ -444,8 +444,8 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
     ensures
         s@ == zk_spec::make_env_config(zk@),
 {
-    let name = zk.name().unwrap();
-    let namespace = zk.namespace().unwrap();
+    let name = zk.metadata().name().unwrap();
+    let namespace = zk.metadata().namespace().unwrap();
 
     new_strlit(
         "#!/usr/bin/env bash\n\n\
@@ -467,7 +467,7 @@ fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
     ensures
         name@ == zk_spec::make_stateful_set_name(zk@),
 {
-    zk.name().unwrap()
+    zk.metadata().name().unwrap()
 }
 
 /// The StatefulSet manages the zookeeper server containers (as Pods)
@@ -485,7 +485,7 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
         metadata.set_name(make_stateful_set_name(zk));
         metadata.set_labels({
             let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
+            labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
             labels
         });
         metadata
@@ -495,13 +495,13 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
         // Set the replica number
         stateful_set_spec.set_replicas(zk.replica());
         // Set the headless service to assign DNS entry to each zookeeper server
-        stateful_set_spec.set_service_name(zk.name().unwrap().concat(new_strlit("-headless")));
+        stateful_set_spec.set_service_name(zk.metadata().name().unwrap().concat(new_strlit("-headless")));
         // Set the selector used for querying pods of this stateful set
         stateful_set_spec.set_selector({
             let mut selector = LabelSelector::default();
             selector.set_match_labels({
                 let mut match_labels = StringMap::empty();
-                match_labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
+                match_labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
                 match_labels
             });
             selector
@@ -511,10 +511,10 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
             let mut pod_template_spec = PodTemplateSpec::default();
             pod_template_spec.set_metadata({
                 let mut metadata = ObjectMeta::default();
-                metadata.set_generate_name(zk.name().unwrap());
+                metadata.set_generate_name(zk.metadata().name().unwrap());
                 metadata.set_labels({
                     let mut labels = StringMap::empty();
-                    labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
+                    labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
                     labels.insert(new_strlit("kind").to_string(), new_strlit("ZookeeperMember").to_string());
                     labels
                 });
@@ -533,7 +533,7 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
                     metadata.set_name(new_strlit("data").to_string());
                     metadata.set_labels({
                         let mut labels = StringMap::empty();
-                        labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
+                        labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
                         labels
                     });
                     metadata
@@ -658,7 +658,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
             volume.set_name(new_strlit("conf").to_string());
             volume.set_config_map({
                 let mut config_map = ConfigMapVolumeSource::default();
-                config_map.set_name(zk.name().unwrap().concat(new_strlit("-configmap")));
+                config_map.set_name(zk.metadata().name().unwrap().concat(new_strlit("-configmap")));
                 config_map
             });
             volume
