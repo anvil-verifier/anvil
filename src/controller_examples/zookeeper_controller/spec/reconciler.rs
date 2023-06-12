@@ -3,8 +3,8 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, error::*, label_selector::*, object_meta::*,
-    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, service::*,
-    stateful_set::*,
+    owner_reference::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
+    service::*, stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
@@ -265,6 +265,7 @@ pub open spec fn make_service(
         .set_metadata(ObjectMetaView::default()
             .set_name(name)
             .set_labels(Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()))
+            .set_owner_references(seq![make_owner_reference(zk)])
         ).set_spec({
             let spec = ServiceSpecView::default()
                 .set_ports(ports)
@@ -288,6 +289,7 @@ pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
         .set_metadata(ObjectMetaView::default()
             .set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
             .set_labels(Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()))
+            .set_owner_references(seq![make_owner_reference(zk)])
         )
         .set_data(Map::empty()
             .insert(new_strlit("zoo.cfg")@, make_zk_config())
@@ -388,7 +390,8 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView
     let labels = Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0());
     let metadata = ObjectMetaView::default()
         .set_name(name)
-        .set_labels(labels);
+        .set_labels(labels)
+        .set_owner_references(seq![make_owner_reference(zk)]);
 
     let spec = StatefulSetSpecView::default()
         .set_replicas(zk.spec.replica)
@@ -402,6 +405,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView
                         .insert(new_strlit("app")@, zk.metadata.name.get_Some_0())
                         .insert(new_strlit("kind")@, new_strlit("ZookeeperMember")@)
                 )
+                .set_owner_references(seq![make_owner_reference(zk)])
             )
             .set_spec(make_zk_pod_spec(zk))
         )
@@ -410,6 +414,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView
                 .set_metadata(ObjectMetaView::default()
                     .set_name(new_strlit("data")@)
                     .set_labels(labels)
+                    .set_owner_references(seq![make_owner_reference(zk)])
                 )
                 .set_spec(PersistentVolumeClaimSpecView::default()
                     .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
@@ -450,6 +455,19 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
                 ConfigMapVolumeSourceView::default().set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
             )
         ])
+}
+
+pub open spec fn make_owner_reference(zk: ZookeeperClusterView) -> OwnerReferenceView
+    recommends
+        zk.metadata.name.is_Some(),
+        zk.metadata.namespace.is_Some(),
+{
+    OwnerReferenceView::default()
+        .set_api_version(new_strlit("anvil.dev/v1")@)
+        .set_kind(new_strlit("ZookeeperCluster")@)
+        .set_name(zk.metadata.name.get_Some_0())
+        .set_uid(zk.metadata.uid.get_Some_0())
+        .set_controller(true)
 }
 
 }

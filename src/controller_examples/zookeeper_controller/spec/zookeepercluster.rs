@@ -55,6 +55,18 @@ impl ZookeeperCluster {
     }
 
     #[verifier(external_body)]
+    pub fn uid(&self) -> (uid: Option<String>)
+        ensures
+            self@.uid().is_Some() == uid.is_Some(),
+            uid.is_Some() ==> uid.get_Some_0()@ == self@.uid().get_Some_0(),
+    {
+        match &self.inner.metadata.uid {
+            std::option::Option::Some(n) => Option::Some(String::from_rust_string(n.to_string())),
+            std::option::Option::None => Option::None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
             res@.kind == ZookeeperClusterView::kind(),
@@ -111,6 +123,10 @@ impl ZookeeperClusterView {
 
     pub open spec fn namespace(self) -> Option<StringView> {
         self.metadata.namespace
+    }
+
+    pub open spec fn uid(self) -> Option<StringView> {
+        self.metadata.uid
     }
 
     pub closed spec fn marshal_spec(s: ZookeeperClusterSpecView) -> Value;

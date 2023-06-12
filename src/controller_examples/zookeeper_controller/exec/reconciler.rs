@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, error::*, label_selector::*, object_meta::*,
-    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
+    owner_reference::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
     resource_requirements::*, service::*, stateful_set::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
@@ -100,6 +100,7 @@ pub fn reconcile_core(
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+        zk@.metadata.uid.is_Some(),
     ensures
         (res.0.to_view(), opt_req_to_view(&res.1)) == zk_spec::reconcile_core(zk@, opt_resp_to_view(&resp_o), state.to_view()),
 {
@@ -243,6 +244,7 @@ fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+        zk@.metadata.uid.is_Some(),
     ensures
         service@ == zk_spec::make_headless_service(zk@),
 {
@@ -269,6 +271,7 @@ fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+        zk@.metadata.uid.is_Some(),
     ensures
         service@ == zk_spec::make_client_service(zk@),
 {
@@ -291,6 +294,7 @@ fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+        zk@.metadata.uid.is_Some(),
     ensures
         service@ == zk_spec::make_admin_server_service(zk@),
 {
@@ -313,6 +317,7 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+        zk@.metadata.uid.is_Some(),
     ensures
         service@ == zk_spec::make_service(zk@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip),
 {
@@ -324,6 +329,17 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
             labels
+        });
+        metadata.set_owner_references({
+            let mut owner_references = Vec::empty();
+            owner_references.push(make_owner_reference(zk));
+            proof{
+                assert_seqs_equal!(
+                    owner_references@.map_values(|o: OwnerReference| o@),
+                    zk_spec::make_service(zk@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
         });
         metadata
     });
@@ -349,6 +365,7 @@ fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+        zk@.metadata.uid.is_Some(),
     ensures
         config_map@ == zk_spec::make_config_map(zk@),
 {
@@ -361,6 +378,17 @@ fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
             labels
+        });
+        metadata.set_owner_references({
+            let mut owner_references = Vec::empty();
+            owner_references.push(make_owner_reference(zk));
+            proof{
+                assert_seqs_equal!(
+                    owner_references@.map_values(|o: OwnerReference| o@),
+                    zk_spec::make_config_map(zk@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
         });
         metadata
     });
@@ -441,6 +469,7 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+        zk@.metadata.uid.is_Some(),
     ensures
         s@ == zk_spec::make_env_config(zk@),
 {
@@ -476,6 +505,7 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+        zk@.metadata.uid.is_Some(),
     ensures
         stateful_set@ == zk_spec::make_stateful_set(zk@),
 {
@@ -487,6 +517,17 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
             labels
+        });
+        metadata.set_owner_references({
+            let mut owner_references = Vec::empty();
+            owner_references.push(make_owner_reference(zk));
+            proof{
+                assert_seqs_equal!(
+                    owner_references@.map_values(|o: OwnerReference| o@),
+                    zk_spec::make_stateful_set(zk@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
         });
         metadata
     });
@@ -518,6 +559,17 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
                     labels.insert(new_strlit("kind").to_string(), new_strlit("ZookeeperMember").to_string());
                     labels
                 });
+                metadata.set_owner_references({
+                    let mut owner_references = Vec::empty();
+                    owner_references.push(make_owner_reference(zk));
+                    proof{
+                        assert_seqs_equal!(
+                            owner_references@.map_values(|o: OwnerReference| o@),
+                            zk_spec::make_stateful_set(zk@).spec.get_Some_0().template.metadata.get_Some_0().owner_references.get_Some_0()
+                        );
+                    }
+                    owner_references
+                });
                 metadata
             });
             pod_template_spec.set_spec(make_zk_pod_spec(zk));
@@ -535,6 +587,17 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
                         let mut labels = StringMap::empty();
                         labels.insert(new_strlit("app").to_string(), zk.name().unwrap());
                         labels
+                    });
+                    metadata.set_owner_references({
+                        let mut owner_references = Vec::empty();
+                        owner_references.push(make_owner_reference(zk));
+                        proof{
+                            assert_seqs_equal!(
+                                owner_references@.map_values(|o: OwnerReference| o@),
+                                zk_spec::make_stateful_set(zk@).spec.get_Some_0().volume_claim_templates.get_Some_0()[0].metadata.owner_references.get_Some_0()
+                            );
+                        }
+                        owner_references
                     });
                     metadata
                 });
@@ -579,6 +642,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+        zk@.metadata.uid.is_Some(),
     ensures
         pod_spec@ == zk_spec::make_zk_pod_spec(zk@),
 {
@@ -725,6 +789,24 @@ fn make_resource_requirements() -> ResourceRequirements
             ..deps_hack::k8s_openapi::api::core::v1::ResourceRequirements::default()
         }
     )
+}
+
+
+fn make_owner_reference(zk: &ZookeeperCluster) -> (owner_ref: OwnerReference)
+    requires
+        zk@.metadata.name.is_Some(),
+        zk@.metadata.namespace.is_Some(),
+        zk@.metadata.uid.is_Some(),
+    ensures
+        owner_ref@ == zk_spec::make_owner_reference(zk@),
+{
+    let mut owner_ref = OwnerReference::default();
+    owner_ref.set_api_version(new_strlit("anvil.dev/v1").to_string());
+    owner_ref.set_kind(new_strlit("ZookeeperCluster").to_string());
+    owner_ref.set_name(zk.name().unwrap());
+    owner_ref.set_uid(zk.uid().unwrap());
+    owner_ref.set_controller(true);
+    owner_ref
 }
 
 }
