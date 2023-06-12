@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
+    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*, owner_reference::*,
     persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
     resource_requirements::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
     stateful_set::*,
@@ -97,6 +97,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
     ensures
         (res.0.to_view(), opt_req_to_view(&res.1)) == rabbitmq_spec::reconcile_core(rabbitmq@, opt_resp_to_view(&resp_o), state.to_view()),
 {
@@ -271,6 +272,7 @@ pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
     ensures
         service@ == rabbitmq_spec::make_headless_service(rabbitmq@)
 {
@@ -293,6 +295,7 @@ pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
     ensures
         service@ == rabbitmq_spec::make_main_service(rabbitmq@)
 {
@@ -324,6 +327,7 @@ pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServiceP
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
     ensures
         service@ == rabbitmq_spec::make_service(rabbitmq@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip)
 {
@@ -336,6 +340,17 @@ pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServiceP
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
             labels
+        });
+        metadata.set_owner_references({
+            let mut owner_references = Vec::empty();
+            owner_references.push(make_owner_reference(rabbitmq));
+            proof{
+                assert_seqs_equal!(
+                    owner_references@.map_values(|o: OwnerReference| o@),
+                    rabbitmq_spec::make_service(rabbitmq@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
         });
         metadata
     });
@@ -363,6 +378,7 @@ pub fn make_erlang_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
     ensures
         secret@ == rabbitmq_spec::make_erlang_secret(rabbitmq@)
 {
@@ -395,6 +411,7 @@ pub fn make_default_user_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
     ensures
         secret@ == rabbitmq_spec::make_default_user_secret(rabbitmq@)
 {
@@ -427,6 +444,7 @@ pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) ->
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
     ensures
         secret@ == rabbitmq_spec::make_secret(rabbitmq@, name@, data@)
 {
@@ -439,6 +457,17 @@ pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) ->
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
             labels
+        });
+        metadata.set_owner_references({
+            let mut owner_references = Vec::empty();
+            owner_references.push(make_owner_reference(rabbitmq));
+            proof{
+                assert_seqs_equal!(
+                    owner_references@.map_values(|o: OwnerReference| o@),
+                    rabbitmq_spec::make_secret(rabbitmq@, name@, data@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
         });
         metadata
     });
@@ -453,6 +482,7 @@ fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
     ensures
         config_map@ == rabbitmq_spec::make_plugins_config_map(rabbitmq@),
 {
@@ -466,6 +496,17 @@ fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
             labels
+        });
+        metadata.set_owner_references({
+            let mut owner_references = Vec::empty();
+            owner_references.push(make_owner_reference(rabbitmq));
+            proof{
+                assert_seqs_equal!(
+                    owner_references@.map_values(|o: OwnerReference| o@),
+                    rabbitmq_spec::make_plugins_config_map(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
         });
         metadata
     });
@@ -483,6 +524,7 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
     ensures
         config_map@ == rabbitmq_spec::make_server_config_map(rabbitmq@),
 {
@@ -496,6 +538,17 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
             labels
+        });
+        metadata.set_owner_references({
+            let mut owner_references = Vec::empty();
+            owner_references.push(make_owner_reference(rabbitmq));
+            proof{
+                assert_seqs_equal!(
+                    owner_references@.map_values(|o: OwnerReference| o@),
+                    rabbitmq_spec::make_server_config_map(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
         });
         metadata
     });
@@ -514,6 +567,7 @@ fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> (s: String)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
     ensures
         s@ == rabbitmq_spec::default_rbmq_config(rabbitmq@),
 {
@@ -537,6 +591,7 @@ fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: Service
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
     ensures
         service_account@ == rabbitmq_spec::make_service_account(rabbitmq@),
 {
@@ -550,6 +605,17 @@ fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: Service
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
             labels
         });
+        metadata.set_owner_references({
+            let mut owner_references = Vec::empty();
+            owner_references.push(make_owner_reference(rabbitmq));
+            proof{
+                assert_seqs_equal!(
+                    owner_references@.map_values(|o: OwnerReference| o@),
+                    rabbitmq_spec::make_service_account(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata
     });
 
@@ -561,6 +627,7 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
     ensures
         role@ == rabbitmq_spec::make_role(rabbitmq@),
 {
@@ -573,6 +640,17 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
             labels
+        });
+        metadata.set_owner_references({
+            let mut owner_references = Vec::empty();
+            owner_references.push(make_owner_reference(rabbitmq));
+            proof{
+                assert_seqs_equal!(
+                    owner_references@.map_values(|o: OwnerReference| o@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
         });
         metadata
     });
@@ -670,6 +748,7 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
     ensures
         role_binding@ == rabbitmq_spec::make_role_binding(rabbitmq@),
 {
@@ -682,6 +761,17 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
             labels
+        });
+        metadata.set_owner_references({
+            let mut owner_references = Vec::empty();
+            owner_references.push(make_owner_reference(rabbitmq));
+            proof{
+                assert_seqs_equal!(
+                    owner_references@.map_values(|o: OwnerReference| o@),
+                    rabbitmq_spec::make_role_binding(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
         });
         metadata
     });
@@ -719,6 +809,7 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
     ensures
         stateful_set@ == rabbitmq_spec::make_stateful_set(rabbitmq@),
 {
@@ -731,6 +822,17 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
             labels
+        });
+        metadata.set_owner_references({
+            let mut owner_references = Vec::empty();
+            owner_references.push(make_owner_reference(rabbitmq));
+            proof{
+                assert_seqs_equal!(
+                    owner_references@.map_values(|o: OwnerReference| o@),
+                    rabbitmq_spec::make_stateful_set(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
         });
         metadata
     });
@@ -763,6 +865,17 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
                         let mut labels = StringMap::empty();
                         labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
                         labels
+                    });
+                    metadata.set_owner_references({
+                        let mut owner_references = Vec::empty();
+                        owner_references.push(make_owner_reference(rabbitmq));
+                        proof{
+                            assert_seqs_equal!(
+                                owner_references@.map_values(|o: OwnerReference| o@),
+                                rabbitmq_spec::make_stateful_set(rabbitmq@).spec.get_Some_0().volume_claim_templates.get_Some_0()[0].metadata.owner_references.get_Some_0()
+                            );
+                        }
+                        owner_references
                     });
                     metadata
                 });
@@ -809,6 +922,17 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
                     labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
                     labels
                 });
+                metadata.set_owner_references({
+                    let mut owner_references = Vec::empty();
+                    owner_references.push(make_owner_reference(rabbitmq));
+                    proof{
+                        assert_seqs_equal!(
+                            owner_references@.map_values(|o: OwnerReference| o@),
+                            rabbitmq_spec::make_stateful_set(rabbitmq@).spec.get_Some_0().template.metadata.get_Some_0().owner_references.get_Some_0()
+                        );
+                    }
+                    owner_references
+                });
                 metadata
             });
             pod_template_spec.set_spec(make_rabbitmq_pod_spec(rabbitmq));
@@ -824,6 +948,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
     ensures
         pod_spec@ == rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@),
 {
@@ -1276,6 +1401,23 @@ fn make_pvc_resource_requirements() -> ResourceRequirements
             ..deps_hack::k8s_openapi::api::core::v1::ResourceRequirements::default()
         }
     )
+}
+
+fn make_owner_reference(rabbitmq: &RabbitmqCluster) -> (owner_ref: OwnerReference)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+        rabbitmq@.metadata.uid.is_Some(),
+    ensures
+        owner_ref@ == rabbitmq_spec::make_owner_reference(rabbitmq@),
+{
+    let mut owner_ref = OwnerReference::default();
+    owner_ref.set_api_version(new_strlit("anvil.dev/v1").to_string());
+    owner_ref.set_kind(new_strlit("RabbitmqCluster").to_string());
+    owner_ref.set_name(rabbitmq.name().unwrap());
+    owner_ref.set_uid(rabbitmq.uid().unwrap());
+    owner_ref.set_controller(true);
+    owner_ref
 }
 
 }

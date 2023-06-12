@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
+    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*, owner_reference::*,
     persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, role::*,
     role_binding::*, secret::*, service::*, service_account::*, stateful_set::*,
 };
@@ -257,6 +257,7 @@ pub open spec fn make_service(
             .set_name(name)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+            .set_owner_references(seq![make_owner_reference(rabbitmq)])
         ).set_spec({
             let spec = ServiceSpecView::default()
                 .set_ports(ports)
@@ -321,6 +322,7 @@ pub open spec fn make_secret(
             .set_name(name)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+            .set_owner_references(seq![make_owner_reference(rabbitmq)])
         ).set_data(data)
 }
 
@@ -335,6 +337,7 @@ pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> Confi
             .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-plugins-conf")@)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+            .set_owner_references(seq![make_owner_reference(rabbitmq)])
         )
         .set_data(Map::empty()
             .insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_management].")@)
@@ -351,6 +354,7 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
             .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server-conf")@)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+            .set_owner_references(seq![make_owner_reference(rabbitmq)])
         )
         .set_data(Map::empty()
             .insert(new_strlit("operatorDefaults.conf")@, default_rbmq_config(rabbitmq))
@@ -386,6 +390,7 @@ pub open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceA
             .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+            .set_owner_references(seq![make_owner_reference(rabbitmq)])
         )
 
 }
@@ -402,6 +407,7 @@ pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView
             .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-peer-discovery")@)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+            .set_owner_references(seq![make_owner_reference(rabbitmq)])
         ).set_policy_rules(
             seq![
                 PolicyRuleView::default().set_api_groups(seq![new_strlit("")@]).set_resources(seq![new_strlit("endpoints")@]).set_verbs(seq![new_strlit("get")@]),
@@ -422,6 +428,7 @@ pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBinding
             .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+            .set_owner_references(seq![make_owner_reference(rabbitmq)])
         ).set_role_ref(RoleRefView::default()
             .set_api_group(new_strlit("rbac.authorization.k8s.io")@)
             .set_kind(new_strlit("Role")@)
@@ -447,7 +454,8 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView) -> StatefulSet
     let metadata = ObjectMetaView::default()
         .set_name(sts_name)
         .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
-        .set_labels(labels);
+        .set_labels(labels)
+        .set_owner_references(seq![make_owner_reference(rabbitmq)]);
 
     let spec = StatefulSetSpecView::default()
         .set_replicas(rabbitmq.spec.replica)
@@ -459,6 +467,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView) -> StatefulSet
                     Map::empty()
                         .insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0())
                 )
+                .set_owner_references(seq![make_owner_reference(rabbitmq)])
             )
             .set_spec(make_rabbitmq_pod_spec(rabbitmq))
         )
@@ -468,6 +477,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView) -> StatefulSet
                     .set_name(new_strlit("persistence")@)
                     .set_namespace(namespace)
                     .set_labels(labels)
+                    .set_owner_references(seq![make_owner_reference(rabbitmq)])
                 )
                 .set_spec(PersistentVolumeClaimSpecView::default()
                     .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
@@ -607,6 +617,22 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                 ])
         ])
         .set_volumes(volumes)
+}
+
+
+
+
+pub open spec fn make_owner_reference(rabbitmq: RabbitmqClusterView) -> OwnerReferenceView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    OwnerReferenceView::default()
+        .set_api_version(new_strlit("anvil.dev/v1")@)
+        .set_kind(new_strlit("RabbitmqCluster")@)
+        .set_name(rabbitmq.metadata.name.get_Some_0())
+        .set_uid(rabbitmq.metadata.uid.get_Some_0())
+        .set_controller(true)
 }
 
 }
