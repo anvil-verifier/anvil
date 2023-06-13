@@ -18,6 +18,7 @@ pub enum RabbitmqReconcileStep {
     AfterCreateServiceAccount,
     AfterCreateRole,
     AfterCreateRoleBinding,
+    AfterGetStatefulSet,
     Done,
     Error,
 }
