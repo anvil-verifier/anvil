@@ -204,7 +204,11 @@ pub open spec fn reconcile_core(
                 if get_sts_resp.is_Ok() {
                     // update
                     let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0());
-                    if found_stateful_set.is_Ok(){
+                    if found_stateful_set.is_Ok()
+                        && found_stateful_set.get_Ok_0().spec.is_Some()
+                        && found_stateful_set.get_Ok_0().spec.get_Some_0().replicas.is_Some()
+                        && found_stateful_set.get_Ok_0().spec.get_Some_0().replicas.get_Some_0() <= rabbitmq.spec.replica
+                    {
                         let req_o = Option::Some(APIRequest::UpdateRequest(
                             UpdateRequest {
                                 key: ObjectRef {

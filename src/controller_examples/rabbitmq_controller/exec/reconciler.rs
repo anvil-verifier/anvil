@@ -261,20 +261,24 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
                     if found_stateful_set.is_ok(){
                         let mut new_stateful_set = found_stateful_set.unwrap();
                         // rabbitmq controller doesn't support scale down, so new replicas must be greater than or equal to old replicas
-                        new_stateful_set.set_spec(stateful_set.spec().unwrap());
-                        let req_o = Option::Some(KubeAPIRequest::UpdateRequest(
-                            KubeUpdateRequest {
-                                api_resource: StatefulSet::api_resource(),
-                                name: stateful_set.metadata().name().unwrap(),
-                                namespace: rabbitmq.namespace().unwrap(),
-                                obj: new_stateful_set.to_dynamic_object(),
-                            }
-                        ));
-                        let state_prime = RabbitmqReconcileState {
-                            reconcile_step: RabbitmqReconcileStep::Done,
-                            ..state
-                        };
-                        return (state_prime, req_o);
+                        if new_stateful_set.spec().is_some()
+                            && new_stateful_set.spec().unwrap().replicas().is_some()
+                            && new_stateful_set.spec().unwrap().replicas().unwrap() < rabbitmq.replica() {
+                                new_stateful_set.set_spec(stateful_set.spec().unwrap());
+                                let req_o = Option::Some(KubeAPIRequest::UpdateRequest(
+                                    KubeUpdateRequest {
+                                        api_resource: StatefulSet::api_resource(),
+                                        name: stateful_set.metadata().name().unwrap(),
+                                        namespace: rabbitmq.namespace().unwrap(),
+                                        obj: new_stateful_set.to_dynamic_object(),
+                                    }
+                                ));
+                                let state_prime = RabbitmqReconcileState {
+                                    reconcile_step: RabbitmqReconcileStep::Done,
+                                    ..state
+                                };
+                                return (state_prime, req_o);
+                        }
                     }
                 }
                 else if get_sts_resp.unwrap_err().is_object_not_found() {
