@@ -333,19 +333,19 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
                             && new_stateful_set.spec().unwrap().replicas().is_some()
                             && new_stateful_set.spec().unwrap().replicas().unwrap() <= rabbitmq.spec().replica() {
                                 new_stateful_set.set_spec(stateful_set.spec().unwrap());
-                                        let req_o = Option::Some(KubeAPIRequest::UpdateRequest(
-                                            KubeUpdateRequest {
-                                                api_resource: StatefulSet::api_resource(),
-                                                name: stateful_set.metadata().name().unwrap(),
-                                                namespace: rabbitmq.namespace().unwrap(),
-                                                obj: new_stateful_set.to_dynamic_object(),
-                                            }
-                                        ));
-                                        let state_prime = RabbitmqReconcileState {
-                                            reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
-                                            ..state
-                                        };
-                                        return (state_prime, req_o);
+                                let req_o = Option::Some(KubeAPIRequest::UpdateRequest(
+                                    KubeUpdateRequest {
+                                        api_resource: StatefulSet::api_resource(),
+                                        name: stateful_set.metadata().name().unwrap(),
+                                        namespace: rabbitmq.namespace().unwrap(),
+                                        obj: new_stateful_set.to_dynamic_object(),
+                                    }
+                                ));
+                                let state_prime = RabbitmqReconcileState {
+                                    reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
+                                    ..state
+                                };
+                                return (state_prime, req_o);
                             }
                         }
                 }
