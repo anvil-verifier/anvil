@@ -372,23 +372,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
                 ..state
             };
             let req_o = Option::None;
-            (state_prime, req_o)
-        },
-        RabbitmqReconcileStep::AfterCreateStatefulSet => {
-            let req_o = Option::None;
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::Done,
-                ..state
-            };
-            (state_prime, req_o)
-        },
-        RabbitmqReconcileStep::AfterUpdateStatefulSet => {
-            let req_o = Option::None;
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::Done,
-                ..state
-            };
-            (state_prime, req_o)
+            return (state_prime, req_o);
         },
         _ => {
             let state_prime = RabbitmqReconcileState {
