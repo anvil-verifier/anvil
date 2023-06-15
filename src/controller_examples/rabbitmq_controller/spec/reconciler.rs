@@ -198,8 +198,8 @@ pub open spec fn reconcile_core(
             (state_prime, req_o)
         },
         RabbitmqReconcileStep::AfterGetStatefulSet => {
-            let stateful_set = make_stateful_set(rabbitmq);
             if resp_o.is_Some() && resp_o.get_Some_0().is_GetResponse() {
+                let stateful_set = make_stateful_set(rabbitmq);
                 let get_sts_resp = resp_o.get_Some_0().get_GetResponse_0().res;
                 if get_sts_resp.is_Ok() {
                     // update

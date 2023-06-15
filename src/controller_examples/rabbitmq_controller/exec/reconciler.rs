@@ -263,7 +263,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
                         // rabbitmq controller doesn't support scale down, so new replicas must be greater than or equal to old replicas
                         if new_stateful_set.spec().is_some()
                             && new_stateful_set.spec().unwrap().replicas().is_some()
-                            && new_stateful_set.spec().unwrap().replicas().unwrap() < rabbitmq.replica() {
+                            && new_stateful_set.spec().unwrap().replicas().unwrap() <= rabbitmq.replica() {
                                 new_stateful_set.set_spec(stateful_set.spec().unwrap());
                                 let req_o = Option::Some(KubeAPIRequest::UpdateRequest(
                                     KubeUpdateRequest {
@@ -304,7 +304,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
                 ..state
             };
             let req_o = Option::None;
-            return (state_prime, req_o);
+            (state_prime, req_o)
         },
         _ => {
             let state_prime = RabbitmqReconcileState {
