@@ -18,6 +18,7 @@ jobs:
       - name: Download Verus
         uses: actions/checkout@v2
         with:
+          ref: 0124a797b1e0d9073394d9436d650fab2c5aeb06
           repository: verus-lang/verus
           path: verus
       - name: Install Rust toolchain
