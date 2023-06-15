@@ -19,6 +19,8 @@ pub enum RabbitmqReconcileStep {
     AfterCreateRole,
     AfterCreateRoleBinding,
     AfterGetStatefulSet,
+    AfterCreateStatefulSet,
+    AfterUpdateStatefulSet,
     Done,
     Error,
 }

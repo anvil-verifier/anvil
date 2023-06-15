@@ -274,7 +274,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
                                     }
                                 ));
                                 let state_prime = RabbitmqReconcileState {
-                                    reconcile_step: RabbitmqReconcileStep::Done,
+                                    reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
                                     ..state
                                 };
                                 return (state_prime, req_o);
@@ -291,7 +291,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
                         }
                     ));
                     let state_prime = RabbitmqReconcileState {
-                        reconcile_step: RabbitmqReconcileStep::Done,
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateStatefulSet,
                         ..state
                     };
                     return (state_prime, req_o);
@@ -304,6 +304,22 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
                 ..state
             };
             let req_o = Option::None;
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterCreateStatefulSet => {
+            let req_o = Option::None;
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Done,
+                ..state
+            };
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterUpdateStatefulSet => {
+            let req_o = Option::None;
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Done,
+                ..state
+            };
             (state_prime, req_o)
         },
         _ => {

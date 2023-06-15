@@ -220,7 +220,7 @@ pub open spec fn reconcile_core(
                             }
                         ));
                         let state_prime = RabbitmqReconcileState {
-                            reconcile_step: RabbitmqReconcileStep::Done,
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
                             ..state
                         };
                         (state_prime, req_o)
@@ -241,7 +241,7 @@ pub open spec fn reconcile_core(
                         }
                     ));
                     let state_prime = RabbitmqReconcileState {
-                        reconcile_step: RabbitmqReconcileStep::Done,
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateStatefulSet,
                         ..state
                     };
                     (state_prime, req_o)
@@ -263,6 +263,22 @@ pub open spec fn reconcile_core(
                 (state_prime, req_o)
             }
 
+        },
+        RabbitmqReconcileStep::AfterCreateStatefulSet => {
+            let req_o = Option::None;
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Done,
+                ..state
+            };
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterUpdateStatefulSet => {
+            let req_o = Option::None;
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Done,
+                ..state
+            };
+            (state_prime, req_o)
         },
         _ => {
             let state_prime = RabbitmqReconcileState {
