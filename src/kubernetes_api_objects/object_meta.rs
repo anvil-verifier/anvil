@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
+use crate::kubernetes_api_objects::owner_reference::*;
 use crate::kubernetes_api_objects::resource::*;
 use crate::pervasive_ext::string_map::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::string::*;
+use vstd::vec::*;
 
 verus! {
 
@@ -63,6 +65,31 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn uid(&self) -> (uid: Option<String>)
+        ensures
+            self@.uid.is_Some() == uid.is_Some(),
+            uid.is_Some() ==> uid.get_Some_0()@ == self@.uid.get_Some_0(),
+    {
+        match &self.inner.uid {
+            std::option::Option::Some(n) => Option::Some(String::from_rust_string(n.to_string())),
+            std::option::Option::None => Option::None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn resource_version(&self) -> (version: Option<u64>)
+        ensures
+            self@.resource_version.is_Some() == version.is_Some(),
+            version.is_Some() ==> version.get_Some_0() == self@.resource_version.get_Some_0(),
+    {
+        match &self.inner.resource_version {
+            std::option::Option::Some(n) => Option::Some( n.parse::<std::primitive::u64>().unwrap() as u64 ),
+            std::option::Option::None => Option::None,
+        }
+    }
+
+
+    #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures
             self@ == old(self)@.set_name(name@),
@@ -93,6 +120,16 @@ impl ObjectMeta {
     {
         self.inner.labels = std::option::Option::Some(labels.into_rust_map());
     }
+
+    #[verifier(external_body)]
+    pub fn set_owner_references(&mut self, owner_references: Vec<OwnerReference>)
+        ensures
+            self@ == old(self)@.set_owner_references(owner_references@.map_values(|o: OwnerReference| o@)),
+    {
+        self.inner.owner_references = std::option::Option::Some(
+            owner_references.vec.into_iter().map(|o: OwnerReference| o.into_kube()).collect(),
+        );
+    }
 }
 
 impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta> for ObjectMeta {
@@ -117,6 +154,7 @@ pub struct ObjectMetaView {
     pub resource_version: Option<nat>, // make rv a nat so that it is easy to compare in spec/proof
     pub uid: Option<StringView>,
     pub labels: Option<Map<StringView, StringView>>,
+    pub owner_references: Option<Seq<OwnerReferenceView>>,
 }
 
 impl ObjectMetaView {
@@ -128,6 +166,7 @@ impl ObjectMetaView {
             resource_version: Option::None,
             uid: Option::None,
             labels: Option::None,
+            owner_references: Option::None,
         }
     }
 
@@ -162,6 +201,13 @@ impl ObjectMetaView {
     pub open spec fn set_resource_version(self, resource_version: nat) -> ObjectMetaView {
         ObjectMetaView {
             resource_version: Option::Some(resource_version),
+            ..self
+        }
+    }
+
+    pub open spec fn set_owner_references(self, owner_references: Seq<OwnerReferenceView>) -> ObjectMetaView {
+        ObjectMetaView {
+            owner_references: Option::Some(owner_references),
             ..self
         }
     }

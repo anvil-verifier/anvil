@@ -9,6 +9,7 @@ pub mod error;
 pub mod label_selector;
 pub mod marshal;
 pub mod object_meta;
+pub mod owner_reference;
 pub mod persistent_volume_claim;
 pub mod pod;
 pub mod pod_template_spec;
