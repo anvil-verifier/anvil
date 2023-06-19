@@ -280,8 +280,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
                                 return (state_prime, req_o);
                         }
                     }
-                }
-                else if get_sts_resp.unwrap_err().is_object_not_found() {
+                } else if get_sts_resp.unwrap_err().is_object_not_found() {
                     // create
                     let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                         KubeCreateRequest {

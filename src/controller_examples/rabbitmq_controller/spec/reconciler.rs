@@ -203,28 +203,36 @@ pub open spec fn reconcile_core(
                 let get_sts_resp = resp_o.get_Some_0().get_GetResponse_0().res;
                 if get_sts_resp.is_Ok() {
                     // update
-                    let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0());
-                    if found_stateful_set.is_Ok()
-                        && found_stateful_set.get_Ok_0().spec.is_Some()
-                        && found_stateful_set.get_Ok_0().spec.get_Some_0().replicas.is_Some()
-                        && found_stateful_set.get_Ok_0().spec.get_Some_0().replicas.get_Some_0() <= rabbitmq.spec.replica
-                    {
-                        let req_o = Option::Some(APIRequest::UpdateRequest(
-                            UpdateRequest {
-                                key: ObjectRef {
-                                    kind: StatefulSetView::kind(),
-                                    name: stateful_set.metadata.name.get_Some_0(),
-                                    namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                                },
-                                obj: found_stateful_set.get_Ok_0().set_spec(stateful_set.spec.get_Some_0()).to_dynamic_object(),
-                            }
-                        ));
-                        let state_prime = RabbitmqReconcileState {
-                            reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
-                            ..state
-                        };
-                        (state_prime, req_o)
-                    }else {
+                    if StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).is_Ok() {
+                        let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).get_Ok_0();
+                        if found_stateful_set.spec.is_Some()
+                        && found_stateful_set.spec.get_Some_0().replicas.is_Some()
+                        && found_stateful_set.spec.get_Some_0().replicas.get_Some_0() <= rabbitmq.spec.replica
+                        {
+                            let req_o = Option::Some(APIRequest::UpdateRequest(
+                                UpdateRequest {
+                                    key: ObjectRef {
+                                        kind: StatefulSetView::kind(),
+                                        name: stateful_set.metadata.name.get_Some_0(),
+                                        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                                    },
+                                    obj: found_stateful_set.set_spec(stateful_set.spec.get_Some_0()).to_dynamic_object(),
+                                }
+                            ));
+                            let state_prime = RabbitmqReconcileState {
+                                reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
+                                ..state
+                            };
+                            (state_prime, req_o)
+                        } else {
+                            let state_prime = RabbitmqReconcileState {
+                                reconcile_step: RabbitmqReconcileStep::Error,
+                                ..state
+                            };
+                            let req_o = Option::None;
+                            (state_prime, req_o)
+                        }
+                    } else {
                         let state_prime = RabbitmqReconcileState {
                             reconcile_step: RabbitmqReconcileStep::Error,
                             ..state
