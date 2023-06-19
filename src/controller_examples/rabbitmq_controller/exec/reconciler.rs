@@ -238,19 +238,88 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
             return (state_prime, req_o);
         },
         RabbitmqReconcileStep::AfterCreateRoleBinding => {
-            let stateful_set = make_stateful_set(rabbitmq);
-            let req_o = Option::Some(KubeAPIRequest::CreateRequest(
-                KubeCreateRequest {
+            let req_o = Option::Some(KubeAPIRequest::GetRequest(
+                KubeGetRequest {
                     api_resource: StatefulSet::api_resource(),
+                    name: rabbitmq.name().unwrap().concat(new_strlit("-server")),
                     namespace: rabbitmq.namespace().unwrap(),
-                    obj: stateful_set.to_dynamic_object(),
                 }
             ));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterGetStatefulSet,
+                ..state
+            };
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterGetStatefulSet => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_get_response() {
+                let stateful_set = make_stateful_set(rabbitmq);
+                let get_sts_resp = resp_o.unwrap().into_get_response().res;
+                if get_sts_resp.is_ok() {
+                    // update
+                    let found_stateful_set = StatefulSet::from_dynamic_object(get_sts_resp.unwrap());
+                    if found_stateful_set.is_ok(){
+                        let mut new_stateful_set = found_stateful_set.unwrap();
+                        // rabbitmq controller doesn't support scale down, so new replicas must be greater than or equal to old replicas
+                        if new_stateful_set.spec().is_some()
+                            && new_stateful_set.spec().unwrap().replicas().is_some()
+                            && new_stateful_set.spec().unwrap().replicas().unwrap() <= rabbitmq.replica() {
+                                new_stateful_set.set_spec(stateful_set.spec().unwrap());
+                                let req_o = Option::Some(KubeAPIRequest::UpdateRequest(
+                                    KubeUpdateRequest {
+                                        api_resource: StatefulSet::api_resource(),
+                                        name: stateful_set.metadata().name().unwrap(),
+                                        namespace: rabbitmq.namespace().unwrap(),
+                                        obj: new_stateful_set.to_dynamic_object(),
+                                    }
+                                ));
+                                let state_prime = RabbitmqReconcileState {
+                                    reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
+                                    ..state
+                                };
+                                return (state_prime, req_o);
+                        }
+                    }
+                } else if get_sts_resp.unwrap_err().is_object_not_found() {
+                    // create
+                    let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                        KubeCreateRequest {
+                            api_resource: StatefulSet::api_resource(),
+                            namespace: rabbitmq.namespace().unwrap(),
+                            obj: stateful_set.to_dynamic_object(),
+                        }
+                    ));
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateStatefulSet,
+                        ..state
+                    };
+                    return (state_prime, req_o);
+                }
+
+            }
+            // return error state
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = Option::None;
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterCreateStatefulSet => {
+            let req_o = Option::None;
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::Done,
                 ..state
             };
-            return (state_prime, req_o);
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterUpdateStatefulSet => {
+            let req_o = Option::None;
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Done,
+                ..state
+            };
+            (state_prime, req_o)
         },
         _ => {
             let state_prime = RabbitmqReconcileState {

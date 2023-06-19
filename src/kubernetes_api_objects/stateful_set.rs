@@ -202,7 +202,18 @@ impl StatefulSetSpec {
         self.inner.pod_management_policy = std::option::Option::Some(pod_management_policy.into_rust_string())
     }
 
-
+    #[verifier(external_body)]
+    pub fn replicas(&self) -> (replicas: Option<i32>)
+        ensures
+            self@.replicas.is_Some() == replicas.is_Some(),
+            replicas.is_Some() ==> replicas.get_Some_0() == self@.replicas.get_Some_0(),
+    {
+        if self.inner.replicas.is_none() {
+            Option::None
+        } else {
+            Option::Some(self.inner.replicas.clone().unwrap())
+        }
+    }
 
 }
 

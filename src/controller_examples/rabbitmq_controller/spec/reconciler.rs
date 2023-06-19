@@ -184,11 +184,104 @@ pub open spec fn reconcile_core(
             (state_prime, req_o)
         },
         RabbitmqReconcileStep::AfterCreateRoleBinding => {
-            let stateful_set = make_stateful_set(rabbitmq);
-            let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
-                namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: stateful_set.to_dynamic_object(),
+            let req_o = Option::Some(APIRequest::GetRequest(GetRequest{
+                key: ObjectRef {
+                    kind: StatefulSetView::kind(),
+                    name: rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@,
+                    namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                }
             }));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterGetStatefulSet,
+                ..state
+            };
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterGetStatefulSet => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_GetResponse() {
+                let stateful_set = make_stateful_set(rabbitmq);
+                let get_sts_resp = resp_o.get_Some_0().get_GetResponse_0().res;
+                if get_sts_resp.is_Ok() {
+                    // update
+                    if StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).is_Ok() {
+                        let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).get_Ok_0();
+                        if found_stateful_set.spec.is_Some()
+                        && found_stateful_set.spec.get_Some_0().replicas.is_Some()
+                        && found_stateful_set.spec.get_Some_0().replicas.get_Some_0() <= rabbitmq.spec.replica
+                        {
+                            let req_o = Option::Some(APIRequest::UpdateRequest(
+                                UpdateRequest {
+                                    key: ObjectRef {
+                                        kind: StatefulSetView::kind(),
+                                        name: stateful_set.metadata.name.get_Some_0(),
+                                        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                                    },
+                                    obj: found_stateful_set.set_spec(stateful_set.spec.get_Some_0()).to_dynamic_object(),
+                                }
+                            ));
+                            let state_prime = RabbitmqReconcileState {
+                                reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
+                                ..state
+                            };
+                            (state_prime, req_o)
+                        } else {
+                            let state_prime = RabbitmqReconcileState {
+                                reconcile_step: RabbitmqReconcileStep::Error,
+                                ..state
+                            };
+                            let req_o = Option::None;
+                            (state_prime, req_o)
+                        }
+                    } else {
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::Error,
+                            ..state
+                        };
+                        let req_o = Option::None;
+                        (state_prime, req_o)
+                    }
+                } else if get_sts_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = Option::Some(APIRequest::CreateRequest(
+                        CreateRequest {
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                            obj: stateful_set.to_dynamic_object(),
+                        }
+                    ));
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateStatefulSet,
+                        ..state
+                    };
+                    (state_prime, req_o)
+                } else {
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::Error,
+                        ..state
+                    };
+                    let req_o = Option::None;
+                    (state_prime, req_o)
+                }
+            }else{
+                // return error state
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                let req_o = Option::None;
+                (state_prime, req_o)
+            }
+
+        },
+        RabbitmqReconcileStep::AfterCreateStatefulSet => {
+            let req_o = Option::None;
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Done,
+                ..state
+            };
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterUpdateStatefulSet => {
+            let req_o = Option::None;
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::Done,
                 ..state
