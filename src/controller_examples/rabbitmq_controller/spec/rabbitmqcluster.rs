@@ -47,12 +47,13 @@ impl RabbitmqCluster {
     }
 
     #[verifier(external_body)]
-    pub fn replica(&self) -> (replica: i32)
+    pub fn spec(&self) -> (spec: RabbitmqClusterSpec)
         ensures
-            replica as int == self@.spec.replica,
+            spec@ == self@.spec,
     {
-        self.inner.spec.replica
+        RabbitmqClusterSpec { inner: self.inner.spec.clone() }
     }
+
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::RabbitmqCluster {
@@ -186,6 +187,7 @@ pub struct RabbitmqClusterSpec {
 
 pub struct RabbitmqClusterSpecView {
     pub replica: int,
+    pub rabbitmq_config: Option<RabbitmqClusterConfigurationSpecView>,
 }
 
 impl RabbitmqClusterSpec {
@@ -197,6 +199,18 @@ impl RabbitmqClusterSpec {
             replica as int == self@.replica,
     {
         self.inner.replica
+    }
+
+    #[verifier(external)]
+    pub fn rabbitmq_config(&self) -> (rabbitmq_config: Option<RabbitmqClusterConfigurationSpec>)
+        ensures
+            self@.rabbitmq_config.is_Some() == rabbitmq_config.is_Some(),
+            rabbitmq_config.is_Some() ==> rabbitmq_config.get_Some_0()@ == self@.rabbitmq_config.get_Some_0(),
+    {
+        match &self.inner.rabbitmq_config {
+            std::option::Option::Some(n) => Option::Some(RabbitmqClusterConfigurationSpec { inner: n.clone()}),
+            std::option::Option::None => Option::None,
+        }
     }
 }
 
@@ -212,6 +226,34 @@ impl Marshalable for RabbitmqClusterSpecView {
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
+}
+
+
+#[verifier(external_body)]
+pub struct RabbitmqClusterConfigurationSpec {
+    inner: deps_hack::RabbitmqClusterConfigurationSpec,
+}
+
+impl RabbitmqClusterConfigurationSpec {
+    pub spec fn view(&self) -> RabbitmqClusterConfigurationSpecView;
+
+    #[verifier(external_body)]
+    pub fn additional_config(&self) -> (additional_config: Option<String>)
+        ensures
+            self@.additional_config.is_Some() == additional_config.is_Some(),
+            additional_config.is_Some() ==> additional_config.get_Some_0()@ == self@.additional_config.get_Some_0(),
+    {
+        match &self.inner.additional_config {
+            std::option::Option::Some(n) => Option::Some(String::from_rust_string(n.to_string())),
+            std::option::Option::None => Option::None,
+        }
+    }
+}
+
+pub struct RabbitmqClusterConfigurationSpecView {
+    pub additional_config: Option<StringView>,
+    pub advanced_config: Option<StringView>,
+    pub env_config: Option<StringView>,
 }
 
 
