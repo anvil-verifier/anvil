@@ -201,7 +201,7 @@ impl RabbitmqClusterSpec {
         self.inner.replica
     }
 
-    #[verifier(external)]
+    #[verifier(external_body)]
     pub fn rabbitmq_config(&self) -> (rabbitmq_config: Option<RabbitmqClusterConfigurationSpec>)
         ensures
             self@.rabbitmq_config.is_Some() == rabbitmq_config.is_Some(),

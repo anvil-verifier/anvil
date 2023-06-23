@@ -445,7 +445,16 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
         )
         .set_data(Map::empty()
             .insert(new_strlit("operatorDefaults.conf")@, default_rbmq_config(rabbitmq))
-            .insert(new_strlit("userDefineConfiguration.conf")@, new_strlit("total_memory_available_override_value = 1717986919\n")@)
+            .insert(new_strlit("userDefineConfiguration.conf")@,
+            {
+                if rabbitmq.spec.rabbitmq_config.is_Some()
+                && rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.is_Some()
+                {   // check if there are rabbitmq-related customized configurations
+                    new_strlit("total_memory_available_override_value = 1717986919\n")@ + rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.get_Some_0()
+                } else {
+                    new_strlit("total_memory_available_override_value = 1717986919\n")@
+                }
+            })
         )
 }
 
