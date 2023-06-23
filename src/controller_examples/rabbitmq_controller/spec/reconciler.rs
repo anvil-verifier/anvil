@@ -523,7 +523,7 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
         )
         .set_data(Map::empty()
             .insert(new_strlit("operatorDefaults.conf")@, default_rbmq_config(rabbitmq))
-            .insert(new_strlit("userDefineConfiguration.conf")@,
+            .insert(new_strlit("userDefinedConfiguration.conf")@,
             {
                 if rabbitmq.spec.rabbitmq_config.is_Some()
                 && rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.is_Some()
@@ -680,8 +680,8 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                                     .set_key(new_strlit("operatorDefaults.conf")@)
                                     .set_path(new_strlit("operatorDefaults.conf")@),
                                 KeyToPathView::default()
-                                    .set_key(new_strlit("userDefineConfiguration.conf")@)
-                                    .set_path(new_strlit("userDefineConfiguration.conf")@),
+                                    .set_key(new_strlit("userDefinedConfiguration.conf")@)
+                                    .set_path(new_strlit("userDefinedConfiguration.conf")@),
                             ])
                         ),
                     VolumeProjectionView::default()
