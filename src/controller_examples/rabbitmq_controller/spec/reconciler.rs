@@ -134,13 +134,91 @@ pub open spec fn reconcile_core(
             (state_prime, req_o)
         },
         RabbitmqReconcileStep::AfterCreatePluginsConfigMap => {
-            let server_config_map = make_server_config_map(rabbitmq);
-            let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
-                namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: server_config_map.to_dynamic_object(),
+            let req_o = Option::Some(APIRequest::GetRequest(GetRequest{
+                key: ObjectRef {
+                    kind: ConfigMapView::kind(),
+                    name: rabbitmq.metadata.name.get_Some_0() + new_strlit("-server-conf")@,
+                    namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                }
             }));
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateServerConfigMap,
+                reconcile_step: RabbitmqReconcileStep::AfterGetServerConfigMap,
+                ..state
+            };
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterGetServerConfigMap => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_GetResponse() {
+                let config_map = make_server_config_map(rabbitmq);
+                let get_config_resp = resp_o.get_Some_0().get_GetResponse_0().res;
+                if get_config_resp.is_Ok() {
+                    // update
+                    if ConfigMapView::from_dynamic_object(get_config_resp.get_Ok_0()).is_Ok()
+                    {
+                        let found_config_map = ConfigMapView::from_dynamic_object(get_config_resp.get_Ok_0()).get_Ok_0();
+                        let req_o = Option::Some(APIRequest::UpdateRequest(
+                            UpdateRequest {
+                                key: ObjectRef {
+                                    kind: ConfigMapView::kind(),
+                                    name: config_map.metadata.name.get_Some_0(),
+                                    namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                                },
+                                obj: found_config_map.set_data(config_map.data.get_Some_0()).to_dynamic_object(),
+                            }
+                        ));
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateServerConfigMap,
+                            ..state
+                        };
+                        (state_prime, req_o)
+                    } else {
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::Error,
+                            ..state
+                        };
+                        let req_o = Option::None;
+                        (state_prime, req_o)
+                    }
+                } else if get_config_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = Option::Some(APIRequest::CreateRequest(
+                        CreateRequest {
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                            obj: config_map.to_dynamic_object(),
+                        }
+                    ));
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateServerConfigMap,
+                        ..state
+                    };
+                    (state_prime, req_o)
+                } else {
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::Error,
+                        ..state
+                    };
+                    let req_o = Option::None;
+                    (state_prime, req_o)
+                }
+            }else{
+                // return error state
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                let req_o = Option::None;
+                (state_prime, req_o)
+            }
+
+        },
+        RabbitmqReconcileStep::AfterUpdateServerConfigMap => {
+            let service_account = make_service_account(rabbitmq);
+            let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                obj: service_account.to_dynamic_object(),
+            }));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
                 ..state
             };
             (state_prime, req_o)
