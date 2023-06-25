@@ -69,11 +69,34 @@ impl<K: ResourceView, T> State<K, T> {
         self.controller_state.ongoing_reconciles[key]
     }
 
+    pub open spec fn triggering_cr_of(self, key: ObjectRef) -> K
+        recommends
+            self.reconcile_state_contains(key),
+    {
+        self.controller_state.ongoing_reconciles[key].triggering_cr
+    }
+
+    #[verifier(inline)]
+    pub open spec fn pending_req_of(self, key: ObjectRef) -> Message
+        recommends
+            self.reconcile_state_contains(key),
+            self.reconcile_state_of(key).pending_req_msg.is_Some(),
+    {
+        self.controller_state.ongoing_reconciles[key].pending_req_msg.get_Some_0()
+    }
+
     pub open spec fn reconcile_scheduled_for(self, key: ObjectRef) -> bool {
         self.controller_state.scheduled_reconciles.contains_key(key)
     }
 
-    pub open spec fn rest_id_is_no_smaller_than(self, rest_id: nat) -> bool {
+    pub open spec fn reconcile_scheduled_obj_of(self, key: ObjectRef) -> K
+        recommends
+            self.reconcile_scheduled_for(key),
+    {
+        self.controller_state.scheduled_reconciles[key]
+    }
+
+    pub open spec fn rest_id_counter_is_no_smaller_than(self, rest_id: nat) -> bool {
         self.rest_id_allocator.rest_id_counter >= rest_id
     }
 }
@@ -183,7 +206,7 @@ pub open spec fn schedule_controller_reconcile<K: ResourceView, T>() -> Action<S
         precondition: |input: ObjectRef, s: State<K, T>| {
             &&& s.resource_key_exists(input)
             &&& input.kind.is_CustomResourceKind()
-            // TODO: we should have something like K::can_convert_from_dynamic() here
+            &&& K::from_dynamic_object(s.resource_obj_of(input)).is_Ok()
         },
         transition: |input: ObjectRef, s: State<K, T>| {
             (State {
@@ -298,8 +321,7 @@ pub open spec fn next_step<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>
 /// `next` chooses:
 /// * which host to take the next action (`Step`)
 /// * whether to deliver a message and which message to deliver (`Option<Message>` in `Step`)
-pub open spec fn next<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>
-    () -> ActionPred<State<K, T>> {
+pub open spec fn next<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>() -> ActionPred<State<K, T>> {
     |s: State<K, T>, s_prime: State<K, T>| exists |step: Step<K>| next_step::<K, T, ReconcilerType>(s, s_prime, step)
 }
 
@@ -358,6 +380,14 @@ pub open spec fn controller_action_pre<K: ResourceView, T, ReconcilerType: Recon
 
 pub open spec fn crash_disabled<K: ResourceView, T>() -> StatePred<State<K, T>> {
     |s: State<K, T>| !s.crash_enabled
+}
+
+pub open spec fn rest_id_counter_is<K: ResourceView, T>(rest_id: nat) -> StatePred<State<K, T>> {
+    |s: State<K, T>| s.rest_id_allocator.rest_id_counter == rest_id
+}
+
+pub open spec fn rest_id_counter_is_no_smaller_than<K: ResourceView, T>(rest_id: nat) -> StatePred<State<K, T>> {
+    |s: State<K, T>| s.rest_id_allocator.rest_id_counter >= rest_id
 }
 
 }

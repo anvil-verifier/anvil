@@ -12,6 +12,7 @@ verus! {
 pub enum APIError {
     BadRequest,
     Conflict,
+    Invalid,
     ObjectNotFound,
     ObjectAlreadyExists,
     NotSupported,

@@ -362,4 +362,11 @@ pub open spec fn update_resp_msg_content(res: Result<DynamicObjectView, APIError
     }), resp_id)
 }
 
+pub open spec fn api_request_msg_before(rest_id: RestId) -> FnSpec(Message) -> bool {
+    |msg: Message|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_APIRequest()
+        && msg.content.get_rest_id() < rest_id
+}
+
 }

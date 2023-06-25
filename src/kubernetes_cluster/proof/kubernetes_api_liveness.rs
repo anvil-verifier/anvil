@@ -7,7 +7,9 @@ use crate::kubernetes_cluster::{
     spec::{
         cluster::*,
         kubernetes_api::common::KubernetesAPIAction,
-        kubernetes_api::state_machine::{handle_request, kubernetes_api},
+        kubernetes_api::state_machine::{
+            handle_request, kubernetes_api, object_has_well_formed_spec,
+        },
         message::*,
     },
 };
@@ -144,7 +146,9 @@ pub proof fn lemma_create_req_leads_to_res_exists
                 &&& s.message_in_flight(msg)
                 &&& msg.dst == HostId::KubernetesAPI
                 &&& msg.content.is_create_request()
+                &&& msg.content.get_create_request().obj.metadata.name.is_Some()
                 &&& msg.content.get_create_request().obj.metadata.namespace.is_None()
+                &&& object_has_well_formed_spec(msg.content.get_create_request().obj)
             })
                 .leads_to(lift_state(|s: State<K, T>|
                     s.resource_key_exists(
@@ -159,7 +163,9 @@ pub proof fn lemma_create_req_leads_to_res_exists
         &&& s.message_in_flight(msg)
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_create_request()
+        &&& msg.content.get_create_request().obj.metadata.name.is_Some()
         &&& msg.content.get_create_request().obj.metadata.namespace.is_None()
+        &&& object_has_well_formed_spec(msg.content.get_create_request().obj)
     };
     let post = |s: State<K, T>|
         s.resource_key_exists(
@@ -250,43 +256,66 @@ pub proof fn lemma_always_res_always_exists_implies_delete_never_sent
     );
 }
 
-pub open spec fn api_request_msg_before(rest_id: RestId) -> FnSpec(Message) -> bool {
-    |msg: Message|
-        msg.dst.is_KubernetesAPI()
-        && msg.content.is_APIRequest()
-        && msg.content.get_rest_id() < rest_id
+pub open spec fn no_req_before_rest_id_is_in_flight<K: ResourceView, T>(rest_id: RestId) -> StatePred<State<K, T>> {
+    |s: State<K, T>| {
+        forall |msg: Message| !{
+            &&& #[trigger] s.message_in_flight(msg)
+            &&& api_request_msg_before(rest_id)(msg)
+        }
+    }
 }
 
 // All the APIRequest messages with a smaller id than rest_id will eventually leave the network.
 // The intuition is that (1) The number of such APIRequest messages are bounded by rest_id,
 // and (2) weak fairness assumption ensures each message will eventually be handled by Kubernetes.
-pub proof fn lemma_pending_requests_are_eventually_consumed
-<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, rest_id: RestId)
+pub proof fn lemma_true_leads_to_always_no_req_before_rest_id_is_in_flight<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, rest_id: RestId
+)
     requires
-        spec.entails(always(lift_state(|s: State<K, T>| s.rest_id_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than::<K, T>(rest_id)))),
     ensures
         spec.entails(
-            true_pred().leads_to(lift_state(|s: State<K, T>| {
-                ! exists |msg: Message|
-                    #[trigger] s.message_in_flight(msg)
-                    && msg.dst.is_KubernetesAPI()
-                    && msg.content.is_APIRequest()
-                    && msg.content.get_rest_id() < rest_id
-            }))
+            true_pred().leads_to(always(lift_state(no_req_before_rest_id_is_in_flight(rest_id))))
+        )
+{
+    lemma_eventually_no_req_before_rest_id_is_in_flight::<K, T, ReconcilerType>(spec, rest_id);
+
+    let stronger_next = |s, s_prime: State<K, T>| {
+        &&& next::<K, T, ReconcilerType>()(s, s_prime)
+        &&& s.rest_id_counter_is_no_smaller_than(rest_id)
+    };
+    strengthen_next::<State<K, T>>(
+        spec, next::<K, T, ReconcilerType>(), rest_id_counter_is_no_smaller_than::<K, T>(rest_id), stronger_next
+    );
+
+    assert forall |s, s_prime| no_req_before_rest_id_is_in_flight(rest_id)(s) && #[trigger] stronger_next(s, s_prime)
+    implies no_req_before_rest_id_is_in_flight(rest_id)(s_prime) by {
+        assert forall |msg| ! (#[trigger] s_prime.message_in_flight(msg) && api_request_msg_before(rest_id)(msg)) by {
+            if s.message_in_flight(msg) {} else {}
+        }
+    }
+
+    leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(no_req_before_rest_id_is_in_flight(rest_id)));
+}
+
+pub proof fn lemma_eventually_no_req_before_rest_id_is_in_flight<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, rest_id: RestId
+)
+    requires
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than::<K, T>(rest_id)))),
+    ensures
+        spec.entails(
+            true_pred().leads_to(lift_state(no_req_before_rest_id_is_in_flight(rest_id)))
         )
 {
     let pending_requests_num_is_n = |msg_num: nat| lift_state(|s: State<K, T>| {
         s.network_state.in_flight.filter(api_request_msg_before(rest_id)).len() == msg_num
     });
-    let no_more_pending_requests = lift_state(|s: State<K, T>| {
-        ! exists |msg: Message|
-            #[trigger] s.message_in_flight(msg)
-            && msg.dst.is_KubernetesAPI()
-            && msg.content.is_APIRequest()
-            && msg.content.get_rest_id() < rest_id
-    });
+    let no_more_pending_requests = lift_state(no_req_before_rest_id_is_in_flight(rest_id));
 
     // Here we split the cases on the number of pending request messages
     // and prove that for all number, all the messages will eventually leave the network.
@@ -312,23 +341,18 @@ pub proof fn lemma_pending_requests_are_eventually_consumed
 
 // This is an inductive proof to show that if there are msg_num requests with id lower than rest_id in the network,
 // then eventually all of them will be gone.
-proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests
-<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, rest_id: RestId, msg_num: nat)
+proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, rest_id: RestId, msg_num: nat
+)
     requires
-        spec.entails(always(lift_state(|s: State<K, T>| s.rest_id_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than::<K, T>(rest_id)))),
     ensures
         spec.entails(
             lift_state(|s: State<K, T>| {
                 s.network_state.in_flight.filter(api_request_msg_before(rest_id)).len() == msg_num
-            }).leads_to(lift_state(|s: State<K, T>| {
-                ! exists |msg: Message|
-                    #[trigger] s.message_in_flight(msg)
-                    && msg.dst.is_KubernetesAPI()
-                    && msg.content.is_APIRequest()
-                    && msg.content.get_rest_id() < rest_id
-            }))
+            }).leads_to(lift_state(no_req_before_rest_id_is_in_flight(rest_id)))
         ),
     decreases msg_num
 {
@@ -338,13 +362,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests
         let pending_requests_num_is_zero = lift_state(|s: State<K, T>| {
             s.network_state.in_flight.filter(api_request_msg_before(rest_id)).len() == 0
         });
-        let no_more_pending_requests = lift_state(|s: State<K, T>| {
-            ! exists |msg: Message|
-                #[trigger] s.message_in_flight(msg)
-                && msg.dst.is_KubernetesAPI()
-                && msg.content.is_APIRequest()
-                && msg.content.get_rest_id() < rest_id
-        });
+        let no_more_pending_requests = lift_state(no_req_before_rest_id_is_in_flight(rest_id));
 
         // But it still takes some efforts to show these two things are the same.
         assert_by(pending_requests_num_is_zero == no_more_pending_requests, {
@@ -374,7 +392,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests
                         && msg.content.get_rest_id() < rest_id)
                     );
                 };
-                len_is_zero_if_count_for_each_value_is_zero::<Message>(
+                len_is_zero_means_count_for_each_value_is_zero::<Message>(
                     ex.head().network_state.in_flight.filter(api_request_msg_before(rest_id))
                 );
             };
@@ -394,13 +412,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests
         let pending_requests_num_is_msg_num_minus_1 = lift_state(|s: State<K, T>| {
             s.network_state.in_flight.filter(api_request_msg_before(rest_id)).len() == (msg_num - 1) as nat
         });
-        let no_more_pending_requests = lift_state(|s: State<K, T>| {
-            ! exists |msg: Message|
-                #[trigger] s.message_in_flight(msg)
-                && msg.dst.is_KubernetesAPI()
-                && msg.content.is_APIRequest()
-                && msg.content.get_rest_id() < rest_id
-        });
+        let no_more_pending_requests = lift_state(no_req_before_rest_id_is_in_flight(rest_id));
         let pending_req_in_flight = |msg: Message| lift_state(|s: State<K, T>| {
             s.network_state.in_flight.filter(api_request_msg_before(rest_id)).count(msg) > 0
         });
@@ -443,13 +455,14 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests
     }
 }
 
-proof fn pending_requests_num_decreases
-<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, rest_id: RestId, msg_num: nat, msg: Message)
+proof fn pending_requests_num_decreases<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, rest_id: RestId, msg_num: nat, msg: Message
+)
     requires
         msg_num > 0,
-        spec.entails(always(lift_state(|s: State<K, T>| s.rest_id_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than::<K, T>(rest_id)))),
     ensures
         spec.entails(
             lift_state(|s: State<K, T>| {
@@ -471,10 +484,10 @@ proof fn pending_requests_num_decreases
     let input = Option::Some(msg);
     let stronger_next = |s, s_prime: State<K, T>| {
         &&& next::<K, T, ReconcilerType>()(s, s_prime)
-        &&& s.rest_id_is_no_smaller_than(rest_id)
+        &&& s.rest_id_counter_is_no_smaller_than(rest_id)
     };
     strengthen_next::<State<K, T>>(
-        spec, next::<K, T, ReconcilerType>(), |s: State<K, T>| s.rest_id_is_no_smaller_than(rest_id), stronger_next
+        spec, next::<K, T, ReconcilerType>(), rest_id_counter_is_no_smaller_than::<K, T>(rest_id), stronger_next
     );
 
     assert forall |s, s_prime: State<K, T>| pre(s) && #[trigger] stronger_next(s, s_prime)

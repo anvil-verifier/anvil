@@ -301,7 +301,7 @@ pub open spec fn resp_matches_at_most_one_pending_req<K: ResourceView, T>(
     }
 }
 
-pub open spec fn at_most_one_resp_matches_req<K: ResourceView, T>(
+pub open spec fn resp_if_matches_pending_req_then_no_other_resp_matches<K: ResourceView, T>(
     resp_msg: Message, cr_key: ObjectRef
 ) -> StatePred<State<K, T>> {
     |s: State<K, T>| {
@@ -316,37 +316,70 @@ pub open spec fn at_most_one_resp_matches_req<K: ResourceView, T>(
     }
 }
 
-pub proof fn lemma_always_at_most_one_resp_matches_req<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+pub proof fn lemma_always_resp_if_matches_pending_req_then_no_other_resp_matches<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
     resp_msg: Message, cr_key: ObjectRef
 )
     ensures
-        sm_spec::<K, T, ReconcilerType>().entails(always(lift_state(at_most_one_resp_matches_req(resp_msg, cr_key)))),
+        sm_spec::<K, T, ReconcilerType>().entails(
+            always(lift_state(resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key)))
+        ),
 {
     implies_preserved_by_always::<State<K, T>>(
-        every_in_flight_msg_has_unique_id::<K, T>(), at_most_one_resp_matches_req::<K, T>(resp_msg, cr_key)
+        every_in_flight_msg_has_unique_id::<K, T>(), resp_if_matches_pending_req_then_no_other_resp_matches::<K, T>(resp_msg, cr_key)
     );
     lemma_always_every_in_flight_msg_has_unique_id::<K, T, ReconcilerType>();
     entails_trans::<State<K, T>>(
         sm_spec::<K, T, ReconcilerType>(),
         always(lift_state(every_in_flight_msg_has_unique_id::<K, T>())),
-        always(lift_state(at_most_one_resp_matches_req::<K, T>(resp_msg, cr_key)))
+        always(lift_state(resp_if_matches_pending_req_then_no_other_resp_matches::<K, T>(resp_msg, cr_key)))
     );
 }
 
-pub proof fn lemma_forall_always_at_most_one_resp_matches_req<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+pub proof fn lemma_forall_always_resp_if_matches_pending_req_then_no_other_resp_matches<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
     cr_key: ObjectRef
 )
     ensures
         sm_spec::<K, T, ReconcilerType>().entails(
-            tla_forall(|resp_msg: Message| always(lift_state(at_most_one_resp_matches_req(resp_msg, cr_key))))
+            tla_forall(|resp_msg: Message| always(lift_state(resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key))))
         ),
 {
-    let m_to_p = |msg| always(lift_state(at_most_one_resp_matches_req(msg, cr_key)));
+    let m_to_p = |msg| always(lift_state(resp_if_matches_pending_req_then_no_other_resp_matches(msg, cr_key)));
     assert forall |msg| #[trigger] sm_spec::<K, T, ReconcilerType>().entails(m_to_p(msg)) by {
-        lemma_always_at_most_one_resp_matches_req::<K, T, ReconcilerType>(msg, cr_key);
+        lemma_always_resp_if_matches_pending_req_then_no_other_resp_matches::<K, T, ReconcilerType>(msg, cr_key);
     }
     spec_entails_tla_forall(sm_spec::<K, T, ReconcilerType>(), m_to_p);
 }
+
+pub open spec fn each_resp_if_matches_pending_req_then_no_other_resp_matches<K: ResourceView, T>(
+    cr_key: ObjectRef
+) -> StatePred<State<K, T>>
+    recommends
+        cr_key.kind.is_CustomResourceKind(),
+{
+    |s: State<K, T>| {
+        forall |resp_msg: Message|
+            s.reconcile_state_contains(cr_key)
+            && #[trigger] s.message_in_flight(resp_msg)
+            && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
+            && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
+            ==> (
+                forall |other_resp: Message| other_resp != resp_msg && #[trigger] s.message_in_flight(other_resp)
+                ==> !resp_msg_matches_req_msg(other_resp, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
+            )
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_matches<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    cr_key: ObjectRef
+)
+    requires
+        cr_key.kind.is_CustomResourceKind(),
+    ensures
+        sm_spec::<K, T, ReconcilerType>().entails(
+            always(lift_state(each_resp_if_matches_pending_req_then_no_other_resp_matches(cr_key)))
+        ),
+{}
 
 pub proof fn lemma_always_resp_matches_at_most_one_pending_req<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
     resp_msg: Message, cr_key: ObjectRef

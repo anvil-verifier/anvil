@@ -291,6 +291,8 @@ impl ResourceView for ServiceView {
         }
     }
 
+    proof fn object_ref_is_well_formed() {}
+
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
@@ -300,7 +302,9 @@ impl ResourceView for ServiceView {
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ServiceView, ParseDynamicObjectError> {
-        if !ServiceView::unmarshal_spec(obj.spec).is_Ok() {
+        if obj.kind != Self::kind() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !ServiceView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(ServiceView {
@@ -313,6 +317,10 @@ impl ResourceView for ServiceView {
     proof fn to_dynamic_preserves_integrity() {
         ServiceView::spec_integrity_is_preserved_by_marshal();
     }
+
+    proof fn from_dynamic_preserves_metadata() {}
+
+    proof fn from_dynamic_preserves_kind() {}
 }
 
 pub struct ServiceSpecView {

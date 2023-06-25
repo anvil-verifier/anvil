@@ -191,6 +191,8 @@ impl ResourceView for ConfigMapView {
         }
     }
 
+    proof fn object_ref_is_well_formed() {}
+
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
@@ -200,7 +202,9 @@ impl ResourceView for ConfigMapView {
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ConfigMapView, ParseDynamicObjectError> {
-        if !ConfigMapView::unmarshal_spec(obj.spec).is_Ok() {
+        if obj.kind != Self::kind() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !ConfigMapView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(ConfigMapView {
@@ -213,6 +217,10 @@ impl ResourceView for ConfigMapView {
     proof fn to_dynamic_preserves_integrity() {
         ConfigMapView::spec_integrity_is_preserved_by_marshal();
     }
+
+    proof fn from_dynamic_preserves_metadata() {}
+
+    proof fn from_dynamic_preserves_kind() {}
 }
 
 }

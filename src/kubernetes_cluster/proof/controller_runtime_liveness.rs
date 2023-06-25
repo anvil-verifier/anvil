@@ -26,7 +26,10 @@ verus! {
 pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled
 <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef) -> TempPred<State<K, T>> {
     sm_partial_spec::<K, T, ReconcilerType>()
-    .and(always(lift_state(|s: State<K, T>| s.resource_key_exists(cr_key))))
+    .and(always(lift_state(|s: State<K, T>| {
+        &&& s.resource_key_exists(cr_key)
+        &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
+    })))
     .and(always(lift_state(crash_disabled::<K, T>())))
 }
 
@@ -67,9 +70,29 @@ pub proof fn lemma_pre_leads_to_post_by_controller<K: ResourceView, T, Reconcile
     controller_next::<K, T, ReconcilerType>().wf1(input, spec, next, pre, post);
 }
 
+pub proof fn lemma_pre_leads_to_post_by_schedule_controller_reconcile<K: ResourceView, T>(
+    spec: TempPred<State<K, T>>, input: ObjectRef, next: ActionPred<State<K, T>>,
+    pre: StatePred<State<K, T>>, post: StatePred<State<K, T>>
+)
+    requires
+        forall |s, s_prime: State<K, T>| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
+        forall |s, s_prime: State<K, T>| pre(s) && #[trigger] next(s, s_prime) && schedule_controller_reconcile::<K, T>().forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s: State<K, T>| #[trigger] pre(s) ==> schedule_controller_reconcile::<K, T>().pre(input)(s),
+        spec.entails(always(lift_action(next))),
+        spec.entails(tla_forall(|i| schedule_controller_reconcile::<K, T>().weak_fairness(i))),
+    ensures
+        spec.entails(lift_state(pre).leads_to(lift_state(post))),
+{
+    use_tla_forall::<State<K, T>, ObjectRef>(
+        spec, |i| schedule_controller_reconcile::<K, T>().weak_fairness(i), input
+    );
+    schedule_controller_reconcile::<K, T>().wf1(input, spec, next, pre, post);
+}
+
 pub proof fn lemma_reconcile_done_leads_to_reconcile_idle
 <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef)
     requires
+        K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
     ensures
         sm_spec::<K, T, ReconcilerType>().entails(
@@ -99,6 +122,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle
 pub proof fn lemma_reconcile_error_leads_to_reconcile_idle
 <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef)
     requires
+        K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
     ensures
         sm_partial_spec::<K, T, ReconcilerType>().entails(
@@ -128,6 +152,7 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle
 pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init
 <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, cr_key: ObjectRef)
     requires
+        K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
         spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(always(lift_state(crash_disabled::<K, T>()))),
@@ -168,13 +193,22 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init
 pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption
 <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef)
     requires
+        K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
     ensures
-        sm_partial_spec::<K, T, ReconcilerType>().and(always(lift_state(|s: State<K, T>| s.resource_key_exists(cr_key)))).entails(
+        sm_partial_spec::<K, T, ReconcilerType>()
+        .and(always(lift_state(|s: State<K, T>| {
+            &&& s.resource_key_exists(cr_key)
+            &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
+        })))
+        .entails(
             true_pred().leads_to(lift_state(|s: State<K, T>| s.reconcile_scheduled_for(cr_key)))
         ),
 {
-    let cr_key_exists = |s: State<K, T>| s.resource_key_exists(cr_key);
+    let cr_key_exists = |s: State<K, T>| {
+        &&& s.resource_key_exists(cr_key)
+        &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
+    };
     let spec = sm_partial_spec::<K, T, ReconcilerType>().and(always(lift_state(cr_key_exists)));
     let pre = |s: State<K, T>| true;
     let post = |s: State<K, T>| s.reconcile_scheduled_for(cr_key);
@@ -191,9 +225,14 @@ pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption
 pub proof fn lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption
 <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef)
     requires
+        K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
     ensures
-        sm_partial_spec::<K, T, ReconcilerType>().and(always(lift_state(|s: State<K, T>| s.resource_key_exists(cr_key)))).entails(
+        sm_partial_spec::<K, T, ReconcilerType>()
+        .and(always(lift_state(|s: State<K, T>| {
+            &&& s.resource_key_exists(cr_key)
+            &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
+        }))).entails(
             lift_state(|s: State<K, T>| !s.reconcile_state_contains(cr_key))
                 .leads_to(lift_state(|s: State<K, T>| {
                     &&& !s.reconcile_state_contains(cr_key)
@@ -201,7 +240,10 @@ pub proof fn lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assum
             ),
         )
 {
-    let spec = sm_partial_spec::<K, T, ReconcilerType>().and(always(lift_state(|s: State<K, T>| s.resource_key_exists(cr_key))));
+    let spec = sm_partial_spec::<K, T, ReconcilerType>().and(always(lift_state(|s: State<K, T>| {
+        &&& s.resource_key_exists(cr_key)
+        &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
+    })));
     let reconcile_idle = lift_state(|s: State<K, T>| { !s.reconcile_state_contains(cr_key) });
     let reconcile_scheduled = lift_state(|s: State<K, T>| { s.reconcile_scheduled_for(cr_key) });
     valid_implies_implies_leads_to(spec, reconcile_idle, true_pred());
@@ -222,10 +264,11 @@ pub proof fn lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assum
 pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_init_and_no_pending_req
 <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef)
     requires
+        K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
     ensures
         partial_spec_with_always_cr_key_exists_and_crash_disabled::<K, T, ReconcilerType>(cr_key).entails(
-            lift_state(|s: State<K, T>| {!s.reconcile_state_contains(cr_key)})
+            lift_state(|s: State<K, T>| !s.reconcile_state_contains(cr_key))
             .leads_to(lift_state(|s: State<K, T>| {
                 &&& s.reconcile_state_contains(cr_key)
                 &&& s.reconcile_state_of(cr_key).local_state == ReconcilerType::reconcile_init_state()
@@ -237,7 +280,10 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_in
     lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption::<K, T, ReconcilerType>(cr_key);
     entails_trans::<State<K, T>>(
         partial_spec_with_always_cr_key_exists_and_crash_disabled::<K, T, ReconcilerType>(cr_key),
-        sm_partial_spec::<K, T, ReconcilerType>().and(always(lift_state(|s: State<K, T>| s.resource_key_exists(cr_key)))),
+        sm_partial_spec::<K, T, ReconcilerType>().and(always(lift_state(|s: State<K, T>| {
+            &&& s.resource_key_exists(cr_key)
+            &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
+        }))),
         lift_state(|s: State<K, T>| !s.reconcile_state_contains(cr_key))
             .leads_to(lift_state(|s: State<K, T>| {
                 &&& !s.reconcile_state_contains(cr_key)
@@ -255,9 +301,13 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_in
 pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_init_and_no_pending_req
 <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, cr_key: ObjectRef)
     requires
+        K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
         spec.entails(sm_partial_spec::<K, T, ReconcilerType>()),
-        spec.entails(always(lift_state(|s: State<K, T>| s.resource_key_exists(cr_key)))),
+        spec.entails(always(lift_state(|s: State<K, T>| {
+            &&& s.resource_key_exists(cr_key)
+            &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
+        }))),
         spec.entails(always(lift_state(crash_disabled::<K, T>()))),
     ensures
         spec.entails(
@@ -281,7 +331,10 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
     lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption::<K, T, ReconcilerType>(cr_key);
     entails_trans::<State<K, T>>(
         partial_spec_with_always_cr_key_exists_and_crash_disabled::<K, T, ReconcilerType>(cr_key),
-        sm_partial_spec::<K, T, ReconcilerType>().and(always(lift_state(|s: State<K, T>| s.resource_key_exists(cr_key)))),
+        sm_partial_spec::<K, T, ReconcilerType>().and(always(lift_state(|s: State<K, T>| {
+            &&& s.resource_key_exists(cr_key)
+            &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
+        }))),
         lift_state(|s: State<K, T>| !s.reconcile_state_contains(cr_key))
             .leads_to(lift_state(|s: State<K, T>| {
                 &&& !s.reconcile_state_contains(cr_key)
@@ -299,7 +352,10 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
     entails_and_n!(
         spec,
         sm_partial_spec::<K, T, ReconcilerType>(),
-        always(lift_state(|s: State<K, T>| s.resource_key_exists(cr_key))),
+        always(lift_state(|s: State<K, T>| {
+            &&& s.resource_key_exists(cr_key)
+            &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
+        })),
         always(lift_state(crash_disabled::<K, T>()))
     );
     entails_trans::<State<K, T>>(

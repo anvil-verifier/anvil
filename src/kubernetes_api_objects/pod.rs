@@ -366,7 +366,6 @@ impl EnvVar {
     }
 }
 
-
 #[verifier(external_body)]
 pub struct VolumeMount {
     inner: deps_hack::k8s_openapi::api::core::v1::VolumeMount,
@@ -538,6 +537,7 @@ impl ConfigMapVolumeSource {
 pub struct SecretVolumeSource {
     inner: deps_hack::k8s_openapi::api::core::v1::SecretVolumeSource,
 }
+
 impl SecretVolumeSource {
     pub spec fn view(&self) -> SecretVolumeSourceView;
 
@@ -564,8 +564,6 @@ impl SecretVolumeSource {
         self.inner
     }
 }
-
-
 
 #[verifier(external_body)]
 pub struct ProjectedVolumeSource {
@@ -600,7 +598,6 @@ impl ProjectedVolumeSource {
         self.inner
     }
 }
-
 
 #[verifier(external_body)]
 pub struct VolumeProjection {
@@ -642,11 +639,11 @@ impl VolumeProjection {
     }
 }
 
-
 #[verifier(external_body)]
 pub struct ConfigMapProjection {
     inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapProjection,
 }
+
 impl ConfigMapProjection {
     pub spec fn view(&self) -> ConfigMapProjectionView;
 
@@ -688,6 +685,7 @@ impl ConfigMapProjection {
 pub struct SecretProjection {
     inner: deps_hack::k8s_openapi::api::core::v1::SecretProjection,
 }
+
 impl SecretProjection {
     pub spec fn view(&self) -> SecretProjectionView;
 
@@ -725,11 +723,11 @@ impl SecretProjection {
     }
 }
 
-
 #[verifier(external_body)]
 pub struct KeyToPath {
     inner: deps_hack::k8s_openapi::api::core::v1::KeyToPath,
 }
+
 impl KeyToPath {
     pub spec fn view(&self) -> KeyToPathView;
 
@@ -769,6 +767,7 @@ impl KeyToPath {
 pub struct DownwardAPIVolumeSource {
     inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeSource,
 }
+
 impl DownwardAPIVolumeSource {
     pub spec fn view(&self) -> DownwardAPIVolumeSourceView;
 
@@ -802,6 +801,7 @@ impl DownwardAPIVolumeSource {
 pub struct DownwardAPIVolumeFile {
     inner: deps_hack::k8s_openapi::api::core::v1::DownwardAPIVolumeFile,
 }
+
 impl DownwardAPIVolumeFile {
     pub spec fn view(&self) -> DownwardAPIVolumeFileView;
 
@@ -928,6 +928,8 @@ impl ResourceView for PodView {
         }
     }
 
+    proof fn object_ref_is_well_formed() {}
+
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
@@ -937,7 +939,9 @@ impl ResourceView for PodView {
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<PodView, ParseDynamicObjectError> {
-        if !PodView::unmarshal_spec(obj.spec).is_Ok() {
+        if obj.kind != Self::kind() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !PodView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(PodView {
@@ -950,6 +954,10 @@ impl ResourceView for PodView {
     proof fn to_dynamic_preserves_integrity() {
         PodView::spec_integrity_is_preserved_by_marshal();
     }
+
+    proof fn from_dynamic_preserves_metadata() {}
+
+    proof fn from_dynamic_preserves_kind() {}
 }
 
 pub struct PodSpecView {

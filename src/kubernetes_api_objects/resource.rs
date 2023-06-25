@@ -36,6 +36,15 @@ pub trait ResourceView: Sized {
     // TODO: object_ref can be implemented here if default implementation is supported by Verus
     open spec fn object_ref(self) -> ObjectRef;
 
+    proof fn object_ref_is_well_formed()
+        ensures
+            forall |o: Self|
+                #[trigger] o.object_ref() == (ObjectRef {
+                    kind: Self::kind(),
+                    name: o.metadata().name.get_Some_0(),
+                    namespace: o.metadata().namespace.get_Some_0(),
+                });
+
     /// Convert the object to a dynamic object
 
     open spec fn to_dynamic_object(self) -> DynamicObjectView;
@@ -50,6 +59,18 @@ pub trait ResourceView: Sized {
         ensures
             forall |o: Self| Self::from_dynamic_object(#[trigger] o.to_dynamic_object()).is_Ok()
                             && o == Self::from_dynamic_object(o.to_dynamic_object()).get_Ok_0();
+
+    proof fn from_dynamic_preserves_metadata()
+        ensures
+            forall |d: DynamicObjectView|
+                #[trigger] Self::from_dynamic_object(d).is_Ok()
+                    ==> d.metadata == Self::from_dynamic_object(d).get_Ok_0().metadata();
+
+    proof fn from_dynamic_preserves_kind()
+        ensures
+            forall |d: DynamicObjectView|
+                #[trigger] Self::from_dynamic_object(d).is_Ok()
+                    ==> d.kind == Self::kind();
 }
 
 }

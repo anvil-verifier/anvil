@@ -23,27 +23,11 @@ impl ZookeeperCluster {
     pub spec fn view(&self) -> ZookeeperClusterView;
 
     #[verifier(external_body)]
-    pub fn name(&self) -> (name: Option<String>)
+    pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures
-            self@.name().is_Some() == name.is_Some(),
-            name.is_Some() ==> name.get_Some_0()@ == self@.name().get_Some_0(),
+            metadata@ == self@.metadata,
     {
-        match &self.inner.metadata.name {
-            std::option::Option::Some(n) => Option::Some(String::from_rust_string(n.to_string())),
-            std::option::Option::None => Option::None,
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn namespace(&self) -> (namespace: Option<String>)
-        ensures
-            self@.namespace().is_Some() == namespace.is_Some(),
-            namespace.is_Some() ==> namespace.get_Some_0()@ == self@.namespace().get_Some_0(),
-    {
-        match &self.inner.metadata.namespace {
-            std::option::Option::Some(n) => Option::Some(String::from_rust_string(n.to_string())),
-            std::option::Option::None => Option::None,
-        }
+        ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
@@ -105,12 +89,9 @@ impl ResourceWrapper<deps_hack::ZookeeperCluster> for ZookeeperCluster {
 }
 
 impl ZookeeperClusterView {
-    pub open spec fn name(self) -> Option<StringView> {
-        self.metadata.name
-    }
-
-    pub open spec fn namespace(self) -> Option<StringView> {
-        self.metadata.namespace
+    pub open spec fn well_formed(self) -> bool {
+        &&& self.metadata.name.is_Some()
+        &&& self.metadata.namespace.is_Some()
     }
 
     pub closed spec fn marshal_spec(s: ZookeeperClusterSpecView) -> Value;
@@ -142,6 +123,8 @@ impl ResourceView for ZookeeperClusterView {
         }
     }
 
+    proof fn object_ref_is_well_formed() {}
+
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
@@ -151,7 +134,9 @@ impl ResourceView for ZookeeperClusterView {
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ZookeeperClusterView, ParseDynamicObjectError> {
-        if !ZookeeperClusterView::unmarshal_spec(obj.spec).is_Ok() {
+        if obj.kind != Self::kind() {
+            Result::Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !ZookeeperClusterView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Result::Ok(ZookeeperClusterView {
@@ -164,6 +149,10 @@ impl ResourceView for ZookeeperClusterView {
     proof fn to_dynamic_preserves_integrity() {
         ZookeeperClusterView::spec_integrity_is_preserved_by_marshal();
     }
+
+    proof fn from_dynamic_preserves_metadata() {}
+
+    proof fn from_dynamic_preserves_kind() {}
 }
 
 #[verifier(external_body)]

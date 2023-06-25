@@ -17,6 +17,7 @@ pub open spec fn run_scheduled_reconcile<K: ResourceView, T, ReconcilerType: Rec
     Action {
         precondition: |input: ControllerActionInput, s: ControllerState<K, T>| {
             &&& input.scheduled_cr_key.is_Some()
+            &&& input.scheduled_cr_key.get_Some_0().kind == K::kind()
             &&& s.scheduled_reconciles.contains_key(input.scheduled_cr_key.get_Some_0())
             &&& input.recv.is_None()
             &&& !s.ongoing_reconciles.dom().contains(input.scheduled_cr_key.get_Some_0())
@@ -45,6 +46,7 @@ pub open spec fn continue_reconcile<K: ResourceView, T, ReconcilerType: Reconcil
             if input.scheduled_cr_key.is_Some() {
                 let cr_key = input.scheduled_cr_key.get_Some_0();
 
+                &&& cr_key.kind == K::kind()
                 &&& s.ongoing_reconciles.dom().contains(cr_key)
                 &&& !ReconcilerType::reconcile_done(s.ongoing_reconciles[cr_key].local_state)
                 &&& !ReconcilerType::reconcile_error(s.ongoing_reconciles[cr_key].local_state)
@@ -101,6 +103,7 @@ pub open spec fn end_reconcile<K: ResourceView, T, ReconcilerType: Reconciler<K,
             if input.scheduled_cr_key.is_Some() {
                 let cr_key = input.scheduled_cr_key.get_Some_0();
 
+                &&& cr_key.kind == K::kind()
                 &&& s.ongoing_reconciles.dom().contains(cr_key)
                 &&& (ReconcilerType::reconcile_done(s.ongoing_reconciles[cr_key].local_state) || ReconcilerType::reconcile_error(s.ongoing_reconciles[cr_key].local_state))
                 &&& input.recv.is_None()
