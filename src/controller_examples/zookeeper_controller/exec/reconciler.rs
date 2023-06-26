@@ -10,6 +10,7 @@ use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::reconciler::exec::*;
 use crate::zookeeper_controller::common::*;
+use crate::zookeeper_controller::exec::zookeepercluster::*;
 use crate::zookeeper_controller::spec::reconciler as zk_spec;
 use crate::zookeeper_controller::spec::zookeepercluster::*;
 use vstd::prelude::*;
@@ -471,7 +472,7 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
         ADMIN_SERVER_HOST=")).concat(name.as_str()).concat(new_strlit("-admin-server\n\
         ADMIN_SERVER_PORT=8080\n\
         CLUSTER_NAME=")).concat(name.as_str()).concat(new_strlit("\n\
-        CLUSTER_SIZE=")).concat(i32_to_string(zk.replica()).as_str()).concat(new_strlit("\n"))
+        CLUSTER_SIZE=")).concat(i32_to_string(zk.spec().replica()).as_str()).concat(new_strlit("\n"))
 }
 
 fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
@@ -506,7 +507,7 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
     stateful_set.set_spec({
         let mut stateful_set_spec = StatefulSetSpec::default();
         // Set the replica number
-        stateful_set_spec.set_replicas(zk.replica());
+        stateful_set_spec.set_replicas(zk.spec().replica());
         // Set the headless service to assign DNS entry to each zookeeper server
         stateful_set_spec.set_service_name(zk.metadata().name().unwrap().concat(new_strlit("-headless")));
         // Set the selector used for querying pods of this stateful set
