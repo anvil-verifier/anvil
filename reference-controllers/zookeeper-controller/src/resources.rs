@@ -19,7 +19,7 @@ pub fn make_statefulset(zk: &ZookeeperCluster) -> appsv1::StatefulSet {
             ..ObjectMeta::default()
         },
         spec: Some(appsv1::StatefulSetSpec {
-            replicas: Some(zk.spec.replica),
+            replicas: Some(zk.spec.replicas),
             service_name: headless_service_name(zk),
             selector: metav1::LabelSelector {
                 match_labels: Some(BTreeMap::from([(
@@ -336,9 +336,9 @@ fn make_env_config(zk: &ZookeeperCluster) -> String {
         ADMIN_SERVER_HOST={name}-admin-server\n\
         ADMIN_SERVER_PORT=8080\n\
         CLUSTER_NAME={name}\n\
-        CLUSTER_SIZE={replica}\n",
+        CLUSTER_SIZE={replicas}\n",
         name = zk.meta().name.as_ref().unwrap().clone(),
         namespace = zk.meta().namespace.as_ref().unwrap().clone(),
-        replica = zk.spec.replica
+        replicas = zk.spec.replicas
     )
 }

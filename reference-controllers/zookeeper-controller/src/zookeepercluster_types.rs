@@ -7,5 +7,5 @@ use std::vec;
 #[kube(group = "anvil.dev", version = "v1", kind = "ZookeeperCluster")]
 #[kube(shortname = "zk", namespaced)]
 pub struct ZookeeperClusterSpec {
-    pub replica: i32,
+    pub replicas: i32,
 }
