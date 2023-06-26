@@ -21,11 +21,11 @@ spec:
           properties:
             spec:
               properties:
-                replica:
+                replicas:
                   format: int32
                   type: integer
               required:
-                - replica
+                - replicas
               type: object
           required:
             - spec

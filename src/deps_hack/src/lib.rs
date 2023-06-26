@@ -47,7 +47,7 @@ pub struct ZookeeperClusterSpec {
 #[kube(group = "anvil.dev", version = "v1", kind = "RabbitmqCluster")]
 #[kube(shortname = "rbmq", namespaced)]
 pub struct RabbitmqClusterSpec {
-    pub replica: i32,
+    pub replicas: i32,
     #[serde(rename = "rabbitmq", skip_serializing_if = "Option::is_none")]
     pub rabbitmq_config: Option<RabbitmqClusterConfigurationSpec>,
 }

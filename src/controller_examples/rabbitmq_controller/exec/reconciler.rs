@@ -11,6 +11,7 @@ use crate::kubernetes_api_objects::{
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
+use crate::rabbitmq_controller::exec::rabbitmqcluster::*;
 use crate::rabbitmq_controller::spec::rabbitmqcluster::*;
 use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
 use crate::reconciler::exec::*;
@@ -323,7 +324,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
                         // rabbitmq controller doesn't support scale down, so new replicas must be greater than or equal to old replicas
                         if new_stateful_set.spec().is_some()
                             && new_stateful_set.spec().unwrap().replicas().is_some()
-                            && new_stateful_set.spec().unwrap().replicas().unwrap() <= rabbitmq.spec().replica() {
+                            && new_stateful_set.spec().unwrap().replicas().unwrap() <= rabbitmq.spec().replicas() {
                                 new_stateful_set.set_spec(stateful_set.spec().unwrap());
                                 let req_o = Option::Some(KubeAPIRequest::UpdateRequest(
                                     KubeUpdateRequest {
@@ -660,7 +661,7 @@ fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> (s: String)
         cluster_formation.k8s.address_type = hostname\n"
     ).to_string()
     .concat(new_strlit("cluster_formation.target_cluster_size_hint = "))
-    .concat(i32_to_string(rabbitmq.spec().replica()).as_str())
+    .concat(i32_to_string(rabbitmq.spec().replicas()).as_str())
     .concat(new_strlit("\n"))
     .concat(new_strlit("cluster_name = "))
     .concat(rabbitmq.name().unwrap().as_str())
@@ -870,8 +871,8 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
     });
     stateful_set.set_spec({
         let mut stateful_set_spec = StatefulSetSpec::default();
-        // Set the replica number
-        stateful_set_spec.set_replicas(rabbitmq.spec().replica());
+        // Set the replicas number
+        stateful_set_spec.set_replicas(rabbitmq.spec().replicas());
         // Set the headless service to assign DNS entry to each Rabbitmq server
         stateful_set_spec.set_service_name(rabbitmq.name().unwrap().concat(new_strlit("-nodes")));
         // Set the selector used for querying pods of this stateful set

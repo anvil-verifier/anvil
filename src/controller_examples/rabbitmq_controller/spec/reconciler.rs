@@ -283,7 +283,7 @@ pub open spec fn reconcile_core(
                         let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).get_Ok_0();
                         if found_stateful_set.spec.is_Some()
                         && found_stateful_set.spec.get_Some_0().replicas.is_Some()
-                        && found_stateful_set.spec.get_Some_0().replicas.get_Some_0() <= rabbitmq.spec.replica
+                        && found_stateful_set.spec.get_Some_0().replicas.get_Some_0() <= rabbitmq.spec.replicas
                         {
                             let req_o = Option::Some(APIRequest::UpdateRequest(
                                 UpdateRequest {
@@ -550,7 +550,7 @@ pub open spec fn default_rbmq_config(rabbitmq: RabbitmqClusterView) -> StringVie
         cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s\n\
         cluster_formation.k8s.host = kubernetes.default\n\
         cluster_formation.k8s.address_type = hostname\n"
-    )@ + new_strlit("cluster_formation.target_cluster_size_hint = ")@ + int_to_string_view(rabbitmq.spec.replica) + new_strlit("\n")@
+    )@ + new_strlit("cluster_formation.target_cluster_size_hint = ")@ + int_to_string_view(rabbitmq.spec.replicas) + new_strlit("\n")@
      + new_strlit("cluster_name = ")@ + name + new_strlit("\n")@
 }
 
@@ -628,7 +628,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView) -> StatefulSet
         .set_labels(labels);
 
     let spec = StatefulSetSpecView::default()
-        .set_replicas(rabbitmq.spec.replica)
+        .set_replicas(rabbitmq.spec.replicas)
         .set_service_name(name + new_strlit("-nodes")@)
         .set_selector(LabelSelectorView::default().set_match_labels(labels))
         .set_template(PodTemplateSpecView::default()
