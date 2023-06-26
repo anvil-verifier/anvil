@@ -238,14 +238,6 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
             (state_prime, req_o)
         },
         RabbitmqReconcileStep::AfterUpdateServerConfigMap => {
-            // let req_o = Option::None;
-            // let state_prime = RabbitmqReconcileState {
-            //     // If the control flow reach to AfterUpdateServerConfigMap, it means that all the resources have been created
-            //     // so directly go to AfterCreateRoleBinding to get statefulset and see whether we should update it.
-            //     reconcile_step: RabbitmqReconcileStep::AfterCreateRoleBinding,
-            //     ..state
-            // };
-            // (state_prime, req_o)
             let service_account = make_service_account(rabbitmq);
             let req_o = Option::Some(KubeAPIRequest::CreateRequest(
                 KubeCreateRequest {
