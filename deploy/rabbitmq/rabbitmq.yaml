@@ -1,0 +1,10 @@
+apiVersion: anvil.dev/v1
+kind: RabbitmqCluster
+metadata:
+  name: rabbitmq
+  namespace: default
+spec:
+  replicas: 1
+  rabbitmq_config:
+    additionalConfig: |
+      log.console.level = debug
