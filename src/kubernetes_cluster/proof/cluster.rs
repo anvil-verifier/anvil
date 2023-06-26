@@ -23,7 +23,7 @@ use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
 use builtin::*;
 use builtin_macros::*;
-use vstd::{map::*, option::*, seq::*, set::*};
+use vstd::{map::*, seq::*, set::*};
 
 verus! {
 

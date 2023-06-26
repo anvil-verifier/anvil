@@ -17,7 +17,6 @@ use builtin_macros::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
-use vstd::vec::*;
 
 verus! {
 
@@ -262,7 +261,7 @@ fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     ensures
         service@ == zk_spec::make_headless_service(zk@),
 {
-    let mut ports = Vec::empty();
+    let mut ports = Vec::new();
 
     ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), 2181));
     ports.push(ServicePort::new_with(new_strlit("tcp-quorum").to_string(), 2888));
@@ -288,7 +287,7 @@ fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
     ensures
         service@ == zk_spec::make_client_service(zk@),
 {
-    let mut ports = Vec::empty();
+    let mut ports = Vec::new();
 
     ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), 2181));
 
@@ -310,7 +309,7 @@ fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
     ensures
         service@ == zk_spec::make_admin_server_service(zk@),
 {
-    let mut ports = Vec::empty();
+    let mut ports = Vec::new();
 
     ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), 8080));
 
@@ -541,7 +540,7 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
         });
         // Set the templates used for creating the persistent volume claims attached to each pod
         stateful_set_spec.set_volume_claim_templates({
-            let mut volume_claim_templates = Vec::empty();
+            let mut volume_claim_templates = Vec::new();
             volume_claim_templates.push({
                 let mut pvc = PersistentVolumeClaim::default();
                 pvc.set_metadata({
@@ -557,7 +556,7 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
                 pvc.set_spec({
                     let mut pvc_spec = PersistentVolumeClaimSpec::default();
                     pvc_spec.set_access_modes({
-                        let mut access_modes = Vec::empty();
+                        let mut access_modes = Vec::new();
                         access_modes.push(new_strlit("ReadWriteOnce").to_string());
 
                         proof {
@@ -601,19 +600,19 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
     let mut pod_spec = PodSpec::default();
 
     pod_spec.set_containers({
-        let mut containers = Vec::empty();
+        let mut containers = Vec::new();
         containers.push({
             let mut zk_container = Container::default();
             zk_container.set_name(new_strlit("zookeeper").to_string());
             zk_container.set_image(new_strlit("pravega/zookeeper:0.2.14").to_string());
             zk_container.set_command({
-                let mut command = Vec::empty();
+                let mut command = Vec::new();
                 command.push(new_strlit("/usr/local/bin/zookeeperStart.sh").to_string());
                 command
             });
             zk_container.set_image_pull_policy(new_strlit("Always").to_string());
             zk_container.set_volume_mounts({
-                let mut volume_mounts = Vec::empty();
+                let mut volume_mounts = Vec::new();
                 volume_mounts.push({
                     let mut data_volume_mount = VolumeMount::default();
                     data_volume_mount.set_name(new_strlit("data").to_string());
@@ -637,7 +636,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                 volume_mounts
             });
             zk_container.set_ports({
-                let mut ports = Vec::empty();
+                let mut ports = Vec::new();
                 ports.push(ContainerPort::new_with(new_strlit("client").to_string(), 2181));
                 ports.push(ContainerPort::new_with(new_strlit("quorum").to_string(), 2888));
                 ports.push(ContainerPort::new_with(new_strlit("leader-election").to_string(), 3888));
@@ -668,7 +667,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
         containers
     });
     pod_spec.set_volumes({
-        let mut volumes = Vec::empty();
+        let mut volumes = Vec::new();
         volumes.push({
             let mut volume = Volume::default();
             volume.set_name(new_strlit("conf").to_string());

@@ -7,7 +7,7 @@ use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
 use builtin::*;
 use builtin_macros::*;
-use vstd::{multiset::*, option::*};
+use vstd::{multiset::*, prelude::*};
 
 verus! {
 

@@ -11,7 +11,6 @@ use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::StringView;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
-use vstd::vec::*;
 
 verus! {
 
@@ -62,7 +61,7 @@ impl Role {
             self@ == old(self)@.set_policy_rules(policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)),
     {
         self.inner.rules = std::option::Option::Some(
-            policy_rules.vec.into_iter().map(|p| p.into_kube()).collect()
+            policy_rules.into_iter().map(|p| p.into_kube()).collect()
         )
     }
 
@@ -129,7 +128,7 @@ impl PolicyRule {
             self@ == old(self)@.set_api_groups(api_groups@.map_values(|api_group: String| api_group@)),
     {
         self.inner.api_groups = std::option::Option::Some(
-            api_groups.vec.into_iter().map(|a: String| a.into_rust_string()).collect()
+            api_groups.into_iter().map(|a: String| a.into_rust_string()).collect()
         )
     }
 
@@ -139,7 +138,7 @@ impl PolicyRule {
             self@ == old(self)@.set_resources(resources@.map_values(|resource: String| resource@)),
     {
         self.inner.resources = std::option::Option::Some(
-            resources.vec.into_iter().map(|r: String| r.into_rust_string()).collect()
+            resources.into_iter().map(|r: String| r.into_rust_string()).collect()
         )
     }
 
@@ -148,7 +147,7 @@ impl PolicyRule {
         ensures
             self@ == old(self)@.set_verbs(verbs@.map_values(|verb: String| verb@)),
     {
-        self.inner.verbs = verbs.vec.into_iter().map(|v: String| v.into_rust_string()).collect()
+        self.inner.verbs = verbs.into_iter().map(|v: String| v.into_rust_string()).collect()
     }
 
 

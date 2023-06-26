@@ -29,8 +29,8 @@ use crate::zookeeper_controller::{
 };
 use builtin::*;
 use builtin_macros::*;
+use vstd::prelude::*;
 use vstd::*;
-use vstd::{option::*, result::*};
 
 verus! {
 

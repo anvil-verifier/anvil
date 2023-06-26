@@ -20,7 +20,7 @@ use deps_hack::serde::{de::DeserializeOwned, Serialize};
 use deps_hack::Error;
 use std::sync::Arc;
 use std::time::Duration;
-use vstd::{option::*, string::*};
+use vstd::string::*;
 
 verus! {
 
@@ -138,7 +138,7 @@ where
                         std::result::Result::Err(err) => {
                             resp_option = Option::Some(KubeAPIResponse::GetResponse(
                                 KubeGetResponse{
-                                    res: vstd::result::Result::Err(kube_error_to_ghost(&err)),
+                                    res: std::result::Result::Err(kube_error_to_ghost(&err)),
                                 }
                             ));
                             println!("Get failed with error: {}", err);
@@ -146,7 +146,7 @@ where
                         std::result::Result::Ok(obj) => {
                             resp_option = Option::Some(KubeAPIResponse::GetResponse(
                                 KubeGetResponse{
-                                    res: vstd::result::Result::Ok(DynamicObject::from_kube(obj)),
+                                    res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
                                 }
                             ));
                             println!("Get done");
@@ -163,7 +163,7 @@ where
                         std::result::Result::Err(err) => {
                             resp_option = Option::Some(KubeAPIResponse::CreateResponse(
                                 KubeCreateResponse{
-                                    res: vstd::result::Result::Err(kube_error_to_ghost(&err)),
+                                    res: std::result::Result::Err(kube_error_to_ghost(&err)),
                                 }
                             ));
                             println!("Create failed with error: {}", err);
@@ -171,7 +171,7 @@ where
                         std::result::Result::Ok(obj) => {
                             resp_option = Option::Some(KubeAPIResponse::GetResponse(
                                 KubeGetResponse{
-                                    res: vstd::result::Result::Ok(DynamicObject::from_kube(obj)),
+                                    res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
                                 }
                             ));
                             println!("Create done");
@@ -188,7 +188,7 @@ where
                         std::result::Result::Err(err) => {
                             resp_option = Option::Some(KubeAPIResponse::UpdateResponse(
                                 KubeUpdateResponse{
-                                    res: vstd::result::Result::Err(kube_error_to_ghost(&err)),
+                                    res: std::result::Result::Err(kube_error_to_ghost(&err)),
                                 }
                             ));
                             println!("Update failed with error: {}", err);
@@ -196,7 +196,7 @@ where
                         std::result::Result::Ok(obj) => {
                             resp_option = Option::Some(KubeAPIResponse::UpdateResponse(
                                 KubeUpdateResponse{
-                                    res: vstd::result::Result::Ok(DynamicObject::from_kube(obj)),
+                                    res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
                                 }
                             ));
                             println!("Update done");

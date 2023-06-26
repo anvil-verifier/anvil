@@ -19,11 +19,38 @@ pub enum APIError {
     Other
 }
 
+impl std::fmt::Debug for APIError {
+    #[verifier(external)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            APIError::BadRequest => write!(f, "BadRequest"),
+            APIError::Conflict => write!(f, "Conflict"),
+            APIError::Invalid => write!(f, "Invalid"),
+            APIError::ObjectNotFound => write!(f, "ObjectNotFound"),
+            APIError::ObjectAlreadyExists => write!(f, "ObjectAlreadyExists"),
+            APIError::NotSupported => write!(f, "NotSupported"),
+            APIError::Other => write!(f, "Other"),
+        }
+    }
+}
+
 pub enum ParseDynamicObjectError {
     MissingField,
     UnexpectedType,
     UnmarshalError,
     ExecError,
+}
+
+impl std::fmt::Debug for ParseDynamicObjectError {
+    #[verifier(external)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            ParseDynamicObjectError::MissingField => write!(f, "MissingField"),
+            ParseDynamicObjectError::UnexpectedType => write!(f, "UnexpectedType"),
+            ParseDynamicObjectError::UnmarshalError => write!(f, "UnmarshalError"),
+            ParseDynamicObjectError::ExecError => write!(f, "ExecError"),
+        }
+    }
 }
 
 impl APIError {

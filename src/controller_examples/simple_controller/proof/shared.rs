@@ -17,7 +17,7 @@ use crate::temporal_logic::defs::*;
 use builtin::*;
 use builtin_macros::*;
 use vstd::*;
-use vstd::{option::*, result::*};
+use vstd::prelude::*;
 
 verus! {
 

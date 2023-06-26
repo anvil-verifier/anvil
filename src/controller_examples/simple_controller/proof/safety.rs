@@ -26,7 +26,7 @@ use crate::simple_controller::spec::{
 use crate::temporal_logic::{defs::*, rules::*};
 use builtin::*;
 use builtin_macros::*;
-use vstd::{option::*, result::*};
+use vstd::prelude::*;
 
 verus! {
 

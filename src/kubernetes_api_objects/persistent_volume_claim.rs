@@ -11,7 +11,6 @@ use crate::kubernetes_api_objects::resource_requirements::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
-use vstd::vec::*;
 
 verus! {
 
@@ -147,7 +146,7 @@ impl PersistentVolumeClaimSpec {
             self@ == old(self)@.set_access_modes(access_modes@.map_values(|mode: String| mode@)),
     {
         self.inner.access_modes = std::option::Option::Some(
-            access_modes.vec.into_iter().map(|mode: String| mode.into_rust_string()).collect()
+            access_modes.into_iter().map(|mode: String| mode.into_rust_string()).collect()
         )
     }
 

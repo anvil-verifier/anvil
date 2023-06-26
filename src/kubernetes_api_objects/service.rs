@@ -11,7 +11,6 @@ use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::StringView;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
-use vstd::vec::*;
 
 verus! {
 
@@ -147,7 +146,7 @@ impl ServiceSpec {
             self@ == old(self)@.set_ports(ports@.map_values(|port: ServicePort| port@)),
     {
         self.inner.ports = std::option::Option::Some(
-            ports.vec.into_iter().map(|port: ServicePort| port.into_kube()).collect()
+            ports.into_iter().map(|port: ServicePort| port.into_kube()).collect()
         )
     }
 

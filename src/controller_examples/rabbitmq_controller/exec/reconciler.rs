@@ -16,11 +16,9 @@ use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
 use crate::reconciler::exec::*;
 use builtin::*;
 use builtin_macros::*;
-use vstd::map::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
-use vstd::vec::*;
 
 verus! {
 
@@ -441,10 +439,7 @@ pub fn make_erlang_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
 
 
     proof {
-        assert_maps_equal!(
-            data@,
-            rabbitmq_spec::make_erlang_secret(rabbitmq@).data.get_Some_0()
-        );
+        assert(data@ =~= rabbitmq_spec::make_erlang_secret(rabbitmq@).data.get_Some_0());
     }
 
     make_secret(rabbitmq, rabbitmq.name().unwrap().concat(new_strlit("-erlang-cookie")), data)
@@ -480,10 +475,7 @@ pub fn make_default_user_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
 
 
     proof {
-        assert_maps_equal!(
-            data@,
-            rabbitmq_spec::make_default_user_secret(rabbitmq@).data.get_Some_0()
-        );
+        assert(data@ =~= rabbitmq_spec::make_default_user_secret(rabbitmq@).data.get_Some_0());
     }
 
     make_secret(rabbitmq, rabbitmq.name().unwrap().concat(new_strlit("-default-user")), data)
@@ -646,11 +638,11 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
         metadata
     });
     role.set_policy_rules({
-        let mut rules = Vec::empty();
+        let mut rules = Vec::new();
         rules.push({
             let mut rule = PolicyRule::default();
             rule.set_api_groups({
-                let mut api_groups = Vec::empty();
+                let mut api_groups = Vec::new();
                 api_groups.push(new_strlit("").to_string());
                 proof{
                     assert_seqs_equal!(
@@ -661,7 +653,7 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
                 api_groups
             });
             rule.set_resources({
-                let mut resources = Vec::empty();
+                let mut resources = Vec::new();
                 resources.push(new_strlit("endpoints").to_string());
                 proof{
                     assert_seqs_equal!(
@@ -672,7 +664,7 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
                 resources
             });
             rule.set_verbs({
-                let mut verbs = Vec::empty();
+                let mut verbs = Vec::new();
                 verbs.push(new_strlit("get").to_string());
                 proof{
                     assert_seqs_equal!(
@@ -687,7 +679,7 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
         rules.push({
             let mut rule = PolicyRule::default();
             rule.set_api_groups({
-                let mut api_groups = Vec::empty();
+                let mut api_groups = Vec::new();
                 api_groups.push(new_strlit("").to_string());
                 proof{
                     assert_seqs_equal!(
@@ -698,7 +690,7 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
                 api_groups
             });
             rule.set_resources({
-                let mut resources = Vec::empty();
+                let mut resources = Vec::new();
                 resources.push(new_strlit("events").to_string());
                 proof{
                     assert_seqs_equal!(
@@ -709,7 +701,7 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
                 resources
             });
             rule.set_verbs({
-                let mut verbs = Vec::empty();
+                let mut verbs = Vec::new();
                 verbs.push(new_strlit("create").to_string());
                 proof{
                     assert_seqs_equal!(
@@ -762,7 +754,7 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
         role_ref
     });
     role_binding.set_subjects({
-        let mut subjects = Vec::empty();
+        let mut subjects = Vec::new();
         subjects.push({
             let mut subject = Subject::default();
             subject.set_kind(new_strlit("ServiceAccount").to_string());
@@ -821,7 +813,7 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
         });
         // Set the templates used for creating the persistent volume claims attached to each pod
         stateful_set_spec.set_volume_claim_templates({ // TODO: Add PodManagementPolicy
-            let mut volume_claim_templates = Vec::empty();
+            let mut volume_claim_templates = Vec::new();
             volume_claim_templates.push({
                 let mut pvc = PersistentVolumeClaim::default();
                 pvc.set_metadata({
@@ -838,7 +830,7 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
                 pvc.set_spec({
                     let mut pvc_spec = PersistentVolumeClaimSpec::default();
                     pvc_spec.set_access_modes({
-                        let mut access_modes = Vec::empty();
+                        let mut access_modes = Vec::new();
                         access_modes.push(new_strlit("ReadWriteOnce").to_string());
 
                         proof {
@@ -896,7 +888,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     ensures
         pod_spec@ == rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@),
 {
-    let mut volumes = Vec::empty();
+    let mut volumes = Vec::new();
     volumes.push({
         let mut volume = Volume::default();
         volume.set_name(new_strlit("plugins-conf").to_string());
@@ -913,14 +905,14 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         volume.set_projected({
             let mut projected = ProjectedVolumeSource::default();
             projected.set_sources({
-                let mut sources = Vec::empty();
+                let mut sources = Vec::new();
                 sources.push({
                     let mut volume_projection = VolumeProjection::default();
                     volume_projection.set_config_map({
                         let mut config_map = ConfigMapProjection::default();
                         config_map.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server-conf")));
                         config_map.set_items({
-                            let mut items = Vec::empty();
+                            let mut items = Vec::new();
                             items.push({
                                 let mut key_to_path = KeyToPath::default();
                                 key_to_path.set_key(new_strlit("operatorDefaults.conf").to_string());
@@ -952,7 +944,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                         let mut secret = SecretProjection::default();
                         secret.set_name(rabbitmq.name().unwrap().concat(new_strlit("-default-user")));
                         secret.set_items({
-                            let mut items = Vec::empty();
+                            let mut items = Vec::new();
                             items.push({
                                 let mut key_to_path = KeyToPath::default();
                                 key_to_path.set_key(new_strlit("default_user.conf").to_string());
@@ -1013,7 +1005,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         volume.set_downward_api({
             let mut downward_api = DownwardAPIVolumeSource::default();
             downward_api.set_items({
-                let mut items = Vec::empty();
+                let mut items = Vec::new();
                 items.push({
                     let mut downward_api_volume_file = DownwardAPIVolumeFile::default();
                     downward_api_volume_file.set_path(new_strlit("skipPreStopChecks").to_string());
@@ -1049,20 +1041,20 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     let mut pod_spec = PodSpec::default();
     pod_spec.set_service_account_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
     pod_spec.set_init_containers({
-        let mut containers = Vec::empty();
+        let mut containers = Vec::new();
         containers.push({
             let mut rabbitmq_container = Container::default();
             rabbitmq_container.set_name(new_strlit("setup-container").to_string());
             rabbitmq_container.set_image(new_strlit("rabbitmq:3.11.10-management").to_string());
             rabbitmq_container.set_command({
-                let mut command = Vec::empty();
+                let mut command = Vec::new();
                 command.push(new_strlit("sh").to_string());
                 command.push(new_strlit("-c").to_string());
                 command.push(new_strlit("cp /tmp/erlang-cookie-secret/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie && chmod 600 /var/lib/rabbitmq/.erlang.cookie ; cp /tmp/rabbitmq-plugins/enabled_plugins /operator/enabled_plugins ; echo '[default]' > /var/lib/rabbitmq/.rabbitmqadmin.conf && sed -e 's/default_user/username/' -e 's/default_pass/password/' /tmp/default_user.conf >> /var/lib/rabbitmq/.rabbitmqadmin.conf && chmod 600 /var/lib/rabbitmq/.rabbitmqadmin.conf ; sleep 30").to_string());
                 command
             });
             rabbitmq_container.set_volume_mounts({
-                let mut volume_mounts = Vec::empty();
+                let mut volume_mounts = Vec::new();
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
                     volume_mount.set_name(new_strlit("plugins-conf").to_string());
@@ -1128,7 +1120,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         containers
     });
     pod_spec.set_containers({
-        let mut containers = Vec::empty();
+        let mut containers = Vec::new();
         containers.push({
             let mut rabbitmq_container = Container::default();
             rabbitmq_container.set_name(new_strlit("rabbitmq").to_string());
@@ -1136,7 +1128,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
             rabbitmq_container.set_env(make_env_vars(&rabbitmq));
             // rabbitmq_container.set_resources(make_container_resource_requirements());
             rabbitmq_container.set_volume_mounts({
-                let mut volume_mounts = Vec::empty();
+                let mut volume_mounts = Vec::new();
                 volume_mounts.push({
                     let mut volume_mount = VolumeMount::default();
                     volume_mount.set_name(new_strlit("rabbitmq-erlang-cookie").to_string());
@@ -1193,7 +1185,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                 volume_mounts
             });
             rabbitmq_container.set_ports({
-                let mut ports = Vec::empty();
+                let mut ports = Vec::new();
                 ports.push(ContainerPort::new_with(new_strlit("epmd").to_string(), 4369));
                 ports.push(ContainerPort::new_with(new_strlit("amqp").to_string(), 5672));
                 ports.push(ContainerPort::new_with(new_strlit("management").to_string(), 15672));
@@ -1248,7 +1240,7 @@ fn make_readiness_probe() -> Probe
 
 #[verifier(external_body)]
 fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> {
-    let mut env_vars = Vec::empty();
+    let mut env_vars = Vec::new();
     env_vars.push(
         EnvVar::from_kube(
             deps_hack::k8s_openapi::api::core::v1::EnvVar {

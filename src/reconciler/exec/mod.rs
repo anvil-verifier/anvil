@@ -4,7 +4,7 @@
 use crate::kubernetes_api_objects::{api_method::*, common::*};
 use builtin::*;
 use builtin_macros::*;
-use vstd::option::*;
+use vstd::prelude::*;
 
 verus! {
 
