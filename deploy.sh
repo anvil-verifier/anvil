@@ -25,7 +25,7 @@ if [ "$1" = "simple" ]; then
 elif [ "$1" = "zookeeper" ]; then
     if cd deploy/zookeeper && kubectl apply -f crd.yaml && kubectl apply -f deploy.yaml; then
         echo ""
-        echo -e "${GREEN}Simple controller is deployed in your Kubernetes cluster in namespace \"zookeeper\"."
+        echo -e "${GREEN}Zookeeper controller is deployed in your Kubernetes cluster in namespace \"zookeeper\"."
         echo -e "Run \"kubectl get pod -n zookeeper\" to check the controller pod."
         echo -e "Run \"kubectl apply -f deploy/zookeeper/zookeeper.yaml\" to deploy a zookeeper cluster custom resource.${NC}"
     else
@@ -36,7 +36,7 @@ elif [ "$1" = "zookeeper" ]; then
 elif [ "$1" = "rabbitmq" ]; then
     if cd deploy/rabbitmq && kubectl apply -f crd.yaml && kubectl apply -f deploy.yaml; then
         echo ""
-        echo -e "${GREEN}Simple controller is deployed in your Kubernetes cluster in namespace \"rabbitmq\"."
+        echo -e "${GREEN}Rabbitmq controller is deployed in your Kubernetes cluster in namespace \"rabbitmq\"."
         echo -e "Run \"kubectl get pod -n rabbitmq\" to check the controller pod."
         echo -e "Run \"kubectl apply -f deploy/rabbitmq/rabbitmq.yaml\" to deploy a rabbitmq cluster custom resource.${NC}"
     else
