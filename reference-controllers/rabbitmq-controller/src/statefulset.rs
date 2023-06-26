@@ -37,7 +37,7 @@ pub fn statefulset_build( rabbitmq: &RabbitmqCluster) -> appsv1::StatefulSet {
         },
         spec: Some(appsv1::StatefulSetSpec{
             service_name: headless_name.clone(),
-            replicas: Some(rabbitmq.spec.replica),
+            replicas: Some(rabbitmq.spec.replicas),
             update_strategy: Some(appsv1::StatefulSetUpdateStrategy{
                 type_: Some("RollingUpdate".to_string()),
                 rolling_update: Some(appsv1::RollingUpdateStatefulSetStrategy{
