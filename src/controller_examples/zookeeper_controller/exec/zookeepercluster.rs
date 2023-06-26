@@ -93,11 +93,11 @@ impl ZookeeperClusterSpec {
     pub spec fn view(&self) -> ZookeeperClusterSpecView;
 
     #[verifier(external_body)]
-    pub fn replica(&self) -> (replica: i32)
+    pub fn replicas(&self) -> (replica: i32)
         ensures
-            replica as int == self@.replica,
+            replica as int == self@.replicas,
     {
-        self.inner.replica
+        self.inner.replicas
     }
 }
 

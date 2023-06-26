@@ -238,7 +238,7 @@ async fn reconcile_zk_node(zk: &ZookeeperCluster, client: Client) -> Result<(), 
         .map_err(Error::GetStatefulSetFailed)?;
     if sts.status.is_some()
         && sts.status.clone().unwrap().ready_replicas.is_some()
-        && sts.status.unwrap().ready_replicas.unwrap() == zk.spec.replica
+        && sts.status.unwrap().ready_replicas.unwrap() == zk.spec.replicas
     {
         let path = cluster_size_zk_node_path(zk);
         info!("Try to create {} node since all replicas are ready", path);
@@ -258,7 +258,7 @@ async fn reconcile_zk_node(zk: &ZookeeperCluster, client: Client) -> Result<(), 
                 zk_client
                     .create(
                         "/zookeeper-operator",
-                        format!("CLUSTER_SIZE={}", zk.spec.replica)
+                        format!("CLUSTER_SIZE={}", zk.spec.replicas)
                             .as_str()
                             .as_bytes()
                             .to_vec(),
@@ -269,7 +269,7 @@ async fn reconcile_zk_node(zk: &ZookeeperCluster, client: Client) -> Result<(), 
                 zk_client
                     .create(
                         &path,
-                        format!("CLUSTER_SIZE={}", zk.spec.replica)
+                        format!("CLUSTER_SIZE={}", zk.spec.replicas)
                             .as_str()
                             .as_bytes()
                             .to_vec(),

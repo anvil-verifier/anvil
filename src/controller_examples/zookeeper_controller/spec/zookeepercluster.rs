@@ -82,7 +82,7 @@ impl ResourceView for ZookeeperClusterView {
 }
 
 pub struct ZookeeperClusterSpecView {
-    pub replica: int,
+    pub replicas: int,
 }
 
 impl ZookeeperClusterSpecView {}
