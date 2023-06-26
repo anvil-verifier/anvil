@@ -11,7 +11,7 @@ use crate::kubernetes_api_objects::{
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
-use crate::rabbitmq_controller::spec::rabbitmqcluster::*;
+use crate::rabbitmq_controller::exec::rabbitmqcluster::*;
 use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
 use crate::reconciler::exec::*;
 use vstd::prelude::*;
@@ -174,16 +174,80 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
             return (state_prime, req_o);
         },
         RabbitmqReconcileStep::AfterCreatePluginsConfigMap => {
-            let server_config_map = make_server_config_map(rabbitmq);
-            let req_o = Option::Some(KubeAPIRequest::CreateRequest(
-                KubeCreateRequest {
+            let req_o = Option::Some(KubeAPIRequest::GetRequest(
+                KubeGetRequest {
                     api_resource: ConfigMap::api_resource(),
+                    name: rabbitmq.name().unwrap().concat(new_strlit("-server-conf")),
                     namespace: rabbitmq.namespace().unwrap(),
-                    obj: server_config_map.to_dynamic_object(),
                 }
             ));
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateServerConfigMap,
+                reconcile_step: RabbitmqReconcileStep::AfterGetServerConfigMap,
+                ..state
+            };
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterGetServerConfigMap => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_get_response() {
+                let config_map = make_server_config_map(rabbitmq);
+                let get_config_resp = resp_o.unwrap().into_get_response().res;
+                if get_config_resp.is_ok() {
+                    // update
+                    let found_config_map = ConfigMap::from_dynamic_object(get_config_resp.unwrap());
+                    if found_config_map.is_ok(){
+                        let mut new_config_map = found_config_map.unwrap();
+                        new_config_map.set_data(config_map.data().unwrap());
+                        let req_o = Option::Some(KubeAPIRequest::UpdateRequest(
+                            KubeUpdateRequest {
+                                api_resource: ConfigMap::api_resource(),
+                                name: config_map.metadata().name().unwrap(),
+                                namespace: rabbitmq.namespace().unwrap(),
+                                obj: new_config_map.to_dynamic_object(),
+                            }
+                        ));
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateServerConfigMap,
+                            ..state
+                        };
+                        return (state_prime, req_o);
+                    }
+                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                    // create
+                    let server_config_map = make_server_config_map(rabbitmq);
+                    let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                        KubeCreateRequest {
+                            api_resource: ConfigMap::api_resource(),
+                            namespace: rabbitmq.namespace().unwrap(),
+                            obj: server_config_map.to_dynamic_object(),
+                        }
+                    ));
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateServerConfigMap,
+                        ..state
+                    };
+                    return (state_prime, req_o);
+                }
+
+            }
+            // return error state
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = Option::None;
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterUpdateServerConfigMap => {
+            let service_account = make_service_account(rabbitmq);
+            let req_o = Option::Some(KubeAPIRequest::CreateRequest(
+                KubeCreateRequest {
+                    api_resource: ServiceAccount::api_resource(),
+                    namespace: rabbitmq.namespace().unwrap(),
+                    obj: service_account.to_dynamic_object(),
+                }
+            ));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
                 ..state
             };
             return (state_prime, req_o);
@@ -259,7 +323,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
                         // rabbitmq controller doesn't support scale down, so new replicas must be greater than or equal to old replicas
                         if new_stateful_set.spec().is_some()
                             && new_stateful_set.spec().unwrap().replicas().is_some()
-                            && new_stateful_set.spec().unwrap().replicas().unwrap() <= rabbitmq.replica() {
+                            && new_stateful_set.spec().unwrap().replicas().unwrap() <= rabbitmq.spec().replicas() {
                                 new_stateful_set.set_spec(stateful_set.spec().unwrap());
                                 let req_o = Option::Some(KubeAPIRequest::UpdateRequest(
                                     KubeUpdateRequest {
@@ -299,7 +363,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<KubeAPIResponse
                 ..state
             };
             let req_o = Option::None;
-            (state_prime, req_o)
+            return (state_prime, req_o);
         },
         RabbitmqReconcileStep::AfterCreateStatefulSet => {
             let req_o = Option::None;
@@ -561,8 +625,19 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
     let mut data = StringMap::empty();
     data.insert(new_strlit("operatorDefaults.conf").to_string(),
                 default_rbmq_config(rabbitmq));
-    data.insert(new_strlit("userDefineConfiguration.conf").to_string(),
-                new_strlit("total_memory_available_override_value = 1717986919\n").to_string());
+
+    data.insert(new_strlit("userDefinedConfiguration.conf").to_string(), {
+        let mut rmq_conf_buff = new_strlit("total_memory_available_override_value = 1717986919\n").to_string(); // default value
+        if rabbitmq.spec().rabbitmq_config().is_some() {
+            // check if there are rabbitmq-related customized configurations
+            let rabbitmq_config = rabbitmq.spec().rabbitmq_config().unwrap();
+            if rabbitmq_config.additional_config().is_some(){
+                rmq_conf_buff.append(rabbitmq_config.additional_config().unwrap().as_str());
+            }
+        }
+        rmq_conf_buff
+    });
+
     config_map.set_data(data);
 
     config_map
@@ -585,7 +660,7 @@ fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> (s: String)
         cluster_formation.k8s.address_type = hostname\n"
     ).to_string()
     .concat(new_strlit("cluster_formation.target_cluster_size_hint = "))
-    .concat(i32_to_string(rabbitmq.replica()).as_str())
+    .concat(i32_to_string(rabbitmq.spec().replicas()).as_str())
     .concat(new_strlit("\n"))
     .concat(new_strlit("cluster_name = "))
     .concat(rabbitmq.name().unwrap().as_str())
@@ -795,8 +870,8 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
     });
     stateful_set.set_spec({
         let mut stateful_set_spec = StatefulSetSpec::default();
-        // Set the replica number
-        stateful_set_spec.set_replicas(rabbitmq.replica());
+        // Set the replicas number
+        stateful_set_spec.set_replicas(rabbitmq.spec().replicas());
         // Set the headless service to assign DNS entry to each Rabbitmq server
         stateful_set_spec.set_service_name(rabbitmq.name().unwrap().concat(new_strlit("-nodes")));
         // Set the selector used for querying pods of this stateful set
@@ -919,8 +994,8 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                             });
                             items.push({
                                 let mut key_to_path = KeyToPath::default();
-                                key_to_path.set_key(new_strlit("userDefineConfiguration.conf").to_string());
-                                key_to_path.set_path(new_strlit("userDefineConfiguration.conf").to_string());
+                                key_to_path.set_key(new_strlit("userDefinedConfiguration.conf").to_string());
+                                key_to_path.set_path(new_strlit("userDefinedConfiguration.conf").to_string());
                                 key_to_path
                             });
                             proof {

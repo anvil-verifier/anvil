@@ -15,8 +15,8 @@ pub mod temporal_logic;
 use builtin::*;
 use builtin_macros::*;
 
+use crate::rabbitmq_controller::exec::rabbitmqcluster::RabbitmqCluster;
 use crate::rabbitmq_controller::exec::reconciler::{RabbitmqReconcileState, RabbitmqReconciler};
-use crate::rabbitmq_controller::spec::rabbitmqcluster::RabbitmqCluster;
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;

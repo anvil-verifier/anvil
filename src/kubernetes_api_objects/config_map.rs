@@ -55,7 +55,11 @@ impl ConfigMap {
             self@.data.is_Some() == data.is_Some(),
             data.is_Some() ==> data.get_Some_0()@ == self@.data.get_Some_0(),
     {
-        todo!()
+        if self.inner.data.is_none() {
+            Option::None
+        } else {
+            Option::Some(StringMap::from_rust_map(self.inner.data.clone().unwrap()))
+        }
     }
 
     #[verifier(external_body)]

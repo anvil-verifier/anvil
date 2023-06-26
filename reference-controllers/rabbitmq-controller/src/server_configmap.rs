@@ -53,7 +53,7 @@ fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> String {
     let rabmq_part = format!(
         "cluster_formation.target_cluster_size_hint = {}\n\
         cluster_name = {}\n",
-        rabbitmq.spec.replica,
+        rabbitmq.spec.replicas,
         rabbitmq.metadata.name.as_ref().unwrap().clone()
     );
     default_part.push_str(&rabmq_part);

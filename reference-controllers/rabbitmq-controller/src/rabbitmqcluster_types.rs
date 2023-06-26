@@ -9,7 +9,7 @@ use std::vec;
 #[kube(group = "anvil.dev", version = "v1", kind = "RabbitmqCluster")]
 #[kube(shortname = "rbmq", namespaced)]
 pub struct RabbitmqClusterSpec {
-    pub replica: i32,
+    pub replicas: i32,
     #[serde(rename = "image", skip_serializing_if = "Option::is_none")]
     pub image: Option<String>,
 }

@@ -134,13 +134,91 @@ pub open spec fn reconcile_core(
             (state_prime, req_o)
         },
         RabbitmqReconcileStep::AfterCreatePluginsConfigMap => {
-            let server_config_map = make_server_config_map(rabbitmq);
-            let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
-                namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: server_config_map.to_dynamic_object(),
+            let req_o = Option::Some(APIRequest::GetRequest(GetRequest{
+                key: ObjectRef {
+                    kind: ConfigMapView::kind(),
+                    name: rabbitmq.metadata.name.get_Some_0() + new_strlit("-server-conf")@,
+                    namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                }
             }));
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateServerConfigMap,
+                reconcile_step: RabbitmqReconcileStep::AfterGetServerConfigMap,
+                ..state
+            };
+            (state_prime, req_o)
+        },
+        RabbitmqReconcileStep::AfterGetServerConfigMap => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_GetResponse() {
+                let config_map = make_server_config_map(rabbitmq);
+                let get_config_resp = resp_o.get_Some_0().get_GetResponse_0().res;
+                if get_config_resp.is_Ok() {
+                    // update
+                    if ConfigMapView::from_dynamic_object(get_config_resp.get_Ok_0()).is_Ok()
+                    {
+                        let found_config_map = ConfigMapView::from_dynamic_object(get_config_resp.get_Ok_0()).get_Ok_0();
+                        let req_o = Option::Some(APIRequest::UpdateRequest(
+                            UpdateRequest {
+                                key: ObjectRef {
+                                    kind: ConfigMapView::kind(),
+                                    name: config_map.metadata.name.get_Some_0(),
+                                    namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                                },
+                                obj: found_config_map.set_data(config_map.data.get_Some_0()).to_dynamic_object(),
+                            }
+                        ));
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateServerConfigMap,
+                            ..state
+                        };
+                        (state_prime, req_o)
+                    } else {
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::Error,
+                            ..state
+                        };
+                        let req_o = Option::None;
+                        (state_prime, req_o)
+                    }
+                } else if get_config_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = Option::Some(APIRequest::CreateRequest(
+                        CreateRequest {
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                            obj: config_map.to_dynamic_object(),
+                        }
+                    ));
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateServerConfigMap,
+                        ..state
+                    };
+                    (state_prime, req_o)
+                } else {
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::Error,
+                        ..state
+                    };
+                    let req_o = Option::None;
+                    (state_prime, req_o)
+                }
+            }else{
+                // return error state
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                let req_o = Option::None;
+                (state_prime, req_o)
+            }
+
+        },
+        RabbitmqReconcileStep::AfterUpdateServerConfigMap => {
+            let service_account = make_service_account(rabbitmq);
+            let req_o = Option::Some(APIRequest::CreateRequest(CreateRequest{
+                namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                obj: service_account.to_dynamic_object(),
+            }));
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
                 ..state
             };
             (state_prime, req_o)
@@ -205,7 +283,7 @@ pub open spec fn reconcile_core(
                         let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).get_Ok_0();
                         if found_stateful_set.spec.is_Some()
                         && found_stateful_set.spec.get_Some_0().replicas.is_Some()
-                        && found_stateful_set.spec.get_Some_0().replicas.get_Some_0() <= rabbitmq.spec.replica
+                        && found_stateful_set.spec.get_Some_0().replicas.get_Some_0() <= rabbitmq.spec.replicas
                         {
                             let req_o = Option::Some(APIRequest::UpdateRequest(
                                 UpdateRequest {
@@ -445,7 +523,16 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
         )
         .set_data(Map::empty()
             .insert(new_strlit("operatorDefaults.conf")@, default_rbmq_config(rabbitmq))
-            .insert(new_strlit("userDefineConfiguration.conf")@, new_strlit("total_memory_available_override_value = 1717986919\n")@)
+            .insert(new_strlit("userDefinedConfiguration.conf")@,
+            {
+                if rabbitmq.spec.rabbitmq_config.is_Some()
+                && rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.is_Some()
+                {   // check if there are rabbitmq-related customized configurations
+                    new_strlit("total_memory_available_override_value = 1717986919\n")@ + rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.get_Some_0()
+                } else {
+                    new_strlit("total_memory_available_override_value = 1717986919\n")@
+                }
+            })
         )
 }
 
@@ -463,7 +550,7 @@ pub open spec fn default_rbmq_config(rabbitmq: RabbitmqClusterView) -> StringVie
         cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s\n\
         cluster_formation.k8s.host = kubernetes.default\n\
         cluster_formation.k8s.address_type = hostname\n"
-    )@ + new_strlit("cluster_formation.target_cluster_size_hint = ")@ + int_to_string_view(rabbitmq.spec.replica) + new_strlit("\n")@
+    )@ + new_strlit("cluster_formation.target_cluster_size_hint = ")@ + int_to_string_view(rabbitmq.spec.replicas) + new_strlit("\n")@
      + new_strlit("cluster_name = ")@ + name + new_strlit("\n")@
 }
 
@@ -541,7 +628,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView) -> StatefulSet
         .set_labels(labels);
 
     let spec = StatefulSetSpecView::default()
-        .set_replicas(rabbitmq.spec.replica)
+        .set_replicas(rabbitmq.spec.replicas)
         .set_service_name(name + new_strlit("-nodes")@)
         .set_selector(LabelSelectorView::default().set_match_labels(labels))
         .set_template(PodTemplateSpecView::default()
@@ -593,8 +680,8 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                                     .set_key(new_strlit("operatorDefaults.conf")@)
                                     .set_path(new_strlit("operatorDefaults.conf")@),
                                 KeyToPathView::default()
-                                    .set_key(new_strlit("userDefineConfiguration.conf")@)
-                                    .set_path(new_strlit("userDefineConfiguration.conf")@),
+                                    .set_key(new_strlit("userDefinedConfiguration.conf")@)
+                                    .set_path(new_strlit("userDefinedConfiguration.conf")@),
                             ])
                         ),
                     VolumeProjectionView::default()
