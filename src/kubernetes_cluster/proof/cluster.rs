@@ -21,9 +21,7 @@ use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
-use builtin::*;
-use builtin_macros::*;
-use vstd::{map::*, option::*, seq::*, set::*};
+use vstd::prelude::*;
 
 verus! {
 

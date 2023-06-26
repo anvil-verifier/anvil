@@ -11,7 +11,6 @@ use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
-use vstd::vec::*;
 
 verus! {
 
@@ -142,7 +141,7 @@ impl PodSpec {
         ensures
             self@ == old(self)@.set_containers(containers@.map_values(|container: Container| container@)),
     {
-        self.inner.containers = containers.vec.into_iter().map(|container: Container| container.into_kube()).collect()
+        self.inner.containers = containers.into_iter().map(|container: Container| container.into_kube()).collect()
     }
 
     #[verifier(external_body)]
@@ -150,7 +149,7 @@ impl PodSpec {
         ensures
             self@ == old(self)@.set_volumes(volumes@.map_values(|vol: Volume| vol@)),
     {
-        self.inner.volumes = std::option::Option::Some(volumes.vec.into_iter().map(|vol: Volume| vol.into_kube()).collect())
+        self.inner.volumes = std::option::Option::Some(volumes.into_iter().map(|vol: Volume| vol.into_kube()).collect())
     }
 
     #[verifier(external_body)]
@@ -158,7 +157,7 @@ impl PodSpec {
         ensures
             self@ == old(self)@.set_init_containers(init_containers@.map_values(|container: Container| container@)),
     {
-        self.inner.init_containers = std::option::Option::Some(init_containers.vec.into_iter().map(|container: Container| container.into_kube()).collect())
+        self.inner.init_containers = std::option::Option::Some(init_containers.into_iter().map(|container: Container| container.into_kube()).collect())
     }
 
     #[verifier(external_body)]
@@ -215,7 +214,7 @@ impl Container {
             self@ == old(self)@.set_volume_mounts(volume_mounts@.map_values(|mount: VolumeMount| mount@)),
     {
         self.inner.volume_mounts = std::option::Option::Some(
-            volume_mounts.vec.into_iter().map(|mount: VolumeMount| mount.into_kube()).collect()
+            volume_mounts.into_iter().map(|mount: VolumeMount| mount.into_kube()).collect()
         )
     }
 
@@ -225,7 +224,7 @@ impl Container {
             self@ == old(self)@.set_ports(ports@.map_values(|port: ContainerPort| port@)),
     {
         self.inner.ports = std::option::Option::Some(
-            ports.vec.into_iter().map(|port: ContainerPort| port.into_kube()).collect()
+            ports.into_iter().map(|port: ContainerPort| port.into_kube()).collect()
         )
     }
 
@@ -237,7 +236,7 @@ impl Container {
             self@ == old(self)@,
     {
         self.inner.command = std::option::Option::Some(
-            command.vec.into_iter().map(|c: String| c.into_rust_string()).collect()
+            command.into_iter().map(|c: String| c.into_rust_string()).collect()
         )
     }
 
@@ -271,7 +270,7 @@ impl Container {
             self@ == old(self)@,
     {
         self.inner.env = std::option::Option::Some(
-            env.vec.into_iter().map(|e: EnvVar| e.into_kube()).collect()
+            env.into_iter().map(|e: EnvVar| e.into_kube()).collect()
         )
     }
 
@@ -589,7 +588,7 @@ impl ProjectedVolumeSource {
             self@ == old(self)@.set_sources(sources@.map_values(|v: VolumeProjection| v@)),
     {
         self.inner.sources = std::option::Option::Some(
-            sources.vec.into_iter().map(|v: VolumeProjection| v.into_kube()).collect()
+            sources.into_iter().map(|v: VolumeProjection| v.into_kube()).collect()
         );
     }
 
@@ -671,7 +670,7 @@ impl ConfigMapProjection {
             self@ == old(self)@.set_items(items@.map_values(|v: KeyToPath| v@)),
     {
         self.inner.items = std::option::Option::Some(
-            items.vec.into_iter().map(|v: KeyToPath| v.into_kube()).collect()
+            items.into_iter().map(|v: KeyToPath| v.into_kube()).collect()
         );
     }
 
@@ -713,7 +712,7 @@ impl SecretProjection {
             self@ == old(self)@.set_items(items@.map_values(|v: KeyToPath| v@)),
     {
         self.inner.items = std::option::Option::Some(
-            items.vec.into_iter().map(|v: KeyToPath| v.into_kube()).collect()
+            items.into_iter().map(|v: KeyToPath| v.into_kube()).collect()
         );
     }
 
@@ -787,7 +786,7 @@ impl DownwardAPIVolumeSource {
             self@ == old(self)@.set_items(items@.map_values(|v: DownwardAPIVolumeFile| v@)),
     {
         self.inner.items = std::option::Option::Some(
-            items.vec.into_iter().map(|v: DownwardAPIVolumeFile| v.into_kube()).collect()
+            items.into_iter().map(|v: DownwardAPIVolumeFile| v.into_kube()).collect()
         );
     }
 

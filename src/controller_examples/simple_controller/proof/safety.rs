@@ -24,9 +24,7 @@ use crate::simple_controller::spec::{
     reconciler::{simple_reconciler, SimpleReconcileState},
 };
 use crate::temporal_logic::{defs::*, rules::*};
-use builtin::*;
-use builtin_macros::*;
-use vstd::{option::*, result::*};
+use vstd::prelude::*;
 
 verus! {
 

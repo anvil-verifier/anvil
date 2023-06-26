@@ -7,9 +7,7 @@ use crate::reconciler::spec::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
-use builtin::*;
-use builtin_macros::*;
-use vstd::{map::*, multiset::*, option::*, seq::*, set::*};
+use vstd::{multiset::*, prelude::*};
 
 verus! {
 

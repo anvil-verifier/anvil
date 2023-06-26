@@ -60,6 +60,13 @@ impl ResourceWrapper<K8SDynamicObject> for DynamicObject {
     }
 }
 
+impl std::fmt::Debug for DynamicObject {
+    #[verifier(external)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.inner.fmt(f)
+    }
+}
+
 /// DynamicObjectView is the ghost type of DynamicObject.
 /// It is supposed to be used in spec and proof code.
 

@@ -8,7 +8,7 @@ use crate::kubernetes_api_objects::{
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::reconciler::spec::Reconciler;
 use crate::temporal_logic::{defs::*, rules::*};
-use vstd::{option::*, prelude::*, result::*};
+use vstd::prelude::*;
 
 verus! {
 

@@ -12,7 +12,6 @@ use crate::pervasive_ext::string_view::StringView;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
-use vstd::vec::*;
 
 verus! {
 
@@ -72,7 +71,7 @@ impl RoleBinding {
             self@ == old(self)@.set_subjects(subjects@.map_values(|s: Subject| s@)),
     {
         self.inner.subjects = std::option::Option::Some(
-            subjects.vec.into_iter().map(|s: Subject| s.into_kube()).collect()
+            subjects.into_iter().map(|s: Subject| s.into_kube()).collect()
         );
     }
 

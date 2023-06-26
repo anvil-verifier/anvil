@@ -13,8 +13,6 @@ use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::spec::zookeepercluster::*;
-use builtin::*;
-use builtin_macros::*;
 use vstd::prelude::*;
 use vstd::string::*;
 

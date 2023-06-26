@@ -8,7 +8,6 @@ use crate::pervasive_ext::string_map::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::string::*;
-use vstd::vec::*;
 
 verus! {
 
@@ -127,7 +126,7 @@ impl ObjectMeta {
             self@ == old(self)@.set_owner_references(owner_references@.map_values(|o: OwnerReference| o@)),
     {
         self.inner.owner_references = std::option::Option::Some(
-            owner_references.vec.into_iter().map(|o: OwnerReference| o.into_kube()).collect(),
+            owner_references.into_iter().map(|o: OwnerReference| o.into_kube()).collect(),
         );
     }
 }

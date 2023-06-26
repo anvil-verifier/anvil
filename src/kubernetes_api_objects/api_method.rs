@@ -7,7 +7,6 @@ use crate::kubernetes_api_objects::error::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::string::*;
-use vstd::vec::Vec;
 
 verus! {
 

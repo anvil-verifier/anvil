@@ -12,7 +12,6 @@ use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
-use vstd::vec::*;
 
 verus! {
 

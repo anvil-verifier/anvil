@@ -33,8 +33,6 @@ use crate::zookeeper_controller::{
     proof::common::*,
     spec::{reconciler::*, zookeepercluster::*},
 };
-use builtin::*;
-use builtin_macros::*;
 use vstd::{multiset::*, prelude::*};
 
 verus! {

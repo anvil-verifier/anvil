@@ -15,7 +15,6 @@ use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
-use vstd::vec::*;
 
 verus! {
 
@@ -190,7 +189,7 @@ impl StatefulSetSpec {
             self@ == old(self)@.set_volume_claim_templates(volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@)),
     {
         self.inner.volume_claim_templates = std::option::Option::Some(
-            volume_claim_templates.vec.into_iter().map(|pvc: PersistentVolumeClaim| pvc.into_kube()).collect()
+            volume_claim_templates.into_iter().map(|pvc: PersistentVolumeClaim| pvc.into_kube()).collect()
         )
     }
 
