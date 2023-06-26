@@ -35,10 +35,7 @@ use crate::zookeeper_controller::{
     proof::{common::*, safety},
     spec::{reconciler::*, zookeepercluster::*},
 };
-use builtin::*;
-use builtin_macros::*;
 use vstd::prelude::*;
-use vstd::*;
 
 verus! {
 

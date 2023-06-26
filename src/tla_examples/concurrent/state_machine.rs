@@ -2,11 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::temporal_logic::defs::*;
-use builtin::*;
-use builtin_macros::*;
-use vstd::map::*;
-use vstd::seq::*;
-use vstd::set::*;
+use vstd::prelude::*;
 use vstd::string::*;
 
 verus! {

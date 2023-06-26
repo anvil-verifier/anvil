@@ -11,8 +11,6 @@ use crate::simple_controller::common::*;
 use crate::simple_controller::spec::custom_resource::*;
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
-use builtin::*;
-use builtin_macros::*;
 use vstd::prelude::*;
 use vstd::string::new_strlit;
 

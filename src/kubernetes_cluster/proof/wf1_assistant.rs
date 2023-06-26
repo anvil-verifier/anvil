@@ -20,8 +20,6 @@ use crate::reconciler::spec::Reconciler;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
-use builtin::*;
-use builtin_macros::*;
 use vstd::prelude::*;
 
 verus! {

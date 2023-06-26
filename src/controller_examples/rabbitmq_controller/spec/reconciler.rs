@@ -13,8 +13,6 @@ use crate::rabbitmq_controller::spec::rabbitmqcluster::*;
 use crate::reconciler::spec::*;
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
-use builtin::*;
-use builtin_macros::*;
 use vstd::prelude::*;
 use vstd::string::*;
 

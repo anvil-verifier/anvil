@@ -12,10 +12,7 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::temporal_logic::defs::*;
 use crate::zookeeper_controller::spec::{reconciler::*, zookeepercluster::*};
-use builtin::*;
-use builtin_macros::*;
 use vstd::prelude::*;
-use vstd::*;
 
 verus! {
 

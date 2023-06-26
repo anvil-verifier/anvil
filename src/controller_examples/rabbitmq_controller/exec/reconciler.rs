@@ -14,8 +14,6 @@ use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::spec::rabbitmqcluster::*;
 use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
 use crate::reconciler::exec::*;
-use builtin::*;
-use builtin_macros::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;

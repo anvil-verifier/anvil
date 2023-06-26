@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::state_machine::action::*;
-use builtin::*;
-use builtin_macros::*;
 use vstd::{multiset::*, prelude::*};
 
 verus! {

@@ -12,8 +12,6 @@ use crate::reconciler::exec::*;
 use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::spec::reconciler as zk_spec;
 use crate::zookeeper_controller::spec::zookeepercluster::*;
-use builtin::*;
-use builtin_macros::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;

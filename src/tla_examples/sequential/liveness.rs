@@ -5,8 +5,7 @@ use crate::sequential::safety::*;
 use crate::sequential::state_machine::*;
 use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
-use builtin::*;
-use builtin_macros::*;
+use vstd::prelude::*;
 
 verus! {
 

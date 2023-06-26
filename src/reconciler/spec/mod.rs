@@ -3,8 +3,6 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::spec::message::*;
-use builtin::*;
-use builtin_macros::*;
 use vstd::prelude::*;
 
 verus! {

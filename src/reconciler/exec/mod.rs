@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*};
-use builtin::*;
-use builtin_macros::*;
 use vstd::prelude::*;
 
 verus! {

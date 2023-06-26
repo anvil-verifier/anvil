@@ -9,8 +9,6 @@ use crate::reconciler::exec::*;
 use crate::simple_controller::common::*;
 use crate::simple_controller::spec::custom_resource::*;
 use crate::simple_controller::spec::reconciler as simple_spec;
-use builtin::*;
-use builtin_macros::*;
 use vstd::prelude::*;
 use vstd::string::*;
 

@@ -21,8 +21,6 @@ use crate::kubernetes_cluster::spec::{
 use crate::reconciler::spec::Reconciler;
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
-use builtin::*;
-use builtin_macros::*;
 use vstd::prelude::*;
 
 verus! {
