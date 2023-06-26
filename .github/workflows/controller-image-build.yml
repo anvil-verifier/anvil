@@ -26,3 +26,9 @@ jobs:
           docker build -t ghcr.io/${{ env.IMAGE_NAME }}/zookeeper-controller:latest .
       - name: Push zookeeper controller image
         run: docker push ghcr.io/${{ env.IMAGE_NAME }}/zookeeper-controller:latest
+      - name: Build rabbitmq controller image
+        run: |
+          cp docker/rabbitmq-controller/Dockerfile .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest .
+      - name: Push rabbitmq controller image
+        run: docker push ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest
