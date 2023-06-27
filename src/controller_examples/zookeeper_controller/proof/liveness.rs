@@ -31,6 +31,7 @@ use vstd::prelude::*;
 
 verus! {
 
+// The cr's key exists in Kubernetes.
 spec fn desired_state_exists(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& s.resource_key_exists(zk.object_ref())
@@ -38,6 +39,7 @@ spec fn desired_state_exists(zk: ZookeeperClusterView) -> StatePred<ClusterState
     }
 }
 
+// The cr's key exists in Kubernetes and its spec is the same as zk.spec.
 spec fn desired_state_is(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& s.resource_key_exists(zk.object_ref())
@@ -46,6 +48,8 @@ spec fn desired_state_is(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
     }
 }
 
+// The current state matches the desired state described in the cr.
+// I.e., the corresponding stateful set exists and its spec is the same as desired.
 spec fn current_state_matches(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
@@ -54,6 +58,7 @@ spec fn current_state_matches(zk: ZookeeperClusterView) -> StatePred<ClusterStat
     }
 }
 
+// The liveness property says []desired_state_is(zk) ~> []current_state_matches(zk).
 spec fn liveness(zk: ZookeeperClusterView) -> TempPred<ClusterState>
     recommends
         zk.well_formed(),
@@ -61,6 +66,7 @@ spec fn liveness(zk: ZookeeperClusterView) -> TempPred<ClusterState>
     always(lift_state(desired_state_is(zk))).leads_to(always(lift_state(current_state_matches(zk))))
 }
 
+// We prove init /\ []next /\ []wf |= []desired_state_is(zk) ~> []current_state_matches(zk) holds for each zk.
 proof fn liveness_proof_forall_zk()
     ensures
         forall |zk: ZookeeperClusterView| zk.well_formed() ==> #[trigger] cluster_spec().entails(liveness(zk)),
@@ -71,6 +77,8 @@ proof fn liveness_proof_forall_zk()
     };
 }
 
+// A boilerplate lemma that shows if spec |= []desired_state_is(zk) then spec |= []desired_state_exists(zk).
+// TODO: prove it
 #[verifier(external_body)]
 proof fn lemma_always_desired_state_exists(spec: TempPred<ClusterState>, zk: ZookeeperClusterView)
     requires
@@ -79,7 +87,9 @@ proof fn lemma_always_desired_state_exists(spec: TempPred<ClusterState>, zk: Zoo
         spec.entails(always(lift_state(desired_state_exists(zk)))),
 {}
 
-// TODO: generalize this
+// This lemma says that under the spec where []desired_state_is(zk), it will eventually reach a state where any object
+// in schedule for zk.object_ref() has the same spec as zk.spec.
+// TODO: This can be refactored to an Anvil built-in lemma once we bake the spec type into ReconcilerView.
 proof fn lemma_true_leads_to_always_the_object_in_schedule_has_spec_as(spec: TempPred<ClusterState>, zk: ZookeeperClusterView)
     requires
         zk.well_formed(),
@@ -123,7 +133,9 @@ proof fn lemma_true_leads_to_always_the_object_in_schedule_has_spec_as(spec: Tem
     leads_to_stable_temp(spec, lift_action(stronger_next), lift_state(pre), lift_state(post));
 }
 
-// TODO: generalize this
+// This lemma says that under the spec where []desired_state_is(zk), it will eventually reach a state where any object
+// in reconcile for zk.object_ref() has the same spec as zk.spec.
+// TODO: This can be refactored to an Anvil built-in lemma once we bake the spec type into ReconcilerView.
 proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(spec: TempPred<ClusterState>, zk: ZookeeperClusterView)
     requires
         zk.well_formed(),
@@ -315,6 +327,7 @@ proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(spec: Te
     entails_trans(spec, stable_spec, true_pred().leads_to(always(lift_state(safety::the_object_in_reconcile_has_spec_as(zk)))));
 }
 
+// Next and all the wf conditions.
 spec fn next_with_wf() -> TempPred<ClusterState> {
     always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))
     .and(tla_forall(|input| kubernetes_api_next().weak_fairness(input)))
@@ -323,6 +336,8 @@ spec fn next_with_wf() -> TempPred<ClusterState> {
     .and(disable_crash().weak_fairness(()))
 }
 
+// All assumptions that makes liveness possible, such as controller crash no longer happens,
+// the cr's spec always remains unchanged, and so on.
 spec fn assumptions(zk: ZookeeperClusterView) -> TempPred<ClusterState> {
     always(lift_state(crash_disabled()))
     .and(always(lift_state(desired_state_is(zk))))
@@ -330,6 +345,7 @@ spec fn assumptions(zk: ZookeeperClusterView) -> TempPred<ClusterState> {
     .and(always(lift_state(safety::the_object_in_reconcile_has_spec_as(zk))))
 }
 
+// The safety invariants that are required to prove liveness.
 spec fn invariants(zk: ZookeeperClusterView) -> TempPred<ClusterState> {
     always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))
     .and(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref()))))
@@ -342,6 +358,10 @@ spec fn invariants(zk: ZookeeperClusterView) -> TempPred<ClusterState> {
     .and(always(lift_state(safety::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref()))))
 }
 
+// Some other invariants requires to prove liveness.
+// Note that different from the above invariants, these do not hold for the entire execution from init.
+// They only hold since some point (e.g., when the rest id counter is the same as rest_id).
+// Some of these invariants are also based on the assumptions.
 spec fn invariants_since_rest_id(zk: ZookeeperClusterView, rest_id: RestId) -> TempPred<ClusterState> {
     always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
     .and(always(lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))))
@@ -350,6 +370,8 @@ spec fn invariants_since_rest_id(zk: ZookeeperClusterView, rest_id: RestId) -> T
     .and(always(lift_state(safety::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id))))
 }
 
+// This invariant is also used to prove liveness.
+// Different from above, it only holds after some time since the rest id counter is the same as rest_id.
 spec fn invariants_led_to_by_rest_id(zk: ZookeeperClusterView, rest_id: RestId) -> TempPred<ClusterState> {
     always(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))
 }
@@ -360,6 +382,7 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
     ensures
         cluster_spec().entails(liveness(zk)),
 {
+    // First prove that with all the invariants and assumptions, true leads to []current_state_matches(zk)
     assert_by(
         next_with_wf().and(invariants(zk)).and(assumptions(zk))
         .entails(
@@ -384,6 +407,7 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
                 temp_pred_equality(true_pred().and(idle_and_rest_id_is(rest_id)), idle_and_rest_id_is(rest_id));
             }
 
+            // Here we eliminate the rest_id using leads_to_exists_intro.
             leads_to_exists_intro(spec, idle_and_rest_id_is, always(lift_state(current_state_matches(zk))));
 
             assert_by(
@@ -404,6 +428,9 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
         }
     );
 
+    // Then prove that with all the invariants and the base assumptions (i.e., controller does not crash and cr.spec remains unchanged)
+    // true leads to []current_state_matches(zk).
+    // This is done by eliminating the other assumptions derived from the base assumptions using the unpack rule.
     assert_by(
         next_with_wf().and(invariants(zk)).and(always(lift_state(desired_state_is(zk)))).and(always(lift_state(crash_disabled())))
         .entails(
@@ -439,6 +466,7 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
         }
     );
 
+    // Then we unpack the assumption of []desired_state_is(zk) from spec.
     assert_by(
         next_with_wf().and(invariants(zk)).and(always(lift_state(desired_state_is(zk))))
         .entails(
@@ -470,6 +498,7 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
         }
     );
 
+    // Finally we eliminate all the invariants using simplify_predicate and also add init to the spec.
     assert_by(
         cluster_spec()
         .entails(
@@ -512,6 +541,8 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
 
 }
 
+// This lemma proves that starting from the point where rest id counter is rest_id, with all the invariants and assumptions,
+// true leads to []current_state_matches(zk).
 proof fn lemma_true_leads_to_always_current_state_matches_zk_from_idle_with_rest_id(zk: ZookeeperClusterView, rest_id: RestId)
     requires
         zk.well_formed(),
@@ -530,6 +561,8 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_from_idle_with_rest
         .and(invariants(zk))
         .and(assumptions(zk));
 
+    // To prove the liveness, we need some extra invariants (invariants_since_rest_id and invariants_led_to_by_rest_id)
+    // that only holds since the rest id counter is rest_id.
     assert_by(
         spec.and(invariants_since_rest_id(zk, rest_id)).entails(
             invariants_led_to_by_rest_id(zk, rest_id).leads_to(always(lift_state(current_state_matches(zk))))
@@ -559,6 +592,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_from_idle_with_rest
         spec.and(invariants_since_rest_id(zk, rest_id)), rest_id
     );
 
+    // Here we eliminate invariants_led_to_by_rest_id using leads_to_trans_temp
     leads_to_trans_temp(spec.and(invariants_since_rest_id(zk, rest_id)), true_pred(), invariants_led_to_by_rest_id(zk, rest_id), always(lift_state(current_state_matches(zk))));
 
     assert_by(
@@ -585,10 +619,12 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_from_idle_with_rest
         }
     );
 
+    // And we eliminate invariants_since_rest_id using simplify_predicate.
     simplify_predicate(spec, invariants_since_rest_id(zk, rest_id));
 }
 
-
+// This lemma proves that with all the invariants, assumptions, and even invariants that only hold since rest id counter is rest_id,
+// true ~> []current_state_matches(zk).
 proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_invariants(zk: ZookeeperClusterView, rest_id: RestId)
     requires
         zk.well_formed(),
@@ -610,6 +646,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
 
     lemma_always_desired_state_exists(spec, zk);
 
+    // First we prove true ~> not_in_reconcile, because reconcile always terminates.
     assert_by(
         spec.entails(
             true_pred().leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
@@ -619,6 +656,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         }
     );
 
+    // Then we prove not_in_reconcile ~> init_step by applying wf1.
     assert_by(
         spec.entails(
             lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref()))
@@ -654,6 +692,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         }
     );
 
+    // Then we prove init_step ~> after_create_headless_service by applying wf1.
     assert_by(
         spec.entails(
             lift_state(at_init_step_with_no_pending_req(zk))
@@ -664,6 +703,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         }
     );
 
+    // Then we prove after_create_headless_service ~> after_create_client_service by applying wf1.
     assert_by(
         spec.entails(
             lift_state(at_after_create_headless_service_step_with_zk_and_pending_req_in_flight(zk))
@@ -679,6 +719,8 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             let pre_and_resp_in_flight = |resp_msg| lift_state(
                 resp_msg_is_the_in_flight_resp_at_after_create_headless_service_step_with_zk(zk, resp_msg)
             );
+            // We use the lemma lemma_receives_some_resp_at_after_create_headless_service_step_with_zk that takes a req_msg,
+            // so we need to eliminate the req_msg using leads_to_exists_intro.
             assert forall |req_msg|
                 spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(pre_and_exists_resp_in_flight))
             by {
@@ -700,7 +742,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                     );
                 }
             );
-
+            // Similarly we eliminate resp_msg using leads_to_exists_intro.
             assert forall |resp_msg|
                 spec.entails(
                     #[trigger] pre_and_resp_in_flight(resp_msg)
@@ -738,6 +780,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         }
     );
 
+    // Then we prove after_create_client_service ~> after_create_admin_server_service by applying wf1.
     assert_by(
         spec.entails(
             lift_state(at_after_create_client_service_step_with_zk_and_pending_req_in_flight(zk))
@@ -812,6 +855,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         }
     );
 
+    // Then we prove after_create_admin_server_service ~> after_create_config_map by applying wf1.
     assert_by(
         spec.entails(
             lift_state(at_after_create_admin_server_service_step_with_zk_and_pending_req_in_flight(zk))
@@ -886,6 +930,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         }
     );
 
+    // Then we prove after_create_config_map ~> after_get_stateful_set by applying wf1.
     assert_by(
         spec.entails(
             lift_state(at_after_create_config_map_step_with_zk_and_pending_req_in_flight(zk))
@@ -960,6 +1005,8 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         }
     );
 
+    // after_get_stateful_set will lead to two different states depending on whether the stateful_set exists,
+    // here we prove the first case: after_get_stateful_set /\ !exists ~> current_state_matches(zk) by creating operations.
     assert_by(
         spec.entails(
             lift_state(|s: ClusterState| {
@@ -1064,6 +1111,8 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         }
     );
 
+    // after_get_stateful_set will lead to two different states depending on whether the stateful_set exists,
+    // here we prove the second case: after_get_stateful_set /\ exists ~> current_state_matches(zk) by updating operations.
     assert_by(
         spec.entails(
             lift_state(|s: ClusterState| {
@@ -1213,6 +1262,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         }
     );
 
+    // Now we prove after_get_stateful_set ~> current_state_matches(zk) by merging the above two cases.
     assert_by(
         spec.entails(
             lift_state(at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk))
@@ -1232,6 +1282,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         }
     );
 
+    // Now we prove that once current_state_matches(zk), it is always the case (stability).
     assert_by(
         spec.entails(
             lift_state(current_state_matches(zk))
@@ -1243,6 +1294,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         }
     );
 
+    // Finally, chain everything together using leads_to_trans_n!.
     leads_to_trans_n!(
         spec,
         true_pred(),
