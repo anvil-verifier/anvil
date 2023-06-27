@@ -188,6 +188,8 @@ impl SecretView {
 }
 
 impl ResourceView for SecretView {
+    type Spec = SecretSpecView;
+
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
     }
@@ -202,6 +204,10 @@ impl ResourceView for SecretView {
             name: self.metadata.name.get_Some_0(),
             namespace: self.metadata.namespace.get_Some_0(),
         }
+    }
+
+    open spec fn spec(self) -> SecretSpecView {
+        (self.data, self.type_)
     }
 
     proof fn object_ref_is_well_formed() {}

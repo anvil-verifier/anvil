@@ -274,6 +274,8 @@ impl ServiceView {
 }
 
 impl ResourceView for ServiceView {
+    type Spec = Option<ServiceSpecView>;
+
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
     }
@@ -291,6 +293,10 @@ impl ResourceView for ServiceView {
     }
 
     proof fn object_ref_is_well_formed() {}
+
+    open spec fn spec(self) -> Option<ServiceSpecView> {
+        self.spec
+    }
 
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {

@@ -269,6 +269,8 @@ impl RoleBindingView {
 }
 
 impl ResourceView for RoleBindingView {
+    type Spec = RoleBindingSpecView;
+
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
     }
@@ -286,6 +288,10 @@ impl ResourceView for RoleBindingView {
     }
 
     proof fn object_ref_is_well_formed() {}
+
+    open spec fn spec(self) -> RoleBindingSpecView {
+        (self.role_ref, self.subjects)
+    }
 
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {

@@ -108,13 +108,15 @@ impl ServiceAccount {
 
 pub struct ServiceAccountView {
     pub metadata: ObjectMetaView,
+    pub automount_service_account_token: Option<bool>,
 }
-type ServiceAccountSpecView = ();
+type ServiceAccountSpecView = (Option<bool>, ());
 
 impl ServiceAccountView {
     pub open spec fn default() -> ServiceAccountView {
         ServiceAccountView {
             metadata: ObjectMetaView::default(),
+            automount_service_account_token: Option::None,
         }
     }
 
@@ -125,9 +127,22 @@ impl ServiceAccountView {
         }
     }
 
+    pub closed spec fn marshal_spec(s: ServiceAccountSpecView) -> Value;
+
+    pub closed spec fn unmarshal_spec(v: Value) -> Result<ServiceAccountSpecView, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    pub proof fn spec_integrity_is_preserved_by_marshal()
+        ensures
+            forall |s: ServiceAccountSpecView|
+                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
+                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
+
 }
 
 impl ResourceView for ServiceAccountView {
+    type Spec = ServiceAccountSpecView;
+
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
     }
@@ -146,25 +161,34 @@ impl ResourceView for ServiceAccountView {
 
     proof fn object_ref_is_well_formed() {}
 
+    open spec fn spec(self) -> ServiceAccountSpecView {
+        (self.automount_service_account_token, ())
+    }
+
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            spec: Value::Null,
+            spec: ServiceAccountView::marshal_spec((self.automount_service_account_token, ())),
         }
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ServiceAccountView, ParseDynamicObjectError> {
             if obj.kind != Self::kind() {
                 Result::Err(ParseDynamicObjectError::UnmarshalError)
+            } else if !ServiceAccountView::unmarshal_spec(obj.spec).is_Ok() {
+                Result::Err(ParseDynamicObjectError::UnmarshalError)
             } else {
                 Result::Ok(ServiceAccountView {
                     metadata: obj.metadata,
+                    automount_service_account_token: ServiceAccountView::unmarshal_spec(obj.spec).get_Ok_0().0,
                 })
             }
     }
 
-    proof fn to_dynamic_preserves_integrity() {}
+    proof fn to_dynamic_preserves_integrity() {
+        ServiceAccountView::spec_integrity_is_preserved_by_marshal();
+    }
 
     proof fn from_dynamic_preserves_metadata() {}
 

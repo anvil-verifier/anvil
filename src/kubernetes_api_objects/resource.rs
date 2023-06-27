@@ -22,6 +22,8 @@ pub trait ResourceWrapper<T>: Sized {
 
 /// This trait defines the methods that each ghost type of Kubernetes resource object should implement
 pub trait ResourceView: Sized {
+    type Spec;
+
     /// Get the metadata of the object
 
     open spec fn metadata(self) -> ObjectMetaView;
@@ -44,6 +46,10 @@ pub trait ResourceView: Sized {
                     name: o.metadata().name.get_Some_0(),
                     namespace: o.metadata().namespace.get_Some_0(),
                 });
+
+    /// Get the spec of the object
+
+    open spec fn spec(self) -> Self::Spec;
 
     /// Convert the object to a dynamic object
 

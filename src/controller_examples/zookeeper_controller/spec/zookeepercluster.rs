@@ -33,6 +33,8 @@ impl ZookeeperClusterView {
 }
 
 impl ResourceView for ZookeeperClusterView {
+    type Spec = ZookeeperClusterSpecView;
+
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
     }
@@ -50,6 +52,10 @@ impl ResourceView for ZookeeperClusterView {
     }
 
     proof fn object_ref_is_well_formed() {}
+
+    open spec fn spec(self) -> ZookeeperClusterSpecView {
+        self.spec
+    }
 
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {

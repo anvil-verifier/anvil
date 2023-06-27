@@ -179,6 +179,8 @@ impl ConfigMapView {
 }
 
 impl ResourceView for ConfigMapView {
+    type Spec = ConfigMapSpecView;
+
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
     }
@@ -196,6 +198,10 @@ impl ResourceView for ConfigMapView {
     }
 
     proof fn object_ref_is_well_formed() {}
+
+    open spec fn spec(self) -> ConfigMapSpecView {
+        (self.data, ())
+    }
 
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
