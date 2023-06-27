@@ -466,7 +466,7 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
         }
     );
 
-    // Then we unpack the assumption of []desired_state_is(zk) from spec.
+    // Now we eliminate the assumption []crash_disabled().
     assert_by(
         next_with_wf().and(invariants(zk)).and(always(lift_state(desired_state_is(zk))))
         .entails(
@@ -484,6 +484,7 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
         }
     );
 
+    // Then we unpack the assumption of []desired_state_is(zk) from spec.
     assert_by(
         next_with_wf().and(invariants(zk))
         .entails(
