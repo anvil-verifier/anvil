@@ -124,17 +124,196 @@ proof fn lemma_true_leads_to_always_the_object_in_schedule_has_spec_as(spec: Tem
 }
 
 // TODO: generalize this
-#[verifier(external_body)]
 proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(spec: TempPred<ClusterState>, zk: ZookeeperClusterView)
     requires
         zk.well_formed(),
         spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| controller_next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>().weak_fairness(i))),
         spec.entails(tla_forall(|i| schedule_controller_reconcile().weak_fairness(i))),
         spec.entails(always(lift_state(desired_state_is(zk)))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
+        spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
         spec.entails(always(lift_state(cluster_safety::each_object_in_etcd_is_well_formed()))),
     ensures
         spec.entails(true_pred().leads_to(always(lift_state(safety::the_object_in_reconcile_has_spec_as(zk))))),
-{}
+{
+    // We need to prepare a concrete spec which is stable because we will use unpack_conditions_from_spec later
+    let stable_spec = always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))
+        .and(tla_forall(|i| schedule_controller_reconcile().weak_fairness(i)))
+        .and(tla_forall(|i| controller_next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>().weak_fairness(i)))
+        .and(tla_forall(|i| kubernetes_api_next().weak_fairness(i)))
+        .and(always(lift_state(desired_state_is(zk))))
+        .and(always(lift_state(crash_disabled())))
+        .and(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id())))
+        .and(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref()))))
+        .and(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref()))))
+        .and(always(lift_state(cluster_safety::each_object_in_etcd_is_well_formed())));
+
+    let stable_spec_with_assumption = stable_spec.and(always(lift_state(safety::the_object_in_schedule_has_spec_as(zk))));
+
+    // Let's first prove true ~> []the_object_in_reconcile_has_spec_as(zk)
+    assert_by(
+        stable_spec_with_assumption
+        .entails(
+            true_pred().leads_to(always(lift_state(safety::the_object_in_reconcile_has_spec_as(zk))))
+        ),
+        {
+            let stronger_next = |s, s_prime: ClusterState| {
+                &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
+                &&& desired_state_is(zk)(s)
+                &&& crash_disabled()(s)
+                &&& controller_runtime_safety::every_in_flight_msg_has_unique_id()(s)
+                &&& controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())(s)
+                &&& controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())(s)
+                &&& cluster_safety::each_object_in_etcd_is_well_formed()(s)
+                &&& safety::the_object_in_schedule_has_spec_as(zk)(s)
+            };
+            entails_always_and_n!(
+                stable_spec_with_assumption,
+                lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()),
+                lift_state(desired_state_is(zk)),
+                lift_state(crash_disabled()),
+                lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()),
+                lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())),
+                lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())),
+                lift_state(cluster_safety::each_object_in_etcd_is_well_formed()),
+                lift_state(safety::the_object_in_schedule_has_spec_as(zk))
+            );
+            temp_pred_equality(
+                lift_action(stronger_next),
+                lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())
+                .and(lift_state(desired_state_is(zk)))
+                .and(lift_state(crash_disabled()))
+                .and(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))
+                .and(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))
+                .and(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))
+                .and(lift_state(cluster_safety::each_object_in_etcd_is_well_formed()))
+                .and(lift_state(safety::the_object_in_schedule_has_spec_as(zk)))
+            );
+
+            terminate::reconcile_eventually_terminates(stable_spec_with_assumption, zk);
+
+            // Here we split the cases by whether s.reconcile_scheduled_for(zk.object_ref()) is true
+            assert_by(
+                stable_spec_with_assumption
+                .entails(
+                    lift_state(|s: ClusterState| {
+                        &&& !s.reconcile_state_contains(zk.object_ref())
+                        &&& s.reconcile_scheduled_for(zk.object_ref())
+                    }).leads_to(lift_state(safety::the_object_in_reconcile_has_spec_as(zk)))
+                ),
+                {
+                    let pre = |s: ClusterState| {
+                        &&& !s.reconcile_state_contains(zk.object_ref())
+                        &&& s.reconcile_scheduled_for(zk.object_ref())
+                    };
+                    let post = safety::the_object_in_reconcile_has_spec_as(zk);
+                    let input = (Option::None, Option::Some(zk.object_ref()));
+                    controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(
+                        stable_spec_with_assumption, input, stronger_next,
+                        run_scheduled_reconcile::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(), pre, post
+                    );
+                }
+            );
+
+            assert_by(
+                stable_spec_with_assumption
+                .entails(
+                    lift_state(|s: ClusterState| {
+                        &&& !s.reconcile_state_contains(zk.object_ref())
+                        &&& !s.reconcile_scheduled_for(zk.object_ref())
+                    }).leads_to(lift_state(safety::the_object_in_reconcile_has_spec_as(zk)))
+                ),
+                {
+                    let pre = |s: ClusterState| {
+                        &&& !s.reconcile_state_contains(zk.object_ref())
+                        &&& !s.reconcile_scheduled_for(zk.object_ref())
+                    };
+                    let post = |s: ClusterState| {
+                        &&& !s.reconcile_state_contains(zk.object_ref())
+                        &&& s.reconcile_scheduled_for(zk.object_ref())
+                    };
+                    let input = zk.object_ref();
+
+                    lemma_always_desired_state_exists(stable_spec_with_assumption, zk);
+                    temp_pred_equality::<ClusterState>(
+                        lift_state(desired_state_exists(zk)), lift_state(schedule_controller_reconcile().pre(input))
+                    );
+                    spec_implies_pre(stable_spec_with_assumption, lift_state(pre), lift_state(schedule_controller_reconcile().pre(input)));
+                    use_tla_forall::<ClusterState, ObjectRef>(stable_spec_with_assumption, |key| schedule_controller_reconcile().weak_fairness(key), input);
+                    schedule_controller_reconcile().wf1(input, stable_spec_with_assumption, stronger_next, pre, post);
+                    leads_to_trans_temp(stable_spec_with_assumption, lift_state(pre), lift_state(post), lift_state(safety::the_object_in_reconcile_has_spec_as(zk)));
+                }
+            );
+
+            or_leads_to_combine_temp(
+                stable_spec_with_assumption,
+                lift_state(|s: ClusterState| {
+                    &&& !s.reconcile_state_contains(zk.object_ref())
+                    &&& s.reconcile_scheduled_for(zk.object_ref())
+                }),
+                lift_state(|s: ClusterState| {
+                    &&& !s.reconcile_state_contains(zk.object_ref())
+                    &&& !s.reconcile_scheduled_for(zk.object_ref())
+                }),
+                lift_state(safety::the_object_in_reconcile_has_spec_as(zk))
+            );
+
+            temp_pred_equality(
+                lift_state(|s: ClusterState| {
+                    &&& !s.reconcile_state_contains(zk.object_ref())
+                    &&& s.reconcile_scheduled_for(zk.object_ref())
+                }).or(lift_state(|s: ClusterState| {
+                    &&& !s.reconcile_state_contains(zk.object_ref())
+                    &&& !s.reconcile_scheduled_for(zk.object_ref())
+                })),
+                lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref()))
+            );
+
+            leads_to_trans_temp(
+                stable_spec_with_assumption,
+                true_pred(),
+                lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())),
+                lift_state(safety::the_object_in_reconcile_has_spec_as(zk))
+            );
+            leads_to_stable_temp(stable_spec_with_assumption, lift_action(stronger_next), true_pred(), lift_state(safety::the_object_in_reconcile_has_spec_as(zk)));
+        }
+    );
+
+    // By unpacking the conditions we will have: stable_spec |= []the_object_in_schedule_has_spec_as(zk) ~> []the_object_in_reconcile_has_spec_as(zk)
+    assume(valid(stable(stable_spec)));
+    unpack_conditions_from_spec(
+        stable_spec,
+        always(lift_state(safety::the_object_in_schedule_has_spec_as(zk))),
+        true_pred(),
+        always(lift_state(safety::the_object_in_reconcile_has_spec_as(zk)))
+    );
+    temp_pred_equality(true_pred().and(always(lift_state(safety::the_object_in_schedule_has_spec_as(zk)))), always(lift_state(safety::the_object_in_schedule_has_spec_as(zk))));
+
+    // Now we use the previously proved lemma: stable_spec |= true ~> []the_object_in_schedule_has_spec_as(zk)
+    lemma_true_leads_to_always_the_object_in_schedule_has_spec_as(stable_spec, zk);
+
+    leads_to_trans_temp(stable_spec, true_pred(), always(lift_state(safety::the_object_in_schedule_has_spec_as(zk))), always(lift_state(safety::the_object_in_reconcile_has_spec_as(zk))));
+
+    // Because spec might be different from stable_spec, we need this extra step
+    entails_and_n!(
+        spec,
+        always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())),
+        tla_forall(|i| schedule_controller_reconcile().weak_fairness(i)),
+        tla_forall(|i| controller_next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>().weak_fairness(i)),
+        tla_forall(|i| kubernetes_api_next().weak_fairness(i)),
+        always(lift_state(desired_state_is(zk))),
+        always(lift_state(crash_disabled())),
+        always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id())),
+        always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref()))),
+        always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref()))),
+        always(lift_state(cluster_safety::each_object_in_etcd_is_well_formed()))
+    );
+    entails_trans(spec, stable_spec, true_pred().leads_to(always(lift_state(safety::the_object_in_reconcile_has_spec_as(zk)))));
+}
 
 spec fn next_with_wf() -> TempPred<ClusterState> {
     always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))
@@ -226,41 +405,54 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
     );
 
     assert_by(
+        next_with_wf().and(invariants(zk)).and(always(lift_state(desired_state_is(zk)))).and(always(lift_state(crash_disabled())))
+        .entails(
+            true_pred().leads_to(always(lift_state(current_state_matches(zk))))
+        ),
+        {
+            let spec = next_with_wf().and(invariants(zk)).and(always(lift_state(desired_state_is(zk)))).and(always(lift_state(crash_disabled())));
+            let other_assumptions = always(lift_state(safety::the_object_in_schedule_has_spec_as(zk)))
+                .and(always(lift_state(safety::the_object_in_reconcile_has_spec_as(zk))));
+            temp_pred_equality(
+                next_with_wf().and(invariants(zk)).and(assumptions(zk)),
+                next_with_wf().and(invariants(zk)).and(always(lift_state(desired_state_is(zk)))).and(always(lift_state(crash_disabled()))).and(other_assumptions)
+            );
+            assume(valid(stable(spec)));
+            unpack_conditions_from_spec(spec, other_assumptions, true_pred(), always(lift_state(current_state_matches(zk))));
+            temp_pred_equality(true_pred().and(other_assumptions), other_assumptions);
+
+            lemma_true_leads_to_always_the_object_in_schedule_has_spec_as(spec, zk);
+            lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(spec, zk);
+
+            leads_to_always_combine_n!(
+                spec, true_pred(),
+                lift_state(safety::the_object_in_schedule_has_spec_as(zk)),
+                lift_state(safety::the_object_in_reconcile_has_spec_as(zk))
+            );
+
+            always_and_equality_n!(
+                lift_state(safety::the_object_in_schedule_has_spec_as(zk)),
+                lift_state(safety::the_object_in_reconcile_has_spec_as(zk))
+            );
+
+            leads_to_trans_temp(spec, true_pred(), other_assumptions, always(lift_state(current_state_matches(zk))));
+        }
+    );
+
+    assert_by(
         next_with_wf().and(invariants(zk)).and(always(lift_state(desired_state_is(zk))))
         .entails(
             true_pred().leads_to(always(lift_state(current_state_matches(zk))))
         ),
         {
             let spec = next_with_wf().and(invariants(zk)).and(always(lift_state(desired_state_is(zk))));
-            let other_assumptions = always(lift_state(crash_disabled()))
-                .and(always(lift_state(safety::the_object_in_schedule_has_spec_as(zk))))
-                .and(always(lift_state(safety::the_object_in_reconcile_has_spec_as(zk))));
-            temp_pred_equality(
-                next_with_wf().and(invariants(zk)).and(assumptions(zk)),
-                next_with_wf().and(invariants(zk)).and(always(lift_state(desired_state_is(zk)))).and(other_assumptions)
-            );
             assume(valid(stable(spec)));
-            unpack_conditions_from_spec(spec, other_assumptions, true_pred(), always(lift_state(current_state_matches(zk))));
-            temp_pred_equality(true_pred().and(other_assumptions), other_assumptions);
+            unpack_conditions_from_spec(spec, always(lift_state(crash_disabled())), true_pred(), always(lift_state(current_state_matches(zk))));
+            temp_pred_equality(true_pred().and(always(lift_state(crash_disabled()))), always(lift_state(crash_disabled::<ZookeeperClusterView, ZookeeperReconcileState>())));
 
             lemma_true_leads_to_crash_always_disabled::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec);
-            lemma_true_leads_to_always_the_object_in_schedule_has_spec_as(spec, zk);
-            lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(spec, zk);
 
-            leads_to_always_combine_n!(
-                spec, true_pred(),
-                lift_state(crash_disabled()),
-                lift_state(safety::the_object_in_schedule_has_spec_as(zk)),
-                lift_state(safety::the_object_in_reconcile_has_spec_as(zk))
-            );
-
-            always_and_equality_n!(
-                lift_state(crash_disabled()),
-                lift_state(safety::the_object_in_schedule_has_spec_as(zk)),
-                lift_state(safety::the_object_in_reconcile_has_spec_as(zk))
-            );
-
-            leads_to_trans_temp(spec, true_pred(), other_assumptions, always(lift_state(current_state_matches(zk))));
+            leads_to_trans_temp(spec, true_pred(), always(lift_state(crash_disabled())), always(lift_state(current_state_matches(zk))));
         }
     );
 
