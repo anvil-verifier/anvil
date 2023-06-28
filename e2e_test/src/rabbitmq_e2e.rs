@@ -58,7 +58,6 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
     }
 
     // create a rabbitmq cluster
-
     let pp = PostParams::default();
     let rabbitmq_api: Api<RabbitmqCluster> = Api::namespaced(client.clone(), "default");
     let rabbitmq_name = "rabbitmq-test";

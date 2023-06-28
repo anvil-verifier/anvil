@@ -40,7 +40,6 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     }
 
     // create a zookeeper cluster
-
     let pp = PostParams::default();
     let zk_api: Api<ZookeeperCluster> = Api::namespaced(client.clone(), "default");
     let zk_name = "zk-test";
