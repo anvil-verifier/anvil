@@ -64,27 +64,27 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
     let rabbitmq_name = "rabbitmq-test";
     let rabbitmq_sts_name = format!("{}-server", &rabbitmq_name);
     let rabbitmq_cm_name = format!("{}-server-conf", &rabbitmq_name);
-    // let rabbitmq = RabbitmqCluster::new(
-    //     &rabbitmq_name,
-    //     RabbitmqClusterSpec {
-    //         replicas: 3,
-    //         rabbitmq_config: Some(RabbitmqClusterConfigurationSpec {
-    //             additional_config: Some(String::from(
-    //                 "default_user=new_user\ndefault_pass=new_pass",
-    //             )),
-    //             advanced_config: None,
-    //             env_config: None,
-    //         }),
-    //     },
-    // );
-    // let o = rabbitmq_api.create(&pp, &rabbitmq).await?;
-    // assert_eq!(ResourceExt::name_any(&rabbitmq), ResourceExt::name_any(&o));
-    // println!("Created {}", o.name_any());
+    let rabbitmq = RabbitmqCluster::new(
+        &rabbitmq_name,
+        RabbitmqClusterSpec {
+            replicas: 3,
+            rabbitmq_config: Some(RabbitmqClusterConfigurationSpec {
+                additional_config: Some(String::from(
+                    "default_user=new_user\ndefault_pass=new_pass",
+                )),
+                advanced_config: None,
+                env_config: None,
+            }),
+        },
+    );
+    let o = rabbitmq_api.create(&pp, &rabbitmq).await?;
+    assert_eq!(ResourceExt::name_any(&rabbitmq), ResourceExt::name_any(&o));
+    println!("Created {}", o.name_any());
 
     let seconds = Duration::from_secs(360);
     let start = Instant::now();
     loop {
-        // sleep(Duration::from_secs(5)).await;
+        sleep(Duration::from_secs(5)).await;
         if start.elapsed() > seconds {
             return Err(Error::Timeout);
         }
@@ -145,16 +145,18 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
                 pods_ready = false;
                 break;
             }
-            println!("Test exec");
             let attached = pods
                 .exec(
                     p.metadata.name.unwrap().as_str(),
-                    vec!["rabbitmqctl", "authenticate_user", "guest", "guest"],
-                    &AttachParams::default().stderr(false),
+                    vec!["rabbitmqctl", "authenticate_user", "new_user", "new_pass"],
+                    &AttachParams::default().stderr(true),
                 )
                 .await?;
-            let output = get_output(attached).await;
-            println!("{output}");
+            let err = get_err(attached).await;
+            if err != "" {
+                println!("User and password test failed!\n");
+                return Err(Error::RabbitmqUserPassFailed);
+            }
         }
         if pods_ready {
             break;
@@ -164,22 +166,12 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
     Ok(())
 }
 
-async fn get_output(mut attached: AttachedProcess) -> String {
-    let mut stdout = tokio_util::io::ReaderStream::new(attached.stdout().unwrap());
-    let mut output = String::new();
+async fn get_err(mut attached: AttachedProcess) -> String {
+    let mut stderr = tokio_util::io::ReaderStream::new(attached.stderr().unwrap());
     let mut stream_contents = Vec::new();
-    while let Some(chunk) = stdout.next().await {
+    while let Some(chunk) = stderr.next().await {
         stream_contents.extend_from_slice(&chunk.unwrap());
     }
-    print!("{}", String::from_utf8_lossy(&stream_contents));
-    // for line in 0 {
-    //     let out = stdout
-    //         .filter_map(|r| async { r.ok().and_then(|v| String::from_utf8(v.to_vec()).ok()) })
-    //         .collect::<Vec<_>>()
-    //         .await
-    //         .join("");
-    //     output.push_str(&out);
-    // }
     attached.join().await.unwrap();
-    output
+    String::from_utf8_lossy(&stream_contents).to_string()
 }
