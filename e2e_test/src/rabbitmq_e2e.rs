@@ -1,10 +1,15 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
+use futures::{StreamExt, TryStreamExt};
 use k8s_openapi::api::apps::v1::StatefulSet;
 use k8s_openapi::api::core::v1::{ConfigMap, Pod};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
+use kube::Resource;
 use kube::{
-    api::{Api, DeleteParams, ListParams, Patch, PatchParams, PostParams, ResourceExt},
+    api::{
+        Api, AttachParams, AttachedProcess, DeleteParams, ListParams, Patch, PatchParams,
+        PostParams, ResourceExt,
+    },
     core::crd::CustomResourceExt,
     Client, CustomResource,
 };
@@ -37,11 +42,11 @@ pub struct RabbitmqClusterConfigurationSpec {
     pub env_config: Option<String>,
 }
 
-pub async fn zookeeper_e2e_test() -> Result<(), Error> {
+pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
     // check if the CRD is already registered
     let client = Client::try_default().await?;
     let crds: Api<CustomResourceDefinition> = Api::all(client.clone());
-    let rabbitmq_crd = crds.get("zookeeperclusters.anvil.dev").await;
+    let rabbitmq_crd = crds.get("rabbitmqclusters.anvil.dev").await;
     match rabbitmq_crd {
         Err(e) => {
             println!("No CRD found, create one before run the e2e test!\n");
@@ -52,34 +57,34 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
         }
     }
 
-    // create a zookeeper cluster
+    // create a rabbitmq cluster
 
     let pp = PostParams::default();
     let rabbitmq_api: Api<RabbitmqCluster> = Api::namespaced(client.clone(), "default");
     let rabbitmq_name = "rabbitmq-test";
     let rabbitmq_sts_name = format!("{}-server", &rabbitmq_name);
     let rabbitmq_cm_name = format!("{}-server-conf", &rabbitmq_name);
-    let rabbitmq = RabbitmqCluster::new(
-        &rabbitmq_name,
-        RabbitmqClusterSpec {
-            replicas: 3,
-            rabbitmq_config: Some(RabbitmqClusterConfigurationSpec {
-                additional_config: Some(String::from(
-                    "default_user=new_user\ndefault_pass=new_pass",
-                )),
-                advanced_config: None,
-                env_config: None,
-            }),
-        },
-    );
-    let o = rabbitmq_api.create(&pp, &rabbitmq).await?;
-    assert_eq!(ResourceExt::name_any(&rabbitmq), ResourceExt::name_any(&o));
-    println!("Created {}", o.name_any());
+    // let rabbitmq = RabbitmqCluster::new(
+    //     &rabbitmq_name,
+    //     RabbitmqClusterSpec {
+    //         replicas: 3,
+    //         rabbitmq_config: Some(RabbitmqClusterConfigurationSpec {
+    //             additional_config: Some(String::from(
+    //                 "default_user=new_user\ndefault_pass=new_pass",
+    //             )),
+    //             advanced_config: None,
+    //             env_config: None,
+    //         }),
+    //     },
+    // );
+    // let o = rabbitmq_api.create(&pp, &rabbitmq).await?;
+    // assert_eq!(ResourceExt::name_any(&rabbitmq), ResourceExt::name_any(&o));
+    // println!("Created {}", o.name_any());
 
     let seconds = Duration::from_secs(360);
     let start = Instant::now();
     loop {
-        sleep(Duration::from_secs(5)).await;
+        // sleep(Duration::from_secs(5)).await;
         if start.elapsed() > seconds {
             return Err(Error::Timeout);
         }
@@ -93,7 +98,7 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
             }
             Ok(cm) => {
                 let data = cm.data.unwrap();
-                let user_config = data.get("userDefineConfiguration.conf").unwrap();
+                let user_config = data.get("userDefinedConfiguration.conf").unwrap();
                 if !user_config.contains("default_user=new_user")
                     || !user_config.contains("default_pass=new_pass")
                 {
@@ -123,17 +128,58 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
 
         // Check pods
         let pods: Api<Pod> = Api::default_namespaced(client.clone());
-        let lp = ListParams::default().fields(&format!(
-            "metadata.name={}-0,metadata.name={}-1,metadata.name={}-2",
-            &rabbitmq_sts_name, &rabbitmq_sts_name, &rabbitmq_sts_name
-        )); // only want results for our pod
-        for p in pods.list(&lp).await? {
-            if p.status.unwrap().phase != Some("Running".to_string()) {
-                continue;
-            }
+        let lp = ListParams::default().labels(&format!("app={}", &rabbitmq_name)); // only want results for our pod
+        let pod_list = pods.list(&lp).await?;
+        if pod_list.items.len() != 3 {
+            println!("Pods are not ready! Continue to wait!\n");
+            continue;
         }
-        break;
+        let mut pods_ready = true;
+        for p in pod_list {
+            let status = p.status.unwrap();
+            if status.phase != Some("Running".to_string())
+            // container should also be ready
+            || !status.container_statuses.unwrap()[0].ready
+            {
+                println!("Pods are not ready! Continue to wait!\n");
+                pods_ready = false;
+                break;
+            }
+            println!("Test exec");
+            let attached = pods
+                .exec(
+                    p.metadata.name.unwrap().as_str(),
+                    vec!["rabbitmqctl", "authenticate_user", "guest", "guest"],
+                    &AttachParams::default().stderr(false),
+                )
+                .await?;
+            let output = get_output(attached).await;
+            println!("{output}");
+        }
+        if pods_ready {
+            break;
+        }
     }
     println!("Rabbitmq cluster is ready! e2e test passed\n");
     Ok(())
+}
+
+async fn get_output(mut attached: AttachedProcess) -> String {
+    let mut stdout = tokio_util::io::ReaderStream::new(attached.stdout().unwrap());
+    let mut output = String::new();
+    let mut stream_contents = Vec::new();
+    while let Some(chunk) = stdout.next().await {
+        stream_contents.extend_from_slice(&chunk.unwrap());
+    }
+    print!("{}", String::from_utf8_lossy(&stream_contents));
+    // for line in 0 {
+    //     let out = stdout
+    //         .filter_map(|r| async { r.ok().and_then(|v| String::from_utf8(v.to_vec()).ok()) })
+    //         .collect::<Vec<_>>()
+    //         .await
+    //         .join("");
+    //     output.push_str(&out);
+    // }
+    attached.join().await.unwrap();
+    output
 }

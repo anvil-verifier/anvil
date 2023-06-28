@@ -76,16 +76,27 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
         };
         // Check pods
         let pods: Api<Pod> = Api::default_namespaced(client.clone());
-        let lp = ListParams::default().fields(&format!(
-            "metadata.name={}-0,metadata.name={}-1,metadata.name={}-2",
-            &zk_name, &zk_name, &zk_name
-        )); // only want results for our pod
-        for p in pods.list(&lp).await? {
-            if p.status.unwrap().phase != Some("Running".to_string()) {
-                continue;
+        let lp = ListParams::default().labels(&format!("app={}", &zk_name)); // only want results for our pod
+        let pod_list = pods.list(&lp).await?;
+        if pod_list.items.len() != 3 {
+            println!("Pods are not ready! Continue to wait!\n");
+            continue;
+        }
+        let mut pods_ready = true;
+        for p in pod_list {
+            let status = p.status.unwrap();
+            if status.phase != Some("Running".to_string())
+            // container should also be ready
+            || !status.container_statuses.unwrap()[0].ready
+            {
+                println!("Pods are not ready! Continue to wait!\n");
+                pods_ready = false;
+                break;
             }
         }
-        break;
+        if pods_ready {
+            break;
+        }
     }
     println!("Zookeeper cluster is ready! e2e test passed\n");
     Ok(())
