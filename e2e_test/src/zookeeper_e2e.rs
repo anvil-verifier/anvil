@@ -43,7 +43,7 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
 
     let pp = PostParams::default();
     let zk_api: Api<ZookeeperCluster> = Api::namespaced(client.clone(), "default");
-    let zk_name = "zk-test-1";
+    let zk_name = "zk-test";
     let zk = ZookeeperCluster::new(&zk_name, ZookeeperClusterSpec { replicas: 3 });
     let o = zk_api.create(&pp, &zk).await?;
     assert_eq!(ResourceExt::name_any(&zk), ResourceExt::name_any(&o));
@@ -52,6 +52,7 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     let seconds = Duration::from_secs(360);
     let start = Instant::now();
     loop {
+        sleep(Duration::from_secs(5)).await;
         if start.elapsed() > seconds {
             return Err(Error::Timeout);
         }
@@ -65,7 +66,7 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
             }
             Ok(sts) => {
                 if sts.spec.unwrap().replicas != Some(3) {
-                    println!("Statefulset spec is not consistent with zookkeeper cluster spec! e2e_test failed!\n");
+                    println!("Statefulset spec is not consistent with zookeeper cluster spec! e2e_test failed!\n");
                     return Err(Error::ZookeeperStsFailed);
                 }
                 if sts.status.unwrap().replicas != 3 {
