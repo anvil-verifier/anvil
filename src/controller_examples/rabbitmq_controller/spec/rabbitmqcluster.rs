@@ -35,6 +35,8 @@ impl RabbitmqClusterView {
 }
 
 impl ResourceView for RabbitmqClusterView {
+    type Spec = RabbitmqClusterSpecView;
+
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
     }
@@ -52,6 +54,10 @@ impl ResourceView for RabbitmqClusterView {
     }
 
     proof fn object_ref_is_well_formed() {}
+
+    open spec fn spec(self) -> RabbitmqClusterSpecView {
+        self.spec
+    }
 
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {

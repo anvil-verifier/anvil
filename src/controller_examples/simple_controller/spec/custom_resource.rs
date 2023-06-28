@@ -111,6 +111,8 @@ impl CustomResourceView {
 }
 
 impl ResourceView for CustomResourceView {
+    type Spec = CustomResourceSpecView;
+
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
     }
@@ -135,6 +137,10 @@ impl ResourceView for CustomResourceView {
             metadata: self.metadata,
             spec: CustomResourceView::marshal_spec(self.spec),
         }
+    }
+
+    open spec fn spec(self) -> CustomResourceSpecView {
+        self.spec
     }
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<CustomResourceView, ParseDynamicObjectError> {

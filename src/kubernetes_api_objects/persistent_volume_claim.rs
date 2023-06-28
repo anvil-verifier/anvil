@@ -216,6 +216,8 @@ impl PersistentVolumeClaimView {
 }
 
 impl ResourceView for PersistentVolumeClaimView {
+    type Spec = Option<PersistentVolumeClaimSpecView>;
+
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
     }
@@ -233,6 +235,10 @@ impl ResourceView for PersistentVolumeClaimView {
     }
 
     proof fn object_ref_is_well_formed() {}
+
+    open spec fn spec(self) -> Option<PersistentVolumeClaimSpecView> {
+        self.spec
+    }
 
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {

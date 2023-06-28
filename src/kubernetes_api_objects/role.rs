@@ -203,6 +203,8 @@ impl RoleView {
 }
 
 impl ResourceView for RoleView {
+    type Spec = RoleSpecView;
+
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
     }
@@ -220,6 +222,10 @@ impl ResourceView for RoleView {
     }
 
     proof fn object_ref_is_well_formed() {}
+
+    open spec fn spec(self) -> RoleSpecView {
+        (self.policy_rules, ())
+    }
 
     open spec fn to_dynamic_object(self) -> DynamicObjectView {
         DynamicObjectView {
