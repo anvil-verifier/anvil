@@ -76,29 +76,32 @@ pub open spec fn handle_list_request(msg: Message, s: KubernetesAPIState) -> (Et
     (s.resources, resp, Option::None)
 }
 
+pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPIState) -> Option<APIError> {
+    if req.obj.metadata.name.is_None() {
+        // Creation fails because the name of the provided object is not provided
+        Option::Some(APIError::Invalid)
+    } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
+        // Creation fails because the namespace of the provided object does not match the namespace sent on the request
+        Option::Some(APIError::BadRequest)
+    } else if !object_has_well_formed_spec(req.obj) {
+        // Creation fails because the spec of the provided object is not well formed
+        Option::Some(APIError::BadRequest) // TODO: should the error be BadRequest?
+    } else if s.resources.dom().contains(req.obj.set_namespace(req.namespace).object_ref()) {
+        // Creation fails because the object already exists
+        Option::Some(APIError::ObjectAlreadyExists)
+    } else {
+        Option::None
+    }
+}
+
 pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<WatchEvent>)
     recommends
         msg.content.is_create_request(),
 {
     let req = msg.content.get_create_request();
-    if req.obj.metadata.name.is_None() {
+    if validate_create_request(req, s).is_Some() {
         // Creation fails because the name of the provided object is not provided
-        let result = Result::Err(APIError::Invalid);
-        let resp = form_create_resp_msg(msg, result);
-        (s.resources, resp, Option::None)
-    } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
-        // Creation fails because the namespace of the provided object does not match the namespace sent on the request
-        let result = Result::Err(APIError::BadRequest);
-        let resp = form_create_resp_msg(msg, result);
-        (s.resources, resp, Option::None)
-    } else if !object_has_well_formed_spec(req.obj) {
-        // Creation fails because the spec of the provided object is not well formed
-        let result = Result::Err(APIError::BadRequest); // TODO: should the error be BadRequest?
-        let resp = form_create_resp_msg(msg, result);
-        (s.resources, resp, Option::None)
-    } else if s.resources.dom().contains(req.obj.set_namespace(req.namespace).object_ref()) {
-        // Creation fails because the object already exists
-        let result = Result::Err(APIError::ObjectAlreadyExists);
+        let result = Result::Err(validate_create_request(req, s).get_Some_0());
         let resp = form_create_resp_msg(msg, result);
         (s.resources, resp, Option::None)
     } else {
@@ -141,49 +144,46 @@ pub open spec fn update_is_noop(o1: DynamicObjectView, o2: DynamicObjectView) ->
     &&& o1.spec == o2.spec
 }
 
+pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPIState) -> Option<APIError> {
+    // let req = msg.content.get_update_request();
+    if req.obj.metadata.name.is_None() {
+        // Update fails because the name of the object is not provided
+        Option::Some(APIError::BadRequest)
+    } else if req.key.name != req.obj.metadata.name.get_Some_0() {
+        // Update fails because the name of the provided object
+        // does not match the name sent on the request
+        Option::Some(APIError::BadRequest)
+    } else if req.obj.metadata.namespace.is_Some()
+        && req.key.namespace != req.obj.metadata.namespace.get_Some_0() {
+        // Update fails because the namespace of the provided object
+        // does not match the namespace sent on the request
+        Option::Some(APIError::BadRequest)
+    } else if req.obj.kind != req.key.kind {
+        // Update fails because the kind of the provided object
+        // does not match the kind sent on the request
+        Option::Some(APIError::BadRequest)
+    } else if !object_has_well_formed_spec(req.obj) {
+        // Update fails because the spec of the provided object is not well formed
+        Option::Some(APIError::BadRequest) // TODO: should the error be BadRequest?
+    } else if !s.resources.dom().contains(req.key) {
+        // Update fails because the object does not exist
+        Option::Some(APIError::ObjectNotFound)
+    } else if req.obj.metadata.resource_version.is_Some()
+        && req.obj.metadata.resource_version != s.resources[req.key].metadata.resource_version {
+        // Update fails because the object has a wrong rv
+        Option::Some(APIError::Conflict)
+    } else {
+        Option::None
+    }
+}
+
 pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (EtcdState, Message, Option<WatchEvent>)
     recommends
         msg.content.is_update_request(),
 {
     let req = msg.content.get_update_request();
-    if req.obj.metadata.name.is_None() {
-        // Update fails because the name of the object is not provided
-        let result = Result::Err(APIError::BadRequest);
-        let resp = form_update_resp_msg(msg, result);
-        (s.resources, resp, Option::None)
-    } else if req.key.name != req.obj.metadata.name.get_Some_0() {
-        // Update fails because the name of the provided object
-        // does not match the name sent on the request
-        let result = Result::Err(APIError::BadRequest);
-        let resp = form_update_resp_msg(msg, result);
-        (s.resources, resp, Option::None)
-    } else if req.obj.metadata.namespace.is_Some()
-        && req.key.namespace != req.obj.metadata.namespace.get_Some_0() {
-        // Update fails because the namespace of the provided object
-        // does not match the namespace sent on the request
-        let result = Result::Err(APIError::BadRequest);
-        let resp = form_update_resp_msg(msg, result);
-        (s.resources, resp, Option::None)
-    } else if req.obj.kind != req.key.kind {
-        // Update fails because the kind of the provided object
-        // does not match the kind sent on the request
-        let result = Result::Err(APIError::BadRequest);
-        let resp = form_update_resp_msg(msg, result);
-        (s.resources, resp, Option::None)
-    } else if !object_has_well_formed_spec(req.obj) {
-        // Update fails because the spec of the provided object is not well formed
-        let result = Result::Err(APIError::BadRequest); // TODO: should the error be BadRequest?
-        let resp = form_update_resp_msg(msg, result);
-        (s.resources, resp, Option::None)
-    } else if !s.resources.dom().contains(req.key) {
-        // Update fails because the object does not exist
-        let result = Result::Err(APIError::ObjectNotFound);
-        let resp = form_update_resp_msg(msg, result);
-        (s.resources, resp, Option::None)
-    } else if req.obj.metadata.resource_version.is_Some()
-        && req.obj.metadata.resource_version != s.resources[req.key].metadata.resource_version {
-        // Update fails because the object has a wrong rv
-        let result = Result::Err(APIError::Conflict);
+    if validate_update_request(req, s).is_Some() {
+        let result = Result::Err(validate_update_request(req, s).get_Some_0());
         let resp = form_update_resp_msg(msg, result);
         (s.resources, resp, Option::None)
     } else if update_is_noop(req.obj, s.resources[req.key]) {
