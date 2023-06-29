@@ -173,7 +173,7 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
     } else if !object_has_well_formed_spec(req.obj) {
         // Update fails because the spec of the provided object is not well formed
         let result = Result::Err(APIError::BadRequest); // TODO: should the error be BadRequest?
-        let resp = form_create_resp_msg(msg, result);
+        let resp = form_update_resp_msg(msg, result);
         (s.resources, resp, Option::None)
     } else if !s.resources.dom().contains(req.key) {
         // Update fails because the object does not exist
