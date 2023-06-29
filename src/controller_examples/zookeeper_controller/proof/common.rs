@@ -23,8 +23,14 @@ pub open spec fn cluster_spec() -> TempPred<ClusterState> {
 }
 
 // Handy abbreviation for Init step
+pub open spec fn at_init_step(key: ObjectRef) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& s.reconcile_state_contains(key)
+        &&& s.reconcile_state_of(key).local_state.reconcile_step.is_Init()
+    }
+}
 
-pub open spec fn at_init_step(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
+pub open spec fn at_init_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& s.reconcile_state_contains(zk.object_ref())
         &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.object_ref() == zk.object_ref()
@@ -35,12 +41,18 @@ pub open spec fn at_init_step(zk: ZookeeperClusterView) -> StatePred<ClusterStat
 
 pub open spec fn at_init_step_with_no_pending_req(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_init_step(zk)(s)
+        &&& at_init_step_with_zk(zk)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_None()
     }
 }
 
 // Handy abbreviation for AfterCreateHeadlessService step
+pub open spec fn at_after_create_headless_service_step(key: ObjectRef) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& s.reconcile_state_contains(key)
+        &&& s.reconcile_state_of(key).local_state.reconcile_step.is_AfterCreateHeadlessService()
+    }
+}
 
 pub open spec fn at_after_create_headless_service_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -108,6 +120,15 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_create_headless_service
 }
 
 // Handy abbreviation for AfterCreateClientService step
+pub open spec fn at_after_create_client_service_step(key: ObjectRef) -> StatePred<ClusterState>
+    recommends
+        key.kind.is_CustomResourceKind()
+{
+    |s: ClusterState| {
+        &&& s.reconcile_state_contains(key)
+        &&& s.reconcile_state_of(key).local_state.reconcile_step.is_AfterCreateClientService()
+    }
+}
 
 pub open spec fn at_after_create_client_service_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -175,6 +196,12 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_create_client_service_s
 }
 
 // Handy abbreviation for AfterCreateAdminServerService step
+pub open spec fn at_after_create_admin_server_service_step(key: ObjectRef) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& s.reconcile_state_contains(key)
+        &&& s.reconcile_state_of(key).local_state.reconcile_step.is_AfterCreateAdminServerService()
+    }
+}
 
 pub open spec fn at_after_create_admin_server_service_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
@@ -242,6 +269,16 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_create_admin_server_ser
 }
 
 // Handy abbreviation for AfterCreateConfigMap step
+
+pub open spec fn at_after_create_config_map_step(key: ObjectRef) -> StatePred<ClusterState>
+    recommends
+        key.kind.is_CustomResourceKind()
+{
+    |s: ClusterState| {
+        &&& s.reconcile_state_contains(key)
+        &&& s.reconcile_state_of(key).local_state.reconcile_step.is_AfterCreateConfigMap()
+    }
+}
 
 pub open spec fn at_after_create_config_map_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {

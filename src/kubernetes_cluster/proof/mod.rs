@@ -3,6 +3,7 @@
 pub mod cluster;
 pub mod cluster_safety;
 pub mod controller_runtime_eventual_safety;
+pub mod controller_runtime;
 pub mod controller_runtime_liveness;
 pub mod controller_runtime_safety;
 pub mod kubernetes_api_liveness;

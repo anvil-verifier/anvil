@@ -3,7 +3,10 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{common::*, resource::*};
 use crate::kubernetes_cluster::{
-    proof::{kubernetes_api_safety, wf1_assistant::controller_action_pre_implies_next_pre},
+    proof::{
+        controller_runtime::*, kubernetes_api_safety,
+        wf1_assistant::controller_action_pre_implies_next_pre,
+    },
     spec::{
         cluster::*,
         controller::common::ControllerAction,
@@ -29,26 +32,6 @@ pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled
         &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
     })))
     .and(always(lift_state(crash_disabled::<K, T>())))
-}
-
-pub open spec fn reconciler_init_and_no_pending_req
-<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef) -> StatePred<State<K, T>> {
-    |s: State<K, T>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state == ReconcilerType::reconcile_init_state()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-    }
-}
-
-pub open spec fn reconciler_reconcile_done<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef)
-    -> StatePred<State<K, T>>
-    recommends
-        cr_key.kind.is_CustomResourceKind(),
-{
-    |s: State<K, T>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& ReconcilerType::reconcile_done(s.reconcile_state_of(cr_key).local_state)
-    }
 }
 
 pub proof fn lemma_pre_leads_to_post_by_controller<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
@@ -113,10 +96,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle
                 }))
         ),
 {
-    let pre = |s: State<K, T>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& ReconcilerType::reconcile_done(s.reconcile_state_of(cr_key).local_state)
-    };
+    let pre = reconciler_reconcile_done::<K, T, ReconcilerType>(cr_key);
     let post = |s: State<K, T>| {
         &&& !s.reconcile_state_contains(cr_key)
     };
@@ -128,31 +108,25 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle
 }
 
 pub proof fn lemma_reconcile_error_leads_to_reconcile_idle
-<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef)
+<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, cr_key: ObjectRef)
     requires
         K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
+        spec.entails(tla_forall(|i| controller_next::<K, T, ReconcilerType>().weak_fairness(i))),
     ensures
-        sm_partial_spec::<K, T, ReconcilerType>().entails(
-            lift_state(|s: State<K, T>| {
-                &&& s.reconcile_state_contains(cr_key)
-                &&& ReconcilerType::reconcile_error(s.reconcile_state_of(cr_key).local_state)
-            })
+        spec.entails(
+            lift_state(reconciler_reconcile_error::<K, T, ReconcilerType>(cr_key))
                 .leads_to(lift_state(|s: State<K, T>| {
                     &&& !s.reconcile_state_contains(cr_key)
                 }))
         ),
 {
-    let pre = |s: State<K, T>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& ReconcilerType::reconcile_error(s.reconcile_state_of(cr_key).local_state)
-    };
-    let post = |s: State<K, T>| {
-        &&& !s.reconcile_state_contains(cr_key)
-    };
+    let pre = reconciler_reconcile_error::<K, T, ReconcilerType>(cr_key);
+    let post = |s: State<K, T>| { !s.reconcile_state_contains(cr_key) };
     let input = (Option::None, Option::Some(cr_key));
     lemma_pre_leads_to_post_by_controller::<K, T, ReconcilerType>(
-        sm_partial_spec::<K, T, ReconcilerType>(), input,
+        spec, input,
         next::<K, T, ReconcilerType>(), end_reconcile::<K, T, ReconcilerType>(), pre, post
     );
 }
@@ -326,7 +300,7 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
                 .leads_to(lift_state(reconciler_init_and_no_pending_req::<K, T, ReconcilerType>(cr_key)))
         ),
 {
-    lemma_reconcile_error_leads_to_reconcile_idle::<K, T, ReconcilerType>(cr_key);
+    lemma_reconcile_error_leads_to_reconcile_idle::<K, T, ReconcilerType>(spec, cr_key);
     entails_trans::<State<K, T>>(
         partial_spec_with_always_cr_key_exists_and_crash_disabled::<K, T, ReconcilerType>(cr_key),
         sm_partial_spec::<K, T, ReconcilerType>(),
