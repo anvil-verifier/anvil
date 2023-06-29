@@ -9,6 +9,7 @@ use crate::kubernetes_cluster::{
             each_key_in_reconcile_is_consistent_with_its_object,
             lemma_always_each_key_in_reconcile_is_consistent_with_its_object,
         },
+        controller_runtime_eventual_safety,
         controller_runtime_safety::{
             every_in_flight_msg_has_lower_id_than_allocator, every_in_flight_msg_has_unique_id,
         },
@@ -716,47 +717,6 @@ pub proof fn lemma_always_at_most_one_update_sts_req_since_rest_id_is_in_flight(
     );
 }
 
-// TODO: generalize this
-pub open spec fn the_object_in_schedule_has_spec_as(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| s.reconcile_scheduled_for(zk.object_ref()) ==> s.reconcile_scheduled_obj_of(zk.object_ref()).spec == zk.spec
-}
-
-// TODO: generalize this
-pub open spec fn the_object_in_reconcile_has_spec_as(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| s.reconcile_state_contains(zk.object_ref()) ==> s.triggering_cr_of(zk.object_ref()).spec == zk.spec
-}
-
-// pub proof fn lemma_always_the_object_in_reconcile_has_spec_as(
-//     spec: TempPred<ClusterState>, zk: ZookeeperClusterView
-// )
-//     requires
-//         spec.entails(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref()))),
-//         spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
-//         spec.entails(always(lift_state(the_object_in_schedule_has_spec_as(zk)))),
-//     ensures
-//         spec.entails(always(lift_state(the_object_in_reconcile_has_spec_as(zk)))),
-// {
-//     let init = |s: ClusterState| !s.reconcile_state_contains(zk.object_ref());
-//     let stronger_next = |s, s_prime: ClusterState| {
-//         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
-//         &&& the_object_in_schedule_has_spec_as(zk)(s)
-//     };
-//     let invariant = the_object_in_reconcile_has_spec_as(zk);
-
-//     entails_always_and_n!(
-//         spec,
-//         lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()),
-//         lift_state(the_object_in_schedule_has_spec_as(zk))
-//     );
-//     temp_pred_equality(
-//         lift_action(stronger_next),
-//         lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())
-//         .and(lift_state(the_object_in_schedule_has_spec_as(zk)))
-//     );
-
-//     init_invariant(spec, init, stronger_next, invariant);
-// }
-
 pub open spec fn every_update_sts_req_since_rest_id_does_the_same(
     zk: ZookeeperClusterView, rest_id: RestId
 ) -> StatePred<ClusterState>
@@ -780,7 +740,7 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
         spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
         spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(the_object_in_reconcile_has_spec_as(zk)))),
+        spec.entails(always(lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(zk)))),
     ensures
         spec.entails(always(lift_state(every_update_sts_req_since_rest_id_does_the_same(zk, rest_id)))),
 {
@@ -792,7 +752,7 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
         &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
         &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
-        &&& the_object_in_reconcile_has_spec_as(zk)(s)
+        &&& controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(zk)(s)
     };
     let invariant = every_update_sts_req_since_rest_id_does_the_same(zk, rest_id);
 
@@ -812,14 +772,14 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
         lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()),
         lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
         lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
-        lift_state(the_object_in_reconcile_has_spec_as(zk))
+        lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(zk))
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())
         .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
         .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
-        .and(lift_state(the_object_in_reconcile_has_spec_as(zk)))
+        .and(lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(zk)))
     );
 
     assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime)
