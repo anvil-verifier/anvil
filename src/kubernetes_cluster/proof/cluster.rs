@@ -94,4 +94,33 @@ pub proof fn lemma_any_pred_leads_to_crash_always_disabled<K: ResourceView, T, R
     leads_to_trans_temp::<State<K, T>>(spec, any_pred, true_pred(), always(lift_state(crash_disabled::<K, T>())));
 }
 
+pub open spec fn desired_state_is<K: ResourceView, T>(cr: K) -> StatePred<State<K, T>>
+    recommends
+        K::kind().is_CustomResourceKind(),
+{
+    |s: State<K, T>| {
+        &&& s.resource_key_exists(cr.object_ref())
+        &&& K::from_dynamic_object(s.resource_obj_of(cr.object_ref())).is_Ok()
+        &&& K::from_dynamic_object(s.resource_obj_of(cr.object_ref())).get_Ok_0().spec() == cr.spec()
+    }
+}
+
+pub open spec fn desired_state_exists<K: ResourceView, T>(cr: K) -> StatePred<State<K, T>>
+    recommends
+        K::kind().is_CustomResourceKind(),
+{
+    |s: State<K, T>| {
+        &&& s.resource_key_exists(cr.object_ref())
+        &&& K::from_dynamic_object(s.resource_obj_of(cr.object_ref())).is_Ok()
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_desired_state_exists<K: ResourceView, T>(spec: TempPred<State<K, T>>, cr: K)
+    requires
+        spec.entails(always(lift_state(desired_state_is(cr)))),
+    ensures
+        spec.entails(always(lift_state(desired_state_exists(cr)))),
+{}
+
 }
