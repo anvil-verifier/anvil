@@ -81,6 +81,8 @@ pub open spec fn the_object_in_reconcile_has_spec_as<K: ResourceView, T>(cr: K) 
     |s: State<K, T>| s.reconcile_state_contains(cr.object_ref()) ==> s.triggering_cr_of(cr.object_ref()).spec() == cr.spec()
 }
 
+// This lemma says that under the spec where []desired_state_is(cr), it will eventually reach a state where any object
+// in reconcile for cr.object_ref() has the same spec as cr.spec.
 pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
     spec: TempPred<State<K, T>>, cr: K
 )
