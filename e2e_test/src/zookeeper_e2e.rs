@@ -6,23 +6,19 @@ use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomRe
 use kube::{
     api::{Api, DeleteParams, ListParams, Patch, PatchParams, PostParams, ResourceExt},
     core::crd::CustomResourceExt,
+    discovery::{ApiCapabilities, ApiResource, Discovery, Scope},
     Client, CustomResource,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::path::PathBuf;
 use std::thread;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 
-use crate::error::Error;
-
-#[derive(CustomResource, Debug, Clone, Deserialize, Serialize, JsonSchema)]
-#[kube(group = "anvil.dev", version = "v1", kind = "ZookeeperCluster")]
-#[kube(shortname = "zk", namespaced)]
-pub struct ZookeeperClusterSpec {
-    pub replicas: i32,
-}
+use crate::common::apply;
+use crate::common::Error;
 
 pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     // check if the CRD is already registered
@@ -40,13 +36,9 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     }
 
     // create a zookeeper cluster
-    let pp = PostParams::default();
-    let zk_api: Api<ZookeeperCluster> = Api::namespaced(client.clone(), "default");
-    let zk_name = "zk-test";
-    let zk = ZookeeperCluster::new(&zk_name, ZookeeperClusterSpec { replicas: 3 });
-    let o = zk_api.create(&pp, &zk).await?;
-    assert_eq!(ResourceExt::name_any(&zk), ResourceExt::name_any(&o));
-    println!("Created {}", o.name_any());
+    let discovery = Discovery::new(client.clone()).run().await?;
+    let pth = PathBuf::from("./zookeeper.yaml");
+    let zk_name = apply(pth, client.clone(), &discovery).await?;
 
     let seconds = Duration::from_secs(360);
     let start = Instant::now();

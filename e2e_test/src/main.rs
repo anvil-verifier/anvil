@@ -1,9 +1,9 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
-pub mod error;
+pub mod common;
 pub mod rabbitmq_e2e;
 pub mod zookeeper_e2e;
-use error::Error;
+use common::Error;
 use rabbitmq_e2e::rabbitmq_e2e_test;
 use std::str::FromStr;
 use std::{env, sync::Arc};
