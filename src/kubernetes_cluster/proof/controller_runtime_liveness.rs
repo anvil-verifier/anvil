@@ -40,6 +40,17 @@ pub open spec fn reconciler_init_and_no_pending_req
     }
 }
 
+pub open spec fn reconciler_reconcile_done<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef)
+    -> StatePred<State<K, T>>
+    recommends
+        cr_key.kind.is_CustomResourceKind(),
+{
+    |s: State<K, T>| {
+        &&& s.reconcile_state_contains(cr_key)
+        &&& ReconcilerType::reconcile_done(s.reconcile_state_of(cr_key).local_state)
+    }
+}
+
 pub proof fn lemma_pre_leads_to_post_by_controller<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
     spec: TempPred<State<K, T>>, input: (Option<Message>, Option<ObjectRef>), next: ActionPred<State<K, T>>,
     action: ControllerAction<K, T>, pre: StatePred<State<K, T>>, post: StatePred<State<K, T>>
@@ -88,16 +99,15 @@ pub proof fn lemma_pre_leads_to_post_by_schedule_controller_reconcile<K: Resourc
 }
 
 pub proof fn lemma_reconcile_done_leads_to_reconcile_idle
-<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef)
+<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, cr_key: ObjectRef)
     requires
         K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
+        spec.entails(tla_forall(|i| controller_next::<K, T, ReconcilerType>().weak_fairness(i))),
     ensures
-        sm_spec::<K, T, ReconcilerType>().entails(
-            lift_state(|s: State<K, T>| {
-                &&& s.reconcile_state_contains(cr_key)
-                &&& ReconcilerType::reconcile_done(s.reconcile_state_of(cr_key).local_state)
-            })
+        spec.entails(
+            lift_state(reconciler_reconcile_done::<K, T, ReconcilerType>(cr_key))
                 .leads_to(lift_state(|s: State<K, T>| {
                     &&& !s.reconcile_state_contains(cr_key)
                 }))
@@ -112,7 +122,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle
     };
     let input = (Option::None, Option::Some(cr_key));
     lemma_pre_leads_to_post_by_controller::<K, T, ReconcilerType>(
-        sm_spec::<K, T, ReconcilerType>(), input, next::<K, T, ReconcilerType>(),
+        spec, input, next::<K, T, ReconcilerType>(),
         end_reconcile::<K, T, ReconcilerType>(), pre, post
     );
 }
