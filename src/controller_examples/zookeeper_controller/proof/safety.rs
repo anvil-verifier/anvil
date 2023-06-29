@@ -11,6 +11,7 @@ use crate::kubernetes_cluster::{
         },
         controller_runtime_eventual_safety,
         controller_runtime_safety::{
+            each_resp_matches_at_most_one_pending_req,
             every_in_flight_msg_has_lower_id_than_allocator, every_in_flight_msg_has_unique_id,
         },
         kubernetes_api_safety,
@@ -525,7 +526,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_updat
     requires
         spec.entails(lift_state(init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())),
         spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
-        spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)))),
+        spec.entails(always(lift_state(each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)))),
     ensures
         spec.entails(
             always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_update_stateful_set_step(key)))
@@ -534,14 +535,14 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_updat
     let invariant = pending_req_in_flight_or_resp_in_flight_at_after_update_stateful_set_step(key);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
-        &&& controller_runtime_safety::each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)(s)
+        &&& each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)(s)
     };
     assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
     }
     strengthen_next::<ClusterState>(
         spec,
         next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        controller_runtime_safety::each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key),
+        each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key),
         stronger_next
     );
     init_invariant::<ClusterState>(
@@ -932,12 +933,14 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
         lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()),
         lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
         lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
+        lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(zk))
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())
         .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
         .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
+        .and(lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(zk)))
     );
 
     assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime)
