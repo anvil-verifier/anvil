@@ -73,11 +73,11 @@ proof fn next_with_wf_is_stable()
     ensures
         valid(stable(next_with_wf())),
 {
-    always_p_stable(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()));
-    cluster::valid_stable_tla_forall_action_weak_fairness(kubernetes_api_next::<ZookeeperClusterView, ZookeeperReconcileState>());
-    cluster::valid_stable_tla_forall_action_weak_fairness(controller_next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>());
-    cluster::valid_stable_tla_forall_action_weak_fairness(schedule_controller_reconcile::<ZookeeperClusterView, ZookeeperReconcileState>());
-    cluster::valid_stable_action_weak_fairness(disable_crash::<ZookeeperClusterView, ZookeeperReconcileState>());
+    always_p_is_stable(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()));
+    cluster::tla_forall_action_weak_fairness_is_stable(kubernetes_api_next::<ZookeeperClusterView, ZookeeperReconcileState>());
+    cluster::tla_forall_action_weak_fairness_is_stable(controller_next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>());
+    cluster::tla_forall_action_weak_fairness_is_stable(schedule_controller_reconcile::<ZookeeperClusterView, ZookeeperReconcileState>());
+    cluster::action_weak_fairness_is_stable(disable_crash::<ZookeeperClusterView, ZookeeperReconcileState>());
 
     stable_and_n!(
         always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())),
@@ -101,10 +101,10 @@ proof fn assumptions_is_stable(zk: ZookeeperClusterView)
     ensures
         valid(stable(assumptions(zk))),
 {
-    always_p_stable(lift_state(crash_disabled::<ZookeeperClusterView, ZookeeperReconcileState>()));
-    always_p_stable(lift_state(cluster::desired_state_is::<ZookeeperClusterView, ZookeeperReconcileState>(zk)));
-    always_p_stable(lift_state(controller_runtime_eventual_safety::the_object_in_schedule_has_spec_as::<ZookeeperClusterView, ZookeeperReconcileState>(zk)));
-    always_p_stable(lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as::<ZookeeperClusterView, ZookeeperReconcileState>(zk)));
+    always_p_is_stable(lift_state(crash_disabled::<ZookeeperClusterView, ZookeeperReconcileState>()));
+    always_p_is_stable(lift_state(cluster::desired_state_is::<ZookeeperClusterView, ZookeeperReconcileState>(zk)));
+    always_p_is_stable(lift_state(controller_runtime_eventual_safety::the_object_in_schedule_has_spec_as::<ZookeeperClusterView, ZookeeperReconcileState>(zk)));
+    always_p_is_stable(lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as::<ZookeeperClusterView, ZookeeperReconcileState>(zk)));
 
     stable_and_n!(
         always(lift_state(crash_disabled::<ZookeeperClusterView, ZookeeperReconcileState>())),
@@ -139,15 +139,15 @@ proof fn invariants_is_stable(zk: ZookeeperClusterView)
     ensures
         valid(stable(invariants(zk))),
 {
-    always_p_stable(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id::<ZookeeperClusterView, ZookeeperReconcileState>()));
-    always_p_stable(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(zk.object_ref())));
-    always_p_stable(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches::<ZookeeperClusterView, ZookeeperReconcileState>(zk.object_ref())));
-    always_p_stable(lift_state(controller_runtime_safety::every_in_flight_msg_has_lower_id_than_allocator::<ZookeeperClusterView, ZookeeperReconcileState>()));
-    always_p_stable(lift_state(cluster_safety::each_object_in_etcd_is_well_formed::<ZookeeperClusterView, ZookeeperReconcileState>()));
-    always_p_stable(lift_state(cluster_safety::each_scheduled_key_is_consistent_with_its_object::<ZookeeperClusterView, ZookeeperReconcileState>()));
-    always_p_stable(lift_state(cluster_safety::each_key_in_reconcile_is_consistent_with_its_object::<ZookeeperClusterView, ZookeeperReconcileState>()));
-    always_p_stable(lift_state(safety::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref())));
-    always_p_stable(lift_state(safety::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref())));
+    always_p_is_stable(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id::<ZookeeperClusterView, ZookeeperReconcileState>()));
+    always_p_is_stable(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(zk.object_ref())));
+    always_p_is_stable(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches::<ZookeeperClusterView, ZookeeperReconcileState>(zk.object_ref())));
+    always_p_is_stable(lift_state(controller_runtime_safety::every_in_flight_msg_has_lower_id_than_allocator::<ZookeeperClusterView, ZookeeperReconcileState>()));
+    always_p_is_stable(lift_state(cluster_safety::each_object_in_etcd_is_well_formed::<ZookeeperClusterView, ZookeeperReconcileState>()));
+    always_p_is_stable(lift_state(cluster_safety::each_scheduled_key_is_consistent_with_its_object::<ZookeeperClusterView, ZookeeperReconcileState>()));
+    always_p_is_stable(lift_state(cluster_safety::each_key_in_reconcile_is_consistent_with_its_object::<ZookeeperClusterView, ZookeeperReconcileState>()));
+    always_p_is_stable(lift_state(safety::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref())));
+    always_p_is_stable(lift_state(safety::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref())));
 
     stable_and_n!(
         always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id::<ZookeeperClusterView, ZookeeperReconcileState>())),
@@ -178,11 +178,11 @@ proof fn invariants_since_rest_id_is_stable(zk: ZookeeperClusterView, rest_id: R
     ensures
         valid(stable(invariants_since_rest_id(zk, rest_id))),
 {
-    always_p_stable(lift_state(rest_id_counter_is_no_smaller_than::<ZookeeperClusterView, ZookeeperReconcileState>(rest_id)));
-    always_p_stable(lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)));
-    always_p_stable(lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)));
-    always_p_stable(lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)));
-    always_p_stable(lift_state(safety::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id)));
+    always_p_is_stable(lift_state(rest_id_counter_is_no_smaller_than::<ZookeeperClusterView, ZookeeperReconcileState>(rest_id)));
+    always_p_is_stable(lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)));
+    always_p_is_stable(lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)));
+    always_p_is_stable(lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)));
+    always_p_is_stable(lift_state(safety::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id)));
 
     stable_and_n!(
         always(lift_state(rest_id_counter_is_no_smaller_than(rest_id))),
@@ -203,7 +203,7 @@ proof fn invariants_led_to_by_rest_id_is_stable(zk: ZookeeperClusterView, rest_i
     ensures
         valid(stable(invariants_led_to_by_rest_id(zk, rest_id))),
 {
-    always_p_stable(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight::<ZookeeperClusterView, ZookeeperReconcileState>(rest_id)));
+    always_p_is_stable(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight::<ZookeeperClusterView, ZookeeperReconcileState>(rest_id)));
 }
 
 proof fn liveness_proof(zk: ZookeeperClusterView)
@@ -292,8 +292,8 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
                 {
                     next_with_wf_is_stable();
                     invariants_is_stable(zk);
-                    always_p_stable(lift_state(cluster::desired_state_is::<ZookeeperClusterView, ZookeeperReconcileState>(zk)));
-                    always_p_stable(lift_state(crash_disabled::<ZookeeperClusterView, ZookeeperReconcileState>()));
+                    always_p_is_stable(lift_state(cluster::desired_state_is::<ZookeeperClusterView, ZookeeperReconcileState>(zk)));
+                    always_p_is_stable(lift_state(crash_disabled::<ZookeeperClusterView, ZookeeperReconcileState>()));
 
                     stable_and_n!(
                         next_with_wf(),
@@ -338,7 +338,7 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
                 {
                     next_with_wf_is_stable();
                     invariants_is_stable(zk);
-                    always_p_stable(lift_state(cluster::desired_state_is::<ZookeeperClusterView, ZookeeperReconcileState>(zk)));
+                    always_p_is_stable(lift_state(cluster::desired_state_is::<ZookeeperClusterView, ZookeeperReconcileState>(zk)));
 
                     stable_and_n!(
                         next_with_wf(),

@@ -1066,7 +1066,7 @@ pub proof fn entails_and_different_temp<T>(spec1: TempPred<T>, spec2: TempPred<T
 /// An always predicate is stable.
 /// post:
 ///     |= stable(always(p))
-pub proof fn always_p_stable<T>(p: TempPred<T>)
+pub proof fn always_p_is_stable<T>(p: TempPred<T>)
     ensures
         valid(stable(always(p))),
 {
@@ -1080,11 +1080,11 @@ pub proof fn always_p_stable<T>(p: TempPred<T>)
 /// A leads-to predicate is stable.
 /// post:
 ///     |= stable(p ~> q)
-pub proof fn p_leads_to_q_stable<T>(p: TempPred<T>, q: TempPred<T>)
+pub proof fn p_leads_to_q_is_stable<T>(p: TempPred<T>, q: TempPred<T>)
     ensures
         valid(stable(p.leads_to(q))),
 {
-    always_p_stable(p.implies(eventually(q)));
+    always_p_is_stable(p.implies(eventually(q)));
 }
 
 /// p and q is stable if both p and q are stable.

@@ -26,16 +26,16 @@ use vstd::prelude::*;
 verus! {
 
 /// Prove weak_fairness is stable.
-pub proof fn valid_stable_action_weak_fairness<K: ResourceView, T, Output>(action: Action<State<K, T>, (), Output>)
+pub proof fn action_weak_fairness_is_stable<K: ResourceView, T, Output>(action: Action<State<K, T>, (), Output>)
     ensures
         valid(stable(action.weak_fairness(()))),
 {
     let split_always = always(lift_state(action.pre(()))).implies(eventually(lift_action(action.forward(()))));
-    always_p_stable::<State<K, T>>(split_always);
+    always_p_is_stable::<State<K, T>>(split_always);
 }
 
 /// Prove weak_fairness for all input is stable.
-pub proof fn valid_stable_tla_forall_action_weak_fairness<K: ResourceView, T, Input, Output>(
+pub proof fn tla_forall_action_weak_fairness_is_stable<K: ResourceView, T, Input, Output>(
     action: Action<State<K, T>, Input, Output>
 )
     ensures
@@ -43,19 +43,19 @@ pub proof fn valid_stable_tla_forall_action_weak_fairness<K: ResourceView, T, In
 {
     let split_always = |input| always(lift_state(action.pre(input))).implies(eventually(lift_action(action.forward(input))));
     tla_forall_always_equality_variant::<State<K, T>, Input>(|input| action.weak_fairness(input), split_always);
-    always_p_stable::<State<K, T>>(tla_forall(split_always));
+    always_p_is_stable::<State<K, T>>(tla_forall(split_always));
 }
 
 /// Prove partial_spec is stable.
-pub proof fn valid_stable_sm_partial_spec<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>()
+pub proof fn sm_partial_spec_is_stable<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>()
     ensures
         valid(stable(sm_partial_spec::<K, T, ReconcilerType>())),
 {
-    always_p_stable::<State<K, T>>(lift_action(next::<K, T, ReconcilerType>()));
-    valid_stable_tla_forall_action_weak_fairness::<K, T, Option<Message>, ()>(kubernetes_api_next());
-    valid_stable_tla_forall_action_weak_fairness::<K, T, (Option<Message>, Option<ObjectRef>), ()>(controller_next::<K, T, ReconcilerType>());
-    valid_stable_tla_forall_action_weak_fairness::<K, T, ObjectRef, ()>(schedule_controller_reconcile());
-    valid_stable_action_weak_fairness::<K, T, ()>(disable_crash());
+    always_p_is_stable::<State<K, T>>(lift_action(next::<K, T, ReconcilerType>()));
+    tla_forall_action_weak_fairness_is_stable::<K, T, Option<Message>, ()>(kubernetes_api_next());
+    tla_forall_action_weak_fairness_is_stable::<K, T, (Option<Message>, Option<ObjectRef>), ()>(controller_next::<K, T, ReconcilerType>());
+    tla_forall_action_weak_fairness_is_stable::<K, T, ObjectRef, ()>(schedule_controller_reconcile());
+    action_weak_fairness_is_stable::<K, T, ()>(disable_crash());
 
     stable_and_n!(
         always(lift_action(next::<K, T, ReconcilerType>())),
