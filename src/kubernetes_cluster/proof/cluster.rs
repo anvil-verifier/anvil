@@ -105,22 +105,4 @@ pub open spec fn desired_state_is<K: ResourceView, T>(cr: K) -> StatePred<State<
     }
 }
 
-pub open spec fn desired_state_exists<K: ResourceView, T>(cr: K) -> StatePred<State<K, T>>
-    recommends
-        K::kind().is_CustomResourceKind(),
-{
-    |s: State<K, T>| {
-        &&& s.resource_key_exists(cr.object_ref())
-        &&& K::from_dynamic_object(s.resource_obj_of(cr.object_ref())).is_Ok()
-    }
-}
-
-#[verifier(external_body)]
-pub proof fn lemma_always_desired_state_exists<K: ResourceView, T>(spec: TempPred<State<K, T>>, cr: K)
-    requires
-        spec.entails(always(lift_state(desired_state_is(cr)))),
-    ensures
-        spec.entails(always(lift_state(desired_state_exists(cr)))),
-{}
-
 }

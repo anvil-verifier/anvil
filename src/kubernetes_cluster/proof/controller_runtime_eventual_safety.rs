@@ -65,15 +65,9 @@ pub proof fn lemma_true_leads_to_always_the_object_in_schedule_has_spec_as<K: Re
 
     K::object_ref_is_well_formed();
 
-    lemma_always_desired_state_exists(spec, cr);
-    temp_pred_equality::<State<K, T>>(
-        lift_state(desired_state_exists(cr)), lift_state(schedule_controller_reconcile().pre(input))
+    controller_runtime_liveness::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(
+        spec, input, stronger_next, desired_state_is(cr), pre, post
     );
-
-    spec_implies_pre(spec, lift_state(pre), lift_state(schedule_controller_reconcile().pre(input)));
-    use_tla_forall::<State<K, T>, ObjectRef>(spec, |key| schedule_controller_reconcile().weak_fairness(key), input);
-
-    schedule_controller_reconcile().wf1(input, spec, stronger_next, pre, post);
     leads_to_stable_temp(spec, lift_action(stronger_next), lift_state(pre), lift_state(post));
 }
 
@@ -177,13 +171,9 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as<K: R
                     let input = cr.object_ref();
 
                     K::object_ref_is_well_formed();
-                    lemma_always_desired_state_exists(stable_spec_with_assumption, cr);
-                    temp_pred_equality::<State<K, T>>(
-                        lift_state(desired_state_exists(cr)), lift_state(schedule_controller_reconcile().pre(input))
+                    controller_runtime_liveness::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(
+                        stable_spec_with_assumption, input, stronger_next, desired_state_is(cr), pre, post
                     );
-                    spec_implies_pre(stable_spec_with_assumption, lift_state(pre), lift_state(schedule_controller_reconcile().pre(input)));
-                    use_tla_forall::<State<K, T>, ObjectRef>(stable_spec_with_assumption, |key| schedule_controller_reconcile().weak_fairness(key), input);
-                    schedule_controller_reconcile().wf1(input, stable_spec_with_assumption, stronger_next, pre, post);
                     leads_to_trans_temp(stable_spec_with_assumption, lift_state(pre), lift_state(post), lift_state(the_object_in_reconcile_has_spec_as(cr)));
                 }
             );

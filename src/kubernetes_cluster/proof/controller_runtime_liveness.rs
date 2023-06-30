@@ -87,6 +87,26 @@ pub proof fn lemma_pre_leads_to_post_by_schedule_controller_reconcile<K: Resourc
     schedule_controller_reconcile::<K, T>().wf1(input, spec, next, pre, post);
 }
 
+pub proof fn lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec<K: ResourceView, T>(
+    spec: TempPred<State<K, T>>, input: ObjectRef, next: ActionPred<State<K, T>>,
+    c: StatePred<State<K, T>>, pre: StatePred<State<K, T>>, post: StatePred<State<K, T>>
+)
+    requires
+        forall |s, s_prime: State<K, T>| pre(s) && c(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
+        forall |s, s_prime: State<K, T>| pre(s) && c(s) && #[trigger] next(s, s_prime) && schedule_controller_reconcile::<K, T>().forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s: State<K, T>| #[trigger] pre(s) && c(s) ==> schedule_controller_reconcile::<K, T>().pre(input)(s),
+        spec.entails(always(lift_action(next))),
+        spec.entails(tla_forall(|i| schedule_controller_reconcile::<K, T>().weak_fairness(i))),
+        spec.entails(always(lift_state(c))),
+    ensures
+        spec.entails(lift_state(pre).leads_to(lift_state(post))),
+{
+    use_tla_forall::<State<K, T>, ObjectRef>(
+        spec, |i| schedule_controller_reconcile::<K, T>().weak_fairness(i), input
+    );
+    schedule_controller_reconcile::<K, T>().wf1_borrow_from_spec(input, spec, next, c, pre, post);
+}
+
 pub proof fn lemma_reconcile_done_leads_to_reconcile_idle
 <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef)
     requires

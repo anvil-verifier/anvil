@@ -581,6 +581,25 @@ pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
     fun_ext::<Execution<T>, bool>(p.pred, q.pred);
 }
 
+pub proof fn always_double_equality<T>(p: TempPred<T>)
+    ensures
+        always(always(p)) == always(p),
+{
+    assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies always(always(p)).satisfied_by(ex) by {
+        assert forall |i| #[trigger] always(p).satisfied_by(ex.suffix(i)) by {
+            assert forall |j| #[trigger] p.satisfied_by(ex.suffix(i).suffix(j)) by {
+                execution_equality(ex.suffix(i).suffix(j), ex.suffix(i + j));
+                assert(p.satisfied_by(ex.suffix(i + j)));
+            }
+        }
+    }
+    assert forall |ex| #[trigger] always(always(p)).satisfied_by(ex) implies always(p).satisfied_by(ex) by {
+        execution_equality(ex.suffix(0), ex);
+        assert(always(p).satisfied_by(ex.suffix(0)));
+    }
+    temp_pred_equality::<T>(always(always(p)), always(p));
+}
+
 pub proof fn always_and_equality<T>(p: TempPred<T>, q: TempPred<T>)
     ensures
         always(p.and(q)) == always(p).and(always(q)),
@@ -1132,6 +1151,22 @@ pub proof fn unpack_conditions_from_spec<T>(spec: TempPred<T>, c: TempPred<T>, p
     };
 }
 
+pub proof fn borrow_conditions_from_spec<T>(spec: TempPred<T>, c: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(p.and(c).leads_to(q)),
+        spec.entails(always(c)),
+    ensures
+        spec.entails(p.leads_to(q)),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(q).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(q).satisfied_by(ex.suffix(i)) by {
+            implies_apply(ex, spec, always(c));
+            implies_apply(ex, spec, p.and(c).leads_to(q));
+            implies_apply(ex.suffix(i), p.and(c), eventually(q));
+        }
+    }
+}
+
 /// Pack the conditions from the right to the left side of |=
 /// pre:
 ///     spec |= p /\ c ~> q
@@ -1290,6 +1325,34 @@ pub proof fn wf1_variant_temp<T>(spec: TempPred<T>, next: TempPred<T>, forward: 
             }
         }
     }
+}
+
+pub proof fn wf1_variant_borrow_from_spec_temp<T>(spec: TempPred<T>, next: TempPred<T>, forward: TempPred<T>, c: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(always(p.and(c).and(next).implies(later(p).or(later(q))))),
+        spec.entails(always(p.and(c).and(next).and(forward).implies(later(q)))),
+        spec.entails(always(next)),
+        spec.entails(always(p.and(c)).leads_to(forward)),
+        spec.entails(always(c)),
+    ensures
+        spec.entails(p.leads_to(q)),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex)
+    implies always(p.and(c).and(next).implies(later(p.and(c)).or(later(q)))).satisfied_by(ex) by {
+        implies_apply::<T>(ex, spec, always(p.and(c).and(next).implies(later(p).or(later(q)))));
+        implies_apply::<T>(ex, spec, always(c));
+        always_unfold(ex, p.and(c).and(next).implies(later(p).or(later(q))));
+        always_unfold(ex, c);
+        assert forall |i| #[trigger] p.and(c).and(next).satisfied_by(ex.suffix(i))
+        implies later(p.and(c)).or(later(q)).satisfied_by(ex.suffix(i)) by {
+            implies_apply(ex.suffix(i), p.and(c).and(next), later(p).or(later(q)));
+            execution_equality(ex.suffix(i).suffix(1), ex.suffix(i + 1));
+            temp_pred_equality(later(p.and(c)), later(p).and(later(c)));
+        }
+    }
+
+    wf1_variant_temp(spec, next, forward, p.and(c), q);
+    borrow_conditions_from_spec(spec, c, p, q);
 }
 
 /// Get the initial leads_to by assuming always asm.
