@@ -44,24 +44,7 @@ use vstd::prelude::*;
 
 verus! {
 
-#[verifier(external_body)]
 pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, zk: ZookeeperClusterView)
-    requires
-        zk.well_formed(),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| controller_next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>().weak_fairness(i))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
-        spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
-    ensures
-        spec.entails(
-            true_pred().leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
-        ),
-{}
-
-pub proof fn reconcile_eventually_terminates_1(spec: TempPred<ClusterState>, zk: ZookeeperClusterView)
     requires
         zk.well_formed(),
         spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
