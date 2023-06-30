@@ -154,7 +154,7 @@ pub proof fn lemma_from_after_update_stateful_set_step_to_reconcile_idle(spec: T
     let at_after_update_stateful_set_step_and_pending_req_in_flight_or_resp_in_flight = |s: ClusterState| {
         at_after_update_stateful_set_step(zk.object_ref())(s)
         && s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
-        && sts_update_request_msg(zk.object_ref())(s.pending_req_of(zk.object_ref()))
+        && is_controller_update_request(s.pending_req_of(zk.object_ref()))
         && (s.message_in_flight(s.pending_req_of(zk.object_ref()))
         || exists |resp_msg: Message| {
             #[trigger] s.message_in_flight(resp_msg)
@@ -216,7 +216,7 @@ pub proof fn lemma_from_after_create_stateful_set_step_to_reconcile_idle(spec: T
     let at_after_create_stateful_set_step_and_pending_req_in_flight_or_resp_in_flight = |s: ClusterState| {
         at_after_create_stateful_set_step(zk.object_ref())(s)
         && s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
-        && sts_create_request_msg(zk.object_ref())(s.pending_req_of(zk.object_ref()))
+        && is_controller_create_request(s.pending_req_of(zk.object_ref()))
         && (s.message_in_flight(s.pending_req_of(zk.object_ref()))
         || exists |resp_msg: Message| {
             #[trigger] s.message_in_flight(resp_msg)
@@ -733,7 +733,7 @@ proof fn lemma_from_at_after_update_stateful_set_step_and_resp_matches_pending_r
         |s: ClusterState| {
             at_after_update_stateful_set_step(zk.object_ref())(s)
             && s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
-            && sts_update_request_msg(zk.object_ref())(s.pending_req_of(zk.object_ref()))
+            && is_controller_update_request(s.pending_req_of(zk.object_ref()))
             && s.message_in_flight(resp)
             && resp_msg_matches_req_msg(resp, s.pending_req_of(zk.object_ref()))
         }
@@ -743,7 +743,7 @@ proof fn lemma_from_at_after_update_stateful_set_step_and_resp_matches_pending_r
             let resp_in_flight_state = |s: ClusterState| {
                 at_after_update_stateful_set_step(zk.object_ref())(s)
                 && s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
-                && sts_update_request_msg(zk.object_ref())(s.pending_req_of(zk.object_ref()))
+                && is_controller_update_request(s.pending_req_of(zk.object_ref()))
                 && s.message_in_flight(msg)
                 && resp_msg_matches_req_msg(msg, s.pending_req_of(zk.object_ref()))
             };
@@ -907,7 +907,7 @@ proof fn lemma_from_at_after_create_stateful_set_step_and_resp_matches_pending_r
         |s: ClusterState| {
             at_after_create_stateful_set_step(zk.object_ref())(s)
             && s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
-            && sts_create_request_msg(zk.object_ref())(s.pending_req_of(zk.object_ref()))
+            && is_controller_create_request(s.pending_req_of(zk.object_ref()))
             && s.message_in_flight(resp)
             && resp_msg_matches_req_msg(resp, s.pending_req_of(zk.object_ref()))
         }
@@ -917,7 +917,7 @@ proof fn lemma_from_at_after_create_stateful_set_step_and_resp_matches_pending_r
             let resp_in_flight_state = |s: ClusterState| {
                 at_after_create_stateful_set_step(zk.object_ref())(s)
                 && s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
-                && sts_create_request_msg(zk.object_ref())(s.pending_req_of(zk.object_ref()))
+                && is_controller_create_request(s.pending_req_of(zk.object_ref()))
                 && s.message_in_flight(msg)
                 && resp_msg_matches_req_msg(msg, s.pending_req_of(zk.object_ref()))
             };

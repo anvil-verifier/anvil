@@ -41,8 +41,7 @@ verus! {
 
 pub open spec fn sts_create_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
     |msg: Message|
-        msg.src.is_CustomController()
-        && msg.dst.is_KubernetesAPI()
+        msg.dst.is_KubernetesAPI()
         && msg.content.is_create_request()
         && msg.content.get_create_request().namespace == make_stateful_set_key(key).namespace
         && msg.content.get_create_request().obj.metadata.name.get_Some_0() == make_stateful_set_key(key).name
@@ -383,8 +382,7 @@ pub proof fn lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(
 
 pub open spec fn sts_update_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
     |msg: Message|
-        msg.src.is_CustomController()
-        && msg.dst.is_KubernetesAPI()
+        msg.dst.is_KubernetesAPI()
         && msg.content.is_update_request()
         && msg.content.get_update_request().key == make_stateful_set_key(key)
 }
@@ -445,7 +443,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_stateful_s
     |s: ClusterState| {
         at_after_create_stateful_set_step(key)(s)
         && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
-        && sts_create_request_msg(key)(req_msg)
+        && is_controller_create_request(req_msg)
         && s.message_in_flight(req_msg)
     }
 }
@@ -467,7 +465,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_stateful_s
     |s: ClusterState| {
         at_after_update_stateful_set_step(key)(s)
         && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
-        && sts_update_request_msg(key)(req_msg)
+        && is_controller_update_request(req_msg)
         && s.message_in_flight(req_msg)
     }
 }
@@ -636,7 +634,7 @@ pub open spec fn at_after_create_stateful_set_step_and_pending_req_in_flight(
     |s: ClusterState| {
         at_after_create_stateful_set_step(key)(s)
         && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && sts_create_request_msg(key)(s.pending_req_of(key))
+        && is_controller_create_request(s.pending_req_of(key))
         && s.message_in_flight(s.pending_req_of(key))
     }
 }
@@ -650,7 +648,7 @@ pub open spec fn at_after_create_stateful_set_step_and_resp_matches_pending_req_
     |s: ClusterState| {
         at_after_create_stateful_set_step(key)(s)
         && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && sts_create_request_msg(key)(s.pending_req_of(key))
+        && is_controller_create_request(s.pending_req_of(key))
         && exists |resp_msg: Message| {
             #[trigger] s.message_in_flight(resp_msg)
             && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
@@ -667,7 +665,7 @@ pub open spec fn at_after_update_stateful_set_step_and_pending_req_in_flight(
     |s: ClusterState| {
         at_after_update_stateful_set_step(key)(s)
         && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && sts_update_request_msg(key)(s.pending_req_of(key))
+        && is_controller_update_request(s.pending_req_of(key))
         && s.message_in_flight(s.pending_req_of(key))
     }
 }
@@ -681,7 +679,7 @@ pub open spec fn at_after_update_stateful_set_step_and_resp_matches_pending_req_
     |s: ClusterState| {
         at_after_update_stateful_set_step(key)(s)
         && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && sts_update_request_msg(key)(s.pending_req_of(key))
+        && is_controller_update_request(s.pending_req_of(key))
         && exists |resp_msg: Message| {
             #[trigger] s.message_in_flight(resp_msg)
             && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
@@ -699,7 +697,7 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_update_statefu
         at_after_update_stateful_set_step(key)(s)
             ==> {
                 s.reconcile_state_of(key).pending_req_msg.is_Some()
-                && sts_update_request_msg(key)(s.pending_req_of(key))
+                && is_controller_update_request(s.pending_req_of(key))
                 && (s.message_in_flight(s.pending_req_of(key))
                 || exists |resp_msg: Message| {
                     #[trigger] s.message_in_flight(resp_msg)
@@ -707,6 +705,12 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_update_statefu
                 })
             }
     }
+}
+
+pub open spec fn is_controller_update_request(msg: Message) -> bool {
+    msg.src.is_CustomController()
+    && msg.dst.is_KubernetesAPI()
+    && msg.content.is_update_request()
 }
 
 pub open spec fn is_controller_create_request(msg: Message) -> bool {
@@ -831,7 +835,7 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_create_statefu
         at_after_create_stateful_set_step(key)(s)
             ==> {
                 s.reconcile_state_of(key).pending_req_msg.is_Some()
-                && sts_create_request_msg(key)(s.pending_req_of(key))
+                && is_controller_create_request(s.pending_req_of(key))
                 && (s.message_in_flight(s.pending_req_of(key))
                 || exists |resp_msg: Message| {
                     #[trigger] s.message_in_flight(resp_msg)
