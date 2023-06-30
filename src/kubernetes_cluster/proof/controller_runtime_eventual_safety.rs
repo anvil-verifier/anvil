@@ -210,7 +210,26 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as<K: R
     );
 
     // By unpacking the conditions we will have: stable_spec |= []the_object_in_schedule_has_spec_as(cr) ~> []the_object_in_reconcile_has_spec_as(cr)
-    assume(valid(stable(stable_spec)));
+    assert_by(
+        valid(stable(stable_spec)),
+        {
+            always_p_stable(lift_action(next::<K, T, ReconcilerType>()));
+            valid_stable_tla_forall_action_weak_fairness(schedule_controller_reconcile::<K, T>());
+            valid_stable_tla_forall_action_weak_fairness(controller_next::<K, T, ReconcilerType>());
+            always_p_stable(lift_state(desired_state_is::<K, T>(cr)));
+            p_leads_to_q_stable(true_pred(), lift_state(|s: State<K, T>| !s.reconcile_state_contains(cr.object_ref())));
+            p_leads_to_q_stable(true_pred(), always(lift_state(the_object_in_schedule_has_spec_as::<K, T>(cr))));
+
+            stable_and_n!(
+                always(lift_action(next::<K, T, ReconcilerType>())),
+                tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)),
+                tla_forall(|input| controller_next::<K, T, ReconcilerType>().weak_fairness(input)),
+                always(lift_state(desired_state_is::<K, T>(cr))),
+                true_pred().leads_to(lift_state(|s: State<K, T>| !s.reconcile_state_contains(cr.object_ref()))),
+                true_pred().leads_to(always(lift_state(the_object_in_schedule_has_spec_as(cr))))
+            );
+        }
+    );
     unpack_conditions_from_spec(
         stable_spec,
         always(lift_state(the_object_in_schedule_has_spec_as(cr))),

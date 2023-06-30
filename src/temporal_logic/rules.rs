@@ -1077,6 +1077,16 @@ pub proof fn always_p_stable<T>(p: TempPred<T>)
     }
 }
 
+/// A leads-to predicate is stable.
+/// post:
+///     |= stable(p ~> q)
+pub proof fn p_leads_to_q_stable<T>(p: TempPred<T>, q: TempPred<T>)
+    ensures
+        valid(stable(p.leads_to(q))),
+{
+    always_p_stable(p.implies(eventually(q)));
+}
+
 /// p and q is stable if both p and q are stable.
 /// pre:
 ///     |= stable(p)

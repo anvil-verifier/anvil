@@ -26,7 +26,7 @@ use vstd::prelude::*;
 verus! {
 
 /// Prove weak_fairness is stable.
-proof fn valid_stable_action_weak_fairness<K: ResourceView, T, Output>(action: Action<State<K, T>, (), Output>)
+pub proof fn valid_stable_action_weak_fairness<K: ResourceView, T, Output>(action: Action<State<K, T>, (), Output>)
     ensures
         valid(stable(action.weak_fairness(()))),
 {
@@ -35,7 +35,7 @@ proof fn valid_stable_action_weak_fairness<K: ResourceView, T, Output>(action: A
 }
 
 /// Prove weak_fairness for all input is stable.
-proof fn valid_stable_tla_forall_action_weak_fairness<K: ResourceView, T, Input, Output>(
+pub proof fn valid_stable_tla_forall_action_weak_fairness<K: ResourceView, T, Input, Output>(
     action: Action<State<K, T>, Input, Output>
 )
     ensures
