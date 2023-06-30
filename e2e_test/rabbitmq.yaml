@@ -1,7 +1,7 @@
 apiVersion: anvil.dev/v1
 kind: RabbitmqCluster
 metadata:
-  name: haha
+  name: rabbitmq-test
   namespace: default
 spec:
   replicas: 3
