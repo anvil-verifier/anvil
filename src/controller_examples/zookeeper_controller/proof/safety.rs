@@ -395,6 +395,28 @@ pub open spec fn sts_update_request_msg_since(key: ObjectRef, rest_id: RestId) -
         && msg.content.get_rest_id() >= rest_id
 }
 
+pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_client_service_step(
+    key: ObjectRef, req_msg: Message
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        at_after_create_client_service_step(key)(s)
+        && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
+        && is_controller_create_request(req_msg)
+        && s.message_in_flight(req_msg)
+    }
+}
+
+pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_headless_service_step(
+    key: ObjectRef, req_msg: Message
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        at_after_create_headless_service_step(key)(s)
+        && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
+        && is_controller_create_request(req_msg)
+        && s.message_in_flight(req_msg)
+    }
+}
+
 pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_stateful_set_step(
     key: ObjectRef, req_msg: Message
 ) -> StatePred<ClusterState> {
@@ -414,6 +436,68 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_stateful_s
         && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
         && sts_update_request_msg(key)(req_msg)
         && s.message_in_flight(req_msg)
+    }
+}
+
+pub open spec fn at_after_create_headless_service_step_and_pending_req_in_flight(
+    key: ObjectRef
+) -> StatePred<ClusterState>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: ClusterState| {
+        at_after_create_headless_service_step(key)(s)
+        && s.reconcile_state_of(key).pending_req_msg.is_Some()
+        && is_controller_create_request(s.pending_req_of(key))
+        && s.message_in_flight(s.pending_req_of(key))
+    }
+}
+
+pub open spec fn at_after_create_headless_service_step_and_resp_matches_pending_req_in_flight(
+    key: ObjectRef
+) -> StatePred<ClusterState>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: ClusterState| {
+        at_after_create_headless_service_step(key)(s)
+        && s.reconcile_state_of(key).pending_req_msg.is_Some()
+        && is_controller_create_request(s.pending_req_of(key))
+        && exists |resp_msg: Message| {
+            #[trigger] s.message_in_flight(resp_msg)
+            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
+        }
+    }
+}
+
+pub open spec fn at_after_create_client_service_step_and_pending_req_in_flight(
+    key: ObjectRef
+) -> StatePred<ClusterState>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: ClusterState| {
+        at_after_create_client_service_step(key)(s)
+        && s.reconcile_state_of(key).pending_req_msg.is_Some()
+        && is_controller_create_request(s.pending_req_of(key))
+        && s.message_in_flight(s.pending_req_of(key))
+    }
+}
+
+pub open spec fn at_after_create_client_service_step_and_resp_matches_pending_req_in_flight(
+    key: ObjectRef
+) -> StatePred<ClusterState>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: ClusterState| {
+        at_after_create_client_service_step(key)(s)
+        && s.reconcile_state_of(key).pending_req_msg.is_Some()
+        && is_controller_create_request(s.pending_req_of(key))
+        && exists |resp_msg: Message| {
+            #[trigger] s.message_in_flight(resp_msg)
+            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
+        }
     }
 }
 
@@ -490,6 +574,52 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_update_statefu
             ==> {
                 s.reconcile_state_of(key).pending_req_msg.is_Some()
                 && sts_update_request_msg(key)(s.pending_req_of(key))
+                && (s.message_in_flight(s.pending_req_of(key))
+                || exists |resp_msg: Message| {
+                    #[trigger] s.message_in_flight(resp_msg)
+                    && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
+                })
+            }
+    }
+}
+
+pub open spec fn is_controller_create_request(msg: Message) -> bool {
+    msg.src.is_CustomController()
+    && msg.dst.is_KubernetesAPI()
+    && msg.content.is_create_request()
+}
+
+pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(
+    key: ObjectRef
+) -> StatePred<ClusterState>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: ClusterState| {
+        at_after_create_headless_service_step(key)(s)
+            ==> {
+                s.reconcile_state_of(key).pending_req_msg.is_Some()
+                && is_controller_create_request(s.pending_req_of(key))
+                && (s.message_in_flight(s.pending_req_of(key))
+                || exists |resp_msg: Message| {
+                    #[trigger] s.message_in_flight(resp_msg)
+                    && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
+                })
+            }
+    }
+}
+
+pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(
+    key: ObjectRef
+) -> StatePred<ClusterState>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: ClusterState| {
+        at_after_create_client_service_step(key)(s)
+            ==> {
+                s.reconcile_state_of(key).pending_req_msg.is_Some()
+                && is_controller_create_request(s.pending_req_of(key))
                 && (s.message_in_flight(s.pending_req_of(key))
                 || exists |resp_msg: Message| {
                     #[trigger] s.message_in_flight(resp_msg)

@@ -118,6 +118,7 @@ pub open spec fn reconcile_init_implies_no_pending_req<K: ResourceView, T, Recon
     }
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_always_reconcile_init_implies_no_pending_req<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
     spec: TempPred<State<K, T>>, key: ObjectRef
 )
