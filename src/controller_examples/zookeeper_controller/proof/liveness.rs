@@ -379,8 +379,6 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         .and(invariants_since_rest_id(zk, rest_id))
         .and(invariants_led_to_by_rest_id(zk, rest_id));
 
-    cluster::lemma_always_desired_state_exists(spec, zk);
-
     // First we prove true ~> not_in_reconcile, because reconcile always terminates.
     assert_by(
         spec.entails(
@@ -1049,7 +1047,7 @@ proof fn lemma_from_unscheduled_to_scheduled(spec: TempPred<ClusterState>, zk: Z
     requires
         spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
         spec.entails(tla_forall(|i| schedule_controller_reconcile().weak_fairness(i))),
-        spec.entails(always(lift_state(cluster::desired_state_exists(zk)))),
+        spec.entails(always(lift_state(cluster::desired_state_is(zk)))),
         zk.well_formed(),
     ensures
         spec.entails(
@@ -1072,27 +1070,10 @@ proof fn lemma_from_unscheduled_to_scheduled(spec: TempPred<ClusterState>, zk: Z
         &&& s.reconcile_scheduled_for(zk.object_ref())
     };
     let input = zk.object_ref();
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
-        &&& cluster::desired_state_exists(zk)(s)
-    };
-    entails_always_and_n!(
-        spec,
-        lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()),
-        lift_state(cluster::desired_state_exists(zk))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())
-        .and(lift_state(cluster::desired_state_exists(zk)))
-    );
 
-    temp_pred_equality::<ClusterState>(
-        lift_state(cluster::desired_state_exists(zk)), lift_state(schedule_controller_reconcile().pre(input))
+    controller_runtime_liveness::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(
+        spec, input, next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(), cluster::desired_state_is(zk), pre, post
     );
-    spec_implies_pre(spec, lift_state(pre), lift_state(schedule_controller_reconcile().pre(input)));
-    use_tla_forall::<ClusterState, ObjectRef>(spec, |key| schedule_controller_reconcile().weak_fairness(key), input);
-    schedule_controller_reconcile().wf1(input, spec, stronger_next, pre, post);
 }
 
 proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, zk: ZookeeperClusterView)
