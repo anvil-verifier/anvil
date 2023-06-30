@@ -589,6 +589,32 @@ pub open spec fn is_controller_create_request(msg: Message) -> bool {
     && msg.content.is_create_request()
 }
 
+pub open spec fn is_controller_get_request(msg: Message) -> bool {
+    msg.src.is_CustomController()
+    && msg.dst.is_KubernetesAPI()
+    && msg.content.is_get_request()
+}
+
+pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(
+    key: ObjectRef
+) -> StatePred<ClusterState>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: ClusterState| {
+        at_after_get_stateful_set_step(key)(s)
+            ==> {
+                s.reconcile_state_of(key).pending_req_msg.is_Some()
+                && is_controller_get_request(s.pending_req_of(key))
+                && (s.message_in_flight(s.pending_req_of(key))
+                || exists |resp_msg: Message| {
+                    #[trigger] s.message_in_flight(resp_msg)
+                    && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
+                })
+            }
+    }
+}
+
 pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(
     key: ObjectRef
 ) -> StatePred<ClusterState>
@@ -597,6 +623,46 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_create_headles
 {
     |s: ClusterState| {
         at_after_create_headless_service_step(key)(s)
+            ==> {
+                s.reconcile_state_of(key).pending_req_msg.is_Some()
+                && is_controller_create_request(s.pending_req_of(key))
+                && (s.message_in_flight(s.pending_req_of(key))
+                || exists |resp_msg: Message| {
+                    #[trigger] s.message_in_flight(resp_msg)
+                    && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
+                })
+            }
+    }
+}
+
+pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(
+    key: ObjectRef
+) -> StatePred<ClusterState>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: ClusterState| {
+        at_after_create_config_map_step(key)(s)
+            ==> {
+                s.reconcile_state_of(key).pending_req_msg.is_Some()
+                && is_controller_create_request(s.pending_req_of(key))
+                && (s.message_in_flight(s.pending_req_of(key))
+                || exists |resp_msg: Message| {
+                    #[trigger] s.message_in_flight(resp_msg)
+                    && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
+                })
+            }
+    }
+}
+
+pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(
+    key: ObjectRef
+) -> StatePred<ClusterState>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: ClusterState| {
+        at_after_create_admin_server_service_step(key)(s)
             ==> {
                 s.reconcile_state_of(key).pending_req_msg.is_Some()
                 && is_controller_create_request(s.pending_req_of(key))

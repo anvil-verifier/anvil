@@ -75,6 +75,9 @@ pub proof fn reconcile_eventually_terminates_1(spec: TempPred<ClusterState>, zk:
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(
             true_pred().leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
@@ -138,6 +141,9 @@ pub proof fn lemma_from_after_update_stateful_set_step_to_reconcile_idle(spec: T
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(
             lift_state(at_after_update_stateful_set_step(zk.object_ref()))
@@ -197,6 +203,9 @@ pub proof fn lemma_from_after_create_stateful_set_step_to_reconcile_idle(spec: T
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(
             lift_state(at_after_create_stateful_set_step(zk.object_ref()))
@@ -257,6 +266,9 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_reconcile_idle(spec: Temp
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(
             lift_state(at_after_get_stateful_set_step(zk.object_ref()))
@@ -280,6 +292,9 @@ pub proof fn lemma_from_after_create_config_map_step_to_reconcile_idle(spec: Tem
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(
             lift_state(at_after_create_config_map_step(zk.object_ref()))
@@ -303,6 +318,9 @@ pub proof fn lemma_from_after_create_admin_server_service_step_to_reconcile_idle
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(
             lift_state(at_after_create_admin_server_service_step(zk.object_ref()))
@@ -325,6 +343,9 @@ pub proof fn lemma_from_after_create_client_service_step_to_reconcile_idle(spec:
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(
             lift_state(at_after_create_client_service_step(zk.object_ref()))
@@ -384,6 +405,9 @@ pub proof fn lemma_from_after_create_headless_service_step_to_reconcile_idle(spe
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(
             lift_state(at_after_create_headless_service_step(zk.object_ref()))
@@ -439,6 +463,9 @@ pub proof fn lemma_from_init_step_to_reconcile_idle(spec: TempPred<ClusterState>
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(
             lift_state(reconciler_reconcile_init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref()))
@@ -494,6 +521,9 @@ proof fn lemma_from_at_after_update_stateful_set_step_and_pending_req_in_flight_
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(lift_state(at_after_update_stateful_set_step_and_pending_req_in_flight(zk.object_ref())).leads_to(lift_state(reconciler_reconcile_done::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref())))),
 {
@@ -581,6 +611,9 @@ proof fn lemma_from_at_after_update_stateful_set_step_and_resp_matches_pending_r
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(lift_state(at_after_update_stateful_set_step_and_resp_matches_pending_req_in_flight(zk.object_ref())).leads_to(lift_state(reconciler_reconcile_done::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref())))),
 {
@@ -667,6 +700,9 @@ proof fn lemma_from_at_after_create_stateful_set_step_and_pending_req_in_flight_
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(lift_state(at_after_create_stateful_set_step_and_pending_req_in_flight(zk.object_ref())).leads_to(lift_state(reconciler_reconcile_done::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref())))),
 {
@@ -754,6 +790,9 @@ proof fn lemma_from_at_after_create_stateful_set_step_and_resp_matches_pending_r
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(lift_state(at_after_create_stateful_set_step_and_resp_matches_pending_req_in_flight(zk.object_ref())).leads_to(lift_state(reconciler_reconcile_done::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref())))),
 {
@@ -840,6 +879,9 @@ proof fn lemma_from_at_after_create_headless_service_step_and_pending_req_in_fli
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(lift_state(at_after_create_headless_service_step_and_pending_req_in_flight(zk.object_ref())).leads_to(lift_state(at_after_create_client_service_step(zk.object_ref())))),
 {
@@ -927,6 +969,9 @@ proof fn lemma_from_at_after_create_headless_service_step_and_resp_matches_pendi
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(lift_state(at_after_create_headless_service_step_and_resp_matches_pending_req_in_flight(zk.object_ref())).leads_to(lift_state(at_after_create_client_service_step(zk.object_ref())))),
 {
@@ -1014,6 +1059,9 @@ proof fn lemma_from_at_after_create_client_service_step_and_pending_req_in_fligh
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(lift_state(at_after_create_client_service_step_and_pending_req_in_flight(zk.object_ref())).leads_to(lift_state(at_after_create_admin_server_service_step(zk.object_ref())))),
 {
@@ -1101,6 +1149,9 @@ proof fn lemma_from_at_after_create_client_service_step_and_resp_matches_pending
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))),
     ensures
         spec.entails(lift_state(at_after_create_client_service_step_and_resp_matches_pending_req_in_flight(zk.object_ref())).leads_to(lift_state(at_after_create_admin_server_service_step(zk.object_ref())))),
 {
