@@ -110,19 +110,16 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as<K: R
         {
             let stronger_next = |s, s_prime: State<K, T>| {
                 &&& next::<K, T, ReconcilerType>()(s, s_prime)
-                &&& desired_state_is(cr)(s)
                 &&& the_object_in_schedule_has_spec_as(cr)(s)
             };
             entails_always_and_n!(
                 stable_spec_with_assumption,
                 lift_action(next::<K, T, ReconcilerType>()),
-                lift_state(desired_state_is(cr)),
                 lift_state(the_object_in_schedule_has_spec_as(cr))
             );
             temp_pred_equality(
                 lift_action(stronger_next),
                 lift_action(next::<K, T, ReconcilerType>())
-                .and(lift_state(desired_state_is(cr)))
                 .and(lift_state(the_object_in_schedule_has_spec_as(cr)))
             );
 
