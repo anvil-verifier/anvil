@@ -104,34 +104,6 @@ pub proof fn lemma_always_every_in_flight_req_is_unique<K: ResourceView, T, Reco
     init_invariant::<State<K, T>>(sm_spec::<K, T, ReconcilerType>(), init::<K, T, ReconcilerType>(), stronger_next, invariant);
 }
 
-pub open spec fn reconcile_init_implies_no_pending_req<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(key: ObjectRef)
-    -> StatePred<State<K, T>>
-    recommends
-        key.kind.is_CustomResourceKind()
-{
-    |s: State<K, T>| {
-        s.reconcile_state_contains(key)
-        && s.reconcile_state_of(key).local_state == ReconcilerType::reconcile_init_state()
-        ==> s.reconcile_state_contains(key)
-            && s.reconcile_state_of(key).local_state == ReconcilerType::reconcile_init_state()
-            && s.reconcile_state_of(key).pending_req_msg.is_None()
-    }
-}
-
-#[verifier(external_body)]
-pub proof fn lemma_always_reconcile_init_implies_no_pending_req<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
-    spec: TempPred<State<K, T>>, key: ObjectRef
-)
-    requires
-        spec.entails(lift_state(init::<K, T, ReconcilerType>())),
-        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
-    ensures
-        spec.entails(always(lift_state(reconcile_init_implies_no_pending_req::<K, T, ReconcilerType>(key)))),
-{
-    let invariant = reconcile_init_implies_no_pending_req::<K, T, ReconcilerType>(key);
-    init_invariant::<State<K, T>>(spec, init::<K, T, ReconcilerType>(), next::<K, T, ReconcilerType>(), invariant);
-}
-
 pub open spec fn every_in_flight_msg_has_unique_id<K: ResourceView, T>() -> StatePred<State<K, T>> {
     |s: State<K, T>| {
         forall |msg: Message|
