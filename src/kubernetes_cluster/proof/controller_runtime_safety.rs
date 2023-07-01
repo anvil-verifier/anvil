@@ -3,7 +3,10 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{common::*, resource::*};
 use crate::kubernetes_cluster::{
-    proof::{kubernetes_api_safety, wf1_assistant::controller_action_pre_implies_next_pre},
+    proof::{
+        controller_runtime::*, kubernetes_api_safety,
+        wf1_assistant::controller_action_pre_implies_next_pre,
+    },
     spec::{
         cluster::*,
         controller::common::{ControllerAction, ControllerActionInput},
