@@ -370,7 +370,6 @@ pub open spec fn each_resp_if_matches_pending_req_then_no_other_resp_matches<K: 
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_matches<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
     cr_key: ObjectRef
 )
@@ -380,7 +379,36 @@ pub proof fn lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_ma
         sm_spec::<K, T, ReconcilerType>().entails(
             always(lift_state(each_resp_if_matches_pending_req_then_no_other_resp_matches(cr_key)))
         ),
-{}
+{
+    let spec = sm_spec::<K, T, ReconcilerType>();
+    let forall_a_to_p = lift_state(each_resp_if_matches_pending_req_then_no_other_resp_matches(cr_key));
+    let a_to_p = |resp_msg: Message| lift_state(resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key));
+    let a_to_always_p = |resp_msg: Message| always(a_to_p(resp_msg));
+    assert forall |resp_msg: Message| spec.entails(#[trigger] a_to_always_p(resp_msg))
+    by {
+        lemma_always_resp_if_matches_pending_req_then_no_other_resp_matches::<K, T, ReconcilerType>(resp_msg, cr_key);
+    }
+    spec_entails_tla_forall(spec, a_to_always_p);
+    tla_forall_always_equality(a_to_p);
+
+    assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies forall_a_to_p.satisfied_by(ex) by {
+        assert forall |resp_msg: Message|
+            ex.head().reconcile_state_contains(cr_key)
+            && #[trigger] ex.head().message_in_flight(resp_msg)
+            && ex.head().reconcile_state_of(cr_key).pending_req_msg.is_Some()
+            && resp_msg_matches_req_msg(resp_msg, ex.head().reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
+            ==> (
+                forall |other_resp: Message| other_resp != resp_msg && #[trigger] ex.head().message_in_flight(other_resp)
+                ==> !resp_msg_matches_req_msg(other_resp, ex.head().reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
+            )
+        by {
+            assert(a_to_p(resp_msg).satisfied_by(ex));
+        }
+    }
+
+    temp_pred_equality(forall_a_to_p, tla_forall(a_to_p));
+
+}
 
 pub proof fn lemma_always_resp_matches_at_most_one_pending_req<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
     resp_msg: Message, cr_key: ObjectRef
