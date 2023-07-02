@@ -100,7 +100,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, zk: Z
         .or(lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)))
         .or(lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet)))
         .or(lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet)))
-        .or(lift_state(reconciler_reconcile_done::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref())))
+        .or(lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::Done)))
     );
     or_leads_to_combine_n!(
         spec,
@@ -114,7 +114,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, zk: Z
         lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)),
         lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet)),
         lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet)),
-        lift_state(reconciler_reconcile_done::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref()));
+        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::Done));
         lift_state(reconcile_idle)
     );
 }
