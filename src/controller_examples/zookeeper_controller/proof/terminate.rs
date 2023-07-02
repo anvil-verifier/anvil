@@ -129,6 +129,7 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_reconcile_idle(spec: Temp
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(),ZookeeperReconcileStep::AfterGetStatefulSet)))),
         spec.entails(
             lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet))
                 .leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
@@ -137,7 +138,6 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_reconcile_idle(spec: Temp
             lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet))
                 .leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
         ),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(),ZookeeperReconcileStep::AfterGetStatefulSet)))),
     ensures
         spec.entails(
             lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet))
@@ -293,6 +293,7 @@ proof fn lemma_from_at_after_get_stateful_set_step_and_resp_matches_pending_req_
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)))),
         spec.entails(
             lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet))
                 .leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
@@ -301,9 +302,11 @@ proof fn lemma_from_at_after_get_stateful_set_step_and_resp_matches_pending_req_
             lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet))
                 .leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
         ),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)))),
     ensures
-        spec.entails(lift_state(resp_in_flight_matches_pending_req_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)).leads_to(lift_state(|s: ClusterState| { !s.reconcile_state_contains(zk.object_ref()) }))),
+        spec.entails(
+            lift_state(resp_in_flight_matches_pending_req_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet))
+                .leads_to(lift_state(|s: ClusterState| { !s.reconcile_state_contains(zk.object_ref()) }))
+        ),
 {
     let pre = resp_in_flight_matches_pending_req_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet);
     let post = |s: ClusterState| {
@@ -314,7 +317,6 @@ proof fn lemma_from_at_after_get_stateful_set_step_and_resp_matches_pending_req_
             || s.reconcile_state_of(zk.object_ref()).local_state.reconcile_step == ZookeeperReconcileStep::Error
         )
     };
-    // TODO: lift stronger next to a public spec
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
         &&& crash_disabled()(s)
@@ -416,7 +418,10 @@ proof fn lemma_from_at_after_get_stateful_set_step_and_pending_req_in_flight_to_
         ),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)))),
     ensures
-        spec.entails(lift_state(pending_req_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)).leads_to(lift_state(|s: ClusterState| { !s.reconcile_state_contains(zk.object_ref()) }))),
+        spec.entails(
+            lift_state(pending_req_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet))
+                .leads_to(lift_state(|s: ClusterState| { !s.reconcile_state_contains(zk.object_ref()) }))
+        ),
 {
     let pre = pending_req_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet);
     let post = |s: ClusterState| { !s.reconcile_state_contains(zk.object_ref()) };
@@ -497,10 +502,12 @@ proof fn lemma_from_pending_req_in_flight_at_step_a_to_step_b(
         step_a != ZookeeperReconcileStep::Done, step_a != ZookeeperReconcileStep::Error,
         step_b != ZookeeperReconcileStep::Init,
         forall |zk: ZookeeperClusterView, resp_o: Option<APIResponse>|
-            #[trigger] reconcile_core(zk, resp_o, ZookeeperReconcileState{ reconcile_step: step_a }).0.reconcile_step == step_b
+            #[trigger] reconcile_core(zk, resp_o, ZookeeperReconcileState{ reconcile_step: step_a }).0.reconcile_step == step_b,
     ensures
-        spec.entails(lift_state(pending_req_in_flight_at_step(zk.object_ref(), step_a))
-        .leads_to(lift_state(at_zookeeper_step(zk.object_ref(), step_b)))),
+        spec.entails(
+            lift_state(pending_req_in_flight_at_step(zk.object_ref(), step_a))
+                .leads_to(lift_state(at_zookeeper_step(zk.object_ref(), step_b)))
+        ),
 {
     let pre = pending_req_in_flight_at_step(zk.object_ref(), step_a);
     assert forall |req_msg: Message| spec.entails(
@@ -580,10 +587,12 @@ proof fn lemma_from_step_a_and_resp_matches_pending_req_in_flight_to_step_b(
         step_a != ZookeeperReconcileStep::Done, step_a != ZookeeperReconcileStep::Error,
         step_b != ZookeeperReconcileStep::Init,
         forall |zk: ZookeeperClusterView, resp_o: Option<APIResponse>|
-            #[trigger] reconcile_core(zk, resp_o, ZookeeperReconcileState{ reconcile_step: step_a }).0.reconcile_step == step_b
+            #[trigger] reconcile_core(zk, resp_o, ZookeeperReconcileState{ reconcile_step: step_a }).0.reconcile_step == step_b,
     ensures
-        spec.entails(lift_state(resp_in_flight_matches_pending_req_at_step(zk.object_ref(), step_a))
-        .leads_to(lift_state(at_zookeeper_step(zk.object_ref(), step_b)))),
+        spec.entails(
+            lift_state(resp_in_flight_matches_pending_req_at_step(zk.object_ref(), step_a))
+                .leads_to(lift_state(at_zookeeper_step(zk.object_ref(), step_b)))
+        ),
 {
     let pre = resp_in_flight_matches_pending_req_at_step(zk.object_ref(), step_a);
     let post = at_zookeeper_step(zk.object_ref(), step_b);
