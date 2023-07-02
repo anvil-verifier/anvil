@@ -24,8 +24,7 @@ use crate::kubernetes_cluster::{
         },
         controller::state_machine::controller,
         kubernetes_api::state_machine::{
-            handle_create_request, handle_get_request, handle_request, handle_update_request,
-            object_has_well_formed_spec,
+            handle_request, object_has_well_formed_spec, transition_by_etcd,
         },
         message::*,
     },
@@ -63,7 +62,7 @@ pub open spec fn pending_msg_at_after_create_stateful_set_step_is_create_sts_req
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        at_after_create_stateful_set_step(key)(s)
+        at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s)
             ==> {
                 &&& s.reconcile_state_of(key).pending_req_msg.is_Some()
                 &&& sts_create_request_msg(key)(s.pending_req_of(key))
@@ -112,7 +111,7 @@ pub open spec fn filtered_create_sts_req_len_is_at_most_one(
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        if !at_after_create_stateful_set_step(key)(s) {
+        if !at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s) {
             s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() == 0
         } else {
             if s.pending_req_of(key).content.get_rest_id() >= rest_id {
@@ -210,7 +209,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
         let step = choose |step| next_step::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
-                if !at_after_create_stateful_set_step(key)(s) {
+                if !at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s) {
                     // If not at AfterUpdateStatefulSet step,
                     // due to inductive hypothesis, the set of messages remains unchanged (len() = 0)
                     // between s and s_prime.
@@ -233,7 +232,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
                 let chosen_key = input.1.get_Some_0();
                 if chosen_key == key {
                     // If the state machine chooses the reconciler for our key to take the next transition...
-                    if at_after_create_stateful_set_step(key)(s_prime) {
+                    if at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s_prime) {
                         // If transition to AfterUpdateStatefulSet step,
                         // then there must be a StatefulSet create request message just sent to the network.
                         // And thanks to rest_id_counter_is_no_smaller_than, we know that the newly sent request
@@ -242,7 +241,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
                         // using extensional equality here.
                         assert(sts_create_req_multiset.insert(s_prime.pending_req_of(key)) =~= sts_create_req_multiset_prime);
                     } else if at_done_step(key)(s_prime) {
-                        if at_after_create_stateful_set_step(key)(s) {
+                        if at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s) {
                             if s.pending_req_of(key).content.get_rest_id() >= rest_id {
                                 // This is the most tricky path: we need to show
                                 // s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() == 0
@@ -292,7 +291,7 @@ pub open spec fn at_most_one_create_sts_req_since_rest_id_is_in_flight(
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        if !at_after_create_stateful_set_step(key)(s) {
+        if !at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s) {
             forall |msg| !{
                     &&& #[trigger] s.network_state.in_flight.contains(msg)
                     &&& sts_create_request_msg_since(key, rest_id)(msg)
@@ -381,7 +380,6 @@ pub proof fn lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(
     );
 }
 
-
 pub open spec fn sts_update_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
     |msg: Message|
         msg.dst.is_KubernetesAPI()
@@ -395,107 +393,27 @@ pub open spec fn sts_update_request_msg_since(key: ObjectRef, rest_id: RestId) -
         && msg.content.get_rest_id() >= rest_id
 }
 
-pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_admin_server_service_step(
-    key: ObjectRef, req_msg: Message
+pub open spec fn req_msg_is_the_in_flight_pending_req_at_step(
+    key: ObjectRef, step: ZookeeperReconcileStep, req_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        at_after_create_admin_server_service_step(key)(s)
+        at_zookeeper_step(key, step)(s)
         && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
-        && is_controller_create_request(req_msg)
+        && is_controller_request(req_msg)
         && s.message_in_flight(req_msg)
     }
 }
 
-pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_config_map_step(
-    key: ObjectRef, req_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        at_after_create_config_map_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
-        && is_controller_create_request(req_msg)
-        && s.message_in_flight(req_msg)
-    }
-}
-
-pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_client_service_step(
-    key: ObjectRef, req_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        at_after_create_client_service_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
-        && is_controller_create_request(req_msg)
-        && s.message_in_flight(req_msg)
-    }
-}
-
-pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_headless_service_step(
-    key: ObjectRef, req_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        at_after_create_headless_service_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
-        && is_controller_create_request(req_msg)
-        && s.message_in_flight(req_msg)
-    }
-}
-
-pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_stateful_set_step(
-    key: ObjectRef, req_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        at_after_create_stateful_set_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
-        && is_controller_create_request(req_msg)
-        && s.message_in_flight(req_msg)
-    }
-}
-
-pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_get_stateful_set_step(
-    key: ObjectRef, req_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        at_after_get_stateful_set_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
-        && is_controller_get_request(req_msg)
-        && s.message_in_flight(req_msg)
-    }
-}
-
-pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_stateful_set_step(
-    key: ObjectRef, req_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        at_after_update_stateful_set_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
-        && is_controller_update_request(req_msg)
-        && s.message_in_flight(req_msg)
-    }
-}
-
-pub open spec fn at_after_create_headless_service_step_and_pending_req_in_flight(
-    key: ObjectRef
+pub open spec fn resp_in_flight_matches_pending_req_at_step(
+    key: ObjectRef, step: ZookeeperReconcileStep
 ) -> StatePred<ClusterState>
     recommends
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        at_after_create_headless_service_step(key)(s)
+        at_zookeeper_step(key, step)(s)
         && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_create_request(s.pending_req_of(key))
-        && s.message_in_flight(s.pending_req_of(key))
-    }
-}
-
-pub open spec fn at_after_create_headless_service_step_and_resp_matches_pending_req_in_flight(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_create_headless_service_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_create_request(s.pending_req_of(key))
+        && is_controller_request(s.pending_req_of(key))
         && exists |resp_msg: Message| {
             #[trigger] s.message_in_flight(resp_msg)
             && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
@@ -503,303 +421,24 @@ pub open spec fn at_after_create_headless_service_step_and_resp_matches_pending_
     }
 }
 
-pub open spec fn at_after_create_admin_server_service_step_and_pending_req_in_flight(
-    key: ObjectRef
+pub open spec fn pending_req_in_flight_at_step(
+    key: ObjectRef, step: ZookeeperReconcileStep
 ) -> StatePred<ClusterState>
     recommends
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        at_after_create_admin_server_service_step(key)(s)
+        at_zookeeper_step(key, step)(s)
         && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_create_request(s.pending_req_of(key))
+        && is_controller_request(s.pending_req_of(key))
         && s.message_in_flight(s.pending_req_of(key))
     }
 }
 
-pub open spec fn at_after_create_admin_server_service_step_and_resp_matches_pending_req_in_flight(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_create_admin_server_service_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_create_request(s.pending_req_of(key))
-        && exists |resp_msg: Message| {
-            #[trigger] s.message_in_flight(resp_msg)
-            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
-        }
-    }
-}
-
-pub open spec fn at_after_create_config_map_step_and_pending_req_in_flight(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_create_config_map_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_create_request(s.pending_req_of(key))
-        && s.message_in_flight(s.pending_req_of(key))
-    }
-}
-
-pub open spec fn at_after_create_config_map_step_and_resp_matches_pending_req_in_flight(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_create_config_map_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_create_request(s.pending_req_of(key))
-        && exists |resp_msg: Message| {
-            #[trigger] s.message_in_flight(resp_msg)
-            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
-        }
-    }
-}
-
-pub open spec fn at_after_create_client_service_step_and_pending_req_in_flight(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_create_client_service_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_create_request(s.pending_req_of(key))
-        && s.message_in_flight(s.pending_req_of(key))
-    }
-}
-
-pub open spec fn at_after_create_client_service_step_and_resp_matches_pending_req_in_flight(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_create_client_service_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_create_request(s.pending_req_of(key))
-        && exists |resp_msg: Message| {
-            #[trigger] s.message_in_flight(resp_msg)
-            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
-        }
-    }
-}
-
-pub open spec fn at_after_get_stateful_set_step_and_pending_req_in_flight(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_get_stateful_set_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_get_request(s.pending_req_of(key))
-        && s.message_in_flight(s.pending_req_of(key))
-    }
-}
-
-pub open spec fn at_after_get_stateful_set_step_and_resp_matches_pending_req_in_flight(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_get_stateful_set_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_get_request(s.pending_req_of(key))
-        && exists |resp_msg: Message| {
-            #[trigger] s.message_in_flight(resp_msg)
-            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
-        }
-    }
-}
-
-pub open spec fn at_after_create_stateful_set_step_and_pending_req_in_flight(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_create_stateful_set_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_create_request(s.pending_req_of(key))
-        && s.message_in_flight(s.pending_req_of(key))
-    }
-}
-
-pub open spec fn at_after_create_stateful_set_step_and_resp_matches_pending_req_in_flight(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_create_stateful_set_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_create_request(s.pending_req_of(key))
-        && exists |resp_msg: Message| {
-            #[trigger] s.message_in_flight(resp_msg)
-            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
-        }
-    }
-}
-
-pub open spec fn at_after_update_stateful_set_step_and_pending_req_in_flight(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_update_stateful_set_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_update_request(s.pending_req_of(key))
-        && s.message_in_flight(s.pending_req_of(key))
-    }
-}
-
-pub open spec fn at_after_update_stateful_set_step_and_resp_matches_pending_req_in_flight(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_update_stateful_set_step(key)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_update_request(s.pending_req_of(key))
-        && exists |resp_msg: Message| {
-            #[trigger] s.message_in_flight(resp_msg)
-            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
-        }
-    }
-}
-
-pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_update_stateful_set_step(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_update_stateful_set_step(key)(s)
-            ==> {
-                s.reconcile_state_of(key).pending_req_msg.is_Some()
-                && is_controller_update_request(s.pending_req_of(key))
-                && (s.message_in_flight(s.pending_req_of(key))
-                || exists |resp_msg: Message| {
-                    #[trigger] s.message_in_flight(resp_msg)
-                    && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
-                })
-            }
-    }
-}
-
-pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_update_stateful_set_step(
-    spec: TempPred<ClusterState>, key: ObjectRef
-)
-    requires
-        spec.entails(lift_state(init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
-        spec.entails(always(lift_state(each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)))),
-    ensures
-        spec.entails(
-            always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_update_stateful_set_step(key)))
-        ),
-{
-    let invariant = pending_req_in_flight_or_resp_in_flight_at_after_update_stateful_set_step(key);
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
-        &&& each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)(s)
-    };
-    assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        if at_after_update_stateful_set_step(key)(s_prime) {
-            let step = choose |step| next_step::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(s, s_prime, step);
-            assert(!step.is_RestartController());
-            let resp = choose |msg| {
-                #[trigger] s.message_in_flight(msg)
-                && resp_msg_matches_req_msg(msg, s.pending_req_of(key))
-            };
-            match step {
-                Step::KubernetesAPIStep(input) => {
-                    if input == Option::Some(s.pending_req_of(key)) {
-                        let resp_msg = handle_update_request(s.pending_req_of(key), s.kubernetes_api_state).1;
-                        assert(s_prime.message_in_flight(resp_msg));
-                    } else {
-                        if !s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(resp));
-                        }
-                    }
-                }
-                Step::ControllerStep(input) => {
-                    let cr_key = input.1.get_Some_0();
-                    if cr_key != key {
-                        if s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                        } else {
-                            assert(s_prime.message_in_flight(resp));
-                        }
-                    } else {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                    }
-                }
-                Step::ClientStep(input) => {
-                    if s.message_in_flight(s.pending_req_of(key)) {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                    } else {
-                        assert(s_prime.message_in_flight(resp));
-                    }
-                }
-                _ => {
-                    assert(invariant(s_prime));
-                }
-            }
-        }
-    }
-    strengthen_next::<ClusterState>(
-        spec,
-        next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key),
-        stronger_next
-    );
-    init_invariant::<ClusterState>(
-        spec,
-        init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        stronger_next,
-        invariant
-    );
-}
-
-pub open spec fn is_controller_update_request(msg: Message) -> bool {
+pub open spec fn is_controller_request(msg: Message) -> bool {
     msg.src.is_CustomController()
     && msg.dst.is_KubernetesAPI()
-    && msg.content.is_update_request()
-}
-
-pub open spec fn is_controller_create_request(msg: Message) -> bool {
-    msg.src.is_CustomController()
-    && msg.dst.is_KubernetesAPI()
-    && msg.content.is_create_request()
-}
-
-pub open spec fn is_controller_get_request(msg: Message) -> bool {
-    msg.src.is_CustomController()
-    && msg.dst.is_KubernetesAPI()
-    && msg.content.is_get_request()
+    && msg.content.is_APIRequest()
 }
 
 pub open spec fn reconcile_init_implies_no_pending_req(key: ObjectRef)
@@ -846,17 +485,17 @@ pub proof fn lemma_always_reconcile_init_implies_no_pending_req(
     );
 }
 
-pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(
-    key: ObjectRef
+pub open spec fn pending_req_in_flight_or_resp_in_flight_at_step(
+    key: ObjectRef, step: ZookeeperReconcileStep
 ) -> StatePred<ClusterState>
     recommends
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        at_after_get_stateful_set_step(key)(s)
+        at_zookeeper_step(key, step)(s)
             ==> {
                 s.reconcile_state_of(key).pending_req_msg.is_Some()
-                && is_controller_get_request(s.pending_req_of(key))
+                && is_controller_request(s.pending_req_of(key))
                 && (s.message_in_flight(s.pending_req_of(key))
                 || exists |resp_msg: Message| {
                     #[trigger] s.message_in_flight(resp_msg)
@@ -866,510 +505,39 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_s
     }
 }
 
-pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(
-    spec: TempPred<ClusterState>, key: ObjectRef
+pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_step(
+    spec: TempPred<ClusterState>, key: ObjectRef, step: ZookeeperReconcileStep
 )
     requires
+        step != ZookeeperReconcileStep::Init,
+        forall |zk: ZookeeperClusterView, resp_o: Option<APIResponse>, state: ZookeeperReconcileState| #[trigger] reconcile_core(zk, resp_o, state).0.reconcile_step == step
+            ==> reconcile_core(zk, resp_o, state).1.is_Some(),
+            // && reconcile_core(zk, resp_o, state).1.get_Some_0().is_CreateRequest(),
         spec.entails(lift_state(init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())),
         spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
         spec.entails(always(lift_state(each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)))),
     ensures
         spec.entails(
-            always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(key)))
+            always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(key, step)))
         ),
 {
-    let invariant = pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(key);
+    let invariant = pending_req_in_flight_or_resp_in_flight_at_step(key, step);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
         &&& each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)(s)
     };
     assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        if at_after_get_stateful_set_step(key)(s_prime) {
-            let step = choose |step| next_step::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(s, s_prime, step);
-            assert(!step.is_RestartController());
+        if at_zookeeper_step(key, step)(s_prime) {
+            let next_step = choose |step| next_step::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(s, s_prime, step);
+            assert(!next_step.is_RestartController());
             let resp = choose |msg| {
                 #[trigger] s.message_in_flight(msg)
                 && resp_msg_matches_req_msg(msg, s.pending_req_of(key))
             };
-            match step {
+            match next_step {
                 Step::KubernetesAPIStep(input) => {
                     if input == Option::Some(s.pending_req_of(key)) {
-                        let resp_msg = handle_get_request(s.pending_req_of(key), s.kubernetes_api_state).1;
-                        assert(s_prime.message_in_flight(resp_msg));
-                    } else {
-                        if !s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(resp));
-                        }
-                    }
-                }
-                Step::ControllerStep(input) => {
-                    let cr_key = input.1.get_Some_0();
-                    if cr_key != key {
-                        if s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                        } else {
-                            assert(s_prime.message_in_flight(resp));
-                        }
-                    } else {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                    }
-                }
-                Step::ClientStep(input) => {
-                    if s.message_in_flight(s.pending_req_of(key)) {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                    } else {
-                        assert(s_prime.message_in_flight(resp));
-                    }
-                }
-                _ => {
-                    assert(invariant(s_prime));
-                }
-            }
-        }
-    }
-    strengthen_next::<ClusterState>(
-        spec,
-        next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key),
-        stronger_next
-    );
-    init_invariant::<ClusterState>(
-        spec,
-        init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        stronger_next,
-        invariant
-    );
-}
-
-pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_create_headless_service_step(key)(s)
-            ==> {
-                s.reconcile_state_of(key).pending_req_msg.is_Some()
-                && is_controller_create_request(s.pending_req_of(key))
-                && (s.message_in_flight(s.pending_req_of(key))
-                || exists |resp_msg: Message| {
-                    #[trigger] s.message_in_flight(resp_msg)
-                    && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
-                })
-            }
-    }
-}
-
-pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(
-    spec: TempPred<ClusterState>, key: ObjectRef
-)
-    requires
-        spec.entails(lift_state(init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
-        spec.entails(always(lift_state(each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)))),
-    ensures
-        spec.entails(
-            always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(key)))
-        ),
-{
-    let invariant = pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(key);
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
-        &&& each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)(s)
-    };
-    assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        if at_after_create_headless_service_step(key)(s_prime) {
-            let step = choose |step| next_step::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(s, s_prime, step);
-            assert(!step.is_RestartController());
-            let resp = choose |msg| {
-                #[trigger] s.message_in_flight(msg)
-                && resp_msg_matches_req_msg(msg, s.pending_req_of(key))
-            };
-            match step {
-                Step::KubernetesAPIStep(input) => {
-                    if input == Option::Some(s.pending_req_of(key)) {
-                        let resp_msg = handle_create_request(s.pending_req_of(key), s.kubernetes_api_state).1;
-                        assert(s_prime.message_in_flight(resp_msg));
-                    } else {
-                        if !s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(resp));
-                        }
-                    }
-                }
-                Step::ControllerStep(input) => {
-                    let cr_key = input.1.get_Some_0();
-                    if cr_key != key {
-                        if s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                        } else {
-                            assert(s_prime.message_in_flight(resp));
-                        }
-                    } else {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                    }
-                }
-                Step::ClientStep(input) => {
-                    if s.message_in_flight(s.pending_req_of(key)) {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                    } else {
-                        assert(s_prime.message_in_flight(resp));
-                    }
-                }
-                _ => {
-                    assert(invariant(s_prime));
-                }
-            }
-        }
-    }
-    strengthen_next::<ClusterState>(
-        spec,
-        next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key),
-        stronger_next
-    );
-    init_invariant::<ClusterState>(
-        spec,
-        init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        stronger_next,
-        invariant
-    );
-}
-
-pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_create_config_map_step(key)(s)
-            ==> {
-                s.reconcile_state_of(key).pending_req_msg.is_Some()
-                && is_controller_create_request(s.pending_req_of(key))
-                && (s.message_in_flight(s.pending_req_of(key))
-                || exists |resp_msg: Message| {
-                    #[trigger] s.message_in_flight(resp_msg)
-                    && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
-                })
-            }
-    }
-}
-
-pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(
-    spec: TempPred<ClusterState>, key: ObjectRef
-)
-    requires
-        spec.entails(lift_state(init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
-        spec.entails(always(lift_state(each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)))),
-    ensures
-        spec.entails(
-            always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(key)))
-        ),
-{
-    let invariant = pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(key);
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
-        &&& each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)(s)
-    };
-    assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        if at_after_create_config_map_step(key)(s_prime) {
-            let step = choose |step| next_step::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(s, s_prime, step);
-            assert(!step.is_RestartController());
-            let resp = choose |msg| {
-                #[trigger] s.message_in_flight(msg)
-                && resp_msg_matches_req_msg(msg, s.pending_req_of(key))
-            };
-            match step {
-                Step::KubernetesAPIStep(input) => {
-                    if input == Option::Some(s.pending_req_of(key)) {
-                        let resp_msg = handle_create_request(s.pending_req_of(key), s.kubernetes_api_state).1;
-                        assert(s_prime.message_in_flight(resp_msg));
-                    } else {
-                        if !s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(resp));
-                        }
-                    }
-                }
-                Step::ControllerStep(input) => {
-                    let cr_key = input.1.get_Some_0();
-                    if cr_key != key {
-                        if s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                        } else {
-                            assert(s_prime.message_in_flight(resp));
-                        }
-                    } else {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                    }
-                }
-                Step::ClientStep(input) => {
-                    if s.message_in_flight(s.pending_req_of(key)) {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                    } else {
-                        assert(s_prime.message_in_flight(resp));
-                    }
-                }
-                _ => {
-                    assert(invariant(s_prime));
-                }
-            }
-        }
-    }
-    strengthen_next::<ClusterState>(
-        spec,
-        next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key),
-        stronger_next
-    );
-    init_invariant::<ClusterState>(
-        spec,
-        init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        stronger_next,
-        invariant
-    );
-}
-
-pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_create_admin_server_service_step(key)(s)
-            ==> {
-                s.reconcile_state_of(key).pending_req_msg.is_Some()
-                && is_controller_create_request(s.pending_req_of(key))
-                && (s.message_in_flight(s.pending_req_of(key))
-                || exists |resp_msg: Message| {
-                    #[trigger] s.message_in_flight(resp_msg)
-                    && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
-                })
-            }
-    }
-}
-
-pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(
-    spec: TempPred<ClusterState>, key: ObjectRef
-)
-    requires
-        spec.entails(lift_state(init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
-        spec.entails(always(lift_state(each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)))),
-    ensures
-        spec.entails(
-            always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(key)))
-        ),
-{
-    let invariant = pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(key);
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
-        &&& each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)(s)
-    };
-    assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        if at_after_create_admin_server_service_step(key)(s_prime) {
-            let step = choose |step| next_step::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(s, s_prime, step);
-            assert(!step.is_RestartController());
-            let resp = choose |msg| {
-                #[trigger] s.message_in_flight(msg)
-                && resp_msg_matches_req_msg(msg, s.pending_req_of(key))
-            };
-            match step {
-                Step::KubernetesAPIStep(input) => {
-                    if input == Option::Some(s.pending_req_of(key)) {
-                        let resp_msg = handle_create_request(s.pending_req_of(key), s.kubernetes_api_state).1;
-                        assert(s_prime.message_in_flight(resp_msg));
-                    } else {
-                        if !s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(resp));
-                        }
-                    }
-                }
-                Step::ControllerStep(input) => {
-                    let cr_key = input.1.get_Some_0();
-                    if cr_key != key {
-                        if s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                        } else {
-                            assert(s_prime.message_in_flight(resp));
-                        }
-                    } else {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                    }
-                }
-                Step::ClientStep(input) => {
-                    if s.message_in_flight(s.pending_req_of(key)) {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                    } else {
-                        assert(s_prime.message_in_flight(resp));
-                    }
-                }
-                _ => {
-                    assert(invariant(s_prime));
-                }
-            }
-        }
-    }
-    strengthen_next::<ClusterState>(
-        spec,
-        next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key),
-        stronger_next
-    );
-    init_invariant::<ClusterState>(
-        spec,
-        init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        stronger_next,
-        invariant
-    );
-}
-
-pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_create_client_service_step(key)(s)
-            ==> {
-                s.reconcile_state_of(key).pending_req_msg.is_Some()
-                && is_controller_create_request(s.pending_req_of(key))
-                && (s.message_in_flight(s.pending_req_of(key))
-                || exists |resp_msg: Message| {
-                    #[trigger] s.message_in_flight(resp_msg)
-                    && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
-                })
-            }
-    }
-}
-
-pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(
-    spec: TempPred<ClusterState>, key: ObjectRef
-)
-    requires
-        spec.entails(lift_state(init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
-        spec.entails(always(lift_state(each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)))),
-    ensures
-        spec.entails(
-            always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(key)))
-        ),
-{
-    let invariant = pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(key);
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
-        &&& each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)(s)
-    };
-    assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        if at_after_create_client_service_step(key)(s_prime) {
-            let step = choose |step| next_step::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(s, s_prime, step);
-            assert(!step.is_RestartController());
-            let resp = choose |msg| {
-                #[trigger] s.message_in_flight(msg)
-                && resp_msg_matches_req_msg(msg, s.pending_req_of(key))
-            };
-            match step {
-                Step::KubernetesAPIStep(input) => {
-                    if input == Option::Some(s.pending_req_of(key)) {
-                        let resp_msg = handle_create_request(s.pending_req_of(key), s.kubernetes_api_state).1;
-                        assert(s_prime.message_in_flight(resp_msg));
-                    } else {
-                        if !s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(resp));
-                        }
-                    }
-                }
-                Step::ControllerStep(input) => {
-                    let cr_key = input.1.get_Some_0();
-                    if cr_key != key {
-                        if s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                        } else {
-                            assert(s_prime.message_in_flight(resp));
-                        }
-                    } else {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                    }
-                }
-                Step::ClientStep(input) => {
-                    if s.message_in_flight(s.pending_req_of(key)) {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                    } else {
-                        assert(s_prime.message_in_flight(resp));
-                    }
-                }
-                _ => {
-                    assert(invariant(s_prime));
-                }
-            }
-        }
-    }
-    strengthen_next::<ClusterState>(
-        spec,
-        next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key),
-        stronger_next
-    );
-    init_invariant::<ClusterState>(
-        spec,
-        init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        stronger_next,
-        invariant
-    );
-}
-
-pub open spec fn pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(
-    key: ObjectRef
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_after_create_stateful_set_step(key)(s)
-            ==> {
-                s.reconcile_state_of(key).pending_req_msg.is_Some()
-                && is_controller_create_request(s.pending_req_of(key))
-                && (s.message_in_flight(s.pending_req_of(key))
-                || exists |resp_msg: Message| {
-                    #[trigger] s.message_in_flight(resp_msg)
-                    && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
-                })
-            }
-    }
-}
-
-pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(
-    spec: TempPred<ClusterState>, key: ObjectRef
-)
-    requires
-        spec.entails(lift_state(init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
-        spec.entails(always(lift_state(each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)))),
-    ensures
-        spec.entails(
-            always(lift_state(pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(key)))
-        ),
-{
-    let invariant = pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(key);
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
-        &&& each_resp_matches_at_most_one_pending_req::<ZookeeperClusterView, ZookeeperReconcileState>(key)(s)
-    };
-    assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        if at_after_create_stateful_set_step(key)(s_prime) {
-            let step = choose |step| next_step::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(s, s_prime, step);
-            assert(!step.is_RestartController());
-            let resp = choose |msg| {
-                #[trigger] s.message_in_flight(msg)
-                && resp_msg_matches_req_msg(msg, s.pending_req_of(key))
-            };
-            match step {
-                Step::KubernetesAPIStep(input) => {
-                    if input == Option::Some(s.pending_req_of(key)) {
-                        let resp_msg = handle_create_request(s.pending_req_of(key), s.kubernetes_api_state).1;
+                        let resp_msg = transition_by_etcd(s.pending_req_of(key), s.kubernetes_api_state).1;
                         assert(s_prime.message_in_flight(resp_msg));
                     } else {
                         if !s.message_in_flight(s.pending_req_of(key)) {
@@ -1423,7 +591,7 @@ pub open spec fn pending_msg_at_after_update_stateful_set_step_is_update_sts_req
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        at_after_update_stateful_set_step(key)(s)
+        at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s)
             ==> {
                 &&& s.reconcile_state_of(key).pending_req_msg.is_Some()
                 &&& sts_update_request_msg(key)(s.pending_req_of(key))
@@ -1472,7 +640,7 @@ pub open spec fn filtered_update_sts_req_len_is_at_most_one(
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        if !at_after_update_stateful_set_step(key)(s) {
+        if !at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s) {
             s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() == 0
         } else {
             if s.pending_req_of(key).content.get_rest_id() >= rest_id {
@@ -1570,7 +738,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
         let step = choose |step| next_step::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
-                if !at_after_update_stateful_set_step(key)(s) {
+                if !at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s) {
                     // If not at AfterUpdateStatefulSet step,
                     // due to inductive hypothesis, the set of messages remains unchanged (len() = 0)
                     // between s and s_prime.
@@ -1593,7 +761,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
                 let chosen_key = input.1.get_Some_0();
                 if chosen_key == key {
                     // If the state machine chooses the reconciler for our key to take the next transition...
-                    if at_after_update_stateful_set_step(key)(s_prime) {
+                    if at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s_prime) {
                         // If transition to AfterUpdateStatefulSet step,
                         // then there must be a StatefulSet update request message just sent to the network.
                         // And thanks to rest_id_counter_is_no_smaller_than, we know that the newly sent request
@@ -1602,7 +770,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
                         // using extensional equality here.
                         assert(sts_update_req_multiset.insert(s_prime.pending_req_of(key)) =~= sts_update_req_multiset_prime);
                     } else if at_done_step(key)(s_prime) {
-                        if at_after_update_stateful_set_step(key)(s) {
+                        if at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s) {
                             if s.pending_req_of(key).content.get_rest_id() >= rest_id {
                                 // This is the most tricky path: we need to show
                                 // s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() == 0
@@ -1652,7 +820,7 @@ pub open spec fn at_most_one_update_sts_req_since_rest_id_is_in_flight(
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        if !at_after_update_stateful_set_step(key)(s) {
+        if !at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s) {
             forall |msg| !{
                     &&& #[trigger] s.network_state.in_flight.contains(msg)
                     &&& sts_update_request_msg_since(key, rest_id)(msg)

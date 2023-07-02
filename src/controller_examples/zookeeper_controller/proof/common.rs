@@ -11,6 +11,7 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::temporal_logic::defs::*;
+use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::spec::{reconciler::*, zookeepercluster::*};
 use vstd::prelude::*;
 
@@ -119,14 +120,13 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_create_headless_service
     }
 }
 
-// Handy abbreviation for AfterCreateClientService step
-pub open spec fn at_after_create_client_service_step(key: ObjectRef) -> StatePred<ClusterState>
+pub open spec fn at_zookeeper_step(key: ObjectRef, step: ZookeeperReconcileStep) -> StatePred<ClusterState>
     recommends
         key.kind.is_CustomResourceKind()
 {
     |s: ClusterState| {
         &&& s.reconcile_state_contains(key)
-        &&& s.reconcile_state_of(key).local_state.reconcile_step.is_AfterCreateClientService()
+        &&& s.reconcile_state_of(key).local_state.reconcile_step == step
     }
 }
 
@@ -195,14 +195,6 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_create_client_service_s
     }
 }
 
-// Handy abbreviation for AfterCreateAdminServerService step
-pub open spec fn at_after_create_admin_server_service_step(key: ObjectRef) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& s.reconcile_state_contains(key)
-        &&& s.reconcile_state_of(key).local_state.reconcile_step.is_AfterCreateAdminServerService()
-    }
-}
-
 pub open spec fn at_after_create_admin_server_service_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& s.reconcile_state_contains(zk.object_ref())
@@ -265,18 +257,6 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_create_admin_server_ser
         &&& is_create_admin_server_service_request_msg(s.pending_req_of(zk.object_ref()), zk)
         &&& s.message_in_flight(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
-    }
-}
-
-// Handy abbreviation for AfterCreateConfigMap step
-
-pub open spec fn at_after_create_config_map_step(key: ObjectRef) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind()
-{
-    |s: ClusterState| {
-        &&& s.reconcile_state_contains(key)
-        &&& s.reconcile_state_of(key).local_state.reconcile_step.is_AfterCreateConfigMap()
     }
 }
 
@@ -345,21 +325,9 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_create_config_map_step_
     }
 }
 
-// Handy abbreviation for AfterGetStatefulSet step
-
-pub open spec fn at_after_get_stateful_set_step(key: ObjectRef) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        &&& s.reconcile_state_contains(key)
-        &&& s.reconcile_state_of(key).local_state.reconcile_step.is_AfterGetStatefulSet()
-    }
-}
-
 pub open spec fn at_after_get_stateful_set_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_get_stateful_set_step(zk.object_ref())(s)
+        &&& at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)(s)
         &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.object_ref() == zk.object_ref()
         &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.spec == zk.spec
     }
@@ -461,21 +429,9 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_get_stateful_set_step_w
     }
 }
 
-// Handy abbreviation for AfterCreateStatefulSet step
-
-pub open spec fn at_after_create_stateful_set_step(key: ObjectRef) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        &&& s.reconcile_state_contains(key)
-        &&& s.reconcile_state_of(key).local_state.reconcile_step.is_AfterCreateStatefulSet()
-    }
-}
-
 pub open spec fn at_after_create_stateful_set_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_stateful_set_step(zk.object_ref())(s)
+        &&& at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet)(s)
         &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.object_ref() == zk.object_ref()
         &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.spec == zk.spec
     }
@@ -530,7 +486,7 @@ pub open spec fn at_after_update_stateful_set_step(key: ObjectRef) -> StatePred<
 
 pub open spec fn at_after_update_stateful_set_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_update_stateful_set_step(zk.object_ref())(s)
+        &&& at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet)(s)
         &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.object_ref() == zk.object_ref()
         &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.spec == zk.spec
     }
