@@ -65,14 +65,45 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, zk: Z
         ),
 {
     let reconcile_idle = |s: ClusterState| { !s.reconcile_state_contains(zk.object_ref()) };
-    lemma_from_init_step_to_reconcile_idle(spec, zk);
-    lemma_from_after_create_headless_service_step_to_reconcile_idle(spec, zk);
-    lemma_from_after_create_client_service_step_to_reconcile_idle(spec, zk);
-    lemma_from_after_create_admin_server_service_step_to_reconcile_idle(spec, zk);
-    lemma_from_after_create_config_map_step_to_reconcile_idle(spec, zk);
     lemma_from_after_get_stateful_set_step_to_reconcile_idle(spec, zk);
     lemma_from_after_create_stateful_set_step_to_reconcile_idle(spec, zk);
     lemma_from_after_update_stateful_set_step_to_reconcile_idle(spec, zk);
+
+    lemma_from_some_step_to_next_step(spec, zk, ZookeeperReconcileStep::AfterCreateConfigMap, ZookeeperReconcileStep::AfterGetStatefulSet);
+    leads_to_trans_temp(
+        spec,
+        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)),
+        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)),
+        lift_state(reconcile_idle)
+    );
+    lemma_from_some_step_to_next_step(spec, zk, ZookeeperReconcileStep::AfterCreateAdminServerService, ZookeeperReconcileStep::AfterCreateConfigMap);
+    leads_to_trans_temp(
+        spec,
+        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)),
+        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)),
+        lift_state(reconcile_idle)
+    );
+    lemma_from_some_step_to_next_step(spec, zk, ZookeeperReconcileStep::AfterCreateClientService, ZookeeperReconcileStep::AfterCreateAdminServerService);
+    leads_to_trans_temp(
+        spec,
+        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)),
+        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)),
+        lift_state(reconcile_idle)
+    );
+    lemma_from_some_step_to_next_step(spec, zk, ZookeeperReconcileStep::AfterCreateHeadlessService, ZookeeperReconcileStep::AfterCreateClientService);
+    leads_to_trans_temp(
+        spec,
+        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)),
+        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)),
+        lift_state(reconcile_idle)
+    );
+    lemma_from_init_step_to_next_step(spec, zk);
+    leads_to_trans_temp(
+        spec,
+        lift_state(reconciler_reconcile_init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref())),
+        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)),
+        lift_state(reconcile_idle)
+    );
     lemma_reconcile_error_leads_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk.object_ref());
     lemma_reconcile_done_leads_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk.object_ref());
     valid_implies_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
@@ -117,14 +148,7 @@ pub proof fn lemma_from_after_update_stateful_set_step_to_reconcile_idle(spec: T
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
-        spec.entails(always(lift_state(reconcile_init_implies_no_pending_req(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)))),
     ensures
         spec.entails(
             lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet))
@@ -187,14 +211,7 @@ pub proof fn lemma_from_after_create_stateful_set_step_to_reconcile_idle(spec: T
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
-        spec.entails(always(lift_state(reconcile_init_implies_no_pending_req(zk.object_ref())))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet)))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)))),
     ensures
         spec.entails(
             lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet))
@@ -257,14 +274,9 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_reconcile_idle(spec: Temp
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
-        spec.entails(always(lift_state(reconcile_init_implies_no_pending_req(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet)))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(),ZookeeperReconcileStep::AfterGetStatefulSet)))),
     ensures
         spec.entails(
             lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet))
@@ -301,7 +313,9 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_reconcile_idle(spec: Temp
     );
 }
 
-pub proof fn lemma_from_after_create_config_map_step_to_reconcile_idle(spec: TempPred<ClusterState>, zk: ZookeeperClusterView)
+pub proof fn lemma_from_some_step_to_next_step(
+    spec: TempPred<ClusterState>, zk: ZookeeperClusterView, step: ZookeeperReconcileStep, next_step: ZookeeperReconcileStep
+)
     requires
         zk.well_formed(),
         spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
@@ -311,22 +325,19 @@ pub proof fn lemma_from_after_create_config_map_step_to_reconcile_idle(spec: Tem
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
-        spec.entails(always(lift_state(reconcile_init_implies_no_pending_req(zk.object_ref())))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), step)))),
+        step != ZookeeperReconcileStep::Done, step != ZookeeperReconcileStep::Error,
+        next_step != ZookeeperReconcileStep::Init,
+        forall |zk: ZookeeperClusterView, resp_o: Option<APIResponse>|
+            #[trigger] reconcile_core(zk, resp_o, ZookeeperReconcileState{ reconcile_step: step }).0.reconcile_step == next_step
     ensures
         spec.entails(
-            lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap))
-                .leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
+            lift_state(at_zookeeper_step(zk.object_ref(), step))
+                .leads_to(lift_state(at_zookeeper_step(zk.object_ref(), next_step)))
         ),
 {
-    let at_after_create_config_map_step_and_pending_req_in_flight_or_resp_in_flight = |s: ClusterState| {
-        at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)(s)
+    let at_some_step_and_pending_req_in_flight_or_resp_in_flight = |s: ClusterState| {
+        at_zookeeper_step(zk.object_ref(), step)(s)
         && s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         && is_controller_request(s.pending_req_of(zk.object_ref()))
         && (s.message_in_flight(s.pending_req_of(zk.object_ref()))
@@ -335,36 +346,29 @@ pub proof fn lemma_from_after_create_config_map_step_to_reconcile_idle(spec: Tem
             && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
         })
     };
-    temp_pred_equality::<ClusterState>(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)), lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)).implies(lift_state(at_after_create_config_map_step_and_pending_req_in_flight_or_resp_in_flight)));
-    implies_to_leads_to::<ClusterState>(spec, lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)), lift_state(at_after_create_config_map_step_and_pending_req_in_flight_or_resp_in_flight));
+    temp_pred_equality::<ClusterState>(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), step)), lift_state(at_zookeeper_step(zk.object_ref(), step)).implies(lift_state(at_some_step_and_pending_req_in_flight_or_resp_in_flight)));
+    implies_to_leads_to::<ClusterState>(spec, lift_state(at_zookeeper_step(zk.object_ref(), step)), lift_state(at_some_step_and_pending_req_in_flight_or_resp_in_flight));
 
-    let req_in_flight = pending_req_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap);
-    let resp_in_flight = resp_in_flight_matches_pending_req_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap);
+    let req_in_flight = pending_req_in_flight_at_step(zk.object_ref(), step);
+    let resp_in_flight = resp_in_flight_matches_pending_req_at_step(zk.object_ref(), step);
 
     let done_step = reconciler_reconcile_done::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref());
-    lemma_from_step_a_and_resp_matches_pending_req_in_flight_to_step_b(
-        spec, zk, ZookeeperReconcileStep::AfterCreateConfigMap, ZookeeperReconcileStep::AfterGetStatefulSet
-    );
-    lemma_from_pending_req_in_flight_at_step_a_to_step_b(
-        spec, zk, ZookeeperReconcileStep::AfterCreateConfigMap, ZookeeperReconcileStep::AfterGetStatefulSet
-    );
-    or_leads_to_combine(spec, req_in_flight, resp_in_flight, at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet));
+    lemma_from_step_a_and_resp_matches_pending_req_in_flight_to_step_b(spec, zk, step, next_step);
+    lemma_from_pending_req_in_flight_at_step_a_to_step_b(spec, zk, step, next_step);
+    or_leads_to_combine(spec, req_in_flight, resp_in_flight, at_zookeeper_step(zk.object_ref(), next_step));
     temp_pred_equality::<ClusterState>(
         lift_state(req_in_flight).or(lift_state(resp_in_flight)),
-        lift_state(at_after_create_config_map_step_and_pending_req_in_flight_or_resp_in_flight)
+        lift_state(at_some_step_and_pending_req_in_flight_or_resp_in_flight)
     );
-
-    lemma_from_after_get_stateful_set_step_to_reconcile_idle(spec, zk);
-    leads_to_trans_n!(
+    leads_to_trans_temp(
         spec,
-        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)),
-        lift_state(at_after_create_config_map_step_and_pending_req_in_flight_or_resp_in_flight),
-        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)),
-        lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref()))
+        lift_state(at_zookeeper_step(zk.object_ref(), step)),
+        lift_state(at_some_step_and_pending_req_in_flight_or_resp_in_flight),
+        lift_state(at_zookeeper_step(zk.object_ref(), next_step))
     );
 }
 
-pub proof fn lemma_from_after_create_admin_server_service_step_to_reconcile_idle(spec: TempPred<ClusterState>, zk: ZookeeperClusterView)
+pub proof fn lemma_from_init_step_to_next_step(spec: TempPred<ClusterState>, zk: ZookeeperClusterView)
     requires
         zk.well_formed(),
         spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
@@ -375,204 +379,10 @@ pub proof fn lemma_from_after_create_admin_server_service_step_to_reconcile_idle
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
         spec.entails(always(lift_state(reconcile_init_implies_no_pending_req(zk.object_ref())))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)))),
-    ensures
-        spec.entails(
-            lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService))
-                .leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
-        ),
-{
-    let at_after_create_admin_server_service_step_and_pending_req_in_flight_or_resp_in_flight = |s: ClusterState| {
-        at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)(s)
-        && s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
-        && is_controller_request(s.pending_req_of(zk.object_ref()))
-        && (s.message_in_flight(s.pending_req_of(zk.object_ref()))
-        || exists |resp_msg: Message| {
-            #[trigger] s.message_in_flight(resp_msg)
-            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
-        })
-    };
-    temp_pred_equality::<ClusterState>(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)), lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)).implies(lift_state(at_after_create_admin_server_service_step_and_pending_req_in_flight_or_resp_in_flight)));
-    implies_to_leads_to::<ClusterState>(spec, lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)), lift_state(at_after_create_admin_server_service_step_and_pending_req_in_flight_or_resp_in_flight));
-
-    let req_in_flight = pending_req_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService);
-    let resp_in_flight = resp_in_flight_matches_pending_req_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService);
-
-    let done_step = reconciler_reconcile_done::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref());
-    lemma_from_step_a_and_resp_matches_pending_req_in_flight_to_step_b(
-        spec, zk, ZookeeperReconcileStep::AfterCreateAdminServerService, ZookeeperReconcileStep::AfterCreateConfigMap
-    );
-    lemma_from_pending_req_in_flight_at_step_a_to_step_b(
-        spec, zk, ZookeeperReconcileStep::AfterCreateAdminServerService, ZookeeperReconcileStep::AfterCreateConfigMap
-    );
-    or_leads_to_combine(spec, req_in_flight, resp_in_flight, at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap));
-    temp_pred_equality::<ClusterState>(
-        lift_state(req_in_flight).or(lift_state(resp_in_flight)),
-        lift_state(at_after_create_admin_server_service_step_and_pending_req_in_flight_or_resp_in_flight)
-    );
-
-    lemma_from_after_create_config_map_step_to_reconcile_idle(spec, zk);
-    leads_to_trans_n!(
-        spec,
-        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)),
-        lift_state(at_after_create_admin_server_service_step_and_pending_req_in_flight_or_resp_in_flight),
-        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)),
-        lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref()))
-    );
-}
-
-pub proof fn lemma_from_after_create_client_service_step_to_reconcile_idle(spec: TempPred<ClusterState>, zk: ZookeeperClusterView)
-    requires
-        zk.well_formed(),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| controller_next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>().weak_fairness(i))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
-        spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
-        spec.entails(always(lift_state(reconcile_init_implies_no_pending_req(zk.object_ref())))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)))),
-    ensures
-        spec.entails(
-            lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService))
-                .leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
-        ),
-{
-    let at_after_create_client_service_step_and_pending_req_in_flight_or_resp_in_flight = |s: ClusterState| {
-        at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)(s)
-        && s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
-        && is_controller_request(s.pending_req_of(zk.object_ref()))
-        && (s.message_in_flight(s.pending_req_of(zk.object_ref()))
-        || exists |resp_msg: Message| {
-            #[trigger] s.message_in_flight(resp_msg)
-            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
-        })
-    };
-    temp_pred_equality::<ClusterState>(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)), lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)).implies(lift_state(at_after_create_client_service_step_and_pending_req_in_flight_or_resp_in_flight)));
-    implies_to_leads_to::<ClusterState>(spec, lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)), lift_state(at_after_create_client_service_step_and_pending_req_in_flight_or_resp_in_flight));
-
-    let req_in_flight = pending_req_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService);
-    let resp_in_flight = resp_in_flight_matches_pending_req_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService);
-
-    lemma_from_step_a_and_resp_matches_pending_req_in_flight_to_step_b(
-        spec, zk, ZookeeperReconcileStep::AfterCreateClientService, ZookeeperReconcileStep::AfterCreateAdminServerService
-    );
-    lemma_from_pending_req_in_flight_at_step_a_to_step_b(
-        spec, zk, ZookeeperReconcileStep::AfterCreateClientService, ZookeeperReconcileStep::AfterCreateAdminServerService
-    );
-    or_leads_to_combine(spec, req_in_flight, resp_in_flight, at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService));
-    temp_pred_equality::<ClusterState>(
-        lift_state(req_in_flight).or(lift_state(resp_in_flight)),
-        lift_state(at_after_create_client_service_step_and_pending_req_in_flight_or_resp_in_flight)
-    );
-
-    lemma_from_after_create_admin_server_service_step_to_reconcile_idle(spec, zk);
-    leads_to_trans_n!(
-        spec,
-        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)),
-        lift_state(at_after_create_client_service_step_and_pending_req_in_flight_or_resp_in_flight),
-        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)),
-        lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref()))
-    );
-}
-
-pub proof fn lemma_from_after_create_headless_service_step_to_reconcile_idle(spec: TempPred<ClusterState>, zk: ZookeeperClusterView)
-    requires
-        zk.well_formed(),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| controller_next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>().weak_fairness(i))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
-        spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
-        spec.entails(always(lift_state(reconcile_init_implies_no_pending_req(zk.object_ref())))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)))),
-    ensures
-        spec.entails(
-            lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService))
-                .leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
-        ),
-{
-    let at_after_create_headless_service_step_and_pending_req_in_flight_or_resp_in_flight = |s: ClusterState| {
-        at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)(s)
-        && s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
-        && is_controller_request(s.pending_req_of(zk.object_ref()))
-        && (s.message_in_flight(s.pending_req_of(zk.object_ref()))
-        || exists |resp_msg: Message| {
-            #[trigger] s.message_in_flight(resp_msg)
-            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
-        })
-    };
-    temp_pred_equality::<ClusterState>(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)), lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)).implies(lift_state(at_after_create_headless_service_step_and_pending_req_in_flight_or_resp_in_flight)));
-    implies_to_leads_to::<ClusterState>(spec, lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)), lift_state(at_after_create_headless_service_step_and_pending_req_in_flight_or_resp_in_flight));
-
-    let req_in_flight = pending_req_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService);
-    let resp_in_flight = resp_in_flight_matches_pending_req_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService);
-
-    lemma_from_step_a_and_resp_matches_pending_req_in_flight_to_step_b(
-        spec, zk, ZookeeperReconcileStep::AfterCreateHeadlessService, ZookeeperReconcileStep::AfterCreateClientService
-    );
-    lemma_from_pending_req_in_flight_at_step_a_to_step_b(
-        spec, zk, ZookeeperReconcileStep::AfterCreateHeadlessService, ZookeeperReconcileStep::AfterCreateClientService
-    );
-    or_leads_to_combine(spec, req_in_flight, resp_in_flight, at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService));
-    temp_pred_equality::<ClusterState>(
-        lift_state(req_in_flight).or(lift_state(resp_in_flight)),
-        lift_state(at_after_create_headless_service_step_and_pending_req_in_flight_or_resp_in_flight)
-    );
-
-    lemma_from_after_create_client_service_step_to_reconcile_idle(spec, zk);
-    leads_to_trans_n!(
-        spec,
-        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)),
-        lift_state(at_after_create_headless_service_step_and_pending_req_in_flight_or_resp_in_flight),
-        lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)),
-        lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref()))
-    );
-}
-
-pub proof fn lemma_from_init_step_to_reconcile_idle(spec: TempPred<ClusterState>, zk: ZookeeperClusterView)
-    requires
-        zk.well_formed(),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| controller_next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>().weak_fairness(i))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
-        spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
-        spec.entails(always(lift_state(reconcile_init_implies_no_pending_req(zk.object_ref())))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)))),
     ensures
         spec.entails(
             lift_state(reconciler_reconcile_init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref()))
-                .leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
+                .leads_to(lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)))
         ),
 {
     temp_pred_equality::<ClusterState>(
@@ -599,13 +409,11 @@ pub proof fn lemma_from_init_step_to_reconcile_idle(spec: TempPred<ClusterState>
         reconciler_init_and_no_pending_req::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref()),
         at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)
     );
-    lemma_from_after_create_headless_service_step_to_reconcile_idle(spec, zk);
-    leads_to_trans_n!(
+    leads_to_trans_temp(
         spec,
         lift_state(reconciler_reconcile_init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref())),
         lift_state(reconciler_init_and_no_pending_req::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref())),
         lift_state(at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)),
-        lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref()))
     );
 }
 
@@ -619,13 +427,8 @@ proof fn lemma_from_at_after_get_stateful_set_step_and_resp_matches_pending_req_
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
-        spec.entails(always(lift_state(reconcile_init_implies_no_pending_req(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet)))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)))),
     ensures
         spec.entails(lift_state(resp_in_flight_matches_pending_req_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)).leads_to(lift_state(|s: ClusterState| { !s.reconcile_state_contains(zk.object_ref()) }))),
@@ -733,13 +536,8 @@ proof fn lemma_from_at_after_get_stateful_set_step_and_pending_req_in_flight_to_
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
-        spec.entails(always(lift_state(reconcile_init_implies_no_pending_req(zk.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet)))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)))),
     ensures
         spec.entails(lift_state(pending_req_in_flight_at_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)).leads_to(lift_state(|s: ClusterState| { !s.reconcile_state_contains(zk.object_ref()) }))),
