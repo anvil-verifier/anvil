@@ -24,6 +24,7 @@ use crate::kubernetes_cluster::{
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::zookeeper_controller::{
+    common::*,
     proof::{common::*, safety, terminate},
     spec::{reconciler::*, zookeepercluster::*},
 };
@@ -127,11 +128,11 @@ spec fn invariants(zk: ZookeeperClusterView) -> TempPred<ClusterState> {
     .and(always(lift_state(safety::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref()))))
     .and(always(lift_state(safety::reconcile_init_implies_no_pending_req(zk.object_ref()))))
     .and(always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_update_stateful_set_step(zk.object_ref()))))
-    .and(always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref()))))
-    .and(always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref()))))
-    .and(always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref()))))
-    .and(always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref()))))
-    .and(always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref()))))
+    .and(always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet))))
+    .and(always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService))))
+    .and(always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService))))
+    .and(always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService))))
+    .and(always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap))))
     .and(always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref()))))
 }
 
@@ -150,11 +151,11 @@ proof fn invariants_is_stable(zk: ZookeeperClusterView)
     always_p_is_stable(lift_state(safety::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref())));
     always_p_is_stable(lift_state(safety::reconcile_init_implies_no_pending_req(zk.object_ref())));
     always_p_is_stable(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_update_stateful_set_step(zk.object_ref())));
-    always_p_is_stable(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref())));
-    always_p_is_stable(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref())));
-    always_p_is_stable(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref())));
-    always_p_is_stable(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref())));
-    always_p_is_stable(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref())));
+    always_p_is_stable(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet)));
+    always_p_is_stable(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService)));
+    always_p_is_stable(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService)));
+    always_p_is_stable(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService)));
+    always_p_is_stable(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap)));
     always_p_is_stable(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())));
 
     stable_and_n!(
@@ -169,11 +170,11 @@ proof fn invariants_is_stable(zk: ZookeeperClusterView)
         always(lift_state(safety::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref()))),
         always(lift_state(safety::reconcile_init_implies_no_pending_req(zk.object_ref()))),
         always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_update_stateful_set_step(zk.object_ref()))),
-        always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref()))),
-        always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref()))),
-        always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref()))),
-        always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref()))),
-        always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref()))),
+        always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet))),
+        always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService))),
+        always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService))),
+        always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService))),
+        always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap))),
         always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))
     );
 }
@@ -420,11 +421,11 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
             safety::lemma_always_pending_msg_at_after_update_stateful_set_step_is_update_sts_req(spec, zk.object_ref());
             safety::lemma_always_reconcile_init_implies_no_pending_req(spec, zk.object_ref());
             safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_update_stateful_set_step(spec, zk.object_ref());
-            safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(spec, zk.object_ref());
-            safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(spec, zk.object_ref());
-            safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(spec, zk.object_ref());
-            safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(spec, zk.object_ref());
-            safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(spec, zk.object_ref());
+            safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(spec, zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet);
+            safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(spec, zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService);
+            safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(spec, zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService);
+            safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(spec, zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService);
+            safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(spec, zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap);
             safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(spec, zk.object_ref());
 
             entails_and_n!(
@@ -440,11 +441,11 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
                 always(lift_state(safety::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref()))),
                 always(lift_state(safety::reconcile_init_implies_no_pending_req(zk.object_ref()))),
                 always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_update_stateful_set_step(zk.object_ref()))),
-                always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_stateful_set_step(zk.object_ref()))),
-                always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_headless_service_step(zk.object_ref()))),
-                always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_client_service_step(zk.object_ref()))),
-                always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_admin_server_service_step(zk.object_ref()))),
-                always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_config_map_step(zk.object_ref()))),
+                always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet))),
+                always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService))),
+                always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService))),
+                always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService))),
+                always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_create_obj_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap))),
                 always(lift_state(safety::pending_req_in_flight_or_resp_in_flight_at_after_get_stateful_set_step(zk.object_ref())))
             );
 
