@@ -216,6 +216,11 @@ async fn reconcile_stateful_set(zk: &ZookeeperCluster, client: Client) -> Result
             spec: sts.spec,
             ..old_sts
         };
+        // Scale up or no change
+        sts_api
+            .replace(sts_name, &PostParams::default(), &updated_sts)
+            .await
+            .map_err(Error::ReconcileStatefulSetFailed)?;
 
         if updated_sts.spec.as_ref().unwrap().replicas.unwrap()
             < old_sts.spec.as_ref().unwrap().replicas.unwrap()
@@ -254,12 +259,6 @@ async fn reconcile_stateful_set(zk: &ZookeeperCluster, client: Client) -> Result
             let result = client.update_ensemble(test_update, Some(-1));
             result.await.map_err(Error::ZkClientCommandFailed)?;
         }
-        // Scale up or no change
-
-        sts_api
-            .replace(sts_name, &PostParams::default(), &updated_sts)
-            .await
-            .map_err(Error::ReconcileStatefulSetFailed)?;
         Ok(())
     } else {
         info!("Create statefulset: {}", sts_name);
