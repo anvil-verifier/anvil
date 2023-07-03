@@ -203,7 +203,6 @@ pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption<K: ResourceVi
             &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
         }))),
         spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
-        spec.entails(tla_forall(|i| controller_next::<K, T, ReconcilerType>().weak_fairness(i))),
         spec.entails(tla_forall(|input| schedule_controller_reconcile().weak_fairness(input))),
     ensures
         spec.entails(
@@ -250,7 +249,6 @@ pub proof fn lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assum
             &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
         }))),
         spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
-        spec.entails(tla_forall(|i| controller_next::<K, T, ReconcilerType>().weak_fairness(i))),
         spec.entails(tla_forall(|input| schedule_controller_reconcile().weak_fairness(input))),
     ensures
         spec.entails(
