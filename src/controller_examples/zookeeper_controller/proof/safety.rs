@@ -246,7 +246,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
                         // So We go ahead and prove s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() == 1
                         // using extensional equality here.
                         assert(sts_create_req_multiset.insert(s_prime.pending_req_of(key)) =~= sts_create_req_multiset_prime);
-                    } else if at_done_step(key)(s_prime) {
+                    } else if at_zookeeper_step(key, ZookeeperReconcileStep::Done)(s_prime) {
                         if at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s) {
                             if s.pending_req_of(key).content.get_rest_id() >= rest_id {
                                 // This is the most tricky path: we need to show
@@ -790,7 +790,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
                         // So We go ahead and prove s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() == 1
                         // using extensional equality here.
                         assert(sts_update_req_multiset.insert(s_prime.pending_req_of(key)) =~= sts_update_req_multiset_prime);
-                    } else if at_done_step(key)(s_prime) {
+                    } else if at_zookeeper_step(key, ZookeeperReconcileStep::Done)(s_prime) {
                         if at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s) {
                             if s.pending_req_of(key).content.get_rest_id() >= rest_id {
                                 // This is the most tricky path: we need to show

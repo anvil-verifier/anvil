@@ -23,44 +23,29 @@ pub open spec fn cluster_spec() -> TempPred<ClusterState> {
     sm_spec::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()
 }
 
-// Handy abbreviation for Init step
-pub open spec fn at_init_step(key: ObjectRef) -> StatePred<ClusterState> {
+pub open spec fn at_zookeeper_step(key: ObjectRef, step: ZookeeperReconcileStep) -> StatePred<ClusterState>
+    recommends
+        key.kind.is_CustomResourceKind()
+{
     |s: ClusterState| {
         &&& s.reconcile_state_contains(key)
-        &&& s.reconcile_state_of(key).local_state.reconcile_step.is_Init()
+        &&& s.reconcile_state_of(key).local_state.reconcile_step == step
     }
 }
 
-pub open spec fn at_init_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
+pub open spec fn at_zookeeper_step_with_zk(zk: ZookeeperClusterView, step: ZookeeperReconcileStep) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& s.reconcile_state_contains(zk.object_ref())
         &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.object_ref() == zk.object_ref()
         &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.spec == zk.spec
-        &&& s.reconcile_state_of(zk.object_ref()).local_state.reconcile_step.is_Init()
+        &&& s.reconcile_state_of(zk.object_ref()).local_state.reconcile_step == step
     }
 }
 
 pub open spec fn at_init_step_with_no_pending_req(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_init_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_None()
-    }
-}
-
-// Handy abbreviation for AfterCreateHeadlessService step
-pub open spec fn at_after_create_headless_service_step(key: ObjectRef) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& s.reconcile_state_contains(key)
-        &&& s.reconcile_state_of(key).local_state.reconcile_step.is_AfterCreateHeadlessService()
-    }
-}
-
-pub open spec fn at_after_create_headless_service_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& s.reconcile_state_contains(zk.object_ref())
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.object_ref() == zk.object_ref()
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.spec == zk.spec
-        &&& s.reconcile_state_of(zk.object_ref()).local_state.reconcile_step.is_AfterCreateHeadlessService()
     }
 }
 
@@ -76,7 +61,7 @@ pub open spec fn at_after_create_headless_service_step_with_zk_and_pending_req_i
     zk: ZookeeperClusterView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_headless_service_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateHeadlessService)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& s.message_in_flight(s.pending_req_of(zk.object_ref()))
         &&& is_create_headless_service_request_msg(s.pending_req_of(zk.object_ref()), zk)
@@ -87,7 +72,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_headless_s
     zk: ZookeeperClusterView, req_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_headless_service_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateHeadlessService)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg == Option::Some(req_msg)
         &&& s.message_in_flight(req_msg)
         &&& is_create_headless_service_request_msg(req_msg, zk)
@@ -98,7 +83,7 @@ pub open spec fn at_after_create_headless_service_step_with_zk_and_exists_resp_i
     zk: ZookeeperClusterView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_headless_service_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateHeadlessService)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& is_create_headless_service_request_msg(s.pending_req_of(zk.object_ref()), zk)
         &&& exists |resp_msg| {
@@ -112,30 +97,11 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_create_headless_service
     zk: ZookeeperClusterView, resp_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_headless_service_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateHeadlessService)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& is_create_headless_service_request_msg(s.pending_req_of(zk.object_ref()), zk)
         &&& s.message_in_flight(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
-    }
-}
-
-pub open spec fn at_zookeeper_step(key: ObjectRef, step: ZookeeperReconcileStep) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind()
-{
-    |s: ClusterState| {
-        &&& s.reconcile_state_contains(key)
-        &&& s.reconcile_state_of(key).local_state.reconcile_step == step
-    }
-}
-
-pub open spec fn at_after_create_client_service_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& s.reconcile_state_contains(zk.object_ref())
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.object_ref() == zk.object_ref()
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.spec == zk.spec
-        &&& s.reconcile_state_of(zk.object_ref()).local_state.reconcile_step.is_AfterCreateClientService()
     }
 }
 
@@ -151,7 +117,7 @@ pub open spec fn at_after_create_client_service_step_with_zk_and_pending_req_in_
     zk: ZookeeperClusterView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_client_service_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateClientService)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& s.message_in_flight(s.pending_req_of(zk.object_ref()))
         &&& is_create_client_service_request_msg(s.pending_req_of(zk.object_ref()), zk)
@@ -162,7 +128,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_client_ser
     zk: ZookeeperClusterView, req_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_client_service_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateClientService)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg == Option::Some(req_msg)
         &&& s.message_in_flight(req_msg)
         &&& is_create_client_service_request_msg(req_msg, zk)
@@ -173,7 +139,7 @@ pub open spec fn at_after_create_client_service_step_with_zk_and_exists_resp_in_
     zk: ZookeeperClusterView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_client_service_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateClientService)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& is_create_client_service_request_msg(s.pending_req_of(zk.object_ref()), zk)
         &&& exists |resp_msg| {
@@ -187,20 +153,11 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_create_client_service_s
     zk: ZookeeperClusterView, resp_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_client_service_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateClientService)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& is_create_client_service_request_msg(s.pending_req_of(zk.object_ref()), zk)
         &&& s.message_in_flight(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
-    }
-}
-
-pub open spec fn at_after_create_admin_server_service_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& s.reconcile_state_contains(zk.object_ref())
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.object_ref() == zk.object_ref()
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.spec == zk.spec
-        &&& s.reconcile_state_of(zk.object_ref()).local_state.reconcile_step.is_AfterCreateAdminServerService()
     }
 }
 
@@ -216,7 +173,7 @@ pub open spec fn at_after_create_admin_server_service_step_with_zk_and_pending_r
     zk: ZookeeperClusterView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_admin_server_service_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateAdminServerService)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& s.message_in_flight(s.pending_req_of(zk.object_ref()))
         &&& is_create_admin_server_service_request_msg(s.pending_req_of(zk.object_ref()), zk)
@@ -227,7 +184,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_admin_serv
     zk: ZookeeperClusterView, req_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_admin_server_service_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateAdminServerService)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg == Option::Some(req_msg)
         &&& s.message_in_flight(req_msg)
         &&& is_create_admin_server_service_request_msg(req_msg, zk)
@@ -238,7 +195,7 @@ pub open spec fn at_after_create_admin_server_service_step_with_zk_and_exists_re
     zk: ZookeeperClusterView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_admin_server_service_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateAdminServerService)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& is_create_admin_server_service_request_msg(s.pending_req_of(zk.object_ref()), zk)
         &&& exists |resp_msg| {
@@ -252,20 +209,11 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_create_admin_server_ser
     zk: ZookeeperClusterView, resp_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_admin_server_service_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateAdminServerService)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& is_create_admin_server_service_request_msg(s.pending_req_of(zk.object_ref()), zk)
         &&& s.message_in_flight(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
-    }
-}
-
-pub open spec fn at_after_create_config_map_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& s.reconcile_state_contains(zk.object_ref())
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.object_ref() == zk.object_ref()
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.spec == zk.spec
-        &&& s.reconcile_state_of(zk.object_ref()).local_state.reconcile_step.is_AfterCreateConfigMap()
     }
 }
 
@@ -281,7 +229,7 @@ pub open spec fn at_after_create_config_map_step_with_zk_and_pending_req_in_flig
     zk: ZookeeperClusterView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_config_map_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateConfigMap)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& s.message_in_flight(s.pending_req_of(zk.object_ref()))
         &&& is_create_config_map_request_msg(s.pending_req_of(zk.object_ref()), zk)
@@ -292,7 +240,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_config_map
     zk: ZookeeperClusterView, req_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_config_map_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateConfigMap)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg == Option::Some(req_msg)
         &&& s.message_in_flight(req_msg)
         &&& is_create_config_map_request_msg(req_msg, zk)
@@ -303,7 +251,7 @@ pub open spec fn at_after_create_config_map_step_with_zk_and_exists_resp_in_flig
     zk: ZookeeperClusterView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_config_map_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateConfigMap)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& is_create_config_map_request_msg(s.pending_req_of(zk.object_ref()), zk)
         &&& exists |resp_msg| {
@@ -317,19 +265,11 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_create_config_map_step_
     zk: ZookeeperClusterView, resp_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_config_map_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateConfigMap)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& is_create_config_map_request_msg(s.pending_req_of(zk.object_ref()), zk)
         &&& s.message_in_flight(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
-    }
-}
-
-pub open spec fn at_after_get_stateful_set_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet)(s)
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.object_ref() == zk.object_ref()
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.spec == zk.spec
     }
 }
 
@@ -351,7 +291,7 @@ pub open spec fn at_after_get_stateful_set_step_with_zk_and_pending_req_in_fligh
     zk: ZookeeperClusterView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_get_stateful_set_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterGetStatefulSet)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& s.message_in_flight(s.pending_req_of(zk.object_ref()))
         &&& is_get_stateful_set_request_msg(s.pending_req_of(zk.object_ref()), zk)
@@ -362,7 +302,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_get_stateful_set_
     zk: ZookeeperClusterView, req_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_get_stateful_set_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterGetStatefulSet)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg == Option::Some(req_msg)
         &&& s.message_in_flight(req_msg)
         &&& is_get_stateful_set_request_msg(req_msg, zk)
@@ -373,7 +313,7 @@ pub open spec fn at_after_get_stateful_set_step_with_zk_and_exists_ok_resp_in_fl
     zk: ZookeeperClusterView, object: DynamicObjectView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_get_stateful_set_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterGetStatefulSet)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& is_get_stateful_set_request_msg(s.pending_req_of(zk.object_ref()), zk)
         &&& exists |resp_msg| {
@@ -389,7 +329,7 @@ pub open spec fn at_after_get_stateful_set_step_with_zk_and_exists_not_found_res
     zk: ZookeeperClusterView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_get_stateful_set_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterGetStatefulSet)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& is_get_stateful_set_request_msg(s.pending_req_of(zk.object_ref()), zk)
         &&& exists |resp_msg| {
@@ -405,7 +345,7 @@ pub open spec fn at_after_get_stateful_set_step_with_zk_and_exists_not_found_err
     zk: ZookeeperClusterView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_get_stateful_set_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterGetStatefulSet)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& is_get_stateful_set_request_msg(s.pending_req_of(zk.object_ref()), zk)
         &&& exists |resp_msg| {
@@ -421,19 +361,11 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_after_get_stateful_set_step_w
     zk: ZookeeperClusterView, resp_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_get_stateful_set_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterGetStatefulSet)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& is_get_stateful_set_request_msg(s.pending_req_of(zk.object_ref()), zk)
         &&& s.message_in_flight(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
-    }
-}
-
-pub open spec fn at_after_create_stateful_set_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet)(s)
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.object_ref() == zk.object_ref()
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.spec == zk.spec
     }
 }
 
@@ -454,7 +386,7 @@ pub open spec fn at_after_create_stateful_set_step_with_zk_and_pending_req_in_fl
     zk: ZookeeperClusterView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_stateful_set_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateStatefulSet)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& s.message_in_flight(s.pending_req_of(zk.object_ref()))
         &&& is_create_stateful_set_request_msg(s.pending_req_of(zk.object_ref()), zk)
@@ -465,30 +397,10 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_stateful_s
     zk: ZookeeperClusterView, req_msg: Message
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_create_stateful_set_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterCreateStatefulSet)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg == Option::Some(req_msg)
         &&& s.message_in_flight(req_msg)
         &&& is_create_stateful_set_request_msg(req_msg, zk)
-    }
-}
-
-// Handy abbreviation for AfterUpdateStatefulSet step
-
-pub open spec fn at_after_update_stateful_set_step(key: ObjectRef) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        &&& s.reconcile_state_contains(key)
-        &&& s.reconcile_state_of(key).local_state.reconcile_step.is_AfterUpdateStatefulSet()
-    }
-}
-
-pub open spec fn at_after_update_stateful_set_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& at_zookeeper_step(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet)(s)
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.object_ref() == zk.object_ref()
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.spec == zk.spec
     }
 }
 
@@ -511,7 +423,7 @@ pub open spec fn at_after_update_stateful_set_step_with_zk_and_pending_req_in_fl
     zk: ZookeeperClusterView, object: DynamicObjectView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_update_stateful_set_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some()
         &&& s.message_in_flight(s.pending_req_of(zk.object_ref()))
         &&& is_update_stateful_set_request_msg(s.pending_req_of(zk.object_ref()), zk, object)
@@ -522,30 +434,10 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_stateful_s
     zk: ZookeeperClusterView, req_msg: Message, object: DynamicObjectView
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& at_after_update_stateful_set_step_with_zk(zk)(s)
+        &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s)
         &&& s.reconcile_state_of(zk.object_ref()).pending_req_msg == Option::Some(req_msg)
         &&& s.message_in_flight(req_msg)
         &&& is_update_stateful_set_request_msg(req_msg, zk, object)
-    }
-}
-
-// Handy abbreviation for Done step
-
-pub open spec fn at_done_step(key: ObjectRef) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        &&& s.reconcile_state_contains(key)
-        &&& s.reconcile_state_of(key).local_state.reconcile_step.is_Done()
-    }
-}
-
-pub open spec fn at_done_step_with_zk(zk: ZookeeperClusterView) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        &&& at_done_step(zk.object_ref())(s)
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.object_ref() == zk.object_ref()
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.spec == zk.spec
     }
 }
 
