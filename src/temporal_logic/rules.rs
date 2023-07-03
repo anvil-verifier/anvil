@@ -1137,6 +1137,47 @@ macro_rules! stable_and_n_internal {
 pub use stable_and_n;
 pub use stable_and_n_internal;
 
+/// The conjunction of all the p is stable if each p is stable.
+/// post:
+///     |= stable(always(p1) /\ always(p2) /\ ... /\ always(pn))
+///
+/// Usage: stable_and_always_n!(p1, p2, p3, p4)
+#[macro_export]
+macro_rules! stable_and_always_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::stable_and_always_n_internal!($($tail)*));
+    };
+}
+
+#[macro_export]
+macro_rules! stable_and_always_n_internal {
+    ($p1:expr) => {
+        always_p_is_stable($p1);
+    };
+    ($p1:expr, $($tail:tt)*) => {
+        always_p_is_stable($p1);
+        stable_and_always_n_helper!(always($p1), $($tail)*);
+    };
+}
+
+pub use stable_and_always_n;
+pub use stable_and_always_n_internal;
+
+#[macro_export]
+macro_rules! stable_and_always_n_helper {
+    ($p1:expr, $p2:expr) => {
+        always_p_is_stable($p2);
+        stable_and_temp($p1, always($p2));
+    };
+    ($p1:expr, $p2:expr, $($tail:tt)*) => {
+        always_p_is_stable($p2);
+        stable_and_temp($p1, always($p2));
+        stable_and_always_n_helper!($p1.and(always($p2)), $($tail)*);
+    };
+}
+
+pub use stable_and_always_n_helper;
+
 /// Unpack the conditions from the left to the right side of |=
 /// pre:
 ///     |= stable(spec)
