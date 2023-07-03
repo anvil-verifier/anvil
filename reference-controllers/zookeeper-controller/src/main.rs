@@ -26,6 +26,9 @@ use crate::common::{cluster_size_zk_node_path, zk_service_uri};
 use crate::resources::*;
 use crate::zookeepercluster_types::*;
 
+use zookeeper_client as zk;
+use zookeeper_client::EnsembleUpdate;
+
 #[derive(Debug, Error)]
 enum Error {
     #[error("Failed to get CR: {0}")]
@@ -36,6 +39,10 @@ enum Error {
     ReconcileServiceFailed(#[source] kube::Error),
     #[error("Failed to reconcile StatefulSet: {0}")]
     ReconcileStatefulSetFailed(#[source] kube::Error),
+    #[error("Failed to send commands through zk-client: {0}")]
+    ZkClientCommandFailed(#[source] zk::Error),
+    #[error("Failed to connect ZK cluster: {0}")]
+    ZkClusterConnectFailed(#[source] zk::ConnectError),
     #[error("Failed to get StatefulSet: {0}")]
     GetStatefulSetFailed(#[source] kube::Error),
     #[error("Failed to reconcile the zk node to store cluster size: {0}")]
@@ -203,11 +210,52 @@ async fn reconcile_stateful_set(zk: &ZookeeperCluster, client: Client) -> Result
                 .as_ref()
                 .unwrap()
         );
+        let old_sts = sts_o.unwrap();
         info!("Update statefulset: {}", sts_name);
         let updated_sts = StatefulSet {
             spec: sts.spec,
-            ..sts_o.unwrap()
+            ..old_sts
         };
+
+        if updated_sts.spec.as_ref().unwrap().replicas.unwrap()
+            < old_sts.spec.as_ref().unwrap().replicas.unwrap()
+        {
+            // Scale down
+            info!("Scale down statefulset: {}", sts_name);
+
+            let cluster = zk.metadata.name.clone().unwrap()
+                + "-client."
+                + zk.metadata.namespace.as_ref().unwrap()
+                + ".svc.cluster.local:2181";
+            info!("Connecting to Zookeeper cluster: {}", cluster);
+            let client = zk::Client::connect(cluster.as_str(), Duration::from_secs(20))
+                .await
+                .map_err(Error::ZkClusterConnectFailed)?;
+
+            let (config_bytes, stat, watcher) = client.get_and_watch_config().await.unwrap();
+
+            let input = String::from_utf8(config_bytes).unwrap();
+            let num_servers_to_keep = updated_sts.spec.as_ref().unwrap().replicas.unwrap() as usize;
+
+            // split
+            let mut servers: Vec<&str> = input.split('\n').collect();
+            servers.pop(); // the last one is version, discard
+
+            let kept_servers: Vec<&str> = servers.into_iter().take(num_servers_to_keep).collect();
+
+            // use ',' to join
+            let final_config = kept_servers.join(",");
+
+            info!("Modified config: {}", final_config);
+            let strings = vec![final_config.as_str()];
+            let test_update = EnsembleUpdate::New {
+                ensemble: strings.iter().cloned(),
+            };
+            let result = client.update_ensemble(test_update, Some(-1));
+            result.await.map_err(Error::ZkClientCommandFailed)?;
+        }
+        // Scale up or no change
+
         sts_api
             .replace(sts_name, &PostParams::default(), &updated_sts)
             .await
