@@ -578,7 +578,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
     assert_by(
         spec.entails(
             lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref()))
-                .leads_to(lift_state(at_init_step_with_no_pending_req(zk)))
+                .leads_to(lift_state(no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init)))
         ),
         {
             let unscheduled_and_not_in_reconcile = lift_state(|s: ClusterState| {
@@ -595,13 +595,13 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                 spec,
                 unscheduled_and_not_in_reconcile,
                 scheduled_and_not_in_reconcile,
-                lift_state(at_init_step_with_no_pending_req(zk))
+                lift_state(no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init))
             );
             or_leads_to_combine_temp(
                 spec,
                 unscheduled_and_not_in_reconcile,
                 scheduled_and_not_in_reconcile,
-                lift_state(at_init_step_with_no_pending_req(zk))
+                lift_state(no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init))
             );
             temp_pred_equality(
                 lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())),
@@ -613,8 +613,8 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
     // Then we prove init_step ~> after_create_headless_service by applying wf1.
     assert_by(
         spec.entails(
-            lift_state(at_init_step_with_no_pending_req(zk))
-                .leads_to(lift_state(at_after_create_headless_service_step_with_zk_and_pending_req_in_flight(zk)))
+            lift_state(no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init))
+                .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, arbitrary())))
         ),
         {
             lemma_from_init_step_to_after_create_headless_service_step(spec, zk);
@@ -624,18 +624,18 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
     // Then we prove after_create_headless_service ~> after_create_client_service by applying wf1.
     assert_by(
         spec.entails(
-            lift_state(at_after_create_headless_service_step_with_zk_and_pending_req_in_flight(zk))
-                .leads_to(lift_state(at_after_create_client_service_step_with_zk_and_pending_req_in_flight(zk)))
+            lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, arbitrary()))
+                .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary())))
         ),
         {
             let pre_and_req_in_flight = |req_msg| lift_state(
-                req_msg_is_the_in_flight_pending_req_at_after_create_headless_service_step_with_zk(zk, req_msg)
+                req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, req_msg, arbitrary())
             );
             let pre_and_exists_resp_in_flight = lift_state(
-                at_after_create_headless_service_step_with_zk_and_exists_resp_in_flight(zk)
+                exists_resp_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, arbitrary())
             );
             let pre_and_resp_in_flight = |resp_msg| lift_state(
-                resp_msg_is_the_in_flight_resp_at_after_create_headless_service_step_with_zk(zk, resp_msg)
+                resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, resp_msg, arbitrary())
             );
             // We use the lemma lemma_receives_some_resp_at_after_create_headless_service_step_with_zk that takes a req_msg,
             // so we need to eliminate the req_msg using leads_to_exists_intro.
@@ -646,17 +646,17 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             }
             leads_to_exists_intro(spec, pre_and_req_in_flight, pre_and_exists_resp_in_flight);
             assert_by(
-                tla_exists(pre_and_req_in_flight) == lift_state(at_after_create_headless_service_step_with_zk_and_pending_req_in_flight(zk)),
+                tla_exists(pre_and_req_in_flight) == lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, arbitrary())),
                 {
                     assert forall |ex|
-                        #[trigger] lift_state(at_after_create_headless_service_step_with_zk_and_pending_req_in_flight(zk)).satisfied_by(ex)
+                        #[trigger] lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, arbitrary())).satisfied_by(ex)
                     implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
                         let req_msg = ex.head().pending_req_of(zk.object_ref());
                         assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
                     }
                     temp_pred_equality(
                         tla_exists(pre_and_req_in_flight),
-                        lift_state(at_after_create_headless_service_step_with_zk_and_pending_req_in_flight(zk))
+                        lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, arbitrary()))
                     );
                 }
             );
@@ -664,7 +664,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             assert forall |resp_msg|
                 spec.entails(
                     #[trigger] pre_and_resp_in_flight(resp_msg)
-                        .leads_to(lift_state(at_after_create_client_service_step_with_zk_and_pending_req_in_flight(zk)))
+                        .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary())))
                 )
             by {
                 lemma_from_after_create_headless_service_step_to_after_create_client_service_step(spec, zk, resp_msg);
@@ -672,7 +672,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             leads_to_exists_intro(
                 spec,
                 pre_and_resp_in_flight,
-                lift_state(at_after_create_client_service_step_with_zk_and_pending_req_in_flight(zk))
+                lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary()))
             );
             assert_by(
                 tla_exists(pre_and_resp_in_flight) == pre_and_exists_resp_in_flight,
@@ -691,9 +691,9 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
 
             leads_to_trans_temp(
                 spec,
-                lift_state(at_after_create_headless_service_step_with_zk_and_pending_req_in_flight(zk)),
+                lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, arbitrary())),
                 pre_and_exists_resp_in_flight,
-                lift_state(at_after_create_client_service_step_with_zk_and_pending_req_in_flight(zk))
+                lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary()))
             );
         }
     );
@@ -701,18 +701,18 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
     // Then we prove after_create_client_service ~> after_create_admin_server_service by applying wf1.
     assert_by(
         spec.entails(
-            lift_state(at_after_create_client_service_step_with_zk_and_pending_req_in_flight(zk))
-                .leads_to(lift_state(at_after_create_admin_server_service_step_with_zk_and_pending_req_in_flight(zk)))
+            lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary()))
+                .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, arbitrary())))
         ),
         {
             let pre_and_req_in_flight = |req_msg| lift_state(
-                req_msg_is_the_in_flight_pending_req_at_after_create_client_service_step_with_zk(zk, req_msg)
+                req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, req_msg, arbitrary())
             );
             let pre_and_exists_resp_in_flight = lift_state(
-                at_after_create_client_service_step_with_zk_and_exists_resp_in_flight(zk)
+                exists_resp_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary())
             );
             let pre_and_resp_in_flight = |resp_msg| lift_state(
-                resp_msg_is_the_in_flight_resp_at_after_create_client_service_step_with_zk(zk, resp_msg)
+                resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, resp_msg, arbitrary())
             );
             assert forall |req_msg|
                 spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(pre_and_exists_resp_in_flight))
@@ -721,17 +721,17 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             }
             leads_to_exists_intro(spec, pre_and_req_in_flight, pre_and_exists_resp_in_flight);
             assert_by(
-                tla_exists(pre_and_req_in_flight) == lift_state(at_after_create_client_service_step_with_zk_and_pending_req_in_flight(zk)),
+                tla_exists(pre_and_req_in_flight) == lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary())),
                 {
                     assert forall |ex|
-                        #[trigger] lift_state(at_after_create_client_service_step_with_zk_and_pending_req_in_flight(zk)).satisfied_by(ex)
+                        #[trigger] lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary())).satisfied_by(ex)
                     implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
                         let req_msg = ex.head().pending_req_of(zk.object_ref());
                         assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
                     }
                     temp_pred_equality(
                         tla_exists(pre_and_req_in_flight),
-                        lift_state(at_after_create_client_service_step_with_zk_and_pending_req_in_flight(zk))
+                        lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary()))
                     );
                 }
             );
@@ -739,7 +739,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             assert forall |resp_msg|
                 spec.entails(
                     #[trigger] pre_and_resp_in_flight(resp_msg)
-                        .leads_to(lift_state(at_after_create_admin_server_service_step_with_zk_and_pending_req_in_flight(zk)))
+                        .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, arbitrary())))
                 )
             by {
                 lemma_from_after_create_client_service_step_to_after_create_admin_server_service_step(spec, zk, resp_msg);
@@ -747,7 +747,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             leads_to_exists_intro(
                 spec,
                 pre_and_resp_in_flight,
-                lift_state(at_after_create_admin_server_service_step_with_zk_and_pending_req_in_flight(zk))
+                lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, arbitrary()))
             );
             assert_by(
                 tla_exists(pre_and_resp_in_flight) == pre_and_exists_resp_in_flight,
@@ -766,9 +766,9 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
 
             leads_to_trans_temp(
                 spec,
-                lift_state(at_after_create_client_service_step_with_zk_and_pending_req_in_flight(zk)),
+                lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary())),
                 pre_and_exists_resp_in_flight,
-                lift_state(at_after_create_admin_server_service_step_with_zk_and_pending_req_in_flight(zk))
+                lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, arbitrary()))
             );
         }
     );
@@ -776,18 +776,18 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
     // Then we prove after_create_admin_server_service ~> after_create_config_map by applying wf1.
     assert_by(
         spec.entails(
-            lift_state(at_after_create_admin_server_service_step_with_zk_and_pending_req_in_flight(zk))
-                .leads_to(lift_state(at_after_create_config_map_step_with_zk_and_pending_req_in_flight(zk)))
+            lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, arbitrary()))
+                .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, arbitrary())))
         ),
         {
             let pre_and_req_in_flight = |req_msg| lift_state(
-                req_msg_is_the_in_flight_pending_req_at_after_create_admin_server_service_step_with_zk(zk, req_msg)
+                req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, req_msg, arbitrary())
             );
             let pre_and_exists_resp_in_flight = lift_state(
-                at_after_create_admin_server_service_step_with_zk_and_exists_resp_in_flight(zk)
+                exists_resp_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, arbitrary())
             );
             let pre_and_resp_in_flight = |resp_msg| lift_state(
-                resp_msg_is_the_in_flight_resp_at_after_create_admin_server_service_step_with_zk(zk, resp_msg)
+                resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, resp_msg, arbitrary())
             );
             assert forall |req_msg|
                 spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(pre_and_exists_resp_in_flight))
@@ -796,17 +796,17 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             }
             leads_to_exists_intro(spec, pre_and_req_in_flight, pre_and_exists_resp_in_flight);
             assert_by(
-                tla_exists(pre_and_req_in_flight) == lift_state(at_after_create_admin_server_service_step_with_zk_and_pending_req_in_flight(zk)),
+                tla_exists(pre_and_req_in_flight) == lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, arbitrary())),
                 {
                     assert forall |ex|
-                        #[trigger] lift_state(at_after_create_admin_server_service_step_with_zk_and_pending_req_in_flight(zk)).satisfied_by(ex)
+                        #[trigger] lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, arbitrary())).satisfied_by(ex)
                     implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
                         let req_msg = ex.head().pending_req_of(zk.object_ref());
                         assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
                     }
                     temp_pred_equality(
                         tla_exists(pre_and_req_in_flight),
-                        lift_state(at_after_create_admin_server_service_step_with_zk_and_pending_req_in_flight(zk))
+                        lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, arbitrary()))
                     );
                 }
             );
@@ -814,7 +814,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             assert forall |resp_msg|
                 spec.entails(
                     #[trigger] pre_and_resp_in_flight(resp_msg)
-                        .leads_to(lift_state(at_after_create_config_map_step_with_zk_and_pending_req_in_flight(zk)))
+                        .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, arbitrary())))
                 )
             by {
                 lemma_from_after_create_admin_server_service_step_to_after_create_config_map_step(spec, zk, resp_msg);
@@ -822,7 +822,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             leads_to_exists_intro(
                 spec,
                 pre_and_resp_in_flight,
-                lift_state(at_after_create_config_map_step_with_zk_and_pending_req_in_flight(zk))
+                lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, arbitrary()))
             );
             assert_by(
                 tla_exists(pre_and_resp_in_flight) == pre_and_exists_resp_in_flight,
@@ -841,9 +841,9 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
 
             leads_to_trans_temp(
                 spec,
-                lift_state(at_after_create_admin_server_service_step_with_zk_and_pending_req_in_flight(zk)),
+                lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, arbitrary())),
                 pre_and_exists_resp_in_flight,
-                lift_state(at_after_create_config_map_step_with_zk_and_pending_req_in_flight(zk))
+                lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, arbitrary()))
             );
         }
     );
@@ -851,18 +851,18 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
     // Then we prove after_create_config_map ~> after_get_stateful_set by applying wf1.
     assert_by(
         spec.entails(
-            lift_state(at_after_create_config_map_step_with_zk_and_pending_req_in_flight(zk))
-                .leads_to(lift_state(at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk)))
+            lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, arbitrary()))
+                .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())))
         ),
         {
             let pre_and_req_in_flight = |req_msg| lift_state(
-                req_msg_is_the_in_flight_pending_req_at_after_create_config_map_step_with_zk(zk, req_msg)
+                req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, req_msg, arbitrary())
             );
             let pre_and_exists_resp_in_flight = lift_state(
-                at_after_create_config_map_step_with_zk_and_exists_resp_in_flight(zk)
+                exists_resp_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, arbitrary())
             );
             let pre_and_resp_in_flight = |resp_msg| lift_state(
-                resp_msg_is_the_in_flight_resp_at_after_create_config_map_step_with_zk(zk, resp_msg)
+                resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, resp_msg, arbitrary())
             );
             assert forall |req_msg|
                 spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(pre_and_exists_resp_in_flight))
@@ -871,17 +871,17 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             }
             leads_to_exists_intro(spec, pre_and_req_in_flight, pre_and_exists_resp_in_flight);
             assert_by(
-                tla_exists(pre_and_req_in_flight) == lift_state(at_after_create_config_map_step_with_zk_and_pending_req_in_flight(zk)),
+                tla_exists(pre_and_req_in_flight) == lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, arbitrary())),
                 {
                     assert forall |ex|
-                        #[trigger] lift_state(at_after_create_config_map_step_with_zk_and_pending_req_in_flight(zk)).satisfied_by(ex)
+                        #[trigger] lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, arbitrary())).satisfied_by(ex)
                     implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
                         let req_msg = ex.head().pending_req_of(zk.object_ref());
                         assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
                     }
                     temp_pred_equality(
                         tla_exists(pre_and_req_in_flight),
-                        lift_state(at_after_create_config_map_step_with_zk_and_pending_req_in_flight(zk))
+                        lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, arbitrary()))
                     );
                 }
             );
@@ -889,7 +889,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             assert forall |resp_msg|
                 spec.entails(
                     #[trigger] pre_and_resp_in_flight(resp_msg)
-                        .leads_to(lift_state(at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk)))
+                        .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())))
                 )
             by {
                 lemma_from_after_create_config_map_step_to_after_get_stateful_set_step(spec, zk, resp_msg);
@@ -897,7 +897,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             leads_to_exists_intro(
                 spec,
                 pre_and_resp_in_flight,
-                lift_state(at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk))
+                lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary()))
             );
             assert_by(
                 tla_exists(pre_and_resp_in_flight) == pre_and_exists_resp_in_flight,
@@ -916,9 +916,9 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
 
             leads_to_trans_temp(
                 spec,
-                lift_state(at_after_create_config_map_step_with_zk_and_pending_req_in_flight(zk)),
+                lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, arbitrary())),
                 pre_and_exists_resp_in_flight,
-                lift_state(at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk))
+                lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary()))
             );
         }
     );
@@ -929,23 +929,23 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         spec.entails(
             lift_state(|s: ClusterState| {
                 &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                &&& at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk)(s)
+                &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
             })
                 .leads_to(lift_state(current_state_matches(zk)))
         ),
         {
             let pre = lift_state(|s: ClusterState| {
                 &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                &&& at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk)(s)
+                &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
             });
             let post = lift_state(|s: ClusterState| {
                 &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                &&& at_after_create_stateful_set_step_with_zk_and_pending_req_in_flight(zk)(s)
+                &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateStatefulSet, zk, arbitrary())(s)
             });
             let pre_and_req_in_flight = |req_msg| lift_state(
                 |s: ClusterState| {
                     &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                    &&& req_msg_is_the_in_flight_pending_req_at_after_get_stateful_set_step_with_zk(zk, req_msg)(s)
+                    &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, req_msg, arbitrary())(s)
                 }
             );
             let pre_and_exists_resp_in_flight = lift_state(
@@ -957,7 +957,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             let pre_and_resp_in_flight = |resp_msg| lift_state(
                 |s: ClusterState| {
                     &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                    &&& resp_msg_is_the_in_flight_resp_at_after_get_stateful_set_step_with_zk(zk, resp_msg)(s)
+                    &&& resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, resp_msg, arbitrary())(s)
                     &&& resp_msg.content.get_get_response().res.is_Err()
                     &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
                 }
@@ -965,7 +965,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             let post_and_req_in_flight = |req_msg| lift_state(
                 |s: ClusterState| {
                     &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                    &&& req_msg_is_the_in_flight_pending_req_at_after_create_stateful_set_step_with_zk(zk, req_msg)(s)
+                    &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateStatefulSet, zk, req_msg, arbitrary())(s)
                 }
             );
             assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(pre_and_exists_resp_in_flight))
@@ -1035,20 +1035,20 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         spec.entails(
             lift_state(|s: ClusterState| {
                 &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                &&& at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk)(s)
+                &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
             })
                 .leads_to(lift_state(current_state_matches(zk)))
         ),
         {
             let pre = lift_state(|s: ClusterState| {
                 &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                &&& at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk)(s)
+                &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
             });
             let pre_with_object = |object| lift_state(
                 |s: ClusterState| {
                     &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
                     &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
-                    &&& at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk)(s)
+                    &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
                 }
             );
             assert forall |object: DynamicObjectView| spec.entails(#[trigger] pre_with_object(object).leads_to(lift_state(current_state_matches(zk))))
@@ -1056,12 +1056,12 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                 let p1 = lift_state(|s: ClusterState| {
                     &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
                     &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
-                    &&& at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk)(s)
+                    &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
                 });
                 let p2 = lift_state(|s: ClusterState| {
                     &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
                     &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
-                    &&& at_after_update_stateful_set_step_with_zk_and_pending_req_in_flight(zk, object)(s)
+                    &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterUpdateStatefulSet, zk, object)(s)
                 });
 
                 assert_by(
@@ -1071,7 +1071,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                             |s: ClusterState| {
                                 &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
                                 &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
-                                &&& req_msg_is_the_in_flight_pending_req_at_after_get_stateful_set_step_with_zk(zk, req_msg)(s)
+                                &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, req_msg, arbitrary())(s)
                             }
                         );
                         let pre_and_exists_resp_in_flight = lift_state(
@@ -1085,7 +1085,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                             |s: ClusterState| {
                                 &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
                                 &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
-                                &&& resp_msg_is_the_in_flight_resp_at_after_get_stateful_set_step_with_zk(zk, resp_msg)(s)
+                                &&& resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, resp_msg, arbitrary())(s)
                                 &&& resp_msg.content.get_get_response().res.is_Ok()
                                 &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
                             }
@@ -1141,7 +1141,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                             |s: ClusterState| {
                                 &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
                                 &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
-                                &&& req_msg_is_the_in_flight_pending_req_at_after_update_stateful_set_step_with_zk(zk, req_msg, object)(s)
+                                &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterUpdateStatefulSet, zk, req_msg, object)(s)
                             }
                         );
                         assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(lift_state(current_state_matches(zk))))
@@ -1183,20 +1183,20 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
     // Now we prove after_get_stateful_set ~> current_state_matches(zk) by merging the above two cases.
     assert_by(
         spec.entails(
-            lift_state(at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk))
+            lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary()))
                 .leads_to(lift_state(current_state_matches(zk)))
         ),
         {
             let p1 = lift_state(|s: ClusterState| {
                 &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                &&& at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk)(s)
+                &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
             });
             let p2 = lift_state(|s: ClusterState| {
                 &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                &&& at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk)(s)
+                &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
             });
             or_leads_to_combine_temp(spec, p1, p2, lift_state(current_state_matches(zk)));
-            temp_pred_equality(p1.or(p2), lift_state(at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk)));
+            temp_pred_equality(p1.or(p2), lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())));
         }
     );
 
@@ -1217,12 +1217,12 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         spec,
         true_pred(),
         lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())),
-        lift_state(at_init_step_with_no_pending_req(zk)),
-        lift_state(at_after_create_headless_service_step_with_zk_and_pending_req_in_flight(zk)),
-        lift_state(at_after_create_client_service_step_with_zk_and_pending_req_in_flight(zk)),
-        lift_state(at_after_create_admin_server_service_step_with_zk_and_pending_req_in_flight(zk)),
-        lift_state(at_after_create_config_map_step_with_zk_and_pending_req_in_flight(zk)),
-        lift_state(at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk)),
+        lift_state(no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init)),
+        lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, arbitrary())),
+        lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary())),
+        lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, arbitrary())),
+        lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, arbitrary())),
+        lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())),
         lift_state(current_state_matches(zk)),
         always(lift_state(current_state_matches(zk)))
     );
@@ -1275,14 +1275,14 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, zk: Zoo
                 &&& !s.reconcile_state_contains(zk.object_ref())
                 &&& s.reconcile_scheduled_for(zk.object_ref())
             })
-                .leads_to(lift_state(at_init_step_with_no_pending_req(zk)))
+                .leads_to(lift_state(no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init)))
         ),
 {
     let pre = |s: ClusterState| {
         &&& !s.reconcile_state_contains(zk.object_ref())
         &&& s.reconcile_scheduled_for(zk.object_ref())
     };
-    let post = at_init_step_with_no_pending_req(zk);
+    let post = no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init);
     let input = (Option::None, Option::Some(zk.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
@@ -1321,12 +1321,12 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
         zk.well_formed(),
     ensures
         spec.entails(
-            lift_state(at_init_step_with_no_pending_req(zk))
-                .leads_to(lift_state(at_after_create_headless_service_step_with_zk_and_pending_req_in_flight(zk)))
+            lift_state(no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init))
+                .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, arbitrary())))
         ),
 {
-    let pre = at_init_step_with_no_pending_req(zk);
-    let post = at_after_create_headless_service_step_with_zk_and_pending_req_in_flight(zk);
+    let pre = no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init);
+    let post = pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, arbitrary());
     let input = (Option::None, Option::Some(zk.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
@@ -1361,12 +1361,12 @@ proof fn lemma_receives_some_resp_at_after_create_headless_service_step_with_zk(
         zk.well_formed(),
     ensures
         spec.entails(
-            lift_state(req_msg_is_the_in_flight_pending_req_at_after_create_headless_service_step_with_zk(zk, req_msg))
-                .leads_to(lift_state(at_after_create_headless_service_step_with_zk_and_exists_resp_in_flight(zk)))
+            lift_state(req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, req_msg, arbitrary()))
+                .leads_to(lift_state(exists_resp_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, arbitrary())))
         ),
 {
-    let pre = req_msg_is_the_in_flight_pending_req_at_after_create_headless_service_step_with_zk(zk, req_msg);
-    let post = at_after_create_headless_service_step_with_zk_and_exists_resp_in_flight(zk);
+    let pre = req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, req_msg, arbitrary());
+    let post = exists_resp_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, arbitrary());
     let input = Option::Some(req_msg);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
@@ -1415,12 +1415,12 @@ proof fn lemma_from_after_create_headless_service_step_to_after_create_client_se
         zk.well_formed(),
     ensures
         spec.entails(
-            lift_state(resp_msg_is_the_in_flight_resp_at_after_create_headless_service_step_with_zk(zk, resp_msg))
-                .leads_to(lift_state(at_after_create_client_service_step_with_zk_and_pending_req_in_flight(zk)))
+            lift_state(resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, resp_msg, arbitrary()))
+                .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary())))
         ),
 {
-    let pre = resp_msg_is_the_in_flight_resp_at_after_create_headless_service_step_with_zk(zk, resp_msg);
-    let post = at_after_create_client_service_step_with_zk_and_pending_req_in_flight(zk);
+    let pre = resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, resp_msg, arbitrary());
+    let post = pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary());
     let input = (Option::Some(resp_msg), Option::Some(zk.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
@@ -1459,12 +1459,12 @@ proof fn lemma_receives_some_resp_at_after_create_client_service_step_with_zk(
         zk.well_formed(),
     ensures
         spec.entails(
-            lift_state(req_msg_is_the_in_flight_pending_req_at_after_create_client_service_step_with_zk(zk, req_msg))
-                .leads_to(lift_state(at_after_create_client_service_step_with_zk_and_exists_resp_in_flight(zk)))
+            lift_state(req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, req_msg, arbitrary()))
+                .leads_to(lift_state(exists_resp_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary())))
         ),
 {
-    let pre = req_msg_is_the_in_flight_pending_req_at_after_create_client_service_step_with_zk(zk, req_msg);
-    let post = at_after_create_client_service_step_with_zk_and_exists_resp_in_flight(zk);
+    let pre = req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, req_msg, arbitrary());
+    let post = exists_resp_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary());
     let input = Option::Some(req_msg);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
@@ -1512,12 +1512,12 @@ proof fn lemma_from_after_create_client_service_step_to_after_create_admin_serve
         zk.well_formed(),
     ensures
         spec.entails(
-            lift_state(resp_msg_is_the_in_flight_resp_at_after_create_client_service_step_with_zk(zk, resp_msg))
-                .leads_to(lift_state(at_after_create_admin_server_service_step_with_zk_and_pending_req_in_flight(zk)))
+            lift_state(resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, resp_msg, arbitrary()))
+                .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, arbitrary())))
         ),
 {
-    let pre = resp_msg_is_the_in_flight_resp_at_after_create_client_service_step_with_zk(zk, resp_msg);
-    let post = at_after_create_admin_server_service_step_with_zk_and_pending_req_in_flight(zk);
+    let pre = resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, resp_msg, arbitrary());
+    let post = pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, arbitrary());
     let input = (Option::Some(resp_msg), Option::Some(zk.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
@@ -1556,12 +1556,12 @@ proof fn lemma_receives_some_resp_at_after_create_admin_server_service_step_with
         zk.well_formed(),
     ensures
         spec.entails(
-            lift_state(req_msg_is_the_in_flight_pending_req_at_after_create_admin_server_service_step_with_zk(zk, req_msg))
-                .leads_to(lift_state(at_after_create_admin_server_service_step_with_zk_and_exists_resp_in_flight(zk)))
+            lift_state(req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, req_msg, arbitrary()))
+                .leads_to(lift_state(exists_resp_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, arbitrary())))
         ),
 {
-    let pre = req_msg_is_the_in_flight_pending_req_at_after_create_admin_server_service_step_with_zk(zk, req_msg);
-    let post = at_after_create_admin_server_service_step_with_zk_and_exists_resp_in_flight(zk);
+    let pre = req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, req_msg, arbitrary());
+    let post = exists_resp_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, arbitrary());
     let input = Option::Some(req_msg);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
@@ -1609,12 +1609,12 @@ proof fn lemma_from_after_create_admin_server_service_step_to_after_create_confi
         zk.well_formed(),
     ensures
         spec.entails(
-            lift_state(resp_msg_is_the_in_flight_resp_at_after_create_admin_server_service_step_with_zk(zk, resp_msg))
-                .leads_to(lift_state(at_after_create_config_map_step_with_zk_and_pending_req_in_flight(zk)))
+            lift_state(resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, resp_msg, arbitrary()))
+                .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, arbitrary())))
         ),
 {
-    let pre = resp_msg_is_the_in_flight_resp_at_after_create_admin_server_service_step_with_zk(zk, resp_msg);
-    let post = at_after_create_config_map_step_with_zk_and_pending_req_in_flight(zk);
+    let pre = resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateAdminServerService, zk, resp_msg, arbitrary());
+    let post = pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, arbitrary());
     let input = (Option::Some(resp_msg), Option::Some(zk.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
@@ -1653,12 +1653,12 @@ proof fn lemma_receives_some_resp_at_after_create_config_map_step_with_zk(
         zk.well_formed(),
     ensures
         spec.entails(
-            lift_state(req_msg_is_the_in_flight_pending_req_at_after_create_config_map_step_with_zk(zk, req_msg))
-                .leads_to(lift_state(at_after_create_config_map_step_with_zk_and_exists_resp_in_flight(zk)))
+            lift_state(req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, req_msg, arbitrary()))
+                .leads_to(lift_state(exists_resp_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, arbitrary())))
         ),
 {
-    let pre = req_msg_is_the_in_flight_pending_req_at_after_create_config_map_step_with_zk(zk, req_msg);
-    let post = at_after_create_config_map_step_with_zk_and_exists_resp_in_flight(zk);
+    let pre = req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, req_msg, arbitrary());
+    let post = exists_resp_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, arbitrary());
     let input = Option::Some(req_msg);
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
@@ -1706,12 +1706,12 @@ proof fn lemma_from_after_create_config_map_step_to_after_get_stateful_set_step(
         zk.well_formed(),
     ensures
         spec.entails(
-            lift_state(resp_msg_is_the_in_flight_resp_at_after_create_config_map_step_with_zk(zk, resp_msg))
-                .leads_to(lift_state(at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk)))
+            lift_state(resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, resp_msg, arbitrary()))
+                .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())))
         ),
 {
-    let pre = resp_msg_is_the_in_flight_resp_at_after_create_config_map_step_with_zk(zk, resp_msg);
-    let post = at_after_get_stateful_set_step_with_zk_and_pending_req_in_flight(zk);
+    let pre = resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateConfigMap, zk, resp_msg, arbitrary());
+    let post = pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary());
     let input = (Option::Some(resp_msg), Option::Some(zk.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
@@ -1757,7 +1757,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
                 |s: ClusterState| {
                     &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
                     &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
-                    &&& req_msg_is_the_in_flight_pending_req_at_after_get_stateful_set_step_with_zk(zk, req_msg)(s)
+                    &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, req_msg, arbitrary())(s)
                 }
             )
                 .leads_to(lift_state(
@@ -1772,7 +1772,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
     let pre = |s: ClusterState| {
         &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
         &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
-        &&& req_msg_is_the_in_flight_pending_req_at_after_get_stateful_set_step_with_zk(zk, req_msg)(s)
+        &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, req_msg, arbitrary())(s)
     };
     let post = |s: ClusterState| {
         &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
@@ -1864,28 +1864,28 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
             lift_state(|s: ClusterState| {
                 &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
                 &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
-                &&& resp_msg_is_the_in_flight_resp_at_after_get_stateful_set_step_with_zk(zk, resp_msg)(s)
+                &&& resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, resp_msg, arbitrary())(s)
                 &&& resp_msg.content.get_get_response().res.is_Ok()
                 &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
             })
                 .leads_to(lift_state(|s: ClusterState| {
                     &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
                     &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
-                    &&& at_after_update_stateful_set_step_with_zk_and_pending_req_in_flight(zk, object)(s)
+                    &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterUpdateStatefulSet, zk, object)(s)
                 }))
         ),
 {
     let pre = |s: ClusterState| {
         &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
         &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
-        &&& resp_msg_is_the_in_flight_resp_at_after_get_stateful_set_step_with_zk(zk, resp_msg)(s)
+        &&& resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, resp_msg, arbitrary())(s)
         &&& resp_msg.content.get_get_response().res.is_Ok()
         &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
     };
     let post = |s: ClusterState| {
         &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
         &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
-        &&& at_after_update_stateful_set_step_with_zk_and_pending_req_in_flight(zk, object)(s)
+        &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterUpdateStatefulSet, zk, object)(s)
     };
     let input = (Option::Some(resp_msg), Option::Some(zk.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
@@ -1951,7 +1951,7 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
                 |s: ClusterState| {
                     &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
                     &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
-                    &&& req_msg_is_the_in_flight_pending_req_at_after_update_stateful_set_step_with_zk(zk, req_msg, object)(s)
+                    &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterUpdateStatefulSet, zk, req_msg, object)(s)
                 }
             )
                 .leads_to(lift_state(
@@ -1966,7 +1966,7 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
     let pre = |s: ClusterState| {
         &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
         &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
-        &&& req_msg_is_the_in_flight_pending_req_at_after_update_stateful_set_step_with_zk(zk, req_msg, object)(s)
+        &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterUpdateStatefulSet, zk, req_msg, object)(s)
     };
     let post = |s: ClusterState| {
         &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
@@ -2044,7 +2044,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_zk(
             lift_state(
                 |s: ClusterState| {
                     &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                    &&& req_msg_is_the_in_flight_pending_req_at_after_get_stateful_set_step_with_zk(zk, req_msg)(s)
+                    &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, req_msg, arbitrary())(s)
                 }
             )
                 .leads_to(lift_state(
@@ -2057,7 +2057,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_zk(
 {
     let pre = |s: ClusterState| {
         &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-        &&& req_msg_is_the_in_flight_pending_req_at_after_get_stateful_set_step_with_zk(zk, req_msg)(s)
+        &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, req_msg, arbitrary())(s)
     };
     let post = |s: ClusterState| {
         &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
@@ -2141,25 +2141,25 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_create_stateful_set_ste
         spec.entails(
             lift_state(|s: ClusterState| {
                 &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                &&& resp_msg_is_the_in_flight_resp_at_after_get_stateful_set_step_with_zk(zk, resp_msg)(s)
+                &&& resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, resp_msg, arbitrary())(s)
                 &&& resp_msg.content.get_get_response().res.is_Err()
                 &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
             })
                 .leads_to(lift_state(|s: ClusterState| {
                     &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                    &&& at_after_create_stateful_set_step_with_zk_and_pending_req_in_flight(zk)(s)
+                    &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateStatefulSet, zk, arbitrary())(s)
                 }))
         ),
 {
     let pre = |s: ClusterState| {
         &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-        &&& resp_msg_is_the_in_flight_resp_at_after_get_stateful_set_step_with_zk(zk, resp_msg)(s)
+        &&& resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, resp_msg, arbitrary())(s)
         &&& resp_msg.content.get_get_response().res.is_Err()
         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
     };
     let post = |s: ClusterState| {
         &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-        &&& at_after_create_stateful_set_step_with_zk_and_pending_req_in_flight(zk)(s)
+        &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateStatefulSet, zk, arbitrary())(s)
     };
     let input = (Option::Some(resp_msg), Option::Some(zk.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
@@ -2213,7 +2213,7 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_zk(
             lift_state(
                 |s: ClusterState| {
                     &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                    &&& req_msg_is_the_in_flight_pending_req_at_after_create_stateful_set_step_with_zk(zk, req_msg)(s)
+                    &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateStatefulSet, zk, req_msg, arbitrary())(s)
                 }
             )
                 .leads_to(lift_state(
@@ -2227,7 +2227,7 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_zk(
 {
     let pre = |s: ClusterState| {
         &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-        &&& req_msg_is_the_in_flight_pending_req_at_after_create_stateful_set_step_with_zk(zk, req_msg)(s)
+        &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateStatefulSet, zk, req_msg, arbitrary())(s)
     };
     let post = |s: ClusterState| {
         &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
