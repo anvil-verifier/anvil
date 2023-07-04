@@ -23,6 +23,12 @@ pub open spec fn cluster_spec() -> TempPred<ClusterState> {
     sm_spec::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()
 }
 
+pub open spec fn zookeeper_reconcile_state(step: ZookeeperReconcileStep) -> ZookeeperReconcileState {
+    ZookeeperReconcileState {
+        reconcile_step: step
+    }
+}
+
 pub open spec fn at_zookeeper_step(key: ObjectRef, step: ZookeeperReconcileStep) -> StatePred<ClusterState>
     recommends
         key.kind.is_CustomResourceKind()

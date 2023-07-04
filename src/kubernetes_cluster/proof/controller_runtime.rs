@@ -63,4 +63,78 @@ pub open spec fn reconciler_reconcile_error<K: ResourceView, T, ReconcilerType: 
     }
 }
 
+pub open spec fn at_reconcile_state<K: ResourceView, T>(key: ObjectRef, state: T) -> StatePred<State<K, T>>
+    recommends
+        key.kind.is_CustomResourceKind()
+{
+    |s: State<K, T>| {
+        &&& s.reconcile_state_contains(key)
+        &&& s.reconcile_state_of(key).local_state == state
+    }
+}
+
+pub open spec fn pending_req_in_flight_at_reconcile_state<K: ResourceView, T>(key: ObjectRef, state: T) -> StatePred<State<K, T>>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: State<K, T>| {
+        at_reconcile_state(key, state)(s)
+        && s.reconcile_state_of(key).pending_req_msg.is_Some()
+        && request_sent_by_controller(s.pending_req_of(key))
+        && s.message_in_flight(s.pending_req_of(key))
+    }
+}
+
+pub open spec fn request_sent_by_controller(msg: Message) -> bool {
+    msg.src.is_CustomController()
+    && msg.dst.is_KubernetesAPI()
+    && msg.content.is_APIRequest()
+}
+
+pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state<K: ResourceView, T>(
+    key: ObjectRef, state: T, req_msg: Message
+) -> StatePred<State<K, T>> {
+    |s: State<K, T>| {
+        at_reconcile_state(key, state)(s)
+        && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
+        && request_sent_by_controller(req_msg)
+        && s.message_in_flight(req_msg)
+    }
+}
+
+pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: ResourceView, T>(
+    key: ObjectRef, state: T
+) -> StatePred<State<K, T>>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: State<K, T>| {
+        at_reconcile_state(key, state)(s)
+            ==> {
+                s.reconcile_state_of(key).pending_req_msg.is_Some()
+                && request_sent_by_controller(s.pending_req_of(key))
+                && (s.message_in_flight(s.pending_req_of(key))
+                || exists |resp_msg: Message| {
+                    #[trigger] s.message_in_flight(resp_msg)
+                    && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
+                })
+            }
+    }
+}
+
+pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state<K: ResourceView, T>(key: ObjectRef, state: T) -> StatePred<State<K, T>>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: State<K, T>| {
+        at_reconcile_state(key, state)(s)
+        && s.reconcile_state_of(key).pending_req_msg.is_Some()
+        && request_sent_by_controller(s.pending_req_of(key))
+        && exists |resp_msg: Message| {
+            #[trigger] s.message_in_flight(resp_msg)
+            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
+        }
+    }
+}
+
 }

@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{common::*, resource::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::{
     proof::{
         controller_runtime::*, kubernetes_api_safety,
@@ -11,6 +11,7 @@ use crate::kubernetes_cluster::{
         cluster::*,
         controller::common::{ControllerAction, ControllerActionInput},
         controller::state_machine::controller,
+        kubernetes_api::state_machine::{handle_request, transition_by_etcd},
         message::*,
     },
 };
@@ -511,6 +512,74 @@ pub proof fn lemma_always_each_resp_matches_at_most_one_pending_req<K: ResourceV
         pending_req_has_lower_req_id_than_allocator(), stronger_next
     );
     init_invariant::<State<K, T>>(sm_spec::<K, T, ReconcilerType>(), init::<K, T, ReconcilerType>(), stronger_next, invariant);
+}
+
+pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, key: ObjectRef, state: T
+)
+    requires
+        state != ReconcilerType::reconcile_init_state(),
+        forall |cr: K, resp_o: Option<APIResponse>, pre_state: T| #[trigger] ReconcilerType::reconcile_core(cr, resp_o, pre_state).0 == state
+            ==> ReconcilerType::reconcile_core(cr, resp_o, pre_state).1.is_Some(),
+        spec.entails(lift_state(init::<K, T, ReconcilerType>())),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
+        spec.entails(always(lift_state(each_resp_matches_at_most_one_pending_req::<K, T>(key)))),
+    ensures
+        spec.entails(
+            always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(key, state)))
+        ),
+{
+    let invariant = pending_req_in_flight_or_resp_in_flight_at_reconcile_state(key, state);
+    let stronger_next = |s, s_prime: State<K ,T>| {
+        &&& next::<K, T, ReconcilerType>()(s, s_prime)
+        &&& each_resp_matches_at_most_one_pending_req::<K, T>(key)(s)
+    };
+    assert forall |s, s_prime: State<K, T>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        if at_reconcile_state(key, state)(s_prime) {
+            let next_step = choose |step| next_step::<K, T, ReconcilerType>(s, s_prime, step);
+            assert(!next_step.is_RestartController());
+            let resp = choose |msg| {
+                #[trigger] s.message_in_flight(msg)
+                && resp_msg_matches_req_msg(msg, s.pending_req_of(key))
+            };
+            match next_step {
+                Step::KubernetesAPIStep(input) => {
+                    if input == Option::Some(s.pending_req_of(key)) {
+                        let resp_msg = transition_by_etcd(s.pending_req_of(key), s.kubernetes_api_state).1;
+                        assert(s_prime.message_in_flight(resp_msg));
+                    } else {
+                        if !s.message_in_flight(s.pending_req_of(key)) {
+                            assert(s_prime.message_in_flight(resp));
+                        }
+                    }
+                }
+                Step::ControllerStep(input) => {
+                    let cr_key = input.1.get_Some_0();
+                    if cr_key != key {
+                        if s.message_in_flight(s.pending_req_of(key)) {
+                            assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
+                        } else {
+                            assert(s_prime.message_in_flight(resp));
+                        }
+                    } else {
+                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
+                    }
+                }
+                Step::ClientStep(input) => {
+                    if s.message_in_flight(s.pending_req_of(key)) {
+                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
+                    } else {
+                        assert(s_prime.message_in_flight(resp));
+                    }
+                }
+                _ => {
+                    assert(invariant(s_prime));
+                }
+            }
+        }
+    }
+    strengthen_next::<State<K, T>>(spec, next::<K, T, ReconcilerType>(), each_resp_matches_at_most_one_pending_req::<K, T>(key), stronger_next);
+    init_invariant::<State<K, T>>(spec, init::<K, T, ReconcilerType>(), stronger_next, invariant);
 }
 
 }

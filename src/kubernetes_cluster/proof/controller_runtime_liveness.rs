@@ -1,19 +1,21 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{common::*, resource::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::{
     proof::{
-        controller_runtime::*, kubernetes_api_safety,
+        controller_runtime::*, controller_runtime_safety,
+        kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api, kubernetes_api_safety,
         wf1_assistant::controller_action_pre_implies_next_pre,
     },
     spec::{
         cluster::*,
-        controller::common::ControllerAction,
+        controller::common::{ControllerAction, ControllerActionInput},
         controller::controller_runtime::{
             continue_reconcile, end_reconcile, run_scheduled_reconcile,
         },
         controller::state_machine::controller,
+        kubernetes_api::state_machine::{handle_request, transition_by_etcd},
         message::*,
     },
 };
@@ -340,6 +342,236 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_error_leads_to_reconcile_i
     lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption::<K, T, ReconcilerType>(spec, cr_key);
     lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init::<K, T, ReconcilerType>(spec, cr_key);
     leads_to_trans_auto::<State<K, T>>(spec);
+}
+
+pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, cr: K, state: T, next_state: T
+)
+    requires
+        cr.object_ref().kind == K::kind(),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| controller_next::<K, T, ReconcilerType>().weak_fairness(i))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
+        spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
+        !ReconcilerType::reconcile_error(state), !ReconcilerType::reconcile_done(state),
+        next_state != ReconcilerType::reconcile_init_state(),
+        forall |cr_1: K, resp_o: Option<APIResponse>|
+            #[trigger] ReconcilerType::reconcile_core(cr_1, resp_o, state).0 == next_state,
+    ensures
+        spec.entails(
+            lift_state(pending_req_in_flight_at_reconcile_state(cr.object_ref(), state))
+                .leads_to(lift_state(at_reconcile_state(cr.object_ref(), next_state)))
+        ),
+{
+    let pre = pending_req_in_flight_at_reconcile_state(cr.object_ref(), state);
+    assert forall |req_msg: Message| spec.entails(
+        lift_state(#[trigger] req_msg_is_the_in_flight_pending_req_at_reconcile_state(cr.object_ref(), state, req_msg))
+            .leads_to(lift_state(resp_in_flight_matches_pending_req_at_reconcile_state(cr.object_ref(), state)))
+    ) by {
+        let pre_1 = req_msg_is_the_in_flight_pending_req_at_reconcile_state(cr.object_ref(), state, req_msg);
+        let post_1 = resp_in_flight_matches_pending_req_at_reconcile_state(cr.object_ref(), state);
+        let stronger_next = |s, s_prime: State<K, T>| {
+            &&& next::<K, T, ReconcilerType>()(s, s_prime)
+            &&& crash_disabled()(s)
+            &&& controller_runtime_safety::every_in_flight_msg_has_unique_id()(s)
+        };
+        entails_always_and_n!(
+            spec,
+            lift_action(next::<K, T, ReconcilerType>()),
+            lift_state(crash_disabled()),
+            lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id())
+        );
+        temp_pred_equality(
+            lift_action(stronger_next),
+            lift_action(next::<K, T, ReconcilerType>())
+            .and(lift_state(crash_disabled()))
+            .and(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))
+        );
+        let input = Option::Some(req_msg);
+        assert forall |s, s_prime: State<K, T>| pre_1(s) && #[trigger] stronger_next(s, s_prime)
+        && kubernetes_api_next().forward(input)(s, s_prime) implies post_1(s_prime) by {
+            let resp_msg = transition_by_etcd(req_msg, s.kubernetes_api_state).1;
+            assert({
+                &&& s_prime.message_in_flight(resp_msg)
+                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            });
+        };
+        lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(
+            spec, input, stronger_next, handle_request(), pre_1, post_1
+        );
+    }
+    let msg_2_temp = |msg| lift_state(req_msg_is_the_in_flight_pending_req_at_reconcile_state::<K, T>(cr.object_ref(), state, msg));
+    leads_to_exists_intro(
+        spec, msg_2_temp,
+        lift_state(resp_in_flight_matches_pending_req_at_reconcile_state(cr.object_ref(), state))
+    );
+    assert_by(
+        tla_exists(|msg| lift_state(req_msg_is_the_in_flight_pending_req_at_reconcile_state::<K, T>(cr.object_ref(), state, msg)))
+        == lift_state(pre),
+        {
+            assert forall |ex| #[trigger] lift_state(pre).satisfied_by(ex) implies
+            tla_exists(msg_2_temp).satisfied_by(ex) by {
+                let req_msg = ex.head().pending_req_of(cr.object_ref());
+                assert(msg_2_temp(req_msg).satisfied_by(ex));
+            }
+            temp_pred_equality(lift_state(pre), tla_exists(msg_2_temp));
+        }
+    );
+    lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state::<K, T, ReconcilerType>(spec, cr, state, next_state);
+    leads_to_trans_n!(
+        spec,
+        lift_state(pre),
+        lift_state(resp_in_flight_matches_pending_req_at_reconcile_state(cr.object_ref(), state)),
+        lift_state(at_reconcile_state(cr.object_ref(), next_state))
+    );
+}
+
+pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, cr: K, state: T, next_state: T
+)
+    requires
+        cr.object_ref().kind == K::kind(),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| controller_next::<K, T, ReconcilerType>().weak_fairness(i))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
+        spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
+        !ReconcilerType::reconcile_error(state), !ReconcilerType::reconcile_done(state),
+        next_state != ReconcilerType::reconcile_init_state(),
+        forall |cr_1: K, resp_o: Option<APIResponse>|
+            #[trigger] ReconcilerType::reconcile_core(cr_1, resp_o, state).0 == next_state,
+    ensures
+        spec.entails(
+            lift_state(resp_in_flight_matches_pending_req_at_reconcile_state::<K, T>(cr.object_ref(), state))
+                .leads_to(lift_state(at_reconcile_state(cr.object_ref(), next_state)))
+        ),
+{
+    let pre = resp_in_flight_matches_pending_req_at_reconcile_state(cr.object_ref(), state);
+    let post = at_reconcile_state(cr.object_ref(), next_state);
+    let stronger_next = |s, s_prime: State<K, T>| {
+        &&& next::<K, T, ReconcilerType>()(s, s_prime)
+        &&& crash_disabled()(s)
+        &&& controller_runtime_safety::each_resp_matches_at_most_one_pending_req(cr.object_ref())(s)
+        &&& controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())(s)
+    };
+    entails_always_and_n!(
+        spec,
+        lift_action(next::<K, T, ReconcilerType>()),
+        lift_state(crash_disabled()),
+        lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(cr.object_ref())),
+        lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref()))
+    );
+    temp_pred_equality(
+        lift_action(stronger_next),
+        lift_action(next::<K, T, ReconcilerType>())
+        .and(lift_state(crash_disabled()))
+        .and(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(cr.object_ref())))
+        .and(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))
+    );
+    let known_resp_in_flight = |resp| lift_state(
+        |s: State<K, T>| {
+            at_reconcile_state(cr.object_ref(), state)(s)
+            && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_Some()
+            && request_sent_by_controller(s.pending_req_of(cr.object_ref()))
+            && s.message_in_flight(resp)
+            && resp_msg_matches_req_msg(resp, s.pending_req_of(cr.object_ref()))
+        }
+    );
+    assert forall |msg: Message| spec.entails(#[trigger] known_resp_in_flight(msg)
+        .leads_to(lift_state(post))) by {
+            let resp_in_flight_state = |s: State<K, T>| {
+                at_reconcile_state(cr.object_ref(), state)(s)
+                && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_Some()
+                && request_sent_by_controller(s.pending_req_of(cr.object_ref()))
+                && s.message_in_flight(msg)
+                && resp_msg_matches_req_msg(msg, s.pending_req_of(cr.object_ref()))
+            };
+            let input = (Option::Some(msg), Option::Some(cr.object_ref()));
+            lemma_pre_leads_to_post_by_controller::<K, T, ReconcilerType>(
+                spec, input, stronger_next, continue_reconcile::<K, T, ReconcilerType>(), resp_in_flight_state, post
+            );
+    };
+    leads_to_exists_intro::<State<K, T>, Message>(spec, known_resp_in_flight, lift_state(post));
+    assert_by(
+        tla_exists(known_resp_in_flight) == lift_state(pre),
+        {
+            assert forall |ex| #[trigger] lift_state(pre).satisfied_by(ex)
+            implies tla_exists(known_resp_in_flight).satisfied_by(ex) by {
+                let s = ex.head();
+                let msg = choose |resp_msg: Message| {
+                    #[trigger] s.message_in_flight(resp_msg)
+                    && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0())
+                };
+                assert(known_resp_in_flight(msg).satisfied_by(ex));
+            }
+            temp_pred_equality(tla_exists(known_resp_in_flight), lift_state(pre));
+        }
+    );
+}
+
+pub proof fn lemma_from_some_state_to_next_state_to_reconcile_idle<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K ,T>>, cr: K, state: T, next_state: T
+)
+    requires
+        cr.object_ref().kind == K::kind(),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| controller_next::<K, T, ReconcilerType>().weak_fairness(i))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
+        spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
+        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(cr.object_ref(), state)))),
+        !ReconcilerType::reconcile_error(state), !ReconcilerType::reconcile_done(state),
+        next_state != ReconcilerType::reconcile_init_state(),
+        forall |cr_1: K, resp_o: Option<APIResponse>|
+            #[trigger] ReconcilerType::reconcile_core(cr_1, resp_o, state).0 == next_state,
+        spec.entails(
+            lift_state(at_reconcile_state(cr.object_ref(), next_state))
+                .leads_to(lift_state(|s: State<K ,T>| !s.reconcile_state_contains(cr.object_ref())))
+        ),
+    ensures
+        spec.entails(
+            lift_state(at_reconcile_state(cr.object_ref(), state))
+                .leads_to(lift_state(|s: State<K, T>| !s.reconcile_state_contains(cr.object_ref())))
+        ),
+{
+    let at_some_state_and_pending_req_in_flight_or_resp_in_flight = |s: State<K, T>| {
+        at_reconcile_state(cr.object_ref(), state)(s)
+        && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_Some()
+        && request_sent_by_controller(s.pending_req_of(cr.object_ref()))
+        && (s.message_in_flight(s.pending_req_of(cr.object_ref()))
+        || exists |resp_msg: Message| {
+            #[trigger] s.message_in_flight(resp_msg)
+            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(cr.object_ref()))
+        })
+    };
+    temp_pred_equality::<State<K, T>>(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(cr.object_ref(), state)), lift_state(at_reconcile_state(cr.object_ref(), state)).implies(lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight)));
+    implies_to_leads_to::<State<K ,T>>(spec, lift_state(at_reconcile_state(cr.object_ref(), state)), lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight));
+
+    let req_in_flight = pending_req_in_flight_at_reconcile_state(cr.object_ref(), state);
+    let resp_in_flight = resp_in_flight_matches_pending_req_at_reconcile_state(cr.object_ref(), state);
+
+    let done_step = reconciler_reconcile_done::<K, T, ReconcilerType>(cr.object_ref());
+    lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next_state::<K, T, ReconcilerType>(spec, cr, state, next_state);
+    lemma_from_pending_req_in_flight_at_some_state_to_next_state::<K, T, ReconcilerType>(spec, cr, state, next_state);
+    or_leads_to_combine(spec, req_in_flight, resp_in_flight, at_reconcile_state(cr.object_ref(), next_state));
+    temp_pred_equality::<State<K, T>>(
+        lift_state(req_in_flight).or(lift_state(resp_in_flight)),
+        lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight)
+    );
+    leads_to_trans_n!(
+        spec,
+        lift_state(at_reconcile_state(cr.object_ref(), state)),
+        lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight),
+        lift_state(at_reconcile_state(cr.object_ref(), next_state)),
+        lift_state(|s: State<K, T>| !s.reconcile_state_contains(cr.object_ref()))
+    );
 }
 
 }
