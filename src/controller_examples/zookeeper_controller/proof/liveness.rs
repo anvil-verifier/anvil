@@ -1199,6 +1199,8 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_at_next_step(
         .and(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))
     );
 
+    assert(forall |s, s_prime: ClusterState| pre(s) && #[trigger] stronger_next(s, s_prime) ==> pre(s_prime) || post(s_prime));
+
     controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(
         spec, input, stronger_next,
         continue_reconcile::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(), pre, post
