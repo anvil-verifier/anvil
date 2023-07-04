@@ -236,15 +236,21 @@ pub struct Data {
 /// kube_error_to_ghost translates the API error from kube-rs APIs
 /// to the form that can be processed by reconcile_core.
 
-// TODO: revisit the translation; the current implementation is too coarse grained.
+// TODO: match more error types.
 #[verifier(external)]
 pub fn kube_error_to_ghost(error: &deps_hack::kube::Error) -> APIError {
     match error {
         deps_hack::kube::Error::Api(error_resp) => {
-            if error_resp.code == 404 {
+            if &error_resp.reason == "NotFound" {
                 APIError::ObjectNotFound
-            } else if error_resp.code == 403 {
+            } else if &error_resp.reason == "AlreadyExists" {
                 APIError::ObjectAlreadyExists
+            } else if &error_resp.reason == "BadRequest" {
+                APIError::BadRequest
+            } else if &error_resp.reason == "Conflict" {
+                APIError::Conflict
+            } else if &error_resp.reason == "Invalid" {
+                APIError::Invalid
             } else {
                 APIError::Other
             }
