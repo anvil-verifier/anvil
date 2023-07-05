@@ -934,11 +934,10 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
 }
 
 // This lemma ensures that zookeeper controller at some step with pending request in flight will finally enter its next step.
-// For the initial state and final state, they both require the reconcile_state to have a pending request which is the correct
-// request for that step (parameter 'step' for the initial step, parameter 'next_step' for the final state).
-// Note that in this lemma we add some constraints to the initial step:
-//    1. The next step of it when conducting reconcile_core is deterministic.
-//    2. When the controller enters this step, it must creates a request (which will be used to create the pending request message)
+// For step and next_step, they both require the reconcile_state to have a pending request which is the correct request for that step.
+// Note that in this lemma we add some constraints to step:
+//    1. There is only one possible next_step for it.
+//    2. When the controller enters this step, it must create a request (which is piggybacked by the pending request message)
 // We don't care about update step here, so arbitraray() is used to show that the object parameter in
 // pending_req_in_flight_at_zookeeper_step_with_zk is unrelated.
 proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(
@@ -1167,11 +1166,10 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
 }
 
 // This lemma ensures that zookeeper controller at some step with a response in flight that matches its pending request will finally enter its next step.
-// For the initial state and final state, they both require the reconcile_state to have a pending request which is the correct
-// request for that step (parameter 'step' for the initial step, parameter 'result_step' for the final state). For the initial state
-// alone, there is a known response (the parameter resp_msg) in flight that matches the pending request.
-// Note that in this lemma we add some constraints to the initial step:
-//    1. The next step of it when conducting reconcile_core is deterministic.
+// For step and next_step, they both require the reconcile_state to have a pending request which is the correct request
+// for that step. For step alone, there is a known response (the parameter resp_msg) in flight that matches the pending request.
+// Note that in this lemma we add some constraints to step:
+//    1. There is only one possible next_step for it.
 //    2. When the controller enters this step, it must creates a request (which will be used to create the pending request message)
 // We don't care about update step here, so arbitraray() is used to show that the object parameter in
 // pending_req_in_flight_at_zookeeper_step_with_zk is unrelated.
