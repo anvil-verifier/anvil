@@ -1151,32 +1151,15 @@ macro_rules! stable_and_always_n {
 
 #[macro_export]
 macro_rules! stable_and_always_n_internal {
-    ($p1:expr) => {
+    ($p1:expr, $($tail:expr),*) => {
         always_p_is_stable($p1);
-    };
-    ($p1:expr, $($tail:tt)*) => {
-        always_p_is_stable($p1);
-        stable_and_always_n_helper!(always($p1), $($tail)*);
+        $(always_p_is_stable($tail);)*
+        stable_and_n!(always($p1), $(always($tail)),*);
     };
 }
 
 pub use stable_and_always_n;
 pub use stable_and_always_n_internal;
-
-#[macro_export]
-macro_rules! stable_and_always_n_helper {
-    ($p1:expr, $p2:expr) => {
-        always_p_is_stable($p2);
-        stable_and_temp($p1, always($p2));
-    };
-    ($p1:expr, $p2:expr, $($tail:tt)*) => {
-        always_p_is_stable($p2);
-        stable_and_temp($p1, always($p2));
-        stable_and_always_n_helper!($p1.and(always($p2)), $($tail)*);
-    };
-}
-
-pub use stable_and_always_n_helper;
 
 /// Unpack the conditions from the left to the right side of |=
 /// pre:
