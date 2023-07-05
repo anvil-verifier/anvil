@@ -623,10 +623,10 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         }
     );
 
-    lemma_from_pending_req_in_flight_at_some_step_to_next_step(spec, zk, ZookeeperReconcileStep::AfterCreateHeadlessService, ZookeeperReconcileStep::AfterCreateClientService);
-    lemma_from_pending_req_in_flight_at_some_step_to_next_step(spec, zk, ZookeeperReconcileStep::AfterCreateClientService, ZookeeperReconcileStep::AfterCreateAdminServerService);
-    lemma_from_pending_req_in_flight_at_some_step_to_next_step(spec, zk, ZookeeperReconcileStep::AfterCreateAdminServerService, ZookeeperReconcileStep::AfterCreateConfigMap);
-    lemma_from_pending_req_in_flight_at_some_step_to_next_step(spec, zk, ZookeeperReconcileStep::AfterCreateConfigMap, ZookeeperReconcileStep::AfterGetStatefulSet);
+    lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, zk, ZookeeperReconcileStep::AfterCreateHeadlessService, ZookeeperReconcileStep::AfterCreateClientService);
+    lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, zk, ZookeeperReconcileStep::AfterCreateClientService, ZookeeperReconcileStep::AfterCreateAdminServerService);
+    lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, zk, ZookeeperReconcileStep::AfterCreateAdminServerService, ZookeeperReconcileStep::AfterCreateConfigMap);
+    lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, zk, ZookeeperReconcileStep::AfterCreateConfigMap, ZookeeperReconcileStep::AfterGetStatefulSet);
 
     // after_get_stateful_set will lead to two different states depending on whether the stateful_set exists,
     // here we prove the first case: after_get_stateful_set /\ !exists ~> current_state_matches(zk) by creating operations.
@@ -933,7 +933,15 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
     );
 }
 
-proof fn lemma_from_pending_req_in_flight_at_some_step_to_next_step(
+// This lemma ensures that zookeeper controller at some step with pending request in flight will finally enter its next step.
+// For the initial state and final state, they both require the reconcile_state to have a pending request which is the correct
+// request for that step (parameter 'step' for the initial step, parameter 'next_step' for the final state).
+// Note that in this lemma we add some constraints to the initial step:
+//    1. The next step of it when conducting reconcile_core is deterministic.
+//    2. When the controller enters this step, it must creates a request (which will be used to create the pending request message)
+// We don't care about update step here, so arbitraray() is used to show that the object parameter in
+// pending_req_in_flight_at_zookeeper_step_with_zk is unrelated.
+proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(
     spec: TempPred<ClusterState>, zk: ZookeeperClusterView, step: ZookeeperReconcileStep, next_step: ZookeeperReconcileStep
 )
     requires
@@ -960,13 +968,20 @@ proof fn lemma_from_pending_req_in_flight_at_some_step_to_next_step(
             .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(next_step, zk, arbitrary())))
         ),
 {
-
+    // The proof of this lemma contains of two parts (two leads_to's) and then a leads_to_trans:
+    //     1. at_step(step) /\ pending_request in flight /\ correct_request ~>
+    //                         at_step(step) /\ response in flight /\ match(response, pending_request)
+    //     2. at_step(step) /\ response in flight /\ match(response, pending_request) ~>
+    //                         at_step(next_step) /\ pending_request in flight /\ correct_request
+    // This predicate is used to give a specific request for the pre state for using wf1 which requires an input.
     let pre_and_req_in_flight = |req_msg| lift_state(
         req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(step, zk, req_msg, arbitrary())
     );
+    // This predicate is the intermediate state of the two leads_to
     let pre_and_exists_resp_in_flight = lift_state(
         exists_resp_in_flight_at_zookeeper_step_with_zk(step, zk, arbitrary())
     );
+    // This predicate is used to give a specific request for the intermediate state for using wf1 which requires an input.
     let pre_and_resp_in_flight = |resp_msg| lift_state(
         resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(step, zk, resp_msg, arbitrary())
     );
@@ -1000,7 +1015,7 @@ proof fn lemma_from_pending_req_in_flight_at_some_step_to_next_step(
                 .leads_to(lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(next_step, zk, arbitrary())))
         )
     by {
-        lemma_from_resp_in_flight_at_some_step_to_pending_req_at_next_step(spec, zk, resp_msg, step, next_step);
+        lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, zk, resp_msg, step, next_step);
     }
     leads_to_exists_intro(
         spec,
@@ -1151,7 +1166,16 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
     );
 }
 
-proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_at_next_step(
+// This lemma ensures that zookeeper controller at some step with a response in flight that matches its pending request will finally enter its next step.
+// For the initial state and final state, they both require the reconcile_state to have a pending request which is the correct
+// request for that step (parameter 'step' for the initial step, parameter 'result_step' for the final state). For the initial state
+// alone, there is a known response (the parameter resp_msg) in flight that matches the pending request.
+// Note that in this lemma we add some constraints to the initial step:
+//    1. The next step of it when conducting reconcile_core is deterministic.
+//    2. When the controller enters this step, it must creates a request (which will be used to create the pending request message)
+// We don't care about update step here, so arbitraray() is used to show that the object parameter in
+// pending_req_in_flight_at_zookeeper_step_with_zk is unrelated.
+proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(
     spec: TempPred<ClusterState>, zk: ZookeeperClusterView, resp_msg: Message, step: ZookeeperReconcileStep, result_step: ZookeeperReconcileStep
 )
     requires
@@ -1179,6 +1203,13 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_at_next_step(
     let pre = resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(step, zk, resp_msg, arbitrary());
     let post = pending_req_in_flight_at_zookeeper_step_with_zk(result_step, zk, arbitrary());
     let input = (Option::Some(resp_msg), Option::Some(zk.object_ref()));
+
+    // For every part of stronger_next:
+    //   - next(): the next predicate of the state machine
+    //   - crash_disabled(): to ensure that the reconcile process can continue
+    //   - busy_disabled(): to ensure that the request will get its expected response
+    //    (Note that this is not required for termination)
+    //   - each_resp_matches_at_most_one_pending_req: to make sure that the resp_msg will not be used by other cr
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
         &&& crash_disabled()(s)
