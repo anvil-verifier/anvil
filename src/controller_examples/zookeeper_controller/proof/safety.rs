@@ -1,7 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*, stateful_set::*};
+use crate::kubernetes_api_objects::{
+    api_method::*, common::*, error::*, resource::*, stateful_set::*,
+};
 use crate::kubernetes_cluster::{
     proof::{
         cluster::*,
@@ -136,6 +138,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
         spec.entails(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key))),
         spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
         spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))),
         spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
@@ -154,6 +157,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
         &&& crash_disabled()(s)
+        &&& busy_disabled()(s)
         &&& pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)(s)
         &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
         &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
@@ -178,6 +182,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
         spec,
         lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()),
         lift_state(crash_disabled()),
+        lift_state(busy_disabled()),
         lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)),
         lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
         lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
@@ -187,6 +192,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
         lift_action(stronger_next),
         lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())
         .and(lift_state(crash_disabled()))
+        .and(lift_state(busy_disabled()))
         .and(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))
         .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
         .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
@@ -340,6 +346,7 @@ pub proof fn lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(
         spec.entails(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key))),
         spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
         spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))),
         spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
@@ -557,6 +564,16 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_step(
                         assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
                     }
                 }
+                Step::KubernetesBusy(input) => {
+                    if input == Option::Some(s.pending_req_of(key)) {
+                        let resp_msg = form_matched_resp_msg(s.pending_req_of(key), Result::Err(APIError::ServerBusy));
+                        assert(s_prime.message_in_flight(resp_msg));
+                    } else {
+                        if !s.message_in_flight(s.pending_req_of(key)) {
+                            assert(s_prime.message_in_flight(resp));
+                        }
+                    }
+                }
                 Step::ClientStep(input) => {
                     if s.message_in_flight(s.pending_req_of(key)) {
                         assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
@@ -665,6 +682,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
         spec.entails(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key))),
         spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
         spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))),
         spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
@@ -683,6 +701,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
         &&& crash_disabled()(s)
+        &&& busy_disabled()(s)
         &&& pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)(s)
         &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
         &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
@@ -707,6 +726,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
         spec,
         lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()),
         lift_state(crash_disabled()),
+        lift_state(busy_disabled()),
         lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)),
         lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
         lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
@@ -716,6 +736,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
         lift_action(stronger_next),
         lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())
         .and(lift_state(crash_disabled()))
+        .and(lift_state(busy_disabled()))
         .and(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))
         .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
         .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
@@ -869,6 +890,7 @@ pub proof fn lemma_always_at_most_one_update_sts_req_since_rest_id_is_in_flight(
         spec.entails(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key))),
         spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
         spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))),
         spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),

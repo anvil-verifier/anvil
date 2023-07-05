@@ -80,6 +80,38 @@ pub proof fn lemma_get_req_leads_to_some_resp
         &&& #[trigger] s.message_in_flight(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, msg)
     };
+    assert forall |s, s_prime: State<K, T>| pre(s) && #[trigger] next::<K, T, ReconcilerType>()(s, s_prime) implies
+    pre(s_prime) || post(s_prime) by {
+        let step = choose |step| next_step::<K, T, ReconcilerType>(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                if input.get_Some_0() == msg {
+                    if s.resource_key_exists(key) {
+                        let ok_resp_msg = form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)));
+                        assert(s_prime.message_in_flight(ok_resp_msg));
+                        assert(resp_msg_matches_req_msg(ok_resp_msg, msg));
+                    } else {
+                        let err_resp_msg = form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound));
+                        assert(s_prime.message_in_flight(err_resp_msg));
+                        assert(resp_msg_matches_req_msg(err_resp_msg, msg));
+                    }
+                } else {
+                    assert(pre(s_prime));
+                }
+            },
+            Step::KubernetesBusy(input) => {
+                if input.get_Some_0() == msg {
+                    let resp = form_matched_resp_msg(msg, Result::Err(APIError::ServerBusy));
+                    assert(s_prime.message_in_flight(resp));
+                    assert(resp_msg_matches_req_msg(resp, msg));
+                    assert(post(s_prime));
+                } else {
+                    assert(pre(s_prime));
+                }
+            },
+            _ => assert(pre(s_prime)),
+        }
+    }
     assert forall |s, s_prime: State<K, T>|
         pre(s) && #[trigger] next::<K, T, ReconcilerType>()(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
@@ -99,6 +131,7 @@ pub proof fn lemma_get_req_leads_to_some_resp
 pub proof fn lemma_get_req_leads_to_ok_or_err_resp
 <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, msg: Message, key: ObjectRef)
     requires
+        spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
@@ -125,9 +158,12 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp
         ||| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key))))
         ||| s.message_in_flight(form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound)))
     };
-    lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(
-        spec, Option::Some(msg), next::<K, T, ReconcilerType>(), handle_request(), pre, post
-    );
+    let stronger_next = |s, s_prime: State<K, T>| {
+        next::<K, T, ReconcilerType>()(s, s_prime)
+        && !s.k8s_maybe_busy
+    };
+    strengthen_next::<State<K, T>>(spec, next::<K, T, ReconcilerType>(), busy_disabled(), stronger_next);
+    lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(spec, Option::Some(msg), stronger_next, handle_request(), pre, post);
     temp_pred_equality::<State<K, T>>(
         lift_state(post),
         lift_state(|s: State<K, T>| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)))))
@@ -138,6 +174,7 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp
 pub proof fn lemma_create_req_leads_to_res_exists
 <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, msg: Message)
     requires
+        spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
@@ -171,14 +208,18 @@ pub proof fn lemma_create_req_leads_to_res_exists
         s.resource_key_exists(
             msg.content.get_create_request().obj.set_namespace(msg.content.get_create_request().namespace).object_ref()
         );
-    lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(
-        spec, Option::Some(msg), next::<K, T, ReconcilerType>(), handle_request(), pre, post
-    );
+    let stronger_next = |s, s_prime: State<K, T>| {
+        next::<K, T, ReconcilerType>()(s, s_prime)
+        && !s.k8s_maybe_busy
+    };
+    strengthen_next::<State<K, T>>(spec, next::<K, T, ReconcilerType>(), busy_disabled(), stronger_next);
+    lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(spec, Option::Some(msg), stronger_next, handle_request(), pre, post);
 }
 
 pub proof fn lemma_delete_req_leads_to_res_not_exists
 <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, msg: Message, res: DynamicObjectView)
     requires
+        spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
@@ -201,14 +242,18 @@ pub proof fn lemma_delete_req_leads_to_res_not_exists
     let post = |s: State<K, T>| {
         !s.resource_obj_exists(res)
     };
-    lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(
-        spec, Option::Some(msg), next::<K, T, ReconcilerType>(), handle_request(), pre, post
-    );
+    let stronger_next = |s, s_prime: State<K, T>| {
+        next::<K, T, ReconcilerType>()(s, s_prime)
+        && !s.k8s_maybe_busy
+    };
+    strengthen_next::<State<K, T>>(spec, next::<K, T, ReconcilerType>(), busy_disabled(), stronger_next);
+    lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(spec, Option::Some(msg), stronger_next, handle_request(), pre, post);
 }
 
 pub proof fn lemma_always_res_always_exists_implies_delete_never_sent
 <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(spec: TempPred<State<K, T>>, msg: Message, res: DynamicObjectView)
     requires
+        spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
     ensures
@@ -272,6 +317,7 @@ pub proof fn lemma_true_leads_to_always_no_req_before_rest_id_is_in_flight<K: Re
     spec: TempPred<State<K, T>>, rest_id: RestId
 )
     requires
+        spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than::<K, T>(rest_id)))),
@@ -304,6 +350,7 @@ pub proof fn lemma_eventually_no_req_before_rest_id_is_in_flight<K: ResourceView
     spec: TempPred<State<K, T>>, rest_id: RestId
 )
     requires
+        spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than::<K, T>(rest_id)))),
@@ -345,6 +392,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests<K: Reso
     spec: TempPred<State<K, T>>, rest_id: RestId, msg_num: nat
 )
     requires
+        spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than::<K, T>(rest_id)))),
@@ -460,6 +508,7 @@ proof fn pending_requests_num_decreases<K: ResourceView, T, ReconcilerType: Reco
 )
     requires
         msg_num > 0,
+        spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than::<K, T>(rest_id)))),
@@ -485,9 +534,19 @@ proof fn pending_requests_num_decreases<K: ResourceView, T, ReconcilerType: Reco
     let stronger_next = |s, s_prime: State<K, T>| {
         &&& next::<K, T, ReconcilerType>()(s, s_prime)
         &&& s.rest_id_counter_is_no_smaller_than(rest_id)
+        &&& !s.k8s_maybe_busy
     };
-    strengthen_next::<State<K, T>>(
-        spec, next::<K, T, ReconcilerType>(), rest_id_counter_is_no_smaller_than::<K, T>(rest_id), stronger_next
+    entails_always_and_n!(
+        spec,
+        lift_action(next::<K, T, ReconcilerType>()),
+        lift_state(rest_id_counter_is_no_smaller_than::<K, T>(rest_id)),
+        lift_state(busy_disabled())
+    );
+    temp_pred_equality(
+        lift_action(stronger_next),
+        lift_action(next::<K, T, ReconcilerType>())
+        .and(lift_state(rest_id_counter_is_no_smaller_than::<K, T>(rest_id)))
+        .and(lift_state(busy_disabled()))
     );
 
     assert forall |s, s_prime: State<K, T>| pre(s) && #[trigger] stronger_next(s, s_prime)
