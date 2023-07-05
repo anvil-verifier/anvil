@@ -1186,6 +1186,8 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
         step != ZookeeperReconcileStep::Done, step != ZookeeperReconcileStep::Error,
         result_step != ZookeeperReconcileStep::Init,
+        // This forall zk_1 constraint is used because the cr passed to reconcile_core is not necessarily zk here.
+        // We only know that zk_1.object_ref() == zk.object_ref() && zk_1.spec == zk.spec.
         forall |zk_1: ZookeeperClusterView, resp_o: Option<APIResponse>|
             #[trigger] reconcile_core(zk_1, resp_o, ZookeeperReconcileState{ reconcile_step: step }).0.reconcile_step == result_step
             && reconcile_core(zk, resp_o, ZookeeperReconcileState{ reconcile_step: step }).1.is_Some()
