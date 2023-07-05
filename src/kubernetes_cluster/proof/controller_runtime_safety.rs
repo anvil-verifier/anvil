@@ -60,9 +60,19 @@ proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator<K: Resou
                 MessageContent::APIRequest(_, _) => assert(s.rest_id_allocator.rest_id_counter < s_prime.rest_id_allocator.rest_id_counter),
                 MessageContent::APIResponse(_, id) => {
                     let next_step = choose |step: Step<K>| next_step::<K, T, ReconcilerType>(s, s_prime, step);
-                    let input = next_step.get_KubernetesAPIStep_0().get_Some_0();
-                    assert(s.message_in_flight(input));
-                    assert(id == input.content.get_req_id());
+                    match next_step {
+                        Step::KubernetesAPIStep(input) => {
+                            let req_msg = input.get_Some_0();
+                            assert(s.message_in_flight(req_msg));
+                            assert(id == req_msg.content.get_req_id());
+                        }
+                        Step::KubernetesBusy(input) => {
+                            let req_msg = input.get_Some_0();
+                            assert(s.message_in_flight(req_msg));
+                            assert(id == req_msg.content.get_req_id());
+                        }
+                        _ => assert(false),
+                    }
                 }
             }
         }
@@ -198,9 +208,19 @@ proof fn newly_added_msg_have_different_id_from_existing_ones<K: ResourceView, T
 {
     if (msg_2.content.is_APIResponse()) {
         let next_step = choose |step: Step<K>| next_step::<K, T, ReconcilerType>(s, s_prime, step);
-        let input = next_step.get_KubernetesAPIStep_0();
-        assert(s.network_state.in_flight.count(input.get_Some_0()) <= 1);
-        assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
+        match next_step {
+            Step::KubernetesAPIStep(input) => {
+                let req_msg = input.get_Some_0();
+                assert(s.network_state.in_flight.count(req_msg) <= 1);
+                assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
+            }
+            Step::KubernetesBusy(input) => {
+                let req_msg = input.get_Some_0();
+                assert(s.network_state.in_flight.count(req_msg) <= 1);
+                assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
+            }
+            _ => assert(false),
+        }
     }
 }
 

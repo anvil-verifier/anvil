@@ -56,13 +56,15 @@ pub proof fn sm_partial_spec_is_stable<K: ResourceView, T, ReconcilerType: Recon
     tla_forall_action_weak_fairness_is_stable::<K, T, (Option<Message>, Option<ObjectRef>), ()>(controller_next::<K, T, ReconcilerType>());
     tla_forall_action_weak_fairness_is_stable::<K, T, ObjectRef, ()>(schedule_controller_reconcile());
     action_weak_fairness_is_stable::<K, T, ()>(disable_crash());
+    action_weak_fairness_is_stable::<K, T, ()>(disable_busy());
 
     stable_and_n!(
         always(lift_action(next::<K, T, ReconcilerType>())),
         tla_forall(|input| kubernetes_api_next().weak_fairness(input)),
         tla_forall(|input| controller_next::<K, T, ReconcilerType>().weak_fairness(input)),
         tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)),
-        disable_crash().weak_fairness(())
+        disable_crash().weak_fairness(()),
+        disable_busy().weak_fairness(())
     );
 }
 
@@ -78,6 +80,20 @@ pub proof fn lemma_true_leads_to_crash_always_disabled<K: ResourceView, T, Recon
     let true_state = |s: State<K, T>| true;
     disable_crash().wf1((), spec, next::<K, T, ReconcilerType>(), true_state, crash_disabled::<K, T>());
     leads_to_stable_temp::<State<K, T>>(spec, lift_action(next::<K, T, ReconcilerType>()), true_pred(), lift_state(crash_disabled::<K, T>()));
+}
+
+pub proof fn lemma_true_leads_to_busy_always_disabled<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>,
+)
+    requires
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
+        spec.entails(disable_busy().weak_fairness(())),
+    ensures
+        spec.entails(true_pred().leads_to(always(lift_state(busy_disabled::<K, T>())))),
+{
+    let true_state = |s: State<K, T>| true;
+    disable_busy().wf1((), spec, next::<K, T, ReconcilerType>(), true_state, busy_disabled::<K, T>());
+    leads_to_stable_temp::<State<K, T>>(spec, lift_action(next::<K, T, ReconcilerType>()), true_pred(), lift_state(busy_disabled::<K, T>()));
 }
 
 pub proof fn lemma_any_pred_leads_to_crash_always_disabled<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(

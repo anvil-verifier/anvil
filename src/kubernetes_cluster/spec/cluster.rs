@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, resource::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
 use crate::kubernetes_cluster::spec::{
     client::{client, ClientActionInput, ClientState},
     controller::{
@@ -21,7 +21,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::reconciler::spec::Reconciler;
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
-use vstd::prelude::*;
+use vstd::{multiset::*, prelude::*};
 
 verus! {
 
@@ -32,6 +32,7 @@ pub struct State<K: ResourceView, T> {
     pub network_state: NetworkState,
     pub rest_id_allocator: RestIdAllocator,
     pub crash_enabled: bool,
+    pub busy_enabled: bool,
 }
 
 impl<K: ResourceView, T> State<K, T> {
@@ -106,6 +107,7 @@ pub open spec fn init<K: ResourceView, T, ReconcilerType: Reconciler<K ,T>>() ->
         &&& (client::<K>().init)(s.client_state)
         &&& (network().init)(s.network_state)
         &&& s.crash_enabled
+        &&& s.busy_enabled
     }
 }
 
@@ -250,6 +252,50 @@ pub open spec fn disable_crash<K: ResourceView, T>() -> Action<State<K, T>, (), 
     }
 }
 
+pub open spec fn busy_kubernetes_api_rejects_request<K: ResourceView, T>() -> Action<State<K, T>, Option<Message>, ()> {
+    let network_result = |input: Option<Message>, s: State<K, T>| {
+        let req_msg = input.get_Some_0();
+        let resp = form_matched_resp_msg(req_msg, Result::Err(APIError::ServerTimeout));
+        let msg_ops = MessageOps {
+            recv: input,
+            send: Multiset::singleton(resp),
+        };
+        let result = network().next_result(msg_ops, s.network_state);
+        result
+    };
+    Action {
+        precondition: |input: Option<Message>, s: State<K, T>| {
+            &&& s.busy_enabled
+            &&& input.is_Some()
+            &&& input.get_Some_0().content.is_APIRequest()
+            &&& network_result(input, s).is_Enabled()
+        },
+        transition: |input: Option<Message>, s: State<K, T>| {
+            (State {
+                network_state: network_result(input, s).get_Enabled_0(),
+                ..s
+            }, ())
+        }
+    }
+}
+
+/// This action disallows the kubernetes api to be busy from this point.
+/// This is used to constraint the crash behavior for liveness proof:
+/// the controller eventually stops rejecting requests.
+pub open spec fn disable_busy<K: ResourceView, T>() -> Action<State<K, T>, (), ()> {
+    Action {
+        precondition: |input:(), s: State<K, T>| {
+            true
+        },
+        transition: |input: (), s: State<K, T>| {
+            (State {
+                busy_enabled: false,
+                ..s
+            }, ())
+        }
+    }
+}
+
 pub open spec fn client_next<K: ResourceView, T>() -> Action<State<K, T>, (Option<Message>, K), ()> {
     let result = |input: (Option<Message>, K), s: State<K, T>| {
         let host_result = client().next_result(
@@ -300,6 +346,8 @@ pub enum Step<K> {
     ScheduleControllerReconcileStep(ObjectRef),
     RestartController(),
     DisableCrash(),
+    KubernetesBusy(Option<Message>),
+    DisableBusy(),
     StutterStep(),
 }
 
@@ -312,6 +360,8 @@ pub open spec fn next_step<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>
         Step::ScheduleControllerReconcileStep(input) => schedule_controller_reconcile().forward(input)(s, s_prime),
         Step::RestartController() => restart_controller().forward(())(s, s_prime),
         Step::DisableCrash() => disable_crash().forward(())(s, s_prime),
+        Step::KubernetesBusy(input) => busy_kubernetes_api_rejects_request().forward(input)(s, s_prime),
+        Step::DisableBusy() => disable_busy().forward(())(s, s_prime),
         Step::StutterStep() => stutter().forward(())(s, s_prime),
     }
 }
@@ -336,6 +386,7 @@ pub open spec fn sm_partial_spec<K: ResourceView, T, ReconcilerType: Reconciler<
     .and(tla_forall(|input| controller_next::<K, T, ReconcilerType>().weak_fairness(input)))
     .and(tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)))
     .and(disable_crash().weak_fairness(()))
+    .and(disable_busy().weak_fairness(()))
 }
 
 pub open spec fn kubernetes_api_action_pre<K: ResourceView, T>(action: KubernetesAPIAction, input: Option<Message>) -> StatePred<State<K, T>> {
@@ -378,6 +429,10 @@ pub open spec fn controller_action_pre<K: ResourceView, T, ReconcilerType: Recon
 
 pub open spec fn crash_disabled<K: ResourceView, T>() -> StatePred<State<K, T>> {
     |s: State<K, T>| !s.crash_enabled
+}
+
+pub open spec fn busy_disabled<K: ResourceView, T>() -> StatePred<State<K, T>> {
+    |s: State<K, T>| !s.busy_enabled
 }
 
 pub open spec fn rest_id_counter_is<K: ResourceView, T>(rest_id: nat) -> StatePred<State<K, T>> {
