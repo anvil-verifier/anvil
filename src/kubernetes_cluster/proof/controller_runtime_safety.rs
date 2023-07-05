@@ -521,7 +521,8 @@ pub proof fn lemma_always_each_resp_matches_at_most_one_pending_req<K: ResourceV
 // The proof is very straightforward:
 //   - Right after the controller enters 'state', the pending request is added to in_flight.
 //   - If the pending request is processed by kubernetes api, there will be a response in flight.
-//   - If the response is processed by the controller, the controller will either enter a new state or a new pending request in flight.
+//   - If the response is processed by the controller, the controller will create a new pending request in flight which
+//   allows the invariant to still hold.
 pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
     spec: TempPred<State<K, T>>, key: ObjectRef, state: T
 )
