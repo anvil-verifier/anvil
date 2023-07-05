@@ -32,7 +32,7 @@ pub struct State<K: ResourceView, T> {
     pub network_state: NetworkState,
     pub rest_id_allocator: RestIdAllocator,
     pub crash_enabled: bool,
-    pub k8s_maybe_busy: bool,
+    pub busy_enabled: bool,
 }
 
 impl<K: ResourceView, T> State<K, T> {
@@ -107,7 +107,7 @@ pub open spec fn init<K: ResourceView, T, ReconcilerType: Reconciler<K ,T>>() ->
         &&& (client::<K>().init)(s.client_state)
         &&& (network().init)(s.network_state)
         &&& s.crash_enabled
-        &&& s.k8s_maybe_busy
+        &&& s.busy_enabled
     }
 }
 
@@ -252,10 +252,10 @@ pub open spec fn disable_crash<K: ResourceView, T>() -> Action<State<K, T>, (), 
     }
 }
 
-pub open spec fn make_kubernetes_api_busy<K: ResourceView, T>() -> Action<State<K, T>, Option<Message>, ()> {
+pub open spec fn busy_kubernetes_api_rejects_request<K: ResourceView, T>() -> Action<State<K, T>, Option<Message>, ()> {
     let network_result = |input: Option<Message>, s: State<K, T>| {
         let req_msg = input.get_Some_0();
-        let resp = form_matched_resp_msg(req_msg, Result::Err(APIError::ServerBusy));
+        let resp = form_matched_resp_msg(req_msg, Result::Err(APIError::ServerTimeout));
         let msg_ops = MessageOps {
             recv: input,
             send: Multiset::singleton(resp),
@@ -265,7 +265,7 @@ pub open spec fn make_kubernetes_api_busy<K: ResourceView, T>() -> Action<State<
     };
     Action {
         precondition: |input: Option<Message>, s: State<K, T>| {
-            &&& s.k8s_maybe_busy
+            &&& s.busy_enabled
             &&& input.is_Some()
             &&& input.get_Some_0().content.is_APIRequest()
             &&& network_result(input, s).is_Enabled()
@@ -289,7 +289,7 @@ pub open spec fn disable_busy<K: ResourceView, T>() -> Action<State<K, T>, (), (
         },
         transition: |input: (), s: State<K, T>| {
             (State {
-                k8s_maybe_busy: false,
+                busy_enabled: false,
                 ..s
             }, ())
         }
@@ -360,7 +360,7 @@ pub open spec fn next_step<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>
         Step::ScheduleControllerReconcileStep(input) => schedule_controller_reconcile().forward(input)(s, s_prime),
         Step::RestartController() => restart_controller().forward(())(s, s_prime),
         Step::DisableCrash() => disable_crash().forward(())(s, s_prime),
-        Step::KubernetesBusy(input) => make_kubernetes_api_busy().forward(input)(s, s_prime),
+        Step::KubernetesBusy(input) => busy_kubernetes_api_rejects_request().forward(input)(s, s_prime),
         Step::DisableBusy() => disable_busy().forward(())(s, s_prime),
         Step::StutterStep() => stutter().forward(())(s, s_prime),
     }
@@ -432,7 +432,7 @@ pub open spec fn crash_disabled<K: ResourceView, T>() -> StatePred<State<K, T>> 
 }
 
 pub open spec fn busy_disabled<K: ResourceView, T>() -> StatePred<State<K, T>> {
-    |s: State<K, T>| !s.k8s_maybe_busy
+    |s: State<K, T>| !s.busy_enabled
 }
 
 pub open spec fn rest_id_counter_is<K: ResourceView, T>(rest_id: nat) -> StatePred<State<K, T>> {

@@ -101,7 +101,7 @@ pub proof fn lemma_get_req_leads_to_some_resp
             },
             Step::KubernetesBusy(input) => {
                 if input.get_Some_0() == msg {
-                    let resp = form_matched_resp_msg(msg, Result::Err(APIError::ServerBusy));
+                    let resp = form_matched_resp_msg(msg, Result::Err(APIError::ServerTimeout));
                     assert(s_prime.message_in_flight(resp));
                     assert(resp_msg_matches_req_msg(resp, msg));
                     assert(post(s_prime));
@@ -160,7 +160,7 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp
     };
     let stronger_next = |s, s_prime: State<K, T>| {
         next::<K, T, ReconcilerType>()(s, s_prime)
-        && !s.k8s_maybe_busy
+        && !s.busy_enabled
     };
     strengthen_next::<State<K, T>>(spec, next::<K, T, ReconcilerType>(), busy_disabled(), stronger_next);
     lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(spec, Option::Some(msg), stronger_next, handle_request(), pre, post);
@@ -210,7 +210,7 @@ pub proof fn lemma_create_req_leads_to_res_exists
         );
     let stronger_next = |s, s_prime: State<K, T>| {
         next::<K, T, ReconcilerType>()(s, s_prime)
-        && !s.k8s_maybe_busy
+        && !s.busy_enabled
     };
     strengthen_next::<State<K, T>>(spec, next::<K, T, ReconcilerType>(), busy_disabled(), stronger_next);
     lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(spec, Option::Some(msg), stronger_next, handle_request(), pre, post);
@@ -244,7 +244,7 @@ pub proof fn lemma_delete_req_leads_to_res_not_exists
     };
     let stronger_next = |s, s_prime: State<K, T>| {
         next::<K, T, ReconcilerType>()(s, s_prime)
-        && !s.k8s_maybe_busy
+        && !s.busy_enabled
     };
     strengthen_next::<State<K, T>>(spec, next::<K, T, ReconcilerType>(), busy_disabled(), stronger_next);
     lemma_pre_leads_to_post_by_kubernetes_api::<K, T, ReconcilerType>(spec, Option::Some(msg), stronger_next, handle_request(), pre, post);
@@ -534,7 +534,7 @@ proof fn pending_requests_num_decreases<K: ResourceView, T, ReconcilerType: Reco
     let stronger_next = |s, s_prime: State<K, T>| {
         &&& next::<K, T, ReconcilerType>()(s, s_prime)
         &&& s.rest_id_counter_is_no_smaller_than(rest_id)
-        &&& !s.k8s_maybe_busy
+        &&& !s.busy_enabled
     };
     entails_always_and_n!(
         spec,

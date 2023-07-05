@@ -566,7 +566,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_step(
                 }
                 Step::KubernetesBusy(input) => {
                     if input == Option::Some(s.pending_req_of(key)) {
-                        let resp_msg = form_matched_resp_msg(s.pending_req_of(key), Result::Err(APIError::ServerBusy));
+                        let resp_msg = form_matched_resp_msg(s.pending_req_of(key), Result::Err(APIError::ServerTimeout));
                         assert(s_prime.message_in_flight(resp_msg));
                     } else {
                         if !s.message_in_flight(s.pending_req_of(key)) {
