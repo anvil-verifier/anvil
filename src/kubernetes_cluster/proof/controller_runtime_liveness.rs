@@ -358,7 +358,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state<K: Res
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
         !ReconcilerType::reconcile_error(state), !ReconcilerType::reconcile_done(state),
-        next_state != ReconcilerType::reconcile_init_state(),
+        // next_state != ReconcilerType::reconcile_init_state(),
         forall |cr_1: K, resp_o: Option<APIResponse>|
             #[trigger] ReconcilerType::reconcile_core(cr_1, resp_o, state).0 == next_state,
     ensures
@@ -446,7 +446,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
         !ReconcilerType::reconcile_error(state), !ReconcilerType::reconcile_done(state),
-        next_state != ReconcilerType::reconcile_init_state(),
+        // next_state != ReconcilerType::reconcile_init_state(),
         forall |cr_1: K, resp_o: Option<APIResponse>|
             #[trigger] ReconcilerType::reconcile_core(cr_1, resp_o, state).0 == next_state,
     ensures
@@ -533,7 +533,7 @@ pub proof fn lemma_from_some_state_to_next_state_to_reconcile_idle<K: ResourceVi
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(cr.object_ref(), state)))),
         !ReconcilerType::reconcile_error(state), !ReconcilerType::reconcile_done(state),
-        next_state != ReconcilerType::reconcile_init_state(),
+        // next_state != ReconcilerType::reconcile_init_state(),
         forall |cr_1: K, resp_o: Option<APIResponse>|
             #[trigger] ReconcilerType::reconcile_core(cr_1, resp_o, state).0 == next_state,
         spec.entails(
