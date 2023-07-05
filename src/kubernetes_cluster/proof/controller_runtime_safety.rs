@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, error::*, resource::*};
 use crate::kubernetes_cluster::{
     proof::{
         controller_runtime::*, kubernetes_api_safety,
@@ -546,6 +546,16 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
                 Step::KubernetesAPIStep(input) => {
                     if input == Option::Some(s.pending_req_of(key)) {
                         let resp_msg = transition_by_etcd(s.pending_req_of(key), s.kubernetes_api_state).1;
+                        assert(s_prime.message_in_flight(resp_msg));
+                    } else {
+                        if !s.message_in_flight(s.pending_req_of(key)) {
+                            assert(s_prime.message_in_flight(resp));
+                        }
+                    }
+                }
+                Step::KubernetesBusy(input) => {
+                    if input == Option::Some(s.pending_req_of(key)) {
+                        let resp_msg = form_matched_resp_msg(s.pending_req_of(key), Result::Err(APIError::ServerTimeout));
                         assert(s_prime.message_in_flight(resp_msg));
                     } else {
                         if !s.message_in_flight(s.pending_req_of(key)) {

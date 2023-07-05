@@ -941,6 +941,7 @@ proof fn lemma_from_pending_req_in_flight_at_some_step_to_next_step(
         spec.entails(tla_forall(|i| controller_next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>().weak_fairness(i))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
         step != ZookeeperReconcileStep::Error, step != ZookeeperReconcileStep::Done,

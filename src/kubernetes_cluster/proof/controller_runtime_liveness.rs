@@ -353,6 +353,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state<K: Res
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| controller_next::<K, T, ReconcilerType>().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
@@ -376,18 +377,21 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state<K: Res
         let stronger_next = |s, s_prime: State<K, T>| {
             &&& next::<K, T, ReconcilerType>()(s, s_prime)
             &&& crash_disabled()(s)
+            &&& busy_disabled()(s)
             &&& controller_runtime_safety::every_in_flight_msg_has_unique_id()(s)
         };
         entails_always_and_n!(
             spec,
             lift_action(next::<K, T, ReconcilerType>()),
             lift_state(crash_disabled()),
+            lift_state(busy_disabled()),
             lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id())
         );
         temp_pred_equality(
             lift_action(stronger_next),
             lift_action(next::<K, T, ReconcilerType>())
             .and(lift_state(crash_disabled()))
+            .and(lift_state(busy_disabled()))
             .and(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))
         );
         let input = Option::Some(req_msg);
@@ -523,6 +527,7 @@ pub proof fn lemma_from_some_state_to_next_state_to_reconcile_idle<K: ResourceVi
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| controller_next::<K, T, ReconcilerType>().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
