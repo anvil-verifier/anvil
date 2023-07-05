@@ -82,6 +82,20 @@ pub proof fn lemma_true_leads_to_crash_always_disabled<K: ResourceView, T, Recon
     leads_to_stable_temp::<State<K, T>>(spec, lift_action(next::<K, T, ReconcilerType>()), true_pred(), lift_state(crash_disabled::<K, T>()));
 }
 
+pub proof fn lemma_true_leads_to_busy_always_disabled<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>,
+)
+    requires
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
+        spec.entails(disable_busy().weak_fairness(())),
+    ensures
+        spec.entails(true_pred().leads_to(always(lift_state(busy_disabled::<K, T>())))),
+{
+    let true_state = |s: State<K, T>| true;
+    disable_busy().wf1((), spec, next::<K, T, ReconcilerType>(), true_state, busy_disabled::<K, T>());
+    leads_to_stable_temp::<State<K, T>>(spec, lift_action(next::<K, T, ReconcilerType>()), true_pred(), lift_state(busy_disabled::<K, T>()));
+}
+
 pub proof fn lemma_any_pred_leads_to_crash_always_disabled<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
     spec: TempPred<State<K, T>>, any_pred: TempPred<State<K, T>>
 )
