@@ -429,34 +429,6 @@ macro_rules! lemma_from_some_state_to_n_next_states_to_reconcile_idle {
     };
 }
 
-#[macro_export]
-macro_rules! lemma_from_some_state_to_n_next_states_to_reconcile_idle_internal {
-    ($spec:expr, $cr:expr, $state:expr, $p1:expr) => {
-        temp_pred_equality(
-            lift_state(at_reconcile_state::<K, T>(cr.object_ref(), $p1)),
-            lift_state(at_expected_reconcile_states::<K, T>(cr.object_ref(), |s: T| s == $p1))
-        );
-        lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<K, T, ReconcilerType>($spec, $cr, $state, |s: T| s == next_state);
-    };
-    ($spec:expr, $cr:expr, $state:expr, $p1:expr, $($tail:expr)*) => {
-        temp_pred_equality(
-            lift_state(at_reconcile_state::<K, T>($cr.object_ref(), $p1))
-            $(.or(lift_state(at_reconcile_state::<K, T>($cr.object_ref(), $tail))))*,
-            lift_state(at_expected_reconcile_states::<K, T>($cr.object_ref(), |s: T| s == $p1$( || s == $tail)*))
-        );
-        or_leads_to_combine_n!(
-            $spec,
-            lift_state(at_reconcile_state($cr.object_ref(), $p1)),
-            $(lift_state(at_reconcile_state($cr.object_ref(), $tail))),*;
-            lift_state(|s: State<K, T>| !s.reconcile_state_contains($cr.object_ref()))
-        );
-        lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<K, T, ReconcilerType>($spec, $cr, $state, |s: T| s == $p1$( || s == $tail)*);
-    };
-}
-
-pub use lemma_from_some_state_to_n_next_states_to_reconcile_idle;
-pub use lemma_from_some_state_to_n_next_states_to_reconcile_idle_internal;
-
 pub proof fn lemma_from_some_state_to_two_next_states_to_reconcile_idle<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
     spec: TempPred<State<K ,T>>, cr: K, state: T, next_state_1: T, next_state_2: T
 )
