@@ -422,13 +422,6 @@ pub proof fn lemma_from_some_state_to_one_next_state_to_reconcile_idle<K: Resour
     lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<K, T, ReconcilerType>(spec, cr, state, |s: T| s == next_state);
 }
 
-#[macro_export]
-macro_rules! lemma_from_some_state_to_n_next_states_to_reconcile_idle {
-    [$($tail:tt)*] => {
-        ::builtin_macros::verus_proof_macro_exprs!($crate::kubernetes_cluster::proof::controller_runtime_liveness::lemma_from_some_state_to_n_next_states_to_reconcile_idle_internal!($($tail)*));
-    };
-}
-
 pub proof fn lemma_from_some_state_to_two_next_states_to_reconcile_idle<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
     spec: TempPred<State<K ,T>>, cr: K, state: T, next_state_1: T, next_state_2: T
 )
