@@ -403,54 +403,6 @@ pub open spec fn sts_update_request_msg_since(key: ObjectRef, rest_id: RestId) -
         && msg.content.get_rest_id() >= rest_id
 }
 
-pub open spec fn req_msg_is_the_in_flight_pending_req_at_step(
-    key: ObjectRef, step: ZookeeperReconcileStep, req_msg: Message
-) -> StatePred<ClusterState> {
-    |s: ClusterState| {
-        at_zookeeper_step(key, step)(s)
-        && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
-        && is_controller_request(req_msg)
-        && s.message_in_flight(req_msg)
-    }
-}
-
-pub open spec fn resp_in_flight_matches_pending_req_at_step(
-    key: ObjectRef, step: ZookeeperReconcileStep
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_zookeeper_step(key, step)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_request(s.pending_req_of(key))
-        && exists |resp_msg: Message| {
-            #[trigger] s.message_in_flight(resp_msg)
-            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
-        }
-    }
-}
-
-pub open spec fn pending_req_in_flight_at_step(
-    key: ObjectRef, step: ZookeeperReconcileStep
-) -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: ClusterState| {
-        at_zookeeper_step(key, step)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
-        && is_controller_request(s.pending_req_of(key))
-        && s.message_in_flight(s.pending_req_of(key))
-    }
-}
-
-pub open spec fn is_controller_request(msg: Message) -> bool {
-    msg.src.is_CustomController()
-    && msg.dst.is_KubernetesAPI()
-    && msg.content.is_APIRequest()
-}
-
 pub open spec fn pending_msg_at_after_update_stateful_set_step_is_update_sts_req(
     key: ObjectRef
 ) -> StatePred<ClusterState>
