@@ -451,50 +451,6 @@ pub open spec fn is_controller_request(msg: Message) -> bool {
     && msg.content.is_APIRequest()
 }
 
-pub open spec fn reconcile_init_implies_no_pending_req(key: ObjectRef)
-    -> StatePred<ClusterState>
-    recommends
-        key.kind.is_CustomResourceKind()
-{
-    |s: ClusterState| {
-        s.reconcile_state_contains(key)
-        && s.reconcile_state_of(key).local_state.reconcile_step == ZookeeperReconcileStep::Init
-        ==> s.reconcile_state_contains(key)
-            && s.reconcile_state_of(key).local_state.reconcile_step == ZookeeperReconcileStep::Init
-            && s.reconcile_state_of(key).pending_req_msg.is_None()
-    }
-}
-
-pub proof fn lemma_always_reconcile_init_implies_no_pending_req(
-    spec: TempPred<ClusterState>, key: ObjectRef
-)
-    requires
-        spec.entails(lift_state(init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
-    ensures
-        spec.entails(always(lift_state(reconcile_init_implies_no_pending_req(key)))),
-{
-    let invariant = reconcile_init_implies_no_pending_req(key);
-    assert forall |s, s_prime: ClusterState| invariant(s) &&
-    #[trigger] next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime) implies invariant(s_prime) by {
-        if s_prime.reconcile_state_contains(key) && s_prime.reconcile_state_of(key).local_state.reconcile_step == ZookeeperReconcileStep::Init {
-            if s.controller_state == s_prime.controller_state {
-                assert(s.reconcile_state_of(key).pending_req_msg.is_None());
-                assert(s_prime.reconcile_state_of(key).pending_req_msg.is_None());
-            } else {
-                assert(s_prime.reconcile_state_of(key).pending_req_msg.is_None());
-            }
-        }
-
-    }
-    init_invariant::<ClusterState>(
-        spec,
-        init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        invariant
-    );
-}
-
 pub open spec fn pending_msg_at_after_update_stateful_set_step_is_update_sts_req(
     key: ObjectRef
 ) -> StatePred<ClusterState>
