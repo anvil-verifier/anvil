@@ -33,3 +33,4 @@ http = "0.2.5"
 thiserror = "1.0.29"
 tokio-stream = { version = "0.1.9", features = ["net"] }
 zookeeper = "0.6"
+zookeeper-client = "0.3.1"
