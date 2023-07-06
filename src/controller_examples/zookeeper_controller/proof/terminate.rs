@@ -89,22 +89,9 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, zk: Z
     lemma_from_some_state_to_one_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk, zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateHeadlessService), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateClientService));
     lemma_from_init_state_to_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk, zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateHeadlessService));
     valid_implies_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
-    temp_pred_equality(
-        true_pred(),
-        lift_state(reconcile_idle)
-        .or(lift_state(reconciler_reconcile_error::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref())))
-        .or(lift_state(at_reconcile_state(zk.object_ref(), ZookeeperReconciler::reconcile_init_state())))
-        .or(lift_state(at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateHeadlessService))))
-        .or(lift_state(at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateClientService))))
-        .or(lift_state(at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateAdminServerService))))
-        .or(lift_state(at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateConfigMap))))
-        .or(lift_state(at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterGetStatefulSet))))
-        .or(lift_state(at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateStatefulSet))))
-        .or(lift_state(at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterUpdateStatefulSet))))
-        .or(lift_state(at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::Done))))
-    );
-    or_leads_to_combine_n!(
+    or_leads_to_combine_and_equality!(
         spec,
+        true_pred(),
         lift_state(reconcile_idle),
         lift_state(reconciler_reconcile_error::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref())),
         lift_state(at_reconcile_state(zk.object_ref(), ZookeeperReconciler::reconcile_init_state())),
