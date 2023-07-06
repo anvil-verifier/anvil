@@ -1100,26 +1100,34 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, zk: Zoo
     };
     let post = no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init);
     let input = (Option::None, Option::Some(zk.object_ref()));
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
-        &&& crash_disabled()(s)
-        &&& cluster_safety::each_scheduled_key_is_consistent_with_its_object()(s)
-        &&& controller_runtime_eventual_safety::the_object_in_schedule_has_spec_as(zk)(s)
-    };
-    entails_always_and_n!(
+    let stronger_next = strengthen_next_n!(
+        ClusterState,
         spec,
-        lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()),
-        lift_state(crash_disabled()),
-        lift_state(cluster_safety::each_scheduled_key_is_consistent_with_its_object()),
-        lift_state(controller_runtime_eventual_safety::the_object_in_schedule_has_spec_as(zk))
+        next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
+        crash_disabled(),
+        cluster_safety::each_scheduled_key_is_consistent_with_its_object(),
+        controller_runtime_eventual_safety::the_object_in_schedule_has_spec_as(zk)
     );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())
-        .and(lift_state(crash_disabled()))
-        .and(lift_state(cluster_safety::each_scheduled_key_is_consistent_with_its_object()))
-        .and(lift_state(controller_runtime_eventual_safety::the_object_in_schedule_has_spec_as(zk)))
-    );
+    // |s, s_prime: ClusterState| {
+    //     &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
+    //     &&& crash_disabled()(s)
+    //     &&& cluster_safety::each_scheduled_key_is_consistent_with_its_object()(s)
+    //     &&& controller_runtime_eventual_safety::the_object_in_schedule_has_spec_as(zk)(s)
+    // };
+    // entails_always_and_n!(
+    //     spec,
+    //     lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()),
+    //     lift_state(crash_disabled()),
+    //     lift_state(cluster_safety::each_scheduled_key_is_consistent_with_its_object()),
+    //     lift_state(controller_runtime_eventual_safety::the_object_in_schedule_has_spec_as(zk))
+    // );
+    // temp_pred_equality(
+    //     lift_action(stronger_next),
+    //     lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())
+    //     .and(lift_state(crash_disabled()))
+    //     .and(lift_state(cluster_safety::each_scheduled_key_is_consistent_with_its_object()))
+    //     .and(lift_state(controller_runtime_eventual_safety::the_object_in_schedule_has_spec_as(zk)))
+    // );
 
     controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(
         spec, input, stronger_next,

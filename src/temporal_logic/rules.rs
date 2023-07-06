@@ -1318,6 +1318,32 @@ pub proof fn strengthen_next<T>(spec: TempPred<T>, next: ActionPred<T>, inv: Sta
     temp_pred_equality::<T>(lift_action(next_and_inv), lift_action(next).and(lift_state(inv)));
 }
 
+#[macro_export]
+macro_rules! strengthen_next_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::strengthen_next_n_internal!($($tail)*));
+    };
+}
+
+
+#[macro_export]
+macro_rules! strengthen_next_n_internal {
+    ($state_type:ty, $spec:expr, $next:expr, $($tail:expr),*) => {
+        {
+            let stronger_next = |s, s_prime: $state_type| {
+                $next(s, s_prime) $(&& $tail(s) )*
+            };
+            entails_always_and_n!($spec, lift_action($next), $(lift_state($tail)),*);
+            temp_pred_equality(lift_action(stronger_next), lift_action($next)$(.and(lift_state($tail)))*);
+            stronger_next
+        }
+
+    };
+}
+
+pub use strengthen_next_n;
+pub use strengthen_next_n_internal;
+
 /// Get the initial leads_to.
 /// pre:
 ///     spec |= [](p /\ next => p' /\ q')
