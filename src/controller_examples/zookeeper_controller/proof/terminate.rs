@@ -68,15 +68,15 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, zk: Z
         lift_state(at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::Done))),
         lift_state(reconciler_reconcile_done::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref()))
     );
-    lemma_from_some_state_to_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk, zookeeper_reconcile_state(ZookeeperReconcileStep::AfterUpdateStatefulSet), zookeeper_reconcile_state(ZookeeperReconcileStep::Done));
-    lemma_from_some_state_to_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk, zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateStatefulSet), zookeeper_reconcile_state(ZookeeperReconcileStep::Done));
+    lemma_from_some_state_to_one_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk, zookeeper_reconcile_state(ZookeeperReconcileStep::AfterUpdateStatefulSet), zookeeper_reconcile_state(ZookeeperReconcileStep::Done));
+    lemma_from_some_state_to_one_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk, zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateStatefulSet), zookeeper_reconcile_state(ZookeeperReconcileStep::Done));
 
     lemma_from_after_get_stateful_set_step_to_reconcile_idle(spec, zk);
 
-    lemma_from_some_state_to_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk, zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateConfigMap), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterGetStatefulSet));
-    lemma_from_some_state_to_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk, zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateAdminServerService), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateConfigMap));
-    lemma_from_some_state_to_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk, zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateClientService), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateAdminServerService));
-    lemma_from_some_state_to_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk, zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateHeadlessService), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateClientService));
+    lemma_from_some_state_to_one_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk, zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateConfigMap), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterGetStatefulSet));
+    lemma_from_some_state_to_one_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk, zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateAdminServerService), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateConfigMap));
+    lemma_from_some_state_to_one_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk, zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateClientService), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateAdminServerService));
+    lemma_from_some_state_to_one_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk, zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateHeadlessService), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateClientService));
     lemma_from_init_state_to_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk, zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateHeadlessService));
     valid_implies_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
     temp_pred_equality(
@@ -130,6 +130,10 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_reconcile_idle(spec: Temp
             lift_state(at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateStatefulSet)))
                 .leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
         ),
+        spec.entails(
+            lift_state(reconciler_reconcile_error::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref()))
+                .leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
+        ),
     ensures
         spec.entails(
             lift_state(at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterGetStatefulSet)))
@@ -163,7 +167,6 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_reconcile_idle(spec: Temp
     .or(lift_state(reconciler_reconcile_error::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref()))));
     temp_pred_equality(lift_state(req_in_flight).or(lift_state(resp_in_flight)), lift_state(at_after_get_stateful_set_step_and_pending_req_in_flight_or_resp_in_flight));
 
-    lemma_reconcile_error_leads_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk.object_ref());
     or_leads_to_combine_n!(
         spec,
         lift_state(at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateStatefulSet))),
@@ -171,12 +174,6 @@ pub proof fn lemma_from_after_get_stateful_set_step_to_reconcile_idle(spec: Temp
         lift_state(reconciler_reconcile_error::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref()));
         lift_state(|s: ClusterState| { !s.reconcile_state_contains(zk.object_ref()) })
     );
-    // temp_pred_equality(
-    //     lift_state(post),
-    //     lift_state(at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateStatefulSet)))
-    //     .or(lift_state(at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterUpdateStatefulSet))))
-    //     .or(lift_state(reconciler_reconcile_error::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref())))
-    // );
     leads_to_trans_n!(
         spec,
         lift_state(at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterGetStatefulSet))),

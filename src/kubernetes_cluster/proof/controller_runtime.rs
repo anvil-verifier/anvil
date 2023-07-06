@@ -72,6 +72,16 @@ pub open spec fn at_reconcile_state<K: ResourceView, T>(key: ObjectRef, state: T
     }
 }
 
+pub open spec fn at_expected_reconcile_states<K: ResourceView, T>(key: ObjectRef, expected_states: FnSpec(T) -> bool) -> StatePred<State<K, T>>
+    recommends
+        key.kind.is_CustomResourceKind()
+{
+    |s: State<K, T>| {
+        &&& s.reconcile_state_contains(key)
+        &&& expected_states(s.reconcile_state_of(key).local_state)
+    }
+}
+
 pub open spec fn pending_req_in_flight_at_reconcile_state<K: ResourceView, T>(key: ObjectRef, state: T) -> StatePred<State<K, T>>
     recommends
         key.kind.is_CustomResourceKind(),
