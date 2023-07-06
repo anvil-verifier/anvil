@@ -167,22 +167,14 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init
                 &&& !s.reconcile_state_contains(cr_key)
                 &&& s.reconcile_scheduled_for(cr_key)
             })
-                .leads_to(lift_state(|s: State<K, T>| {
-                    &&& s.reconcile_state_contains(cr_key)
-                    &&& s.reconcile_state_of(cr_key).local_state == ReconcilerType::reconcile_init_state()
-                    &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-                }))
+                .leads_to(lift_state(reconciler_init_and_no_pending_req::<K, T, ReconcilerType>(cr_key)))
         ),
 {
     let pre = |s: State<K, T>| {
         &&& !s.reconcile_state_contains(cr_key)
         &&& s.reconcile_scheduled_for(cr_key)
     };
-    let post = |s: State<K, T>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state == ReconcilerType::reconcile_init_state()
-        &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-    };
+    let post = reconciler_init_and_no_pending_req::<K, T, ReconcilerType>(cr_key);
     let stronger_next = |s, s_prime: State<K, T>| {
         &&& next::<K, T, ReconcilerType>()(s, s_prime)
         &&& !s.crash_enabled
@@ -294,12 +286,8 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_in
     ensures
         spec.entails(
             lift_state(|s: State<K, T>| !s.reconcile_state_contains(cr_key))
-            .leads_to(lift_state(|s: State<K, T>| {
-                &&& s.reconcile_state_contains(cr_key)
-                &&& s.reconcile_state_of(cr_key).local_state == ReconcilerType::reconcile_init_state()
-                &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-            }))
-    ),
+            .leads_to(lift_state(reconciler_init_and_no_pending_req::<K, T, ReconcilerType>(cr_key)))
+        ),
 {
     lemma_reconcile_idle_leads_to_reconcile_idle_and_scheduled_by_assumption::<K, T, ReconcilerType>(spec, cr_key);
     lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init::<K, T, ReconcilerType>(spec, cr_key);
@@ -310,11 +298,7 @@ pub proof fn lemma_cr_always_exists_entails_reconcile_idle_leads_to_reconcile_in
         lift_state(|s: State<K, T>| {
             &&& !s.reconcile_state_contains(cr_key)
             &&& s.reconcile_scheduled_for(cr_key)}),
-        lift_state(|s: State<K, T>| {
-            &&& s.reconcile_state_contains(cr_key)
-            &&& s.reconcile_state_of(cr_key).local_state == ReconcilerType::reconcile_init_state()
-            &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
-        })
+        lift_state(reconciler_init_and_no_pending_req::<K, T, ReconcilerType>(cr_key))
     );
 }
 
@@ -358,7 +342,6 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state<K: Res
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
         !ReconcilerType::reconcile_error(state), !ReconcilerType::reconcile_done(state),
-        // next_state != ReconcilerType::reconcile_init_state(),
         forall |cr_1: K, resp_o: Option<APIResponse>|
             #[trigger] ReconcilerType::reconcile_core(cr_1, resp_o, state).0 == next_state,
     ensures
@@ -446,7 +429,6 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
         !ReconcilerType::reconcile_error(state), !ReconcilerType::reconcile_done(state),
-        // next_state != ReconcilerType::reconcile_init_state(),
         forall |cr_1: K, resp_o: Option<APIResponse>|
             #[trigger] ReconcilerType::reconcile_core(cr_1, resp_o, state).0 == next_state,
     ensures
@@ -533,7 +515,6 @@ pub proof fn lemma_from_some_state_to_next_state_to_reconcile_idle<K: ResourceVi
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
         spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(cr.object_ref(), state)))),
         !ReconcilerType::reconcile_error(state), !ReconcilerType::reconcile_done(state),
-        // next_state != ReconcilerType::reconcile_init_state(),
         forall |cr_1: K, resp_o: Option<APIResponse>|
             #[trigger] ReconcilerType::reconcile_core(cr_1, resp_o, state).0 == next_state,
         spec.entails(
@@ -574,6 +555,61 @@ pub proof fn lemma_from_some_state_to_next_state_to_reconcile_idle<K: ResourceVi
         spec,
         lift_state(at_reconcile_state(cr.object_ref(), state)),
         lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight),
+        lift_state(at_reconcile_state(cr.object_ref(), next_state)),
+        lift_state(|s: State<K, T>| !s.reconcile_state_contains(cr.object_ref()))
+    );
+}
+
+pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, cr: K, next_state: T
+)
+    requires
+        cr.object_ref().kind == K::kind(),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
+        spec.entails(tla_forall(|i| controller_next::<K, T, ReconcilerType>().weak_fairness(i))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(no_pending_req_at_reconcile_init_state::<K, T, ReconcilerType>(cr.object_ref())))),
+        !ReconcilerType::reconcile_error(ReconcilerType::reconcile_init_state()),
+        !ReconcilerType::reconcile_done(ReconcilerType::reconcile_init_state()),
+        forall |cr_1: K, resp_o: Option<APIResponse>|
+            #[trigger] ReconcilerType::reconcile_core(cr_1, resp_o, ReconcilerType::reconcile_init_state()).0 == next_state,
+        spec.entails(
+            lift_state(at_reconcile_state(cr.object_ref(), next_state))
+                .leads_to(lift_state(|s: State<K, T>| !s.reconcile_state_contains(cr.object_ref())))
+        ),
+    ensures
+        spec.entails(
+            lift_state(at_reconcile_state(cr.object_ref(), ReconcilerType::reconcile_init_state()))
+                .leads_to(lift_state(|s: State<K, T>| !s.reconcile_state_contains(cr.object_ref())))
+        ),
+{
+    temp_pred_equality::<State<K, T>>(
+        lift_state(no_pending_req_at_reconcile_init_state::<K, T, ReconcilerType>(cr.object_ref())),
+        lift_state(at_reconcile_state(cr.object_ref(), ReconcilerType::reconcile_init_state()))
+        .implies(lift_state(reconciler_init_and_no_pending_req::<K, T, ReconcilerType>(cr.object_ref())))
+    );
+    implies_to_leads_to(
+        spec,
+        lift_state(at_reconcile_state(cr.object_ref(), ReconcilerType::reconcile_init_state())),
+        lift_state(reconciler_init_and_no_pending_req::<K, T, ReconcilerType>(cr.object_ref()))
+    );
+    let stronger_next = |s, s_prime: State<K, T>| {
+        next::<K, T, ReconcilerType>()(s, s_prime)
+        && !s.crash_enabled
+    };
+    strengthen_next(spec, next::<K, T, ReconcilerType>(), crash_disabled(), stronger_next);
+    lemma_pre_leads_to_post_by_controller::<K, T, ReconcilerType>(
+        spec, (Option::None, Option::Some(cr.object_ref())),
+        stronger_next,
+        continue_reconcile::<K, T, ReconcilerType>(),
+        reconciler_init_and_no_pending_req::<K, T, ReconcilerType>(cr.object_ref()),
+        at_reconcile_state(cr.object_ref(), next_state)
+    );
+    leads_to_trans_n!(
+        spec,
+        lift_state(at_reconcile_state(cr.object_ref(), ReconcilerType::reconcile_init_state())),
+        lift_state(reconciler_init_and_no_pending_req::<K, T, ReconcilerType>(cr.object_ref())),
         lift_state(at_reconcile_state(cr.object_ref(), next_state)),
         lift_state(|s: State<K, T>| !s.reconcile_state_contains(cr.object_ref()))
     );

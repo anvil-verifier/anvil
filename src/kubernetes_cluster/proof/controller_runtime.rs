@@ -24,8 +24,7 @@ verus! {
 pub open spec fn reconciler_init_and_no_pending_req
 <K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef) -> StatePred<State<K, T>> {
     |s: State<K, T>| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_state_of(cr_key).local_state == ReconcilerType::reconcile_init_state()
+        &&& at_reconcile_state(cr_key, ReconcilerType::reconcile_init_state())(s)
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
     }
 }
@@ -110,15 +109,15 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: R
 {
     |s: State<K, T>| {
         at_reconcile_state(key, state)(s)
-            ==> {
-                s.reconcile_state_of(key).pending_req_msg.is_Some()
-                && request_sent_by_controller(s.pending_req_of(key))
-                && (s.message_in_flight(s.pending_req_of(key))
-                || exists |resp_msg: Message| {
-                    #[trigger] s.message_in_flight(resp_msg)
-                    && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
-                })
-            }
+        ==> {
+            s.reconcile_state_of(key).pending_req_msg.is_Some()
+            && request_sent_by_controller(s.pending_req_of(key))
+            && (s.message_in_flight(s.pending_req_of(key))
+            || exists |resp_msg: Message| {
+                #[trigger] s.message_in_flight(resp_msg)
+                && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
+            })
+        }
     }
 }
 
@@ -134,6 +133,18 @@ pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state<K: Resour
             #[trigger] s.message_in_flight(resp_msg)
             && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
         }
+    }
+}
+
+pub open spec fn no_pending_req_at_reconcile_init_state<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    key: ObjectRef
+) -> StatePred<State<K, T>>
+    recommends
+        key.kind.is_CustomResourceKind()
+{
+    |s: State<K, T>| {
+        at_reconcile_state::<K, T>(key, ReconcilerType::reconcile_init_state())(s)
+        ==> s.reconcile_state_of(key).pending_req_msg.is_None()
     }
 }
 
