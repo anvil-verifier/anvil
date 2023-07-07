@@ -2351,6 +2351,21 @@ macro_rules! or_leads_to_combine_n_internal {
 pub use or_leads_to_combine_n;
 pub use or_leads_to_combine_n_internal;
 
+/// Combine or_leads_to_combine and temp_pred_equality.
+/// The 'result' is the equivalent temporal predicate of joining all following predicates with \/.
+#[macro_export]
+macro_rules! or_leads_to_combine_and_equality {
+    ($spec:expr, $result:expr, $p1:expr, $($rest:expr),+; $q:expr) => {
+        temp_pred_equality(
+            $result,
+            $p1$(.or($rest))+
+        );
+        or_leads_to_combine_n!($spec, $p1, $($rest),+; $q);
+    }
+}
+
+pub use or_leads_to_combine_and_equality;
+
 /// Specialized version of or_leads_to_combine used for eliminating q in premise.
 /// pre:
 ///     spec |= p /\ r ~> q

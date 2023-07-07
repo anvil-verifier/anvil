@@ -601,4 +601,31 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
     init_invariant::<State<K, T>>(spec, init::<K, T, ReconcilerType>(), stronger_next, invariant);
 }
 
+pub proof fn lemma_always_no_pending_req_at_reconcile_init_state<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+    spec: TempPred<State<K, T>>, key: ObjectRef
+)
+    requires
+        spec.entails(lift_state(init::<K, T, ReconcilerType>())),
+        spec.entails(always(lift_action(next::<K, T, ReconcilerType>()))),
+        forall |cr: K, resp_o: Option<APIResponse>, pre_state: T|
+            #[trigger] ReconcilerType::reconcile_core(cr, resp_o, pre_state).0 == ReconcilerType::reconcile_init_state()
+            ==> ReconcilerType::reconcile_core(cr, resp_o, pre_state).1.is_None(),
+    ensures
+        spec.entails(always(lift_state(no_pending_req_at_reconcile_init_state::<K, T, ReconcilerType>(key)))),
+{
+    let invariant = no_pending_req_at_reconcile_init_state::<K, T, ReconcilerType>(key);
+    assert forall |s, s_prime: State<K, T>| invariant(s) &&
+    #[trigger] next::<K, T, ReconcilerType>()(s, s_prime) implies invariant(s_prime) by {
+        if at_reconcile_state(key, ReconcilerType::reconcile_init_state())(s_prime) {
+            if s.controller_state == s_prime.controller_state {
+                assert(s.reconcile_state_of(key).pending_req_msg.is_None());
+                assert(s_prime.reconcile_state_of(key).pending_req_msg.is_None());
+            } else {
+                assert(s_prime.reconcile_state_of(key).pending_req_msg.is_None());
+            }
+        }
+    }
+    init_invariant(spec, init::<K, T, ReconcilerType>(), next::<K, T, ReconcilerType>(), invariant);
+}
+
 }
