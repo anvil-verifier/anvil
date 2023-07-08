@@ -287,12 +287,8 @@ pub open spec fn reconcile_core(
                         {
                             let req_o = Option::Some(APIRequest::UpdateRequest(
                                 UpdateRequest {
-                                    key: ObjectRef {
-                                        kind: StatefulSetView::kind(),
-                                        name: stateful_set.metadata.name.get_Some_0(),
-                                        namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                                    },
-                                    obj: found_stateful_set.set_spec(stateful_set.spec.get_Some_0()).to_dynamic_object(),
+                                    key: make_stateful_set_key(rabbitmq.object_ref()),
+                                    obj: update_stateful_set(rabbitmq, found_stateful_set).to_dynamic_object(),
                                 }
                             ));
                             let state_prime = RabbitmqReconcileState {
@@ -551,7 +547,7 @@ pub open spec fn default_rbmq_config(rabbitmq: RabbitmqClusterView) -> StringVie
         cluster_formation.k8s.host = kubernetes.default\n\
         cluster_formation.k8s.address_type = hostname\n"
     )@ + new_strlit("cluster_formation.target_cluster_size_hint = ")@ + int_to_string_view(rabbitmq.spec.replicas) + new_strlit("\n")@
-     + new_strlit("cluster_name = ")@ + name + new_strlit("\n")@
+    + new_strlit("cluster_name = ")@ + name + new_strlit("\n")@
 }
 
 pub open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceAccountView
@@ -567,8 +563,6 @@ pub open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceA
         )
 
 }
-
-
 
 pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView
     recommends
@@ -588,7 +582,6 @@ pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView
         )
 
 }
-
 
 pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBindingView
     recommends
@@ -611,6 +604,28 @@ pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBinding
         ])
 }
 
+pub open spec fn make_stateful_set_key(key: ObjectRef) -> ObjectRef
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    ObjectRef {
+        kind: StatefulSetView::kind(),
+        name: make_stateful_set_name(key.name),
+        namespace: key.namespace,
+    }
+}
+
+pub open spec fn make_stateful_set_name(rabbitmq_name: StringView) -> StringView {
+    rabbitmq_name + new_strlit("-server")@
+}
+
+pub open spec fn update_stateful_set(rabbitmq: RabbitmqClusterView, found_stateful_set: StatefulSetView) -> StatefulSetView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    found_stateful_set.set_spec(make_stateful_set(rabbitmq).spec.get_Some_0())
+}
 
 pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView) -> StatefulSetView
     recommends
@@ -618,7 +633,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView) -> StatefulSet
         rabbitmq.metadata.namespace.is_Some(),
 {
     let name = rabbitmq.metadata.name.get_Some_0();
-    let sts_name = rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@;
+    let sts_name = make_stateful_set_name(name);
     let namespace = rabbitmq.metadata.namespace.get_Some_0();
 
     let labels = Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0());
