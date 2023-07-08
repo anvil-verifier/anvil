@@ -275,6 +275,7 @@ pub open spec fn make_service(
         .set_metadata(ObjectMetaView::default()
             .set_name(name)
             .set_labels(Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()))
+            .set_annotations(Map::empty().insert(new_strlit("envelope")@, new_strlit("ZookeeperCluster")@))
         ).set_spec({
             let spec = ServiceSpecView::default()
                 .set_ports(ports)
@@ -298,6 +299,7 @@ pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
         .set_metadata(ObjectMetaView::default()
             .set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
             .set_labels(Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()))
+            .set_annotations(Map::empty().insert(new_strlit("envelope")@, new_strlit("ZookeeperCluster")@))
         )
         .set_data(Map::empty()
             .insert(new_strlit("zoo.cfg")@, make_zk_config())
@@ -412,9 +414,11 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView
     let namespace = zk.metadata.namespace.get_Some_0();
 
     let labels = Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0());
+    let annotations = Map::empty().insert(new_strlit("envelope")@, new_strlit("ZookeeperCluster")@);
     let metadata = ObjectMetaView::default()
         .set_name(name)
-        .set_labels(labels);
+        .set_labels(labels)
+        .set_annotations(annotations);
 
     let spec = StatefulSetSpecView::default()
         .set_replicas(zk.spec.replicas)

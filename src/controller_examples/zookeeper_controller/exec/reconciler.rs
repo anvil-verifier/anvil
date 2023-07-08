@@ -323,6 +323,11 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
             labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
             labels
         });
+        metadata.set_annotations({
+            let mut annotations = StringMap::empty();
+            annotations.insert(new_strlit("envelope").to_string(), new_strlit("ZookeeperCluster").to_string());
+            annotations
+        });
         metadata
     });
     service.set_spec({
@@ -359,6 +364,11 @@ fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
             labels
+        });
+        metadata.set_annotations({
+            let mut annotations = StringMap::empty();
+            annotations.insert(new_strlit("envelope").to_string(), new_strlit("ZookeeperCluster").to_string());
+            annotations
         });
         metadata
     });
@@ -485,6 +495,11 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
             labels
+        });
+        metadata.set_annotations({
+            let mut annotations = StringMap::empty();
+            annotations.insert(new_strlit("envelope").to_string(), new_strlit("ZookeeperCluster").to_string());
+            annotations
         });
         metadata
     });
