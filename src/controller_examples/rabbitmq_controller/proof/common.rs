@@ -39,12 +39,19 @@ pub open spec fn at_rabbitmq_step(key: ObjectRef, step: RabbitmqReconcileStep) -
     }
 }
 
-pub open spec fn at_rabbitmq_step_with_zk(zk: RabbitmqClusterView, step: RabbitmqReconcileStep) -> StatePred<ClusterState> {
+pub open spec fn at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, step: RabbitmqReconcileStep) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& s.reconcile_state_contains(zk.object_ref())
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.object_ref() == zk.object_ref()
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.spec == zk.spec
-        &&& s.reconcile_state_of(zk.object_ref()).local_state.reconcile_step == step
+        &&& s.reconcile_state_contains(rabbitmq.object_ref())
+        &&& s.reconcile_state_of(rabbitmq.object_ref()).triggering_cr.object_ref() == rabbitmq.object_ref()
+        &&& s.reconcile_state_of(rabbitmq.object_ref()).triggering_cr.spec == rabbitmq.spec
+        &&& s.reconcile_state_of(rabbitmq.object_ref()).local_state.reconcile_step == step
+    }
+}
+
+pub open spec fn no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, step: RabbitmqReconcileStep) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
+        &&& s.reconcile_state_of(rabbitmq.object_ref()).pending_req_msg.is_None()
     }
 }
 
