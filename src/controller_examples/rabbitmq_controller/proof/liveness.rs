@@ -289,9 +289,23 @@ proof fn lemma_true_leads_to_always_current_state_matches_rabbitmq_under_eventua
         .entails(
             true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))
         ),
-{}
+{
+    let spec = next_with_wf().and(invariants(rabbitmq)).and(assumptions(rabbitmq))
+            .and(invariants_since_rest_id(rabbitmq, rest_id)).and(invariants_led_to_by_rest_id(rabbitmq, rest_id));
 
-proof fn lemma_from_unscheduled_to_scheduled(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+    // The use of termination property ensures spec |= true ~> reconcile_idle.
+    terminate::reconcile_eventually_terminates(spec, rabbitmq);
+    // Then we can continue to show that spec |= reconcile_idle ~> []current_state_matches(rabbitmq).
+
+    // The following two lemmas show that spec |= reconcile_idle ~> init /\ no_pending_req.
+    lemma_from_reconcile_idle_to_scheduled(spec, rabbitmq);
+    lemma_from_scheduled_to_init_step(spec, rabbitmq);
+
+    // After applying this lemma, we get spec |= init /\ no_pending_req ~> create_headless_service /\ pending_req.
+    lemma_from_init_step_to_after_create_headless_service_step(spec, rabbitmq);
+}
+
+proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
         spec.entails(tla_forall(|i| schedule_controller_reconcile().weak_fairness(i))),
@@ -299,10 +313,7 @@ proof fn lemma_from_unscheduled_to_scheduled(spec: TempPred<ClusterState>, rabbi
         rabbitmq.well_formed(),
     ensures
         spec.entails(
-            lift_state(|s: ClusterState| {
-                &&& !s.reconcile_state_contains(rabbitmq.object_ref())
-                &&& !s.reconcile_scheduled_for(rabbitmq.object_ref())
-            })
+            lift_state(|s: ClusterState| { !s.reconcile_state_contains(rabbitmq.object_ref()) })
                 .leads_to(lift_state(|s: ClusterState| {
                     &&& !s.reconcile_state_contains(rabbitmq.object_ref())
                     &&& s.reconcile_scheduled_for(rabbitmq.object_ref())
@@ -322,6 +333,9 @@ proof fn lemma_from_unscheduled_to_scheduled(spec: TempPred<ClusterState>, rabbi
     controller_runtime_liveness::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(
         spec, input, next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(), cluster::desired_state_is(rabbitmq), pre, post
     );
+    valid_implies_implies_leads_to(spec, lift_state(post), lift_state(post));
+    or_leads_to_combine(spec, pre, post, post);
+    temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: ClusterState| {!s.reconcile_state_contains(rabbitmq.object_ref())}));
 }
 
 proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
@@ -371,6 +385,299 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, rabbitm
     controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(
         spec, input, stronger_next,
         run_scheduled_reconcile::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(), pre, post
+    );
+}
+
+proof fn lemma_from_init_step_to_after_create_headless_service_step(
+    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
+)
+    requires
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(tla_forall(|i| controller_next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>().weak_fairness(i))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        rabbitmq.well_formed(),
+    ensures
+        spec.entails(
+            lift_state(no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init))
+                .leads_to(lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateHeadlessService, rabbitmq, arbitrary())))
+        ),
+{
+    let pre = no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init);
+    let post = pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateHeadlessService, rabbitmq, arbitrary());
+    let input = (Option::None, Option::Some(rabbitmq.object_ref()));
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
+        &&& crash_disabled()(s)
+    };
+    entails_always_and_n!(
+        spec,
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
+        lift_state(crash_disabled())
+    );
+    temp_pred_equality(
+        lift_action(stronger_next),
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
+        .and(lift_state(crash_disabled()))
+    );
+
+    controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(
+        spec, input, stronger_next,
+        continue_reconcile::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(), pre, post
+    );
+}
+
+// This lemma ensures that rabbitmq controller at some step with pending request in flight will finally enter its next step.
+// For step and next_step, they both require the reconcile_state to have a pending request which is the correct request for that step.
+// Note that in this lemma we add some constraints to step:
+//    1. There is only one possible next_step for it.
+//    2. When the controller enters this step, it must create a request (which is piggybacked by the pending request message)
+// We don't care about update step here, so arbitraray() is used to show that the object parameter in
+// pending_req_in_flight_at_rabbitmq_step_with_rabbitmq is unrelated.
+proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(
+    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, step: RabbitmqReconcileStep, next_step: RabbitmqReconcileStep
+)
+    requires
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(tla_forall(|i| controller_next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>().weak_fairness(i))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))),
+        step != RabbitmqReconcileStep::Error, step != RabbitmqReconcileStep::Done,
+        // next_step != RabbitmqReconcileStep::Init,
+        forall |rabbitmq_1: RabbitmqClusterView, resp_o: Option<APIResponse>|
+            #[trigger] reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).0.reconcile_step == next_step
+            && reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.is_Some()
+            && (rabbitmq_1.object_ref() == rabbitmq.object_ref() && rabbitmq_1.spec == rabbitmq.spec ==>
+            forall |object: DynamicObjectView| #[trigger] is_correct_pending_request_at_rabbitmq_step(
+                next_step, reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0(), rabbitmq, object
+            )),
+        rabbitmq.well_formed(),
+    ensures
+        spec.entails(
+            lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, arbitrary()))
+            .leads_to(lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(next_step, rabbitmq, arbitrary())))
+        ),
+{
+    // The proof of this lemma contains of two parts (two leads_to's) and then a leads_to_trans:
+    //     1. at_step(step) /\ pending_request in flight /\ correct_request ~>
+    //                         at_step(step) /\ response in flight /\ match(response, pending_request)
+    //     2. at_step(step) /\ response in flight /\ match(response, pending_request) ~>
+    //                         at_step(next_step) /\ pending_request in flight /\ correct_request
+    // This predicate is used to give a specific request for the pre state for using wf1 which requires an input.
+    let pre_and_req_in_flight = |req_msg| lift_state(
+        req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, req_msg, arbitrary())
+    );
+    // This predicate is the intermediate state of the two leads_to
+    let pre_and_exists_resp_in_flight = lift_state(
+        exists_resp_in_flight_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, arbitrary())
+    );
+    // This predicate is used to give a specific request for the intermediate state for using wf1 which requires an input.
+    let pre_and_resp_in_flight = |resp_msg| lift_state(
+        resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, resp_msg, arbitrary())
+    );
+    // We use the lemma lemma_receives_some_resp_at_rabbitmq_step_with_rabbitmq that takes a req_msg,
+    // so we need to eliminate the req_msg using leads_to_exists_intro.
+    assert forall |req_msg|
+        spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(pre_and_exists_resp_in_flight))
+    by {
+        lemma_receives_some_resp_at_rabbitmq_step_with_rabbitmq(spec, rabbitmq, req_msg, step);
+    }
+    leads_to_exists_intro(spec, pre_and_req_in_flight, pre_and_exists_resp_in_flight);
+    assert_by(
+        tla_exists(pre_and_req_in_flight) == lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, arbitrary())),
+        {
+            assert forall |ex|
+                #[trigger] lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, arbitrary())).satisfied_by(ex)
+            implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
+                let req_msg = ex.head().pending_req_of(rabbitmq.object_ref());
+                assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
+            }
+            temp_pred_equality(
+                tla_exists(pre_and_req_in_flight),
+                lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, arbitrary()))
+            );
+        }
+    );
+    // Similarly we eliminate resp_msg using leads_to_exists_intro.
+    assert forall |resp_msg|
+        spec.entails(
+            #[trigger] pre_and_resp_in_flight(resp_msg)
+                .leads_to(lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(next_step, rabbitmq, arbitrary())))
+        )
+    by {
+        lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, rabbitmq, resp_msg, step, next_step);
+    }
+    leads_to_exists_intro(
+        spec,
+        pre_and_resp_in_flight,
+        lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(next_step, rabbitmq, arbitrary()))
+    );
+    assert_by(
+        tla_exists(pre_and_resp_in_flight) == pre_and_exists_resp_in_flight,
+        {
+            assert forall |ex| #[trigger] pre_and_exists_resp_in_flight.satisfied_by(ex)
+            implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
+                let resp_msg = choose |resp_msg| {
+                    &&& #[trigger] ex.head().message_in_flight(resp_msg)
+                    &&& resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
+                };
+                assert(pre_and_resp_in_flight(resp_msg).satisfied_by(ex));
+            }
+            temp_pred_equality(tla_exists(pre_and_resp_in_flight), pre_and_exists_resp_in_flight);
+        }
+    );
+
+    leads_to_trans_temp(
+        spec,
+        lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, arbitrary())),
+        pre_and_exists_resp_in_flight,
+        lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(next_step, rabbitmq, arbitrary()))
+    );
+}
+
+proof fn lemma_receives_some_resp_at_rabbitmq_step_with_rabbitmq(
+    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, req_msg: Message, step: RabbitmqReconcileStep
+)
+    requires
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
+        step != RabbitmqReconcileStep::Error, step != RabbitmqReconcileStep::Done,
+        rabbitmq.well_formed(),
+    ensures
+        spec.entails(
+            lift_state(req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, req_msg, arbitrary()))
+                .leads_to(lift_state(exists_resp_in_flight_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, arbitrary())))
+        ),
+{
+    let pre = req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, req_msg, arbitrary());
+    let post = exists_resp_in_flight_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, arbitrary());
+    let input = Option::Some(req_msg);
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
+        &&& crash_disabled()(s)
+        &&& busy_disabled()(s)
+        &&& controller_runtime_safety::every_in_flight_msg_has_unique_id()(s)
+    };
+    entails_always_and_n!(
+        spec,
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
+        lift_state(crash_disabled()),
+        lift_state(busy_disabled()),
+        lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id())
+    );
+    temp_pred_equality(
+        lift_action(stronger_next),
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
+        .and(lift_state(crash_disabled()))
+        .and(lift_state(busy_disabled()))
+        .and(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))
+    );
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime)
+    implies post(s_prime) by {
+        let resp_msg = transition_by_etcd(req_msg, s.kubernetes_api_state).1;
+        assert({
+            &&& s_prime.message_in_flight(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+        });
+    }
+
+    kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(
+        spec, input, stronger_next, handle_request(), pre, post
+    );
+}
+
+// This lemma ensures that rabbitmq controller at some step with a response in flight that matches its pending request will finally enter its next step.
+// For step and next_step, they both require the reconcile_state to have a pending request which is the correct request
+// for that step. For step alone, there is a known response (the parameter resp_msg) in flight that matches the pending request.
+// Note that in this lemma we add some constraints to step:
+//    1. There is only one possible next_step for it.
+//    2. When the controller enters this step, it must creates a request (which will be used to create the pending request message)
+// We don't care about update step here, so arbitraray() is used to show that the object parameter in
+// pending_req_in_flight_at_rabbitmq_step_with_rabbitmq is unrelated.
+proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(
+    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, resp_msg: Message, step: RabbitmqReconcileStep, result_step: RabbitmqReconcileStep
+)
+    requires
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(tla_forall(|i| controller_next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>().weak_fairness(i))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))),
+        step != RabbitmqReconcileStep::Done, step != RabbitmqReconcileStep::Error,
+        // result_step != RabbitmqReconcileStep::Init,
+        // This forall rabbitmq_1 constraint is used because the cr passed to reconcile_core is not necessarily rabbitmq here.
+        // We only know that rabbitmq_1.object_ref() == rabbitmq.object_ref() && rabbitmq_1.spec == rabbitmq.spec.
+        forall |rabbitmq_1: RabbitmqClusterView, resp_o: Option<APIResponse>|
+            #[trigger] reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).0.reconcile_step == result_step
+            && reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.is_Some()
+            && (rabbitmq_1.object_ref() == rabbitmq.object_ref() && rabbitmq_1.spec == rabbitmq.spec ==>
+            forall |object: DynamicObjectView| #[trigger] is_correct_pending_request_at_rabbitmq_step(
+                result_step, reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0(), rabbitmq, object
+            )),
+        rabbitmq.well_formed(),
+    ensures
+        spec.entails(
+            lift_state(resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, resp_msg, arbitrary()))
+                .leads_to(lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(result_step, rabbitmq, arbitrary())))
+        ),
+{
+    let pre = resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, resp_msg, arbitrary());
+    let post = pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(result_step, rabbitmq, arbitrary());
+    let input = (Option::Some(resp_msg), Option::Some(rabbitmq.object_ref()));
+
+    // For every part of stronger_next:
+    //   - next(): the next predicate of the state machine
+    //   - crash_disabled(): to ensure that the reconcile process can continue
+    //   - busy_disabled(): to ensure that the request will get its expected response
+    //    (Note that this is not required for termination)
+    //   - each_resp_matches_at_most_one_pending_req: to make sure that the resp_msg will not be used by other cr
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
+        &&& crash_disabled()(s)
+        &&& busy_disabled()(s)
+        &&& controller_runtime_safety::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())(s)
+    };
+
+    entails_always_and_n!(
+        spec,
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
+        lift_state(crash_disabled()),
+        lift_state(busy_disabled()),
+        lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref()))
+    );
+    temp_pred_equality(
+        lift_action(stronger_next),
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
+        .and(lift_state(crash_disabled()))
+        .and(lift_state(busy_disabled()))
+        .and(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))
+    );
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| next_step::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(s, s_prime, step);
+        match step {
+            Step::ControllerStep(input) => {
+                if input.1.is_Some() && input.1.get_Some_0() == rabbitmq.object_ref() {
+                    assert(post(s_prime));
+                } else {
+                    assert(pre(s_prime));
+                }
+            }
+            _ => {
+                assert(pre(s_prime));
+            }
+        }
+    }
+
+    controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(
+        spec, input, stronger_next,
+        continue_reconcile::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(), pre, post
     );
 }
 

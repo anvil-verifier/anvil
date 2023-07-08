@@ -135,11 +135,7 @@ pub open spec fn reconcile_core(
         },
         RabbitmqReconcileStep::AfterCreatePluginsConfigMap => {
             let req_o = Option::Some(APIRequest::GetRequest(GetRequest{
-                key: ObjectRef {
-                    kind: ConfigMapView::kind(),
-                    name: rabbitmq.metadata.name.get_Some_0() + new_strlit("-server-conf")@,
-                    namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                }
+                key: make_server_config_map_key(rabbitmq.object_ref())
             }));
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterGetServerConfigMap,
@@ -158,11 +154,7 @@ pub open spec fn reconcile_core(
                         let found_config_map = ConfigMapView::from_dynamic_object(get_config_resp.get_Ok_0()).get_Ok_0();
                         let req_o = Option::Some(APIRequest::UpdateRequest(
                             UpdateRequest {
-                                key: ObjectRef {
-                                    kind: ConfigMapView::kind(),
-                                    name: config_map.metadata.name.get_Some_0(),
-                                    namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                                },
+                                key: make_server_config_map_key(rabbitmq.object_ref()),
                                 obj: found_config_map.set_data(config_map.data.get_Some_0()).to_dynamic_object(),
                             }
                         ));
@@ -506,6 +498,21 @@ pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> Confi
         )
 }
 
+pub open spec fn make_server_config_map_name(rabbitmq_name: StringView) -> StringView {
+    rabbitmq_name + new_strlit("-server-conf")@
+}
+
+pub open spec fn make_server_config_map_key(key: ObjectRef) -> ObjectRef
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    ObjectRef {
+        kind: ConfigMapView::kind(),
+        name: make_server_config_map_name(key.name),
+        namespace: key.namespace,
+    }
+}
+
 pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> ConfigMapView
     recommends
         rabbitmq.metadata.name.is_Some(),
@@ -580,7 +587,6 @@ pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView
                 PolicyRuleView::default().set_api_groups(seq![new_strlit("")@]).set_resources(seq![new_strlit("events")@]).set_verbs(seq![new_strlit("create")@]),
             ]
         )
-
 }
 
 pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBindingView
