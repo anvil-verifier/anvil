@@ -364,7 +364,6 @@ pub open spec fn reconcile_core(
     }
 }
 
-
 pub open spec fn reconcile_error_result(state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<APIRequest>) {
     let state_prime = RabbitmqReconcileState {
         reconcile_step: RabbitmqReconcileStep::Error,
@@ -373,7 +372,6 @@ pub open spec fn reconcile_error_result(state: RabbitmqReconcileState) -> (Rabbi
     let req_o = Option::None;
     (state_prime, req_o)
 }
-
 
 pub open spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> ServiceView
     recommends
@@ -464,8 +462,6 @@ pub open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> Secr
     make_secret(rabbitmq, rabbitmq.metadata.name.get_Some_0() + new_strlit("-default-user")@, data)
 }
 
-
-
 pub open spec fn make_secret(
     rabbitmq: RabbitmqClusterView, name: StringView, data: Map<StringView, StringView>
 ) -> SecretView
@@ -520,7 +516,7 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
 {
     ConfigMapView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server-conf")@)
+            .set_name(make_server_config_map_name(rabbitmq.metadata.name.get_Some_0()))
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
         )

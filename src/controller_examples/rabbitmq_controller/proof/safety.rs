@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, error::*, resource::*, stateful_set::*,
+    api_method::*, common::*, config_map::*, error::*, resource::*,
 };
 use crate::kubernetes_cluster::{
     proof::{
@@ -45,50 +45,50 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
 
-pub open spec fn sts_create_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
+pub open spec fn cm_create_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
     |msg: Message|
         msg.dst.is_KubernetesAPI()
         && msg.content.is_create_request()
-        && msg.content.get_create_request().namespace == make_stateful_set_key(key).namespace
-        && msg.content.get_create_request().obj.metadata.name.get_Some_0() == make_stateful_set_key(key).name
-        && msg.content.get_create_request().obj.kind == make_stateful_set_key(key).kind
+        && msg.content.get_create_request().namespace == make_server_config_map_key(key).namespace
+        && msg.content.get_create_request().obj.metadata.name.get_Some_0() == make_server_config_map_key(key).name
+        && msg.content.get_create_request().obj.kind == make_server_config_map_key(key).kind
 }
 
-pub open spec fn sts_create_request_msg_since(key: ObjectRef, rest_id: RestId) -> FnSpec(Message) -> bool {
+pub open spec fn cm_create_request_msg_since(key: ObjectRef, rest_id: RestId) -> FnSpec(Message) -> bool {
     |msg: Message|
-        sts_create_request_msg(key)(msg)
+        cm_create_request_msg(key)(msg)
         && msg.content.get_rest_id() >= rest_id
 }
 
-pub open spec fn sts_update_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
+pub open spec fn cm_update_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
     |msg: Message|
         msg.dst.is_KubernetesAPI()
         && msg.content.is_update_request()
-        && msg.content.get_update_request().key == make_stateful_set_key(key)
+        && msg.content.get_update_request().key == make_server_config_map_key(key)
 }
 
-pub open spec fn sts_update_request_msg_since(key: ObjectRef, rest_id: RestId) -> FnSpec(Message) -> bool {
+pub open spec fn cm_update_request_msg_since(key: ObjectRef, rest_id: RestId) -> FnSpec(Message) -> bool {
     |msg: Message|
-        sts_update_request_msg(key)(msg)
+        cm_update_request_msg(key)(msg)
         && msg.content.get_rest_id() >= rest_id
 }
 
-pub open spec fn pending_msg_at_after_create_stateful_set_step_is_create_sts_req(
+pub open spec fn pending_msg_at_after_create_server_config_map_step_is_create_cm_req(
     key: ObjectRef
 ) -> StatePred<ClusterState>
     recommends
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s)
+        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s)
             ==> {
                 &&& s.reconcile_state_of(key).pending_req_msg.is_Some()
-                &&& sts_create_request_msg(key)(s.pending_req_of(key))
+                &&& cm_create_request_msg(key)(s.pending_req_of(key))
             }
     }
 }
 
-pub proof fn lemma_always_pending_msg_at_after_create_stateful_set_step_is_create_sts_req(
+pub proof fn lemma_always_pending_msg_at_after_create_server_config_map_step_is_create_cm_req(
     spec: TempPred<ClusterState>, key: ObjectRef
 )
     requires
@@ -96,10 +96,10 @@ pub proof fn lemma_always_pending_msg_at_after_create_stateful_set_step_is_creat
         spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
     ensures
         spec.entails(
-            always(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))
+            always(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))
         ),
 {
-    let invariant = pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key);
+    let invariant = pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key);
     let init = init::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>();
     let stronger_next = |s, s_prime| {
         &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
@@ -122,22 +122,22 @@ pub proof fn lemma_always_pending_msg_at_after_create_stateful_set_step_is_creat
     init_invariant(spec, init, stronger_next, invariant);
 }
 
-pub open spec fn pending_msg_at_after_update_stateful_set_step_is_update_sts_req(
+pub open spec fn pending_msg_at_after_update_server_config_map_step_is_update_cm_req(
     key: ObjectRef
 ) -> StatePred<ClusterState>
     recommends
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s)
+        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s)
             ==> {
                 &&& s.reconcile_state_of(key).pending_req_msg.is_Some()
-                &&& sts_update_request_msg(key)(s.pending_req_of(key))
+                &&& cm_update_request_msg(key)(s.pending_req_of(key))
             }
     }
 }
 
-pub proof fn lemma_always_pending_msg_at_after_update_stateful_set_step_is_update_sts_req(
+pub proof fn lemma_always_pending_msg_at_after_update_server_config_map_step_is_update_cm_req(
     spec: TempPred<ClusterState>, key: ObjectRef
 )
     requires
@@ -145,10 +145,10 @@ pub proof fn lemma_always_pending_msg_at_after_update_stateful_set_step_is_updat
         spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
     ensures
         spec.entails(
-            always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))
+            always(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))
         ),
 {
-    let invariant = pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key);
+    let invariant = pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key);
     let init = init::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>();
     let stronger_next = |s, s_prime| {
         &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
@@ -171,7 +171,7 @@ pub proof fn lemma_always_pending_msg_at_after_update_stateful_set_step_is_updat
     init_invariant(spec, init, stronger_next, invariant);
 }
 
-pub open spec fn at_most_one_create_sts_req_since_rest_id_is_in_flight(
+pub open spec fn at_most_one_create_cm_req_since_rest_id_is_in_flight(
     key: ObjectRef, rest_id: RestId
 ) -> StatePred<ClusterState>
     recommends
@@ -180,10 +180,10 @@ pub open spec fn at_most_one_create_sts_req_since_rest_id_is_in_flight(
     |s: ClusterState| {
         forall |msg| {
             &&& #[trigger] s.network_state.in_flight.contains(msg)
-            &&& sts_create_request_msg_since(key, rest_id)(msg)
+            &&& cm_create_request_msg_since(key, rest_id)(msg)
         } ==> {
             let pending_msg = s.pending_req_of(key);
-            &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s)
+            &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s)
             &&& pending_msg.content.get_rest_id() >= rest_id
             &&& msg == pending_msg
             &&& s.network_state.in_flight.count(msg) == 1
@@ -191,48 +191,48 @@ pub open spec fn at_most_one_create_sts_req_since_rest_id_is_in_flight(
     }
 }
 
-pub proof fn lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(
+pub proof fn lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(
     spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
 )
     requires
         spec.entails(lift_state(rest_id_counter_is(rest_id))),
         spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
-        spec.entails(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key))),
+        spec.entails(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key))),
         spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
-        spec.entails(always(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))),
+        spec.entails(always(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))),
         spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_state(every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
-            always(lift_state(at_most_one_create_sts_req_since_rest_id_is_in_flight(key, rest_id)))
+            always(lift_state(at_most_one_create_cm_req_since_rest_id_is_in_flight(key, rest_id)))
         ),
 {
-    lemma_always_filtered_create_sts_req_len_is_at_most_one(spec, key, rest_id);
+    lemma_always_filtered_create_cm_req_len_is_at_most_one(spec, key, rest_id);
 
-    let p = lift_state(at_most_one_create_sts_req_since_rest_id_is_in_flight(key, rest_id));
-    let q = lift_state(filtered_create_sts_req_len_is_at_most_one(key, rest_id));
+    let p = lift_state(at_most_one_create_cm_req_since_rest_id_is_in_flight(key, rest_id));
+    let q = lift_state(filtered_create_cm_req_len_is_at_most_one(key, rest_id));
 
     assert_by(
         p == q, {
             assert forall |ex| p.satisfied_by(ex) implies q.satisfied_by(ex) by {
                 multiset_lemmas::filtered_size_is_zero_means_no_such_value(
-                    ex.head().network_state.in_flight, sts_create_request_msg_since(key, rest_id)
+                    ex.head().network_state.in_flight, cm_create_request_msg_since(key, rest_id)
                 );
                 multiset_lemmas::filtered_size_is_one_means_only_one_such_value(
-                    ex.head().network_state.in_flight, sts_create_request_msg_since(key, rest_id)
+                    ex.head().network_state.in_flight, cm_create_request_msg_since(key, rest_id)
                 );
             }
 
             assert forall |ex| q.satisfied_by(ex) implies p.satisfied_by(ex) by {
                 multiset_lemmas::filtered_size_is_zero_means_no_such_value(
-                    ex.head().network_state.in_flight, sts_create_request_msg_since(key, rest_id)
+                    ex.head().network_state.in_flight, cm_create_request_msg_since(key, rest_id)
                 );
                 multiset_lemmas::filtered_size_is_one_means_only_one_such_value(
-                    ex.head().network_state.in_flight, sts_create_request_msg_since(key, rest_id)
+                    ex.head().network_state.in_flight, cm_create_request_msg_since(key, rest_id)
                 );
             }
 
@@ -241,7 +241,7 @@ pub proof fn lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(
     );
 }
 
-pub open spec fn at_most_one_update_sts_req_since_rest_id_is_in_flight(
+pub open spec fn at_most_one_update_cm_req_since_rest_id_is_in_flight(
     key: ObjectRef, rest_id: RestId
 ) -> StatePred<ClusterState>
     recommends
@@ -250,10 +250,10 @@ pub open spec fn at_most_one_update_sts_req_since_rest_id_is_in_flight(
     |s: ClusterState| {
         forall |msg| {
             &&& #[trigger] s.network_state.in_flight.contains(msg)
-            &&& sts_update_request_msg_since(key, rest_id)(msg)
+            &&& cm_update_request_msg_since(key, rest_id)(msg)
         } ==> {
             let pending_msg = s.pending_req_of(key);
-            &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s)
+            &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s)
             &&& pending_msg.content.get_rest_id() >= rest_id
             &&& msg == pending_msg
             &&& s.network_state.in_flight.count(msg) == 1
@@ -261,48 +261,48 @@ pub open spec fn at_most_one_update_sts_req_since_rest_id_is_in_flight(
     }
 }
 
-pub proof fn lemma_always_at_most_one_update_sts_req_since_rest_id_is_in_flight(
+pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
     spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
 )
     requires
         spec.entails(lift_state(rest_id_counter_is(rest_id))),
         spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
-        spec.entails(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key))),
+        spec.entails(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key))),
         spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
-        spec.entails(always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))),
+        spec.entails(always(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))),
         spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_state(every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
-            always(lift_state(at_most_one_update_sts_req_since_rest_id_is_in_flight(key, rest_id)))
+            always(lift_state(at_most_one_update_cm_req_since_rest_id_is_in_flight(key, rest_id)))
         ),
 {
-    lemma_always_filtered_update_sts_req_len_is_at_most_one(spec, key, rest_id);
+    lemma_always_filtered_update_cm_req_len_is_at_most_one(spec, key, rest_id);
 
-    let p = lift_state(at_most_one_update_sts_req_since_rest_id_is_in_flight(key, rest_id));
-    let q = lift_state(filtered_update_sts_req_len_is_at_most_one(key, rest_id));
+    let p = lift_state(at_most_one_update_cm_req_since_rest_id_is_in_flight(key, rest_id));
+    let q = lift_state(filtered_update_cm_req_len_is_at_most_one(key, rest_id));
 
     assert_by(
         p == q, {
             assert forall |ex| p.satisfied_by(ex) implies q.satisfied_by(ex) by {
                 multiset_lemmas::filtered_size_is_zero_means_no_such_value(
-                    ex.head().network_state.in_flight, sts_update_request_msg_since(key, rest_id)
+                    ex.head().network_state.in_flight, cm_update_request_msg_since(key, rest_id)
                 );
                 multiset_lemmas::filtered_size_is_one_means_only_one_such_value(
-                    ex.head().network_state.in_flight, sts_update_request_msg_since(key, rest_id)
+                    ex.head().network_state.in_flight, cm_update_request_msg_since(key, rest_id)
                 );
             }
 
             assert forall |ex| q.satisfied_by(ex) implies p.satisfied_by(ex) by {
                 multiset_lemmas::filtered_size_is_zero_means_no_such_value(
-                    ex.head().network_state.in_flight, sts_update_request_msg_since(key, rest_id)
+                    ex.head().network_state.in_flight, cm_update_request_msg_since(key, rest_id)
                 );
                 multiset_lemmas::filtered_size_is_one_means_only_one_such_value(
-                    ex.head().network_state.in_flight, sts_update_request_msg_since(key, rest_id)
+                    ex.head().network_state.in_flight, cm_update_request_msg_since(key, rest_id)
                 );
             }
 
@@ -312,7 +312,7 @@ pub proof fn lemma_always_at_most_one_update_sts_req_since_rest_id_is_in_flight(
 }
 
 
-pub open spec fn every_update_sts_req_since_rest_id_does_the_same(
+pub open spec fn every_update_cm_req_since_rest_id_does_the_same(
     rabbitmq: RabbitmqClusterView, rest_id: RestId
 ) -> StatePred<ClusterState>
     recommends
@@ -321,12 +321,12 @@ pub open spec fn every_update_sts_req_since_rest_id_does_the_same(
     |s: ClusterState| {
         forall |msg: Message| {
             &&& #[trigger] s.network_state.in_flight.contains(msg)
-            &&& sts_update_request_msg_since(rabbitmq.object_ref(), rest_id)(msg)
-        } ==> msg.content.get_update_request().obj.spec == StatefulSetView::marshal_spec(make_stateful_set(rabbitmq).spec)
+            &&& cm_update_request_msg_since(rabbitmq.object_ref(), rest_id)(msg)
+        } ==> msg.content.get_update_request().obj.spec == ConfigMapView::marshal_spec((make_server_config_map(rabbitmq).data, ()))
     }
 }
 
-pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
+pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
     spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, rest_id: RestId
 )
     requires
@@ -337,7 +337,7 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(rabbitmq)))),
     ensures
-        spec.entails(always(lift_state(every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)))),
+        spec.entails(always(lift_state(every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id)))),
 {
     let init = |s: ClusterState| {
         &&& rest_id_counter_is(rest_id)(s)
@@ -349,7 +349,7 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
         &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
         &&& controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(rabbitmq)(s)
     };
-    let invariant = every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id);
+    let invariant = every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id);
 
     entails_and_n!(
         spec,
@@ -381,8 +381,8 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
     implies invariant(s_prime) by {
         assert forall |msg: Message|
             #[trigger] s_prime.network_state.in_flight.contains(msg)
-            && sts_update_request_msg_since(rabbitmq.object_ref(), rest_id)(msg)
-        implies msg.content.get_update_request().obj.spec == StatefulSetView::marshal_spec(make_stateful_set(rabbitmq).spec) by {
+            && cm_update_request_msg_since(rabbitmq.object_ref(), rest_id)(msg)
+        implies msg.content.get_update_request().obj.spec == ConfigMapView::marshal_spec((make_server_config_map(rabbitmq).data, ())) by {
             if !s.message_in_flight(msg) {
                 let step = choose |step| next_step::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(s, s_prime, step);
                 assert(step.is_ControllerStep());
@@ -390,13 +390,11 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
                 seq_lemmas::seq_equal_preserved_by_add(
                     other_rmq.metadata.name.get_Some_0(),
                     rabbitmq.metadata.name.get_Some_0(),
-                    new_strlit("-server")@
+                    new_strlit("-server-conf")@
                 );
-                seq_lemmas::seq_equal_preserved_by_add(
-                    other_rmq.metadata.name.get_Some_0(),
-                    rabbitmq.metadata.name.get_Some_0(),
-                    new_strlit("-nodes")@
-                );
+                assert(other_rmq.object_ref() == rabbitmq.object_ref());
+                assert(other_rmq == s.reconcile_state_of(other_rmq.object_ref()).triggering_cr);
+                assert(rabbitmq.spec() == other_rmq.spec());
             }
         }
     }
@@ -404,20 +402,20 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
     init_invariant(spec, init, stronger_next, invariant);
 }
 
-pub open spec fn sts_delete_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
+pub open spec fn cm_delete_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
     |msg: Message|
         msg.dst.is_KubernetesAPI()
         && msg.content.is_delete_request()
-        && msg.content.get_delete_request().key == make_stateful_set_key(key)
+        && msg.content.get_delete_request().key == make_server_config_map_key(key)
 }
 
-pub open spec fn sts_delete_request_msg_since(key: ObjectRef, rest_id: RestId) -> FnSpec(Message) -> bool {
+pub open spec fn cm_delete_request_msg_since(key: ObjectRef, rest_id: RestId) -> FnSpec(Message) -> bool {
     |msg: Message|
-        sts_delete_request_msg(key)(msg)
+        cm_delete_request_msg(key)(msg)
         && msg.content.get_rest_id() >= rest_id
 }
 
-pub open spec fn no_delete_sts_req_since_rest_id_is_in_flight(
+pub open spec fn no_delete_cm_req_since_rest_id_is_in_flight(
     key: ObjectRef, rest_id: RestId
 ) -> StatePred<ClusterState>
     recommends
@@ -426,12 +424,12 @@ pub open spec fn no_delete_sts_req_since_rest_id_is_in_flight(
     |s: ClusterState| {
         forall |msg: Message| !{
             &&& #[trigger] s.message_in_flight(msg)
-            &&& sts_delete_request_msg_since(key, rest_id)(msg)
+            &&& cm_delete_request_msg_since(key, rest_id)(msg)
         }
     }
 }
 
-pub proof fn lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(
+pub proof fn lemma_always_no_delete_cm_req_since_rest_id_is_in_flight(
     spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
 )
     requires
@@ -441,7 +439,7 @@ pub proof fn lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
-            always(lift_state(no_delete_sts_req_since_rest_id_is_in_flight(key, rest_id)))
+            always(lift_state(no_delete_cm_req_since_rest_id_is_in_flight(key, rest_id)))
         ),
 {
     let init = |s: ClusterState| {
@@ -449,7 +447,7 @@ pub proof fn lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(
         &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
     };
     let next = next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>();
-    let invariant = no_delete_sts_req_since_rest_id_is_in_flight(key, rest_id);
+    let invariant = no_delete_cm_req_since_rest_id_is_in_flight(key, rest_id);
 
     entails_and_n!(
         spec,
@@ -465,7 +463,7 @@ pub proof fn lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(
     assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] next(s, s_prime)
     implies invariant(s_prime) by {
         assert forall |msg: Message|
-        !(#[trigger] s_prime.message_in_flight(msg) && sts_delete_request_msg_since(key, rest_id)(msg)) by {
+        !(#[trigger] s_prime.message_in_flight(msg) && cm_delete_request_msg_since(key, rest_id)(msg)) by {
             if s.message_in_flight(msg) {} else {}
         }
     }
@@ -473,71 +471,71 @@ pub proof fn lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(
     init_invariant(spec, init, next, invariant);
 }
 
-pub open spec fn filtered_update_sts_req_len_is_at_most_one(
+pub open spec fn filtered_update_cm_req_len_is_at_most_one(
     key: ObjectRef, rest_id: RestId
 ) -> StatePred<ClusterState>
     recommends
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() > 0
+        s.network_state.in_flight.filter(cm_update_request_msg_since(key, rest_id)).len() > 0
         ==> {
-            &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s)
+            &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s)
             &&& s.pending_req_of(key).content.get_rest_id() >= rest_id
             &&& s.message_in_flight(s.pending_req_of(key))
-            &&& sts_update_request_msg_since(key, rest_id)(s.pending_req_of(key))
-            &&& s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() == 1
+            &&& cm_update_request_msg_since(key, rest_id)(s.pending_req_of(key))
+            &&& s.network_state.in_flight.filter(cm_update_request_msg_since(key, rest_id)).len() == 1
         }
     }
 }
 
-proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
+proof fn lemma_always_filtered_update_cm_req_len_is_at_most_one(
     spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
 )
     requires
         spec.entails(lift_state(rest_id_counter_is(rest_id))),
         spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
-        spec.entails(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key))),
+        spec.entails(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key))),
         spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
-        spec.entails(always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))),
+        spec.entails(always(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))),
         spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_state(every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
-            always(lift_state(filtered_update_sts_req_len_is_at_most_one(key, rest_id)))
+            always(lift_state(filtered_update_cm_req_len_is_at_most_one(key, rest_id)))
         ),
 {
     let init = |s: ClusterState| {
         &&& rest_id_counter_is(rest_id)(s)
         &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
-        &&& pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)(s)
+        &&& pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)(s)
     };
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
         &&& crash_disabled()(s)
         &&& busy_disabled()(s)
-        &&& pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)(s)
+        &&& pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)(s)
         &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
         &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
         &&& every_in_flight_msg_has_unique_id()(s)
     };
-    let invariant = filtered_update_sts_req_len_is_at_most_one(key, rest_id);
+    let invariant = filtered_update_cm_req_len_is_at_most_one(key, rest_id);
 
     entails_and_n!(
         spec,
         lift_state(rest_id_counter_is(rest_id)),
         lift_state(every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key))
+        lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key))
     );
     temp_pred_equality(
         lift_state(init),
         lift_state(rest_id_counter_is(rest_id))
         .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator()))
-        .and(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))
+        .and(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))
     );
 
     entails_always_and_n!(
@@ -545,7 +543,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
         lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
         lift_state(crash_disabled()),
         lift_state(busy_disabled()),
-        lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)),
+        lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)),
         lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
         lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(every_in_flight_msg_has_unique_id())
@@ -555,44 +553,44 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
         lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
         .and(lift_state(crash_disabled()))
         .and(lift_state(busy_disabled()))
-        .and(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))
+        .and(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))
         .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
         .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
         .and(lift_state(every_in_flight_msg_has_unique_id()))
     );
 
     assert forall |s: ClusterState| #[trigger] init(s) implies invariant(s) by {
-        let sts_update_req_multiset = s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id));
+        let cm_update_req_multiset = s.network_state.in_flight.filter(cm_update_request_msg_since(key, rest_id));
 
-        assert forall |msg| sts_update_req_multiset.count(msg) == 0 by {
-            assert(!(s.message_in_flight(msg) && sts_update_request_msg_since(key, rest_id)(msg)));
+        assert forall |msg| cm_update_req_multiset.count(msg) == 0 by {
+            assert(!(s.message_in_flight(msg) && cm_update_request_msg_since(key, rest_id)(msg)));
         }
-        multiset_lemmas::len_is_zero_means_count_for_each_value_is_zero(sts_update_req_multiset);
+        multiset_lemmas::len_is_zero_means_count_for_each_value_is_zero(cm_update_req_multiset);
     }
 
     assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime)
     implies invariant(s_prime) by {
-        let sts_update_req_multiset = s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id));
-        let sts_update_req_multiset_prime = s_prime.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id));
+        let cm_update_req_multiset = s.network_state.in_flight.filter(cm_update_request_msg_since(key, rest_id));
+        let cm_update_req_multiset_prime = s_prime.network_state.in_flight.filter(cm_update_request_msg_since(key, rest_id));
         let step = choose |step| next_step::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
-                if !at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s) {
-                    // If not at AfterUpdateStatefulSet step,
+                if !at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s) {
+                    // If not at AfterUpdateServerConfigMap step,
                     // due to inductive hypothesis, the set of messages remains unchanged (len() = 0)
                     // between s and s_prime.
-                    assert(sts_update_req_multiset =~= sts_update_req_multiset_prime);
+                    assert(cm_update_req_multiset =~= cm_update_req_multiset_prime);
                 } else {
-                    // If at AfterUpdateStatefulSet step,
+                    // If at AfterUpdateServerConfigMap step,
                     // we need to split the case.
                     let chosen_msg = input.get_Some_0();
-                    if sts_update_request_msg_since(key, rest_id)(chosen_msg) {
-                        // If the chosen message to handle is the one that updates StatefulSet,
+                    if cm_update_request_msg_since(key, rest_id)(chosen_msg) {
+                        // If the chosen message to handle is the one that updates ServerConfigMap,
                         // then the message set shrinks by one.
-                        assert(sts_update_req_multiset.remove(chosen_msg) =~= sts_update_req_multiset_prime);
+                        assert(cm_update_req_multiset.remove(chosen_msg) =~= cm_update_req_multiset_prime);
                     } else {
                         // Otherwise the set remains unchanged.
-                        assert(sts_update_req_multiset =~= sts_update_req_multiset_prime);
+                        assert(cm_update_req_multiset =~= cm_update_req_multiset_prime);
                     }
                 }
             },
@@ -600,36 +598,36 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
                 let chosen_key = input.1.get_Some_0();
                 if chosen_key == key {
                     // If the state machine chooses the reconciler for our key to take the next transition...
-                    if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s_prime) {
-                        // If transition to AfterUpdateStatefulSet step,
-                        // then there must be a StatefulSet update request message just sent to the network.
+                    if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime) {
+                        // If transition to AfterUpdateServerConfigMap step,
+                        // then there must be a ServerConfigMap update request message just sent to the network.
                         // And thanks to rest_id_counter_is_no_smaller_than, we know that the newly sent request
                         // has a no-smaller id than rest_id.
-                        // So We go ahead and prove s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() == 1
+                        // So We go ahead and prove s.network_state.in_flight.filter(cm_update_request_msg_since(key, rest_id)).len() == 1
                         // using extensional equality here.
-                        assert(sts_update_req_multiset.insert(s_prime.pending_req_of(key)) =~= sts_update_req_multiset_prime);
-                    } else if at_rabbitmq_step(key, RabbitmqReconcileStep::Done)(s_prime) {
-                        if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s) {
+                        assert(cm_update_req_multiset.insert(s_prime.pending_req_of(key)) =~= cm_update_req_multiset_prime);
+                    } else if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServiceAccount)(s_prime) {
+                        if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s) {
                             if s.pending_req_of(key).content.get_rest_id() >= rest_id {
                                 // This is the most tricky path: we need to show
-                                // s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() == 0
+                                // s.network_state.in_flight.filter(cm_update_request_msg_since(key, rest_id)).len() == 0
                                 // since this transition won't remove any req_msg from the network.
                                 // The reasoning is that the transition can only happen
                                 // if the response message is in the network,
                                 // which shares the same rest_id with the request message.
                                 // Thanks to every_in_flight_msg_has_unique_id(), we know that
                                 // if the response message is in the network, then the request message is not,
-                                // which means s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() == 0
+                                // which means s.network_state.in_flight.filter(cm_update_request_msg_since(key, rest_id)).len() == 0
                                 // has to be true (due to inductive hypothesis).
-                                assert(sts_update_req_multiset =~= sts_update_req_multiset_prime);
+                                assert(cm_update_req_multiset =~= cm_update_req_multiset_prime);
                             } else {
-                                assert(sts_update_req_multiset =~= sts_update_req_multiset_prime);
+                                assert(cm_update_req_multiset =~= cm_update_req_multiset_prime);
                             }
                         } else {
-                            assert(sts_update_req_multiset =~= sts_update_req_multiset_prime);
+                            assert(cm_update_req_multiset =~= cm_update_req_multiset_prime);
                         }
                     } else {
-                        assert(sts_update_req_multiset =~= sts_update_req_multiset_prime);
+                        assert(cm_update_req_multiset =~= cm_update_req_multiset_prime);
                     }
                 } else {
                     // If the state machine chooses the reconciler for a different key to take the next transition...
@@ -639,13 +637,13 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
                     // Note that here we implicitly use each_key_in_reconcile_is_consistent_with_its_object
                     // because the reconciler uses rabbitmq, instead of the key of rabbitmq, when naming the resources.
                     if chosen_key.name != key.name {
-                        seq_lemmas::seq_unequal_preserved_by_add(chosen_key.name, key.name, new_strlit("-server")@);
+                        seq_lemmas::seq_unequal_preserved_by_add(chosen_key.name, key.name, new_strlit("-server-conf")@);
                     }
-                    assert(sts_update_req_multiset =~= sts_update_req_multiset_prime);
+                    assert(cm_update_req_multiset =~= cm_update_req_multiset_prime);
                 }
             },
             Step::ClientStep(input) => {
-                assert(sts_update_req_multiset =~= sts_update_req_multiset_prime);
+                assert(cm_update_req_multiset =~= cm_update_req_multiset_prime);
             },
             _ => {
             }
@@ -655,71 +653,71 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
     init_invariant(spec, init, stronger_next, invariant);
 }
 
-pub open spec fn filtered_create_sts_req_len_is_at_most_one(
+pub open spec fn filtered_create_cm_req_len_is_at_most_one(
     key: ObjectRef, rest_id: RestId
 ) -> StatePred<ClusterState>
     recommends
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() > 0
+        s.network_state.in_flight.filter(cm_create_request_msg_since(key, rest_id)).len() > 0
         ==> {
-            &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s)
+            &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s)
             &&& s.pending_req_of(key).content.get_rest_id() >= rest_id
             &&& s.message_in_flight(s.pending_req_of(key))
-            &&& sts_create_request_msg_since(key, rest_id)(s.pending_req_of(key))
-            &&& s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() == 1
+            &&& cm_create_request_msg_since(key, rest_id)(s.pending_req_of(key))
+            &&& s.network_state.in_flight.filter(cm_create_request_msg_since(key, rest_id)).len() == 1
         }
     }
 }
 
-proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
+proof fn lemma_always_filtered_create_cm_req_len_is_at_most_one(
     spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
 )
     requires
         spec.entails(lift_state(rest_id_counter_is(rest_id))),
         spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
-        spec.entails(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key))),
+        spec.entails(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key))),
         spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
-        spec.entails(always(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))),
+        spec.entails(always(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))),
         spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_state(every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
-            always(lift_state(filtered_create_sts_req_len_is_at_most_one(key, rest_id)))
+            always(lift_state(filtered_create_cm_req_len_is_at_most_one(key, rest_id)))
         ),
 {
     let init = |s: ClusterState| {
         &&& rest_id_counter_is(rest_id)(s)
         &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
-        &&& pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)(s)
+        &&& pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)(s)
     };
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
         &&& crash_disabled()(s)
         &&& busy_disabled()(s)
-        &&& pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)(s)
+        &&& pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)(s)
         &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
         &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
         &&& every_in_flight_msg_has_unique_id()(s)
     };
-    let invariant = filtered_create_sts_req_len_is_at_most_one(key, rest_id);
+    let invariant = filtered_create_cm_req_len_is_at_most_one(key, rest_id);
 
     entails_and_n!(
         spec,
         lift_state(rest_id_counter_is(rest_id)),
         lift_state(every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key))
+        lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key))
     );
     temp_pred_equality(
         lift_state(init),
         lift_state(rest_id_counter_is(rest_id))
         .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator()))
-        .and(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))
+        .and(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))
     );
 
     entails_always_and_n!(
@@ -727,7 +725,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
         lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
         lift_state(crash_disabled()),
         lift_state(busy_disabled()),
-        lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)),
+        lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)),
         lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
         lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(every_in_flight_msg_has_unique_id())
@@ -737,97 +735,92 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
         lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
         .and(lift_state(crash_disabled()))
         .and(lift_state(busy_disabled()))
-        .and(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))
+        .and(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))
         .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
         .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
         .and(lift_state(every_in_flight_msg_has_unique_id()))
     );
 
     assert forall |s: ClusterState| #[trigger] init(s) implies invariant(s) by {
-        let sts_create_req_multiset = s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id));
+        let cm_create_req_multiset = s.network_state.in_flight.filter(cm_create_request_msg_since(key, rest_id));
 
-        assert forall |msg| sts_create_req_multiset.count(msg) == 0 by {
-            assert(!(s.message_in_flight(msg) && sts_create_request_msg_since(key, rest_id)(msg)));
+        assert forall |msg| cm_create_req_multiset.count(msg) == 0 by {
+            assert(!(s.message_in_flight(msg) && cm_create_request_msg_since(key, rest_id)(msg)));
         }
-        multiset_lemmas::len_is_zero_means_count_for_each_value_is_zero(sts_create_req_multiset);
+        multiset_lemmas::len_is_zero_means_count_for_each_value_is_zero(cm_create_req_multiset);
     }
 
     assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime)
     implies invariant(s_prime) by {
-        let sts_create_req_multiset = s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id));
-        let sts_create_req_multiset_prime = s_prime.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id));
+        let cm_create_req_multiset = s.network_state.in_flight.filter(cm_create_request_msg_since(key, rest_id));
+        let cm_create_req_multiset_prime = s_prime.network_state.in_flight.filter(cm_create_request_msg_since(key, rest_id));
         let step = choose |step| next_step::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
-                if !at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s) {
-                    // If not at AfterUpdateStatefulSet step,
+                if !at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s) {
+                    // If not at AfterUpdateServerConfigMap step,
                     // due to inductive hypothesis, the set of messages remains unchanged (len() = 0)
                     // between s and s_prime.
-                    assert(sts_create_req_multiset =~= sts_create_req_multiset_prime);
+                    assert(cm_create_req_multiset =~= cm_create_req_multiset_prime);
                 } else {
-                    // If at AfterUpdateStatefulSet step,
+                    // If at AfterUpdateServerConfigMap step,
                     // we need to split the case.
                     let chosen_msg = input.get_Some_0();
-                    if sts_create_request_msg_since(key, rest_id)(chosen_msg) {
-                        // If the chosen message to handle is the one that creates StatefulSet,
+                    if cm_create_request_msg_since(key, rest_id)(chosen_msg) {
+                        // If the chosen message to handle is the one that creates ServerConfigMap,
                         // then the message set shrinks by one.
-                        assert(sts_create_req_multiset.remove(chosen_msg) =~= sts_create_req_multiset_prime);
+                        assert(cm_create_req_multiset.remove(chosen_msg) =~= cm_create_req_multiset_prime);
                     } else {
                         // Otherwise the set remains unchanged.
-                        assert(sts_create_req_multiset =~= sts_create_req_multiset_prime);
+                        assert(cm_create_req_multiset =~= cm_create_req_multiset_prime);
                     }
                 }
             },
             Step::ControllerStep(input) => {
-                let chosen_key = input.1.get_Some_0();
-                if chosen_key == key {
-                    // If the state machine chooses the reconciler for our key to take the next transition...
-                    if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s_prime) {
-                        // If transition to AfterUpdateStatefulSet step,
-                        // then there must be a StatefulSet create request message just sent to the network.
-                        // And thanks to rest_id_counter_is_no_smaller_than, we know that the newly sent request
-                        // has a no-smaller id than rest_id.
-                        // So We go ahead and prove s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() == 1
-                        // using extensional equality here.
-                        assert(sts_create_req_multiset.insert(s_prime.pending_req_of(key)) =~= sts_create_req_multiset_prime);
-                    } else if at_rabbitmq_step(key, RabbitmqReconcileStep::Done)(s_prime) {
-                        if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s) {
-                            if s.pending_req_of(key).content.get_rest_id() >= rest_id {
-                                // This is the most tricky path: we need to show
-                                // s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() == 0
-                                // since this transition won't remove any req_msg from the network.
-                                // The reasoning is that the transition can only happen
-                                // if the response message is in the network,
-                                // which shares the same rest_id with the request message.
-                                // Thanks to every_in_flight_msg_has_unique_id(), we know that
-                                // if the response message is in the network, then the request message is not,
-                                // which means s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() == 0
-                                // has to be true (due to inductive hypothesis).
-                                assert(sts_create_req_multiset =~= sts_create_req_multiset_prime);
-                            } else {
-                                assert(sts_create_req_multiset =~= sts_create_req_multiset_prime);
-                            }
+                if cm_create_req_multiset_prime.len() > 0 {
+                    let chosen_key = input.1.get_Some_0();
+                    if chosen_key == key {
+                        // If the state machine chooses the reconciler for our key to take the next transition...
+                        if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime) {
+                            assert(cm_create_req_multiset.len() == 0);
+                            assert(cm_create_req_multiset.insert(s_prime.pending_req_of(key)) =~= cm_create_req_multiset_prime);
+                        } else if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreatePluginsConfigMap)(s_prime) {
+                            assert_by(
+                                new_strlit("-server-conf")@ != new_strlit("-plugins-conf")@,
+                                {
+                                    reveal_strlit("-server-conf");
+                                    reveal_strlit("-plugins-conf");
+                                    assert(new_strlit("-server-conf")@[1] != new_strlit("-plugins-conf")@[1]);
+                                }
+                            );
+                            seq_lemmas::seq_equal_preserved_by_add_prefix(key.name, new_strlit("-server-conf")@, new_strlit("-plugins-conf")@);
+                            assert(cm_create_req_multiset =~= cm_create_req_multiset_prime);
                         } else {
-                            assert(sts_create_req_multiset =~= sts_create_req_multiset_prime);
+                            assert(cm_create_req_multiset =~= cm_create_req_multiset_prime);
                         }
                     } else {
-                        assert(sts_create_req_multiset =~= sts_create_req_multiset_prime);
+                        if chosen_key.name != key.name {
+                            seq_lemmas::seq_unequal_preserved_by_add(chosen_key.name, key.name, new_strlit("-server-conf")@);
+                            assert_by(
+                                chosen_key.name + new_strlit("-plugins-conf")@ != key.name + new_strlit("-server-conf")@,
+                                {
+                                    let str1 = chosen_key.name + new_strlit("-plugins-conf")@;
+                                    let str2 = key.name + new_strlit("-server-conf")@;
+                                    reveal_strlit("-server-conf");
+                                    reveal_strlit("-plugins-conf");
+                                    if str1.len() == str2.len() {
+                                        assert(str1[str1.len() - 6] == 's');
+                                        assert(str2[str1.len() - 6] == 'r');
+                                    }
+                                }
+                            );
+                        }
+                        assert(cm_create_req_multiset =~= cm_create_req_multiset_prime);
                     }
-                } else {
-                    // If the state machine chooses the reconciler for a different key to take the next transition...
-                    // It is trivial because of the isolation between different reconcilers:
-                    // each reconciler does not touch other reconcilers' resources.
-                    // The isolation property comes from the way each reconciler names its owned resources.
-                    // Note that here we implicitly use each_key_in_reconcile_is_consistent_with_its_object
-                    // because the reconciler uses rabbitmq, instead of the key of rabbitmq, when naming the resources.
-                    if chosen_key.name != key.name {
-                        seq_lemmas::seq_unequal_preserved_by_add(chosen_key.name, key.name, new_strlit("-server")@);
-                    }
-                    assert(sts_create_req_multiset =~= sts_create_req_multiset_prime);
                 }
             },
             Step::ClientStep(input) => {
-                assert(sts_create_req_multiset =~= sts_create_req_multiset_prime);
+                assert(cm_create_req_multiset =~= cm_create_req_multiset_prime);
             },
             _ => {
             }

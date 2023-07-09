@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, dynamic::*, resource::*, stateful_set::*,
+    api_method::*, common::*, config_map::*, dynamic::*, resource::*,
 };
 use crate::kubernetes_cluster::{
     proof::{
@@ -38,9 +38,9 @@ verus! {
 // I.e., the corresponding stateful set exists and its spec is the same as desired.
 spec fn current_state_matches(rabbitmq: RabbitmqClusterView) -> StatePred<ClusterState> {
     |s: ClusterState| {
-        &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref()))).is_Ok()
-        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref()))).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
+        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).is_Ok()
+        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).get_Ok_0().data == make_server_config_map(rabbitmq).data
     }
 }
 
@@ -125,8 +125,8 @@ spec fn invariants(rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     .and(always(lift_state(cluster_safety::each_object_in_etcd_is_well_formed())))
     .and(always(lift_state(cluster_safety::each_scheduled_key_is_consistent_with_its_object())))
     .and(always(lift_state(cluster_safety::each_key_in_reconcile_is_consistent_with_its_object())))
-    .and(always(lift_state(safety::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(rabbitmq.object_ref()))))
-    .and(always(lift_state(safety::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(rabbitmq.object_ref()))))
+    .and(always(lift_state(safety::pending_msg_at_after_create_server_config_map_step_is_create_cm_req(rabbitmq.object_ref()))))
+    .and(always(lift_state(safety::pending_msg_at_after_update_server_config_map_step_is_update_cm_req(rabbitmq.object_ref()))))
     .and(always(lift_state(controller_runtime::no_pending_req_at_reconcile_init_state::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(rabbitmq.object_ref()))))
     .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconcileState>(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateHeadlessService)))))
     .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconcileState>(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateService)))))
@@ -139,9 +139,9 @@ spec fn invariants(rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconcileState>(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateServiceAccount)))))
     .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconcileState>(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateRole)))))
     .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconcileState>(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateRoleBinding)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconcileState>(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterGetStatefulSet)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconcileState>(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateStatefulSet)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconcileState>(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterUpdateStatefulSet)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconcileState>(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterGetServerConfigMap)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconcileState>(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateServerConfigMap)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconcileState>(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterUpdateServerConfigMap)))))
 }
 
 #[verifier(external_body)]
@@ -156,10 +156,10 @@ proof fn invariants_is_stable(rabbitmq: RabbitmqClusterView)
 // Some of these invariants are also based on the assumptions.
 spec fn invariants_since_rest_id(rabbitmq: RabbitmqClusterView, rest_id: RestId) -> TempPred<ClusterState> {
     always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
-    .and(always(lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))))
-    .and(always(lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))))
-    .and(always(lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))))
-    .and(always(lift_state(safety::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id))))
+    .and(always(lift_state(safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))))
+    .and(always(lift_state(safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))))
+    .and(always(lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))))
+    .and(always(lift_state(safety::every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id))))
 }
 
 proof fn invariants_since_rest_id_is_stable(rabbitmq: RabbitmqClusterView, rest_id: RestId)
@@ -168,10 +168,10 @@ proof fn invariants_since_rest_id_is_stable(rabbitmq: RabbitmqClusterView, rest_
 {
     stable_and_always_n!(
         lift_state(rest_id_counter_is_no_smaller_than::<RabbitmqClusterView, RabbitmqReconcileState>(rest_id)),
-        lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
-        lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
-        lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
-        lift_state(safety::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id))
+        lift_state(safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
+        lift_state(safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
+        lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
+        lift_state(safety::every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id))
     );
 }
 
@@ -250,22 +250,22 @@ proof fn lemma_true_leads_to_always_current_state_matches_rabbitmq_from_idle_wit
         spec_with_rest_id.entails(invariants_since_rest_id(rabbitmq, rest_id)),
         {
             eliminate_always(spec_with_rest_id, lift_state(controller_runtime_safety::every_in_flight_msg_has_lower_id_than_allocator()));
-            eliminate_always(spec_with_rest_id, lift_state(safety::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(rabbitmq.object_ref())));
-            eliminate_always(spec_with_rest_id, lift_state(safety::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(rabbitmq.object_ref())));
+            eliminate_always(spec_with_rest_id, lift_state(safety::pending_msg_at_after_create_server_config_map_step_is_create_cm_req(rabbitmq.object_ref())));
+            eliminate_always(spec_with_rest_id, lift_state(safety::pending_msg_at_after_update_server_config_map_step_is_update_cm_req(rabbitmq.object_ref())));
 
             cluster_safety::lemma_always_rest_id_counter_is_no_smaller_than::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(spec_with_rest_id, rest_id);
-            safety::lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(spec_with_rest_id, rabbitmq.object_ref(), rest_id);
-            safety::lemma_always_at_most_one_update_sts_req_since_rest_id_is_in_flight(spec_with_rest_id, rabbitmq.object_ref(), rest_id);
-            safety::lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(spec_with_rest_id, rabbitmq.object_ref(), rest_id);
-            safety::lemma_always_every_update_sts_req_since_rest_id_does_the_same(spec_with_rest_id, rabbitmq, rest_id);
+            safety::lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(spec_with_rest_id, rabbitmq.object_ref(), rest_id);
+            safety::lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(spec_with_rest_id, rabbitmq.object_ref(), rest_id);
+            safety::lemma_always_no_delete_cm_req_since_rest_id_is_in_flight(spec_with_rest_id, rabbitmq.object_ref(), rest_id);
+            safety::lemma_always_every_update_cm_req_since_rest_id_does_the_same(spec_with_rest_id, rabbitmq, rest_id);
 
             entails_and_n!(
                 spec_with_rest_id,
                 always(lift_state(rest_id_counter_is_no_smaller_than(rest_id))),
-                always(lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))),
-                always(lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))),
-                always(lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))),
-                always(lift_state(safety::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)))
+                always(lift_state(safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))),
+                always(lift_state(safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))),
+                always(lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))),
+                always(lift_state(safety::every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id)))
             );
         }
     );
@@ -303,6 +303,19 @@ proof fn lemma_true_leads_to_always_current_state_matches_rabbitmq_under_eventua
 
     // After applying this lemma, we get spec |= init /\ no_pending_req ~> create_headless_service /\ pending_req.
     lemma_from_init_step_to_after_create_headless_service_step(spec, rabbitmq);
+
+    lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, rabbitmq,
+        RabbitmqReconcileStep::AfterCreateHeadlessService, RabbitmqReconcileStep::AfterCreateService);
+    lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, rabbitmq,
+        RabbitmqReconcileStep::AfterCreateService, RabbitmqReconcileStep::AfterCreateErlangCookieSecret);
+    lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, rabbitmq,
+        RabbitmqReconcileStep::AfterCreateErlangCookieSecret, RabbitmqReconcileStep::AfterCreateDefaultUserSecret);
+    lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, rabbitmq,
+        RabbitmqReconcileStep::AfterCreateDefaultUserSecret, RabbitmqReconcileStep::AfterCreatePluginsConfigMap);
+    lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, rabbitmq,
+        RabbitmqReconcileStep::AfterCreatePluginsConfigMap, RabbitmqReconcileStep::AfterGetServerConfigMap);
+    // get server config map ~> next_step
+
 }
 
 proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
@@ -674,6 +687,819 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
             }
         }
     }
+
+    controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(
+        spec, input, stronger_next,
+        continue_reconcile::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(), pre, post
+    );
+}
+
+proof fn lemma_from_after_get_server_config_map_and_key_not_exists_to_rabbitmq_matches(rabbitmq: RabbitmqClusterView, rest_id: nat)
+    requires
+        rabbitmq.well_formed(),
+    ensures
+        next_with_wf()
+        .and(invariants(rabbitmq))
+        .and(assumptions(rabbitmq))
+        .and(invariants_since_rest_id(rabbitmq, rest_id))
+        .and(invariants_led_to_by_rest_id(rabbitmq, rest_id))
+        .entails(
+            lift_state(|s: ClusterState| {
+                &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, arbitrary())(s)
+            }).leads_to(lift_state(current_state_matches(rabbitmq)))
+        ),
+{
+    let spec = next_with_wf().and(invariants(rabbitmq)).and(assumptions(rabbitmq))
+    .and(invariants_since_rest_id(rabbitmq, rest_id)).and(invariants_led_to_by_rest_id(rabbitmq, rest_id));
+    let pre = lift_state(|s: ClusterState| {
+        &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, arbitrary())(s)
+    });
+    let post = lift_state(|s: ClusterState| {
+        &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServerConfigMap, rabbitmq, arbitrary())(s)
+    });
+    let pre_and_req_in_flight = |req_msg| lift_state(
+        |s: ClusterState| {
+            &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, req_msg, arbitrary())(s)
+        }
+    );
+    let pre_and_exists_resp_in_flight = lift_state(
+        |s: ClusterState| {
+            &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& at_after_get_server_config_map_step_with_rabbitmq_and_exists_not_found_resp_in_flight(rabbitmq)(s)
+        }
+    );
+    let pre_and_resp_in_flight = |resp_msg| lift_state(
+        |s: ClusterState| {
+            &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, resp_msg, arbitrary())(s)
+            &&& resp_msg.content.get_get_response().res.is_Err()
+            &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+        }
+    );
+    let post_and_req_in_flight = |req_msg| lift_state(
+        |s: ClusterState| {
+            &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServerConfigMap, rabbitmq, req_msg, arbitrary())(s)
+        }
+    );
+    assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(pre_and_exists_resp_in_flight))
+    by {
+        lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_rabbitmq(spec, rabbitmq, rest_id, req_msg);
+    }
+    leads_to_exists_intro(spec, pre_and_req_in_flight, pre_and_exists_resp_in_flight);
+    assert_by(
+        tla_exists(pre_and_req_in_flight) == pre,
+        {
+            assert forall |ex| #[trigger] pre.satisfied_by(ex)
+            implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
+                let req_msg = ex.head().pending_req_of(rabbitmq.object_ref());
+                assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
+            }
+            temp_pred_equality(tla_exists(pre_and_req_in_flight), pre);
+        }
+    );
+
+    assert forall |resp_msg| spec.entails(#[trigger] pre_and_resp_in_flight(resp_msg).leads_to(post))
+    by {
+        lemma_from_after_get_server_config_map_step_to_after_create_server_config_map_step(spec, rabbitmq, rest_id, resp_msg);
+    }
+    leads_to_exists_intro(spec, pre_and_resp_in_flight, post);
+    assert_by(
+        tla_exists(pre_and_resp_in_flight) == pre_and_exists_resp_in_flight,
+        {
+            assert forall |ex| #[trigger] pre_and_exists_resp_in_flight.satisfied_by(ex)
+            implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
+                let resp_msg = choose |resp_msg| {
+                    &&& #[trigger] ex.head().message_in_flight(resp_msg)
+                    &&& resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
+                    &&& resp_msg.content.get_get_response().res.is_Err()
+                    &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+                };
+                assert(pre_and_resp_in_flight(resp_msg).satisfied_by(ex));
+            }
+            temp_pred_equality(tla_exists(pre_and_resp_in_flight), pre_and_exists_resp_in_flight);
+        }
+    );
+
+    assert forall |req_msg| spec.entails(#[trigger] post_and_req_in_flight(req_msg).leads_to(lift_state(current_state_matches(rabbitmq))))
+    by {
+        lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitmq(spec, rabbitmq, rest_id, req_msg);
+    }
+    leads_to_exists_intro(spec, post_and_req_in_flight, lift_state(current_state_matches(rabbitmq)));
+    assert_by(
+        tla_exists(post_and_req_in_flight) == post,
+        {
+            assert forall |ex| #[trigger] post.satisfied_by(ex)
+            implies tla_exists(post_and_req_in_flight).satisfied_by(ex) by {
+                let req_msg = ex.head().pending_req_of(rabbitmq.object_ref());
+                assert(post_and_req_in_flight(req_msg).satisfied_by(ex));
+            }
+            temp_pred_equality(tla_exists(post_and_req_in_flight), post);
+        }
+    );
+
+    leads_to_trans_temp(spec, pre, pre_and_exists_resp_in_flight, post);
+    leads_to_trans_temp(spec, pre, post, lift_state(current_state_matches(rabbitmq)));
+}
+
+proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_rabbitmq(
+    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, rest_id: nat, req_msg: Message
+)
+    requires
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))),
+        spec.entails(always(lift_state(safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))),
+        rabbitmq.well_formed(),
+    ensures
+        spec.entails(
+            lift_state(
+                |s: ClusterState| {
+                    &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                    &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, req_msg, arbitrary())(s)
+                }
+            )
+                .leads_to(lift_state(
+                    |s: ClusterState| {
+                        &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                        &&& at_after_get_server_config_map_step_with_rabbitmq_and_exists_not_found_resp_in_flight(rabbitmq)(s)
+                    }
+                ))
+        ),
+{
+    let pre = |s: ClusterState| {
+        &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, req_msg, arbitrary())(s)
+    };
+    let post = |s: ClusterState| {
+        &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& at_after_get_server_config_map_step_with_rabbitmq_and_exists_not_found_resp_in_flight(rabbitmq)(s)
+    };
+    let input = Option::Some(req_msg);
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
+        &&& crash_disabled()(s)
+        &&& busy_disabled()(s)
+        &&& controller_runtime_safety::every_in_flight_msg_has_unique_id()(s)
+        &&& kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)(s)
+        &&& safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)(s)
+    };
+    entails_always_and_n!(
+        spec,
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
+        lift_state(crash_disabled()),
+        lift_state(busy_disabled()),
+        lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()),
+        lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)),
+        lift_state(safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))
+    );
+    temp_pred_equality(
+        lift_action(stronger_next),
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
+        .and(lift_state(crash_disabled()))
+        .and(lift_state(busy_disabled()))
+        .and(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))
+        .and(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))
+        .and(lift_state(safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))
+    );
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| next_step::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                if input.get_Some_0() == req_msg {
+                    let resp_msg = handle_get_request(req_msg, s.kubernetes_api_state).1;
+                    assert({
+                        &&& s_prime.message_in_flight(resp_msg)
+                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                        &&& resp_msg.content.get_get_response().res.is_Err()
+                        &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+                    });
+                }
+            },
+            _ => {}
+        }
+    }
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime)
+    implies post(s_prime) by {
+        let resp_msg = handle_get_request(req_msg, s.kubernetes_api_state).1;
+        assert({
+            &&& s_prime.message_in_flight(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& resp_msg.content.get_get_response().res.is_Err()
+            &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+        });
+    }
+
+    kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(
+        spec, input, stronger_next, handle_request(), pre, post
+    );
+}
+
+proof fn lemma_from_after_get_server_config_map_step_to_after_create_server_config_map_step(
+    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, rest_id: nat, resp_msg: Message
+)
+    requires
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(tla_forall(|i| controller_next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>().weak_fairness(i))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))),
+        spec.entails(always(lift_state(safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))),
+        rabbitmq.well_formed(),
+    ensures
+        spec.entails(
+            lift_state(|s: ClusterState| {
+                &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, resp_msg, arbitrary())(s)
+                &&& resp_msg.content.get_get_response().res.is_Err()
+                &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+            })
+                .leads_to(lift_state(|s: ClusterState| {
+                    &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                    &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServerConfigMap, rabbitmq, arbitrary())(s)
+                }))
+        ),
+{
+    let pre = |s: ClusterState| {
+        &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, resp_msg, arbitrary())(s)
+        &&& resp_msg.content.get_get_response().res.is_Err()
+        &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+    };
+    let post = |s: ClusterState| {
+        &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServerConfigMap, rabbitmq, arbitrary())(s)
+    };
+    let input = (Option::Some(resp_msg), Option::Some(rabbitmq.object_ref()));
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
+        &&& crash_disabled()(s)
+        &&& controller_runtime_safety::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())(s)
+        &&& controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())(s)
+        &&& kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)(s)
+        &&& safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)(s)
+    };
+
+    entails_always_and_n!(
+        spec,
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
+        lift_state(crash_disabled()),
+        lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())),
+        lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())),
+        lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)),
+        lift_state(safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))
+    );
+    temp_pred_equality(
+        lift_action(stronger_next),
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
+        .and(lift_state(crash_disabled()))
+        .and(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))
+        .and(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())))
+        .and(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))
+        .and(lift_state(safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))
+    );
+
+    controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(
+        spec, input, stronger_next,
+        continue_reconcile::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(), pre, post
+    );
+}
+
+proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitmq(
+    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, rest_id: nat, req_msg: Message
+)
+    requires
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))),
+        spec.entails(always(lift_state(safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))),
+        rabbitmq.well_formed(),
+    ensures
+        spec.entails(
+            lift_state(
+                |s: ClusterState| {
+                    &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                    &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServerConfigMap, rabbitmq, req_msg, arbitrary())(s)
+                }
+            )
+                .leads_to(lift_state(
+                    |s: ClusterState| {
+                        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).is_Ok()
+                        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).get_Ok_0().data == make_server_config_map(rabbitmq).data
+                    }
+                ))
+        ),
+{
+    let pre = |s: ClusterState| {
+        &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServerConfigMap, rabbitmq, req_msg, arbitrary())(s)
+    };
+    let post = |s: ClusterState| {
+        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).is_Ok()
+        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).get_Ok_0().data == make_server_config_map(rabbitmq).data
+    };
+    let input = Option::Some(req_msg);
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
+        &&& crash_disabled()(s)
+        &&& busy_disabled()(s)
+        &&& controller_runtime_safety::every_in_flight_msg_has_unique_id()(s)
+        &&& kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)(s)
+        &&& safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)(s)
+    };
+    entails_always_and_n!(
+        spec,
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
+        lift_state(crash_disabled()),
+        lift_state(busy_disabled()),
+        lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()),
+        lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)),
+        lift_state(safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))
+    );
+    temp_pred_equality(
+        lift_action(stronger_next),
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
+        .and(lift_state(crash_disabled()))
+        .and(lift_state(busy_disabled()))
+        .and(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))
+        .and(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))
+        .and(lift_state(safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))
+    );
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| next_step::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                ConfigMapView::spec_integrity_is_preserved_by_marshal();
+            },
+            _ => {}
+        }
+    }
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime)
+    implies post(s_prime) by {
+        ConfigMapView::spec_integrity_is_preserved_by_marshal();
+    }
+
+    kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(
+        spec, input, stronger_next, handle_request(), pre, post
+    );
+}
+
+proof fn lemma_from_after_get_server_config_map_and_key_exists_to_rabbitmq_matches(rabbitmq: RabbitmqClusterView, rest_id: nat)
+    requires
+        rabbitmq.well_formed(),
+    ensures
+        next_with_wf()
+        .and(invariants(rabbitmq))
+        .and(assumptions(rabbitmq))
+        .and(invariants_since_rest_id(rabbitmq, rest_id))
+        .and(invariants_led_to_by_rest_id(rabbitmq, rest_id))
+        .entails(
+            lift_state(|s: ClusterState| {
+                &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, arbitrary())(s)
+            }).leads_to(lift_state(current_state_matches(rabbitmq)))
+        ),
+{
+    let spec = next_with_wf().and(invariants(rabbitmq)).and(assumptions(rabbitmq))
+    .and(invariants_since_rest_id(rabbitmq, rest_id)).and(invariants_led_to_by_rest_id(rabbitmq, rest_id));
+    let pre = lift_state(|s: ClusterState| {
+        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, arbitrary())(s)
+    });
+    let pre_with_object = |object| lift_state(
+        |s: ClusterState| {
+            &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+            &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, arbitrary())(s)
+        }
+    );
+    assert forall |object: DynamicObjectView| spec.entails(#[trigger] pre_with_object(object).leads_to(lift_state(current_state_matches(rabbitmq))))
+    by {
+        let p1 = lift_state(|s: ClusterState| {
+            &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+            &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, arbitrary())(s)
+        });
+        let p2 = lift_state(|s: ClusterState| {
+            &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+            &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateServerConfigMap, rabbitmq, object)(s)
+        });
+
+        assert_by(
+            spec.entails(p1.leads_to(p2)),
+            {
+                let pre_and_req_in_flight = |req_msg| lift_state(
+                    |s: ClusterState| {
+                        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                        &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, req_msg, arbitrary())(s)
+                    }
+                );
+                let pre_and_exists_resp_in_flight = lift_state(
+                    |s: ClusterState| {
+                        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                        &&& at_after_get_server_config_map_step_with_rabbitmq_and_exists_ok_resp_in_flight(rabbitmq, object)(s)
+                    }
+                );
+                let pre_and_resp_in_flight = |resp_msg| lift_state(
+                    |s: ClusterState| {
+                        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                        &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, resp_msg, arbitrary())(s)
+                        &&& resp_msg.content.get_get_response().res.is_Ok()
+                        &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
+                    }
+                );
+
+                assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(pre_and_exists_resp_in_flight))
+                by {
+                    lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitmq(spec, rabbitmq, rest_id, req_msg, object);
+                }
+                leads_to_exists_intro(spec, pre_and_req_in_flight, pre_and_exists_resp_in_flight);
+                assert_by(
+                    tla_exists(pre_and_req_in_flight) == p1,
+                    {
+                        assert forall |ex| #[trigger] p1.satisfied_by(ex)
+                        implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
+                            let req_msg = ex.head().pending_req_of(rabbitmq.object_ref());
+                            assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
+                        }
+                        temp_pred_equality(tla_exists(pre_and_req_in_flight), p1);
+                    }
+                );
+
+                assert forall |resp_msg| spec.entails(#[trigger] pre_and_resp_in_flight(resp_msg).leads_to(p2))
+                by {
+                    lemma_from_after_get_server_config_map_step_to_after_update_server_config_map_step(spec, rabbitmq, rest_id, resp_msg, object);
+                }
+                leads_to_exists_intro(spec, pre_and_resp_in_flight, p2);
+                assert_by(
+                    tla_exists(pre_and_resp_in_flight) == pre_and_exists_resp_in_flight,
+                    {
+                        assert forall |ex| #[trigger] pre_and_exists_resp_in_flight.satisfied_by(ex)
+                        implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
+                            let resp_msg = choose |resp_msg| {
+                                &&& #[trigger] ex.head().message_in_flight(resp_msg)
+                                &&& resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
+                                &&& resp_msg.content.get_get_response().res.is_Ok()
+                                &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
+                            };
+                            assert(pre_and_resp_in_flight(resp_msg).satisfied_by(ex));
+                        }
+                        temp_pred_equality(tla_exists(pre_and_resp_in_flight), pre_and_exists_resp_in_flight);
+                    }
+                );
+
+                leads_to_trans_temp(spec, p1, pre_and_exists_resp_in_flight, p2);
+            }
+        );
+
+        assert_by(
+            spec.entails(p2.leads_to(lift_state(current_state_matches(rabbitmq)))),
+            {
+                let pre_and_req_in_flight = |req_msg| lift_state(
+                    |s: ClusterState| {
+                        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                        &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateServerConfigMap, rabbitmq, req_msg, object)(s)
+                    }
+                );
+                assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(lift_state(current_state_matches(rabbitmq))))
+                by {
+                    lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitmq(spec, rabbitmq, rest_id, req_msg, object);
+                }
+                leads_to_exists_intro(spec, pre_and_req_in_flight, lift_state(current_state_matches(rabbitmq)));
+                assert_by(
+                    tla_exists(pre_and_req_in_flight) == p2,
+                    {
+                        assert forall |ex| #[trigger] p2.satisfied_by(ex)
+                        implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
+                            let req_msg = ex.head().pending_req_of(rabbitmq.object_ref());
+                            assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
+                        }
+                        temp_pred_equality(tla_exists(pre_and_req_in_flight), p2);
+                    }
+                );
+            }
+        );
+
+        leads_to_trans_temp(spec, p1, p2, lift_state(current_state_matches(rabbitmq)));
+    }
+    leads_to_exists_intro(spec, pre_with_object, lift_state(current_state_matches(rabbitmq)));
+    assert_by(
+        tla_exists(pre_with_object) == pre,
+        {
+            assert forall |ex| #[trigger] pre.satisfied_by(ex)
+            implies tla_exists(pre_with_object).satisfied_by(ex) by {
+                let object = ex.head().resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()));
+                assert(pre_with_object(object).satisfied_by(ex));
+            }
+            temp_pred_equality(tla_exists(pre_with_object), pre);
+        }
+    );
+}
+
+proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitmq(
+    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, rest_id: nat, req_msg: Message, object: DynamicObjectView
+)
+    requires
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))),
+        spec.entails(always(lift_state(safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))),
+        spec.entails(always(lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))),
+        rabbitmq.well_formed(),
+    ensures
+        spec.entails(
+            lift_state(
+                |s: ClusterState| {
+                    &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                    &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                    &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, req_msg, arbitrary())(s)
+                }
+            )
+                .leads_to(lift_state(
+                    |s: ClusterState| {
+                        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                        &&& at_after_get_server_config_map_step_with_rabbitmq_and_exists_ok_resp_in_flight(rabbitmq, object)(s)
+                    }
+                ))
+        ),
+{
+    let pre = |s: ClusterState| {
+        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+        &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, req_msg, arbitrary())(s)
+    };
+    let post = |s: ClusterState| {
+        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+        &&& at_after_get_server_config_map_step_with_rabbitmq_and_exists_ok_resp_in_flight(rabbitmq, object)(s)
+    };
+    let input = Option::Some(req_msg);
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
+        &&& crash_disabled()(s)
+        &&& busy_disabled()(s)
+        &&& controller_runtime_safety::every_in_flight_msg_has_unique_id()(s)
+        &&& kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)(s)
+        &&& safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)(s)
+        &&& safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)(s)
+    };
+    entails_always_and_n!(
+        spec,
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
+        lift_state(crash_disabled()),
+        lift_state(busy_disabled()),
+        lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()),
+        lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)),
+        lift_state(safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
+        lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))
+    );
+    temp_pred_equality(
+        lift_action(stronger_next),
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
+        .and(lift_state(crash_disabled()))
+        .and(lift_state(busy_disabled()))
+        .and(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))
+        .and(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))
+        .and(lift_state(safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))
+        .and(lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))
+    );
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| next_step::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                if input.get_Some_0() == req_msg {
+                    let resp_msg = handle_get_request(req_msg, s.kubernetes_api_state).1;
+                    assert({
+                        &&& s_prime.message_in_flight(resp_msg)
+                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                        &&& resp_msg.content.get_get_response().res.is_Ok()
+                        &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
+                    });
+                }
+            },
+            _ => {}
+        }
+    }
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime)
+    implies post(s_prime) by {
+        let resp_msg = handle_get_request(req_msg, s.kubernetes_api_state).1;
+        assert({
+            &&& s_prime.message_in_flight(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& resp_msg.content.get_get_response().res.is_Ok()
+            &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
+        });
+    }
+
+    kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(
+        spec, input, stronger_next, handle_request(), pre, post
+    );
+}
+
+proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitmq(
+    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, rest_id: nat, req_msg: Message, object: DynamicObjectView
+)
+    requires
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))),
+        spec.entails(always(lift_state(cluster_safety::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))),
+        spec.entails(always(lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))),
+        rabbitmq.well_formed(),
+    ensures
+        spec.entails(
+            lift_state(
+                |s: ClusterState| {
+                    &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                    &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                    &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateServerConfigMap, rabbitmq, req_msg, object)(s)
+                }
+            )
+                .leads_to(lift_state(
+                    |s: ClusterState| {
+                        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).is_Ok()
+                        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).get_Ok_0().data == make_server_config_map(rabbitmq).data
+                    }
+                ))
+        ),
+{
+    let pre = |s: ClusterState| {
+        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+        &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateServerConfigMap, rabbitmq, req_msg, object)(s)
+    };
+    let post = |s: ClusterState| {
+        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).is_Ok()
+        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).get_Ok_0().data == make_server_config_map(rabbitmq).data
+    };
+    let input = Option::Some(req_msg);
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
+        &&& crash_disabled()(s)
+        &&& busy_disabled()(s)
+        &&& controller_runtime_safety::every_in_flight_msg_has_unique_id()(s)
+        &&& kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)(s)
+        &&& cluster_safety::each_object_in_etcd_is_well_formed()(s)
+        &&& safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)(s)
+        &&& safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)(s)
+    };
+    entails_always_and_n!(
+        spec,
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
+        lift_state(crash_disabled()),
+        lift_state(busy_disabled()),
+        lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()),
+        lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)),
+        lift_state(cluster_safety::each_object_in_etcd_is_well_formed()),
+        lift_state(safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
+        lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))
+    );
+    temp_pred_equality(
+        lift_action(stronger_next),
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
+        .and(lift_state(crash_disabled()))
+        .and(lift_state(busy_disabled()))
+        .and(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))
+        .and(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))
+        .and(lift_state(cluster_safety::each_object_in_etcd_is_well_formed()))
+        .and(lift_state(safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))
+        .and(lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))
+    );
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| next_step::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(s, s_prime, step);
+        match step {
+            Step::KubernetesAPIStep(input) => {
+                ConfigMapView::spec_integrity_is_preserved_by_marshal();
+            },
+            _ => {}
+        }
+    }
+
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime)
+    implies post(s_prime) by {
+        ConfigMapView::spec_integrity_is_preserved_by_marshal();
+    }
+
+    kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(
+        spec, input, stronger_next, handle_request(), pre, post
+    );
+}
+
+proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_config_map_step(
+    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, rest_id: nat, resp_msg: Message, object: DynamicObjectView
+)
+    requires
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(tla_forall(|i| controller_next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>().weak_fairness(i))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))),
+        spec.entails(always(lift_state(cluster_safety::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))),
+        spec.entails(always(lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))),
+        rabbitmq.well_formed(),
+    ensures
+        spec.entails(
+            lift_state(|s: ClusterState| {
+                &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, resp_msg, arbitrary())(s)
+                &&& resp_msg.content.get_get_response().res.is_Ok()
+                &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
+            })
+                .leads_to(lift_state(|s: ClusterState| {
+                    &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                    &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                    &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateServerConfigMap, rabbitmq, object)(s)
+                }))
+        ),
+{
+    let pre = |s: ClusterState| {
+        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+        &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, resp_msg, arbitrary())(s)
+        &&& resp_msg.content.get_get_response().res.is_Ok()
+        &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
+    };
+    let post = |s: ClusterState| {
+        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+        &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateServerConfigMap, rabbitmq, object)(s)
+    };
+    let input = (Option::Some(resp_msg), Option::Some(rabbitmq.object_ref()));
+    let stronger_next = |s, s_prime: ClusterState| {
+        &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
+        &&& crash_disabled()(s)
+        &&& busy_disabled()(s)
+        &&& controller_runtime_safety::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())(s)
+        &&& controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())(s)
+        &&& kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)(s)
+        &&& cluster_safety::each_object_in_etcd_is_well_formed()(s)
+        &&& safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)(s)
+        &&& safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)(s)
+    };
+
+    entails_always_and_n!(
+        spec,
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
+        lift_state(crash_disabled()),
+        lift_state(busy_disabled()),
+        lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())),
+        lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())),
+        lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)),
+        lift_state(cluster_safety::each_object_in_etcd_is_well_formed()),
+        lift_state(safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
+        lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))
+    );
+    temp_pred_equality(
+        lift_action(stronger_next),
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
+        .and(lift_state(crash_disabled()))
+        .and(lift_state(busy_disabled()))
+        .and(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))
+        .and(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())))
+        .and(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))
+        .and(lift_state(cluster_safety::each_object_in_etcd_is_well_formed()))
+        .and(lift_state(safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))
+        .and(lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))
+    );
 
     controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(
         spec, input, stronger_next,

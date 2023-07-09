@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::ConfigMapView, dynamic::*, resource::*, stateful_set::*,
+    api_method::*, common::*, config_map::*, dynamic::*, resource::*, stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
     cluster::*,
@@ -194,12 +194,12 @@ pub open spec fn is_create_stateful_set_request(request: APIRequest, rabbitmq: R
     &&& request.get_CreateRequest_0().obj == make_stateful_set(rabbitmq).to_dynamic_object()
 }
 
-pub open spec fn is_get_stateful_set_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool
+pub open spec fn is_get_server_config_map_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool
     recommends
         rabbitmq.well_formed(),
 {
     &&& request.is_GetRequest()
-    &&& request.get_GetRequest_0().key == make_stateful_set_key(rabbitmq.object_ref())
+    &&& request.get_GetRequest_0().key == make_server_config_map_key(rabbitmq.object_ref())
 }
 
 pub open spec fn is_update_stateful_set_request(request: APIRequest, rabbitmq: RabbitmqClusterView, object: DynamicObjectView) -> bool
@@ -213,12 +213,12 @@ pub open spec fn is_update_stateful_set_request(request: APIRequest, rabbitmq: R
     ).to_dynamic_object()
 }
 
-pub open spec fn is_get_server_config_map_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool
+pub open spec fn is_get_stateful_set_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool
     recommends
         rabbitmq.well_formed(),
 {
     &&& request.is_GetRequest()
-    &&& request.get_GetRequest_0().key == make_server_config_map_key(rabbitmq.object_ref())
+    &&& request.get_GetRequest_0().key == make_stateful_set_key(rabbitmq.object_ref())
 }
 
 pub open spec fn is_update_server_config_map_request(request: APIRequest, rabbitmq: RabbitmqClusterView, object: DynamicObjectView) -> bool
@@ -226,10 +226,64 @@ pub open spec fn is_update_server_config_map_request(request: APIRequest, rabbit
         rabbitmq.well_formed(),
 {
     &&& request.is_UpdateRequest()
-    &&& request.get_UpdateRequest_0().key == make_stateful_set_key(rabbitmq.object_ref())
+    &&& request.get_UpdateRequest_0().key == make_server_config_map_key(rabbitmq.object_ref())
     &&& request.get_UpdateRequest_0().obj == ConfigMapView::from_dynamic_object(object).get_Ok_0()
                                             .set_data(make_server_config_map(rabbitmq).data.get_Some_0())
                                             .to_dynamic_object()
+}
+
+pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_ok_resp_in_flight(
+    rabbitmq: RabbitmqClusterView, object: DynamicObjectView
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::AfterGetServerConfigMap)(s)
+        &&& s.reconcile_state_of(rabbitmq.object_ref()).pending_req_msg.is_Some()
+        &&& is_correct_pending_request_msg_at_rabbitmq_step(
+            RabbitmqReconcileStep::AfterGetServerConfigMap, s.pending_req_of(rabbitmq.object_ref()), rabbitmq, arbitrary()
+        )
+        &&& exists |resp_msg| {
+            &&& #[trigger] s.message_in_flight(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
+            &&& resp_msg.content.get_get_response().res.is_Ok()
+            &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
+        }
+    }
+}
+
+pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_not_found_resp_in_flight(
+    rabbitmq: RabbitmqClusterView
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::AfterGetServerConfigMap)(s)
+        &&& s.reconcile_state_of(rabbitmq.object_ref()).pending_req_msg.is_Some()
+        &&& is_correct_pending_request_msg_at_rabbitmq_step(
+            RabbitmqReconcileStep::AfterGetServerConfigMap, s.pending_req_of(rabbitmq.object_ref()), rabbitmq, arbitrary()
+        )
+        &&& exists |resp_msg| {
+            &&& #[trigger] s.message_in_flight(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
+            &&& resp_msg.content.get_get_response().res.is_Err()
+            &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+        }
+    }
+}
+
+pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_not_found_err_resp_in_flight(
+    rabbitmq: RabbitmqClusterView
+) -> StatePred<ClusterState> {
+    |s: ClusterState| {
+        &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::AfterGetServerConfigMap)(s)
+        &&& s.reconcile_state_of(rabbitmq.object_ref()).pending_req_msg.is_Some()
+        &&& is_correct_pending_request_msg_at_rabbitmq_step(
+            RabbitmqReconcileStep::AfterGetServerConfigMap, s.pending_req_of(rabbitmq.object_ref()), rabbitmq, arbitrary()
+        )
+        &&& exists |resp_msg| {
+            &&& #[trigger] s.message_in_flight(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
+            &&& resp_msg.content.get_get_response().res.is_Err()
+            &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+        }
+    }
 }
 
 }
