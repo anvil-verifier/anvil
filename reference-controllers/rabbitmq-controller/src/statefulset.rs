@@ -119,8 +119,8 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
                                         ..corev1::KeyToPath::default()
                                     },
                                     corev1::KeyToPath{
-                                        key: "userDefineConfiguration.conf".to_string(),
-                                        path: "userDefineConfiguration.conf".to_string(),
+                                        key: "userDefinedConfiguration.conf".to_string(),
+                                        path: "userDefinedConfiguration.conf".to_string(),
                                         ..corev1::KeyToPath::default()
                                     }
                                 ]),

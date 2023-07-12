@@ -12,6 +12,7 @@ pub fn make_statefulset(zk: &ZookeeperCluster) -> appsv1::StatefulSet {
     appsv1::StatefulSet {
         metadata: ObjectMeta {
             name: Some(stateful_set_name(zk)),
+            owner_references: Some(vec![zk.controller_owner_ref(&()).unwrap()]),
             labels: Some(BTreeMap::from([(
                 "app".to_string(),
                 zk.meta().name.as_ref().unwrap().clone(),
