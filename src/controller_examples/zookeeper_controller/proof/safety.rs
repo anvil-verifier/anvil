@@ -116,18 +116,13 @@ pub open spec fn filtered_create_sts_req_len_is_at_most_one(
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        if !at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s) {
-            s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() == 0
-        } else {
-            if s.pending_req_of(key).content.get_rest_id() >= rest_id {
-                ||| {
-                    &&& s.message_in_flight(s.pending_req_of(key))
-                    &&& s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() == 1
-                }
-                ||| s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() == 0
-            } else {
-                s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() == 0
-            }
+        s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() > 0
+        ==> {
+            &&& at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s)
+            &&& s.pending_req_of(key).content.get_rest_id() >= rest_id
+            &&& s.message_in_flight(s.pending_req_of(key))
+            &&& sts_create_request_msg_since(key, rest_id)(s.pending_req_of(key))
+            &&& s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() == 1
         }
     }
 }
@@ -300,42 +295,15 @@ pub open spec fn at_most_one_create_sts_req_since_rest_id_is_in_flight(
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        if !at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s) {
-            forall |msg| !{
-                    &&& #[trigger] s.network_state.in_flight.contains(msg)
-                    &&& sts_create_request_msg_since(key, rest_id)(msg)
-                }
-        } else {
-            if s.pending_req_of(key).content.get_rest_id() >= rest_id {
-                ||| {
-                    &&& s.message_in_flight(s.pending_req_of(key))
-                    &&& forall |msg| {
-                        &&& #[trigger] s.network_state.in_flight.contains(msg)
-                        &&& sts_create_request_msg_since(key, rest_id)(msg)
-                    } ==> {
-                        &&& s.network_state.in_flight.count(msg) == 1
-                        &&& {
-                            &&& exists |other_msg| {
-                                &&& #[trigger] s.network_state.in_flight.contains(other_msg)
-                                &&& sts_create_request_msg_since(key, rest_id)(other_msg)
-                            }
-                            &&& forall |other_msg| {
-                                &&& #[trigger] s.network_state.in_flight.contains(other_msg)
-                                &&& sts_create_request_msg_since(key, rest_id)(other_msg)
-                            } ==> msg == other_msg
-                        }
-                    }
-                }
-                ||| forall |msg| !{
-                    &&& #[trigger] s.network_state.in_flight.contains(msg)
-                    &&& sts_create_request_msg_since(key, rest_id)(msg)
-                }
-            } else {
-                forall |msg| !{
-                    &&& #[trigger] s.network_state.in_flight.contains(msg)
-                    &&& sts_create_request_msg_since(key, rest_id)(msg)
-                }
-            }
+        forall |msg| {
+            &&& #[trigger] s.network_state.in_flight.contains(msg)
+            &&& sts_create_request_msg_since(key, rest_id)(msg)
+        } ==> {
+            let pending_msg = s.pending_req_of(key);
+            &&& at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s)
+            &&& pending_msg.content.get_rest_id() >= rest_id
+            &&& msg == pending_msg
+            &&& s.network_state.in_flight.count(msg) == 1
         }
     }
 }
@@ -459,18 +427,13 @@ pub open spec fn filtered_update_sts_req_len_is_at_most_one(
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        if !at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s) {
-            s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() == 0
-        } else {
-            if s.pending_req_of(key).content.get_rest_id() >= rest_id {
-                ||| {
-                    &&& s.message_in_flight(s.pending_req_of(key))
-                    &&& s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() == 1
-                }
-                ||| s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() == 0
-            } else {
-                s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() == 0
-            }
+        s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() > 0
+        ==> {
+            &&& at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s)
+            &&& s.pending_req_of(key).content.get_rest_id() >= rest_id
+            &&& s.message_in_flight(s.pending_req_of(key))
+            &&& sts_update_request_msg_since(key, rest_id)(s.pending_req_of(key))
+            &&& s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() == 1
         }
     }
 }
@@ -643,42 +606,15 @@ pub open spec fn at_most_one_update_sts_req_since_rest_id_is_in_flight(
         key.kind.is_CustomResourceKind(),
 {
     |s: ClusterState| {
-        if !at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s) {
-            forall |msg| !{
-                    &&& #[trigger] s.network_state.in_flight.contains(msg)
-                    &&& sts_update_request_msg_since(key, rest_id)(msg)
-                }
-        } else {
-            if s.pending_req_of(key).content.get_rest_id() >= rest_id {
-                ||| {
-                    &&& s.message_in_flight(s.pending_req_of(key))
-                    &&& forall |msg| {
-                        &&& #[trigger] s.network_state.in_flight.contains(msg)
-                        &&& sts_update_request_msg_since(key, rest_id)(msg)
-                    } ==> {
-                        &&& s.network_state.in_flight.count(msg) == 1
-                        &&& {
-                            &&& exists |other_msg| {
-                                &&& #[trigger] s.network_state.in_flight.contains(other_msg)
-                                &&& sts_update_request_msg_since(key, rest_id)(other_msg)
-                            }
-                            &&& forall |other_msg| {
-                                &&& #[trigger] s.network_state.in_flight.contains(other_msg)
-                                &&& sts_update_request_msg_since(key, rest_id)(other_msg)
-                            } ==> msg == other_msg
-                        }
-                    }
-                }
-                ||| forall |msg| !{
-                    &&& #[trigger] s.network_state.in_flight.contains(msg)
-                    &&& sts_update_request_msg_since(key, rest_id)(msg)
-                }
-            } else {
-                forall |msg| !{
-                    &&& #[trigger] s.network_state.in_flight.contains(msg)
-                    &&& sts_update_request_msg_since(key, rest_id)(msg)
-                }
-            }
+        forall |msg| {
+            &&& #[trigger] s.network_state.in_flight.contains(msg)
+            &&& sts_update_request_msg_since(key, rest_id)(msg)
+        } ==> {
+            let pending_msg = s.pending_req_of(key);
+            &&& at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s)
+            &&& pending_msg.content.get_rest_id() >= rest_id
+            &&& msg == pending_msg
+            &&& s.network_state.in_flight.count(msg) == 1
         }
     }
 }
