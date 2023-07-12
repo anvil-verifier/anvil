@@ -18,7 +18,7 @@ use core::time;
 use futures::StreamExt;
 use k8s_openapi::api::core::v1 as corev1;
 use k8s_openapi::api::rbac::v1 as rbacv1;
-use k8s_openapi::api::{apps::v1 as appsv1, core::v1::Service};
+use k8s_openapi::api::{apps::v1 as appsv1, apps::v1::StatefulSet, core::v1::Service};
 use kube::{
     api::{Api, ListParams, PostParams},
     client::ConfigExt,
@@ -52,12 +52,60 @@ enum Error {
     #[error("Failed to create RoleBinding: {0}")]
     RoleBindingCreationFailed(#[source] kube::Error),
 
-    #[error("Failed to create StatefulSet: {0}")]
-    StatefulSetCreationFailed(#[source] kube::Error),
+    #[error("Failed to reconcile StatefulSet: {0}")]
+    ReconcileStatefulSetFailed(#[source] kube::Error),
 }
 
 struct Data {
     client: Client,
+}
+
+async fn reconcile_stateful_set(rabbitmq: &RabbitmqCluster, client: Client) -> Result<(), Error> {
+    // Create the RabbitmqCluster statefulset.
+    // The statefulset hosts all the Rabbitmq pods and volumes.
+    let sts_api = Api::<appsv1::StatefulSet>::namespaced(
+        client.clone(),
+        rabbitmq.metadata.namespace.as_ref().unwrap(),
+    );
+    let sts = statefulset::statefulset_build(&rabbitmq);
+    let sts_name = sts.metadata.name.as_ref().unwrap();
+    let sts_o = sts_api
+        .get_opt(sts_name)
+        .await
+        .map_err(Error::ReconcileStatefulSetFailed)?;
+
+    if sts_o.is_some() {
+        info!(
+            "Current rv of statefulset: {}",
+            sts_o
+                .as_ref()
+                .unwrap()
+                .metadata
+                .resource_version
+                .as_ref()
+                .unwrap()
+        );
+        let old_sts = sts_o.unwrap();
+        info!("Update statefulset: {}", sts_name);
+        let updated_sts = StatefulSet {
+            spec: sts.spec,
+            ..old_sts
+        };
+        // Scale up or no change
+        sts_api
+            .replace(sts_name, &PostParams::default(), &updated_sts)
+            .await
+            .map_err(Error::ReconcileStatefulSetFailed)?;
+
+        Ok(())
+    } else {
+        info!("Create statefulset: {}", sts_name);
+        sts_api
+            .create(&PostParams::default(), &sts)
+            .await
+            .map_err(Error::ReconcileStatefulSetFailed)?;
+        Ok(())
+    }
 }
 
 async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<Data>) -> Result<Action, Error> {
@@ -70,7 +118,6 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<Data>) -> Result<Ac
     let svc_acc_api = Api::<corev1::ServiceAccount>::namespaced(client.clone(), &namespace);
     info!("Get service account API");
     let cm_api = Api::<corev1::ConfigMap>::namespaced(client.clone(), &namespace);
-    let sts_api = Api::<appsv1::StatefulSet>::namespaced(client.clone(), &namespace);
     let secret_api = Api::<corev1::Secret>::namespaced(client.clone(), &namespace);
     let role_api = Api::<rbacv1::Role>::namespaced(client.clone(), &namespace);
     let role_binding_api = Api::<rbacv1::RoleBinding>::namespaced(client.clone(), &namespace);
@@ -224,20 +271,8 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<Data>) -> Result<Ac
         _ => {}
     }
 
-    // Create statefulset
-    let statefulset = statefulset::statefulset_build(&rabbitmq);
-    info!(
-        "Create statefulset: {}",
-        statefulset.metadata.name.as_ref().unwrap()
-    );
-    match sts_api.create(&PostParams::default(), &statefulset).await {
-        Err(e) => match e {
-            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
-                if reason.clone() == "AlreadyExists" => {}
-            _ => return Err(Error::StatefulSetCreationFailed(e)),
-        },
-        _ => {}
-    }
+    // Reconcile statefulset
+    reconcile_stateful_set(&rabbitmq, client.clone()).await?;
 
     Ok(Action::requeue(Duration::from_secs(300)))
 }
