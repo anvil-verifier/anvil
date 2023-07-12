@@ -91,12 +91,15 @@ async fn reconcile_stateful_set(rabbitmq: &RabbitmqCluster, client: Client) -> R
             spec: sts.spec,
             ..old_sts
         };
-        // Scale up or no change
-        sts_api
-            .replace(sts_name, &PostParams::default(), &updated_sts)
-            .await
-            .map_err(Error::ReconcileStatefulSetFailed)?;
-
+        if updated_sts.spec.as_ref().unwrap().replicas.unwrap()
+            >= old_sts.spec.as_ref().unwrap().replicas.unwrap()
+        {
+            // Only scale up is supported.
+            sts_api
+                .replace(sts_name, &PostParams::default(), &updated_sts)
+                .await
+                .map_err(Error::ReconcileStatefulSetFailed)?;
+        }
         Ok(())
     } else {
         info!("Create statefulset: {}", sts_name);
