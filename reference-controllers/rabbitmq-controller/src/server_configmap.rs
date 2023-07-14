@@ -32,7 +32,7 @@ pub fn server_configmap_build(rabbitmq: &RabbitmqCluster) -> corev1::ConfigMap {
                 default_rbmq_config(rabbitmq),
             ),
             (
-                "userDefineConfiguration.conf".to_string(),
+                "userDefinedConfiguration.conf".to_string(),
                 default_user_config(),
             ),
         ])),
