@@ -30,7 +30,7 @@ use crate::reconciler::spec::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::zookeeper_controller::{
     common::ZookeeperReconcileStep,
-    proof::{common::*, safety::*},
+    proof::common::*,
     spec::{reconciler::*, zookeepercluster::*},
 };
 use vstd::prelude::*;
