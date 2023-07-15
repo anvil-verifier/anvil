@@ -48,20 +48,9 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, rabbi
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(no_pending_req_at_reconcile_init_state::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(rabbitmq.object_ref())))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateHeadlessService))))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateService))))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateErlangCookieSecret))))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateDefaultUserSecret))))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreatePluginsConfigMap))))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterGetServerConfigMap))))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateServerConfigMap))))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterUpdateServerConfigMap))))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateServiceAccount))))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateRole))))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateRoleBinding))))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterGetStatefulSet))))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterCreateStatefulSet))))),
-        spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), rabbitmq_reconcile_state(RabbitmqReconcileStep::AfterUpdateStatefulSet))))),
+        forall |step: RabbitmqReconcileStep|
+        step != RabbitmqReconcileStep::Init && step != RabbitmqReconcileStep::Error && step != RabbitmqReconcileStep::Done
+        ==> spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), #[trigger] rabbitmq_reconcile_state(step))))),
     ensures
         spec.entails(
             true_pred().leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(rabbitmq.object_ref())))

@@ -27,7 +27,7 @@ use crate::kubernetes_cluster::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::zookeeper_controller::{
     common::*,
-    proof::{common::*, safety, terminate},
+    proof::{common::*, liveness::helper_invariants, liveness::terminate},
     spec::{reconciler::*, zookeepercluster::*},
 };
 use vstd::prelude::*;
@@ -125,8 +125,8 @@ spec fn invariants(zk: ZookeeperClusterView) -> TempPred<ClusterState> {
     .and(always(lift_state(cluster_safety::each_object_in_etcd_is_well_formed())))
     .and(always(lift_state(cluster_safety::each_scheduled_key_is_consistent_with_its_object())))
     .and(always(lift_state(cluster_safety::each_key_in_reconcile_is_consistent_with_its_object())))
-    .and(always(lift_state(safety::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref()))))
-    .and(always(lift_state(safety::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref()))))
+    .and(always(lift_state(helper_invariants::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref()))))
+    .and(always(lift_state(helper_invariants::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref()))))
     .and(always(lift_state(controller_runtime::no_pending_req_at_reconcile_init_state::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref()))))
     .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconcileState>(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterUpdateStatefulSet)))))
     .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconcileState>(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateStatefulSet)))))
@@ -149,8 +149,8 @@ proof fn invariants_is_stable(zk: ZookeeperClusterView)
         lift_state(cluster_safety::each_object_in_etcd_is_well_formed::<ZookeeperClusterView, ZookeeperReconcileState>()),
         lift_state(cluster_safety::each_scheduled_key_is_consistent_with_its_object::<ZookeeperClusterView, ZookeeperReconcileState>()),
         lift_state(cluster_safety::each_key_in_reconcile_is_consistent_with_its_object::<ZookeeperClusterView, ZookeeperReconcileState>()),
-        lift_state(safety::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref())),
-        lift_state(safety::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref())),
+        lift_state(helper_invariants::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref())),
+        lift_state(helper_invariants::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref())),
         lift_state(controller_runtime::no_pending_req_at_reconcile_init_state::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref())),
         lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconcileState>(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterUpdateStatefulSet))),
         lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconcileState>(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateStatefulSet))),
@@ -168,10 +168,10 @@ proof fn invariants_is_stable(zk: ZookeeperClusterView)
 // Some of these invariants are also based on the assumptions.
 spec fn invariants_since_rest_id(zk: ZookeeperClusterView, rest_id: RestId) -> TempPred<ClusterState> {
     always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
-    .and(always(lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))))
-    .and(always(lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))))
-    .and(always(lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))))
-    .and(always(lift_state(safety::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id))))
+    .and(always(lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))))
+    .and(always(lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))))
+    .and(always(lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))))
+    .and(always(lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id))))
 }
 
 proof fn invariants_since_rest_id_is_stable(zk: ZookeeperClusterView, rest_id: RestId)
@@ -180,10 +180,10 @@ proof fn invariants_since_rest_id_is_stable(zk: ZookeeperClusterView, rest_id: R
 {
     stable_and_always_n!(
         lift_state(rest_id_counter_is_no_smaller_than::<ZookeeperClusterView, ZookeeperReconcileState>(rest_id)),
-        lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
-        lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
-        lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
-        lift_state(safety::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id))
+        lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
+        lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
+        lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
+        lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id))
     );
 }
 
@@ -415,8 +415,8 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
             cluster_safety::lemma_always_each_object_in_etcd_is_well_formed::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec);
             cluster_safety::lemma_always_each_scheduled_key_is_consistent_with_its_object::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec);
             cluster_safety::lemma_always_each_key_in_reconcile_is_consistent_with_its_object::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec);
-            safety::lemma_always_pending_msg_at_after_create_stateful_set_step_is_create_sts_req(spec, zk.object_ref());
-            safety::lemma_always_pending_msg_at_after_update_stateful_set_step_is_update_sts_req(spec, zk.object_ref());
+            helper_invariants::lemma_always_pending_msg_at_after_create_stateful_set_step_is_create_sts_req(spec, zk.object_ref());
+            helper_invariants::lemma_always_pending_msg_at_after_update_stateful_set_step_is_update_sts_req(spec, zk.object_ref());
             controller_runtime_safety::lemma_always_no_pending_req_at_reconcile_init_state::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk.object_ref());
             controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterUpdateStatefulSet));
             controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateStatefulSet));
@@ -435,8 +435,8 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
                 always(lift_state(cluster_safety::each_object_in_etcd_is_well_formed())),
                 always(lift_state(cluster_safety::each_scheduled_key_is_consistent_with_its_object())),
                 always(lift_state(cluster_safety::each_key_in_reconcile_is_consistent_with_its_object())),
-                always(lift_state(safety::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref()))),
-                always(lift_state(safety::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref()))),
+                always(lift_state(helper_invariants::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref()))),
+                always(lift_state(helper_invariants::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref()))),
                 always(lift_state(controller_runtime::no_pending_req_at_reconcile_init_state::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(zk.object_ref()))),
                 always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconcileState>(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterUpdateStatefulSet)))),
                 always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconcileState>(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateStatefulSet)))),
@@ -521,22 +521,22 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_from_idle_with_rest
         spec.entails(invariants_since_rest_id(zk, rest_id)),
         {
             eliminate_always(spec, lift_state(controller_runtime_safety::every_in_flight_msg_has_lower_id_than_allocator()));
-            eliminate_always(spec, lift_state(safety::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref())));
-            eliminate_always(spec, lift_state(safety::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref())));
+            eliminate_always(spec, lift_state(helper_invariants::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref())));
+            eliminate_always(spec, lift_state(helper_invariants::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref())));
 
             cluster_safety::lemma_always_rest_id_counter_is_no_smaller_than::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(spec, rest_id);
-            safety::lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(spec, zk.object_ref(), rest_id);
-            safety::lemma_always_at_most_one_update_sts_req_since_rest_id_is_in_flight(spec, zk.object_ref(), rest_id);
-            safety::lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(spec, zk.object_ref(), rest_id);
-            safety::lemma_always_every_update_sts_req_since_rest_id_does_the_same(spec, zk, rest_id);
+            helper_invariants::lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(spec, zk.object_ref(), rest_id);
+            helper_invariants::lemma_always_at_most_one_update_sts_req_since_rest_id_is_in_flight(spec, zk.object_ref(), rest_id);
+            helper_invariants::lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(spec, zk.object_ref(), rest_id);
+            helper_invariants::lemma_always_every_update_sts_req_since_rest_id_does_the_same(spec, zk, rest_id);
 
             entails_and_n!(
                 spec,
                 always(lift_state(rest_id_counter_is_no_smaller_than(rest_id))),
-                always(lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))),
-                always(lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))),
-                always(lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))),
-                always(lift_state(safety::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id)))
+                always(lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))),
+                always(lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))),
+                always(lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))),
+                always(lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id)))
             );
         }
     );
@@ -1319,8 +1319,8 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
         spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))),
-        spec.entails(always(lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
-        spec.entails(always(lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
+        spec.entails(always(lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
         zk.well_formed(),
     ensures
         spec.entails(
@@ -1357,8 +1357,8 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
         &&& busy_disabled()(s)
         &&& controller_runtime_safety::every_in_flight_msg_has_unique_id()(s)
         &&& kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)(s)
-        &&& safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
-        &&& safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
+        &&& helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
+        &&& helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
     };
     entails_always_and_n!(
         spec,
@@ -1367,8 +1367,8 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
         lift_state(busy_disabled()),
         lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()),
         lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)),
-        lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
-        lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))
+        lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
+        lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))
     );
     temp_pred_equality(
         lift_action(stronger_next),
@@ -1377,8 +1377,8 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
         .and(lift_state(busy_disabled()))
         .and(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))
         .and(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))
-        .and(lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
-        .and(lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
+        .and(lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
+        .and(lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1427,8 +1427,8 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
         spec.entails(always(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))),
         spec.entails(always(lift_state(cluster_safety::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
-        spec.entails(always(lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
+        spec.entails(always(lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
         zk.well_formed(),
     ensures
         spec.entails(
@@ -1467,8 +1467,8 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         &&& controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())(s)
         &&& kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)(s)
         &&& cluster_safety::each_object_in_etcd_is_well_formed()(s)
-        &&& safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
-        &&& safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
+        &&& helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
+        &&& helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
     };
 
     entails_always_and_n!(
@@ -1480,8 +1480,8 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())),
         lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)),
         lift_state(cluster_safety::each_object_in_etcd_is_well_formed()),
-        lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
-        lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))
+        lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
+        lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))
     );
     temp_pred_equality(
         lift_action(stronger_next),
@@ -1492,8 +1492,8 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         .and(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))
         .and(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))
         .and(lift_state(cluster_safety::each_object_in_etcd_is_well_formed()))
-        .and(lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
-        .and(lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
+        .and(lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
+        .and(lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
     );
 
     controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(
@@ -1513,8 +1513,8 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))),
         spec.entails(always(lift_state(cluster_safety::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
-        spec.entails(always(lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
+        spec.entails(always(lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
         zk.well_formed(),
     ensures
         spec.entails(
@@ -1552,8 +1552,8 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
         &&& controller_runtime_safety::every_in_flight_msg_has_unique_id()(s)
         &&& kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)(s)
         &&& cluster_safety::each_object_in_etcd_is_well_formed()(s)
-        &&& safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
-        &&& safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
+        &&& helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
+        &&& helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
     };
     entails_always_and_n!(
         spec,
@@ -1563,8 +1563,8 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
         lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()),
         lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)),
         lift_state(cluster_safety::each_object_in_etcd_is_well_formed()),
-        lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
-        lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))
+        lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
+        lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))
     );
     temp_pred_equality(
         lift_action(stronger_next),
@@ -1574,8 +1574,8 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
         .and(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))
         .and(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))
         .and(lift_state(cluster_safety::each_object_in_etcd_is_well_formed()))
-        .and(lift_state(safety::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
-        .and(lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
+        .and(lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
+        .and(lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1608,7 +1608,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_zk(
         spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))),
-        spec.entails(always(lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
+        spec.entails(always(lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
         zk.well_formed(),
     ensures
         spec.entails(
@@ -1641,7 +1641,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_zk(
         &&& busy_disabled()(s)
         &&& controller_runtime_safety::every_in_flight_msg_has_unique_id()(s)
         &&& kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)(s)
-        &&& safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
+        &&& helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
     };
     entails_always_and_n!(
         spec,
@@ -1650,7 +1650,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_zk(
         lift_state(busy_disabled()),
         lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()),
         lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)),
-        lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))
+        lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))
     );
     temp_pred_equality(
         lift_action(stronger_next),
@@ -1659,7 +1659,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_zk(
         .and(lift_state(busy_disabled()))
         .and(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))
         .and(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))
-        .and(lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
+        .and(lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1706,7 +1706,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_create_stateful_set_ste
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
         spec.entails(always(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))),
-        spec.entails(always(lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
+        spec.entails(always(lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
         zk.well_formed(),
     ensures
         spec.entails(
@@ -1739,7 +1739,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_create_stateful_set_ste
         &&& controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())(s)
         &&& controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())(s)
         &&& kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)(s)
-        &&& safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
+        &&& helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
     };
 
     entails_always_and_n!(
@@ -1749,7 +1749,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_create_stateful_set_ste
         lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())),
         lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())),
         lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)),
-        lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))
+        lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))
     );
     temp_pred_equality(
         lift_action(stronger_next),
@@ -1758,7 +1758,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_create_stateful_set_ste
         .and(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))
         .and(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))
         .and(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))
-        .and(lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
+        .and(lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
     );
 
     controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(
@@ -1777,7 +1777,7 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_zk(
         spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))),
-        spec.entails(always(lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
+        spec.entails(always(lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
         zk.well_formed(),
     ensures
         spec.entails(
@@ -1812,7 +1812,7 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_zk(
         &&& busy_disabled()(s)
         &&& controller_runtime_safety::every_in_flight_msg_has_unique_id()(s)
         &&& kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)(s)
-        &&& safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
+        &&& helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
     };
     entails_always_and_n!(
         spec,
@@ -1821,7 +1821,7 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_zk(
         lift_state(busy_disabled()),
         lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()),
         lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)),
-        lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))
+        lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))
     );
     temp_pred_equality(
         lift_action(stronger_next),
@@ -1830,7 +1830,7 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_zk(
         .and(lift_state(busy_disabled()))
         .and(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))
         .and(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))
-        .and(lift_state(safety::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
+        .and(lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1860,8 +1860,8 @@ proof fn lemma_stateful_set_is_stable(
         spec.entails(p.leads_to(lift_state(current_state_matches(zk)))),
         spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()))),
         spec.entails(always(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))),
-        spec.entails(always(lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
-        spec.entails(always(lift_state(safety::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id)))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))),
+        spec.entails(always(lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id)))),
     ensures
         spec.entails(p.leads_to(always(lift_state(current_state_matches(zk))))),
 {
@@ -1869,22 +1869,22 @@ proof fn lemma_stateful_set_is_stable(
     let stronger_next = |s, s_prime: ClusterState| {
         &&& next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()(s, s_prime)
         &&& kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)(s)
-        &&& safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
-        &&& safety::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id)(s)
+        &&& helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)(s)
+        &&& helper_invariants::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id)(s)
     };
     entails_always_and_n!(
         spec,
         lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()),
         lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)),
-        lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
-        lift_state(safety::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id))
+        lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
+        lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id))
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>())
         .and(lift_state(kubernetes_api_liveness::no_req_before_rest_id_is_in_flight(rest_id)))
-        .and(lift_state(safety::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
-        .and(lift_state(safety::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id)))
+        .and(lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
+        .and(lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(zk, rest_id)))
     );
 
     assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
