@@ -27,7 +27,7 @@ use crate::kubernetes_cluster::{
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::zookeeper_controller::{
     common::*,
-    proof::{common::*, liveness::invariants as specific_invariants, liveness::terminate},
+    proof::common::*,
     spec::{reconciler::*, zookeepercluster::*},
 };
 use vstd::prelude::*;
