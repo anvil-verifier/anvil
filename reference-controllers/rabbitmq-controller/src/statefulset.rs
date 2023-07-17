@@ -225,7 +225,10 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
         },
     ];
 
-    let image_used = Some(String::from("rabbitmq:3.11.10-management"));
+    let mut image_used = Some(String::from("rabbitmq:3.11.10-management"));
+    if rabbitmq.spec.image.is_some() {
+        image_used = rabbitmq.spec.image.clone();
+    }
 
     let rabbitmq_uid = 999 as i64;
     let pod_template_spec = corev1::PodTemplateSpec{
@@ -321,7 +324,7 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
     pod_template_spec
 }
 
-fn setup_container(_rabbitmq: &RabbitmqCluster) -> corev1::Container{
+fn setup_container(rabbitmq: &RabbitmqCluster) -> corev1::Container{
     let cpu_request = "100m".to_string();
     let mem_request = "500Mi".to_string();
     let command = vec![
@@ -331,7 +334,11 @@ fn setup_container(_rabbitmq: &RabbitmqCluster) -> corev1::Container{
 
     ];
 
-    let image_used = Some(String::from("rabbitmq:3.11.10-management"));
+    let mut image_used = Some(String::from("rabbitmq:3.11.10-management"));
+    if rabbitmq.spec.image.is_some() {
+        image_used = rabbitmq.spec.image.clone();
+    }
+    println!("image_used: {:?}", image_used);
     let setup_container = corev1::Container {
         name: "setup-container".to_string(),
         image: image_used,
