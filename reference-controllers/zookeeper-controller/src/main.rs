@@ -217,48 +217,51 @@ async fn reconcile_stateful_set(zk: &ZookeeperCluster, client: Client) -> Result
             ..old_sts
         };
         // Scale up or no change
-        sts_api
-            .replace(sts_name, &PostParams::default(), &updated_sts)
-            .await
-            .map_err(Error::ReconcileStatefulSetFailed)?;
-
         if updated_sts.spec.as_ref().unwrap().replicas.unwrap()
             < old_sts.spec.as_ref().unwrap().replicas.unwrap()
         {
             // Scale down
             info!("Scale down statefulset: {}", sts_name);
 
-            let cluster = zk.metadata.name.clone().unwrap()
-                + "-client."
-                + zk.metadata.namespace.as_ref().unwrap()
-                + ".svc.cluster.local:2181";
-            info!("Connecting to Zookeeper cluster: {}", cluster);
-            let client = zk::Client::connect(cluster.as_str(), Duration::from_secs(20))
-                .await
-                .map_err(Error::ZkClusterConnectFailed)?;
-
-            let (config_bytes, stat, watcher) = client.get_and_watch_config().await.unwrap();
-
-            let input = String::from_utf8(config_bytes).unwrap();
-            let num_servers_to_keep = updated_sts.spec.as_ref().unwrap().replicas.unwrap() as usize;
-
-            // split
-            let mut servers: Vec<&str> = input.split('\n').collect();
-            servers.pop(); // the last one is version, discard
-
-            let kept_servers: Vec<&str> = servers.into_iter().take(num_servers_to_keep).collect();
-
-            // use ',' to join
-            let final_config = kept_servers.join(",");
-
-            info!("Modified config: {}", final_config);
-            let strings = vec![final_config.as_str()];
-            let test_update = EnsembleUpdate::New {
-                ensemble: strings.iter().cloned(),
+            let path = cluster_size_zk_node_path(zk);
+            info!("Try to create {} node since all replicas are ready", path);
+            let zk_client = ZooKeeper::connect(
+                zk_service_uri(zk).as_str(),
+                Duration::from_secs(10),
+                LoggingWatcher,
+            )
+            .map_err(Error::ClusterSizeZKNodeCreationFailed)?;
+            match zk_client
+                .exists(&path, false)
+                .map_err(Error::ClusterSizeZKNodeCreationFailed)?
+            {
+                Some(_) => {
+                    // Update the cluster size
+                    zk_client
+                        .set_data(
+                            &path,
+                            format!(
+                                "CLUSTER_SIZE={}",
+                                updated_sts.spec.as_ref().unwrap().replicas.unwrap()
+                            )
+                            .as_str()
+                            .as_bytes()
+                            .to_vec(),
+                            Some(-1),
+                        )
+                        .map_err(Error::ClusterSizeZKNodeCreationFailed)?;
+                    info!(
+                        "Updated cluster size: {}",
+                        updated_sts.spec.as_ref().unwrap().replicas.unwrap()
+                    );
+                }
+                None => {}
             };
-            let result = client.update_ensemble(test_update, Some(-1));
-            result.await.map_err(Error::ZkClientCommandFailed)?;
         }
+        sts_api
+            .replace(sts_name, &PostParams::default(), &updated_sts)
+            .await
+            .map_err(Error::ReconcileStatefulSetFailed)?;
         Ok(())
     } else {
         info!("Create statefulset: {}", sts_name);
@@ -305,10 +308,7 @@ async fn reconcile_zk_node(zk: &ZookeeperCluster, client: Client) -> Result<(), 
                 zk_client
                     .create(
                         "/zookeeper-operator",
-                        format!("CLUSTER_SIZE={}", zk.spec.replicas)
-                            .as_str()
-                            .as_bytes()
-                            .to_vec(),
+                        "".as_bytes().to_vec(),
                         Acl::open_unsafe().clone(),
                         CreateMode::Persistent,
                     )
@@ -368,7 +368,7 @@ async fn reconcile(zk_from_cache: Arc<ZookeeperCluster>, ctx: Arc<Data>) -> Resu
     reconcile_admin_server_service(&zk, client.clone()).await?;
     reconcile_config_map(&zk, client.clone()).await?;
     reconcile_stateful_set(&zk, client.clone()).await?;
-    // reconcile_zk_node(&zk, client.clone()).await?;
+    reconcile_zk_node(&zk, client.clone()).await?;
 
     Ok(Action::requeue(Duration::from_secs(60)))
 }
