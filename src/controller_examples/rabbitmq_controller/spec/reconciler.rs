@@ -10,7 +10,7 @@ use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::spec::rabbitmqcluster::*;
-use crate::reconciler::spec::*;
+use crate::reconciler::spec::reconciler::*;
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use vstd::prelude::*;

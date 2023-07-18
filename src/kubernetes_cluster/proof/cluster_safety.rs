@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::{
     role::*, role_binding::*, secret::*, service::*, service_account::*, stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{cluster::*, message::*};
-use crate::reconciler::spec::Reconciler;
+use crate::reconciler::spec::reconciler::Reconciler;
 use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 

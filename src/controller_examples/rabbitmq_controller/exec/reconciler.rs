@@ -13,7 +13,7 @@ use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::rabbitmqcluster::*;
 use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
-use crate::reconciler::exec::*;
+use crate::reconciler::exec::reconciler::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
