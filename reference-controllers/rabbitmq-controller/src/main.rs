@@ -24,13 +24,17 @@ use k8s_openapi::api::{
     apps::v1 as appsv1, apps::v1::StatefulSet, core::v1::ConfigMap, core::v1::Service,
 };
 use kube::{
-    api::{Api, ApiResource, DynamicObject, GroupVersionKind, ListParams, PostParams},
+    api::{
+        Api, ApiResource, DynamicObject, GroupVersionKind, ListParams, Patch, PatchParams,
+        PostParams,
+    },
     client::ConfigExt,
     runtime::controller::{Action, Controller},
     Client, Config, CustomResourceExt,
 };
 use kube_client::{self, client};
 use kube_core::{self, ResourceExt};
+use serde_json::json;
 use std::str::FromStr;
 use std::{env, sync::Arc};
 use thiserror::Error;
@@ -62,6 +66,9 @@ enum Error {
 
     #[error("Failed to update annotation: {0}")]
     AnnotationUpdateFailed(#[source] kube::Error),
+
+    #[error("Failed to restart sts: {0}")]
+    RestartStatefulSetFailed(#[source] kube::Error),
 }
 
 struct Data {
@@ -95,10 +102,30 @@ async fn reconcile_stateful_set(rabbitmq: &RabbitmqCluster, client: &Client) -> 
         );
         let old_sts = sts_o.unwrap();
         info!("Update statefulset: {}", sts_name);
-        let updated_sts = StatefulSet {
+
+        let mut updated_sts = StatefulSet {
             spec: sts.spec,
-            ..old_sts
+            ..old_sts.clone()
         };
+        // restore the old template annotations
+        updated_sts
+            .spec
+            .as_mut()
+            .unwrap()
+            .template
+            .metadata
+            .as_mut()
+            .unwrap()
+            .annotations = old_sts
+            .spec
+            .as_ref()
+            .unwrap()
+            .template
+            .metadata
+            .as_ref()
+            .unwrap()
+            .annotations
+            .clone();
         if updated_sts.spec.as_ref().unwrap().replicas.unwrap()
             >= old_sts.spec.as_ref().unwrap().replicas.unwrap()
         {
@@ -200,6 +227,84 @@ async fn reconcile_server_config_map(
             .map_err(Error::ReconcileConfigMapFailed)?;
         Ok(())
     }
+}
+
+async fn restart_sts_if_needed(rabbitmq: &RabbitmqCluster, client: &Client) -> Result<(), Error> {
+    // Restart the statefulset if the server configmap is newer than the sts.
+    let cm_api = Api::<corev1::ConfigMap>::namespaced(
+        client.clone(),
+        rabbitmq.metadata.namespace.as_ref().unwrap(),
+    );
+    let server_config = server_configmap::server_configmap_build(&rabbitmq);
+    let server_config_name = server_config.metadata.name.as_ref().unwrap();
+    let server_config_o = cm_api
+        .get_opt(server_config_name)
+        .await
+        .map_err(Error::ReconcileConfigMapFailed)?;
+
+    let sts_api = Api::<appsv1::StatefulSet>::namespaced(
+        client.clone(),
+        rabbitmq.metadata.namespace.as_ref().unwrap(),
+    );
+    let sts = statefulset::statefulset_build(&rabbitmq);
+    let sts_name = sts.metadata.name.as_ref().unwrap();
+    let sts_o = sts_api
+        .get_opt(sts_name)
+        .await
+        .map_err(Error::ReconcileStatefulSetFailed)?;
+
+    let server_config_updatedat = match server_config_o.clone().unwrap().metadata.annotations {
+        Some(annotations) => annotations.get("updatedAt").cloned(),
+        None => None,
+    };
+
+    if !server_config_updatedat.is_some() {
+        // If the server configmap is not updated, return.
+        return Ok(());
+    }
+
+    let sts_restartedat = match sts_o
+        .clone()
+        .unwrap()
+        .spec
+        .unwrap()
+        .template
+        .metadata
+        .unwrap()
+        .annotations
+    {
+        Some(annotations) => annotations.get("restartedAt").cloned(),
+        None => None,
+    };
+
+    if sts_restartedat.is_some()
+        && sts_restartedat.clone().unwrap() > server_config_updatedat.clone().unwrap()
+    {
+        // sts was updated after the last server-conf configmap update; no need to restart sts
+        return Ok(());
+    }
+
+    // Restart the sts by changing the pod template.
+    let patch = Patch::Merge(json!({
+        "spec": {
+            "template": {
+                "metadata": {
+                    "annotations": {
+                        "restartedAt": Utc::now().to_rfc3339(),
+                    },
+                },
+            },
+        },
+    }));
+
+    let pp = PatchParams::default();
+
+    sts_api
+        .patch(sts_name, &pp, &patch)
+        .await
+        .map_err(Error::RestartStatefulSetFailed)?;
+    info!("Restart statefulset: {}", sts_name);
+    Ok(())
 }
 
 async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<Data>) -> Result<Action, Error> {
@@ -357,6 +462,7 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<Data>) -> Result<Ac
     reconcile_stateful_set(&rabbitmq, &client).await?;
 
     // Check if restart is needed
+    restart_sts_if_needed(&rabbitmq, &client).await?;
 
     Ok(Action::requeue(Duration::from_secs(300)))
 }
