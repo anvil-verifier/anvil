@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::{
     resource::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
-use crate::reconciler::spec::reconciler::*;
+use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::simple_controller::common::*;
 use crate::simple_controller::spec::custom_resource::*;
 use crate::state_machine::{action::*, state_machine::*};
@@ -28,13 +28,15 @@ pub struct SimpleReconcileState {
 pub struct SimpleReconciler {}
 
 impl Reconciler<CustomResourceView, SimpleReconcileState> for SimpleReconciler {
+    type LibInputType = ();
+    type LibOutputType = ();
     open spec fn reconcile_init_state() -> SimpleReconcileState {
         reconcile_init_state()
     }
 
     open spec fn reconcile_core(
-        cr: CustomResourceView, resp_o: Option<APIResponse>, state: SimpleReconcileState
-    ) -> (SimpleReconcileState, Option<APIRequest>) {
+        cr: CustomResourceView, resp_o: Option<ResponseView<()>>, state: SimpleReconcileState
+    ) -> (SimpleReconcileState, Option<RequestView<()>>) {
         reconcile_core(cr, resp_o, state)
     }
 
@@ -76,8 +78,8 @@ pub open spec fn reconcile_error(state: SimpleReconcileState) -> bool {
 /// it sends requests to create a configmap for the cr.
 /// TODO: make the reconcile_core create more resources such as a statefulset
 pub open spec fn reconcile_core(
-    cr: CustomResourceView, resp_o: Option<APIResponse>, state: SimpleReconcileState
-) -> (SimpleReconcileState, Option<APIRequest>)
+    cr: CustomResourceView, resp_o: Option<ResponseView<()>>, state: SimpleReconcileState
+) -> (SimpleReconcileState, Option<RequestView<()>>)
     recommends
         cr.metadata.name.is_Some(),
         cr.metadata.namespace.is_Some(),
@@ -89,7 +91,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: SimpleReconcileStep::AfterCreateConfigMap,
                 ..state
             };
-            let req_o = Option::Some(create_cm_req(cr));
+            let req_o = Option::Some(RequestView::KRequest(create_cm_req(cr)));
             (state_prime, req_o)
         }
         _ => {

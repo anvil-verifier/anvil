@@ -20,15 +20,7 @@ pub enum ZookeeperReconcileStep {
 }
 
 pub enum Error {
-    CRGetFailed,
-    ReconcileConfigMapFailed,
-    ReconcileServiceFailed,
-    ReconcileStatefulSetFailed,
-    ZkClientCommandFailed,
-    ZkClusterConnectFailed,
-    GetStatefulSetFailed,
     ClusterSizeZKNodeCreationFailed,
-    MissingObjectKey(String),
 }
 
 }
