@@ -15,6 +15,7 @@ pub trait ExternalLibrary<InputType: View, OutputType: View> {
 
 // An empty library that implements External Library.
 // This can be used by those controllers that don't rely on a third-party library.
+// Users can define a reconciler as Reconciler<xx, xx, EmptyMsg, EmptyMsg, EmptyLib>.
 pub struct EmptyLib {}
 
 impl ExternalLibrary<EmptyMsg, EmptyMsg> for EmptyLib {
