@@ -25,8 +25,8 @@ pub trait Reconciler<#[verifier(maybe_negative)] K: ResourceView, #[verifier(may
     // reconcile_core describes the logic of reconcile function and is the key logic we want to verify.
     // Each reconcile_core should take the local state and a response of the previous request (if any) as input
     // and outputs the next local state and the request to send to Kubernetes API (if any).
-    open spec fn reconcile_core(cr: K, resp_o: Option<ResponseView<Self::LibOutputType>>, state: T) 
-        -> (T, Option<ReceiverView<Self::LibInputType>>);
+    open spec fn reconcile_core(cr: K, resp_o: Option<ResponseView<Self::LibOutputType>>, state: T)
+        -> (T, Option<RequestView<Self::LibInputType>>);
 
     // reconcile_done is used to tell the controller_runtime whether this reconcile round is done.
     // If it is true, controller_runtime will probably requeue the reconcile.

@@ -8,14 +8,14 @@ use vstd::prelude::*;
 verus! {
 
 #[is_variant]
-pub enum ReceiverView<T> {
-    KubernetesAPI(APIRequest),
-    ExternalReceiver(T),
+pub enum RequestView<T> {
+    KRequest(APIRequest),
+    ExternalRequest(T),
 }
 
 #[is_variant]
 pub enum ResponseView<T> {
-    KubernetesAPI(APIResponse),
+    KResponse(APIResponse),
     ExternalResponse(T),
 }
 

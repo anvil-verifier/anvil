@@ -45,7 +45,7 @@ impl Reconciler<ZookeeperCluster, ZookeeperReconcileState, EmptyMsg, EmptyMsg, E
 
     fn reconcile_core(
         &self, zk: &ZookeeperCluster, resp_o: Option<Response<EmptyMsg>>, state: ZookeeperReconcileState
-    ) -> (ZookeeperReconcileState, Option<Receiver<EmptyMsg>>) {
+    ) -> (ZookeeperReconcileState, Option<Request<EmptyMsg>>) {
         reconcile_core(zk, resp_o, state)
     }
 
@@ -95,7 +95,7 @@ pub fn reconcile_error(state: &ZookeeperReconcileState) -> (res: bool)
 
 pub fn reconcile_core(
     zk: &ZookeeperCluster, resp_o: Option<Response<EmptyMsg>>, state: ZookeeperReconcileState
-) -> (res: (ZookeeperReconcileState, Option<Receiver<EmptyMsg>>))
+) -> (res: (ZookeeperReconcileState, Option<Request<EmptyMsg>>))
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
@@ -115,7 +115,7 @@ pub fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateHeadlessService,
                 ..state
             };
-            return (state_prime, Option::Some(Receiver::KubernetesAPI(req_o)));
+            return (state_prime, Option::Some(Request::KRequest(req_o)));
         },
         ZookeeperReconcileStep::AfterCreateHeadlessService => {
             let client_service = make_client_service(zk);
@@ -128,7 +128,7 @@ pub fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateClientService,
                 ..state
             };
-            return (state_prime, Option::Some(Receiver::KubernetesAPI(req_o)));
+            return (state_prime, Option::Some(Request::KRequest(req_o)));
         },
         ZookeeperReconcileStep::AfterCreateClientService => {
             let admin_server_service = make_admin_server_service(zk);
@@ -141,7 +141,7 @@ pub fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateAdminServerService,
                 ..state
             };
-            return (state_prime, Option::Some(Receiver::KubernetesAPI(req_o)));
+            return (state_prime, Option::Some(Request::KRequest(req_o)));
         },
         ZookeeperReconcileStep::AfterCreateAdminServerService => {
             let config_map = make_config_map(zk);
@@ -154,7 +154,7 @@ pub fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateConfigMap,
                 ..state
             };
-            return (state_prime, Option::Some(Receiver::KubernetesAPI(req_o)));
+            return (state_prime, Option::Some(Request::KRequest(req_o)));
         },
         ZookeeperReconcileStep::AfterCreateConfigMap => {
             let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
@@ -166,13 +166,13 @@ pub fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
                 ..state
             };
-            return (state_prime, Option::Some(Receiver::KubernetesAPI(req_o)));
+            return (state_prime, Option::Some(Request::KRequest(req_o)));
         },
         ZookeeperReconcileStep::AfterGetStatefulSet => {
-            if resp_o.is_some() && resp_o.as_ref().unwrap().is_kubernetes_api()
-            && resp_o.as_ref().unwrap().as_kubernetes_api_ref().is_get_response() {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
                 let stateful_set = make_stateful_set(zk);
-                let get_sts_resp = resp_o.unwrap().into_kubernetes_api().into_get_response().res;
+                let get_sts_resp = resp_o.unwrap().into_k_response().into_get_response().res;
                 if get_sts_resp.is_ok() {
                     // update
                     let found_stateful_set = StatefulSet::from_dynamic_object(get_sts_resp.unwrap());
@@ -189,7 +189,7 @@ pub fn reconcile_core(
                             reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
                             ..state
                         };
-                        return (state_prime, Option::Some(Receiver::KubernetesAPI(req_o)));
+                        return (state_prime, Option::Some(Request::KRequest(req_o)));
                     }
                 } else if get_sts_resp.unwrap_err().is_object_not_found() {
                     // create
@@ -202,7 +202,7 @@ pub fn reconcile_core(
                         reconcile_step: ZookeeperReconcileStep::AfterCreateStatefulSet,
                         ..state
                     };
-                    return (state_prime, Option::Some(Receiver::KubernetesAPI(req_o)));
+                    return (state_prime, Option::Some(Request::KRequest(req_o)));
                 }
             }
             // return error state

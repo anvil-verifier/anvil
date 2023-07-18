@@ -34,7 +34,7 @@ impl Reconciler<ZookeeperClusterView, ZookeeperReconcileState> for ZookeeperReco
 
     open spec fn reconcile_core(
         zk: ZookeeperClusterView, resp_o: Option<ResponseView<()>>, state: ZookeeperReconcileState
-    ) -> (ZookeeperReconcileState, Option<ReceiverView<()>>) {
+    ) -> (ZookeeperReconcileState, Option<RequestView<()>>) {
         reconcile_core(zk, resp_o, state)
     }
 
@@ -69,7 +69,7 @@ pub open spec fn reconcile_error(state: ZookeeperReconcileState) -> bool {
 
 pub open spec fn reconcile_core(
     zk: ZookeeperClusterView, resp_o: Option<ResponseView<()>>, state: ZookeeperReconcileState
-) -> (ZookeeperReconcileState, Option<ReceiverView<()>>)
+) -> (ZookeeperReconcileState, Option<RequestView<()>>)
     recommends
         zk.metadata.name.is_Some(),
         zk.metadata.namespace.is_Some(),
@@ -86,7 +86,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateHeadlessService,
                 ..state
             };
-            (state_prime, Option::Some(ReceiverView::KubernetesAPI(req_o)))
+            (state_prime, Option::Some(RequestView::KRequest(req_o)))
         },
         ZookeeperReconcileStep::AfterCreateHeadlessService => {
             let client_service = make_client_service(zk);
@@ -98,7 +98,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateClientService,
                 ..state
             };
-            (state_prime, Option::Some(ReceiverView::KubernetesAPI(req_o)))
+            (state_prime, Option::Some(RequestView::KRequest(req_o)))
         },
         ZookeeperReconcileStep::AfterCreateClientService => {
             let admin_server_service = make_admin_server_service(zk);
@@ -110,7 +110,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateAdminServerService,
                 ..state
             };
-            (state_prime, Option::Some(ReceiverView::KubernetesAPI(req_o)))
+            (state_prime, Option::Some(RequestView::KRequest(req_o)))
         },
         ZookeeperReconcileStep::AfterCreateAdminServerService => {
             let config_map = make_config_map(zk);
@@ -122,7 +122,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateConfigMap,
                 ..state
             };
-            (state_prime, Option::Some(ReceiverView::KubernetesAPI(req_o)))
+            (state_prime, Option::Some(RequestView::KRequest(req_o)))
         },
         ZookeeperReconcileStep::AfterCreateConfigMap => {
             let req_o = APIRequest::GetRequest(GetRequest{
@@ -136,12 +136,12 @@ pub open spec fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
                 ..state
             };
-            (state_prime, Option::Some(ReceiverView::KubernetesAPI(req_o)))
+            (state_prime, Option::Some(RequestView::KRequest(req_o)))
         },
         ZookeeperReconcileStep::AfterGetStatefulSet => {
-            if resp_o.is_Some() && resp_o.get_Some_0().is_KubernetesAPI()
-            && resp_o.get_Some_0().get_KubernetesAPI_0().is_GetResponse() {
-                let get_sts_resp = resp_o.get_Some_0().get_KubernetesAPI_0().get_GetResponse_0().res;
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
+            && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
+                let get_sts_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
                 if get_sts_resp.is_Ok() {
                     // update
                     if StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).is_Ok() {
@@ -154,7 +154,7 @@ pub open spec fn reconcile_core(
                             reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
                             ..state
                         };
-                        (state_prime, Option::Some(ReceiverView::KubernetesAPI(req_o)))
+                        (state_prime, Option::Some(RequestView::KRequest(req_o)))
                     } else {
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::Error,
@@ -172,7 +172,7 @@ pub open spec fn reconcile_core(
                         reconcile_step: ZookeeperReconcileStep::AfterCreateStatefulSet,
                         ..state
                     };
-                    (state_prime, Option::Some(ReceiverView::KubernetesAPI(req_o)))
+                    (state_prime, Option::Some(RequestView::KRequest(req_o)))
                 } else {
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::Error,

@@ -131,7 +131,7 @@ where
         // Pattern match the request and send requests to the Kubernetes API via kube-rs methods
         match receiver_option {
             Option::Some(receiver) => match receiver {
-                Receiver::KubernetesAPI(req) => {
+                Request::KRequest(req) => {
                     let kube_resp: KubeAPIResponse;
                     match req {
                         KubeAPIRequest::GetRequest(get_req) => {
@@ -199,9 +199,9 @@ where
                             panic!("Not supported yet");
                         }
                     }
-                    resp_option = Option::Some(Response::KubernetesAPI(kube_resp));
+                    resp_option = Option::Some(Response::KResponse(kube_resp));
                 },
-                Receiver::ExternalReceiver(req) => {
+                Request::ExternalRequest(req) => {
                     let ret = Lib::process(req);
                     resp_option = if ret.is_some() {Option::Some(Response::ExternalResponse(ret.unwrap()))} else {Option::None};
                 },
