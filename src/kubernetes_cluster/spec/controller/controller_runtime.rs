@@ -61,7 +61,7 @@ pub open spec fn continue_reconcile<K: ResourceView, T, ReconcilerType: Reconcil
         },
         transition: |input: ControllerActionInput, s: ControllerState<K, T>| {
             let resp_o = if input.recv.is_Some() {
-                Option::Some(input.recv.get_Some_0().content.get_APIResponse_0())
+                Option::Some(ResponseView::KubernetesAPI(input.recv.get_Some_0().content.get_APIResponse_0()))
             } else {
                 Option::None
             };
@@ -70,8 +70,11 @@ pub open spec fn continue_reconcile<K: ResourceView, T, ReconcilerType: Reconcil
 
             let (local_state_prime, req_o) = ReconcilerType::reconcile_core(reconcile_state.triggering_cr, resp_o, reconcile_state.local_state);
 
-            let (rest_id_allocator_prime, pending_req_msg) = if req_o.is_Some() {
-                (input.rest_id_allocator.allocate().0, Option::Some(controller_req_msg(req_o.get_Some_0(), input.rest_id_allocator.allocate().1)))
+            let (rest_id_allocator_prime, pending_req_msg) = if req_o.is_Some() && req_o.get_Some_0().is_KubernetesAPI() {
+                (
+                    input.rest_id_allocator.allocate().0,
+                    Option::Some(controller_req_msg(req_o.get_Some_0().get_KubernetesAPI_0(), input.rest_id_allocator.allocate().1))
+                )
             } else {
                 (input.rest_id_allocator, Option::None)
             };
