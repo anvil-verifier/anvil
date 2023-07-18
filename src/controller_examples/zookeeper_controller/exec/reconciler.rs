@@ -8,7 +8,7 @@ use crate::kubernetes_api_objects::{
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
-use crate::reconciler::exec::{io::*, reconciler::*};
+use crate::reconciler::exec::{external::*, io::*, reconciler::*};
 use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::exec::zookeepercluster::*;
 use crate::zookeeper_controller::spec::reconciler as zk_spec;
@@ -36,25 +36,16 @@ impl ZookeeperReconcileState {
 
 pub struct ZookeeperReconciler {}
 
-pub struct EmptyReceiver {}
-
-impl View for EmptyReceiver {
-    type V = zk_spec::EmptyReceiverView;
-
-    spec fn view(&self) -> zk_spec::EmptyReceiverView {
-        zk_spec::EmptyReceiverView {}
-    }
-}
 
 #[verifier(external)]
-impl Reconciler<ZookeeperCluster, ZookeeperReconcileState, EmptyReceiver, EmptyReceiver> for ZookeeperReconciler {
+impl Reconciler<ZookeeperCluster, ZookeeperReconcileState, EmptyMsg, EmptyMsg, EmptyLib> for ZookeeperReconciler {
     fn reconcile_init_state(&self) -> ZookeeperReconcileState {
         reconcile_init_state()
     }
 
     fn reconcile_core(
-        &self, zk: &ZookeeperCluster, resp_o: Option<Response<EmptyReceiver>>, state: ZookeeperReconcileState
-    ) -> (ZookeeperReconcileState, Option<Receiver<EmptyReceiver>>) {
+        &self, zk: &ZookeeperCluster, resp_o: Option<Response<EmptyMsg>>, state: ZookeeperReconcileState
+    ) -> (ZookeeperReconcileState, Option<Receiver<EmptyMsg>>) {
         reconcile_core(zk, resp_o, state)
     }
 
@@ -64,10 +55,6 @@ impl Reconciler<ZookeeperCluster, ZookeeperReconcileState, EmptyReceiver, EmptyR
 
     fn reconcile_error(&self, state: &ZookeeperReconcileState) -> bool {
         reconcile_error(state)
-    }
-
-    fn helper_functions(&self, receiver: EmptyReceiver) -> Option<EmptyReceiver> {
-        return Option::None;
     }
 }
 
@@ -107,8 +94,8 @@ pub fn reconcile_error(state: &ZookeeperReconcileState) -> (res: bool)
 // TODO: make the shim layer pass zk, instead of zk_ref, to reconcile_core
 
 pub fn reconcile_core(
-    zk: &ZookeeperCluster, resp_o: Option<Response<EmptyReceiver>>, state: ZookeeperReconcileState
-) -> (res: (ZookeeperReconcileState, Option<Receiver<EmptyReceiver>>))
+    zk: &ZookeeperCluster, resp_o: Option<Response<EmptyMsg>>, state: ZookeeperReconcileState
+) -> (res: (ZookeeperReconcileState, Option<Receiver<EmptyMsg>>))
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),

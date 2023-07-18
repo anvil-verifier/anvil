@@ -24,20 +24,17 @@ pub struct ZookeeperReconcileState {
 
 pub struct ZookeeperReconciler {}
 
-
-pub struct EmptyReceiverView {}
-
 impl Reconciler<ZookeeperClusterView, ZookeeperReconcileState> for ZookeeperReconciler {
-    type ReceiverType = EmptyReceiverView;
-    type ResponseType = EmptyReceiverView;
+    type ReceiverType = ();
+    type ResponseType = ();
 
     open spec fn reconcile_init_state() -> ZookeeperReconcileState {
         reconcile_init_state()
     }
 
     open spec fn reconcile_core(
-        zk: ZookeeperClusterView, resp_o: Option<ResponseView<EmptyReceiverView>>, state: ZookeeperReconcileState
-    ) -> (ZookeeperReconcileState, Option<ReceiverView<EmptyReceiverView>>) {
+        zk: ZookeeperClusterView, resp_o: Option<ResponseView<()>>, state: ZookeeperReconcileState
+    ) -> (ZookeeperReconcileState, Option<ReceiverView<()>>) {
         reconcile_core(zk, resp_o, state)
     }
 
@@ -71,8 +68,8 @@ pub open spec fn reconcile_error(state: ZookeeperReconcileState) -> bool {
 }
 
 pub open spec fn reconcile_core(
-    zk: ZookeeperClusterView, resp_o: Option<ResponseView<EmptyReceiverView>>, state: ZookeeperReconcileState
-) -> (ZookeeperReconcileState, Option<ReceiverView<EmptyReceiverView>>)
+    zk: ZookeeperClusterView, resp_o: Option<ResponseView<()>>, state: ZookeeperReconcileState
+) -> (ZookeeperReconcileState, Option<ReceiverView<()>>)
     recommends
         zk.metadata.name.is_Some(),
         zk.metadata.namespace.is_Some(),

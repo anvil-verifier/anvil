@@ -11,20 +11,20 @@ pub enum Receiver<T: View> {
     KubernetesAPI(KubeAPIRequest),
     // Third-party libraries can also receive requests from reconciler.
     // The developers must define all the possible receivers and
-    OtherReceiver(T),
+    ExternalReceiver(T),
 }
 
 #[is_variant]
 pub enum Response<T: View> {
     KubernetesAPI(KubeAPIResponse),
-    OtherResponse(T),
+    ExternalResponse(T),
 }
 
 impl <T: View> Response<T> {
     pub open spec fn to_view(&self) -> ResponseView<T::V> {
         match self {
             Response::KubernetesAPI(resp) => ResponseView::KubernetesAPI(resp.to_view()),
-            Response::OtherResponse(resp) => ResponseView::OtherResponse(resp.view()),
+            Response::ExternalResponse(resp) => ResponseView::ExternalResponse(resp.view()),
         }
     }
 
@@ -67,7 +67,7 @@ impl <T: View> Receiver<T> {
     pub open spec fn to_view(&self) -> ReceiverView<T::V> {
         match self {
             Receiver::KubernetesAPI(req) => ReceiverView::KubernetesAPI(req.to_view()),
-            Receiver::OtherReceiver(req) => ReceiverView::OtherReceiver(req.view()),
+            Receiver::ExternalReceiver(req) => ReceiverView::ExternalReceiver(req.view()),
         }
     }
 }

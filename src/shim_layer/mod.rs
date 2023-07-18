@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
-use crate::reconciler::exec::{io::*, reconciler::*};
+use crate::reconciler::exec::{external::*, io::*, reconciler::*};
 use builtin::*;
 use builtin_macros::*;
 use core::fmt::Debug;
@@ -35,20 +35,20 @@ verus! {
 /// ReconcilerType: the reconciler type
 /// ReconcileStateType: the local state of the reconciler
 #[verifier(external)]
-pub async fn run_controller<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ReceiverType, ResponseType>() -> Result<()>
+pub async fn run_controller<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, I, O, Lib>() -> Result<()>
 where
     K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Send + Serialize + Sync + 'static,
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
     ResourceWrapperType: ResourceWrapper<K> + Send,
-    ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, ReceiverType, ResponseType> + Send + Sync + Default,
-    ReconcileStateType: Send, ReceiverType: Send + View, ResponseType: Send + View,
+    ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, I, O, Lib> + Send + Sync + Default,
+    ReconcileStateType: Send, I: Send + View, O: Send + View, Lib: ExternalLibrary<I, O>,
 {
     let client = Client::try_default().await?;
     let crs = Api::<K>::all(client.clone());
 
     // Build the async closure on top of reconcile_with
     let reconcile = |cr: Arc<K>, ctx: Arc<Data>| async move {
-        return reconcile_with::<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ReceiverType, ResponseType>(
+        return reconcile_with::<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, I, O, Lib>(
             &ReconcilerType::default(), cr, ctx
         ).await;
     };
@@ -79,15 +79,15 @@ where
 /// or encounters error (reconciler.reconcile_error).
 
 #[verifier(external)]
-pub async fn reconcile_with<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ReceiverType, ResponseType>(
+pub async fn reconcile_with<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, I, O, Lib>(
     reconciler: &ReconcilerType, cr: Arc<K>, ctx: Arc<Data>
 ) -> Result<Action, Error>
 where
     K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Serialize,
     K::DynamicType: Default + Clone + Debug,
     ResourceWrapperType: ResourceWrapper<K>,
-    ReceiverType: View, ResponseType: View,
-    ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, ReceiverType, ResponseType>,
+    I: View, O: View, Lib: ExternalLibrary<I, O>,
+    ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, I, O, Lib>,
 {
     let client = &ctx.client;
 
@@ -113,7 +113,7 @@ where
 
     let cr_wrapper = ResourceWrapperType::from_kube(cr);
     let mut state = reconciler.reconcile_init_state();
-    let mut resp_option: Option<Response<ResponseType>> = Option::None;
+    let mut resp_option: Option<Response<O>> = Option::None;
 
     // Call reconcile_core in a loop
     loop {
@@ -201,9 +201,9 @@ where
                     }
                     resp_option = Option::Some(Response::KubernetesAPI(kube_resp));
                 },
-                Receiver::OtherReceiver(req) => {
-                    let ret = reconciler.helper_functions(req);
-                    resp_option = if ret.is_some() {Option::Some(Response::OtherResponse(ret.unwrap()))} else {Option::None};
+                Receiver::ExternalReceiver(req) => {
+                    let ret = Lib::process(req);
+                    resp_option = if ret.is_some() {Option::Some(Response::ExternalResponse(ret.unwrap()))} else {Option::None};
                 },
             },
             _ => resp_option = Option::None,

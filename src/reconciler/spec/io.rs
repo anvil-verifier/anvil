@@ -10,13 +10,13 @@ verus! {
 #[is_variant]
 pub enum ReceiverView<T> {
     KubernetesAPI(APIRequest),
-    OtherReceiver(T),
+    ExternalReceiver(T),
 }
 
 #[is_variant]
 pub enum ResponseView<T> {
     KubernetesAPI(APIResponse),
-    OtherResponse(T),
+    ExternalResponse(T),
 }
 
 }
