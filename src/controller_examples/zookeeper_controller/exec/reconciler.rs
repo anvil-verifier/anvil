@@ -10,7 +10,7 @@ use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::reconciler::exec::{external::*, io::*, reconciler::*};
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::exec::zookeepercluster::*;
+use crate::zookeeper_controller::exec::{common::*, zookeepercluster::*};
 use crate::zookeeper_controller::spec::reconciler as zk_spec;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -281,7 +281,7 @@ fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
         );
     }
 
-    make_service(zk, zk.metadata().name().unwrap().concat(new_strlit("-client")), ports, true)
+    make_service(zk, client_service_name(zk), ports, true)
 }
 
 /// Admin-server Service is used for client to connect to admin server

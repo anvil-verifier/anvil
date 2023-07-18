@@ -25,8 +25,8 @@ pub struct ZookeeperReconcileState {
 pub struct ZookeeperReconciler {}
 
 impl Reconciler<ZookeeperClusterView, ZookeeperReconcileState> for ZookeeperReconciler {
-    type ReceiverType = ();
-    type ResponseType = ();
+    type LibInputType = ();
+    type LibOutputType = ();
 
     open spec fn reconcile_init_state() -> ZookeeperReconcileState {
         reconcile_init_state()
@@ -243,7 +243,15 @@ pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView
 {
     let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(2181)];
 
-    make_service(zk, zk.metadata.name.get_Some_0() + new_strlit("-client")@, ports, true)
+    make_service(zk, make_client_service_name(zk), ports, true)
+}
+
+pub open spec fn make_client_service_name(zk: ZookeeperClusterView) -> StringView
+    recommends
+        zk.metadata.name.is_Some(),
+        zk.metadata.namespace.is_Some(),
+{
+    zk.metadata.name.get_Some_0() + new_strlit("-client")@
 }
 
 pub open spec fn make_admin_server_service(zk: ZookeeperClusterView) -> ServiceView
