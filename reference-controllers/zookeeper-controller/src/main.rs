@@ -26,9 +26,6 @@ use crate::common::{cluster_size_zk_node_path, zk_service_uri};
 use crate::resources::*;
 use crate::zookeepercluster_types::*;
 
-use zookeeper_client as zk;
-use zookeeper_client::EnsembleUpdate;
-
 #[derive(Debug, Error)]
 enum Error {
     #[error("Failed to get CR: {0}")]
@@ -39,14 +36,14 @@ enum Error {
     ReconcileServiceFailed(#[source] kube::Error),
     #[error("Failed to reconcile StatefulSet: {0}")]
     ReconcileStatefulSetFailed(#[source] kube::Error),
-    #[error("Failed to send commands through zk-client: {0}")]
-    ZkClientCommandFailed(#[source] zk::Error),
-    #[error("Failed to connect ZK cluster: {0}")]
-    ZkClusterConnectFailed(#[source] zk::ConnectError),
     #[error("Failed to get StatefulSet: {0}")]
     GetStatefulSetFailed(#[source] kube::Error),
-    #[error("Failed to reconcile the zk node to store cluster size: {0}")]
+    #[error("Failed to create the zk node to store cluster size: {0}")]
     ClusterSizeZKNodeCreationFailed(#[source] ZkError),
+    #[error("Failed to update the zk node to store cluster size: {0}")]
+    ClusterSizeZKNodeUpdateFailed(#[source] ZkError),
+    #[error("ZkNode doesn't exist!")]
+    ClusterSizeZKNodeNotExist,
     #[error("MissingObjectKey: {0}")]
     MissingObjectKey(&'static str),
 }
@@ -218,13 +215,9 @@ async fn reconcile_stateful_set(zk: &ZookeeperCluster, client: Client) -> Result
         };
         // Scale up or no change
         if updated_sts.spec.as_ref().unwrap().replicas.unwrap()
-            < old_sts.spec.as_ref().unwrap().replicas.unwrap()
+            != old_sts.spec.as_ref().unwrap().replicas.unwrap()
         {
-            // Scale down
-            info!("Scale down statefulset: {}", sts_name);
-
             let path = cluster_size_zk_node_path(zk);
-            info!("Try to create {} node since all replicas are ready", path);
             let zk_client = ZooKeeper::connect(
                 zk_service_uri(zk).as_str(),
                 Duration::from_secs(10),
@@ -249,13 +242,13 @@ async fn reconcile_stateful_set(zk: &ZookeeperCluster, client: Client) -> Result
                             .to_vec(),
                             Some(-1),
                         )
-                        .map_err(Error::ClusterSizeZKNodeCreationFailed)?;
+                        .map_err(Error::ClusterSizeZKNodeUpdateFailed)?;
                     info!(
                         "Updated cluster size: {}",
                         updated_sts.spec.as_ref().unwrap().replicas.unwrap()
                     );
                 }
-                None => {}
+                None => return Err(Error::ClusterSizeZKNodeNotExist),
             };
         }
         sts_api
