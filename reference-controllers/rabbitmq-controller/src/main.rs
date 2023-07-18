@@ -20,7 +20,7 @@ use k8s_openapi::api::core::v1 as corev1;
 use k8s_openapi::api::rbac::v1 as rbacv1;
 use k8s_openapi::api::{apps::v1 as appsv1, apps::v1::StatefulSet, core::v1::Service};
 use kube::{
-    api::{Api, ListParams, PostParams},
+    api::{Api, ApiResource, DynamicObject, GroupVersionKind, ListParams, PostParams},
     client::ConfigExt,
     runtime::controller::{Action, Controller},
     Client, Config, CustomResourceExt,
@@ -54,6 +54,9 @@ enum Error {
 
     #[error("Failed to reconcile StatefulSet: {0}")]
     ReconcileStatefulSetFailed(#[source] kube::Error),
+
+    #[error("Failed to update annotation: {0}")]
+    AnnotationUpdateFailed(#[source] kube::Error),
 }
 
 struct Data {
@@ -316,4 +319,29 @@ async fn main() -> Result<()> {
         warn!("wrong command; please use \"export\" or \"run\"");
         Ok(())
     }
+}
+
+async fn update_annotation(
+    api_resoruce: ApiResource,
+    namespace: &str,
+    obj_name: &str,
+    key: &str,
+    value: &str,
+    client: Client,
+) -> Result<(), Error> {
+    let api: Api<DynamicObject> = Api::namespaced_with(client.clone(), namespace, &api_resoruce);
+
+    let mut obj = api
+        .get(obj_name)
+        .await
+        .map_err(Error::AnnotationUpdateFailed)?;
+    let mut annotations = obj.metadata.annotations.unwrap_or_default();
+    annotations.insert(key.to_string(), value.to_string());
+    obj.metadata.annotations = Some(annotations);
+
+    let pp = PostParams::default();
+    api.replace(obj_name, &pp, &obj)
+        .await
+        .map_err(Error::AnnotationUpdateFailed)?;
+    Ok(())
 }
