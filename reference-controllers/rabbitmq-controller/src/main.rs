@@ -13,12 +13,16 @@ pub mod service;
 pub mod service_account;
 pub mod statefulset;
 
+use crate::rabbitmqcluster_types::*;
 use anyhow::Result;
+use chrono::Utc;
 use core::time;
 use futures::StreamExt;
 use k8s_openapi::api::core::v1 as corev1;
 use k8s_openapi::api::rbac::v1 as rbacv1;
-use k8s_openapi::api::{apps::v1 as appsv1, apps::v1::StatefulSet, core::v1::Service};
+use k8s_openapi::api::{
+    apps::v1 as appsv1, apps::v1::StatefulSet, core::v1::ConfigMap, core::v1::Service,
+};
 use kube::{
     api::{Api, ApiResource, DynamicObject, GroupVersionKind, ListParams, PostParams},
     client::ConfigExt,
@@ -32,8 +36,6 @@ use std::{env, sync::Arc};
 use thiserror::Error;
 use tokio::time::Duration;
 use tracing::*;
-
-use crate::rabbitmqcluster_types::*;
 
 #[derive(Debug, Error)]
 enum Error {
@@ -55,6 +57,9 @@ enum Error {
     #[error("Failed to reconcile StatefulSet: {0}")]
     ReconcileStatefulSetFailed(#[source] kube::Error),
 
+    #[error("Failed to reconcile ConfigMap: {0}")]
+    ReconcileConfigMapFailed(#[source] kube::Error),
+
     #[error("Failed to update annotation: {0}")]
     AnnotationUpdateFailed(#[source] kube::Error),
 }
@@ -63,7 +68,7 @@ struct Data {
     client: Client,
 }
 
-async fn reconcile_stateful_set(rabbitmq: &RabbitmqCluster, client: Client) -> Result<(), Error> {
+async fn reconcile_stateful_set(rabbitmq: &RabbitmqCluster, client: &Client) -> Result<(), Error> {
     // Create the RabbitmqCluster statefulset.
     // The statefulset hosts all the Rabbitmq pods and volumes.
     let sts_api = Api::<appsv1::StatefulSet>::namespaced(
@@ -110,6 +115,89 @@ async fn reconcile_stateful_set(rabbitmq: &RabbitmqCluster, client: Client) -> R
             .create(&PostParams::default(), &sts)
             .await
             .map_err(Error::ReconcileStatefulSetFailed)?;
+        let gvk = GroupVersionKind::gvk("apps", "v1", "StatefulSet");
+        let api_resource = ApiResource::from_gvk(&gvk);
+        update_annotation(
+            api_resource,
+            rabbitmq.metadata.namespace.as_ref().unwrap(),
+            sts_name,
+            "createdAt",
+            &Utc::now().to_rfc3339(),
+            &client,
+        )
+        .await?;
+        Ok(())
+    }
+}
+
+async fn reconcile_server_config_map(
+    rabbitmq: &RabbitmqCluster,
+    client: &Client,
+) -> Result<(), Error> {
+    // Reconcile the RabbitmqCluster server configmap.
+    let cm_api = Api::<corev1::ConfigMap>::namespaced(
+        client.clone(),
+        rabbitmq.metadata.namespace.as_ref().unwrap(),
+    );
+    let server_config = server_configmap::server_configmap_build(&rabbitmq);
+    let server_config_name = server_config.metadata.name.as_ref().unwrap();
+    let server_config_o = cm_api
+        .get_opt(server_config_name)
+        .await
+        .map_err(Error::ReconcileConfigMapFailed)?;
+
+    if server_config_o.is_some() {
+        info!(
+            "Current rv of server configmap: {}",
+            server_config_o
+                .as_ref()
+                .unwrap()
+                .metadata
+                .resource_version
+                .as_ref()
+                .unwrap()
+        );
+        if server_config.data != server_config_o.as_ref().unwrap().data {
+            // If the data is different, update the server config
+            info!("Update configmap: {}", server_config_name);
+            info!(
+                "The new user config is: {}",
+                server_config.data.clone().unwrap()["userDefinedConfiguration.conf"]
+            );
+            let updated_server_config = ConfigMap {
+                data: server_config.data,
+                binary_data: server_config.binary_data,
+                immutable: server_config.immutable,
+                ..server_config_o.unwrap()
+            };
+            cm_api
+                .replace(
+                    server_config_name,
+                    &PostParams::default(),
+                    &updated_server_config,
+                )
+                .await
+                .map_err(Error::ReconcileConfigMapFailed)?;
+
+            let gvk = GroupVersionKind::gvk("", "v1", "ConfigMap");
+            let api_resource = ApiResource::from_gvk(&gvk);
+            update_annotation(
+                api_resource,
+                rabbitmq.metadata.namespace.as_ref().unwrap(),
+                &server_config_name,
+                "updatedAt",
+                &Utc::now().to_rfc3339(),
+                &client,
+            )
+            .await?;
+        }
+        Ok(())
+    } else {
+        info!("Create configmap: {}", server_config_name);
+        cm_api
+            .create(&PostParams::default(), &server_config)
+            .await
+            .map_err(Error::ReconcileConfigMapFailed)?;
         Ok(())
     }
 }
@@ -215,19 +303,7 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<Data>) -> Result<Ac
     }
 
     // Create sever config
-    let server_config = server_configmap::server_configmap_build(&rabbitmq);
-    info!(
-        "Create server config: {}",
-        server_config.metadata.name.as_ref().unwrap()
-    );
-    match cm_api.create(&PostParams::default(), &server_config).await {
-        Err(e) => match e {
-            kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
-                if reason.clone() == "AlreadyExists" => {}
-            _ => return Err(Error::ConfigMapCreationFailed(e)),
-        },
-        _ => {}
-    }
+    reconcile_server_config_map(&rabbitmq, &client).await?;
 
     // Create service account
     let service_account = service_account::service_account_build(&rabbitmq);
@@ -278,7 +354,9 @@ async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<Data>) -> Result<Ac
     }
 
     // Reconcile statefulset
-    reconcile_stateful_set(&rabbitmq, client.clone()).await?;
+    reconcile_stateful_set(&rabbitmq, &client).await?;
+
+    // Check if restart is needed
 
     Ok(Action::requeue(Duration::from_secs(300)))
 }
@@ -327,14 +405,21 @@ async fn update_annotation(
     obj_name: &str,
     key: &str,
     value: &str,
-    client: Client,
+    client: &Client,
 ) -> Result<(), Error> {
     let api: Api<DynamicObject> = Api::namespaced_with(client.clone(), namespace, &api_resoruce);
-
+    info!(
+        "Fetching DynamicObject: {}, Its type{:?}",
+        obj_name, api_resoruce
+    );
     let mut obj = api
         .get(obj_name)
         .await
         .map_err(Error::AnnotationUpdateFailed)?;
+    info!(
+        "Fetched DynamicObject, Updating annotation: {}={}",
+        key, value
+    );
     let mut annotations = obj.metadata.annotations.unwrap_or_default();
     annotations.insert(key.to_string(), value.to_string());
     obj.metadata.annotations = Some(annotations);
