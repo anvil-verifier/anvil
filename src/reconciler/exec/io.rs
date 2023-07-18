@@ -7,13 +7,25 @@ use vstd::{prelude::*, view::*};
 
 verus! {
 
+// Third-party libraries can also receive requests from reconciler.
+// T: The input type of the third-party library of the reconciler which should also be defined by the developer.
+// Typically, T can be an enum type, which lists all the possible supporting handlings the developer need support from the
+// third-party library on.
+// Then in the process method of the library, th developers can do pattern matching to generate desired output which will
+// then be sent to the reconciler in the next-round reconcile loop.
+// In reconcile_core, if the reconciler want kubernetes to process the request, it should return a Request::KRequest;
+// if it want the third-party library to deal with the request, it should return a Request::ExternalRequest.
 pub enum Request<T: View> {
     KRequest(KubeAPIRequest),
-    // Third-party libraries can also receive requests from reconciler.
-    // The developers must define all the possible receivers and
     ExternalRequest(T),
 }
 
+// The response type should be consistent with the Request type.
+// T: the output type of the third-party library of the reconciler which should be defined by the developer.
+// A safe and common way is to have an enum type which has the corresponding types of the input type in the Request.
+// Anway, the process method in the ExternalLibrary, the input type in Request, output type in Response and the handling
+// of external response in reconcile_core are correlative.
+// Developers have the freedom to define them in their own preferred way as long as they make them work well.
 #[is_variant]
 pub enum Response<T: View> {
     KResponse(KubeAPIResponse),
