@@ -23,7 +23,7 @@ pub enum Request<T: View> {
 // The response type should be consistent with the Request type.
 // T: the output type of the third-party library of the reconciler which should be defined by the developer.
 // A safe and common way is to have an enum type which has the corresponding types of the input type in the Request.
-// Anway, the process method in the ExternalLibrary, the input type in Request, output type in Response and the handling
+// Anyway, the process method in the ExternalLibrary, the input type in Request, output type in Response and the handling
 // of external response in reconcile_core are correlative.
 // Developers have the freedom to define them in their own preferred way as long as they make them work well.
 #[is_variant]
