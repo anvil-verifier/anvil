@@ -1068,7 +1068,6 @@ dependencies = [
  "anyhow",
  "base64 0.13.1",
  "futures",
- "http",
  "k8s-openapi",
  "kube",
  "kube-client",
