@@ -14,6 +14,7 @@ pub use serde_yaml;
 pub use thiserror;
 pub use tokio;
 pub use tracing;
+pub use zookeeper;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

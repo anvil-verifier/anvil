@@ -26,7 +26,7 @@ use crate::kubernetes_cluster::{
         message::*,
     },
 };
-use crate::reconciler::spec::*;
+use crate::reconciler::spec::reconciler::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::zookeeper_controller::{
     common::ZookeeperReconcileStep,

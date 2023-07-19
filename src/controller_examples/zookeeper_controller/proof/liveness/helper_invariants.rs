@@ -34,7 +34,7 @@ use crate::kubernetes_cluster::{
     },
 };
 use crate::pervasive_ext::multiset_lemmas;
-use crate::reconciler::spec::*;
+use crate::reconciler::spec::reconciler::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use crate::zookeeper_controller::{
     common::*,
