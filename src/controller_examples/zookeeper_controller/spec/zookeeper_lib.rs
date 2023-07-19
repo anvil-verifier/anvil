@@ -6,12 +6,18 @@ use vstd::prelude::*;
 
 verus! {
 
+#[is_variant]
 pub enum ZKSupportInputView {
-    ReconcileZKNode(ZookeeperClusterView),
+    ReconcileZKNode(StringView,StringView,StringView),
 }
 
+#[is_variant]
 pub enum ZKSupportOutputView {
-    ReconcileZKNode(Result<(), Error>),
+    ReconcileZKNode(ZKNodeResultView),
+}
+
+pub struct ZKNodeResultView {
+    pub res: Result<(), Error>,
 }
 
 }

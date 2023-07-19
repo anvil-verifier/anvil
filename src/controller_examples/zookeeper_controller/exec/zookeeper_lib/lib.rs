@@ -1,39 +1,51 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::pervasive_ext::to_view::*;
 use crate::reconciler::exec::external::*;
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::exec::zookeeper_lib::helper_funcs;
+use crate::zookeeper_controller::exec::zookeeper_lib::helper_funcs::*;
 use crate::zookeeper_controller::exec::zookeepercluster::*;
 use crate::zookeeper_controller::spec::zookeeper_lib::*;
 use vstd::{prelude::*, string::*};
 
 verus! {
 
+#[is_variant]
 pub enum ZKSupportInput {
-    ReconcileZKNode(ZookeeperCluster),
+    ReconcileZKNode(String,String,String),
 }
 
+#[is_variant]
 pub enum ZKSupportOutput {
-    ReconcileZKNode(Result<(), Error>),
+    ReconcileZKNode(ZKNodeResult),
 }
 
-impl View for ZKSupportInput {
+impl ToView for ZKSupportInput {
     type V = ZKSupportInputView;
-    spec fn view(&self) -> ZKSupportInputView {
+    spec fn to_view(&self) -> ZKSupportInputView {
         match self {
-            ZKSupportInput::ReconcileZKNode(zk) => ZKSupportInputView::ReconcileZKNode(zk@),
+            ZKSupportInput::ReconcileZKNode(s1,s2,s3) => ZKSupportInputView::ReconcileZKNode(s1@,s2@,s3@),
         }
     }
 }
 
-impl View for ZKSupportOutput {
+pub proof fn to_view_is_other(s1: String, s2: String, s3: String)
+    ensures 
+        ZKSupportInput::ReconcileZKNode(s1,s2,s3).to_view() == ZKSupportInputView::ReconcileZKNode(s1@, s2@, s3@) {}
+
+
+impl ToView for ZKSupportOutput {
     type V = ZKSupportOutputView;
-    spec fn view(&self) -> ZKSupportOutputView {
+    spec fn to_view(&self) -> ZKSupportOutputView {
         match self {
-            ZKSupportOutput::ReconcileZKNode(res) => ZKSupportOutputView::ReconcileZKNode(*res),
+            ZKSupportOutput::ReconcileZKNode(result) => ZKSupportOutputView::ReconcileZKNode(ZKNodeResultView{res: result.res}),
         }
     }
 }
+
+pub proof fn same_result(result: ZKNodeResult)
+    ensures 
+        ZKSupportOutput::ReconcileZKNode(result).to_view() == ZKSupportOutputView::ReconcileZKNode(ZKNodeResultView{res: result.res}) {}
 
 impl ZKSupportOutput {
     pub fn is_reconcile_zk_node(&self) -> (res: bool)
@@ -41,19 +53,18 @@ impl ZKSupportOutput {
     {
         match self {
             ZKSupportOutput::ReconcileZKNode(_) => true,
-            _ => false,
         }
     }
 
-    pub fn into_reconcile_zk_node(self) -> (res: ZookeeperCluster)
+    pub fn into_reconcile_zk_node(self) -> (result: ZKNodeResult)
         requires
             self.is_ReconcileZKNode(),
         ensures
-            res == self.get_ReconcileZKNode_0(),
+            result == self.get_ReconcileZKNode_0(),
+            result.res.is_Ok() <==> self.get_ReconcileZKNode_0().res.is_Ok(),
     {
         match self {
-            ZKSupportOutput::ReconcileZKNode(res) => res,
-            _ => unreached(),
+            ZKSupportOutput::ReconcileZKNode(result) => result,
         }
     }
 }
@@ -64,8 +75,8 @@ impl ExternalLibrary<ZKSupportInput, ZKSupportOutput> for ZKSupport {
     #[verifier(external)]
     fn process(input: ZKSupportInput) -> Option<ZKSupportOutput> {
         match input {
-            ZKSupportInput::ReconcileZKNode(zk)
-                => Option::Some(ZKSupportOutput::ReconcileZKNode(helper_funcs::reconcile_zk_node(&zk))),
+            ZKSupportInput::ReconcileZKNode(s1,s2,s3)
+                => Option::Some(ZKSupportOutput::ReconcileZKNode(reconcile_zk_node(s1,s2,s3))),
         }
     }
 }

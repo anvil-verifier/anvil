@@ -7,10 +7,10 @@ use crate::kubernetes_api_objects::{
     resource_requirements::*, service::*, stateful_set::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
-use crate::pervasive_ext::string_view::*;
-use crate::reconciler::exec::{external::*, io::*, reconciler::*, zookeeper_lib::lib::*};
+use crate::pervasive_ext::{string_view::*, to_view::*};
+use crate::reconciler::exec::{external::*, io::*, reconciler::*};
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::exec::{common::*, zookeepercluster::*};
+use crate::zookeeper_controller::exec::{common::*, zookeeper_lib::lib::*, zookeepercluster::*};
 use crate::zookeeper_controller::spec::reconciler as zk_spec;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -217,7 +217,14 @@ pub fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
                 ..state
             };
-            let ext_req = ZKSupportInput::ReconcileZKNode(zk);
+            let s1 = cluster_size_zk_node_path(zk);
+            let s2 = zk_service_uri(zk);
+            let s3 = i32_to_string(zk.spec().replicas());
+            let ext_req = ZKSupportInput::ReconcileZKNode(s1,s2,s3);
+            proof {
+                to_view_is_other(s1, s2, s3);
+                assert(ext_req.to_view() == crate::zookeeper_controller::spec::zookeeper_lib::ZKSupportInputView::ReconcileZKNode(s1@,s2@,s3@));
+            }
             return (state_prime, Option::Some(Request::ExternalRequest(ext_req)));
         },
         ZookeeperReconcileStep::AfterUpdateStatefulSet => {
@@ -225,27 +232,44 @@ pub fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
                 ..state
             };
-            let ext_req = ZKSupportInput::ReconcileZKNode(zk);
+            let s1 = cluster_size_zk_node_path(zk);
+            let s2 = zk_service_uri(zk);
+            let s3 = i32_to_string(zk.spec().replicas());
+            let ext_req = ZKSupportInput::ReconcileZKNode(s1,s2,s3);
+            proof {
+                to_view_is_other(s1, s2, s3);
+                assert(ext_req.to_view() == crate::zookeeper_controller::spec::zookeeper_lib::ZKSupportInputView::ReconcileZKNode(s1@,s2@,s3@));
+            }
             return (state_prime, Option::Some(Request::ExternalRequest(ext_req)));
         },
         ZookeeperReconcileStep::AfterCreateZKNode => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
             && resp_o.as_ref().unwrap().as_external_response_ref().is_reconcile_zk_node() {
                 let ext_resp = resp_o.unwrap().into_external_response().into_reconcile_zk_node();
-                if res.is_ok() {
+                proof {
+                    same_result(ext_resp);
+                }
+                if ext_resp.res.is_ok() {
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::Done,
                         ..state
                     };
                     return (state_prime, Option::None);
+                } else {
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::Error,
+                        ..state
+                    };
+                    return (state_prime, Option::None);
                 }
+            } else {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                return (state_prime, Option::None);
             }
-            let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::Error,
-                ..state
-            };
-            return (state_prime, Option::None);
-        }
+        },
         _ => {
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: step,

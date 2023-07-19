@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*};
+use crate::pervasive_ext::to_view::*;
 use crate::reconciler::spec::io::*;
 use vstd::{prelude::*, view::*};
 
@@ -15,7 +16,7 @@ verus! {
 // then be sent to the reconciler in the next-round reconcile loop.
 // In reconcile_core, if the reconciler want kubernetes to process the request, it should return a Request::KRequest;
 // if it want the third-party library to deal with the request, it should return a Request::ExternalRequest.
-pub enum Request<T: View> {
+pub enum Request<T: ToView> {
     KRequest(KubeAPIRequest),
     ExternalRequest(T),
 }
@@ -27,16 +28,16 @@ pub enum Request<T: View> {
 // of external response in reconcile_core are correlative.
 // Developers have the freedom to define them in their own preferred way as long as they make them work well.
 #[is_variant]
-pub enum Response<T: View> {
+pub enum Response<T: ToView> {
     KResponse(KubeAPIResponse),
     ExternalResponse(T),
 }
 
-impl <T: View> Response<T> {
+impl <T: ToView> Response<T> {
     pub open spec fn to_view(&self) -> ResponseView<T::V> {
         match self {
             Response::KResponse(resp) => ResponseView::KResponse(resp.to_view()),
-            Response::ExternalResponse(resp) => ResponseView::ExternalResponse(resp.view()),
+            Response::ExternalResponse(resp) => ResponseView::ExternalResponse(resp.to_view()),
         }
     }
 
@@ -108,23 +109,23 @@ impl <T: View> Response<T> {
     }
 }
 
-impl <T: View> Request<T> {
+impl <T: ToView> Request<T> {
     pub open spec fn to_view(&self) -> RequestView<T::V> {
         match self {
             Request::KRequest(req) => RequestView::KRequest(req.to_view()),
-            Request::ExternalRequest(req) => RequestView::ExternalRequest(req.view()),
+            Request::ExternalRequest(req) => RequestView::ExternalRequest(req.to_view()),
         }
     }
 }
 
-pub open spec fn opt_response_to_view<T: View>(resp: &Option<Response<T>>) -> Option<ResponseView<T::V>> {
+pub open spec fn opt_response_to_view<T: ToView>(resp: &Option<Response<T>>) -> Option<ResponseView<T::V>> {
     match resp {
         Option::Some(resp) => Option::Some(resp.to_view()),
         Option::None => Option::None,
     }
 }
 
-pub open spec fn opt_request_to_view<T: View>(request: &Option<Request<T>>) -> Option<RequestView<T::V>> {
+pub open spec fn opt_request_to_view<T: ToView>(request: &Option<Request<T>>) -> Option<RequestView<T::V>> {
     match request {
         Option::Some(req) => Option::Some(req.to_view()),
         Option::None => Option::None,
