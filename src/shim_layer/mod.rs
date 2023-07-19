@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
-use crate::reconciler::exec::*;
+use crate::reconciler::exec::{external::*, io::*, reconciler::*};
 use builtin::*;
 use builtin_macros::*;
 use core::fmt::Debug;
@@ -20,7 +20,7 @@ use deps_hack::serde::{de::DeserializeOwned, Serialize};
 use deps_hack::Error;
 use std::sync::Arc;
 use std::time::Duration;
-use vstd::string::*;
+use vstd::{string::*, view::*};
 
 verus! {
 
@@ -35,20 +35,20 @@ verus! {
 /// ReconcilerType: the reconciler type
 /// ReconcileStateType: the local state of the reconciler
 #[verifier(external)]
-pub async fn run_controller<K, ResourceWrapperType, ReconcilerType, ReconcileStateType>() -> Result<()>
+pub async fn run_controller<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, I, O, Lib>() -> Result<()>
 where
     K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Send + Serialize + Sync + 'static,
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
     ResourceWrapperType: ResourceWrapper<K> + Send,
-    ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType> + Send + Sync + Default,
-    ReconcileStateType: Send
+    ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, I, O, Lib> + Send + Sync + Default,
+    ReconcileStateType: Send, I: Send + View, O: Send + View, Lib: ExternalLibrary<I, O>,
 {
     let client = Client::try_default().await?;
     let crs = Api::<K>::all(client.clone());
 
     // Build the async closure on top of reconcile_with
     let reconcile = |cr: Arc<K>, ctx: Arc<Data>| async move {
-        return reconcile_with::<K, ResourceWrapperType, ReconcilerType, ReconcileStateType>(
+        return reconcile_with::<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, I, O, Lib>(
             &ReconcilerType::default(), cr, ctx
         ).await;
     };
@@ -79,14 +79,15 @@ where
 /// or encounters error (reconciler.reconcile_error).
 
 #[verifier(external)]
-pub async fn reconcile_with<K, ResourceWrapperType, ReconcilerType, ReconcileStateType>(
+pub async fn reconcile_with<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, I, O, Lib>(
     reconciler: &ReconcilerType, cr: Arc<K>, ctx: Arc<Data>
 ) -> Result<Action, Error>
 where
     K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Serialize,
     K::DynamicType: Default + Clone + Debug,
     ResourceWrapperType: ResourceWrapper<K>,
-    ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType>,
+    I: View, O: View, Lib: ExternalLibrary<I, O>,
+    ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, I, O, Lib>,
 {
     let client = &ctx.client;
 
@@ -112,7 +113,7 @@ where
 
     let cr_wrapper = ResourceWrapperType::from_kube(cr);
     let mut state = reconciler.reconcile_init_state();
-    let mut resp_option: Option<KubeAPIResponse> = Option::None;
+    let mut resp_option: Option<Response<O>> = Option::None;
 
     // Call reconcile_core in a loop
     loop {
@@ -126,86 +127,84 @@ where
             return Err(Error::APIError);
         }
         // Feed the current reconcile state and get the new state and the pending request
-        let (state_prime, req_option) = reconciler.reconcile_core(&cr_wrapper, resp_option, state);
+        let (state_prime, request_option) = reconciler.reconcile_core(&cr_wrapper, resp_option, state);
         // Pattern match the request and send requests to the Kubernetes API via kube-rs methods
-        match req_option {
-            Option::Some(req) => match req {
-                KubeAPIRequest::GetRequest(get_req) => {
-                    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                        client.clone(), get_req.namespace.as_rust_string_ref(), get_req.api_resource.as_kube_ref()
-                    );
-                    match api.get(get_req.name.as_rust_string_ref()).await {
-                        std::result::Result::Err(err) => {
-                            resp_option = Option::Some(KubeAPIResponse::GetResponse(
-                                KubeGetResponse{
-                                    res: std::result::Result::Err(kube_error_to_ghost(&err)),
-                                }
-                            ));
-                            println!("Get failed with error: {}", err);
+        match request_option {
+            Option::Some(request) => match request {
+                Request::KRequest(req) => {
+                    let kube_resp: KubeAPIResponse;
+                    match req {
+                        KubeAPIRequest::GetRequest(get_req) => {
+                            let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+                                client.clone(), get_req.namespace.as_rust_string_ref(), get_req.api_resource.as_kube_ref()
+                            );
+                            match api.get(get_req.name.as_rust_string_ref()).await {
+                                std::result::Result::Err(err) => {
+                                    kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse{
+                                        res: std::result::Result::Err(kube_error_to_ghost(&err)),
+                                    });
+                                    println!("Get failed with error: {}", err);
+                                },
+                                std::result::Result::Ok(obj) => {
+                                    kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse{
+                                        res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
+                                    });
+                                    println!("Get done");
+                                },
+                            }
                         },
-                        std::result::Result::Ok(obj) => {
-                            resp_option = Option::Some(KubeAPIResponse::GetResponse(
-                                KubeGetResponse{
-                                    res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
-                                }
-                            ));
-                            println!("Get done");
+                        KubeAPIRequest::CreateRequest(create_req) => {
+                            let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+                                client.clone(), create_req.namespace.as_rust_string_ref(), create_req.api_resource.as_kube_ref()
+                            );
+                            let pp = PostParams::default();
+                            let obj_to_create = create_req.obj.into_kube();
+                            match api.create(&pp, &obj_to_create).await {
+                                std::result::Result::Err(err) => {
+                                    kube_resp = KubeAPIResponse::CreateResponse(KubeCreateResponse{
+                                        res: std::result::Result::Err(kube_error_to_ghost(&err)),
+                                    });
+                                    println!("Create failed with error: {}", err);
+                                },
+                                std::result::Result::Ok(obj) => {
+                                    kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse{
+                                        res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
+                                    });
+                                    println!("Create done");
+                                },
+                            }
                         },
+                        KubeAPIRequest::UpdateRequest(update_req) => {
+                            let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+                                client.clone(), update_req.namespace.as_rust_string_ref(), update_req.api_resource.as_kube_ref()
+                            );
+                            let pp = PostParams::default();
+                            let obj_to_update = update_req.obj.into_kube();
+                            match api.replace(update_req.name.as_rust_string_ref(), &pp, &obj_to_update).await {
+                                std::result::Result::Err(err) => {
+                                    kube_resp = KubeAPIResponse::UpdateResponse(KubeUpdateResponse{
+                                        res: std::result::Result::Err(kube_error_to_ghost(&err)),
+                                    });
+                                    println!("Update failed with error: {}", err);
+                                },
+                                std::result::Result::Ok(obj) => {
+                                    kube_resp = KubeAPIResponse::UpdateResponse(KubeUpdateResponse{
+                                        res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
+                                    });
+                                    println!("Update done");
+                                },
+                            }
+                        },
+                        _ => {
+                            panic!("Not supported yet");
+                        }
                     }
+                    resp_option = Option::Some(Response::KResponse(kube_resp));
                 },
-                KubeAPIRequest::CreateRequest(create_req) => {
-                    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                        client.clone(), create_req.namespace.as_rust_string_ref(), create_req.api_resource.as_kube_ref()
-                    );
-                    let pp = PostParams::default();
-                    let obj_to_create = create_req.obj.into_kube();
-                    match api.create(&pp, &obj_to_create).await {
-                        std::result::Result::Err(err) => {
-                            resp_option = Option::Some(KubeAPIResponse::CreateResponse(
-                                KubeCreateResponse{
-                                    res: std::result::Result::Err(kube_error_to_ghost(&err)),
-                                }
-                            ));
-                            println!("Create failed with error: {}", err);
-                        },
-                        std::result::Result::Ok(obj) => {
-                            resp_option = Option::Some(KubeAPIResponse::GetResponse(
-                                KubeGetResponse{
-                                    res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
-                                }
-                            ));
-                            println!("Create done");
-                        },
-                    }
+                Request::ExternalRequest(req) => {
+                    let ret = Lib::process(req);
+                    resp_option = if ret.is_some() {Option::Some(Response::ExternalResponse(ret.unwrap()))} else {Option::None};
                 },
-                KubeAPIRequest::UpdateRequest(update_req) => {
-                    let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
-                        client.clone(), update_req.namespace.as_rust_string_ref(), update_req.api_resource.as_kube_ref()
-                    );
-                    let pp = PostParams::default();
-                    let obj_to_update = update_req.obj.into_kube();
-                    match api.replace(update_req.name.as_rust_string_ref(), &pp, &obj_to_update).await {
-                        std::result::Result::Err(err) => {
-                            resp_option = Option::Some(KubeAPIResponse::UpdateResponse(
-                                KubeUpdateResponse{
-                                    res: std::result::Result::Err(kube_error_to_ghost(&err)),
-                                }
-                            ));
-                            println!("Update failed with error: {}", err);
-                        },
-                        std::result::Result::Ok(obj) => {
-                            resp_option = Option::Some(KubeAPIResponse::UpdateResponse(
-                                KubeUpdateResponse{
-                                    res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
-                                }
-                            ));
-                            println!("Update done");
-                        },
-                    }
-                },
-                _ => {
-                    panic!("Not supported yet");
-                }
             },
             _ => resp_option = Option::None,
         }

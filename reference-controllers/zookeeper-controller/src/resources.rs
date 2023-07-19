@@ -12,6 +12,7 @@ pub fn make_statefulset(zk: &ZookeeperCluster) -> appsv1::StatefulSet {
     appsv1::StatefulSet {
         metadata: ObjectMeta {
             name: Some(stateful_set_name(zk)),
+            owner_references: Some(vec![zk.controller_owner_ref(&()).unwrap()]),
             labels: Some(BTreeMap::from([(
                 "app".to_string(),
                 zk.meta().name.as_ref().unwrap().clone(),
@@ -79,6 +80,15 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> corev1::PodSpec {
             name: "zookeeper".to_string(),
             image: Some("pravega/zookeeper:0.2.14".to_string()),
             command: Some(vec!["/usr/local/bin/zookeeperStart.sh".to_string()]),
+            lifecycle: Some(corev1::Lifecycle {
+                pre_stop: Some(corev1::LifecycleHandler {
+                    exec: Some(corev1::ExecAction {
+                        command: Some(vec!["zookeeperTeardown.sh".to_string()]),
+                    }),
+                    ..corev1::LifecycleHandler::default()
+                }),
+                ..corev1::Lifecycle::default()
+            }),
             image_pull_policy: Some("Always".to_string()),
             volume_mounts: Some(vec![
                 corev1::VolumeMount {

@@ -14,7 +14,7 @@ use crate::kubernetes_cluster::{
     },
 };
 use crate::pervasive_ext::multiset_lemmas::*;
-use crate::reconciler::spec::Reconciler;
+use crate::reconciler::spec::reconciler::Reconciler;
 use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
 use vstd::assert_multisets_equal;

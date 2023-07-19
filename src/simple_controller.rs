@@ -15,6 +15,7 @@ pub mod temporal_logic;
 use builtin::*;
 use builtin_macros::*;
 
+use crate::reconciler::exec::external::*;
 use crate::simple_controller::exec::reconciler::{SimpleReconcileState, SimpleReconciler};
 use crate::simple_controller::spec::custom_resource::CustomResource;
 use deps_hack::anyhow::Result;
@@ -37,7 +38,7 @@ async fn main() -> Result<()> {
         println!("{}", serde_yaml::to_string(&deps_hack::SimpleCR::crd())?);
     } else if cmd == String::from("run") {
         println!("running simple-controller");
-        run_controller::<deps_hack::SimpleCR, CustomResource, SimpleReconciler, SimpleReconcileState>().await?;
+        run_controller::<deps_hack::SimpleCR, CustomResource, SimpleReconciler, SimpleReconcileState, EmptyMsg, EmptyMsg, EmptyLib>().await?;
         println!("controller terminated");
     } else {
         println!("wrong command; please use \"export\" or \"run\"");

@@ -39,7 +39,7 @@ use crate::rabbitmq_controller::{
     proof::common::*,
     spec::{rabbitmqcluster::*, reconciler::*},
 };
-use crate::reconciler::spec::*;
+use crate::reconciler::spec::reconciler::*;
 use crate::temporal_logic::{defs::*, rules::*};
 use vstd::{multiset::*, prelude::*, string::*};
 
