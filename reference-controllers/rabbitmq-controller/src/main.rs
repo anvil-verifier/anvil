@@ -28,6 +28,7 @@ use kube::{
 };
 use kube_core::{self, ResourceExt};
 use serde_json::json;
+use std::collections::BTreeMap;
 use std::{env, sync::Arc};
 use thiserror::Error;
 use tokio::time::Duration;
@@ -74,7 +75,7 @@ async fn reconcile_stateful_set(rabbitmq: &RabbitmqCluster, client: &Client) -> 
         client.clone(),
         rabbitmq.metadata.namespace.as_ref().unwrap(),
     );
-    let sts = statefulset::statefulset_build(&rabbitmq);
+    let mut sts = statefulset::statefulset_build(&rabbitmq);
     let sts_name = sts.metadata.name.as_ref().unwrap();
     let sts_o = sts_api
         .get_opt(sts_name)
@@ -130,6 +131,30 @@ async fn reconcile_stateful_set(rabbitmq: &RabbitmqCluster, client: &Client) -> 
         Ok(())
     } else {
         info!("Create statefulset: {}", sts_name);
+        let cm_api = Api::<corev1::ConfigMap>::namespaced(
+            client.clone(),
+            rabbitmq.metadata.namespace.as_ref().unwrap(),
+        );
+        let server_config = server_configmap::server_configmap_build(&rabbitmq);
+        let server_config_name = server_config.metadata.name.as_ref().unwrap();
+        let server_config_o = cm_api
+            .get_opt(server_config_name)
+            .await
+            .map_err(Error::ReconcileConfigMapFailed)?;
+        // Add the restartedVersion annotation to the sts template.
+        let mut annotations = BTreeMap::new();
+        annotations.insert(
+            "restartedVersion".to_string(),
+            server_config_o.unwrap().metadata.resource_version.unwrap(),
+        );
+        sts.spec
+            .as_mut()
+            .unwrap()
+            .template
+            .metadata
+            .as_mut()
+            .unwrap()
+            .annotations = Some(annotations);
         sts_api
             .create(&PostParams::default(), &sts)
             .await
@@ -155,7 +180,7 @@ async fn reconcile_server_config_map(
         .map_err(Error::ReconcileConfigMapFailed)?;
 
     if server_config_o.is_some() {
-        let resrouce_version = server_config_o
+        let resource_version = server_config_o
             .as_ref()
             .unwrap()
             .metadata
@@ -163,7 +188,7 @@ async fn reconcile_server_config_map(
             .as_ref()
             .unwrap()
             .clone();
-        info!("Current rv of server configmap: {}", resrouce_version);
+        info!("Current rv of server configmap: {}", resource_version);
         if server_config.data != server_config_o.as_ref().unwrap().data {
             // If the data is different, update the server config
             info!("Update configmap: {}", server_config_name);
@@ -181,18 +206,6 @@ async fn reconcile_server_config_map(
                 )
                 .await
                 .map_err(Error::ReconcileConfigMapFailed)?;
-
-            let gvk = GroupVersionKind::gvk("", "v1", "ConfigMap");
-            let api_resource = ApiResource::from_gvk(&gvk);
-            update_annotation(
-                api_resource,
-                rabbitmq.metadata.namespace.as_ref().unwrap(),
-                &server_config_name,
-                "lastVersion",
-                &resrouce_version,
-                &client,
-            )
-            .await?;
         }
         Ok(())
     } else {
@@ -224,50 +237,10 @@ async fn restart_sts_if_needed(rabbitmq: &RabbitmqCluster, client: &Client) -> R
     );
     let sts = statefulset::statefulset_build(&rabbitmq);
     let sts_name = sts.metadata.name.as_ref().unwrap();
-    let sts_o = sts_api
-        .get_opt(sts_name)
-        .await
-        .map_err(Error::ReconcileStatefulSetFailed)?;
-
-    let server_config_last_version = match server_config_o.clone().unwrap().metadata.annotations {
-        Some(annotations) => annotations.get("lastVersion").cloned(),
-        None => None,
-    };
-
-    if !server_config_last_version.is_some() {
-        // If lastVersion is not set, it means the server configmap is not updated.
-        // If the server configmap is not updated, return.
-        return Ok(());
-    }
-
-    let sts_restartedat = match sts_o
-        .clone()
-        .unwrap()
-        .spec
-        .unwrap()
-        .template
-        .metadata
-        .unwrap()
-        .annotations
-    {
-        Some(annotations) => annotations.get("restartedVersion").cloned(),
-        None => None,
-    };
-
-    let server_config_updatedat = server_config_o
-        .as_ref()
-        .unwrap()
-        .metadata
-        .resource_version
-        .clone();
-    if sts_restartedat.is_some()
-        && sts_restartedat.clone().unwrap() >= server_config_updatedat.clone().unwrap()
-    {
-        // sts was updated after the last server-conf configmap update; no need to restart sts
-        return Ok(());
-    }
 
     // Restart the sts by changing the pod template.
+    // If the configmap is not updated, the restartedVersion annotation will be the same
+    // so the patch action won't trigger sts to restart.
     let patch = Patch::Merge(json!({
         "spec": {
             "template": {
@@ -286,7 +259,6 @@ async fn restart_sts_if_needed(rabbitmq: &RabbitmqCluster, client: &Client) -> R
         .patch(sts_name, &pp, &patch)
         .await
         .map_err(Error::RestartStatefulSetFailed)?;
-    info!("Restart statefulset: {}", sts_name);
     Ok(())
 }
 
@@ -488,7 +460,9 @@ async fn main() -> Result<()> {
     }
 }
 
-async fn update_annotation(
+async fn _update_annotation(
+    // This function will not be used currently. But it is a good helper function to modify any type of object's annotations.
+    // Therefore, it is kept here for future use.
     api_resoruce: ApiResource,
     namespace: &str,
     obj_name: &str,
