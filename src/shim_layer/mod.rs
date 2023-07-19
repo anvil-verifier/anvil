@@ -127,10 +127,10 @@ where
             return Err(Error::APIError);
         }
         // Feed the current reconcile state and get the new state and the pending request
-        let (state_prime, receiver_option) = reconciler.reconcile_core(&cr_wrapper, resp_option, state);
+        let (state_prime, request_option) = reconciler.reconcile_core(&cr_wrapper, resp_option, state);
         // Pattern match the request and send requests to the Kubernetes API via kube-rs methods
-        match receiver_option {
-            Option::Some(receiver) => match receiver {
+        match request_option {
+            Option::Some(request) => match request {
                 Request::KRequest(req) => {
                     let kube_resp: KubeAPIResponse;
                     match req {

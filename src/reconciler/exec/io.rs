@@ -91,8 +91,8 @@ pub open spec fn opt_response_to_view<T: View>(resp: &Option<Response<T>>) -> Op
     }
 }
 
-pub open spec fn opt_request_to_view<T: View>(receiver: &Option<Request<T>>) -> Option<RequestView<T::V>> {
-    match receiver {
+pub open spec fn opt_request_to_view<T: View>(request: &Option<Request<T>>) -> Option<RequestView<T::V>> {
+    match request {
         Option::Some(req) => Option::Some(req.to_view()),
         Option::None => Option::None,
     }
