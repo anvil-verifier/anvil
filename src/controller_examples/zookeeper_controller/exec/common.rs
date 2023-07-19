@@ -17,10 +17,12 @@ pub fn client_service_name(zk: &ZookeeperCluster) -> (name: String)
     zk.metadata().name().unwrap().concat(new_strlit("-client"))
 }
 
-pub fn zk_service_uri(zk: &ZookeeperCluster) -> String
+pub fn zk_service_uri(zk: &ZookeeperCluster) -> (uri: String)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+    ensures
+        uri@ == zk_spec::zk_service_uri(zk@),
 {
     client_service_name(zk)
     .concat(new_strlit("."))
@@ -28,10 +30,12 @@ pub fn zk_service_uri(zk: &ZookeeperCluster) -> String
     .concat(new_strlit(".svc.cluster.local:2181"))
 }
 
-pub fn cluster_size_zk_node_path(zk: &ZookeeperCluster) -> String
+pub fn cluster_size_zk_node_path(zk: &ZookeeperCluster) -> (path: String)
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
+    ensures
+        path@ == zk_spec::cluster_size_zk_node_path(zk@),
 {
     new_strlit("/zookeeper-operator/").to_string()
     .concat(zk.metadata().name().unwrap().as_str())

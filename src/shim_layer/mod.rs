@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
+use crate::pervasive_ext::to_view::*;
 use crate::reconciler::exec::{external::*, io::*, reconciler::*};
 use builtin::*;
 use builtin_macros::*;
@@ -41,7 +42,7 @@ where
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
     ResourceWrapperType: ResourceWrapper<K> + Send,
     ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, I, O, Lib> + Send + Sync + Default,
-    ReconcileStateType: Send, I: Send + View, O: Send + View, Lib: ExternalLibrary<I, O>,
+    ReconcileStateType: Send, I: Send + ToView, O: Send + ToView, Lib: ExternalLibrary<I, O>,
 {
     let client = Client::try_default().await?;
     let crs = Api::<K>::all(client.clone());
@@ -86,7 +87,7 @@ where
     K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Serialize,
     K::DynamicType: Default + Clone + Debug,
     ResourceWrapperType: ResourceWrapper<K>,
-    I: View, O: View, Lib: ExternalLibrary<I, O>,
+    I: ToView, O: ToView, Lib: ExternalLibrary<I, O>,
     ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, I, O, Lib>,
 {
     let client = &ctx.client;
