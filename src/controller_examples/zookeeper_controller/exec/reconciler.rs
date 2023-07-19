@@ -8,7 +8,7 @@ use crate::kubernetes_api_objects::{
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
-use crate::reconciler::exec::{external::*, io::*, reconciler::*};
+use crate::reconciler::exec::{external::*, io::*, reconciler::*, zookeeper_lib::lib::*};
 use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::exec::{common::*, zookeepercluster::*};
 use crate::zookeeper_controller::spec::reconciler as zk_spec;
@@ -38,14 +38,14 @@ pub struct ZookeeperReconciler {}
 
 
 #[verifier(external)]
-impl Reconciler<ZookeeperCluster, ZookeeperReconcileState, EmptyMsg, EmptyMsg, EmptyLib> for ZookeeperReconciler {
+impl Reconciler<ZookeeperCluster, ZookeeperReconcileState, ZKSupportInput, ZKSupportOutput, ZKSupport> for ZookeeperReconciler {
     fn reconcile_init_state(&self) -> ZookeeperReconcileState {
         reconcile_init_state()
     }
 
     fn reconcile_core(
-        &self, zk: &ZookeeperCluster, resp_o: Option<Response<EmptyMsg>>, state: ZookeeperReconcileState
-    ) -> (ZookeeperReconcileState, Option<Request<EmptyMsg>>) {
+        &self, zk: &ZookeeperCluster, resp_o: Option<Response<ZKSupportOutput>>, state: ZookeeperReconcileState
+    ) -> (ZookeeperReconcileState, Option<Request<ZKSupportInput>>) {
         reconcile_core(zk, resp_o, state)
     }
 
@@ -94,8 +94,8 @@ pub fn reconcile_error(state: &ZookeeperReconcileState) -> (res: bool)
 // TODO: make the shim layer pass zk, instead of zk_ref, to reconcile_core
 
 pub fn reconcile_core(
-    zk: &ZookeeperCluster, resp_o: Option<Response<EmptyMsg>>, state: ZookeeperReconcileState
-) -> (res: (ZookeeperReconcileState, Option<Request<EmptyMsg>>))
+    zk: &ZookeeperCluster, resp_o: Option<Response<ZKSupportOutput>>, state: ZookeeperReconcileState
+) -> (res: (ZookeeperReconcileState, Option<Request<ZKSupportInput>>))
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
@@ -214,18 +214,38 @@ pub fn reconcile_core(
         },
         ZookeeperReconcileStep::AfterCreateStatefulSet => {
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::Done,
+                reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
                 ..state
             };
-            return (state_prime, Option::None);
+            let ext_req = ZKSupportInput::ReconcileZKNode(zk);
+            return (state_prime, Option::Some(Request::ExternalRequest(ext_req)));
         },
         ZookeeperReconcileStep::AfterUpdateStatefulSet => {
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::Done,
+                reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
+                ..state
+            };
+            let ext_req = ZKSupportInput::ReconcileZKNode(zk);
+            return (state_prime, Option::Some(Request::ExternalRequest(ext_req)));
+        },
+        ZookeeperReconcileStep::AfterCreateZKNode => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
+            && resp_o.as_ref().unwrap().as_external_response_ref().is_reconcile_zk_node() {
+                let ext_resp = resp_o.unwrap().into_external_response().into_reconcile_zk_node();
+                if res.is_ok() {
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::Done,
+                        ..state
+                    };
+                    return (state_prime, Option::None);
+                }
+            }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
                 ..state
             };
             return (state_prime, Option::None);
-        },
+        }
         _ => {
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: step,
