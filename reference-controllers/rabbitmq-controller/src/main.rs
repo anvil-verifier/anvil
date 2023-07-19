@@ -142,17 +142,6 @@ async fn reconcile_stateful_set(rabbitmq: &RabbitmqCluster, client: &Client) -> 
             .create(&PostParams::default(), &sts)
             .await
             .map_err(Error::ReconcileStatefulSetFailed)?;
-        let gvk = GroupVersionKind::gvk("apps", "v1", "StatefulSet");
-        let api_resource = ApiResource::from_gvk(&gvk);
-        update_annotation(
-            api_resource,
-            rabbitmq.metadata.namespace.as_ref().unwrap(),
-            sts_name,
-            "createdAt",
-            &Utc::now().to_rfc3339(),
-            &client,
-        )
-        .await?;
         Ok(())
     }
 }
