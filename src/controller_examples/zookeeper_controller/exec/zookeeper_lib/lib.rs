@@ -35,8 +35,6 @@ impl View for ZKSupportOutput {
     }
 }
 
-// pub open spec fn
-
 pub struct ZKSupport {}
 
 impl ExternalLibrary<ZKSupportInput, ZKSupportOutput> for ZKSupport {

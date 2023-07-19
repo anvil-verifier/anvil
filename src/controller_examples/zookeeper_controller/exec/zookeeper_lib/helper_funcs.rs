@@ -15,10 +15,6 @@ impl Watcher for LoggingWatcher {
     fn handle(&self, e: WatchedEvent) {}
 }
 
-pub fn empty_func(zk: String) -> Result<(), Error> {
-    Ok(())
-}
-
 #[verifier(external)]
 pub fn reconcile_zk_node(zk: &ZookeeperCluster) -> Result<(), Error>
     requires
