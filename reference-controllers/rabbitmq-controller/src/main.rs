@@ -1,5 +1,4 @@
 #![allow(clippy::unnecessary_lazy_evaluations)]
-#![allow(unused_imports)]
 
 pub mod default_user_secret;
 pub mod erlang_cookie_secret;
@@ -15,27 +14,20 @@ pub mod statefulset;
 
 use crate::rabbitmqcluster_types::*;
 use anyhow::Result;
-use chrono::Utc;
-use core::time;
 use futures::StreamExt;
 use k8s_openapi::api::core::v1 as corev1;
 use k8s_openapi::api::rbac::v1 as rbacv1;
-use k8s_openapi::api::{
-    apps::v1 as appsv1, apps::v1::StatefulSet, core::v1::ConfigMap, core::v1::Service,
-};
+use k8s_openapi::api::{apps::v1 as appsv1, apps::v1::StatefulSet, core::v1::ConfigMap};
 use kube::{
     api::{
         Api, ApiResource, DynamicObject, GroupVersionKind, ListParams, Patch, PatchParams,
         PostParams,
     },
-    client::ConfigExt,
     runtime::controller::{Action, Controller},
-    Client, Config, CustomResourceExt,
+    Client, CustomResourceExt,
 };
-use kube_client::{self, client};
 use kube_core::{self, ResourceExt};
 use serde_json::json;
-use std::str::FromStr;
 use std::{env, sync::Arc};
 use thiserror::Error;
 use tokio::time::Duration;
@@ -101,7 +93,6 @@ async fn reconcile_stateful_set(rabbitmq: &RabbitmqCluster, client: &Client) -> 
                 .unwrap()
         );
         let old_sts = sts_o.unwrap();
-        info!("Update statefulset: {}", sts_name);
 
         let mut updated_sts = StatefulSet {
             spec: sts.spec,
@@ -130,6 +121,7 @@ async fn reconcile_stateful_set(rabbitmq: &RabbitmqCluster, client: &Client) -> 
             >= old_sts.spec.as_ref().unwrap().replicas.unwrap()
         {
             // Only scale up is supported.
+            info!("Update statefulset: {}", sts_name);
             sts_api
                 .replace(sts_name, &PostParams::default(), &updated_sts)
                 .await
@@ -163,23 +155,18 @@ async fn reconcile_server_config_map(
         .map_err(Error::ReconcileConfigMapFailed)?;
 
     if server_config_o.is_some() {
-        info!(
-            "Current rv of server configmap: {}",
-            server_config_o
-                .as_ref()
-                .unwrap()
-                .metadata
-                .resource_version
-                .as_ref()
-                .unwrap()
-        );
+        let resrouce_version = server_config_o
+            .as_ref()
+            .unwrap()
+            .metadata
+            .resource_version
+            .as_ref()
+            .unwrap()
+            .clone();
+        info!("Current rv of server configmap: {}", resrouce_version);
         if server_config.data != server_config_o.as_ref().unwrap().data {
             // If the data is different, update the server config
             info!("Update configmap: {}", server_config_name);
-            info!(
-                "The new user config is: {}",
-                server_config.data.clone().unwrap()["userDefinedConfiguration.conf"]
-            );
             let updated_server_config = ConfigMap {
                 data: server_config.data,
                 binary_data: server_config.binary_data,
@@ -201,8 +188,8 @@ async fn reconcile_server_config_map(
                 api_resource,
                 rabbitmq.metadata.namespace.as_ref().unwrap(),
                 &server_config_name,
-                "updatedAt",
-                &Utc::now().to_rfc3339(),
+                "lastVersion",
+                &resrouce_version,
                 &client,
             )
             .await?;
@@ -242,12 +229,13 @@ async fn restart_sts_if_needed(rabbitmq: &RabbitmqCluster, client: &Client) -> R
         .await
         .map_err(Error::ReconcileStatefulSetFailed)?;
 
-    let server_config_updatedat = match server_config_o.clone().unwrap().metadata.annotations {
-        Some(annotations) => annotations.get("updatedAt").cloned(),
+    let server_config_last_version = match server_config_o.clone().unwrap().metadata.annotations {
+        Some(annotations) => annotations.get("lastVersion").cloned(),
         None => None,
     };
 
-    if !server_config_updatedat.is_some() {
+    if !server_config_last_version.is_some() {
+        // If lastVersion is not set, it means the server configmap is not updated.
         // If the server configmap is not updated, return.
         return Ok(());
     }
@@ -262,12 +250,18 @@ async fn restart_sts_if_needed(rabbitmq: &RabbitmqCluster, client: &Client) -> R
         .unwrap()
         .annotations
     {
-        Some(annotations) => annotations.get("restartedAt").cloned(),
+        Some(annotations) => annotations.get("restartedVersion").cloned(),
         None => None,
     };
 
+    let server_config_updatedat = server_config_o
+        .as_ref()
+        .unwrap()
+        .metadata
+        .resource_version
+        .clone();
     if sts_restartedat.is_some()
-        && sts_restartedat.clone().unwrap() > server_config_updatedat.clone().unwrap()
+        && sts_restartedat.clone().unwrap() >= server_config_updatedat.clone().unwrap()
     {
         // sts was updated after the last server-conf configmap update; no need to restart sts
         return Ok(());
@@ -279,7 +273,7 @@ async fn restart_sts_if_needed(rabbitmq: &RabbitmqCluster, client: &Client) -> R
             "template": {
                 "metadata": {
                     "annotations": {
-                        "restartedAt": Utc::now().to_rfc3339(),
+                        "restartedVersion": server_config_o.unwrap().metadata.resource_version.unwrap(),
                     },
                 },
             },

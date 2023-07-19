@@ -1,4 +1,3 @@
-use k8s_openapi::api::core::v1 as corev1;
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use kube::CustomResource;
 use schemars::JsonSchema;
