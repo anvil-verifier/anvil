@@ -338,7 +338,6 @@ fn setup_container(rabbitmq: &RabbitmqCluster) -> corev1::Container{
     if rabbitmq.spec.image.is_some() {
         image_used = rabbitmq.spec.image.clone();
     }
-    println!("image_used: {:?}", image_used);
     let setup_container = corev1::Container {
         name: "setup-container".to_string(),
         image: image_used,
