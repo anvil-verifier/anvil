@@ -35,6 +35,29 @@ impl View for ZKSupportOutput {
     }
 }
 
+impl ZKSupportOutput {
+    pub fn is_reconcile_zk_node(&self) -> (res: bool)
+        ensures res <==> self.is_ReconcileZKNode(),
+    {
+        match self {
+            ZKSupportOutput::ReconcileZKNode(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn into_reconcile_zk_node(self) -> (res: ZookeeperCluster)
+        requires
+            self.is_ReconcileZKNode(),
+        ensures
+            res == self.get_ReconcileZKNode_0(),
+    {
+        match self {
+            ZKSupportOutput::ReconcileZKNode(res) => res,
+            _ => unreached(),
+        }
+    }
+}
+
 pub struct ZKSupport {}
 
 impl ExternalLibrary<ZKSupportInput, ZKSupportOutput> for ZKSupport {

@@ -40,6 +40,39 @@ impl <T: View> Response<T> {
         }
     }
 
+    pub fn is_external_response(&self) -> (res: bool)
+        ensures res <==> self.is_ExternalResponse(),
+    {
+        match self {
+            Response::ExternalResponse(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_external_response_ref(&self) -> (resp: &T)
+        requires
+            self.is_ExternalResponse(),
+        ensures
+            resp == self.get_ExternalResponse_0(),
+    {
+        match self {
+            Response::ExternalResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn into_external_response(self) -> (resp: T)
+        requires
+            self.is_ExternalResponse(),
+        ensures
+            resp == self.get_ExternalResponse_0(),
+    {
+        match self {
+            Response::ExternalResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
     pub fn is_k_response(&self) -> (res: bool)
         ensures res <==> self.is_KResponse(),
     {
