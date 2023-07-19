@@ -12,7 +12,7 @@ use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::spec::zookeepercluster::*;
+use crate::zookeeper_controller::spec::{zookeeper_lib::*, zookeepercluster::*};
 use vstd::prelude::*;
 use vstd::string::*;
 
@@ -191,18 +191,45 @@ pub open spec fn reconcile_core(
         },
         ZookeeperReconcileStep::AfterCreateStatefulSet => {
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::Done,
+                reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
                 ..state
             };
-            (state_prime, Option::None)
+            let ext_req = ZKSupportInputView::ReconcileZKNode(zk);
+            return (state_prime, Option::Some(RequestView::ExternalRequest(ext_req)));
         },
         ZookeeperReconcileStep::AfterUpdateStatefulSet => {
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::Done,
+                reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
                 ..state
             };
-            (state_prime, Option::None)
+            let ext_req = ZKSupportInputView::ReconcileZKNode(zk);
+            return (state_prime, Option::Some(RequestView::ExternalRequest(ext_req)));
         },
+        ZookeeperReconcileStep::AfterCreateZKNode => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
+            && resp_o.get_Some_0().get_ExternalResponse_0().is_ReconcileZKNode() {
+                let ext_resp = resp_o.get_Some_0().get_ExternalResponse_0().get_ReconcileZKNode_0();
+                if res.is_Ok() {
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::Done,
+                        ..state
+                    };
+                    (state_prime, Option::None)
+                } else {
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, Option::None)
+                }
+            } else {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, Option::None)
+            }
+        }
         _ => {
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: step,
