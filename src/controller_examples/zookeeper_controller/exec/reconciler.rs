@@ -222,8 +222,7 @@ pub fn reconcile_core(
             let s3 = i32_to_string(zk.spec().replicas());
             let ext_req = ZKSupportInput::ReconcileZKNode(s1,s2,s3);
             proof {
-                to_view_is_other(s1, s2, s3);
-                assert(ext_req.to_view() == crate::zookeeper_controller::spec::zookeeper_lib::ZKSupportInputView::ReconcileZKNode(s1@,s2@,s3@));
+                zk_support_input_to_view_match(s1, s2, s3);
             }
             return (state_prime, Option::Some(Request::ExternalRequest(ext_req)));
         },
@@ -237,8 +236,7 @@ pub fn reconcile_core(
             let s3 = i32_to_string(zk.spec().replicas());
             let ext_req = ZKSupportInput::ReconcileZKNode(s1,s2,s3);
             proof {
-                to_view_is_other(s1, s2, s3);
-                assert(ext_req.to_view() == crate::zookeeper_controller::spec::zookeeper_lib::ZKSupportInputView::ReconcileZKNode(s1@,s2@,s3@));
+                zk_support_input_to_view_match(s1, s2, s3);
             }
             return (state_prime, Option::Some(Request::ExternalRequest(ext_req)));
         },
@@ -247,7 +245,7 @@ pub fn reconcile_core(
             && resp_o.as_ref().unwrap().as_external_response_ref().is_reconcile_zk_node() {
                 let ext_resp = resp_o.unwrap().into_external_response().into_reconcile_zk_node();
                 proof {
-                    same_result(ext_resp);
+                    zk_support_output_to_view_match(ext_resp);
                 }
                 if ext_resp.res.is_ok() {
                     let state_prime = ZookeeperReconcileState {

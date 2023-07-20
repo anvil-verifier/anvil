@@ -29,8 +29,8 @@ impl ToView for ZKSupportInput {
     }
 }
 
-pub proof fn to_view_is_other(s1: String, s2: String, s3: String)
-    ensures 
+pub proof fn zk_support_input_to_view_match(s1: String, s2: String, s3: String)
+    ensures
         ZKSupportInput::ReconcileZKNode(s1,s2,s3).to_view() == ZKSupportInputView::ReconcileZKNode(s1@, s2@, s3@) {}
 
 
@@ -43,8 +43,8 @@ impl ToView for ZKSupportOutput {
     }
 }
 
-pub proof fn same_result(result: ZKNodeResult)
-    ensures 
+pub proof fn zk_support_output_to_view_match(result: ZKNodeResult)
+    ensures
         ZKSupportOutput::ReconcileZKNode(result).to_view() == ZKSupportOutputView::ReconcileZKNode(ZKNodeResultView{res: result.res}) {}
 
 impl ZKSupportOutput {
