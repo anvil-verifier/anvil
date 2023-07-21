@@ -25,9 +25,9 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub struct State<K: ResourceView, T> {
+pub struct State<K: ResourceView, R: Reconciler<K>> {
     pub kubernetes_api_state: KubernetesAPIState,
-    pub controller_state: ControllerState<K, T>,
+    pub controller_state: ControllerState<K, R>,
     pub client_state: ClientState,
     pub network_state: NetworkState,
     pub rest_id_allocator: RestIdAllocator,
@@ -35,7 +35,7 @@ pub struct State<K: ResourceView, T> {
     pub busy_enabled: bool,
 }
 
-impl<K: ResourceView, T> State<K, T> {
+impl<K: ResourceView, R: Reconciler<K>> State<K, R> {
     #[verifier(inline)]
     pub open spec fn message_in_flight(self, msg: Message) -> bool {
         self.network_state.in_flight.contains(msg)
@@ -61,7 +61,7 @@ impl<K: ResourceView, T> State<K, T> {
         self.controller_state.ongoing_reconciles.dom().contains(key)
     }
 
-    pub open spec fn reconcile_state_of(self, key: ObjectRef) -> OngoingReconcile<K, T>
+    pub open spec fn reconcile_state_of(self, key: ObjectRef) -> OngoingReconcile<K, R>
         recommends
             self.reconcile_state_contains(key),
     {
@@ -100,10 +100,10 @@ impl<K: ResourceView, T> State<K, T> {
     }
 }
 
-pub open spec fn init<K: ResourceView, T, ReconcilerType: Reconciler<K ,T>>() -> StatePred<State<K, T>> {
-    |s: State<K, T>| {
+pub open spec fn init<K: ResourceView, R: Reconciler<K>>() -> StatePred<State<K, R>> {
+    |s: State<K, R>| {
         &&& (kubernetes_api().init)(s.kubernetes_api_state)
-        &&& (controller::<K, T, ReconcilerType>().init)(s.controller_state)
+        &&& (controller::<K, R>().init)(s.controller_state)
         &&& (client::<K>().init)(s.client_state)
         &&& (network().init)(s.network_state)
         &&& s.crash_enabled
@@ -119,8 +119,8 @@ pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostI
     }
 }
 
-pub open spec fn kubernetes_api_next<K: ResourceView, T>() -> Action<State<K, T>, Option<Message>, ()> {
-    let result = |input: Option<Message>, s: State<K, T>| {
+pub open spec fn kubernetes_api_next<K: ResourceView, R: Reconciler<K>>() -> Action<State<K, R>, Option<Message>, ()> {
+    let result = |input: Option<Message>, s: State<K, R>| {
         let host_result = kubernetes_api().next_result(
             KubernetesAPIActionInput{recv: input, rest_id_allocator: s.rest_id_allocator},
             s.kubernetes_api_state
@@ -134,12 +134,12 @@ pub open spec fn kubernetes_api_next<K: ResourceView, T>() -> Action<State<K, T>
         (host_result, network_result)
     };
     Action {
-        precondition: |input: Option<Message>, s: State<K, T>| {
+        precondition: |input: Option<Message>, s: State<K, R>| {
             &&& received_msg_destined_for(input, HostId::KubernetesAPI)
             &&& result(input, s).0.is_Enabled()
             &&& result(input, s).1.is_Enabled()
         },
-        transition: |input: Option<Message>, s: State<K, T>| {
+        transition: |input: Option<Message>, s: State<K, R>| {
             (State {
                 kubernetes_api_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
@@ -150,9 +150,9 @@ pub open spec fn kubernetes_api_next<K: ResourceView, T>() -> Action<State<K, T>
     }
 }
 
-pub open spec fn controller_next<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>() -> Action<State<K, T>, (Option<Message>, Option<ObjectRef>), ()> {
-    let result = |input: (Option<Message>, Option<ObjectRef>), s: State<K, T>| {
-        let host_result = controller::<K, T, ReconcilerType>().next_result(
+pub open spec fn controller_next<K: ResourceView, R: Reconciler<K>>() -> Action<State<K, R>, (Option<Message>, Option<ObjectRef>), ()> {
+    let result = |input: (Option<Message>, Option<ObjectRef>), s: State<K, R>| {
+        let host_result = controller::<K, R>().next_result(
             ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, rest_id_allocator: s.rest_id_allocator},
             s.controller_state
         );
@@ -165,12 +165,12 @@ pub open spec fn controller_next<K: ResourceView, T, ReconcilerType: Reconciler<
         (host_result, network_result)
     };
     Action {
-        precondition: |input: (Option<Message>, Option<ObjectRef>), s: State<K, T>| {
+        precondition: |input: (Option<Message>, Option<ObjectRef>), s: State<K, R>| {
             &&& received_msg_destined_for(input.0, HostId::CustomController)
             &&& result(input, s).0.is_Enabled()
             &&& result(input, s).1.is_Enabled()
         },
-        transition: |input: (Option<Message>, Option<ObjectRef>), s: State<K, T>| {
+        transition: |input: (Option<Message>, Option<ObjectRef>), s: State<K, R>| {
             (State {
                 controller_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
@@ -201,14 +201,14 @@ pub open spec fn controller_next<K: ResourceView, T, ReconcilerType: Reconciler<
 ///   -- this is not assumed by `schedule_controller_reconcile` because it never talks about what should happen if the
 ///   cr object does not exist, but it is still important because `schedule_controller_reconcile` is the only
 ///   action that can schedule a reconcile in our state machine.
-pub open spec fn schedule_controller_reconcile<K: ResourceView, T>() -> Action<State<K, T>, ObjectRef, ()> {
+pub open spec fn schedule_controller_reconcile<K: ResourceView, R: Reconciler<K>>() -> Action<State<K, R>, ObjectRef, ()> {
     Action {
-        precondition: |input: ObjectRef, s: State<K, T>| {
+        precondition: |input: ObjectRef, s: State<K, R>| {
             &&& s.resource_key_exists(input)
             &&& input.kind.is_CustomResourceKind()
             &&& K::from_dynamic_object(s.resource_obj_of(input)).is_Ok()
         },
-        transition: |input: ObjectRef, s: State<K, T>| {
+        transition: |input: ObjectRef, s: State<K, R>| {
             (State {
                 controller_state: ControllerState {
                     scheduled_reconciles: s.controller_state.scheduled_reconciles.insert(input, K::from_dynamic_object(s.resource_obj_of(input)).get_Ok_0()),
@@ -221,12 +221,12 @@ pub open spec fn schedule_controller_reconcile<K: ResourceView, T>() -> Action<S
 }
 
 /// This action restarts the crashed controller.
-pub open spec fn restart_controller<K: ResourceView, T>() -> Action<State<K, T>, (), ()> {
+pub open spec fn restart_controller<K: ResourceView, R: Reconciler<K>>() -> Action<State<K, R>, (), ()> {
     Action {
-        precondition: |input: (), s: State<K, T>| {
+        precondition: |input: (), s: State<K, R>| {
             s.crash_enabled
         },
-        transition: |input: (), s: State<K, T>| {
+        transition: |input: (), s: State<K, R>| {
             (State {
                 controller_state: init_controller_state(),
                 ..s
@@ -238,12 +238,12 @@ pub open spec fn restart_controller<K: ResourceView, T>() -> Action<State<K, T>,
 /// This action disallows the controller to crash from this point.
 /// This is used to constraint the crash behavior for liveness proof:
 /// the controller eventually stops crashing.
-pub open spec fn disable_crash<K: ResourceView, T>() -> Action<State<K, T>, (), ()> {
+pub open spec fn disable_crash<K: ResourceView, R: Reconciler<K>>() -> Action<State<K, R>, (), ()> {
     Action {
-        precondition: |input: (), s: State<K, T>| {
+        precondition: |input: (), s: State<K, R>| {
             true
         },
-        transition: |input: (), s: State<K, T>| {
+        transition: |input: (), s: State<K, R>| {
             (State {
                 crash_enabled: false,
                 ..s
@@ -252,8 +252,8 @@ pub open spec fn disable_crash<K: ResourceView, T>() -> Action<State<K, T>, (), 
     }
 }
 
-pub open spec fn busy_kubernetes_api_rejects_request<K: ResourceView, T>() -> Action<State<K, T>, Option<Message>, ()> {
-    let network_result = |input: Option<Message>, s: State<K, T>| {
+pub open spec fn busy_kubernetes_api_rejects_request<K: ResourceView, R: Reconciler<K>>() -> Action<State<K, R>, Option<Message>, ()> {
+    let network_result = |input: Option<Message>, s: State<K, R>| {
         let req_msg = input.get_Some_0();
         let resp = form_matched_resp_msg(req_msg, Result::Err(APIError::ServerTimeout));
         let msg_ops = MessageOps {
@@ -264,13 +264,13 @@ pub open spec fn busy_kubernetes_api_rejects_request<K: ResourceView, T>() -> Ac
         result
     };
     Action {
-        precondition: |input: Option<Message>, s: State<K, T>| {
+        precondition: |input: Option<Message>, s: State<K, R>| {
             &&& s.busy_enabled
             &&& input.is_Some()
             &&& input.get_Some_0().content.is_APIRequest()
             &&& network_result(input, s).is_Enabled()
         },
-        transition: |input: Option<Message>, s: State<K, T>| {
+        transition: |input: Option<Message>, s: State<K, R>| {
             (State {
                 network_state: network_result(input, s).get_Enabled_0(),
                 ..s
@@ -282,12 +282,12 @@ pub open spec fn busy_kubernetes_api_rejects_request<K: ResourceView, T>() -> Ac
 /// This action disallows the kubernetes api to be busy from this point.
 /// This is used to constraint the crash behavior for liveness proof:
 /// the controller eventually stops rejecting requests.
-pub open spec fn disable_busy<K: ResourceView, T>() -> Action<State<K, T>, (), ()> {
+pub open spec fn disable_busy<K: ResourceView, R: Reconciler<K>>() -> Action<State<K, R>, (), ()> {
     Action {
-        precondition: |input:(), s: State<K, T>| {
+        precondition: |input:(), s: State<K, R>| {
             true
         },
-        transition: |input: (), s: State<K, T>| {
+        transition: |input: (), s: State<K, R>| {
             (State {
                 busy_enabled: false,
                 ..s
@@ -296,8 +296,8 @@ pub open spec fn disable_busy<K: ResourceView, T>() -> Action<State<K, T>, (), (
     }
 }
 
-pub open spec fn client_next<K: ResourceView, T>() -> Action<State<K, T>, (Option<Message>, K), ()> {
-    let result = |input: (Option<Message>, K), s: State<K, T>| {
+pub open spec fn client_next<K: ResourceView, R: Reconciler<K>>() -> Action<State<K, R>, (Option<Message>, K), ()> {
+    let result = |input: (Option<Message>, K), s: State<K, R>| {
         let host_result = client().next_result(
             ClientActionInput{recv: input.0, cr: input.1, rest_id_allocator: s.rest_id_allocator},
             s.client_state
@@ -311,12 +311,12 @@ pub open spec fn client_next<K: ResourceView, T>() -> Action<State<K, T>, (Optio
         (host_result, network_result)
     };
     Action {
-        precondition: |input: (Option<Message>, K), s: State<K, T>| {
+        precondition: |input: (Option<Message>, K), s: State<K, R>| {
             &&& received_msg_destined_for(input.0, HostId::Client)
             &&& result(input, s).0.is_Enabled()
             &&& result(input, s).1.is_Enabled()
         },
-        transition: |input: (Option<Message>, K), s: State<K, T>| {
+        transition: |input: (Option<Message>, K), s: State<K, R>| {
             (State {
                 client_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
@@ -327,12 +327,12 @@ pub open spec fn client_next<K: ResourceView, T>() -> Action<State<K, T>, (Optio
     }
 }
 
-pub open spec fn stutter<K: ResourceView, T>() -> Action<State<K, T>, (), ()> {
+pub open spec fn stutter<K: ResourceView, R: Reconciler<K>>() -> Action<State<K, R>, (), ()> {
     Action {
-        precondition: |input: (), s: State<K, T>| {
+        precondition: |input: (), s: State<K, R>| {
             true
         },
-        transition: |input: (), s: State<K, T>| {
+        transition: |input: (), s: State<K, R>| {
             (s, ())
         },
     }
@@ -351,11 +351,11 @@ pub enum Step<K> {
     StutterStep(),
 }
 
-pub open spec fn next_step<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>
-    (s: State<K, T>, s_prime: State<K, T>, step: Step<K>) -> bool {
+pub open spec fn next_step<K: ResourceView, R: Reconciler<K>>
+    (s: State<K, R>, s_prime: State<K, R>, step: Step<K>) -> bool {
     match step {
         Step::KubernetesAPIStep(input) => kubernetes_api_next().forward(input)(s, s_prime),
-        Step::ControllerStep(input) => controller_next::<K, T, ReconcilerType>().forward(input)(s, s_prime),
+        Step::ControllerStep(input) => controller_next::<K, R>().forward(input)(s, s_prime),
         Step::ClientStep(input) => client_next().forward(input)(s, s_prime),
         Step::ScheduleControllerReconcileStep(input) => schedule_controller_reconcile().forward(input)(s, s_prime),
         Step::RestartController() => restart_controller().forward(())(s, s_prime),
@@ -369,28 +369,28 @@ pub open spec fn next_step<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>
 /// `next` chooses:
 /// * which host to take the next action (`Step`)
 /// * whether to deliver a message and which message to deliver (`Option<Message>` in `Step`)
-pub open spec fn next<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>() -> ActionPred<State<K, T>> {
-    |s: State<K, T>, s_prime: State<K, T>| exists |step: Step<K>| next_step::<K, T, ReconcilerType>(s, s_prime, step)
+pub open spec fn next<K: ResourceView, R: Reconciler<K>>() -> ActionPred<State<K, R>> {
+    |s: State<K, R>, s_prime: State<K, R>| exists |step: Step<K>| next_step::<K, R>(s, s_prime, step)
 }
 
 /// We install the reconciler to the Kubernetes cluster state machine spec
 /// TODO: develop a struct for the compound state machine and make reconciler its member
 /// so that we don't have to pass reconciler to init and next in the proof.
-pub open spec fn sm_spec<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>() -> TempPred<State<K, T>> {
-    lift_state(init::<K, T, ReconcilerType>()).and(sm_partial_spec::<K, T, ReconcilerType>())
+pub open spec fn sm_spec<K: ResourceView, R: Reconciler<K>>() -> TempPred<State<K, R>> {
+    lift_state(init::<K, R>()).and(sm_partial_spec::<K, R>())
 }
 
-pub open spec fn sm_partial_spec<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>() -> TempPred<State<K, T>> {
-    always(lift_action(next::<K, T, ReconcilerType>()))
+pub open spec fn sm_partial_spec<K: ResourceView, R: Reconciler<K>>() -> TempPred<State<K, R>> {
+    always(lift_action(next::<K, R>()))
     .and(tla_forall(|input| kubernetes_api_next().weak_fairness(input)))
-    .and(tla_forall(|input| controller_next::<K, T, ReconcilerType>().weak_fairness(input)))
+    .and(tla_forall(|input| controller_next::<K, R>().weak_fairness(input)))
     .and(tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)))
     .and(disable_crash().weak_fairness(()))
     .and(disable_busy().weak_fairness(()))
 }
 
-pub open spec fn kubernetes_api_action_pre<K: ResourceView, T>(action: KubernetesAPIAction, input: Option<Message>) -> StatePred<State<K, T>> {
-    |s: State<K, T>| {
+pub open spec fn kubernetes_api_action_pre<K: ResourceView, R: Reconciler<K>>(action: KubernetesAPIAction, input: Option<Message>) -> StatePred<State<K, R>> {
+    |s: State<K, R>| {
         let host_result = kubernetes_api().next_action_result(
             action,
             KubernetesAPIActionInput{recv: input, rest_id_allocator: s.rest_id_allocator},
@@ -408,9 +408,9 @@ pub open spec fn kubernetes_api_action_pre<K: ResourceView, T>(action: Kubernete
     }
 }
 
-pub open spec fn controller_action_pre<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(action: ControllerAction<K, T>, input: (Option<Message>, Option<ObjectRef>)) -> StatePred<State<K, T>> {
-    |s: State<K, T>| {
-        let host_result = controller::<K, T, ReconcilerType>().next_action_result(
+pub open spec fn controller_action_pre<K: ResourceView, R: Reconciler<K>>(action: ControllerAction<K, R>, input: (Option<Message>, Option<ObjectRef>)) -> StatePred<State<K, R>> {
+    |s: State<K, R>| {
+        let host_result = controller::<K, R>().next_action_result(
             action,
             ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, rest_id_allocator: s.rest_id_allocator},
             s.controller_state
@@ -427,20 +427,20 @@ pub open spec fn controller_action_pre<K: ResourceView, T, ReconcilerType: Recon
     }
 }
 
-pub open spec fn crash_disabled<K: ResourceView, T>() -> StatePred<State<K, T>> {
-    |s: State<K, T>| !s.crash_enabled
+pub open spec fn crash_disabled<K: ResourceView, R: Reconciler<K>>() -> StatePred<State<K, R>> {
+    |s: State<K, R>| !s.crash_enabled
 }
 
-pub open spec fn busy_disabled<K: ResourceView, T>() -> StatePred<State<K, T>> {
-    |s: State<K, T>| !s.busy_enabled
+pub open spec fn busy_disabled<K: ResourceView, R: Reconciler<K>>() -> StatePred<State<K, R>> {
+    |s: State<K, R>| !s.busy_enabled
 }
 
-pub open spec fn rest_id_counter_is<K: ResourceView, T>(rest_id: nat) -> StatePred<State<K, T>> {
-    |s: State<K, T>| s.rest_id_allocator.rest_id_counter == rest_id
+pub open spec fn rest_id_counter_is<K: ResourceView, R: Reconciler<K>>(rest_id: nat) -> StatePred<State<K, R>> {
+    |s: State<K, R>| s.rest_id_allocator.rest_id_counter == rest_id
 }
 
-pub open spec fn rest_id_counter_is_no_smaller_than<K: ResourceView, T>(rest_id: nat) -> StatePred<State<K, T>> {
-    |s: State<K, T>| s.rest_id_allocator.rest_id_counter >= rest_id
+pub open spec fn rest_id_counter_is_no_smaller_than<K: ResourceView, R: Reconciler<K>>(rest_id: nat) -> StatePred<State<K, R>> {
+    |s: State<K, R>| s.rest_id_allocator.rest_id_counter >= rest_id
 }
 
 }

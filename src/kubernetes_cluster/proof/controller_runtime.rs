@@ -22,71 +22,71 @@ use vstd::prelude::*;
 verus! {
 
 pub open spec fn reconciler_init_and_no_pending_req
-<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef) -> StatePred<State<K, T>> {
-    |s: State<K, T>| {
-        &&& at_reconcile_state(cr_key, ReconcilerType::reconcile_init_state())(s)
+<K: ResourceView, R: Reconciler<K>>(cr_key: ObjectRef) -> StatePred<State<K, R>> {
+    |s: State<K, R>| {
+        &&& at_reconcile_state(cr_key, R::reconcile_init_state())(s)
         &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
     }
 }
 
-pub open spec fn reconciler_reconcile_init<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef)
-    -> StatePred<State<K, T>>
+pub open spec fn reconciler_reconcile_init<K: ResourceView, R: Reconciler<K>>(cr_key: ObjectRef)
+    -> StatePred<State<K, R>>
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
-    |s: State<K, T>| {
+    |s: State<K, R>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& ReconcilerType::reconcile_init_state() == s.reconcile_state_of(cr_key).local_state
+        &&& R::reconcile_init_state() == s.reconcile_state_of(cr_key).local_state
     }
 }
 
-pub open spec fn reconciler_reconcile_done<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef)
-    -> StatePred<State<K, T>>
+pub open spec fn reconciler_reconcile_done<K: ResourceView, R: Reconciler<K>>(cr_key: ObjectRef)
+    -> StatePred<State<K, R>>
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
-    |s: State<K, T>| {
+    |s: State<K, R>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& ReconcilerType::reconcile_done(s.reconcile_state_of(cr_key).local_state)
+        &&& R::reconcile_done(s.reconcile_state_of(cr_key).local_state)
     }
 }
 
-pub open spec fn reconciler_reconcile_error<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(cr_key: ObjectRef)
-    -> StatePred<State<K, T>>
+pub open spec fn reconciler_reconcile_error<K: ResourceView, R: Reconciler<K>>(cr_key: ObjectRef)
+    -> StatePred<State<K, R>>
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
-    |s: State<K, T>| {
+    |s: State<K, R>| {
         &&& s.reconcile_state_contains(cr_key)
-        &&& ReconcilerType::reconcile_error(s.reconcile_state_of(cr_key).local_state)
+        &&& R::reconcile_error(s.reconcile_state_of(cr_key).local_state)
     }
 }
 
-pub open spec fn at_reconcile_state<K: ResourceView, T>(key: ObjectRef, state: T) -> StatePred<State<K, T>>
+pub open spec fn at_reconcile_state<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, state: R::T) -> StatePred<State<K, R>>
     recommends
         key.kind.is_CustomResourceKind()
 {
-    |s: State<K, T>| {
+    |s: State<K, R>| {
         &&& s.reconcile_state_contains(key)
         &&& s.reconcile_state_of(key).local_state == state
     }
 }
 
-pub open spec fn at_expected_reconcile_states<K: ResourceView, T>(key: ObjectRef, expected_states: FnSpec(T) -> bool) -> StatePred<State<K, T>>
+pub open spec fn at_expected_reconcile_states<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, expected_states: FnSpec(R::T) -> bool) -> StatePred<State<K, R>>
     recommends
         key.kind.is_CustomResourceKind()
 {
-    |s: State<K, T>| {
+    |s: State<K, R>| {
         &&& s.reconcile_state_contains(key)
         &&& expected_states(s.reconcile_state_of(key).local_state)
     }
 }
 
-pub open spec fn pending_req_in_flight_at_reconcile_state<K: ResourceView, T>(key: ObjectRef, state: T) -> StatePred<State<K, T>>
+pub open spec fn pending_req_in_flight_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, state: R::T) -> StatePred<State<K, R>>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: State<K, T>| {
+    |s: State<K, R>| {
         at_reconcile_state(key, state)(s)
         && s.reconcile_state_of(key).pending_req_msg.is_Some()
         && request_sent_by_controller(s.pending_req_of(key))
@@ -100,10 +100,10 @@ pub open spec fn request_sent_by_controller(msg: Message) -> bool {
     && msg.content.is_APIRequest()
 }
 
-pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state<K: ResourceView, T>(
-    key: ObjectRef, state: T, req_msg: Message
-) -> StatePred<State<K, T>> {
-    |s: State<K, T>| {
+pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
+    key: ObjectRef, state: R::T, req_msg: Message
+) -> StatePred<State<K, R>> {
+    |s: State<K, R>| {
         at_reconcile_state(key, state)(s)
         && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
         && request_sent_by_controller(req_msg)
@@ -111,13 +111,13 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state<K: Reso
     }
 }
 
-pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: ResourceView, T>(
-    key: ObjectRef, state: T
-) -> StatePred<State<K, T>>
+pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
+    key: ObjectRef, state: R::T
+) -> StatePred<State<K, R>>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: State<K, T>| {
+    |s: State<K, R>| {
         at_reconcile_state(key, state)(s)
         ==> {
             s.reconcile_state_of(key).pending_req_msg.is_Some()
@@ -131,11 +131,11 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: R
     }
 }
 
-pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state<K: ResourceView, T>(key: ObjectRef, state: T) -> StatePred<State<K, T>>
+pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, state: R::T) -> StatePred<State<K, R>>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: State<K, T>| {
+    |s: State<K, R>| {
         at_reconcile_state(key, state)(s)
         && s.reconcile_state_of(key).pending_req_msg.is_Some()
         && request_sent_by_controller(s.pending_req_of(key))
@@ -146,14 +146,14 @@ pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state<K: Resour
     }
 }
 
-pub open spec fn no_pending_req_at_reconcile_init_state<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>(
+pub open spec fn no_pending_req_at_reconcile_init_state<K: ResourceView, R: Reconciler<K>>(
     key: ObjectRef
-) -> StatePred<State<K, T>>
+) -> StatePred<State<K, R>>
     recommends
         key.kind.is_CustomResourceKind()
 {
-    |s: State<K, T>| {
-        at_reconcile_state::<K, T>(key, ReconcilerType::reconcile_init_state())(s)
+    |s: State<K, R>| {
+        at_reconcile_state::<K, R>(key, R::reconcile_init_state())(s)
         ==> s.reconcile_state_of(key).pending_req_msg.is_None()
     }
 }

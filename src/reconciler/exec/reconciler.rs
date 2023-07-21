@@ -7,11 +7,11 @@ use vstd::{prelude::*, view::*};
 
 verus! {
 
-pub trait Reconciler<R, T, LibInputType, LibOutputType, Lib>
-    where LibInputType: View, LibOutputType: View, Lib: ExternalLibrary<LibInputType, LibOutputType>
+pub trait Reconciler<R, T, I, O, Lib>
+    where I: View, O: View, Lib: ExternalLibrary<I, O>
 {
     fn reconcile_init_state(&self) -> T;
-    fn reconcile_core(&self, cr: &R, resp_o: Option<Response<LibOutputType>>, state: T) -> (T, Option<Request<LibInputType>>);
+    fn reconcile_core(&self, cr: &R, resp_o: Option<Response<O>>, state: T) -> (T, Option<Request<I>>);
     fn reconcile_done(&self, state: &T) -> bool;
     fn reconcile_error(&self, state: &T) -> bool;
 }
