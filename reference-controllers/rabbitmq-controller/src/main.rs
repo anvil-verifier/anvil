@@ -19,15 +19,11 @@ use k8s_openapi::api::core::v1 as corev1;
 use k8s_openapi::api::rbac::v1 as rbacv1;
 use k8s_openapi::api::{apps::v1 as appsv1, apps::v1::StatefulSet, core::v1::ConfigMap};
 use kube::{
-    api::{
-        Api, ApiResource, DynamicObject, GroupVersionKind, ListParams, Patch, PatchParams,
-        PostParams,
-    },
+    api::{Api, ApiResource, DynamicObject, ListParams, PostParams},
     runtime::controller::{Action, Controller},
     Client, CustomResourceExt,
 };
 use kube_core::{self, ResourceExt};
-use serde_json::json;
 use std::{env, sync::Arc};
 use thiserror::Error;
 use tokio::time::Duration;
@@ -58,9 +54,6 @@ enum Error {
 
     #[error("Failed to update annotation: {0}")]
     AnnotationUpdateFailed(#[source] kube::Error),
-
-    #[error("Failed to restart sts: {0}")]
-    RestartStatefulSetFailed(#[source] kube::Error),
 }
 
 struct Data {
@@ -78,6 +71,7 @@ async fn reconcile_stateful_set(
         client.clone(),
         rabbitmq.metadata.namespace.as_ref().unwrap(),
     );
+    // If the resource version for server config is newer, the sts will restart.
     let sts = statefulset::statefulset_build(&rabbitmq, configmap_rv);
     let sts_name = sts.metadata.name.as_ref().unwrap();
     let sts_o = sts_api
@@ -149,26 +143,23 @@ async fn reconcile_server_config_map(
             .unwrap()
             .clone();
         info!("Current rv of server configmap: {}", resource_version);
-        if server_config.data != server_config_o.as_ref().unwrap().data {
-            // If the data is different, update the server config
-            info!("Update configmap: {}", server_config_name);
-            let updated_server_config = ConfigMap {
-                data: server_config.data,
-                binary_data: server_config.binary_data,
-                immutable: server_config.immutable,
-                ..server_config_o.unwrap()
-            };
-            let new_cm = cm_api
-                .replace(
-                    server_config_name,
-                    &PostParams::default(),
-                    &updated_server_config,
-                )
-                .await
-                .map_err(Error::ReconcileConfigMapFailed)?;
-            return Ok(new_cm.resource_version().unwrap());
-        }
-        Ok("".to_string())
+
+        info!("Update configmap: {}", server_config_name);
+        let updated_server_config = ConfigMap {
+            data: server_config.data,
+            binary_data: server_config.binary_data,
+            immutable: server_config.immutable,
+            ..server_config_o.unwrap()
+        };
+        let new_cm = cm_api
+            .replace(
+                server_config_name,
+                &PostParams::default(),
+                &updated_server_config,
+            )
+            .await
+            .map_err(Error::ReconcileConfigMapFailed)?;
+        Ok(new_cm.resource_version().unwrap())
     } else {
         info!("Create configmap: {}", server_config_name);
         let new_cm = cm_api
@@ -178,50 +169,6 @@ async fn reconcile_server_config_map(
         Ok(new_cm.resource_version().unwrap())
     }
 }
-
-// async fn restart_sts_if_needed(rabbitmq: &RabbitmqCluster, client: &Client) -> Result<(), Error> {
-//     // Restart the statefulset if the server configmap is newer than the sts.
-//     let cm_api = Api::<corev1::ConfigMap>::namespaced(
-//         client.clone(),
-//         rabbitmq.metadata.namespace.as_ref().unwrap(),
-//     );
-//     let server_config = server_configmap::server_configmap_build(&rabbitmq);
-//     let server_config_name = server_config.metadata.name.as_ref().unwrap();
-//     let server_config_o = cm_api
-//         .get_opt(server_config_name)
-//         .await
-//         .map_err(Error::ReconcileConfigMapFailed)?;
-
-//     let sts_api = Api::<appsv1::StatefulSet>::namespaced(
-//         client.clone(),
-//         rabbitmq.metadata.namespace.as_ref().unwrap(),
-//     );
-//     let sts = statefulset::statefulset_build(&rabbitmq);
-//     let sts_name = sts.metadata.name.as_ref().unwrap();
-
-//     // Restart the sts by changing the pod template.
-//     // If the configmap is not updated, the restartedVersion annotation will be the same
-//     // so the patch action won't trigger sts to restart.
-//     let patch = Patch::Merge(json!({
-//         "spec": {
-//             "template": {
-//                 "metadata": {
-//                     "annotations": {
-//                         "restartedVersion": server_config_o.unwrap().metadata.resource_version.unwrap(),
-//                     },
-//                 },
-//             },
-//         },
-//     }));
-
-//     let pp = PatchParams::default();
-
-//     sts_api
-//         .patch(sts_name, &pp, &patch)
-//         .await
-//         .map_err(Error::RestartStatefulSetFailed)?;
-//     Ok(())
-// }
 
 async fn reconcile(rabbitmq: Arc<RabbitmqCluster>, _ctx: Arc<Data>) -> Result<Action, Error> {
     let client = &_ctx.client;

@@ -232,7 +232,7 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster, configmap_rv: String) -> corev1
                 rabbitmq.meta().name.as_ref().unwrap().clone(),
             )])),
             annotations: Some(BTreeMap::from([(
-                "restartedVersion".to_string(),
+                "configMapVersionInUse".to_string(),
                 configmap_rv,
             )])),
             ..metav1::ObjectMeta::default()
