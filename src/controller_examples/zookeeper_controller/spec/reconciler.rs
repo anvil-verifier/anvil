@@ -24,9 +24,10 @@ pub struct ZookeeperReconcileState {
 
 pub struct ZookeeperReconciler {}
 
-impl Reconciler<ZookeeperClusterView, ZookeeperReconcileState> for ZookeeperReconciler {
-    type LibInputType = ();
-    type LibOutputType = ();
+impl Reconciler<ZookeeperClusterView> for ZookeeperReconciler {
+    type T = ZookeeperReconcileState;
+    type I = ();
+    type O = ();
 
     open spec fn reconcile_init_state() -> ZookeeperReconcileState {
         reconcile_init_state()

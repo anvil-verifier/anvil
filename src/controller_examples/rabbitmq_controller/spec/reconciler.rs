@@ -24,9 +24,10 @@ pub struct RabbitmqReconcileState {
 
 pub struct RabbitmqReconciler {}
 
-impl Reconciler<RabbitmqClusterView, RabbitmqReconcileState> for RabbitmqReconciler {
-    type LibInputType = ();
-    type LibOutputType = ();
+impl Reconciler<RabbitmqClusterView> for RabbitmqReconciler {
+    type T = RabbitmqReconcileState;
+    type I = ();
+    type O = ();
     open spec fn reconcile_init_state() -> RabbitmqReconcileState {
         reconcile_init_state()
     }

@@ -10,15 +10,15 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub struct ControllerState<K: ResourceView, T> {
-    pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile<K, T>>,
+pub struct ControllerState<K: ResourceView, R: Reconciler<K>> {
+    pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile<K, R>>,
     pub scheduled_reconciles: Map<ObjectRef, K>,
 }
 
-pub struct OngoingReconcile<K: ResourceView, T> {
+pub struct OngoingReconcile<K: ResourceView, R: Reconciler<K>> {
     pub triggering_cr: K,
     pub pending_req_msg: Option<Message>,
-    pub local_state: T,
+    pub local_state: R::T,
 }
 
 #[is_variant]
@@ -36,15 +36,15 @@ pub struct ControllerActionInput {
 
 pub type ControllerActionOutput = (Multiset<Message>, RestIdAllocator);
 
-pub type ControllerStateMachine<K, T> = StateMachine<ControllerState<K, T>, ControllerActionInput, ControllerActionInput, ControllerActionOutput, ControllerStep>;
+pub type ControllerStateMachine<K, R> = StateMachine<ControllerState<K, R>, ControllerActionInput, ControllerActionInput, ControllerActionOutput, ControllerStep>;
 
-pub type ControllerAction<K, T> = Action<ControllerState<K, T>, ControllerActionInput, ControllerActionOutput>;
+pub type ControllerAction<K, R> = Action<ControllerState<K, R>, ControllerActionInput, ControllerActionOutput>;
 
 pub open spec fn controller_req_msg(req: APIRequest, req_id: nat) -> Message {
     form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req, req_id))
 }
 
-pub open spec fn init_controller_state<K: ResourceView, T>() -> ControllerState<K, T> {
+pub open spec fn init_controller_state<K: ResourceView, R: Reconciler<K>>() -> ControllerState<K, R> {
     ControllerState {
         ongoing_reconciles: Map::empty(),
         scheduled_reconciles: Map::empty(),
