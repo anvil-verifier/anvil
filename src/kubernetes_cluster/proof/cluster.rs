@@ -52,11 +52,11 @@ pub proof fn sm_partial_spec_is_stable<K: ResourceView, R: Reconciler<K>>()
         valid(stable(sm_partial_spec::<K, R>())),
 {
     always_p_is_stable::<State<K, R>>(lift_action(next::<K, R>()));
-    tla_forall_action_weak_fairness_is_stable::<K, T, Option<Message>, ()>(kubernetes_api_next());
-    tla_forall_action_weak_fairness_is_stable::<K, T, (Option<Message>, Option<ObjectRef>), ()>(controller_next::<K, R>());
-    tla_forall_action_weak_fairness_is_stable::<K, T, ObjectRef, ()>(schedule_controller_reconcile());
-    action_weak_fairness_is_stable::<K, T, ()>(disable_crash());
-    action_weak_fairness_is_stable::<K, T, ()>(disable_busy());
+    tla_forall_action_weak_fairness_is_stable::<K, R, Option<Message>, ()>(kubernetes_api_next());
+    tla_forall_action_weak_fairness_is_stable::<K, R, (Option<Message>, Option<ObjectRef>), ()>(controller_next::<K, R>());
+    tla_forall_action_weak_fairness_is_stable::<K, R, ObjectRef, ()>(schedule_controller_reconcile());
+    action_weak_fairness_is_stable::<K, R, ()>(disable_crash());
+    action_weak_fairness_is_stable::<K, R, ()>(disable_busy());
 
     stable_and_n!(
         always(lift_action(next::<K, R>())),

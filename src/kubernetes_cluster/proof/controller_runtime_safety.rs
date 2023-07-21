@@ -524,12 +524,16 @@ pub proof fn lemma_always_each_resp_matches_at_most_one_pending_req<K: ResourceV
 //   - If the response is processed by the controller, the controller will create a new pending request in flight which
 //   allows the invariant to still hold.
 pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
-    spec: TempPred<State<K, R>>, key: ObjectRef, state: T
+    spec: TempPred<State<K, R>>, key: ObjectRef, state: R::T
 )
     requires
         state != R::reconcile_init_state(),
-        forall |cr: K, resp_o: Option<APIResponse>, pre_state: T| #[trigger] R::reconcile_core(cr, resp_o, pre_state).0 == state
-            ==> R::reconcile_core(cr, resp_o, pre_state).1.is_Some(),
+        forall |cr, resp_o, pre_state| #[trigger] R::reconcile_core(cr, resp_o, pre_state).0 == state
+            ==> {
+                let req = R::reconcile_core(cr, resp_o, pre_state).1;
+                &&& req.is_Some()
+                &&& req.get_Some_0().is_KRequest()
+            },
         spec.entails(lift_state(init::<K, R>())),
         spec.entails(always(lift_action(next::<K, R>()))),
         spec.entails(always(lift_state(each_resp_matches_at_most_one_pending_req::<K, R>(key)))),
@@ -607,7 +611,7 @@ pub proof fn lemma_always_no_pending_req_at_reconcile_init_state<K: ResourceView
     requires
         spec.entails(lift_state(init::<K, R>())),
         spec.entails(always(lift_action(next::<K, R>()))),
-        forall |cr: K, resp_o: Option<APIResponse>, pre_state: T|
+        forall |cr, resp_o, pre_state|
             #[trigger] R::reconcile_core(cr, resp_o, pre_state).0 == R::reconcile_init_state()
             ==> R::reconcile_core(cr, resp_o, pre_state).1.is_None(),
     ensures

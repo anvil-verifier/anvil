@@ -62,7 +62,7 @@ pub open spec fn reconciler_reconcile_error<K: ResourceView, R: Reconciler<K>>(c
     }
 }
 
-pub open spec fn at_reconcile_state<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, state: T) -> StatePred<State<K, R>>
+pub open spec fn at_reconcile_state<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, state: R::T) -> StatePred<State<K, R>>
     recommends
         key.kind.is_CustomResourceKind()
 {
@@ -72,7 +72,7 @@ pub open spec fn at_reconcile_state<K: ResourceView, R: Reconciler<K>>(key: Obje
     }
 }
 
-pub open spec fn at_expected_reconcile_states<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, expected_states: FnSpec(T) -> bool) -> StatePred<State<K, R>>
+pub open spec fn at_expected_reconcile_states<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, expected_states: FnSpec(R::T) -> bool) -> StatePred<State<K, R>>
     recommends
         key.kind.is_CustomResourceKind()
 {
@@ -82,7 +82,7 @@ pub open spec fn at_expected_reconcile_states<K: ResourceView, R: Reconciler<K>>
     }
 }
 
-pub open spec fn pending_req_in_flight_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, state: T) -> StatePred<State<K, R>>
+pub open spec fn pending_req_in_flight_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, state: R::T) -> StatePred<State<K, R>>
     recommends
         key.kind.is_CustomResourceKind(),
 {
@@ -101,7 +101,7 @@ pub open spec fn request_sent_by_controller(msg: Message) -> bool {
 }
 
 pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
-    key: ObjectRef, state: T, req_msg: Message
+    key: ObjectRef, state: R::T, req_msg: Message
 ) -> StatePred<State<K, R>> {
     |s: State<K, R>| {
         at_reconcile_state(key, state)(s)
@@ -112,7 +112,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state<K: Reso
 }
 
 pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
-    key: ObjectRef, state: T
+    key: ObjectRef, state: R::T
 ) -> StatePred<State<K, R>>
     recommends
         key.kind.is_CustomResourceKind(),
@@ -131,7 +131,7 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: R
     }
 }
 
-pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, state: T) -> StatePred<State<K, R>>
+pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, state: R::T) -> StatePred<State<K, R>>
     recommends
         key.kind.is_CustomResourceKind(),
 {
