@@ -82,7 +82,7 @@ pub open spec fn pending_msg_at_after_create_server_config_map_step_is_create_cm
     |s: ClusterState| {
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s)
             ==> {
-                &&& s.reconcile_state_of(key).pending_req_msg.is_Some()
+                &&& pending_k8s_api_req_msg(s, key)
                 &&& cm_create_request_msg(key)(s.pending_req_of(key))
             }
     }
@@ -131,7 +131,7 @@ pub open spec fn pending_msg_at_after_update_server_config_map_step_is_update_cm
     |s: ClusterState| {
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s)
             ==> {
-                &&& s.reconcile_state_of(key).pending_req_msg.is_Some()
+                &&& pending_k8s_api_req_msg(s, key)
                 &&& cm_update_request_msg(key)(s.pending_req_of(key))
             }
     }

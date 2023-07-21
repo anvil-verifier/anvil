@@ -262,7 +262,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle<K: 
 {
     let at_some_state_and_pending_req_in_flight_or_resp_in_flight = |s: State<K, R>| {
         at_reconcile_state(cr.object_ref(), state)(s)
-        && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_Some()
+        && pending_k8s_api_req_msg(s, cr.object_ref())
         && request_sent_by_controller(s.pending_req_of(cr.object_ref()))
         && (s.message_in_flight(s.pending_req_of(cr.object_ref()))
         || exists |resp_msg: Message| {
@@ -536,7 +536,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
     let known_resp_in_flight = |resp| lift_state(
         |s: State<K, R>| {
             at_reconcile_state(cr.object_ref(), state)(s)
-            && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_Some()
+            && pending_k8s_api_req_msg(s, cr.object_ref())
             && request_sent_by_controller(s.pending_req_of(cr.object_ref()))
             && s.message_in_flight(resp)
             && resp_msg_matches_req_msg(resp, s.pending_req_of(cr.object_ref()))
@@ -546,7 +546,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
         .leads_to(lift_state(post))) by {
             let resp_in_flight_state = |s: State<K, R>| {
                 at_reconcile_state(cr.object_ref(), state)(s)
-                && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_Some()
+                && pending_k8s_api_req_msg(s, cr.object_ref())
                 && request_sent_by_controller(s.pending_req_of(cr.object_ref()))
                 && s.message_in_flight(msg)
                 && resp_msg_matches_req_msg(msg, s.pending_req_of(cr.object_ref()))

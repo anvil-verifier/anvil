@@ -17,7 +17,14 @@ pub struct ControllerState<K: ResourceView, R: Reconciler<K>> {
 
 pub struct OngoingReconcile<K: ResourceView, R: Reconciler<K>> {
     pub triggering_cr: K,
+    // Use two fields for pending k8s api request and pending external library result separately.
+    // Such design is not very reasonable because it doesn't make it apparent that the two fields
+    // are mutually exclusive, i.e., only one of them can be non-empty at some point.
+    // But this is fine, since we can describe the state as one of them is Option::Some(...) and
+    // the other is Option::None.
     pub pending_req_msg: Option<Message>,
+    pub pending_lib_req: Option<R::I>,
+    pub lib_response: Option<R::O>,
     pub local_state: R::T,
 }
 

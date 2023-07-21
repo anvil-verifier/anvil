@@ -229,7 +229,9 @@ pub open spec fn req_in_flight_or_pending_at_controller<K: ResourceView, R: Reco
     req_msg.content.is_APIRequest() && (s.message_in_flight(req_msg)
     || exists |cr_key: ObjectRef| (
         #[trigger] s.reconcile_state_contains(cr_key)
-        && s.reconcile_state_of(cr_key).pending_req_msg == Option::Some(req_msg)
+        && pending_k8s_api_req_msg_is(s, cr_key, req_msg)
+        && s.reconcile_state_of(cr_key).pending_lib_req.is_None()
+        && s.reconcile_state_of(cr_key).lib_response.is_None()
     ))
 }
 
@@ -291,7 +293,7 @@ pub open spec fn pending_req_has_lower_req_id_than_allocator<K: ResourceView, R:
     |s: State<K, R>| {
         forall |cr_key: ObjectRef|
             #[trigger] s.reconcile_state_contains(cr_key)
-            && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
+            && pending_k8s_api_req_msg(s, cr_key)
             ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_req_id() < s.rest_id_allocator.rest_id_counter
     }
 }
@@ -311,12 +313,12 @@ pub open spec fn resp_matches_at_most_one_pending_req<K: ResourceView, R: Reconc
 ) -> StatePred<State<K, R>> {
     |s: State<K, R>| {
         s.reconcile_state_contains(cr_key)
-        && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
+        && pending_k8s_api_req_msg(s, cr_key)
         && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
         ==> (
             forall |other_key: ObjectRef|
                 #[trigger] s.reconcile_state_contains(other_key)
-                && s.reconcile_state_of(other_key).pending_req_msg.is_Some()
+                && pending_k8s_api_req_msg(s, other_key)
                 && other_key != cr_key
                 ==> !resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(other_key).pending_req_msg.get_Some_0())
             )
@@ -329,7 +331,7 @@ pub open spec fn resp_if_matches_pending_req_then_no_other_resp_matches<K: Resou
     |s: State<K, R>| {
         s.reconcile_state_contains(cr_key)
         && s.message_in_flight(resp_msg)
-        && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
+        && pending_k8s_api_req_msg(s, cr_key)
         && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
         ==> (
             forall |other_resp: Message| other_resp != resp_msg && #[trigger] s.message_in_flight(other_resp)
@@ -382,7 +384,7 @@ pub open spec fn each_resp_if_matches_pending_req_then_no_other_resp_matches<K: 
         forall |resp_msg: Message|
             s.reconcile_state_contains(cr_key)
             && #[trigger] s.message_in_flight(resp_msg)
-            && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
+            && pending_k8s_api_req_msg(s, cr_key)
             && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
             ==> (
                 forall |other_resp: Message| other_resp != resp_msg && #[trigger] s.message_in_flight(other_resp)
@@ -416,7 +418,7 @@ pub proof fn lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_ma
         assert forall |resp_msg: Message|
             ex.head().reconcile_state_contains(cr_key)
             && #[trigger] ex.head().message_in_flight(resp_msg)
-            && ex.head().reconcile_state_of(cr_key).pending_req_msg.is_Some()
+            && pending_k8s_api_req_msg(ex.head(), cr_key)
             && resp_msg_matches_req_msg(resp_msg, ex.head().reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
             ==> (
                 forall |other_resp: Message| other_resp != resp_msg && #[trigger] ex.head().message_in_flight(other_resp)
@@ -479,12 +481,12 @@ pub open spec fn each_resp_matches_at_most_one_pending_req<K: ResourceView, R: R
     |s: State<K, R>| {
         forall |resp_msg: Message|
             s.reconcile_state_contains(cr_key)
-            && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
+            && pending_k8s_api_req_msg(s, cr_key)
             && #[trigger] resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
             ==> (
                 forall |other_key: ObjectRef|
                     #[trigger] s.reconcile_state_contains(other_key)
-                    && s.reconcile_state_of(other_key).pending_req_msg.is_Some()
+                    && pending_k8s_api_req_msg(s, other_key)
                     && other_key != cr_key
                     ==> !resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(other_key).pending_req_msg.get_Some_0())
                 )

@@ -69,7 +69,7 @@ pub open spec fn pending_msg_at_after_create_stateful_set_step_is_create_sts_req
     |s: ClusterState| {
         at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s)
             ==> {
-                &&& s.reconcile_state_of(key).pending_req_msg.is_Some()
+                &&& pending_k8s_api_req_msg(s, key)
                 &&& sts_create_request_msg(key)(s.pending_req_of(key))
             }
     }
@@ -380,7 +380,7 @@ pub open spec fn pending_msg_at_after_update_stateful_set_step_is_update_sts_req
     |s: ClusterState| {
         at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s)
             ==> {
-                &&& s.reconcile_state_of(key).pending_req_msg.is_Some()
+                &&& pending_k8s_api_req_msg(s, key)
                 &&& sts_update_request_msg(key)(s.pending_req_of(key))
             }
     }
