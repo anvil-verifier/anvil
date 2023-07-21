@@ -412,7 +412,6 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView
     let namespace = zk.metadata.namespace.get_Some_0();
 
     let labels = Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0());
-    let annotations = Map::empty().insert(new_strlit("envelope")@, new_strlit("ZookeeperCluster")@);
     let metadata = ObjectMetaView::default()
         .set_name(name)
         .set_labels(labels);
