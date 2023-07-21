@@ -77,8 +77,8 @@ impl ExternalLibrary<ZKSupportInput, ZKSupportOutput> for ZKSupport {
     #[verifier(external)]
     fn process(input: ZKSupportInput) -> Option<ZKSupportOutput> {
         match input {
-            ZKSupportInput::ReconcileZKNode(s1,s2,s3)
-                => Option::Some(ZKSupportOutput::ReconcileZKNode(reconcile_zk_node(s1,s2,s3))),
+            ZKSupportInput::ReconcileZKNode(path, uri, replicas)
+                => Option::Some(ZKSupportOutput::ReconcileZKNode(reconcile_zk_node(path, uri, replicas))),
         }
     }
 }
