@@ -12,7 +12,7 @@ use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::spec::zookeepercluster::*;
+use crate::zookeeper_controller::spec::{zookeeper_lib::*, zookeepercluster::*};
 use vstd::prelude::*;
 use vstd::string::*;
 
@@ -26,16 +26,16 @@ pub struct ZookeeperReconciler {}
 
 impl Reconciler<ZookeeperClusterView> for ZookeeperReconciler {
     type T = ZookeeperReconcileState;
-    type I = ();
-    type O = ();
+    type I = ZKSupportInputView;
+    type O = ZKSupportOutputView;
 
     open spec fn reconcile_init_state() -> ZookeeperReconcileState {
         reconcile_init_state()
     }
 
     open spec fn reconcile_core(
-        zk: ZookeeperClusterView, resp_o: Option<ResponseView<()>>, state: ZookeeperReconcileState
-    ) -> (ZookeeperReconcileState, Option<RequestView<()>>) {
+        zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKSupportOutputView>>, state: ZookeeperReconcileState
+    ) -> (ZookeeperReconcileState, Option<RequestView<ZKSupportInputView>>) {
         reconcile_core(zk, resp_o, state)
     }
 
@@ -69,8 +69,8 @@ pub open spec fn reconcile_error(state: ZookeeperReconcileState) -> bool {
 }
 
 pub open spec fn reconcile_core(
-    zk: ZookeeperClusterView, resp_o: Option<ResponseView<()>>, state: ZookeeperReconcileState
-) -> (ZookeeperReconcileState, Option<RequestView<()>>)
+    zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKSupportOutputView>>, state: ZookeeperReconcileState
+) -> (ZookeeperReconcileState, Option<RequestView<ZKSupportInputView>>)
     recommends
         zk.metadata.name.is_Some(),
         zk.metadata.namespace.is_Some(),
@@ -191,17 +191,48 @@ pub open spec fn reconcile_core(
         },
         ZookeeperReconcileStep::AfterCreateStatefulSet => {
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::Done,
+                reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
                 ..state
             };
-            (state_prime, Option::None)
+            let ext_req = ZKSupportInputView::ReconcileZKNode(
+                cluster_size_zk_node_path(zk), zk_service_uri(zk), int_to_string_view(zk.spec.replicas)
+            );
+            (state_prime, Option::Some(RequestView::ExternalRequest(ext_req)))
         },
         ZookeeperReconcileStep::AfterUpdateStatefulSet => {
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::Done,
+                reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
                 ..state
             };
-            (state_prime, Option::None)
+            let ext_req = ZKSupportInputView::ReconcileZKNode(
+                cluster_size_zk_node_path(zk), zk_service_uri(zk), int_to_string_view(zk.spec.replicas)
+            );
+            (state_prime, Option::Some(RequestView::ExternalRequest(ext_req)))
+        },
+        ZookeeperReconcileStep::AfterCreateZKNode => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
+            && resp_o.get_Some_0().get_ExternalResponse_0().is_ReconcileZKNode() {
+                let ext_resp = resp_o.get_Some_0().get_ExternalResponse_0().get_ReconcileZKNode_0();
+                if ext_resp.res.is_Ok() {
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::Done,
+                        ..state
+                    };
+                    (state_prime, Option::None)
+                } else {
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, Option::None)
+                }
+            } else {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, Option::None)
+            }
         },
         _ => {
             let state_prime = ZookeeperReconcileState {
@@ -477,6 +508,33 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
                 ConfigMapVolumeSourceView::default().set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
             )
         ])
+}
+
+pub open spec fn client_service_name(zk: ZookeeperClusterView) -> StringView
+    recommends
+        zk.metadata.name.is_Some(),
+        zk.metadata.namespace.is_Some(),
+{
+    zk.metadata.name.get_Some_0() + new_strlit("-client")@
+}
+
+pub open spec fn zk_service_uri(zk: ZookeeperClusterView) -> StringView
+    recommends
+        zk.metadata.name.is_Some(),
+        zk.metadata.namespace.is_Some(),
+{
+    client_service_name(zk) + new_strlit(".")@
+    + zk.metadata.namespace.get_Some_0()
+    + new_strlit(".svc.cluster.local:2181")@
+}
+
+pub open spec fn cluster_size_zk_node_path(zk: ZookeeperClusterView) -> StringView
+    recommends
+        zk.metadata.name.is_Some(),
+        zk.metadata.namespace.is_Some(),
+{
+    new_strlit("/zookeeper-operator/")@
+    + zk.metadata.name.get_Some_0()
 }
 
 }

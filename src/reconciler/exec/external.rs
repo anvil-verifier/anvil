@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::pervasive_ext::to_view::*;
 use vstd::{prelude::*, view::*};
 
 verus! {
@@ -9,7 +10,7 @@ verus! {
 // The InputType is the ? of Request<?> of the reconciler, i.e., it completes the request type of a reconciler.
 // Similarly, the OutputType composes the Response<?> type of a reconciler.
 // Note that we can encapsulate all the required libraries here, so each reconciler only has one ExternalLibrary type.
-pub trait ExternalLibrary<InputType: View, OutputType: View> {
+pub trait ExternalLibrary<InputType: ToView, OutputType: ToView> {
     fn process(input: InputType) -> Option<OutputType>;
 }
 
@@ -28,9 +29,9 @@ pub struct EmptyMsg {}
 
 type EmptyMsgView = ();
 
-impl View for EmptyMsg {
+impl ToView for EmptyMsg {
     type V = EmptyMsgView;
-    spec fn view(&self) -> EmptyMsgView;
+    spec fn to_view(&self) -> EmptyMsgView;
 }
 
 }
