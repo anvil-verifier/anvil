@@ -18,10 +18,10 @@ use vstd::prelude::*;
 
 verus! {
 
-pub type ClusterState = State<ZookeeperClusterView, ZookeeperReconcileState>;
+pub type ClusterState = State<ZookeeperClusterView, ZookeeperReconciler>;
 
 pub open spec fn cluster_spec() -> TempPred<ClusterState> {
-    sm_spec::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>()
+    sm_spec::<ZookeeperClusterView,ZookeeperReconciler>()
 }
 
 pub open spec fn zookeeper_reconcile_state(step: ZookeeperReconcileStep) -> ZookeeperReconcileState {
