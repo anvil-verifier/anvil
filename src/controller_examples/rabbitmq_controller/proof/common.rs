@@ -18,10 +18,10 @@ use vstd::prelude::*;
 
 verus! {
 
-pub type ClusterState = State<RabbitmqClusterView, RabbitmqReconcileState>;
+pub type ClusterState = State<RabbitmqClusterView, RabbitmqReconciler>;
 
 pub open spec fn cluster_spec() -> TempPred<ClusterState> {
-    sm_spec::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()
+    sm_spec::<RabbitmqClusterView, RabbitmqReconciler>()
 }
 
 pub open spec fn rabbitmq_reconcile_state(step: RabbitmqReconcileStep) -> RabbitmqReconcileState {
@@ -52,7 +52,7 @@ pub open spec fn at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, s
 pub open spec fn no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, step: RabbitmqReconcileStep) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
-        &&& no_pending_request(s, rabbitmq.object_ref)
+        &&& no_pending_request(s, rabbitmq.object_ref())
     }
 }
 
