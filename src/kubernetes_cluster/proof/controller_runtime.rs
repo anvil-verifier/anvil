@@ -84,19 +84,16 @@ pub open spec fn at_expected_reconcile_states<K: ResourceView, R: Reconciler<K>>
 
 pub open spec fn pending_k8s_api_req_msg<K: ResourceView, R: Reconciler<K>>(s: State<K, R>, key: ObjectRef) -> bool {
     s.reconcile_state_of(key).pending_req_msg.is_Some()
-    && s.reconcile_state_of(key).pending_lib_req.is_None()
     && s.reconcile_state_of(key).lib_response.is_None()
 }
 
 pub open spec fn pending_k8s_api_req_msg_is<K: ResourceView, R: Reconciler<K>>(s: State<K, R>, key: ObjectRef, req: Message) -> bool {
     s.reconcile_state_of(key).pending_req_msg == Option::Some(req)
-    && s.reconcile_state_of(key).pending_lib_req.is_None()
     && s.reconcile_state_of(key).lib_response.is_None()
 }
 
 pub open spec fn no_pending_request<K: ResourceView, R: Reconciler<K>>(s: State<K, R>, key: ObjectRef) -> bool {
     s.reconcile_state_of(key).pending_req_msg.is_None()
-    && s.reconcile_state_of(key).pending_lib_req.is_None()
     && s.reconcile_state_of(key).lib_response.is_None()
 }
 
