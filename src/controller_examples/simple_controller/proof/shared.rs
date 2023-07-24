@@ -31,7 +31,7 @@ pub open spec fn reconciler_at_init_pc_and_no_pending_req(cr: CustomResourceView
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == SimpleReconcileStep::Init)
-        &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_None()
+        &&& no_pending_request(s, cr.object_ref())
     }
 }
 
@@ -46,7 +46,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req(msg: Message, cr:
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
-        &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(msg)
+        &&& pending_k8s_api_req_msg_is(s, cr.object_ref(), msg)
         &&& is_controller_get_cr_request_msg(msg, cr)
     }
 }

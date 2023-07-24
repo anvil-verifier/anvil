@@ -74,8 +74,8 @@ proof fn deletion_safety_proof(req_msg: Message)
 {
     init_invariant(
         cluster_spec(),
-        init::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
-        next::<ZookeeperClusterView, ZookeeperReconcileState, ZookeeperReconciler>(),
+        init::<ZookeeperClusterView, ZookeeperReconciler>(),
+        next::<ZookeeperClusterView, ZookeeperReconciler>(),
         deletion_property(req_msg)
     );
 }

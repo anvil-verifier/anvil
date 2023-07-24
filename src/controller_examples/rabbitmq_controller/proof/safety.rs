@@ -82,7 +82,7 @@ pub open spec fn pending_msg_at_after_create_server_config_map_step_is_create_cm
     |s: ClusterState| {
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s)
             ==> {
-                &&& s.reconcile_state_of(key).pending_req_msg.is_Some()
+                &&& pending_k8s_api_req_msg(s, key)
                 &&& cm_create_request_msg(key)(s.pending_req_of(key))
             }
     }
@@ -92,30 +92,30 @@ pub proof fn lemma_always_pending_msg_at_after_create_server_config_map_step_is_
     spec: TempPred<ClusterState>, key: ObjectRef
 )
     requires
-        spec.entails(lift_state(init::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(lift_state(init::<RabbitmqClusterView, RabbitmqReconciler>())),
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>()))),
     ensures
         spec.entails(
             always(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))
         ),
 {
     let invariant = pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key);
-    let init = init::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>();
+    let init = init::<RabbitmqClusterView, RabbitmqReconciler>();
     let stronger_next = |s, s_prime| {
-        &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
+        &&& next::<RabbitmqClusterView, RabbitmqReconciler>()(s, s_prime)
         &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
     };
 
-    lemma_always_each_key_in_reconcile_is_consistent_with_its_object::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(spec);
+    lemma_always_each_key_in_reconcile_is_consistent_with_its_object::<RabbitmqClusterView, RabbitmqReconciler>(spec);
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>()),
         lift_state(each_key_in_reconcile_is_consistent_with_its_object())
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>())
         .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
     );
 
@@ -131,7 +131,7 @@ pub open spec fn pending_msg_at_after_update_server_config_map_step_is_update_cm
     |s: ClusterState| {
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s)
             ==> {
-                &&& s.reconcile_state_of(key).pending_req_msg.is_Some()
+                &&& pending_k8s_api_req_msg(s, key)
                 &&& cm_update_request_msg(key)(s.pending_req_of(key))
             }
     }
@@ -141,30 +141,30 @@ pub proof fn lemma_always_pending_msg_at_after_update_server_config_map_step_is_
     spec: TempPred<ClusterState>, key: ObjectRef
 )
     requires
-        spec.entails(lift_state(init::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(lift_state(init::<RabbitmqClusterView, RabbitmqReconciler>())),
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>()))),
     ensures
         spec.entails(
             always(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))
         ),
 {
     let invariant = pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key);
-    let init = init::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>();
+    let init = init::<RabbitmqClusterView, RabbitmqReconciler>();
     let stronger_next = |s, s_prime| {
-        &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
+        &&& next::<RabbitmqClusterView, RabbitmqReconciler>()(s, s_prime)
         &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
     };
 
-    lemma_always_each_key_in_reconcile_is_consistent_with_its_object::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(spec);
+    lemma_always_each_key_in_reconcile_is_consistent_with_its_object::<RabbitmqClusterView, RabbitmqReconciler>(spec);
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>()),
         lift_state(each_key_in_reconcile_is_consistent_with_its_object())
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>())
         .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
     );
 
@@ -198,7 +198,7 @@ pub proof fn lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(
         spec.entails(lift_state(rest_id_counter_is(rest_id))),
         spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key))),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>()))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))),
@@ -268,7 +268,7 @@ pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
         spec.entails(lift_state(rest_id_counter_is(rest_id))),
         spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key))),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>()))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))),
@@ -332,7 +332,7 @@ pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
     requires
         spec.entails(lift_state(rest_id_counter_is(rest_id))),
         spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>()))),
         spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(rabbitmq)))),
@@ -344,7 +344,7 @@ pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
         &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
     };
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
+        &&& next::<RabbitmqClusterView, RabbitmqReconciler>()(s, s_prime)
         &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
         &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
         &&& controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(rabbitmq)(s)
@@ -364,14 +364,14 @@ pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>()),
         lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
         lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(rabbitmq))
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>())
         .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
         .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
         .and(lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(rabbitmq)))
@@ -384,7 +384,7 @@ pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
             && cm_update_request_msg_since(rabbitmq.object_ref(), rest_id)(msg)
         implies msg.content.get_update_request().obj.spec == ConfigMapView::marshal_spec((make_server_config_map(rabbitmq).data, ())) by {
             if !s.message_in_flight(msg) {
-                let step = choose |step| next_step::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(s, s_prime, step);
+                let step = choose |step| next_step::<RabbitmqClusterView, RabbitmqReconciler>(s, s_prime, step);
                 assert(step.is_ControllerStep());
                 let other_rmq = s.reconcile_state_of(step.get_ControllerStep_0().1.get_Some_0()).triggering_cr;
                 seq_lemmas::seq_equal_preserved_by_add(
@@ -435,7 +435,7 @@ pub proof fn lemma_always_no_delete_cm_req_since_rest_id_is_in_flight(
     requires
         spec.entails(lift_state(rest_id_counter_is(rest_id))),
         spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
@@ -446,7 +446,7 @@ pub proof fn lemma_always_no_delete_cm_req_since_rest_id_is_in_flight(
         &&& rest_id_counter_is(rest_id)(s)
         &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
     };
-    let next = next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>();
+    let next = next::<RabbitmqClusterView, RabbitmqReconciler>();
     let invariant = no_delete_cm_req_since_rest_id_is_in_flight(key, rest_id);
 
     entails_and_n!(
@@ -496,7 +496,7 @@ proof fn lemma_always_filtered_update_cm_req_len_is_at_most_one(
         spec.entails(lift_state(rest_id_counter_is(rest_id))),
         spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key))),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>()))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))),
@@ -515,7 +515,7 @@ proof fn lemma_always_filtered_update_cm_req_len_is_at_most_one(
         &&& pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)(s)
     };
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
+        &&& next::<RabbitmqClusterView, RabbitmqReconciler>()(s, s_prime)
         &&& crash_disabled()(s)
         &&& busy_disabled()(s)
         &&& pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)(s)
@@ -540,7 +540,7 @@ proof fn lemma_always_filtered_update_cm_req_len_is_at_most_one(
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>()),
         lift_state(crash_disabled()),
         lift_state(busy_disabled()),
         lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)),
@@ -550,7 +550,7 @@ proof fn lemma_always_filtered_update_cm_req_len_is_at_most_one(
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>())
         .and(lift_state(crash_disabled()))
         .and(lift_state(busy_disabled()))
         .and(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))
@@ -572,7 +572,7 @@ proof fn lemma_always_filtered_update_cm_req_len_is_at_most_one(
     implies invariant(s_prime) by {
         let cm_update_req_multiset = s.network_state.in_flight.filter(cm_update_request_msg_since(key, rest_id));
         let cm_update_req_multiset_prime = s_prime.network_state.in_flight.filter(cm_update_request_msg_since(key, rest_id));
-        let step = choose |step| next_step::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(s, s_prime, step);
+        let step = choose |step| next_step::<RabbitmqClusterView, RabbitmqReconciler>(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
                 if !at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s) {
@@ -678,7 +678,7 @@ proof fn lemma_always_filtered_create_cm_req_len_is_at_most_one(
         spec.entails(lift_state(rest_id_counter_is(rest_id))),
         spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key))),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>()))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))),
@@ -697,7 +697,7 @@ proof fn lemma_always_filtered_create_cm_req_len_is_at_most_one(
         &&& pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)(s)
     };
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()(s, s_prime)
+        &&& next::<RabbitmqClusterView, RabbitmqReconciler>()(s, s_prime)
         &&& crash_disabled()(s)
         &&& busy_disabled()(s)
         &&& pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)(s)
@@ -722,7 +722,7 @@ proof fn lemma_always_filtered_create_cm_req_len_is_at_most_one(
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()),
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>()),
         lift_state(crash_disabled()),
         lift_state(busy_disabled()),
         lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)),
@@ -732,7 +732,7 @@ proof fn lemma_always_filtered_create_cm_req_len_is_at_most_one(
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>())
+        lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>())
         .and(lift_state(crash_disabled()))
         .and(lift_state(busy_disabled()))
         .and(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))
@@ -754,7 +754,7 @@ proof fn lemma_always_filtered_create_cm_req_len_is_at_most_one(
     implies invariant(s_prime) by {
         let cm_create_req_multiset = s.network_state.in_flight.filter(cm_create_request_msg_since(key, rest_id));
         let cm_create_req_multiset_prime = s_prime.network_state.in_flight.filter(cm_create_request_msg_since(key, rest_id));
-        let step = choose |step| next_step::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>(s, s_prime, step);
+        let step = choose |step| next_step::<RabbitmqClusterView, RabbitmqReconciler>(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
                 if !at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s) {

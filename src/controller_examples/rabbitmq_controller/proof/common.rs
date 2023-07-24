@@ -4,6 +4,7 @@
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, dynamic::*, resource::*, stateful_set::*,
 };
+use crate::kubernetes_cluster::proof::controller_runtime::*;
 use crate::kubernetes_cluster::spec::{
     cluster::*,
     controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
@@ -17,10 +18,10 @@ use vstd::prelude::*;
 
 verus! {
 
-pub type ClusterState = State<RabbitmqClusterView, RabbitmqReconcileState>;
+pub type ClusterState = State<RabbitmqClusterView, RabbitmqReconciler>;
 
 pub open spec fn cluster_spec() -> TempPred<ClusterState> {
-    sm_spec::<RabbitmqClusterView, RabbitmqReconcileState, RabbitmqReconciler>()
+    sm_spec::<RabbitmqClusterView, RabbitmqReconciler>()
 }
 
 pub open spec fn rabbitmq_reconcile_state(step: RabbitmqReconcileStep) -> RabbitmqReconcileState {
@@ -51,7 +52,7 @@ pub open spec fn at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, s
 pub open spec fn no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, step: RabbitmqReconcileStep) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
-        &&& s.reconcile_state_of(rabbitmq.object_ref()).pending_req_msg.is_None()
+        &&& no_pending_request(s, rabbitmq.object_ref())
     }
 }
 
@@ -60,7 +61,7 @@ pub open spec fn pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
-        &&& s.reconcile_state_of(rabbitmq.object_ref()).pending_req_msg.is_Some()
+        &&& pending_k8s_api_req_msg(s, rabbitmq.object_ref())
         &&& s.message_in_flight(s.pending_req_of(rabbitmq.object_ref()))
         &&& is_correct_pending_request_msg_at_rabbitmq_step(step, s.pending_req_of(rabbitmq.object_ref()), rabbitmq, object)
     }
@@ -71,7 +72,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabb
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
-        &&& s.reconcile_state_of(rabbitmq.object_ref()).pending_req_msg == Option::Some(req_msg)
+        &&& pending_k8s_api_req_msg_is(s, rabbitmq.object_ref(), req_msg)
         &&& s.message_in_flight(req_msg)
         &&& is_correct_pending_request_msg_at_rabbitmq_step(step, req_msg, rabbitmq, object)
     }
@@ -82,7 +83,7 @@ pub open spec fn exists_resp_in_flight_at_rabbitmq_step_with_rabbitmq(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
-        &&& s.reconcile_state_of(rabbitmq.object_ref()).pending_req_msg.is_Some()
+        &&& pending_k8s_api_req_msg(s, rabbitmq.object_ref())
         &&& is_correct_pending_request_msg_at_rabbitmq_step(step, s.pending_req_of(rabbitmq.object_ref()), rabbitmq, object)
         &&& exists |resp_msg| {
             &&& #[trigger] s.message_in_flight(resp_msg)
@@ -96,7 +97,7 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
-        &&& s.reconcile_state_of(rabbitmq.object_ref()).pending_req_msg.is_Some()
+        &&& pending_k8s_api_req_msg(s, rabbitmq.object_ref())
         &&& is_correct_pending_request_msg_at_rabbitmq_step(step, s.pending_req_of(rabbitmq.object_ref()), rabbitmq, object)
         &&& s.message_in_flight(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
@@ -237,7 +238,7 @@ pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_ok
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::AfterGetServerConfigMap)(s)
-        &&& s.reconcile_state_of(rabbitmq.object_ref()).pending_req_msg.is_Some()
+        &&& pending_k8s_api_req_msg(s, rabbitmq.object_ref())
         &&& is_correct_pending_request_msg_at_rabbitmq_step(
             RabbitmqReconcileStep::AfterGetServerConfigMap, s.pending_req_of(rabbitmq.object_ref()), rabbitmq, arbitrary()
         )
@@ -255,7 +256,7 @@ pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_no
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::AfterGetServerConfigMap)(s)
-        &&& s.reconcile_state_of(rabbitmq.object_ref()).pending_req_msg.is_Some()
+        &&& pending_k8s_api_req_msg(s, rabbitmq.object_ref())
         &&& is_correct_pending_request_msg_at_rabbitmq_step(
             RabbitmqReconcileStep::AfterGetServerConfigMap, s.pending_req_of(rabbitmq.object_ref()), rabbitmq, arbitrary()
         )
@@ -273,7 +274,7 @@ pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_no
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::AfterGetServerConfigMap)(s)
-        &&& s.reconcile_state_of(rabbitmq.object_ref()).pending_req_msg.is_Some()
+        &&& pending_k8s_api_req_msg(s, rabbitmq.object_ref())
         &&& is_correct_pending_request_msg_at_rabbitmq_step(
             RabbitmqReconcileStep::AfterGetServerConfigMap, s.pending_req_of(rabbitmq.object_ref()), rabbitmq, arbitrary()
         )

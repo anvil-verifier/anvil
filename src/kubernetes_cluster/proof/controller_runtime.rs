@@ -25,7 +25,7 @@ pub open spec fn reconciler_init_and_no_pending_req
 <K: ResourceView, R: Reconciler<K>>(cr_key: ObjectRef) -> StatePred<State<K, R>> {
     |s: State<K, R>| {
         &&& at_reconcile_state(cr_key, R::reconcile_init_state())(s)
-        &&& s.reconcile_state_of(cr_key).pending_req_msg.is_None()
+        &&& no_pending_request(s, cr_key)
     }
 }
 
@@ -82,13 +82,28 @@ pub open spec fn at_expected_reconcile_states<K: ResourceView, R: Reconciler<K>>
     }
 }
 
+pub open spec fn pending_k8s_api_req_msg<K: ResourceView, R: Reconciler<K>>(s: State<K, R>, key: ObjectRef) -> bool {
+    s.reconcile_state_of(key).pending_req_msg.is_Some()
+    && s.reconcile_state_of(key).lib_response.is_None()
+}
+
+pub open spec fn pending_k8s_api_req_msg_is<K: ResourceView, R: Reconciler<K>>(s: State<K, R>, key: ObjectRef, req: Message) -> bool {
+    s.reconcile_state_of(key).pending_req_msg == Option::Some(req)
+    && s.reconcile_state_of(key).lib_response.is_None()
+}
+
+pub open spec fn no_pending_request<K: ResourceView, R: Reconciler<K>>(s: State<K, R>, key: ObjectRef) -> bool {
+    s.reconcile_state_of(key).pending_req_msg.is_None()
+    && s.reconcile_state_of(key).lib_response.is_None()
+}
+
 pub open spec fn pending_req_in_flight_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, state: R::T) -> StatePred<State<K, R>>
     recommends
         key.kind.is_CustomResourceKind(),
 {
     |s: State<K, R>| {
         at_reconcile_state(key, state)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
+        && pending_k8s_api_req_msg(s, key)
         && request_sent_by_controller(s.pending_req_of(key))
         && s.message_in_flight(s.pending_req_of(key))
     }
@@ -105,7 +120,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state<K: Reso
 ) -> StatePred<State<K, R>> {
     |s: State<K, R>| {
         at_reconcile_state(key, state)(s)
-        && s.reconcile_state_of(key).pending_req_msg == Option::Some(req_msg)
+        && pending_k8s_api_req_msg_is(s, key, req_msg)
         && request_sent_by_controller(req_msg)
         && s.message_in_flight(req_msg)
     }
@@ -120,7 +135,7 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: R
     |s: State<K, R>| {
         at_reconcile_state(key, state)(s)
         ==> {
-            s.reconcile_state_of(key).pending_req_msg.is_Some()
+            pending_k8s_api_req_msg(s, key)
             && request_sent_by_controller(s.pending_req_of(key))
             && (s.message_in_flight(s.pending_req_of(key))
             || exists |resp_msg: Message| {
@@ -131,13 +146,25 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: R
     }
 }
 
+pub open spec fn pending_req_is_none_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
+    key: ObjectRef, state: R::T
+) -> StatePred<State<K, R>>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: State<K, R>| {
+        at_reconcile_state(key, state)(s)
+        ==> s.reconcile_state_of(key).pending_req_msg.is_None()
+    }
+}
+
 pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, state: R::T) -> StatePred<State<K, R>>
     recommends
         key.kind.is_CustomResourceKind(),
 {
     |s: State<K, R>| {
         at_reconcile_state(key, state)(s)
-        && s.reconcile_state_of(key).pending_req_msg.is_Some()
+        && pending_k8s_api_req_msg(s, key)
         && request_sent_by_controller(s.pending_req_of(key))
         && exists |resp_msg: Message| {
             #[trigger] s.message_in_flight(resp_msg)
@@ -154,7 +181,7 @@ pub open spec fn no_pending_req_at_reconcile_init_state<K: ResourceView, R: Reco
 {
     |s: State<K, R>| {
         at_reconcile_state::<K, R>(key, R::reconcile_init_state())(s)
-        ==> s.reconcile_state_of(key).pending_req_msg.is_None()
+        ==> no_pending_request(s, key)
     }
 }
 
