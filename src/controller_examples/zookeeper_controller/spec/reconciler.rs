@@ -20,6 +20,7 @@ verus! {
 
 pub struct ZookeeperReconcileState {
     pub reconcile_step: ZookeeperReconcileStep,
+    pub old_sts: Option<StatefulSetView>,
 }
 
 pub struct ZookeeperReconciler {}
@@ -51,6 +52,7 @@ impl Reconciler<ZookeeperClusterView> for ZookeeperReconciler {
 pub open spec fn reconcile_init_state() -> ZookeeperReconcileState {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
+        old_sts: Option::None,
     }
 }
 

@@ -37,6 +37,19 @@ pub fn reconcile_zk_node(path: String, uri: String, replicas: String) -> ZKNodeR
     let path_look_up = path_look_up.unwrap();
     match path_look_up {
         Some(_) => {
+            // Update the cluster size
+            if zk_client
+                .set_data(
+                    path.as_rust_string_ref(),
+                    new_strlit("CLUSTER_SIZE=").to_string().concat(replicas.as_str())
+                    .as_str()
+                    .into_rust_str()
+                    .as_bytes()
+                    .to_vec(),
+                    Some(-1),
+                ).is_err() {
+                    return ZKNodeResult{ res: Err(Error::ClusterSizeZKNodeUpdateFailed)};
+                }
             return ZKNodeResult{ res: Ok(())};
         },
         None => {
