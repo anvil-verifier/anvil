@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use vstd::prelude::*;
+use vstd::{prelude::*, string::*};
 
 verus! {
 
@@ -15,8 +15,13 @@ pub enum ZookeeperReconcileStep {
     AfterGetStatefulSet,
     AfterCreateStatefulSet,
     AfterUpdateStatefulSet,
+    AfterCreateZKNode,
     Done,
     Error,
+}
+
+pub enum Error {
+    ClusterSizeZKNodeCreationFailed,
 }
 
 }

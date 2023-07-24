@@ -108,7 +108,7 @@ proof fn lemma_sm_spec_entails_cr_always_exists_and_crash_always_disabled_leads_
         sm_partial_spec(simple_reconciler()).and(all_invariants(cr))
         .and(always(cr_exists(cr)).and(always(lift_state(crash_disabled::<SimpleReconcileState>())))),
         partial_spec_with_invariants_and_assumptions(cr));
-    lemma_valid_stable_sm_partial_spec_and_invariants(cr);
+    lemma_sm_partial_spec_is_stable_and_invariants(cr);
     // Step (2)
     unpack_assumption_from_spec::<State<SimpleReconcileState>>(lift_state(init(simple_reconciler())),
         sm_partial_spec(simple_reconciler()).and(all_invariants(cr)),
@@ -145,24 +145,24 @@ proof fn lemma_true_leads_to_cm_exists(cr: CustomResourceView)
 }
 
 // Step (3), prove the stability of partial_spec /\ all_invariants.
-proof fn lemma_valid_stable_sm_partial_spec_and_invariants(cr: CustomResourceView)
+proof fn lemma_sm_partial_spec_is_stable_and_invariants(cr: CustomResourceView)
     ensures
         valid(stable(sm_partial_spec(simple_reconciler()).and(all_invariants(cr)))),
 {
-    valid_stable_sm_partial_spec(simple_reconciler());
+    sm_partial_spec_is_stable(simple_reconciler());
 
-    always_p_stable::<State<SimpleReconcileState>>(
+    always_p_is_stable::<State<SimpleReconcileState>>(
         lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr)));
-    always_p_stable::<State<SimpleReconcileState>>(
+    always_p_is_stable::<State<SimpleReconcileState>>(
         tla_forall(|msg| lift_state(resp_matches_at_most_one_pending_req(msg, cr.object_ref()))));
-    always_p_stable::<State<SimpleReconcileState>>(
+    always_p_is_stable::<State<SimpleReconcileState>>(
         tla_forall(|resp_msg: Message| lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref()))));
-    always_p_stable::<State<SimpleReconcileState>>(
+    always_p_is_stable::<State<SimpleReconcileState>>(
         lift_state(reconciler_at_init_pc(cr))
             .implies(lift_state(reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref()))));
-    always_p_stable::<State<SimpleReconcileState>>(
+    always_p_is_stable::<State<SimpleReconcileState>>(
         lift_state(every_in_flight_msg_has_lower_id_than_allocator::<SimpleReconcileState>()));
-    always_p_stable::<State<SimpleReconcileState>>(
+    always_p_is_stable::<State<SimpleReconcileState>>(
         lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>()));
 
     let a_to_p = |msg| lift_state(resp_matches_at_most_one_pending_req::<SimpleReconcileState>(msg, cr.object_ref()));

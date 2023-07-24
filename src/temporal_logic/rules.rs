@@ -581,6 +581,25 @@ pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
     fun_ext::<Execution<T>, bool>(p.pred, q.pred);
 }
 
+pub proof fn always_double_equality<T>(p: TempPred<T>)
+    ensures
+        always(always(p)) == always(p),
+{
+    assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies always(always(p)).satisfied_by(ex) by {
+        assert forall |i| #[trigger] always(p).satisfied_by(ex.suffix(i)) by {
+            assert forall |j| #[trigger] p.satisfied_by(ex.suffix(i).suffix(j)) by {
+                execution_equality(ex.suffix(i).suffix(j), ex.suffix(i + j));
+                assert(p.satisfied_by(ex.suffix(i + j)));
+            }
+        }
+    }
+    assert forall |ex| #[trigger] always(always(p)).satisfied_by(ex) implies always(p).satisfied_by(ex) by {
+        execution_equality(ex.suffix(0), ex);
+        assert(always(p).satisfied_by(ex.suffix(0)));
+    }
+    temp_pred_equality::<T>(always(always(p)), always(p));
+}
+
 pub proof fn always_and_equality<T>(p: TempPred<T>, q: TempPred<T>)
     ensures
         always(p.and(q)) == always(p).and(always(q)),
@@ -1047,7 +1066,7 @@ pub proof fn entails_and_different_temp<T>(spec1: TempPred<T>, spec2: TempPred<T
 /// An always predicate is stable.
 /// post:
 ///     |= stable(always(p))
-pub proof fn always_p_stable<T>(p: TempPred<T>)
+pub proof fn always_p_is_stable<T>(p: TempPred<T>)
     ensures
         valid(stable(always(p))),
 {
@@ -1056,6 +1075,16 @@ pub proof fn always_p_stable<T>(p: TempPred<T>)
             always_propagate_forwards::<T>(ex, p, i);
         }
     }
+}
+
+/// A leads-to predicate is stable.
+/// post:
+///     |= stable(p ~> q)
+pub proof fn p_leads_to_q_is_stable<T>(p: TempPred<T>, q: TempPred<T>)
+    ensures
+        valid(stable(p.leads_to(q))),
+{
+    always_p_is_stable(p.implies(eventually(q)));
 }
 
 /// p and q is stable if both p and q are stable.
@@ -1108,6 +1137,30 @@ macro_rules! stable_and_n_internal {
 pub use stable_and_n;
 pub use stable_and_n_internal;
 
+/// The conjunction of all the p is stable if each p is stable.
+/// post:
+///     |= stable(always(p1) /\ always(p2) /\ ... /\ always(pn))
+///
+/// Usage: stable_and_always_n!(p1, p2, p3, p4)
+#[macro_export]
+macro_rules! stable_and_always_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::stable_and_always_n_internal!($($tail)*));
+    };
+}
+
+#[macro_export]
+macro_rules! stable_and_always_n_internal {
+    ($p1:expr, $($tail:expr),*) => {
+        always_p_is_stable($p1);
+        $(always_p_is_stable($tail);)*
+        stable_and_n!(always($p1), $(always($tail)),*);
+    };
+}
+
+pub use stable_and_always_n;
+pub use stable_and_always_n_internal;
+
 /// Unpack the conditions from the left to the right side of |=
 /// pre:
 ///     |= stable(spec)
@@ -1130,6 +1183,22 @@ pub proof fn unpack_conditions_from_spec<T>(spec: TempPred<T>, c: TempPred<T>, p
             implies_apply::<T>(ex.suffix(i), p, eventually(q));
         };
     };
+}
+
+pub proof fn borrow_conditions_from_spec<T>(spec: TempPred<T>, c: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(p.and(c).leads_to(q)),
+        spec.entails(always(c)),
+    ensures
+        spec.entails(p.leads_to(q)),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(q).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(q).satisfied_by(ex.suffix(i)) by {
+            implies_apply(ex, spec, always(c));
+            implies_apply(ex, spec, p.and(c).leads_to(q));
+            implies_apply(ex.suffix(i), p.and(c), eventually(q));
+        }
+    }
 }
 
 /// Pack the conditions from the right to the left side of |=
@@ -1290,6 +1359,34 @@ pub proof fn wf1_variant_temp<T>(spec: TempPred<T>, next: TempPred<T>, forward: 
             }
         }
     }
+}
+
+pub proof fn wf1_variant_borrow_from_spec_temp<T>(spec: TempPred<T>, next: TempPred<T>, forward: TempPred<T>, c: TempPred<T>, p: TempPred<T>, q: TempPred<T>)
+    requires
+        spec.entails(always(p.and(c).and(next).implies(later(p).or(later(q))))),
+        spec.entails(always(p.and(c).and(next).and(forward).implies(later(q)))),
+        spec.entails(always(next)),
+        spec.entails(always(p.and(c)).leads_to(forward)),
+        spec.entails(always(c)),
+    ensures
+        spec.entails(p.leads_to(q)),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex)
+    implies always(p.and(c).and(next).implies(later(p.and(c)).or(later(q)))).satisfied_by(ex) by {
+        implies_apply::<T>(ex, spec, always(p.and(c).and(next).implies(later(p).or(later(q)))));
+        implies_apply::<T>(ex, spec, always(c));
+        always_unfold(ex, p.and(c).and(next).implies(later(p).or(later(q))));
+        always_unfold(ex, c);
+        assert forall |i| #[trigger] p.and(c).and(next).satisfied_by(ex.suffix(i))
+        implies later(p.and(c)).or(later(q)).satisfied_by(ex.suffix(i)) by {
+            implies_apply(ex.suffix(i), p.and(c).and(next), later(p).or(later(q)));
+            execution_equality(ex.suffix(i).suffix(1), ex.suffix(i + 1));
+            temp_pred_equality(later(p.and(c)), later(p).and(later(c)));
+        }
+    }
+
+    wf1_variant_temp(spec, next, forward, p.and(c), q);
+    borrow_conditions_from_spec(spec, c, p, q);
 }
 
 /// Get the initial leads_to by assuming always asm.
@@ -2253,6 +2350,21 @@ macro_rules! or_leads_to_combine_n_internal {
 
 pub use or_leads_to_combine_n;
 pub use or_leads_to_combine_n_internal;
+
+/// Combine or_leads_to_combine and temp_pred_equality.
+/// The 'result' is the equivalent temporal predicate of joining all following predicates with \/.
+#[macro_export]
+macro_rules! or_leads_to_combine_and_equality {
+    ($spec:expr, $result:expr, $p1:expr, $($rest:expr),+; $q:expr) => {
+        temp_pred_equality(
+            $result,
+            $p1$(.or($rest))+
+        );
+        or_leads_to_combine_n!($spec, $p1, $($rest),+; $q);
+    }
+}
+
+pub use or_leads_to_combine_and_equality;
 
 /// Specialized version of or_leads_to_combine used for eliminating q in premise.
 /// pre:

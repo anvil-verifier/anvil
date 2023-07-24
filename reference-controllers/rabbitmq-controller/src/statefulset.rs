@@ -1,22 +1,16 @@
 use k8s_openapi::api::apps::v1 as appsv1;
 use k8s_openapi::api::core::v1 as corev1;
-use k8s_openapi::api::rbac::v1 as rbacv1;
 use k8s_openapi::apimachinery::pkg::api::resource as k8sresource;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1 as metav1;
-use kube::{
-    api::{Api, ListParams, PostParams},
-    runtime::controller::{Action, Controller},
-    Client, CustomResourceExt,
-};
-use kube_client::{self, client};
-use kube_core::{self, Resource};
+use kube_client::config;
+use kube_core::Resource;
 use std::collections::BTreeMap;
-use crate::{rabbitmqcluster_types::RabbitmqCluster, Error};
+use crate::rabbitmqcluster_types::RabbitmqCluster;
 use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString as IntOrString;
 
 
 
-pub fn statefulset_build( rabbitmq: &RabbitmqCluster) -> appsv1::StatefulSet {
+pub fn statefulset_build( rabbitmq: &RabbitmqCluster, configmap_rv: String) -> appsv1::StatefulSet {
     let sts_name = rabbitmq.metadata.name.clone().unwrap() + "-server";
     let headless_name = rabbitmq.metadata.name.clone().unwrap() + "-nodes";
 
@@ -54,7 +48,7 @@ pub fn statefulset_build( rabbitmq: &RabbitmqCluster) -> appsv1::StatefulSet {
             },
             volume_claim_templates: Some(pvc),
             pod_management_policy: Some("Parallel".to_string()),
-            template: pod_template_spec(rabbitmq),
+            template: pod_template_spec(rabbitmq, configmap_rv),
             ..appsv1::StatefulSetSpec::default()
         }),
         ..appsv1::StatefulSet::default()
@@ -94,7 +88,7 @@ fn persistent_volume_claim(rabbitmq: &RabbitmqCluster) ->Vec<corev1::PersistentV
 
 
 
-fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
+fn pod_template_spec(rabbitmq: &RabbitmqCluster, configmap_rv: String) -> corev1::PodTemplateSpec{
     let readiness_probe_port = "amqp".to_string(); // default one
     let volumes = vec![
             corev1::Volume{          
@@ -119,8 +113,8 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
                                         ..corev1::KeyToPath::default()
                                     },
                                     corev1::KeyToPath{
-                                        key: "userDefineConfiguration.conf".to_string(),
-                                        path: "userDefineConfiguration.conf".to_string(),
+                                        key: "userDefinedConfiguration.conf".to_string(),
+                                        path: "userDefinedConfiguration.conf".to_string(),
                                         ..corev1::KeyToPath::default()
                                     }
                                 ]),
@@ -225,7 +219,10 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
         },
     ];
 
-    let image_used = Some(String::from("rabbitmq:3.11.10-management"));
+    let mut image_used = Some(String::from("rabbitmq:3.11.10-management"));
+    if rabbitmq.spec.image.is_some() {
+        image_used = rabbitmq.spec.image.clone();
+    }
 
     let rabbitmq_uid = 999 as i64;
     let pod_template_spec = corev1::PodTemplateSpec{
@@ -233,6 +230,10 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
             labels: Some(BTreeMap::from([(
                 "app".to_string(),
                 rabbitmq.meta().name.as_ref().unwrap().clone(),
+            )])),
+            annotations: Some(BTreeMap::from([(
+                "configMapVersionInUse".to_string(),
+                configmap_rv,
             )])),
             ..metav1::ObjectMeta::default()
         }),
@@ -321,7 +322,7 @@ fn pod_template_spec(rabbitmq: &RabbitmqCluster) -> corev1::PodTemplateSpec{
     pod_template_spec
 }
 
-fn setup_container(_rabbitmq: &RabbitmqCluster) -> corev1::Container{
+fn setup_container(rabbitmq: &RabbitmqCluster) -> corev1::Container{
     let cpu_request = "100m".to_string();
     let mem_request = "500Mi".to_string();
     let command = vec![
@@ -331,7 +332,10 @@ fn setup_container(_rabbitmq: &RabbitmqCluster) -> corev1::Container{
 
     ];
 
-    let image_used = Some(String::from("rabbitmq:3.11.10-management"));
+    let mut image_used = Some(String::from("rabbitmq:3.11.10-management"));
+    if rabbitmq.spec.image.is_some() {
+        image_used = rabbitmq.spec.image.clone();
+    }
     let setup_container = corev1::Container {
         name: "setup-container".to_string(),
         image: image_used,

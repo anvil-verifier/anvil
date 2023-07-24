@@ -121,6 +121,14 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn set_annotations(&mut self, annotations: StringMap)
+        ensures
+            self@ == old(self)@.set_annotations(annotations@),
+    {
+        self.inner.annotations = std::option::Option::Some(annotations.into_rust_map());
+    }
+
+    #[verifier(external_body)]
     pub fn set_owner_references(&mut self, owner_references: Vec<OwnerReference>)
         ensures
             self@ == old(self)@.set_owner_references(owner_references@.map_values(|o: OwnerReference| o@)),
@@ -153,6 +161,7 @@ pub struct ObjectMetaView {
     pub resource_version: Option<nat>, // make rv a nat so that it is easy to compare in spec/proof
     pub uid: Option<StringView>,
     pub labels: Option<Map<StringView, StringView>>,
+    pub annotations: Option<Map<StringView, StringView>>,
     pub owner_references: Option<Seq<OwnerReferenceView>>,
 }
 
@@ -165,6 +174,7 @@ impl ObjectMetaView {
             resource_version: Option::None,
             uid: Option::None,
             labels: Option::None,
+            annotations: Option::None,
             owner_references: Option::None,
         }
     }
@@ -193,6 +203,13 @@ impl ObjectMetaView {
     pub open spec fn set_labels(self, labels: Map<StringView, StringView>) -> ObjectMetaView {
         ObjectMetaView {
             labels: Option::Some(labels),
+            ..self
+        }
+    }
+
+    pub open spec fn set_annotations(self, annotations: Map<StringView, StringView>) -> ObjectMetaView {
+        ObjectMetaView {
+            annotations: Option::Some(annotations),
             ..self
         }
     }
