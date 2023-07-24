@@ -685,6 +685,12 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                     pre_stop.set_exec({
                         let mut commands = Vec::new();
                         commands.push(new_strlit("zookeeperTeardown.sh").to_string());
+                        proof {
+                            assert_seqs_equal!(
+                                commands@.map_values(|command: String| command@),
+                                zk_spec::make_zk_pod_spec(zk@).containers[0].lifecycle.get_Some_0().pre_stop.get_Some_0().execs.get_Some_0()
+                            );
+                        }
                         commands
                     });
                     pre_stop

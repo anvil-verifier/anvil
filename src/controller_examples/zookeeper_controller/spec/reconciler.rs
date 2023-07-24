@@ -491,6 +491,10 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView
             )
             .set_spec(make_zk_pod_spec(zk))
         )
+        .set_pvc_retention_policy(StatefulSetPersistentVolumeClaimRetentionPolicyView::default()
+            .set_when_deleted(new_strlit("Delete")@)
+            .set_when_scaled(new_strlit("Delete")@)
+        )
         .set_volume_claim_templates(seq![
             PersistentVolumeClaimView::default()
                 .set_metadata(ObjectMetaView::default()
@@ -515,6 +519,11 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
             ContainerView::default()
                 .set_name(new_strlit("zookeeper")@)
                 .set_image(new_strlit("pravega/zookeeper:0.2.14")@)
+                .set_lifecycle(LifecycleView::default()
+                    .set_pre_stop(LifecycleHandlerView::default()
+                        .set_exec(seq![new_strlit("zookeeperTeardown.sh")@])
+                    )
+                )
                 .set_volume_mounts(seq![
                     VolumeMountView::default()
                         .set_name(new_strlit("data")@)
