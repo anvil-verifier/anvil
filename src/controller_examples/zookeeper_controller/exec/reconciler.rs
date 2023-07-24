@@ -583,6 +583,12 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
             });
             selector
         });
+        stateful_set_spec.set_pvc_retention_policy({
+            let mut policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
+            policy.set_when_deleted(new_strlit("Delete").to_string());
+            policy.set_when_scaled(new_strlit("Delete").to_string());
+            policy
+        });
         // Set the template used for creating pods
         stateful_set_spec.set_template({
             let mut pod_template_spec = PodTemplateSpec::default();
@@ -671,6 +677,19 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                 let mut command = Vec::new();
                 command.push(new_strlit("/usr/local/bin/zookeeperStart.sh").to_string());
                 command
+            });
+            zk_container.set_lifecycle({
+                let mut lifecycle = Lifecycle::default();
+                lifecycle.set_pre_stop({
+                    let mut pre_stop = LifecycleHandler::default();
+                    pre_stop.set_exec({
+                        let mut commands = Vec::new();
+                        commands.push(new_strlit("zookeeperTeardown.sh").to_string());
+                        commands
+                    });
+                    pre_stop
+                });
+                lifecycle
             });
             zk_container.set_image_pull_policy(new_strlit("Always").to_string());
             zk_container.set_volume_mounts({
