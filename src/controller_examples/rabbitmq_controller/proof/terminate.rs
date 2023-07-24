@@ -37,7 +37,6 @@ use vstd::prelude::*;
 
 verus! {
 
-#[verifier(external_body)]
 pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(next::<RabbitmqClusterView, RabbitmqReconciler>()))),
