@@ -103,7 +103,7 @@ pub open spec fn continue_reconcile<K: ResourceView, R: Reconciler<K>>() -> Cont
                         // Update the state by calling the external process method.
                         let reconcile_state_prime = OngoingReconcile {
                             pending_req_msg: Option::None,
-                            lib_response: R::external_process(req), // TODO: update this field after add the library as a generic
+                            lib_response: R::external_process(req), 
                             local_state: local_state_prime,
                             ..reconcile_state
                         };
