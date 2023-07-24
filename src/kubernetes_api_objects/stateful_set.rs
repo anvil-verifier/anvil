@@ -202,6 +202,14 @@ impl StatefulSetSpec {
     }
 
     #[verifier(external_body)]
+    pub fn set_pvc_retention_policy(&mut self, pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicy)
+        ensures
+            self@ == old(self)@.set_pvc_retention_policy(pvc_retention_policy@),
+    {
+        self.inner.persistent_volume_claim_retention_policy = std::option::Option::Some(pvc_retention_policy.into_kube())
+    }
+
+    #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: Option<i32>)
         ensures
             self@.replicas.is_Some() == replicas.is_Some(),
@@ -332,6 +340,7 @@ pub struct StatefulSetSpecView {
     pub template: PodTemplateSpecView,
     pub volume_claim_templates: Option<Seq<PersistentVolumeClaimView>>,
     pub pod_management_policy: Option<StringView>,
+    pub persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicyView>,
 }
 
 impl StatefulSetSpecView {
@@ -343,6 +352,7 @@ impl StatefulSetSpecView {
             template: PodTemplateSpecView::default(),
             volume_claim_templates: Option::None,
             pod_management_policy: Option::None,
+            persistent_volume_claim_retention_policy: Option::None,
         }
     }
 
@@ -384,6 +394,13 @@ impl StatefulSetSpecView {
     pub open spec fn set_pod_management_policy(self, pod_management_policy: StringView) -> StatefulSetSpecView {
         StatefulSetSpecView {
             pod_management_policy: Option::Some(pod_management_policy),
+            ..self
+        }
+    }
+
+    pub open spec fn set_pvc_retention_policy(self, pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicyView) -> StatefulSetSpecView {
+        StatefulSetSpecView {
+            persistent_volume_claim_retention_policy: Option::Some(pvc_retention_policy),
             ..self
         }
     }
