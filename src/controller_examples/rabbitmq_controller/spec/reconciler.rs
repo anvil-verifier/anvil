@@ -45,6 +45,10 @@ impl Reconciler<RabbitmqClusterView> for RabbitmqReconciler {
     open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool {
         reconcile_error(state)
     }
+
+    open spec fn external_process(input: ()) -> Option<()> {
+        Option::None
+    }
 }
 
 pub open spec fn reconcile_init_state() -> RabbitmqReconcileState {

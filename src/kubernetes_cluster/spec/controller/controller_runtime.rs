@@ -100,12 +100,10 @@ pub open spec fn continue_reconcile<K: ResourceView, R: Reconciler<K>>() -> Cont
                         (s_prime, (Multiset::singleton(pending_req_msg.get_Some_0()), rest_id_allocator_prime))
                     },
                     RequestView::ExternalRequest(req) => {
-                        // Call the external library first.
-
-                        // Then update the state.
+                        // Update the state by calling the external process method.
                         let reconcile_state_prime = OngoingReconcile {
                             pending_req_msg: Option::None,
-                            lib_response: Option::None, // TODO: update this field after add the library as a generic
+                            lib_response: R::external_process(req), // TODO: update this field after add the library as a generic
                             local_state: local_state_prime,
                             ..reconcile_state
                         };

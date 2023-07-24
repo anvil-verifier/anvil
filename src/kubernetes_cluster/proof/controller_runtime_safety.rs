@@ -234,60 +234,6 @@ pub open spec fn req_in_flight_or_pending_at_controller<K: ResourceView, R: Reco
     ))
 }
 
-pub open spec fn every_in_flight_or_pending_req_has_unique_id<K: ResourceView, R: Reconciler<K>>() -> StatePred<State<K, R>> {
-    |s: State<K, R>| {
-        forall |msg1, msg2: Message|
-            #![trigger req_in_flight_or_pending_at_controller(msg1, s), req_in_flight_or_pending_at_controller(msg2, s)]
-            req_in_flight_or_pending_at_controller(msg1, s)
-            && req_in_flight_or_pending_at_controller(msg2, s)
-            && msg1 != msg2
-            ==> msg1.content.get_req_id() != msg2.content.get_req_id()
-    }
-}
-
-pub proof fn lemma_always_every_in_flight_or_pending_req_has_unique_id<K: ResourceView, R: Reconciler<K>>()
-    ensures
-        sm_spec::<K, R>().entails(
-            always(lift_state(every_in_flight_or_pending_req_has_unique_id::<K, R>()))
-        ),
-{
-    let invariant = every_in_flight_or_pending_req_has_unique_id::<K, R>();
-    let stronger_next = |s, s_prime: State<K, R>| {
-        next::<K, R>()(s, s_prime)
-        && every_in_flight_msg_has_lower_id_than_allocator::<K, R>()(s)
-        && pending_req_has_lower_req_id_than_allocator::<K, R>()(s)
-    };
-    lemma_always_every_in_flight_msg_has_lower_id_than_allocator::<K, R>();
-    lemma_always_pending_req_has_lower_req_id_than_allocator::<K, R>();
-    entails_always_and_n!(
-        sm_spec::<K, R>(),
-        lift_action(next::<K, R>()),
-        lift_state(every_in_flight_msg_has_lower_id_than_allocator::<K, R>()),
-        lift_state(pending_req_has_lower_req_id_than_allocator::<K, R>())
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(next::<K, R>())
-            .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator::<K, R>()))
-            .and(lift_state(pending_req_has_lower_req_id_than_allocator::<K, R>()))
-    );
-    assert forall |s, s_prime: State<K, R>| invariant(s) && #[trigger] stronger_next(s, s_prime)
-    implies invariant(s_prime) by {
-        assert forall |req_msg, other_msg: Message| #[trigger] req_in_flight_or_pending_at_controller(req_msg, s_prime)
-        && #[trigger] req_in_flight_or_pending_at_controller(other_msg, s_prime) && req_msg != other_msg
-        implies req_msg.content.get_req_id() != other_msg.content.get_req_id() by {
-            if req_in_flight_or_pending_at_controller(req_msg, s) && req_in_flight_or_pending_at_controller(other_msg, s) {
-                assert(req_msg.content.get_req_id() != other_msg.content.get_req_id());
-            } else if req_in_flight_or_pending_at_controller(req_msg, s) {
-                assert(req_msg.content.get_req_id() != other_msg.content.get_req_id());
-            } else if req_in_flight_or_pending_at_controller(other_msg, s) {
-                assert(req_msg.content.get_req_id() != other_msg.content.get_req_id());
-            }
-        };
-    };
-    init_invariant::<State<K, R>>(sm_spec::<K, R>(), init::<K, R>(), stronger_next, invariant);
-}
-
 pub open spec fn pending_req_has_lower_req_id_than_allocator<K: ResourceView, R: Reconciler<K>>() -> StatePred<State<K, R>> {
     |s: State<K, R>| {
         forall |cr_key: ObjectRef|

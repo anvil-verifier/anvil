@@ -1242,6 +1242,7 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
         match step {
             Step::ControllerStep(input) => {
                 if input.1.is_Some() && input.1.get_Some_0() == zk.object_ref() {
+                    assert(s_prime.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some());
                     assert(post(s_prime));
                 } else {
                     assert(pre(s_prime));
