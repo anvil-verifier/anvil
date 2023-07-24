@@ -146,6 +146,18 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: R
     }
 }
 
+pub open spec fn pending_req_is_none_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
+    key: ObjectRef, state: R::T
+) -> StatePred<State<K, R>>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: State<K, R>| {
+        at_reconcile_state(key, state)(s)
+        ==> s.reconcile_state_of(key).pending_req_msg.is_None()
+    }
+}
+
 pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, state: R::T) -> StatePred<State<K, R>>
     recommends
         key.kind.is_CustomResourceKind(),
