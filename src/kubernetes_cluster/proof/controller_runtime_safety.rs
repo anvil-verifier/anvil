@@ -229,69 +229,16 @@ pub open spec fn req_in_flight_or_pending_at_controller<K: ResourceView, R: Reco
     req_msg.content.is_APIRequest() && (s.message_in_flight(req_msg)
     || exists |cr_key: ObjectRef| (
         #[trigger] s.reconcile_state_contains(cr_key)
-        && s.reconcile_state_of(cr_key).pending_req_msg == Option::Some(req_msg)
+        && pending_k8s_api_req_msg_is(s, cr_key, req_msg)
+        && s.reconcile_state_of(cr_key).lib_response.is_None()
     ))
-}
-
-pub open spec fn every_in_flight_or_pending_req_has_unique_id<K: ResourceView, R: Reconciler<K>>() -> StatePred<State<K, R>> {
-    |s: State<K, R>| {
-        forall |msg1, msg2: Message|
-            #![trigger req_in_flight_or_pending_at_controller(msg1, s), req_in_flight_or_pending_at_controller(msg2, s)]
-            req_in_flight_or_pending_at_controller(msg1, s)
-            && req_in_flight_or_pending_at_controller(msg2, s)
-            && msg1 != msg2
-            ==> msg1.content.get_req_id() != msg2.content.get_req_id()
-    }
-}
-
-pub proof fn lemma_always_every_in_flight_or_pending_req_has_unique_id<K: ResourceView, R: Reconciler<K>>()
-    ensures
-        sm_spec::<K, R>().entails(
-            always(lift_state(every_in_flight_or_pending_req_has_unique_id::<K, R>()))
-        ),
-{
-    let invariant = every_in_flight_or_pending_req_has_unique_id::<K, R>();
-    let stronger_next = |s, s_prime: State<K, R>| {
-        next::<K, R>()(s, s_prime)
-        && every_in_flight_msg_has_lower_id_than_allocator::<K, R>()(s)
-        && pending_req_has_lower_req_id_than_allocator::<K, R>()(s)
-    };
-    lemma_always_every_in_flight_msg_has_lower_id_than_allocator::<K, R>();
-    lemma_always_pending_req_has_lower_req_id_than_allocator::<K, R>();
-    entails_always_and_n!(
-        sm_spec::<K, R>(),
-        lift_action(next::<K, R>()),
-        lift_state(every_in_flight_msg_has_lower_id_than_allocator::<K, R>()),
-        lift_state(pending_req_has_lower_req_id_than_allocator::<K, R>())
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(next::<K, R>())
-            .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator::<K, R>()))
-            .and(lift_state(pending_req_has_lower_req_id_than_allocator::<K, R>()))
-    );
-    assert forall |s, s_prime: State<K, R>| invariant(s) && #[trigger] stronger_next(s, s_prime)
-    implies invariant(s_prime) by {
-        assert forall |req_msg, other_msg: Message| #[trigger] req_in_flight_or_pending_at_controller(req_msg, s_prime)
-        && #[trigger] req_in_flight_or_pending_at_controller(other_msg, s_prime) && req_msg != other_msg
-        implies req_msg.content.get_req_id() != other_msg.content.get_req_id() by {
-            if req_in_flight_or_pending_at_controller(req_msg, s) && req_in_flight_or_pending_at_controller(other_msg, s) {
-                assert(req_msg.content.get_req_id() != other_msg.content.get_req_id());
-            } else if req_in_flight_or_pending_at_controller(req_msg, s) {
-                assert(req_msg.content.get_req_id() != other_msg.content.get_req_id());
-            } else if req_in_flight_or_pending_at_controller(other_msg, s) {
-                assert(req_msg.content.get_req_id() != other_msg.content.get_req_id());
-            }
-        };
-    };
-    init_invariant::<State<K, R>>(sm_spec::<K, R>(), init::<K, R>(), stronger_next, invariant);
 }
 
 pub open spec fn pending_req_has_lower_req_id_than_allocator<K: ResourceView, R: Reconciler<K>>() -> StatePred<State<K, R>> {
     |s: State<K, R>| {
         forall |cr_key: ObjectRef|
             #[trigger] s.reconcile_state_contains(cr_key)
-            && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
+            && pending_k8s_api_req_msg(s, cr_key)
             ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_req_id() < s.rest_id_allocator.rest_id_counter
     }
 }
@@ -311,12 +258,12 @@ pub open spec fn resp_matches_at_most_one_pending_req<K: ResourceView, R: Reconc
 ) -> StatePred<State<K, R>> {
     |s: State<K, R>| {
         s.reconcile_state_contains(cr_key)
-        && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
+        && pending_k8s_api_req_msg(s, cr_key)
         && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
         ==> (
             forall |other_key: ObjectRef|
                 #[trigger] s.reconcile_state_contains(other_key)
-                && s.reconcile_state_of(other_key).pending_req_msg.is_Some()
+                && pending_k8s_api_req_msg(s, other_key)
                 && other_key != cr_key
                 ==> !resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(other_key).pending_req_msg.get_Some_0())
             )
@@ -329,7 +276,7 @@ pub open spec fn resp_if_matches_pending_req_then_no_other_resp_matches<K: Resou
     |s: State<K, R>| {
         s.reconcile_state_contains(cr_key)
         && s.message_in_flight(resp_msg)
-        && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
+        && pending_k8s_api_req_msg(s, cr_key)
         && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
         ==> (
             forall |other_resp: Message| other_resp != resp_msg && #[trigger] s.message_in_flight(other_resp)
@@ -382,7 +329,7 @@ pub open spec fn each_resp_if_matches_pending_req_then_no_other_resp_matches<K: 
         forall |resp_msg: Message|
             s.reconcile_state_contains(cr_key)
             && #[trigger] s.message_in_flight(resp_msg)
-            && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
+            && pending_k8s_api_req_msg(s, cr_key)
             && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
             ==> (
                 forall |other_resp: Message| other_resp != resp_msg && #[trigger] s.message_in_flight(other_resp)
@@ -416,7 +363,7 @@ pub proof fn lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_ma
         assert forall |resp_msg: Message|
             ex.head().reconcile_state_contains(cr_key)
             && #[trigger] ex.head().message_in_flight(resp_msg)
-            && ex.head().reconcile_state_of(cr_key).pending_req_msg.is_Some()
+            && pending_k8s_api_req_msg(ex.head(), cr_key)
             && resp_msg_matches_req_msg(resp_msg, ex.head().reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
             ==> (
                 forall |other_resp: Message| other_resp != resp_msg && #[trigger] ex.head().message_in_flight(other_resp)
@@ -479,12 +426,12 @@ pub open spec fn each_resp_matches_at_most_one_pending_req<K: ResourceView, R: R
     |s: State<K, R>| {
         forall |resp_msg: Message|
             s.reconcile_state_contains(cr_key)
-            && s.reconcile_state_of(cr_key).pending_req_msg.is_Some()
+            && pending_k8s_api_req_msg(s, cr_key)
             && #[trigger] resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
             ==> (
                 forall |other_key: ObjectRef|
                     #[trigger] s.reconcile_state_contains(other_key)
-                    && s.reconcile_state_of(other_key).pending_req_msg.is_Some()
+                    && pending_k8s_api_req_msg(s, other_key)
                     && other_key != cr_key
                     ==> !resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(other_key).pending_req_msg.get_Some_0())
                 )
@@ -629,6 +576,28 @@ pub proof fn lemma_always_no_pending_req_at_reconcile_init_state<K: ResourceView
             }
         }
     }
+    init_invariant(spec, init::<K, R>(), next::<K, R>(), invariant);
+}
+
+pub proof fn lemma_always_pending_req_is_none_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
+    spec: TempPred<State<K, R>>, key: ObjectRef, state: R::T
+)
+    requires
+        state != R::reconcile_init_state(),
+        forall |cr, resp_o, pre_state| #[trigger] R::reconcile_core(cr, resp_o, pre_state).0 == state
+            ==> {
+                let req = R::reconcile_core(cr, resp_o, pre_state).1;
+                req.is_None()
+                || req.get_Some_0().is_ExternalRequest()
+            },
+        spec.entails(lift_state(init::<K, R>())),
+        spec.entails(always(lift_action(next::<K, R>()))),
+    ensures
+        spec.entails(
+            always(lift_state(pending_req_is_none_at_reconcile_state(key, state)))
+        ),
+{
+    let invariant = pending_req_is_none_at_reconcile_state(key, state);
     init_invariant(spec, init::<K, R>(), next::<K, R>(), invariant);
 }
 

@@ -353,7 +353,7 @@ proof fn lemma_after_get_cr_pc_leads_to_cm_exists(cr: CustomResourceView)
             let s = ex.suffix(i).head();
             let req_msg = choose |req_msg: Message| {
                 #[trigger] is_controller_get_cr_request_msg(req_msg, cr)
-                && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
+                && pending_k8s_api_req_msg_is(s, cr.object_ref(), req_msg)
                 && (s.message_in_flight(req_msg)
                     || exists |resp_msg: Message| {
                         #[trigger] s.message_in_flight(resp_msg)
@@ -409,7 +409,7 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_cm_exists(cr: CustomResourceV
             let s = ex.suffix(i).head();
             let req_msg = choose |msg| {
                 &&& #[trigger] is_controller_get_cr_request_msg(msg, cr)
-                &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(msg)
+                &&& pending_k8s_api_req_msg_is(s, cr.object_ref(), msg)
                 &&& ! exists |resp_msg: Message| {
                     &&& #[trigger] s.message_in_flight(resp_msg)
                     &&& resp_msg_matches_req_msg(resp_msg, msg)

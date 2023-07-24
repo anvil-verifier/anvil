@@ -262,7 +262,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle<K: 
 {
     let at_some_state_and_pending_req_in_flight_or_resp_in_flight = |s: State<K, R>| {
         at_reconcile_state(cr.object_ref(), state)(s)
-        && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_Some()
+        && pending_k8s_api_req_msg(s, cr.object_ref())
         && request_sent_by_controller(s.pending_req_of(cr.object_ref()))
         && (s.message_in_flight(s.pending_req_of(cr.object_ref()))
         || exists |resp_msg: Message| {
@@ -536,7 +536,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
     let known_resp_in_flight = |resp| lift_state(
         |s: State<K, R>| {
             at_reconcile_state(cr.object_ref(), state)(s)
-            && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_Some()
+            && pending_k8s_api_req_msg(s, cr.object_ref())
             && request_sent_by_controller(s.pending_req_of(cr.object_ref()))
             && s.message_in_flight(resp)
             && resp_msg_matches_req_msg(resp, s.pending_req_of(cr.object_ref()))
@@ -546,7 +546,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
         .leads_to(lift_state(post))) by {
             let resp_in_flight_state = |s: State<K, R>| {
                 at_reconcile_state(cr.object_ref(), state)(s)
-                && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_Some()
+                && pending_k8s_api_req_msg(s, cr.object_ref())
                 && request_sent_by_controller(s.pending_req_of(cr.object_ref()))
                 && s.message_in_flight(msg)
                 && resp_msg_matches_req_msg(msg, s.pending_req_of(cr.object_ref()))
@@ -659,6 +659,79 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state<K: Res
         lift_state(pre),
         lift_state(resp_in_flight_matches_pending_req_at_reconcile_state(cr.object_ref(), state)),
         lift_state(at_expected_reconcile_states(cr.object_ref(), next_state))
+    );
+}
+
+pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile_idle<K: ResourceView, R: Reconciler<K>>(
+    spec: TempPred<State<K, R>>, cr: K, state: R::T, next_state_1: R::T, next_state_2: R::T
+)
+    requires
+        cr.object_ref().kind == K::kind(),
+        spec.entails(always(lift_action(next::<K, R>()))),
+        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| controller_next::<K, R>().weak_fairness(i))),
+        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(always(lift_state(pending_req_is_none_at_reconcile_state(cr.object_ref(), state)))),
+        !R::reconcile_error(state), !R::reconcile_done(state),
+        forall |cr_1, resp_o|
+            {
+                let result_state = #[trigger] R::reconcile_core(cr_1, resp_o, state).0;
+                result_state == next_state_1 || result_state == next_state_2
+            },
+        spec.entails(
+            lift_state(at_reconcile_state(cr.object_ref(), next_state_1))
+                .leads_to(lift_state(|s: State<K, R>| !s.reconcile_state_contains(cr.object_ref())))
+        ),
+        spec.entails(
+            lift_state(at_reconcile_state(cr.object_ref(), next_state_2))
+                .leads_to(lift_state(|s: State<K, R>| !s.reconcile_state_contains(cr.object_ref())))
+        ),
+    ensures
+        spec.entails(
+            lift_state(at_reconcile_state(cr.object_ref(), state))
+                .leads_to(lift_state(|s: State<K, R>| !s.reconcile_state_contains(cr.object_ref())))
+        ),
+{
+    let no_req_at_state = |s: State<K, R>| {
+        at_reconcile_state(cr.object_ref(), state)(s)
+        && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_None()
+    };
+    temp_pred_equality(lift_state(pending_req_is_none_at_reconcile_state(cr.object_ref(), state)), lift_state(at_reconcile_state(cr.object_ref(), state)).implies(lift_state(no_req_at_state)));
+    implies_to_leads_to(spec, lift_state(at_reconcile_state(cr.object_ref(), state)), lift_state(no_req_at_state));
+
+    let stronger_next = |s, s_prime: State<K, R>| {
+        &&& next::<K, R>()(s, s_prime)
+        &&& crash_disabled()(s)
+    };
+    entails_always_and_n!(
+        spec,
+        lift_action(next::<K, R>()),
+        lift_state(crash_disabled())
+    );
+    temp_pred_equality(
+        lift_action(stronger_next),
+        lift_action(next::<K, R>())
+        .and(lift_state(crash_disabled()))
+    );
+    let post = |s: State<K, R>| {
+        s.reconcile_state_contains(cr.object_ref())
+        && {
+            s.reconcile_state_of(cr.object_ref()).local_state == next_state_1
+            || s.reconcile_state_of(cr.object_ref()).local_state == next_state_2
+        }
+    };
+    lemma_pre_leads_to_post_by_controller(spec, (Option::None, Option::Some(cr.object_ref())), stronger_next, continue_reconcile(), no_req_at_state, post);
+    or_leads_to_combine(spec, at_reconcile_state(cr.object_ref(), next_state_1), at_reconcile_state(cr.object_ref(), next_state_2), |s: State<K, R>| !s.reconcile_state_contains(cr.object_ref()));
+    temp_pred_equality(
+        lift_state(at_reconcile_state(cr.object_ref(), next_state_1)).or(lift_state(at_reconcile_state(cr.object_ref(), next_state_2))),
+        lift_state(post)
+    );
+    leads_to_trans_n!(
+        spec,
+        lift_state(at_reconcile_state(cr.object_ref(), state)),
+        lift_state(no_req_at_state),
+        lift_state(post),
+        lift_state(|s: State<K, R>| !s.reconcile_state_contains(cr.object_ref()))
     );
 }
 

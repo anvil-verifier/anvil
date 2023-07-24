@@ -17,7 +17,10 @@ pub struct ControllerState<K: ResourceView, R: Reconciler<K>> {
 
 pub struct OngoingReconcile<K: ResourceView, R: Reconciler<K>> {
     pub triggering_cr: K,
+    // pending_req_msg: the request message pending for the handling for k8s api
+    // lib_response: the response returned by the external library if a request has been processed by it
     pub pending_req_msg: Option<Message>,
+    pub lib_response: Option<R::O>,
     pub local_state: R::T,
 }
 

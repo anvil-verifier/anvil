@@ -39,7 +39,7 @@ pub proof fn lemma_always_reconcile_init_pc_and_no_pending_req(cr: CustomResourc
         && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == SimpleReconcileStep::Init)
         ==> s.reconcile_state_contains(cr.object_ref())
             && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == SimpleReconcileStep::Init)
-            && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_None()
+            && no_pending_request(s, cr.object_ref())
     };
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), next(simple_reconciler()), invariant);
 
@@ -55,7 +55,7 @@ pub open spec fn reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_
         && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
         ==> exists |req_msg| {
                 #[trigger] is_controller_get_cr_request_msg(req_msg, cr)
-                && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
+                && pending_k8s_api_req_msg_is(s, cr.object_ref(), req_msg)
                 && (s.message_in_flight(req_msg)
                     || exists |resp_msg: Message| {
                         #[trigger] s.message_in_flight(resp_msg)

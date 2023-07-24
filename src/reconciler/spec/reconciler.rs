@@ -39,6 +39,13 @@ pub trait Reconciler<#[verifier(maybe_negative)] K: ResourceView>: Sized {
     // reconcile_error is used to tell the controller_runtime whether this reconcile round returns with error.
     // If it is true, controller_runtime will requeue the reconcile.
     open spec fn reconcile_error(state: Self::T) -> bool;
+
+    // external_process describes the logic of external libraries, which is a spec counterpart of Lib::process.
+    // An alternative way to achieve this is add Lib as a generic or associated type to this Reconciler trait. But since 
+    // Lib should contain method process, it should implement a trait (which should be the spec version of ExternalLibrary).
+    // It must be a generic currently. This will cause another round of super annoying refactoring. So currently we just
+    // add another method to this trait.
+    open spec fn external_process(input: Self::I) -> Option<Self::O>;
 }
 
 }

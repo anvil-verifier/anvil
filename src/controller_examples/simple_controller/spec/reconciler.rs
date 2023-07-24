@@ -48,6 +48,10 @@ impl Reconciler<CustomResourceView> for SimpleReconciler {
     open spec fn reconcile_error(state: SimpleReconcileState) -> bool {
         reconcile_error(state)
     }
+
+    open spec fn external_process(input: ()) -> Option<()> {
+        Option::None
+    }
 }
 
 pub open spec fn simple_reconciler() -> SimpleReconciler {
