@@ -40,6 +40,16 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     let pth = PathBuf::from("./zookeeper.yaml");
     let zk_name = apply(pth, client.clone(), &discovery).await?;
 
+    let init_replicas = 3;
+    println!("Zookeeper cluster is ready! e2e test passed\n");
+    Ok(())
+}
+
+async fn expect_zk_reach(
+    zk_name: &String,
+    client: &Client,
+    wanted_replicas: i32,
+) -> Result<(), Error> {
     let seconds = Duration::from_secs(360);
     let start = Instant::now();
     loop {
@@ -56,11 +66,11 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
                 continue;
             }
             Ok(sts) => {
-                if sts.spec.unwrap().replicas != Some(3) {
+                if sts.spec.unwrap().replicas != Some(wanted_replicas) {
                     println!("Statefulset spec is not consistent with zookeeper cluster spec! e2e_test failed!\n");
                     return Err(Error::ZookeeperStsFailed);
                 }
-                if sts.status.unwrap().replicas != 3 {
+                if sts.status.unwrap().replicas != wanted_replicas {
                     continue;
                 }
             }
@@ -69,7 +79,7 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
         let pods: Api<Pod> = Api::default_namespaced(client.clone());
         let lp = ListParams::default().labels(&format!("app={}", &zk_name)); // only want results for our pod
         let pod_list = pods.list(&lp).await?;
-        if pod_list.items.len() != 3 {
+        if pod_list.items.len() != wanted_replicas as usize {
             println!("Pods are not ready! Continue to wait!\n");
             continue;
         }
@@ -86,9 +96,9 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
             }
         }
         if pods_ready {
+            // check scale down and scale up
             break;
         }
     }
-    println!("Zookeeper cluster is ready! e2e test passed\n");
     Ok(())
 }
