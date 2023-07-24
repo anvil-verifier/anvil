@@ -633,4 +633,26 @@ pub proof fn lemma_always_no_pending_req_at_reconcile_init_state<K: ResourceView
     init_invariant(spec, init::<K, R>(), next::<K, R>(), invariant);
 }
 
+pub proof fn lemma_always_pending_req_is_none_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
+    spec: TempPred<State<K, R>>, key: ObjectRef, state: R::T
+)
+    requires
+        state != R::reconcile_init_state(),
+        forall |cr, resp_o, pre_state| #[trigger] R::reconcile_core(cr, resp_o, pre_state).0 == state
+            ==> {
+                let req = R::reconcile_core(cr, resp_o, pre_state).1;
+                req.is_None()
+                || req.get_Some_0().is_ExternalRequest()
+            },
+        spec.entails(lift_state(init::<K, R>())),
+        spec.entails(always(lift_action(next::<K, R>()))),
+    ensures
+        spec.entails(
+            always(lift_state(pending_req_is_none_at_reconcile_state(key, state)))
+        ),
+{
+    let invariant = pending_req_is_none_at_reconcile_state(key, state);
+    init_invariant(spec, init::<K, R>(), next::<K, R>(), invariant);
+}
+
 }
