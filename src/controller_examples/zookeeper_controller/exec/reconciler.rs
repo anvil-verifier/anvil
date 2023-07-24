@@ -250,7 +250,9 @@ pub fn reconcile_core(
         },
         ZookeeperReconcileStep::AfterUpdateZKNode => {
             // update sts
-            if state.old_sts.is_some(){
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
+            && resp_o.as_ref().unwrap().as_external_response_ref().is_reconcile_zk_node()
+            && state.old_sts.is_some() {
                 let found_stateful_set = state.old_sts;
                 let mut new_stateful_set = found_stateful_set.unwrap();
                 let stateful_set = make_stateful_set(zk);
