@@ -24,9 +24,10 @@ pub struct ZookeeperReconcileState {
 
 pub struct ZookeeperReconciler {}
 
-impl Reconciler<ZookeeperClusterView, ZookeeperReconcileState> for ZookeeperReconciler {
-    type LibInputType = ZKSupportInputView;
-    type LibOutputType = ZKSupportOutputView;
+impl Reconciler<ZookeeperClusterView> for ZookeeperReconciler {
+    type T = ZookeeperReconcileState;
+    type I = ZKSupportInputView;
+    type O = ZKSupportOutputView;
 
     open spec fn reconcile_init_state() -> ZookeeperReconcileState {
         reconcile_init_state()

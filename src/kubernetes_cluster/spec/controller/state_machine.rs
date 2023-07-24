@@ -13,21 +13,21 @@ use vstd::prelude::*;
 
 verus! {
 
-pub open spec fn controller<K: ResourceView, T, ReconcilerType: Reconciler<K, T>>() -> ControllerStateMachine<K, T> {
+pub open spec fn controller<K: ResourceView, R: Reconciler<K>>() -> ControllerStateMachine<K, R> {
     StateMachine {
-        init: |s: ControllerState<K, T>| {
-            s == init_controller_state::<K, T>()
+        init: |s: ControllerState<K, R>| {
+            s == init_controller_state::<K, R>()
         },
         actions: set![
-            run_scheduled_reconcile::<K, T, ReconcilerType>(),
-            continue_reconcile::<K, T, ReconcilerType>(),
-            end_reconcile::<K, T, ReconcilerType>()
+            run_scheduled_reconcile::<K, R>(),
+            continue_reconcile::<K, R>(),
+            end_reconcile::<K, R>()
         ],
         step_to_action: |step: ControllerStep| {
             match step {
-                ControllerStep::RunScheduledReconcile => run_scheduled_reconcile::<K, T, ReconcilerType>(),
-                ControllerStep::ContinueReconcile => continue_reconcile::<K, T, ReconcilerType>(),
-                ControllerStep::EndReconcile => end_reconcile::<K, T, ReconcilerType>(),
+                ControllerStep::RunScheduledReconcile => run_scheduled_reconcile::<K, R>(),
+                ControllerStep::ContinueReconcile => continue_reconcile::<K, R>(),
+                ControllerStep::EndReconcile => end_reconcile::<K, R>(),
             }
         },
         action_input: |step: ControllerStep, input: ControllerActionInput| {

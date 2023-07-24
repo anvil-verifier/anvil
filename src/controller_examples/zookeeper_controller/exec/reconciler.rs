@@ -217,12 +217,12 @@ pub fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
                 ..state
             };
-            let s1 = cluster_size_zk_node_path(zk);
-            let s2 = zk_service_uri(zk);
-            let s3 = i32_to_string(zk.spec().replicas());
-            let ext_req = ZKSupportInput::ReconcileZKNode(s1,s2,s3);
+            let path = cluster_size_zk_node_path(zk);
+            let uri = zk_service_uri(zk);
+            let replicas = i32_to_string(zk.spec().replicas());
+            let ext_req = ZKSupportInput::ReconcileZKNode(path, uri, replicas);
             proof {
-                zk_support_input_to_view_match(s1, s2, s3);
+                zk_support_input_to_view_match(path, uri, replicas);
             }
             return (state_prime, Option::Some(Request::ExternalRequest(ext_req)));
         },
@@ -231,12 +231,12 @@ pub fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
                 ..state
             };
-            let s1 = cluster_size_zk_node_path(zk);
-            let s2 = zk_service_uri(zk);
-            let s3 = i32_to_string(zk.spec().replicas());
-            let ext_req = ZKSupportInput::ReconcileZKNode(s1,s2,s3);
+            let path = cluster_size_zk_node_path(zk);
+            let uri = zk_service_uri(zk);
+            let replicas = i32_to_string(zk.spec().replicas());
+            let ext_req = ZKSupportInput::ReconcileZKNode(path, uri, replicas);
             proof {
-                zk_support_input_to_view_match(s1, s2, s3);
+                zk_support_input_to_view_match(path, uri, replicas);
             }
             return (state_prime, Option::Some(Request::ExternalRequest(ext_req)));
         },

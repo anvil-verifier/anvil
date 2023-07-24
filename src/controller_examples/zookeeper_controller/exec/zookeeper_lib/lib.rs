@@ -24,14 +24,16 @@ impl ToView for ZKSupportInput {
     type V = ZKSupportInputView;
     spec fn to_view(&self) -> ZKSupportInputView {
         match self {
-            ZKSupportInput::ReconcileZKNode(s1,s2,s3) => ZKSupportInputView::ReconcileZKNode(s1@,s2@,s3@),
+            ZKSupportInput::ReconcileZKNode(path, uri, replicas)
+                => ZKSupportInputView::ReconcileZKNode(path@, uri@, replicas@),
         }
     }
 }
 
-pub proof fn zk_support_input_to_view_match(s1: String, s2: String, s3: String)
+pub proof fn zk_support_input_to_view_match(path: String, uri: String, replicas: String)
     ensures
-        ZKSupportInput::ReconcileZKNode(s1,s2,s3).to_view() == ZKSupportInputView::ReconcileZKNode(s1@, s2@, s3@) {}
+        ZKSupportInput::ReconcileZKNode(path, uri, replicas).to_view()
+            == ZKSupportInputView::ReconcileZKNode(path@, uri@, replicas@) {}
 
 
 impl ToView for ZKSupportOutput {
@@ -75,8 +77,8 @@ impl ExternalLibrary<ZKSupportInput, ZKSupportOutput> for ZKSupport {
     #[verifier(external)]
     fn process(input: ZKSupportInput) -> Option<ZKSupportOutput> {
         match input {
-            ZKSupportInput::ReconcileZKNode(s1,s2,s3)
-                => Option::Some(ZKSupportOutput::ReconcileZKNode(reconcile_zk_node(s1,s2,s3))),
+            ZKSupportInput::ReconcileZKNode(path, uri, replicas)
+                => Option::Some(ZKSupportOutput::ReconcileZKNode(reconcile_zk_node(path, uri, replicas))),
         }
     }
 }

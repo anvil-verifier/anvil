@@ -27,9 +27,10 @@ pub struct SimpleReconcileState {
 /// including reconcile function (reconcile_core) and triggering conditions (reconcile_trigger)
 pub struct SimpleReconciler {}
 
-impl Reconciler<CustomResourceView, SimpleReconcileState> for SimpleReconciler {
-    type LibInputType = ();
-    type LibOutputType = ();
+impl Reconciler<CustomResourceView> for SimpleReconciler {
+    type T = SimpleReconcileState;
+    type I = ();
+    type O = ();
     open spec fn reconcile_init_state() -> SimpleReconcileState {
         reconcile_init_state()
     }

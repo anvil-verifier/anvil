@@ -44,8 +44,7 @@ pub fn reconcile_zk_node(path: String, uri: String, replicas: String) -> ZKNodeR
             if zk_client
                 .create(
                     "/zookeeper-operator",
-                    new_strlit("CLUSTER_SIZE=").to_string().concat(replicas.as_str())
-                        .as_str()
+                    new_strlit("")
                         .into_rust_str()
                         .as_bytes()
                         .to_vec(),
