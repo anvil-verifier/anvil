@@ -20,7 +20,7 @@ verus! {
 
 pub struct ZookeeperReconcileState {
     pub reconcile_step: ZookeeperReconcileStep,
-    pub old_sts: Option<StatefulSetView>,
+    pub sts_from_get: Option<StatefulSetView>,
 }
 
 pub struct ZookeeperReconciler {}
@@ -56,7 +56,7 @@ impl Reconciler<ZookeeperClusterView> for ZookeeperReconciler {
 pub open spec fn reconcile_init_state() -> ZookeeperReconcileState {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
-        old_sts: Option::None,
+        sts_from_get: Option::None,
     }
 }
 
@@ -155,7 +155,7 @@ pub open spec fn reconcile_core(
                         let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).get_Ok_0();
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
-                            old_sts: Option::Some(found_stateful_set),
+                            sts_from_get: Option::Some(found_stateful_set),
                             ..state
                         };
                         let ext_req = ZKSupportInputView::ReconcileZKNode(
@@ -218,15 +218,15 @@ pub open spec fn reconcile_core(
         ZookeeperReconcileStep::AfterUpdateZKNode => {
             if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
             && resp_o.get_Some_0().get_ExternalResponse_0().is_ReconcileZKNode()
-            && state.old_sts.is_Some(){
-                let found_stateful_set = state.old_sts.get_Some_0();
+            && state.sts_from_get.is_Some(){
+                let found_stateful_set = state.sts_from_get.get_Some_0();
                 let req_o = APIRequest::UpdateRequest(UpdateRequest {
                     key: make_stateful_set_key(zk.object_ref()),
                     obj: update_stateful_set(zk, found_stateful_set).to_dynamic_object(),
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
-                    old_sts: Option::None,
+                    sts_from_get: Option::None,
                 };
                 (state_prime,  Option::Some(RequestView::KRequest(req_o)))
             } else {

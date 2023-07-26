@@ -564,6 +564,7 @@ impl LifecycleHandler {
             self@ == old(self)@.set_exec(commands@.map_values(|c: String| c@)),
     {
         self.inner.exec = std::option::Option::Some(
+            // TODO: wrap a resource wrapper for ExecAction
             deps_hack::k8s_openapi::api::core::v1::ExecAction {
                 command: std::option::Option::Some(commands.into_iter().map(|c: String| c.into_rust_string()).collect())
             }
@@ -575,12 +576,6 @@ impl LifecycleHandler {
         self.inner
     }
 }
-
-
-
-
-
-
 
 #[verifier(external_body)]
 pub struct ConfigMapVolumeSource {
@@ -1205,6 +1200,7 @@ impl LifecycleHandlerView {
     }
 
     pub open spec fn set_exec(self, commands: Seq<StringView>) -> LifecycleHandlerView {
+        // TODO: implement a ghost type for ExecAction
         LifecycleHandlerView {
             execs: Option::Some(commands),
             ..self
