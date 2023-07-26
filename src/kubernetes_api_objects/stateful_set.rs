@@ -427,9 +427,9 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicy {
     pub spec fn view(&self) -> StatefulSetPersistentVolumeClaimRetentionPolicyView;
 
     #[verifier(external_body)]
-    pub fn default() -> (pvc_spec: StatefulSetPersistentVolumeClaimRetentionPolicy)
+    pub fn default() -> (pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicy)
         ensures
-            pvc_spec@ == StatefulSetPersistentVolumeClaimRetentionPolicyView::default(),
+            pvc_retention_policy@ == StatefulSetPersistentVolumeClaimRetentionPolicyView::default(),
     {
         StatefulSetPersistentVolumeClaimRetentionPolicy {
             inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy::default(),

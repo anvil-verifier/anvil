@@ -180,12 +180,17 @@ pub fn reconcile_core(
                 let stateful_set = make_stateful_set(zk);
                 let get_sts_resp = resp_o.unwrap().into_k_response().into_get_response().res;
                 if get_sts_resp.is_ok() {
-                    // update
                     let found_stateful_set = StatefulSet::from_dynamic_object(get_sts_resp.unwrap());
-                    // update ZKNode
+                    // Before update sts itself, firstly update ZKNode
+                    // since zk cluster may be down if majority of the servers are down
+                    // Updating ZKNode firstly can make sure the peer list will change as the sever goes down.
+                    // Details can be found in https://github.com/vmware-research/verifiable-controllers/issues/174
                     if found_stateful_set.is_ok(){
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
+                            // Save the old sts from get request.
+                            // Then, later when we want to update sts, we can use the old sts as the base.
+                            // We do not need to call GetRequest again.
                             sts_from_get: Some(found_stateful_set.unwrap()),
                             ..state
                         };
@@ -196,6 +201,7 @@ pub fn reconcile_core(
                         proof {
                             zk_support_input_to_view_match(path, uri, replicas);
                         }
+                        // Call external APIs to update the content in ZKNode
                         return (state_prime, Option::Some(Request::ExternalRequest(ext_req)));
                     }
 
@@ -688,7 +694,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                         proof {
                             assert_seqs_equal!(
                                 commands@.map_values(|command: String| command@),
-                                zk_spec::make_zk_pod_spec(zk@).containers[0].lifecycle.get_Some_0().pre_stop.get_Some_0().execs.get_Some_0()
+                                zk_spec::make_zk_pod_spec(zk@).containers[0].lifecycle.get_Some_0().pre_stop.get_Some_0().exec_.get_Some_0()
                             );
                         }
                         commands

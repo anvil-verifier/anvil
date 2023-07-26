@@ -1189,20 +1189,20 @@ impl LifecycleView {
 
 
 pub struct LifecycleHandlerView {
-    pub execs: Option<Seq<StringView>>,
+    pub exec_: Option<Seq<StringView>>,
 }
 
 impl LifecycleHandlerView {
     pub open spec fn default() -> LifecycleHandlerView {
         LifecycleHandlerView {
-            execs: Option::None,
+            exec_: Option::None,
         }
     }
 
     pub open spec fn set_exec(self, commands: Seq<StringView>) -> LifecycleHandlerView {
         // TODO: implement a ghost type for ExecAction
         LifecycleHandlerView {
-            execs: Option::Some(commands),
+            exec_: Option::Some(commands),
             ..self
         }
     }

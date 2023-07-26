@@ -37,7 +37,9 @@ pub fn reconcile_zk_node(path: String, uri: String, replicas: String) -> ZKNodeR
     let path_look_up = path_look_up.unwrap();
     match path_look_up {
         Some(_) => {
+            // Node already exists
             // Update the cluster size
+            // This CLUSTER_SIZE will be used in zkTeardown.sh when scale down happens
             if zk_client.set_data(
                     path.as_rust_string_ref(),
                     new_strlit("CLUSTER_SIZE=").to_string().concat(replicas.as_str())
@@ -53,6 +55,7 @@ pub fn reconcile_zk_node(path: String, uri: String, replicas: String) -> ZKNodeR
             return ZKNodeResult{ res: Ok(()) };
         },
         None => {
+            // Node does not exist yet
             // First create the parent node
             if zk_client.create(
                     "/zookeeper-operator",
@@ -66,6 +69,7 @@ pub fn reconcile_zk_node(path: String, uri: String, replicas: String) -> ZKNodeR
             .is_err() {
                 return ZKNodeResult{ res: Err(Error::ClusterSizeZKNodeCreationFailed) };
             }
+            // Then create the node with correct zk.name and the cluster size
             if zk_client.create(
                     path.as_rust_string_ref(),
                     new_strlit("CLUSTER_SIZE=").to_string().concat(replicas.as_str())
