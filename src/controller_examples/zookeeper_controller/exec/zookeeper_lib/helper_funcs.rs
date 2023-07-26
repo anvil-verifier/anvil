@@ -38,8 +38,7 @@ pub fn reconcile_zk_node(path: String, uri: String, replicas: String) -> ZKNodeR
     match path_look_up {
         Some(_) => {
             // Update the cluster size
-            if zk_client
-                .set_data(
+            if zk_client.set_data(
                     path.as_rust_string_ref(),
                     new_strlit("CLUSTER_SIZE=").to_string().concat(replicas.as_str())
                     .as_str()
@@ -47,15 +46,15 @@ pub fn reconcile_zk_node(path: String, uri: String, replicas: String) -> ZKNodeR
                     .as_bytes()
                     .to_vec(),
                     Some(-1),
-                ).is_err() {
-                    return ZKNodeResult{ res: Err(Error::ClusterSizeZKNodeUpdateFailed)};
-                }
-            return ZKNodeResult{ res: Ok(())};
+                )
+            .is_err() {
+                return ZKNodeResult{ res: Err(Error::ClusterSizeZKNodeUpdateFailed) };
+            }
+            return ZKNodeResult{ res: Ok(()) };
         },
         None => {
             // First create the parent node
-            if zk_client
-                .create(
+            if zk_client.create(
                     "/zookeeper-operator",
                     new_strlit("")
                         .into_rust_str()
@@ -63,11 +62,11 @@ pub fn reconcile_zk_node(path: String, uri: String, replicas: String) -> ZKNodeR
                         .to_vec(),
                     Acl::open_unsafe().clone(),
                     CreateMode::Persistent,
-                ).is_err() {
+                )
+            .is_err() {
                 return ZKNodeResult{ res: Err(Error::ClusterSizeZKNodeCreationFailed) };
             }
-            if zk_client
-                .create(
+            if zk_client.create(
                     path.as_rust_string_ref(),
                     new_strlit("CLUSTER_SIZE=").to_string().concat(replicas.as_str())
                         .as_str()
@@ -76,8 +75,9 @@ pub fn reconcile_zk_node(path: String, uri: String, replicas: String) -> ZKNodeR
                         .to_vec(),
                     Acl::open_unsafe().clone(),
                     CreateMode::Persistent,
-                ).is_err() {
-                return ZKNodeResult{ res: Err(Error::ClusterSizeZKNodeCreationFailed)};
+                )
+            .is_err() {
+                return ZKNodeResult{ res: Err(Error::ClusterSizeZKNodeCreationFailed) };
             }
             return ZKNodeResult{ res: Ok(()) };
         }

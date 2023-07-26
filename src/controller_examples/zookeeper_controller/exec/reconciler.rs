@@ -24,14 +24,14 @@ pub struct ZookeeperReconcileState {
     // reconcile_step, like a program counter, is used to track the progress of reconcile_core
     // since reconcile_core is frequently "trapped" into the controller_runtime spec.
     pub reconcile_step: ZookeeperReconcileStep,
-    pub old_sts: Option<StatefulSet>,
+    pub sts_from_get: Option<StatefulSet>,
 }
 
 impl ZookeeperReconcileState {
     pub open spec fn to_view(&self) -> zk_spec::ZookeeperReconcileState {
         zk_spec::ZookeeperReconcileState {
             reconcile_step: self.reconcile_step,
-            old_sts: match &self.old_sts {
+            sts_from_get: match &self.sts_from_get {
                 Some(sts) => Option::Some(sts@),
                 None => Option::None,
             },
@@ -73,7 +73,7 @@ pub fn reconcile_init_state() -> (state: ZookeeperReconcileState)
 {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
-        old_sts: Option::None,
+        sts_from_get: Option::None,
     }
 }
 
@@ -186,7 +186,7 @@ pub fn reconcile_core(
                     if found_stateful_set.is_ok(){
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
-                            old_sts: Some(found_stateful_set.unwrap()),
+                            sts_from_get: Some(found_stateful_set.unwrap()),
                             ..state
                         };
                         let path = cluster_size_zk_node_path(zk);
@@ -252,8 +252,8 @@ pub fn reconcile_core(
             // update sts
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
             && resp_o.as_ref().unwrap().as_external_response_ref().is_reconcile_zk_node()
-            && state.old_sts.is_some() {
-                let found_stateful_set = state.old_sts;
+            && state.sts_from_get.is_some() {
+                let found_stateful_set = state.sts_from_get;
                 let mut new_stateful_set = found_stateful_set.unwrap();
                 let stateful_set = make_stateful_set(zk);
                 new_stateful_set.set_spec(stateful_set.spec().unwrap());
@@ -265,7 +265,7 @@ pub fn reconcile_core(
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
-                    old_sts: Option::None
+                    sts_from_get: Option::None
                 };
                 return (state_prime, Option::Some(Request::KRequest(req_o)));
             } else {
