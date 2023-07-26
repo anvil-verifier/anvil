@@ -577,12 +577,6 @@ impl LifecycleHandler {
     }
 }
 
-
-
-
-
-
-
 #[verifier(external_body)]
 pub struct ConfigMapVolumeSource {
     inner: deps_hack::k8s_openapi::api::core::v1::ConfigMapVolumeSource,

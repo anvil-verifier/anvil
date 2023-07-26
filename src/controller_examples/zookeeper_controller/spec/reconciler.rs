@@ -262,31 +262,6 @@ pub open spec fn reconcile_core(
                 (state_prime, Option::None)
             }
         },
-        ZookeeperReconcileStep::AfterCreateZKNode => {
-            if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
-            && resp_o.get_Some_0().get_ExternalResponse_0().is_ReconcileZKNode() {
-                let ext_resp = resp_o.get_Some_0().get_ExternalResponse_0().get_ReconcileZKNode_0();
-                if ext_resp.res.is_Ok() {
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Done,
-                        ..state
-                    };
-                    (state_prime, Option::None)
-                } else {
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Error,
-                        ..state
-                    };
-                    (state_prime, Option::None)
-                }
-            } else {
-                let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::Error,
-                    ..state
-                };
-                (state_prime, Option::None)
-            }
-        },
         _ => {
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: step,

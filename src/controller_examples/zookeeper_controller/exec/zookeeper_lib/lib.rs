@@ -71,32 +71,6 @@ impl ZKSupportOutput {
     }
 }
 
-pub proof fn same_result(result: ZKNodeResult)
-    ensures 
-        ZKSupportOutput::ReconcileZKNode(result).to_view() == ZKSupportOutputView::ReconcileZKNode(ZKNodeResultView{res: result.res}) {}
-
-impl ZKSupportOutput {
-    pub fn is_reconcile_zk_node(&self) -> (res: bool)
-        ensures res <==> self.is_ReconcileZKNode(),
-    {
-        match self {
-            ZKSupportOutput::ReconcileZKNode(_) => true,
-        }
-    }
-
-    pub fn into_reconcile_zk_node(self) -> (result: ZKNodeResult)
-        requires
-            self.is_ReconcileZKNode(),
-        ensures
-            result == self.get_ReconcileZKNode_0(),
-            result.res.is_Ok() <==> self.get_ReconcileZKNode_0().res.is_Ok(),
-    {
-        match self {
-            ZKSupportOutput::ReconcileZKNode(result) => result,
-        }
-    }
-}
-
 pub struct ZKSupport {}
 
 impl ExternalLibrary<ZKSupportInput, ZKSupportOutput> for ZKSupport {
