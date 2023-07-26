@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+DOMAIN=zk-headless.default.svc.cluster.local
+QUORUM_PORT=2888
+LEADER_PORT=3888
+CLIENT_HOST=zk-client
+CLIENT_PORT=2181
+ADMIN_SERVER_HOST=zk-admin-server
+ADMIN_SERVER_PORT=8080
+CLUSTER_NAME=zk
+CLUSTER_SIZE=3

@@ -1,0 +1,12 @@
+apiVersion: anvil.dev/v1
+kind: RabbitmqCluster
+metadata:
+  name: testz
+  namespace: default
+spec:
+  replicas: 1
+  rabbitmq_config:
+    additionalConfig: |
+      default_user=ma
+      default_pass=zi
+      log.console.level = debug

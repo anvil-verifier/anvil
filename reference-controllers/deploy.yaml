@@ -1,0 +1,94 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/name: zookeeper
+  name: zookeeper
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: zookeeper-controller
+  namespace: zookeeper
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: zookeeper-controller
+  name: zookeeper-controller-role
+rules:
+  - apiGroups:
+      - anvil.dev
+    resources:
+      - "*"
+    verbs:
+      - "*"
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - services
+      - endpoints
+      - persistentvolumeclaims
+      - events
+      - configmaps
+      - secrets
+      - serviceaccounts
+    verbs:
+      - "*"
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+      - daemonsets
+      - replicasets
+      - statefulsets
+    verbs:
+      - "*"
+  - apiGroups:
+      - policy
+    resources:
+      - poddisruptionbudgets
+    verbs:
+      - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: zookeeper-controller
+  name: zookeeper-controller-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: zookeeper-controller-role
+subjects:
+  - kind: ServiceAccount
+    name: zookeeper-controller
+    namespace: zookeeper
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zookeeper-controller
+  namespace: zookeeper
+  labels:
+    app.kubernetes.io/name: zookeeper-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: zookeeper-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: zookeeper-controller
+    spec:
+      containers:
+        - image: localhost:5001/zk-ver:1.4
+          name: controller
+          command:
+            - zookeeper-controller
+            - run
+      serviceAccountName: zookeeper-controller
