@@ -342,7 +342,7 @@ pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
                     assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
                     assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime));
                     assert(s_prime.network_state.in_flight.count(msg) == 1);
-                }
+                },
                 Step::ControllerStep(input) => {
                     let cr_key = input.1.get_Some_0();
                     if cr_key != key {
@@ -362,7 +362,13 @@ pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
                             assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime));
                         }
                     }
-                }
+                },
+                Step::ClientStep(input) => {
+                    assert(s.message_in_flight(msg));
+                    assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
+                    assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime));
+                    assert(s_prime.network_state.in_flight.count(msg) == 1);
+                },
                 _ => {}
             }
         }
