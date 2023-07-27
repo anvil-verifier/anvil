@@ -24,7 +24,7 @@ impl ToView for ZKSupportInput {
     type V = ZKSupportInputView;
     spec fn to_view(&self) -> ZKSupportInputView {
         match self {
-            ZKSupportInput::ReconcileZKNode(path, uri, replicas) 
+            ZKSupportInput::ReconcileZKNode(path, uri, replicas)
                 => ZKSupportInputView::ReconcileZKNode(path@, uri@, replicas@),
         }
     }
@@ -32,7 +32,7 @@ impl ToView for ZKSupportInput {
 
 pub proof fn zk_support_input_to_view_match(path: String, uri: String, replicas: String)
     ensures
-        ZKSupportInput::ReconcileZKNode(path, uri, replicas).to_view() 
+        ZKSupportInput::ReconcileZKNode(path, uri, replicas).to_view()
             == ZKSupportInputView::ReconcileZKNode(path@, uri@, replicas@) {}
 
 

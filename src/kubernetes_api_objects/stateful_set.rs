@@ -202,6 +202,14 @@ impl StatefulSetSpec {
     }
 
     #[verifier(external_body)]
+    pub fn set_pvc_retention_policy(&mut self, pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicy)
+        ensures
+            self@ == old(self)@.set_pvc_retention_policy(pvc_retention_policy@),
+    {
+        self.inner.persistent_volume_claim_retention_policy = std::option::Option::Some(pvc_retention_policy.into_kube())
+    }
+
+    #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: Option<i32>)
         ensures
             self@.replicas.is_Some() == replicas.is_Some(),
@@ -332,6 +340,7 @@ pub struct StatefulSetSpecView {
     pub template: PodTemplateSpecView,
     pub volume_claim_templates: Option<Seq<PersistentVolumeClaimView>>,
     pub pod_management_policy: Option<StringView>,
+    pub persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicyView>,
 }
 
 impl StatefulSetSpecView {
@@ -343,6 +352,7 @@ impl StatefulSetSpecView {
             template: PodTemplateSpecView::default(),
             volume_claim_templates: Option::None,
             pod_management_policy: Option::None,
+            persistent_volume_claim_retention_policy: Option::None,
         }
     }
 
@@ -387,12 +397,113 @@ impl StatefulSetSpecView {
             ..self
         }
     }
+
+    pub open spec fn set_pvc_retention_policy(self, pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicyView) -> StatefulSetSpecView {
+        StatefulSetSpecView {
+            persistent_volume_claim_retention_policy: Option::Some(pvc_retention_policy),
+            ..self
+        }
+    }
 }
 
 impl Marshalable for StatefulSetSpecView {
     spec fn marshal(self) -> Value;
 
     spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
+}
+
+#[verifier(external_body)]
+pub struct StatefulSetPersistentVolumeClaimRetentionPolicy {
+    inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy,
+}
+
+impl StatefulSetPersistentVolumeClaimRetentionPolicy {
+    pub spec fn view(&self) -> StatefulSetPersistentVolumeClaimRetentionPolicyView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicy)
+        ensures
+            pvc_retention_policy@ == StatefulSetPersistentVolumeClaimRetentionPolicyView::default(),
+    {
+        StatefulSetPersistentVolumeClaimRetentionPolicy {
+            inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_when_deleted(&mut self, when_deleted: String)
+        ensures
+            self@ == old(self)@.set_when_deleted(when_deleted@),
+    {
+        self.inner.when_deleted = std::option::Option::Some(
+            when_deleted.into_rust_string()
+        )
+    }
+
+    #[verifier(external_body)]
+    pub fn set_when_scaled(&mut self, when_scaled: String)
+        ensures
+            self@ == old(self)@.set_when_scaled(when_scaled@),
+    {
+        self.inner.when_scaled = std::option::Option::Some(
+            when_scaled.into_rust_string()
+        )
+    }
+}
+
+impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy> for StatefulSetPersistentVolumeClaimRetentionPolicy {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy) -> StatefulSetPersistentVolumeClaimRetentionPolicy {
+        StatefulSetPersistentVolumeClaimRetentionPolicy {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy {
+        self.inner
+    }
+}
+
+
+pub struct StatefulSetPersistentVolumeClaimRetentionPolicyView {
+    pub when_deleted: Option<StringView>,
+    pub when_scaled: Option<StringView>,
+}
+
+impl StatefulSetPersistentVolumeClaimRetentionPolicyView {
+    pub open spec fn default() -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
+        StatefulSetPersistentVolumeClaimRetentionPolicyView {
+            when_deleted: Option::None,
+            when_scaled: Option::None,
+        }
+    }
+
+    pub open spec fn set_when_deleted(self, when_deleted: StringView) -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
+        StatefulSetPersistentVolumeClaimRetentionPolicyView {
+            when_deleted: Option::Some(when_deleted),
+            ..self
+        }
+    }
+
+    pub open spec fn set_when_scaled(self, when_scaled: StringView) -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
+        StatefulSetPersistentVolumeClaimRetentionPolicyView {
+            when_scaled: Option::Some(when_scaled),
+            ..self
+        }
+    }
+}
+
+impl Marshalable for StatefulSetPersistentVolumeClaimRetentionPolicyView {
+    closed spec fn marshal(self) -> Value;
+
+    closed spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
     proof fn marshal_returns_non_null() {}

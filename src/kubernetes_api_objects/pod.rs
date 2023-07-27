@@ -228,6 +228,14 @@ impl Container {
         )
     }
 
+    #[verifier(external_body)]
+    pub fn set_lifecycle(&mut self, lifecycle: Lifecycle)
+        ensures
+            self@ == old(self)@.set_lifecycle(lifecycle@),
+    {
+        self.inner.lifecycle = std::option::Option::Some(lifecycle.into_kube())
+    }
+
     /// Methods for the fields that Anvil currently does not reason about
 
     #[verifier(external_body)]
@@ -497,6 +505,75 @@ impl Volume {
         self.inner.empty_dir = std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource{
             ..deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource::default()
         });
+    }
+}
+
+#[verifier(external_body)]
+pub struct Lifecycle {
+    inner: deps_hack::k8s_openapi::api::core::v1::Lifecycle,
+}
+
+impl Lifecycle {
+    pub spec fn view(&self) -> LifecycleView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (lifecycle: Lifecycle)
+        ensures
+            lifecycle@ == LifecycleView::default(),
+    {
+        Lifecycle {
+            inner: deps_hack::k8s_openapi::api::core::v1::Lifecycle::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_pre_stop(&mut self, handler: LifecycleHandler)
+        ensures
+            self@ == old(self)@.set_pre_stop(handler@),
+    {
+        self.inner.pre_stop = std::option::Option::Some(handler.into_kube());
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Lifecycle {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct LifecycleHandler {
+    inner: deps_hack::k8s_openapi::api::core::v1::LifecycleHandler,
+}
+
+impl LifecycleHandler {
+    pub spec fn view(&self) -> LifecycleHandlerView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (lifecycle_handler: LifecycleHandler)
+        ensures
+            lifecycle_handler@ == LifecycleHandlerView::default(),
+    {
+        LifecycleHandler {
+            inner: deps_hack::k8s_openapi::api::core::v1::LifecycleHandler::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_exec(&mut self, commands: Vec<String>)
+        ensures
+            self@ == old(self)@.set_exec(commands@.map_values(|c: String| c@)),
+    {
+        self.inner.exec = std::option::Option::Some(
+            // TODO: wrap a resource wrapper for ExecAction
+            deps_hack::k8s_openapi::api::core::v1::ExecAction {
+                command: std::option::Option::Some(commands.into_iter().map(|c: String| c.into_rust_string()).collect())
+            }
+        );
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::LifecycleHandler {
+        self.inner
     }
 }
 
@@ -1028,6 +1105,7 @@ pub struct ContainerView {
     pub name: StringView,
     pub ports: Option<Seq<ContainerPortView>>,
     pub volume_mounts: Option<Seq<VolumeMountView>>,
+    pub lifecycle: Option<LifecycleView>,
 }
 
 impl ContainerView {
@@ -1037,6 +1115,7 @@ impl ContainerView {
             name: new_strlit("")@,
             ports: Option::None,
             volume_mounts: Option::None,
+            lifecycle: Option::None,
         }
     }
 
@@ -1067,6 +1146,13 @@ impl ContainerView {
             ..self
         }
     }
+
+    pub open spec fn set_lifecycle(self, lifecycle: LifecycleView) -> ContainerView {
+        ContainerView {
+            lifecycle: Option::Some(lifecycle),
+            ..self
+        }
+    }
 }
 
 impl Marshalable for ContainerView {
@@ -1079,6 +1165,47 @@ impl Marshalable for ContainerView {
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
+}
+
+pub struct LifecycleView {
+    pub pre_stop: Option<LifecycleHandlerView>,
+}
+
+impl LifecycleView {
+    pub open spec fn default() -> LifecycleView {
+        LifecycleView {
+            pre_stop: Option::None,
+        }
+    }
+
+    pub open spec fn set_pre_stop(self, pre_stop: LifecycleHandlerView) -> LifecycleView {
+        LifecycleView {
+            pre_stop: Option::Some(pre_stop),
+            ..self
+        }
+    }
+
+}
+
+
+pub struct LifecycleHandlerView {
+    pub exec_: Option<Seq<StringView>>,
+}
+
+impl LifecycleHandlerView {
+    pub open spec fn default() -> LifecycleHandlerView {
+        LifecycleHandlerView {
+            exec_: Option::None,
+        }
+    }
+
+    pub open spec fn set_exec(self, commands: Seq<StringView>) -> LifecycleHandlerView {
+        // TODO: implement a ghost type for ExecAction
+        LifecycleHandlerView {
+            exec_: Option::Some(commands),
+            ..self
+        }
+    }
 }
 
 pub struct ContainerPortView {

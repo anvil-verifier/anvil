@@ -24,12 +24,17 @@ pub struct ZookeeperReconcileState {
     // reconcile_step, like a program counter, is used to track the progress of reconcile_core
     // since reconcile_core is frequently "trapped" into the controller_runtime spec.
     pub reconcile_step: ZookeeperReconcileStep,
+    pub sts_from_get: Option<StatefulSet>,
 }
 
 impl ZookeeperReconcileState {
     pub open spec fn to_view(&self) -> zk_spec::ZookeeperReconcileState {
         zk_spec::ZookeeperReconcileState {
             reconcile_step: self.reconcile_step,
+            sts_from_get: match &self.sts_from_get {
+                Some(sts) => Option::Some(sts@),
+                None => Option::None,
+            },
         }
     }
 }
@@ -68,6 +73,7 @@ pub fn reconcile_init_state() -> (state: ZookeeperReconcileState)
 {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
+        sts_from_get: Option::None,
     }
 }
 
@@ -174,23 +180,31 @@ pub fn reconcile_core(
                 let stateful_set = make_stateful_set(zk);
                 let get_sts_resp = resp_o.unwrap().into_k_response().into_get_response().res;
                 if get_sts_resp.is_ok() {
-                    // update
                     let found_stateful_set = StatefulSet::from_dynamic_object(get_sts_resp.unwrap());
-                    if found_stateful_set.is_ok() {
-                        let mut new_stateful_set = found_stateful_set.unwrap();
-                        new_stateful_set.set_spec(stateful_set.spec().unwrap());
-                        let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
-                            api_resource: StatefulSet::api_resource(),
-                            name: stateful_set.metadata().name().unwrap(),
-                            namespace: zk.metadata().namespace().unwrap(),
-                            obj: new_stateful_set.to_dynamic_object(),
-                        });
+                    // Before update sts itself, firstly update ZKNode
+                    // since zk cluster may be down if majority of the servers are down
+                    // Updating ZKNode firstly can make sure the peer list will change as the sever goes down.
+                    // Details can be found in https://github.com/vmware-research/verifiable-controllers/issues/174
+                    if found_stateful_set.is_ok(){
                         let state_prime = ZookeeperReconcileState {
-                            reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
+                            reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
+                            // Save the old sts from get request.
+                            // Then, later when we want to update sts, we can use the old sts as the base.
+                            // We do not need to call GetRequest again.
+                            sts_from_get: Some(found_stateful_set.unwrap()),
                             ..state
                         };
-                        return (state_prime, Option::Some(Request::KRequest(req_o)));
+                        let path = cluster_size_zk_node_path(zk);
+                        let uri = zk_service_uri(zk);
+                        let replicas = i32_to_string(zk.spec().replicas());
+                        let ext_req = ZKSupportInput::ReconcileZKNode(path, uri, replicas);
+                        proof {
+                            zk_support_input_to_view_match(path, uri, replicas);
+                        }
+                        // Call external APIs to update the content in ZKNode
+                        return (state_prime, Option::Some(Request::ExternalRequest(ext_req)));
                     }
+
                 } else if get_sts_resp.unwrap_err().is_object_not_found() {
                     // create
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
@@ -239,6 +253,35 @@ pub fn reconcile_core(
                 zk_support_input_to_view_match(path, uri, replicas);
             }
             return (state_prime, Option::Some(Request::ExternalRequest(ext_req)));
+        },
+        ZookeeperReconcileStep::AfterUpdateZKNode => {
+            // update sts
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
+            && resp_o.as_ref().unwrap().as_external_response_ref().is_reconcile_zk_node()
+            && state.sts_from_get.is_some() {
+                let found_stateful_set = state.sts_from_get;
+                let mut new_stateful_set = found_stateful_set.unwrap();
+                let stateful_set = make_stateful_set(zk);
+                new_stateful_set.set_spec(stateful_set.spec().unwrap());
+                let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                    api_resource: StatefulSet::api_resource(),
+                    name: stateful_set.metadata().name().unwrap(),
+                    namespace: zk.metadata().namespace().unwrap(),
+                    obj: new_stateful_set.to_dynamic_object(),
+                });
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
+                    sts_from_get: Option::None
+                };
+                return (state_prime, Option::Some(Request::KRequest(req_o)));
+            } else {
+                // return error state
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                return (state_prime, Option::None);
+            }
         },
         ZookeeperReconcileStep::AfterCreateZKNode => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
@@ -546,6 +589,12 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
             });
             selector
         });
+        stateful_set_spec.set_pvc_retention_policy({
+            let mut policy = StatefulSetPersistentVolumeClaimRetentionPolicy::default();
+            policy.set_when_deleted(new_strlit("Delete").to_string());
+            policy.set_when_scaled(new_strlit("Delete").to_string());
+            policy
+        });
         // Set the template used for creating pods
         stateful_set_spec.set_template({
             let mut pod_template_spec = PodTemplateSpec::default();
@@ -634,6 +683,25 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                 let mut command = Vec::new();
                 command.push(new_strlit("/usr/local/bin/zookeeperStart.sh").to_string());
                 command
+            });
+            zk_container.set_lifecycle({
+                let mut lifecycle = Lifecycle::default();
+                lifecycle.set_pre_stop({
+                    let mut pre_stop = LifecycleHandler::default();
+                    pre_stop.set_exec({
+                        let mut commands = Vec::new();
+                        commands.push(new_strlit("zookeeperTeardown.sh").to_string());
+                        proof {
+                            assert_seqs_equal!(
+                                commands@.map_values(|command: String| command@),
+                                zk_spec::make_zk_pod_spec(zk@).containers[0].lifecycle.get_Some_0().pre_stop.get_Some_0().exec_.get_Some_0()
+                            );
+                        }
+                        commands
+                    });
+                    pre_stop
+                });
+                lifecycle
             });
             zk_container.set_image_pull_policy(new_strlit("Always").to_string());
             zk_container.set_volume_mounts({

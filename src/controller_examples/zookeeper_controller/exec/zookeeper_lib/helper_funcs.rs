@@ -37,12 +37,27 @@ pub fn reconcile_zk_node(path: String, uri: String, replicas: String) -> ZKNodeR
     let path_look_up = path_look_up.unwrap();
     match path_look_up {
         Some(_) => {
-            return ZKNodeResult{ res: Ok(())};
+            // Node already exists
+            // Update the cluster size
+            // This CLUSTER_SIZE will be used in zkTeardown.sh when scale down happens
+            if zk_client.set_data(
+                    path.as_rust_string_ref(),
+                    new_strlit("CLUSTER_SIZE=").to_string().concat(replicas.as_str())
+                    .as_str()
+                    .into_rust_str()
+                    .as_bytes()
+                    .to_vec(),
+                    Some(-1),
+                )
+            .is_err() {
+                return ZKNodeResult{ res: Err(Error::ClusterSizeZKNodeUpdateFailed) };
+            }
+            return ZKNodeResult{ res: Ok(()) };
         },
         None => {
+            // Node does not exist yet
             // First create the parent node
-            if zk_client
-                .create(
+            if zk_client.create(
                     "/zookeeper-operator",
                     new_strlit("")
                         .into_rust_str()
@@ -50,11 +65,12 @@ pub fn reconcile_zk_node(path: String, uri: String, replicas: String) -> ZKNodeR
                         .to_vec(),
                     Acl::open_unsafe().clone(),
                     CreateMode::Persistent,
-                ).is_err() {
+                )
+            .is_err() {
                 return ZKNodeResult{ res: Err(Error::ClusterSizeZKNodeCreationFailed) };
             }
-            if zk_client
-                .create(
+            // Then create the node with correct zk.name and the cluster size
+            if zk_client.create(
                     path.as_rust_string_ref(),
                     new_strlit("CLUSTER_SIZE=").to_string().concat(replicas.as_str())
                         .as_str()
@@ -63,8 +79,9 @@ pub fn reconcile_zk_node(path: String, uri: String, replicas: String) -> ZKNodeR
                         .to_vec(),
                     Acl::open_unsafe().clone(),
                     CreateMode::Persistent,
-                ).is_err() {
-                return ZKNodeResult{ res: Err(Error::ClusterSizeZKNodeCreationFailed)};
+                )
+            .is_err() {
+                return ZKNodeResult{ res: Err(Error::ClusterSizeZKNodeCreationFailed) };
             }
             return ZKNodeResult{ res: Ok(()) };
         }
