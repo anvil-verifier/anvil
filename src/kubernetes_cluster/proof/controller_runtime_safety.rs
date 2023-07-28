@@ -471,88 +471,6 @@ pub proof fn lemma_always_each_resp_matches_at_most_one_pending_req<K: ResourceV
 //   - If the response is processed by the controller, the controller will create a new pending request in flight which
 //   allows the invariant to still hold.
 pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
-    spec: TempPred<State<K, R>>, key: ObjectRef, state: R::T
-)
-    requires
-        state != R::reconcile_init_state(),
-        forall |cr, resp_o, pre_state| #[trigger] R::reconcile_core(cr, resp_o, pre_state).0 == state
-            ==> {
-                let req = R::reconcile_core(cr, resp_o, pre_state).1;
-                &&& req.is_Some()
-                &&& req.get_Some_0().is_KRequest()
-            },
-        spec.entails(lift_state(init::<K, R>())),
-        spec.entails(always(lift_action(next::<K, R>()))),
-        spec.entails(always(lift_state(each_resp_matches_at_most_one_pending_req::<K, R>(key)))),
-    ensures
-        spec.entails(
-            always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(key, state)))
-        ),
-{
-    let invariant = pending_req_in_flight_or_resp_in_flight_at_reconcile_state(key, state);
-    let stronger_next = |s, s_prime: State<K, R>| {
-        &&& next::<K, R>()(s, s_prime)
-        &&& each_resp_matches_at_most_one_pending_req::<K, R>(key)(s)
-    };
-    assert forall |s, s_prime: State<K, R>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        if at_reconcile_state(key, state)(s_prime) {
-            let next_step = choose |step| next_step::<K, R>(s, s_prime, step);
-            assert(!next_step.is_RestartController());
-            let resp = choose |msg| {
-                #[trigger] s.message_in_flight(msg)
-                && resp_msg_matches_req_msg(msg, s.pending_req_of(key))
-            };
-            match next_step {
-                Step::KubernetesAPIStep(input) => {
-                    if input == Option::Some(s.pending_req_of(key)) {
-                        let resp_msg = transition_by_etcd(s.pending_req_of(key), s.kubernetes_api_state).1;
-                        assert(s_prime.message_in_flight(resp_msg));
-                    } else {
-                        if !s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(resp));
-                        }
-                    }
-                }
-                Step::KubernetesBusy(input) => {
-                    if input == Option::Some(s.pending_req_of(key)) {
-                        let resp_msg = form_matched_resp_msg(s.pending_req_of(key), Result::Err(APIError::ServerTimeout));
-                        assert(s_prime.message_in_flight(resp_msg));
-                    } else {
-                        if !s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(resp));
-                        }
-                    }
-                }
-                Step::ControllerStep(input) => {
-                    let cr_key = input.1.get_Some_0();
-                    if cr_key != key {
-                        if s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                        } else {
-                            assert(s_prime.message_in_flight(resp));
-                        }
-                    } else {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                    }
-                }
-                Step::ClientStep(input) => {
-                    if s.message_in_flight(s.pending_req_of(key)) {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
-                    } else {
-                        assert(s_prime.message_in_flight(resp));
-                    }
-                }
-                _ => {
-                    assert(invariant(s_prime));
-                }
-            }
-        }
-    }
-    strengthen_next::<State<K, R>>(spec, next::<K, R>(), each_resp_matches_at_most_one_pending_req::<K, R>(key), stronger_next);
-    init_invariant::<State<K, R>>(spec, init::<K, R>(), stronger_next, invariant);
-}
-
-pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state_1<K: ResourceView, R: Reconciler<K>>(
     spec: TempPred<State<K, R>>, key: ObjectRef, state: FnSpec(R::T) -> bool
 )
     requires
@@ -568,10 +486,10 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
         spec.entails(always(lift_state(each_resp_matches_at_most_one_pending_req::<K, R>(key)))),
     ensures
         spec.entails(
-            always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state_1(key, state)))
+            always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state(key, state)))
         ),
 {
-    let invariant = pending_req_in_flight_or_resp_in_flight_at_reconcile_state_1(key, state);
+    let invariant = pending_req_in_flight_or_resp_in_flight_at_reconcile_state(key, state);
     let stronger_next = |s, s_prime: State<K, R>| {
         &&& next::<K, R>()(s, s_prime)
         &&& each_resp_matches_at_most_one_pending_req::<K, R>(key)(s)

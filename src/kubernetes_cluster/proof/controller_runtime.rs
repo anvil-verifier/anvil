@@ -127,26 +127,6 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state<K: Reso
 }
 
 pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
-    key: ObjectRef, state: R::T
-) -> StatePred<State<K, R>>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: State<K, R>| {
-        at_reconcile_state(key, state)(s)
-        ==> {
-            pending_k8s_api_req_msg(s, key)
-            && request_sent_by_controller(s.pending_req_of(key))
-            && (s.message_in_flight(s.pending_req_of(key))
-            || exists |resp_msg: Message| {
-                #[trigger] s.message_in_flight(resp_msg)
-                && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
-            })
-        }
-    }
-}
-
-pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state_1<K: ResourceView, R: Reconciler<K>>(
     key: ObjectRef, state: FnSpec(R::T) -> bool
 ) -> StatePred<State<K, R>>
     recommends

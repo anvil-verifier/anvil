@@ -90,11 +90,11 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, zk: Z
         |s: ZookeeperReconcileState| {s.reconcile_step == ZookeeperReconcileStep::Error || s.reconcile_step == ZookeeperReconcileStep::Done}
     );
     lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconciler>(
-        spec, zk, |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterUpdateStatefulSet, 
+        spec, zk, |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterUpdateStatefulSet,
         |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateZKNode
     );
     lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconciler>(
-        spec, zk, |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateStatefulSet, 
+        spec, zk, |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateStatefulSet,
         |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateZKNode
     );
 
@@ -114,8 +114,8 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, zk: Z
         |s: ZookeeperReconcileState| {s.reconcile_step == ZookeeperReconcileStep::AfterUpdateStatefulSet || s.reconcile_step == ZookeeperReconcileStep::Error}
     );
     or_leads_to_combine_n!(
-        spec, 
-        lift_state(get_reconcile_state(zk, ZookeeperReconcileStep::AfterCreateStatefulSet)), 
+        spec,
+        lift_state(get_reconcile_state(zk, ZookeeperReconcileStep::AfterCreateStatefulSet)),
         lift_state(get_reconcile_state(zk, ZookeeperReconcileStep::AfterUpdateZKNode)),
         lift_state(get_reconcile_state(zk, ZookeeperReconcileStep::Error));
         lift_state(reconcile_idle)
@@ -127,7 +127,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, zk: Z
         lift_state(at_expected_reconcile_states(
             zk.object_ref(),
             |s: ZookeeperReconcileState| {
-                s.reconcile_step == ZookeeperReconcileStep::AfterCreateStatefulSet 
+                s.reconcile_step == ZookeeperReconcileStep::AfterCreateStatefulSet
                 || s.reconcile_step == ZookeeperReconcileStep::AfterUpdateZKNode
                 || s.reconcile_step == ZookeeperReconcileStep::Error
             }
@@ -136,29 +136,29 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, zk: Z
     lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconciler>(
         spec, zk, |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterGetStatefulSet,
         |s: ZookeeperReconcileState| {
-            s.reconcile_step == ZookeeperReconcileStep::AfterCreateStatefulSet 
+            s.reconcile_step == ZookeeperReconcileStep::AfterCreateStatefulSet
             || s.reconcile_step == ZookeeperReconcileStep::AfterUpdateZKNode
             || s.reconcile_step == ZookeeperReconcileStep::Error
         }
     );
     lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconciler>(
-        spec, zk, |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateConfigMap, 
+        spec, zk, |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateConfigMap,
         |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterGetStatefulSet
     );
     lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconciler>(
-        spec, zk, |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateAdminServerService, 
+        spec, zk, |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateAdminServerService,
         |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateConfigMap
     );
     lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconciler>(
-        spec, zk, |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateClientService, 
+        spec, zk, |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateClientService,
         |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateAdminServerService
     );
     lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconciler>(
-        spec, zk, |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateHeadlessService, 
+        spec, zk, |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateHeadlessService,
         |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateClientService
     );
     lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconciler>(
-        spec, zk, |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateStatefulSet, 
+        spec, zk, |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateStatefulSet,
         |s: ZookeeperReconcileState| s.reconcile_step == ZookeeperReconcileStep::AfterCreateZKNode
     );
     lemma_from_init_state_to_next_state_to_reconcile_idle::<ZookeeperClusterView, ZookeeperReconciler>(
@@ -192,7 +192,7 @@ pub open spec fn get_reconcile_state(zk: ZookeeperClusterView, step: ZookeeperRe
 }
 
 pub open spec fn pending_req_xxx(key: ObjectRef, step: ZookeeperReconcileStep) -> TempPred<ClusterState> {
-    lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state_1::<ZookeeperClusterView, ZookeeperReconciler>(
+    lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconciler>(
         key, |s: ZookeeperReconcileState| s.reconcile_step == step
     ))
 }
