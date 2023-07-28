@@ -48,16 +48,16 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, zk: Z
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_matches_at_most_one_pending_req(zk.object_ref())))),
         spec.entails(always(lift_state(controller_runtime_safety::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())))),
-        spec.entails(always(pending_req_xxx(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet))),
-        spec.entails(always(pending_req_xxx(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet))),
-        spec.entails(always(pending_req_xxx(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService))),
-        spec.entails(always(pending_req_xxx(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService))),
-        spec.entails(always(pending_req_xxx(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService))),
-        spec.entails(always(pending_req_xxx(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap))),
-        spec.entails(always(pending_req_xxx(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet))),
-        spec.entails(always(pending_req_xxx(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateZKNode))),
-        spec.entails(always(pending_req_none(zk.object_ref(), ZookeeperReconcileStep::AfterCreateZKNode))),
-        spec.entails(always(pending_req_none(zk.object_ref(), ZookeeperReconcileStep::Init))),
+        spec.entails(always(pending_req_or_resp_at(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateStatefulSet))),
+        spec.entails(always(pending_req_or_resp_at(zk.object_ref(), ZookeeperReconcileStep::AfterCreateStatefulSet))),
+        spec.entails(always(pending_req_or_resp_at(zk.object_ref(), ZookeeperReconcileStep::AfterCreateHeadlessService))),
+        spec.entails(always(pending_req_or_resp_at(zk.object_ref(), ZookeeperReconcileStep::AfterCreateClientService))),
+        spec.entails(always(pending_req_or_resp_at(zk.object_ref(), ZookeeperReconcileStep::AfterCreateAdminServerService))),
+        spec.entails(always(pending_req_or_resp_at(zk.object_ref(), ZookeeperReconcileStep::AfterCreateConfigMap))),
+        spec.entails(always(pending_req_or_resp_at(zk.object_ref(), ZookeeperReconcileStep::AfterGetStatefulSet))),
+        spec.entails(always(pending_req_or_resp_at(zk.object_ref(), ZookeeperReconcileStep::AfterUpdateZKNode))),
+        spec.entails(always(pending_req_is_none(zk.object_ref(), ZookeeperReconcileStep::AfterCreateZKNode))),
+        spec.entails(always(pending_req_is_none(zk.object_ref(), ZookeeperReconcileStep::Init))),
     ensures
         spec.entails(
             true_pred().leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
@@ -191,13 +191,13 @@ pub open spec fn get_reconcile_state(zk: ZookeeperClusterView, step: ZookeeperRe
     )
 }
 
-pub open spec fn pending_req_xxx(key: ObjectRef, step: ZookeeperReconcileStep) -> TempPred<ClusterState> {
+pub open spec fn pending_req_or_resp_at(key: ObjectRef, step: ZookeeperReconcileStep) -> TempPred<ClusterState> {
     lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconciler>(
         key, |s: ZookeeperReconcileState| s.reconcile_step == step
     ))
 }
 
-pub open spec fn pending_req_none(key: ObjectRef, step: ZookeeperReconcileStep) -> TempPred<ClusterState> {
+pub open spec fn pending_req_is_none(key: ObjectRef, step: ZookeeperReconcileStep) -> TempPred<ClusterState> {
     lift_state(pending_req_is_none_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconciler>(
         key, |s: ZookeeperReconcileState| s.reconcile_step == step
     ))
