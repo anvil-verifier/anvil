@@ -52,7 +52,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, rabbi
         forall |step: RabbitmqReconcileStep|
         step != RabbitmqReconcileStep::Init && step != RabbitmqReconcileStep::Error && step != RabbitmqReconcileStep::Done
         ==> spec.entails(always(lift_state(pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
-            rabbitmq.object_ref(), (#[trigger] get_closure(step))
+            rabbitmq.object_ref(), (#[trigger] at_step_closure(step))
         )))),
     ensures
         spec.entails(
@@ -63,20 +63,20 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, rabbi
     lemma_reconcile_error_leads_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq.object_ref());
     lemma_reconcile_done_leads_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq.object_ref());
     temp_pred_equality(
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::Done)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::Done)),
         lift_state(reconciler_reconcile_done::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref()))
     );
     temp_pred_equality(
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::Error)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::Error)),
         lift_state(reconciler_reconcile_error::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref()))
     );
-    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, get_closure(RabbitmqReconcileStep::AfterUpdateStatefulSet), get_closure(RabbitmqReconcileStep::Done));
-    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, get_closure(RabbitmqReconcileStep::AfterCreateStatefulSet), get_closure(RabbitmqReconcileStep::Done));
+    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterUpdateStatefulSet), at_step_closure(RabbitmqReconcileStep::Done));
+    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterCreateStatefulSet), at_step_closure(RabbitmqReconcileStep::Done));
     or_leads_to_combine_n!(
         spec,
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterUpdateStatefulSet)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterCreateStatefulSet)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::Error));
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterUpdateStatefulSet)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateStatefulSet)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::Error));
         lift_state(|s: ClusterState| { !s.reconcile_state_contains(rabbitmq.object_ref()) })
     );
     let next_state = |s: RabbitmqReconcileState| {
@@ -85,25 +85,25 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, rabbi
         || s.reconcile_step == RabbitmqReconcileStep::Error
     };
     temp_pred_equality(
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterUpdateStatefulSet))
-        .or(lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterCreateStatefulSet)))
-        .or(lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::Error))),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterUpdateStatefulSet))
+        .or(lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateStatefulSet)))
+        .or(lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::Error))),
         lift_state(at_expected_reconcile_states(rabbitmq.object_ref(), next_state))
     );
     lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq, get_closure(RabbitmqReconcileStep::AfterGetStatefulSet), next_state
+        spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterGetStatefulSet), next_state
     );
-    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, get_closure(RabbitmqReconcileStep::AfterCreateRoleBinding), get_closure(RabbitmqReconcileStep::AfterGetStatefulSet));
-    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, get_closure(RabbitmqReconcileStep::AfterCreateRole), get_closure(RabbitmqReconcileStep::AfterCreateRoleBinding));
-    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, get_closure(RabbitmqReconcileStep::AfterCreateServiceAccount), get_closure(RabbitmqReconcileStep::AfterCreateRole));
-    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, get_closure(RabbitmqReconcileStep::AfterCreateServerConfigMap), get_closure(RabbitmqReconcileStep::AfterCreateServiceAccount));
-    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, get_closure(RabbitmqReconcileStep::AfterUpdateServerConfigMap), get_closure(RabbitmqReconcileStep::AfterCreateServiceAccount));
+    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterCreateRoleBinding), at_step_closure(RabbitmqReconcileStep::AfterGetStatefulSet));
+    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterCreateRole), at_step_closure(RabbitmqReconcileStep::AfterCreateRoleBinding));
+    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterCreateServiceAccount), at_step_closure(RabbitmqReconcileStep::AfterCreateRole));
+    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterCreateServerConfigMap), at_step_closure(RabbitmqReconcileStep::AfterCreateServiceAccount));
+    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterUpdateServerConfigMap), at_step_closure(RabbitmqReconcileStep::AfterCreateServiceAccount));
 
     or_leads_to_combine_n!(
         spec,
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterUpdateServerConfigMap)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterCreateServerConfigMap)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::Error));
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterUpdateServerConfigMap)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateServerConfigMap)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::Error));
         lift_state(|s: ClusterState| { !s.reconcile_state_contains(rabbitmq.object_ref()) })
     );
     let next_state_1 = |s: RabbitmqReconcileState| {
@@ -112,44 +112,52 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, rabbi
         || s.reconcile_step == RabbitmqReconcileStep::Error
     };
     temp_pred_equality(
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterUpdateServerConfigMap))
-        .or(lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterCreateServerConfigMap)))
-        .or(lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::Error))),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterUpdateServerConfigMap))
+        .or(lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateServerConfigMap)))
+        .or(lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::Error))),
         lift_state(at_expected_reconcile_states(rabbitmq.object_ref(), next_state_1))
     );
     lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq, get_closure(RabbitmqReconcileStep::AfterGetServerConfigMap), next_state_1
+        spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterGetServerConfigMap), next_state_1
     );
-    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, get_closure(RabbitmqReconcileStep::AfterCreatePluginsConfigMap), get_closure(RabbitmqReconcileStep::AfterGetServerConfigMap));
-    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, get_closure(RabbitmqReconcileStep::AfterCreateDefaultUserSecret), get_closure(RabbitmqReconcileStep::AfterCreatePluginsConfigMap));
-    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, get_closure(RabbitmqReconcileStep::AfterCreateErlangCookieSecret), get_closure(RabbitmqReconcileStep::AfterCreateDefaultUserSecret));
-    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, get_closure(RabbitmqReconcileStep::AfterCreateService), get_closure(RabbitmqReconcileStep::AfterCreateErlangCookieSecret));
-    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, get_closure(RabbitmqReconcileStep::AfterCreateHeadlessService), get_closure(RabbitmqReconcileStep::AfterCreateService));
-    lemma_from_init_state_to_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, get_closure(RabbitmqReconcileStep::Init), get_closure(RabbitmqReconcileStep::AfterCreateHeadlessService));
+    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterCreatePluginsConfigMap), at_step_closure(RabbitmqReconcileStep::AfterGetServerConfigMap));
+    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterCreateDefaultUserSecret), at_step_closure(RabbitmqReconcileStep::AfterCreatePluginsConfigMap));
+    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterCreateErlangCookieSecret), at_step_closure(RabbitmqReconcileStep::AfterCreateDefaultUserSecret));
+    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterCreateService), at_step_closure(RabbitmqReconcileStep::AfterCreateErlangCookieSecret));
+    lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterCreateHeadlessService), at_step_closure(RabbitmqReconcileStep::AfterCreateService));
+    lemma_from_init_state_to_next_state_to_reconcile_idle::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::Init), at_step_closure(RabbitmqReconcileStep::AfterCreateHeadlessService));
     valid_implies_implies_leads_to(spec, lift_state(reconcile_idle), lift_state(reconcile_idle));
     or_leads_to_combine_and_equality!(
         spec,
         true_pred(),
         lift_state(reconcile_idle),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::Init)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterCreateHeadlessService)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterCreateService)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterCreateErlangCookieSecret)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterCreateDefaultUserSecret)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterCreatePluginsConfigMap)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterGetServerConfigMap)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterCreateServerConfigMap)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterUpdateServerConfigMap)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterCreateServiceAccount)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterCreateRole)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterCreateRoleBinding)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterGetStatefulSet)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterCreateStatefulSet)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::AfterUpdateStatefulSet)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::Done)),
-        lift_state(get_reconcile_state(rabbitmq, RabbitmqReconcileStep::Error));
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::Init)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateHeadlessService)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateService)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateErlangCookieSecret)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateDefaultUserSecret)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreatePluginsConfigMap)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterGetServerConfigMap)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateServerConfigMap)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterUpdateServerConfigMap)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateServiceAccount)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateRole)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateRoleBinding)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterGetStatefulSet)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateStatefulSet)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterUpdateStatefulSet)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::Done)),
+        lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::Error));
         lift_state(reconcile_idle)
     );
+}
+
+pub open spec fn at_step_state_pred(rabbitmq: RabbitmqClusterView, step: RabbitmqReconcileStep) -> StatePred<ClusterState> {
+    at_expected_reconcile_states(rabbitmq.object_ref(), |s: RabbitmqReconcileState| s.reconcile_step == step)
+}
+
+pub open spec fn at_step_closure(step: RabbitmqReconcileStep) -> FnSpec(RabbitmqReconcileState) -> bool {
+    |s: RabbitmqReconcileState| s.reconcile_step == step
 }
 
 }
