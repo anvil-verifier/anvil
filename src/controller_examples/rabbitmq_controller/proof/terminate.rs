@@ -156,8 +156,4 @@ pub open spec fn at_step_state_pred(rabbitmq: RabbitmqClusterView, step: Rabbitm
     at_expected_reconcile_states(rabbitmq.object_ref(), |s: RabbitmqReconcileState| s.reconcile_step == step)
 }
 
-pub open spec fn at_step_closure(step: RabbitmqReconcileStep) -> FnSpec(RabbitmqReconcileState) -> bool {
-    |s: RabbitmqReconcileState| s.reconcile_step == step
-}
-
 }

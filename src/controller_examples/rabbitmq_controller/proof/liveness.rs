@@ -127,21 +127,21 @@ spec fn invariants(rabbitmq: RabbitmqClusterView) -> TempPred<ClusterState> {
     .and(always(lift_state(cluster_safety::each_key_in_reconcile_is_consistent_with_its_object())))
     .and(always(lift_state(safety::pending_msg_at_after_create_server_config_map_step_is_create_cm_req(rabbitmq.object_ref()))))
     .and(always(lift_state(safety::pending_msg_at_after_update_server_config_map_step_is_update_cm_req(rabbitmq.object_ref()))))
-    .and(always(lift_state(controller_runtime::pending_req_is_none_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::Init)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateHeadlessService)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateService)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateErlangCookieSecret)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateDefaultUserSecret)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreatePluginsConfigMap)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterGetServerConfigMap)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateServerConfigMap)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterUpdateServerConfigMap)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateServiceAccount)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateRole)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateRoleBinding)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterGetStatefulSet)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateStatefulSet)))))
-    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterUpdateStatefulSet)))))
+    .and(always(lift_state(controller_runtime::pending_req_is_none_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateHeadlessService)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateService)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateErlangCookieSecret)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateDefaultUserSecret)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreatePluginsConfigMap)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterGetServerConfigMap)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateServerConfigMap)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterUpdateServerConfigMap)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateServiceAccount)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateRole)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateRoleBinding)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterGetStatefulSet)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateStatefulSet)))))
+    .and(always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterUpdateStatefulSet)))))
 }
 
 proof fn invariants_is_stable(rabbitmq: RabbitmqClusterView)
@@ -158,21 +158,21 @@ proof fn invariants_is_stable(rabbitmq: RabbitmqClusterView)
         lift_state(cluster_safety::each_key_in_reconcile_is_consistent_with_its_object::<RabbitmqClusterView, RabbitmqReconciler>()),
         lift_state(safety::pending_msg_at_after_create_server_config_map_step_is_create_cm_req(rabbitmq.object_ref())),
         lift_state(safety::pending_msg_at_after_update_server_config_map_step_is_update_cm_req(rabbitmq.object_ref())),
-        lift_state(controller_runtime::pending_req_is_none_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::Init))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateHeadlessService))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateService))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateErlangCookieSecret))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateDefaultUserSecret))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreatePluginsConfigMap))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterGetServerConfigMap))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateServerConfigMap))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterUpdateServerConfigMap))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateServiceAccount))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateRole))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateRoleBinding))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterGetStatefulSet))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateStatefulSet))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterUpdateStatefulSet)))
+        lift_state(controller_runtime::pending_req_is_none_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateHeadlessService))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateService))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateErlangCookieSecret))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateDefaultUserSecret))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreatePluginsConfigMap))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterGetServerConfigMap))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateServerConfigMap))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterUpdateServerConfigMap))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateServiceAccount))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateRole))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateRoleBinding))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterGetStatefulSet))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateStatefulSet))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterUpdateStatefulSet)))
     );
 }
 
@@ -365,48 +365,48 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
     cluster_safety::lemma_always_each_key_in_reconcile_is_consistent_with_its_object::<RabbitmqClusterView, RabbitmqReconciler>(spec);
     safety::lemma_always_pending_msg_at_after_create_server_config_map_step_is_create_cm_req(spec, rabbitmq.object_ref());
     safety::lemma_always_pending_msg_at_after_update_server_config_map_step_is_update_cm_req(spec, rabbitmq.object_ref());
-    controller_runtime_safety::lemma_always_pending_req_is_none_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::Init));
+    controller_runtime_safety::lemma_always_pending_req_is_none_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init));
     controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateHeadlessService)
+        spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateHeadlessService)
     );
     controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateService)
+        spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateService)
     );
     controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateErlangCookieSecret)
+        spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateErlangCookieSecret)
     );
     controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateDefaultUserSecret)
+        spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateDefaultUserSecret)
     );
     controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreatePluginsConfigMap)
+        spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreatePluginsConfigMap)
     );
     controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterGetServerConfigMap)
+        spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterGetServerConfigMap)
     );
     controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateServerConfigMap)
+        spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateServerConfigMap)
     );
     controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterUpdateServerConfigMap)
+        spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterUpdateServerConfigMap)
     );
     controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateServiceAccount)
+        spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateServiceAccount)
     );
     controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateRole)
+        spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateRole)
     );
     controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateRoleBinding)
+        spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateRoleBinding)
     );
     controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterGetStatefulSet)
+        spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterGetStatefulSet)
     );
     controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateStatefulSet)
+        spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateStatefulSet)
     );
     controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
-        spec, rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterUpdateStatefulSet)
+        spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterUpdateStatefulSet)
     );
     entails_always_and_n!(
         spec,
@@ -419,21 +419,21 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         lift_state(cluster_safety::each_key_in_reconcile_is_consistent_with_its_object::<RabbitmqClusterView, RabbitmqReconciler>()),
         lift_state(safety::pending_msg_at_after_create_server_config_map_step_is_create_cm_req(rabbitmq.object_ref())),
         lift_state(safety::pending_msg_at_after_update_server_config_map_step_is_update_cm_req(rabbitmq.object_ref())),
-        lift_state(controller_runtime::pending_req_is_none_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::Init))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateHeadlessService))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateService))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateErlangCookieSecret))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateDefaultUserSecret))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreatePluginsConfigMap))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterGetServerConfigMap))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateServerConfigMap))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterUpdateServerConfigMap))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateServiceAccount))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateRole))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateRoleBinding))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterGetStatefulSet))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterCreateStatefulSet))),
-        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), get_closure(RabbitmqReconcileStep::AfterUpdateStatefulSet)))
+        lift_state(controller_runtime::pending_req_is_none_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateHeadlessService))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateService))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateErlangCookieSecret))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateDefaultUserSecret))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreatePluginsConfigMap))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterGetServerConfigMap))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateServerConfigMap))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterUpdateServerConfigMap))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateServiceAccount))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateRole))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateRoleBinding))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterGetStatefulSet))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateStatefulSet))),
+        lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterUpdateStatefulSet)))
     );
 }
 
