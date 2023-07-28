@@ -583,7 +583,6 @@ pub proof fn lemma_always_pending_req_is_none_at_reconcile_state<K: ResourceView
     spec: TempPred<State<K, R>>, key: ObjectRef, state: FnSpec(R::T) -> bool
 )
     requires
-        forall |s| (#[trigger] state(s)) ==> s != R::reconcile_init_state(),
         forall |cr, resp_o, pre_state| #[trigger] state(R::reconcile_core(cr, resp_o, pre_state).0)
             ==> {
                 let req = R::reconcile_core(cr, resp_o, pre_state).1;

@@ -30,6 +30,14 @@ pub open spec fn rabbitmq_reconcile_state(step: RabbitmqReconcileStep) -> Rabbit
     }
 }
 
+pub open spec fn get_reconcile_state(rabbitmq: RabbitmqClusterView, step: RabbitmqReconcileStep) -> StatePred<ClusterState> {
+    at_expected_reconcile_states(rabbitmq.object_ref(), |s: RabbitmqReconcileState| s.reconcile_step == step)
+}
+
+pub open spec fn get_closure(step: RabbitmqReconcileStep) -> FnSpec(RabbitmqReconcileState) -> bool {
+    |s: RabbitmqReconcileState| s.reconcile_step == step
+}
+
 pub open spec fn at_rabbitmq_step(key: ObjectRef, step: RabbitmqReconcileStep) -> StatePred<ClusterState>
     recommends
         key.kind.is_CustomResourceKind()
