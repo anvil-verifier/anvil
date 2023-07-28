@@ -2,5 +2,5 @@
 // SPDX-License-Identifier: MIT
 pub mod common;
 pub mod exec;
-// pub mod proof;
+pub mod proof;
 pub mod spec;

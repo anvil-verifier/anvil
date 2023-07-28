@@ -24,10 +24,15 @@ pub open spec fn cluster_spec() -> TempPred<ClusterState> {
     sm_spec::<ZookeeperClusterView,ZookeeperReconciler>()
 }
 
-pub open spec fn zookeeper_reconcile_state(step: ZookeeperReconcileStep) -> ZookeeperReconcileState {
+pub open spec fn zookeeper_reconcile_state_with_sts(step: ZookeeperReconcileStep, sts: Option<StatefulSetView>) -> ZookeeperReconcileState {
     ZookeeperReconcileState {
-        reconcile_step: step
+        reconcile_step: step,
+        sts_from_get: sts,
     }
+}
+
+pub open spec fn zookeeper_reconcile_state(step: ZookeeperReconcileStep) -> FnSpec(ZookeeperReconcileState) -> bool {
+    |s: ZookeeperReconcileState| s.reconcile_step == step
 }
 
 pub open spec fn at_zookeeper_step(key: ObjectRef, step: ZookeeperReconcileStep) -> StatePred<ClusterState>

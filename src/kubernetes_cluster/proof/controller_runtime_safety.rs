@@ -471,11 +471,11 @@ pub proof fn lemma_always_each_resp_matches_at_most_one_pending_req<K: ResourceV
 //   - If the response is processed by the controller, the controller will create a new pending request in flight which
 //   allows the invariant to still hold.
 pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
-    spec: TempPred<State<K, R>>, key: ObjectRef, state: R::T
+    spec: TempPred<State<K, R>>, key: ObjectRef, state: FnSpec(R::T) -> bool
 )
     requires
-        state != R::reconcile_init_state(),
-        forall |cr, resp_o, pre_state| #[trigger] R::reconcile_core(cr, resp_o, pre_state).0 == state
+        forall |s| (#[trigger] state(s)) ==> s != R::reconcile_init_state(),
+        forall |cr, resp_o, pre_state| #[trigger] state(R::reconcile_core(cr, resp_o, pre_state).0)
             ==> {
                 let req = R::reconcile_core(cr, resp_o, pre_state).1;
                 &&& req.is_Some()
@@ -495,7 +495,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
         &&& each_resp_matches_at_most_one_pending_req::<K, R>(key)(s)
     };
     assert forall |s, s_prime: State<K, R>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        if at_reconcile_state(key, state)(s_prime) {
+        if at_expected_reconcile_states(key, state)(s_prime) {
             let next_step = choose |step| next_step::<K, R>(s, s_prime, step);
             assert(!next_step.is_RestartController());
             let resp = choose |msg| {
@@ -580,11 +580,10 @@ pub proof fn lemma_always_no_pending_req_at_reconcile_init_state<K: ResourceView
 }
 
 pub proof fn lemma_always_pending_req_is_none_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
-    spec: TempPred<State<K, R>>, key: ObjectRef, state: R::T
+    spec: TempPred<State<K, R>>, key: ObjectRef, state: FnSpec(R::T) -> bool
 )
     requires
-        state != R::reconcile_init_state(),
-        forall |cr, resp_o, pre_state| #[trigger] R::reconcile_core(cr, resp_o, pre_state).0 == state
+        forall |cr, resp_o, pre_state| #[trigger] state(R::reconcile_core(cr, resp_o, pre_state).0)
             ==> {
                 let req = R::reconcile_core(cr, resp_o, pre_state).1;
                 req.is_None()
