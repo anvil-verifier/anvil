@@ -7,7 +7,7 @@ use anyhow::Result;
 use futures::StreamExt;
 use k8s_openapi::api::apps::v1::{self as appsv1, DaemonSet};
 use k8s_openapi::api::core::v1::{self as corev1, Secret, ServiceAccount};
-use k8s_openapi::api::rbac::v1::{self as rbacv1, Role, RoleBinding};
+use k8s_openapi::api::rbac::v1::{self as rbacv1, ClusterRole, ClusterRoleBinding};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{self as metav1};
 use k8s_openapi::ByteString;
 use kube::{
@@ -43,15 +43,14 @@ enum Error {
     MissingObjectKey(&'static str),
 }
 
-fn make_role_name() -> String {
+fn make_cluster_role_name() -> String {
     "fluent-bit-role".to_string()
 }
 
-fn make_role(fb: &FluentBit) -> Role {
-    Role {
+fn make_cluster_role() -> ClusterRole {
+    ClusterRole {
         metadata: ObjectMeta {
-            name: Some(make_role_name()),
-            namespace: fb.metadata.namespace.clone(),
+            name: Some(make_cluster_role_name()),
             ..ObjectMeta::default()
         },
         rules: Some(vec![rbacv1::PolicyRule {
@@ -60,14 +59,21 @@ fn make_role(fb: &FluentBit) -> Role {
             verbs: vec!["get".to_string()],
             ..Default::default()
         }]),
+        ..ClusterRole::default()
     }
 }
 
-async fn reconcile_role(fb: &FluentBit, client: Client) -> Result<(), Error> {
-    let role_api = Api::<Role>::namespaced(client.clone(), fb.metadata.namespace.as_ref().unwrap());
-    let role = make_role(&fb);
-    info!("Create role: {}", role.metadata.name.as_ref().unwrap());
-    match role_api.create(&PostParams::default(), &role).await {
+async fn reconcile_cluster_role(_fb: &FluentBit, client: Client) -> Result<(), Error> {
+    let cluster_role_api = Api::<ClusterRole>::all(client.clone());
+    let cluster_role = make_cluster_role();
+    info!(
+        "Create cluster role: {}",
+        cluster_role.metadata.name.as_ref().unwrap()
+    );
+    match cluster_role_api
+        .create(&PostParams::default(), &cluster_role)
+        .await
+    {
         Err(e) => match e {
             kube_client::Error::Api(kube_core::ErrorResponse { ref reason, .. })
                 if reason.clone() == "AlreadyExists" =>
@@ -119,21 +125,20 @@ async fn reconcile_service_account(fb: &FluentBit, client: Client) -> Result<(),
     }
 }
 
-fn make_role_binding_name(fb: &FluentBit) -> String {
+fn make_cluster_role_binding_name(fb: &FluentBit) -> String {
     fb.metadata.name.as_ref().unwrap().clone() + "-role-binding"
 }
 
-fn make_role_binding(fb: &FluentBit) -> RoleBinding {
-    RoleBinding {
+fn make_cluster_role_binding(fb: &FluentBit) -> ClusterRoleBinding {
+    ClusterRoleBinding {
         metadata: ObjectMeta {
-            name: Some(make_role_binding_name(fb)),
-            namespace: fb.metadata.namespace.clone(),
+            name: Some(make_cluster_role_binding_name(fb)),
             ..ObjectMeta::default()
         },
         role_ref: rbacv1::RoleRef {
             api_group: "rbac.authorization.k8s.io".to_string(),
-            kind: "Role".to_string(),
-            name: make_role_name(),
+            kind: "ClusterRole".to_string(),
+            name: make_cluster_role_name(),
         },
         subjects: Some(vec![rbacv1::Subject {
             kind: "ServiceAccount".to_string(),
@@ -141,20 +146,19 @@ fn make_role_binding(fb: &FluentBit) -> RoleBinding {
             namespace: Some(fb.metadata.namespace.as_ref().unwrap().clone()),
             ..rbacv1::Subject::default()
         }]),
-        ..RoleBinding::default()
+        ..ClusterRoleBinding::default()
     }
 }
 
-async fn reconcile_role_binding(fb: &FluentBit, client: Client) -> Result<(), Error> {
-    let role_binding_api =
-        Api::<RoleBinding>::namespaced(client.clone(), fb.metadata.namespace.as_ref().unwrap());
-    let role_binding = make_role_binding(&fb);
+async fn reconcile_cluster_role_binding(fb: &FluentBit, client: Client) -> Result<(), Error> {
+    let cluster_role_binding_api = Api::<ClusterRoleBinding>::all(client.clone());
+    let cluster_role_binding = make_cluster_role_binding(&fb);
     info!(
-        "Create role binding: {}",
-        role_binding.metadata.name.as_ref().unwrap()
+        "Create cluster role binding: {}",
+        cluster_role_binding.metadata.name.as_ref().unwrap()
     );
-    match role_binding_api
-        .create(&PostParams::default(), &role_binding)
+    match cluster_role_binding_api
+        .create(&PostParams::default(), &cluster_role_binding)
         .await
     {
         Err(e) => match e {
@@ -337,7 +341,7 @@ fn make_daemon_set(fb: &FluentBit) -> DaemonSet {
                     ]),
                     containers: vec![corev1::Container {
                         name: "fluent-bit".to_string(),
-                        image: Some("kubesphere/fluent-bit:v1.8.11".to_string()),
+                        image: Some("kubesphere/fluent-bit:v2.1.7".to_string()),
                         ports: Some(vec![corev1::ContainerPort {
                             name: Some("metrics".to_string()),
                             container_port: 2020,
@@ -400,6 +404,10 @@ fn make_daemon_set(fb: &FluentBit) -> DaemonSet {
                         ]),
                         ..corev1::Container::default()
                     }],
+                    tolerations: Some(vec![corev1::Toleration {
+                        operator: Some("Exists".to_string()),
+                        ..corev1::Toleration::default()
+                    }]),
                     ..corev1::PodSpec::default()
                 }),
             },
@@ -460,9 +468,9 @@ async fn reconcile(fb_from_cache: Arc<FluentBit>, ctx: Arc<Data>) -> Result<Acti
     }
     let fb = get_result.unwrap();
 
-    reconcile_role(&fb, client.clone()).await?;
+    reconcile_cluster_role(&fb, client.clone()).await?;
     reconcile_service_account(&fb, client.clone()).await?;
-    reconcile_role_binding(&fb, client.clone()).await?;
+    reconcile_cluster_role_binding(&fb, client.clone()).await?;
     reconcile_secret(&fb, client.clone()).await?;
     reconcile_daemon_set(&fb, client.clone()).await?;
 
