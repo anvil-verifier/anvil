@@ -18,7 +18,8 @@ use vstd::{multiset::*, prelude::*};
 verus! {
 
 // TODO:
-// + Need more validation checks like name/namespace format check
+// + Need more validation checks.
+//   For example, RoleBinding's roleRef is immutable: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#clusterrolebinding-example
 //
 // + Create and update should ignore the status fields provided by the object
 //
