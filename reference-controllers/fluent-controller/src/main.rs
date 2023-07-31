@@ -177,6 +177,7 @@ fn make_secret_name(fb: &FluentBit) -> String {
     fb.metadata.name.as_ref().unwrap().clone() + "-config-secret"
 }
 
+// TODO(xudong): make the configuration actually configurable
 fn make_secret(fb: &FluentBit) -> Secret {
     Secret {
         metadata: ObjectMeta {
@@ -438,6 +439,11 @@ async fn reconcile_daemon_set(fb: &FluentBit, client: Client) -> Result<(), Erro
     }
 }
 
+// In the reference fluent-operator, there are multiple reconcile loops for manaing fluent-bit.
+// One reconcile loop creates the configuration (the secret object) and the other one brings up the daemon set
+// that requires the configuration data.
+// Here we simplify the design and fold everything into one reconcile loop.
+// TODO(xudong): implement multiple reconcile loops that coordinate with each other.
 async fn reconcile(fb_from_cache: Arc<FluentBit>, ctx: Arc<Data>) -> Result<Action, Error> {
     let client = &ctx.client;
 
@@ -468,10 +474,22 @@ async fn reconcile(fb_from_cache: Arc<FluentBit>, ctx: Arc<Data>) -> Result<Acti
     }
     let fb = get_result.unwrap();
 
+    // The cluster role, service account and cluster role binding are used to grant access to reading the pods
+    // to the fluent-bit processes (running as pods of the daemon set below).
+    // Each fluent-bit pod needs such access because one of its filters (kubernetes) needs to query the API server
+    // to get the pod information.
     reconcile_cluster_role(&fb, client.clone()).await?;
     reconcile_service_account(&fb, client.clone()).await?;
     reconcile_cluster_role_binding(&fb, client.clone()).await?;
+
+    // The secret contains the configuration data, including the input, filters and the output.
+    // TODO(xudong): see whether we can use configmap here
     reconcile_secret(&fb, client.clone()).await?;
+
+    // The daemon set hosts the fluent-bit pods.
+    // The daemon set controller will spawn one pod on each Kubernetes node
+    // and each pod will collect the logs (configured in input)
+    // and send them to Kafka (configured in output).
     reconcile_daemon_set(&fb, client.clone()).await?;
 
     Ok(Action::requeue(Duration::from_secs(60)))
