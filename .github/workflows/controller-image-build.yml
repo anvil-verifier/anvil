@@ -32,3 +32,9 @@ jobs:
           docker build -t ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest .
       - name: Push rabbitmq controller image
         run: docker push ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest
+      - name: Build fluent controller image
+        run: |
+          cp docker/fluent-controller/Dockerfile .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/fluent-controller:latest .
+      - name: Push fluent controller image
+        run: docker push ghcr.io/${{ env.IMAGE_NAME }}/fluent-controller:latest
