@@ -10,6 +10,9 @@ verus! {
 pub enum Kind {
     ConfigMapKind,
     CustomResourceKind,
+    ClusterRoleKind,
+    ClusterRoleBindingKind,
+    DaemonSetKind,
     PersistentVolumeClaimKind,
     PodKind,
     RoleKind,
