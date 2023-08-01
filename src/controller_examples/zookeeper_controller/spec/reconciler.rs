@@ -29,6 +29,7 @@ impl Reconciler<ZookeeperClusterView> for ZookeeperReconciler {
     type T = ZookeeperReconcileState;
     type I = ZKSupportInputView;
     type O = ZKSupportOutputView;
+    type S = ();
 
     open spec fn reconcile_init_state() -> ZookeeperReconcileState {
         reconcile_init_state()
@@ -48,8 +49,8 @@ impl Reconciler<ZookeeperClusterView> for ZookeeperReconciler {
         reconcile_error(state)
     }
 
-    open spec fn external_process(input: ZKSupportInputView) -> Option<ZKSupportOutputView> {
-        Option::None
+    open spec fn external_process(input: ZKSupportInputView, state: Option<()>) -> (Option<ZKSupportOutputView>, Option<()>) {
+        (Option::None, Option::None)
     }
 }
 

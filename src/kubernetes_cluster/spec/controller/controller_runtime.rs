@@ -53,7 +53,7 @@ pub open spec fn continue_reconcile<K: ResourceView, R: Reconciler<K>>() -> Cont
                 // (1) there is a pending request which is destined for kubernetes api;
                 // (3) there is no pending request which is destined for kubernetes api and there is a external response;
                 // (4) there is no pending request or external response;
-                // The three cases don't overlap each other, and we must make them mutually exclusive in the 
+                // The three cases don't overlap each other, and we must make them mutually exclusive in the
                 // precondition, i.e., there should not be a state which satifies the precondition but fits for more
                 // than one case of the three.
                 // Note that if there is no pending request destined for kubernetes api, we have to require that
@@ -85,7 +85,7 @@ pub open spec fn continue_reconcile<K: ResourceView, R: Reconciler<K>>() -> Cont
             if req_o.is_Some() {
                 match req_o.get_Some_0() {
                     RequestView::KRequest(req) => {
-                        let (rest_id_allocator_prime, pending_req_msg) 
+                        let (rest_id_allocator_prime, pending_req_msg)
                             = (input.rest_id_allocator.allocate().0, Option::Some(controller_req_msg(req, input.rest_id_allocator.allocate().1)));
                         let reconcile_state_prime = OngoingReconcile {
                             pending_req_msg: pending_req_msg,
@@ -101,14 +101,16 @@ pub open spec fn continue_reconcile<K: ResourceView, R: Reconciler<K>>() -> Cont
                     },
                     RequestView::ExternalRequest(req) => {
                         // Update the state by calling the external process method.
+                        let (lib_resp_opt, next_lib_state) = R::external_process(req, s.external_lib_state);
                         let reconcile_state_prime = OngoingReconcile {
                             pending_req_msg: Option::None,
-                            lib_response: R::external_process(req), 
+                            lib_response: lib_resp_opt,
                             local_state: local_state_prime,
                             ..reconcile_state
                         };
                         let s_prime = ControllerState {
                             ongoing_reconciles: s.ongoing_reconciles.insert(cr_key, reconcile_state_prime),
+                            external_lib_state: next_lib_state,
                             ..s
                         };
                         (s_prime, (Multiset::empty(), input.rest_id_allocator.allocate().0))

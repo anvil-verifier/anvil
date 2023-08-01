@@ -11,13 +11,15 @@ verus! {
 /// Reconciler is the key data structure we use to pack up all the custom controller-specific logic
 /// and install it to the Kubernetes cluster state machine
 pub trait Reconciler<#[verifier(maybe_negative)] K: ResourceView>: Sized {
-    // There internal associated types:
+    // Here are several internal associated types:
     // T: type of the reconciler state of the reconciler
     // I: type of the request (input) to the external library
     // O: type of the response (output) from the external library
+    // S: type of the state of the external library
     type T;
     type I;
     type O;
+    type S;
 
     // reconcile_init_state returns the initial local state that the reconciler starts
     // its reconcile function with.
@@ -45,7 +47,11 @@ pub trait Reconciler<#[verifier(maybe_negative)] K: ResourceView>: Sized {
     // Lib should contain method process, it should implement a trait (which should be the spec version of ExternalLibrary).
     // It must be a generic currently. This will cause another round of super annoying refactoring. So currently we just
     // add another method to this trait.
-    open spec fn external_process(input: Self::I) -> Option<Self::O>;
+    // This method consumes the input (which should be computed by reconcile_core) and the current state of the external
+    // library and produces the response and the next state of the library.
+    // Use optional state here because: (1) it's easy to initialize since we don't have to require a default or init method,
+    // (2) some libraries don't need a state to hold information, thus, optional state makes sense. 
+    open spec fn external_process(input: Self::I, state: Option<Self::S>) -> (Option<Self::O>, Option<Self::S>);
 }
 
 }

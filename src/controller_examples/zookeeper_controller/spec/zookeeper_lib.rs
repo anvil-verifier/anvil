@@ -20,4 +20,10 @@ pub struct ZKNodeResultView {
     pub res: Result<(), Error>,
 }
 
+pub struct ZooKeeperState {}
+
+// pub open spec external_process(input: ZKSupportInputView, state: ZooKeeperState) -> (Option<ZKSupportOutputView>, ZooKeeperState> {
+
+// }
+
 }

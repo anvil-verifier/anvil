@@ -28,6 +28,8 @@ impl Reconciler<RabbitmqClusterView> for RabbitmqReconciler {
     type T = RabbitmqReconcileState;
     type I = ();
     type O = ();
+    type S = ();
+
     open spec fn reconcile_init_state() -> RabbitmqReconcileState {
         reconcile_init_state()
     }
@@ -46,8 +48,8 @@ impl Reconciler<RabbitmqClusterView> for RabbitmqReconciler {
         reconcile_error(state)
     }
 
-    open spec fn external_process(input: ()) -> Option<()> {
-        Option::None
+    open spec fn external_process(input: (), state: Option<()>) -> (Option<()>, Option<()>) {
+        (Option::None, Option::None)
     }
 }
 

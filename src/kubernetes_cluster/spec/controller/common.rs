@@ -13,6 +13,7 @@ verus! {
 pub struct ControllerState<K: ResourceView, R: Reconciler<K>> {
     pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile<K, R>>,
     pub scheduled_reconciles: Map<ObjectRef, K>,
+    pub external_lib_state: Option<R::S>,
 }
 
 pub struct OngoingReconcile<K: ResourceView, R: Reconciler<K>> {
@@ -51,6 +52,7 @@ pub open spec fn init_controller_state<K: ResourceView, R: Reconciler<K>>() -> C
     ControllerState {
         ongoing_reconciles: Map::empty(),
         scheduled_reconciles: Map::empty(),
+        external_lib_state: Option::None,
     }
 }
 

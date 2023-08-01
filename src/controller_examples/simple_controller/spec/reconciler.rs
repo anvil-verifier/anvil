@@ -31,6 +31,8 @@ impl Reconciler<CustomResourceView> for SimpleReconciler {
     type T = SimpleReconcileState;
     type I = ();
     type O = ();
+    type S = ();
+
     open spec fn reconcile_init_state() -> SimpleReconcileState {
         reconcile_init_state()
     }
@@ -49,8 +51,8 @@ impl Reconciler<CustomResourceView> for SimpleReconciler {
         reconcile_error(state)
     }
 
-    open spec fn external_process(input: ()) -> Option<()> {
-        Option::None
+    open spec fn external_process(input: (), state: Option<()>) -> (Option<()>, Option<()>) {
+        (Option::None, Option::None)
     }
 }
 
