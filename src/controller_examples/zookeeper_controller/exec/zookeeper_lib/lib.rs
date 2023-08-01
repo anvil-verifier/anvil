@@ -5,7 +5,7 @@ use crate::reconciler::exec::external::*;
 use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::exec::zookeeper_lib::helper_funcs::*;
 use crate::zookeeper_controller::exec::zookeepercluster::*;
-use crate::zookeeper_controller::spec::zookeeper_lib::*;
+use crate::zookeeper_controller::spec::zookeeper_lib::{ZKSupportInputView, ZKSupportOutputView, ZKNodeResultView};
 use vstd::{prelude::*, string::*};
 
 verus! {
