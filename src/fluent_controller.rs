@@ -3,6 +3,8 @@
 
 #![allow(unused_imports)]
 
+#[path = "controller_examples/fluent_controller/mod.rs"]
+pub mod fluent_controller;
 pub mod kubernetes_api_objects;
 pub mod kubernetes_cluster;
 pub mod pervasive_ext;
