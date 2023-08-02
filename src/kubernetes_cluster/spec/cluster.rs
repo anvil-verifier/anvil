@@ -157,6 +157,7 @@ pub open spec fn kubernetes_api_next<K: ResourceView, E: ExternalAPI, R: Reconci
 pub open spec fn external_api_next<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> Action<State<K, E, R>, ExternalComm<E::Input, E::Output>, ()> {
     Action {
         precondition: |input: ExternalComm<E::Input, E::Output>, s: State<K, E, R>| {
+            // For the external api action, a valid input must be contained by the in_flight field of the external_api_state.
             &&& input.is_Input()
             &&& s.external_api_state.in_flight.contains(input)
         },
@@ -165,6 +166,8 @@ pub open spec fn external_api_next<K: ResourceView, E: ExternalAPI, R: Reconcile
             let (external_api_output_opt, external_api_state_prime) = E::transition(input.get_Input_0(), s_external.external_api_state);
             let output = if external_api_output_opt.is_None() { Option::None }
                             else { Option::Some(ExternalComm::Output(external_api_output_opt.get_Some_0(), input.get_Input_1())) };
+            // After this action, the input should be removed, and, if there is an output destined for the external api,
+            // it should be inserted to the in_flight set.
             let s_prime_external = ExternalAPIState {
                 external_api_state: external_api_state_prime,
                 in_flight: if output.is_Some() { s_external.in_flight.remove(input).insert(output.get_Some_0()) }
@@ -203,18 +206,11 @@ pub open spec fn controller_next<K: ResourceView, E: ExternalAPI, R: Reconciler<
         },
         transition: |input: (Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>), s: State<K, E, R>| {
             let (host_result, network_result) = result(input, s);
-            let external_api_state_prime = if host_result.get_Enabled_1().external_api_input.is_Some() {
-                ExternalAPIState {
-                    in_flight: s.external_api_state.in_flight.insert(host_result.get_Enabled_1().external_api_input.get_Some_0()),
-                    ..s.external_api_state
-                }
-            } else {
-                s.external_api_state
-            };
             (State {
                 controller_state: host_result.get_Enabled_0(),
                 network_state: network_result.get_Enabled_0(),
                 rest_id_allocator: host_result.get_Enabled_1().rest_id_allocator,
+                external_api_state: external_api_send_output_and_receive_input::<E>(input.1, host_result.get_Enabled_1().external_api_input, s.external_api_state),
                 ..s
             }, ())
         },
