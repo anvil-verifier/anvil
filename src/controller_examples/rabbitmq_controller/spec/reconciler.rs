@@ -33,8 +33,8 @@ impl Reconciler<RabbitmqClusterView, EmptyAPI> for RabbitmqReconciler {
     }
 
     open spec fn reconcile_core(
-        rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyType>>, state: RabbitmqReconcileState
-    ) -> (RabbitmqReconcileState, Option<RequestView<EmptyType>>) {
+        rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyTypeView>>, state: RabbitmqReconcileState
+    ) -> (RabbitmqReconcileState, Option<RequestView<EmptyTypeView>>) {
         reconcile_core(rabbitmq, resp_o, state)
     }
 
@@ -68,8 +68,8 @@ pub open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool {
 }
 
 pub open spec fn reconcile_core(
-    rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyType>>, state: RabbitmqReconcileState
-) -> (RabbitmqReconcileState, Option<RequestView<EmptyType>>)
+    rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyTypeView>>, state: RabbitmqReconcileState
+) -> (RabbitmqReconcileState, Option<RequestView<EmptyTypeView>>)
     recommends
         rabbitmq.metadata.name.is_Some(),
         rabbitmq.metadata.namespace.is_Some(),

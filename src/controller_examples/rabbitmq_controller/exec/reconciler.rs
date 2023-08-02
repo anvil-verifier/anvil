@@ -39,12 +39,12 @@ impl RabbitmqReconcileState {
 pub struct RabbitmqReconciler {}
 
 #[verifier(external)]
-impl Reconciler<RabbitmqCluster, RabbitmqReconcileState, EmptyMsg, EmptyMsg, EmptyLib> for RabbitmqReconciler {
+impl Reconciler<RabbitmqCluster, RabbitmqReconcileState, EmptyType, EmptyType, EmptyLib> for RabbitmqReconciler {
     fn reconcile_init_state(&self) -> RabbitmqReconcileState {
         reconcile_init_state()
     }
 
-    fn reconcile_core(&self, rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyMsg>>, state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<Request<EmptyMsg>>) {
+    fn reconcile_core(&self, rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<Request<EmptyType>>) {
         reconcile_core(rabbitmq, resp_o, state)
     }
 
@@ -90,7 +90,7 @@ pub fn reconcile_error(state: &RabbitmqReconcileState) -> (res: bool)
     }
 }
 
-pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyMsg>>, state: RabbitmqReconcileState) -> (res: (RabbitmqReconcileState, Option<Request<EmptyMsg>>))
+pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState) -> (res: (RabbitmqReconcileState, Option<Request<EmptyType>>))
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),

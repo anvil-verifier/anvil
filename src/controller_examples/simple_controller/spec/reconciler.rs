@@ -36,8 +36,8 @@ impl Reconciler<CustomResourceView, EmptyAPI> for SimpleReconciler {
     }
 
     open spec fn reconcile_core(
-        cr: CustomResourceView, resp_o: Option<ResponseView<EmptyType>>, state: SimpleReconcileState
-    ) -> (SimpleReconcileState, Option<RequestView<EmptyType>>) {
+        cr: CustomResourceView, resp_o: Option<ResponseView<EmptyTypeView>>, state: SimpleReconcileState
+    ) -> (SimpleReconcileState, Option<RequestView<EmptyTypeView>>) {
         reconcile_core(cr, resp_o, state)
     }
 
@@ -79,8 +79,8 @@ pub open spec fn reconcile_error(state: SimpleReconcileState) -> bool {
 /// it sends requests to create a configmap for the cr.
 /// TODO: make the reconcile_core create more resources such as a statefulset
 pub open spec fn reconcile_core(
-    cr: CustomResourceView, resp_o: Option<ResponseView<EmptyType>>, state: SimpleReconcileState
-) -> (SimpleReconcileState, Option<RequestView<EmptyType>>)
+    cr: CustomResourceView, resp_o: Option<ResponseView<EmptyTypeView>>, state: SimpleReconcileState
+) -> (SimpleReconcileState, Option<RequestView<EmptyTypeView>>)
     recommends
         cr.metadata.name.is_Some(),
         cr.metadata.namespace.is_Some(),

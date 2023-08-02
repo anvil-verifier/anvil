@@ -16,22 +16,22 @@ pub trait ExternalAPI {
     open spec fn init_state() -> Self::State;
 }
 
-pub struct EmptyType {}
+pub struct EmptyTypeView {}
 
 pub struct EmptyAPI {}
 
 impl ExternalAPI for EmptyAPI {
 
-    type Input = EmptyType;
-    type Output = EmptyType;
-    type State = EmptyType;
+    type Input = EmptyTypeView;
+    type Output = EmptyTypeView;
+    type State = EmptyTypeView;
 
-    open spec fn transition(input: EmptyType, state: EmptyType) -> (Option<EmptyType>, EmptyType) {
-        (Option::None, EmptyType{})
+    open spec fn transition(input: EmptyTypeView, state: EmptyTypeView) -> (Option<EmptyTypeView>, EmptyTypeView) {
+        (Option::None, EmptyTypeView{})
     }
 
-    open spec fn init_state() -> EmptyType {
-        EmptyType {}
+    open spec fn init_state() -> EmptyTypeView {
+        EmptyTypeView {}
     }
 }
 

@@ -17,22 +17,20 @@ pub trait ExternalAPI<Input: ToView, Output: ToView> {
 
 // An empty library that implements External Library.
 // This can be used by those controllers that don't rely on a third-party library.
-// Users can define a reconciler as Reconciler<xx, xx, EmptyMsg, EmptyMsg, EmptyLib>.
+// Users can define a reconciler as Reconciler<xx, xx, EmptyType, EmptyType, EmptyLib>.
 pub struct EmptyLib {}
 
-impl ExternalAPI<EmptyMsg, EmptyMsg> for EmptyLib {
-    fn transition(input: EmptyMsg) -> Option<EmptyMsg> {
+impl ExternalAPI<EmptyType, EmptyType> for EmptyLib {
+    fn transition(input: EmptyType) -> Option<EmptyType> {
         Option::None
     }
 }
 
-pub struct EmptyMsg {}
+pub struct EmptyType {}
 
-type EmptyMsgView = EmptyType;
-
-impl ToView for EmptyMsg {
-    type V = EmptyMsgView;
-    spec fn to_view(&self) -> EmptyMsgView;
+impl ToView for EmptyType {
+    type V = EmptyTypeView;
+    spec fn to_view(&self) -> EmptyTypeView;
 }
 
 }
