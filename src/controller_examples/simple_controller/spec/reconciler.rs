@@ -31,9 +31,9 @@ pub struct EmptyState {}
 
 impl Reconciler<CustomResourceView> for SimpleReconciler {
     type T = SimpleReconcileState;
-    type LibRequest = ();
-    type LibResponse = ();
-    type LibState = EmptyState;
+    type ExternalAPIInput = ();
+    type ExternalAPIOutput = ();
+    type ExternalState = EmptyState;
 
     open spec fn reconcile_init_state() -> SimpleReconcileState {
         reconcile_init_state()
@@ -53,11 +53,11 @@ impl Reconciler<CustomResourceView> for SimpleReconciler {
         reconcile_error(state)
     }
 
-    open spec fn external_process(input: (), state: EmptyState) -> (Option<()>, EmptyState) {
+    open spec fn external_transition(input: (), state: EmptyState) -> (Option<()>, EmptyState) {
         (Option::None, EmptyState{})
     }
 
-    open spec fn library_init_state() -> EmptyState {
+    open spec fn init_external_state() -> EmptyState {
         EmptyState{}
     }
 }

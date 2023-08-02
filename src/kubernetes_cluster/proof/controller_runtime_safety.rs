@@ -230,7 +230,7 @@ pub open spec fn req_in_flight_or_pending_at_controller<K: ResourceView, R: Reco
     || exists |cr_key: ObjectRef| (
         #[trigger] s.reconcile_state_contains(cr_key)
         && pending_k8s_api_req_msg_is(s, cr_key, req_msg)
-        && s.reconcile_state_of(cr_key).lib_response.is_None()
+        && s.reconcile_state_of(cr_key).pending_external_api_output.is_None()
     ))
 }
 
