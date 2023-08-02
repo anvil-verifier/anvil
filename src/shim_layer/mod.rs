@@ -36,20 +36,20 @@ verus! {
 /// ReconcilerType: the reconciler type
 /// ReconcileStateType: the local state of the reconciler
 #[verifier(external)]
-pub async fn run_controller<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, I, O, Lib>() -> Result<()>
+pub async fn run_controller<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ExternalAPIInput, ExternalAPIOutput, ExternalAPIType>() -> Result<()>
 where
     K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Send + Serialize + Sync + 'static,
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
     ResourceWrapperType: ResourceWrapper<K> + Send,
-    ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, I, O, Lib> + Send + Sync + Default,
-    ReconcileStateType: Send, I: Send + ToView, O: Send + ToView, Lib: ExternalAPI<I, O>,
+    ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, ExternalAPIInput, ExternalAPIOutput, ExternalAPIType> + Send + Sync + Default,
+    ReconcileStateType: Send, ExternalAPIInput: Send + ToView, ExternalAPIOutput: Send + ToView, ExternalAPIType: ExternalAPI<ExternalAPIInput, ExternalAPIOutput>,
 {
     let client = Client::try_default().await?;
     let crs = Api::<K>::all(client.clone());
 
     // Build the async closure on top of reconcile_with
     let reconcile = |cr: Arc<K>, ctx: Arc<Data>| async move {
-        return reconcile_with::<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, I, O, Lib>(
+        return reconcile_with::<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ExternalAPIInput, ExternalAPIOutput, ExternalAPIType>(
             &ReconcilerType::default(), cr, ctx
         ).await;
     };
@@ -80,15 +80,15 @@ where
 /// or encounters error (reconciler.reconcile_error).
 
 #[verifier(external)]
-pub async fn reconcile_with<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, I, O, Lib>(
+pub async fn reconcile_with<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ExternalAPIInput, ExternalAPIOutput, ExternalAPIType>(
     reconciler: &ReconcilerType, cr: Arc<K>, ctx: Arc<Data>
 ) -> Result<Action, Error>
 where
     K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Serialize,
     K::DynamicType: Default + Clone + Debug,
     ResourceWrapperType: ResourceWrapper<K>,
-    I: ToView, O: ToView, Lib: ExternalAPI<I, O>,
-    ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, I, O, Lib>,
+    ExternalAPIInput: ToView, ExternalAPIOutput: ToView, ExternalAPIType: ExternalAPI<ExternalAPIInput, ExternalAPIOutput>,
+    ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, ExternalAPIInput, ExternalAPIOutput, ExternalAPIType>,
 {
     let client = &ctx.client;
 
@@ -114,7 +114,7 @@ where
 
     let cr_wrapper = ResourceWrapperType::from_kube(cr);
     let mut state = reconciler.reconcile_init_state();
-    let mut resp_option: Option<Response<O>> = Option::None;
+    let mut resp_option: Option<Response<ExternalAPIOutput>> = Option::None;
 
     // Call reconcile_core in a loop
     loop {
@@ -203,7 +203,7 @@ where
                     resp_option = Option::Some(Response::KResponse(kube_resp));
                 },
                 Request::ExternalRequest(req) => {
-                    let ret = Lib::process(req);
+                    let ret = ExternalAPIType::transition(req);
                     resp_option = if ret.is_some() {Option::Some(Response::ExternalResponse(ret.unwrap()))} else {Option::None};
                 },
             },

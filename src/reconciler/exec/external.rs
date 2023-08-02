@@ -11,7 +11,7 @@ verus! {
 // Similarly, Output composes the Response<?> type of a reconciler.
 // Note that we can encapsulate all the required libraries here, so each reconciler only has one ExternalAPI type.
 pub trait ExternalAPI<Input: ToView, Output: ToView> {
-    fn process(input: Input) -> Option<Output>;
+    fn transition(input: Input) -> Option<Output>;
 }
 
 // An empty library that implements External Library.
@@ -20,7 +20,7 @@ pub trait ExternalAPI<Input: ToView, Output: ToView> {
 pub struct EmptyLib {}
 
 impl ExternalAPI<EmptyMsg, EmptyMsg> for EmptyLib {
-    fn process(input: EmptyMsg) -> Option<EmptyMsg> {
+    fn transition(input: EmptyMsg) -> Option<EmptyMsg> {
         Option::None
     }
 }
