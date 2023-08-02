@@ -7,12 +7,12 @@ use vstd::{prelude::*, string::*};
 verus! {
 
 #[is_variant]
-pub enum ZKSupportInputView {
+pub enum ZKAPIInputView {
     ReconcileZKNode(StringView,StringView,StringView),
 }
 
 #[is_variant]
-pub enum ZKSupportOutputView {
+pub enum ZKAPIOutputView {
     ReconcileZKNode(ZKNodeResultView),
 }
 
@@ -24,22 +24,22 @@ pub struct ZooKeeperState {
     pub data: Map<StringView, StringView>,
 }
 
-pub open spec fn external_process(input: ZKSupportInputView, state: Option<ZooKeeperState>) -> (Option<ZKSupportOutputView>, Option<ZooKeeperState>) {
+pub open spec fn external_process(input: ZKAPIInputView, state: Option<ZooKeeperState>) -> (Option<ZKAPIOutputView>, Option<ZooKeeperState>) {
     match input {
-        ZKSupportInputView::ReconcileZKNode(path,uri,replicas) => reconcile_zk_node(path, uri, replicas, state),
+        ZKAPIInputView::ReconcileZKNode(path,uri,replicas) => reconcile_zk_node(path, uri, replicas, state),
     }
 }
 
 pub open spec fn reconcile_zk_node(
     path: StringView, uri: StringView, replicas: StringView, state: Option<ZooKeeperState>
-) -> (Option<ZKSupportOutputView>, Option<ZooKeeperState>) {
+) -> (Option<ZKAPIOutputView>, Option<ZooKeeperState>) {
     let old_state = if state.is_None() { ZooKeeperState{ data: Map::empty() } } else { state.get_Some_0() };
     if old_state.data.contains_key(uri + path) {
         let state_prime = ZooKeeperState {
             data: old_state.data.insert(uri + path, new_strlit("CLUSTER_SIZE=")@ + replicas),
             ..old_state
         };
-        (Option::Some(ZKSupportOutputView::ReconcileZKNode(ZKNodeResultView{ res: Ok(()) })), Option::Some(state_prime))
+        (Option::Some(ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{ res: Ok(()) })), Option::Some(state_prime))
     } else {
         let new_data = old_state.data
                     .insert(uri + new_strlit("/zookeeper-operator")@, new_strlit("")@)
@@ -48,7 +48,7 @@ pub open spec fn reconcile_zk_node(
             data: new_data,
             ..old_state
         };
-        (Option::Some(ZKSupportOutputView::ReconcileZKNode(ZKNodeResultView{ res: Ok(()) })), Option::Some(state_prime))
+        (Option::Some(ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{ res: Ok(()) })), Option::Some(state_prime))
     }
 }
 
