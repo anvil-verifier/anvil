@@ -70,7 +70,7 @@ pub struct RabbitmqClusterConfigurationSpec {
 #[kube(shortname = "fb", namespaced)]
 pub struct FluentBitSpec {
     #[serde(rename = "fluentBitConfig")]
-    pub fluent_bit_config: String,
+    pub fluentbit_config: String,
     #[serde(rename = "parsersConfig")]
     pub parsers_config: String,
 }

@@ -87,7 +87,7 @@ impl ResourceView for FluentBitView {
 }
 
 pub struct FluentBitSpecView {
-    pub fluent_bit_config: StringView,
+    pub fluentbit_config: StringView,
     pub parsers_config: StringView,
 }
 

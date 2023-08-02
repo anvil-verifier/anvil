@@ -241,7 +241,7 @@ pub open spec fn make_secret(fluentbit: FluentBitView) -> SecretView
         .set_metadata(ObjectMetaView::default()
             .set_name(make_secret_name(fluentbit.metadata.name.get_Some_0()))
         ).set_data(Map::empty()
-            .insert(new_strlit("fluent-bit.conf")@, fluentbit.spec.fluent_bit_config)
+            .insert(new_strlit("fluent-bit.conf")@, fluentbit.spec.fluentbit_config)
             .insert(new_strlit("parsers.conf")@, fluentbit.spec.parsers_config)
         )
 }
