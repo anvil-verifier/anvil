@@ -200,6 +200,9 @@ pub open spec fn controller_next<K: ResourceView, E: ExternalAPI, R: Reconciler<
     Action {
         precondition: |input: (Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>), s: State<K, E, R>| {
             &&& received_msg_destined_for(input.0, HostId::CustomController)
+            // This precondition requires that if the response from the external library is not empty,
+            // it must be contained by the set in the external_api_state.
+            // This ensures the response is produced by the external api.
             &&& input.1.is_Some() ==> s.external_api_state.in_flight.contains(input.1.get_Some_0())
             &&& result(input, s).0.is_Enabled()
             &&& result(input, s).1.is_Enabled()
@@ -461,6 +464,7 @@ pub open spec fn controller_action_pre<K: ResourceView, E: ExternalAPI, R: Recon
         let network_result = network().next_result(msg_ops, s.network_state);
 
         &&& received_msg_destined_for(input.0, HostId::CustomController)
+        &&& input.1.is_Some() ==> s.external_api_state.in_flight.contains(input.1.get_Some_0())
         &&& host_result.is_Enabled()
         &&& network_result.is_Enabled()
     }

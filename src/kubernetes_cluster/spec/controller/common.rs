@@ -19,7 +19,7 @@ pub struct ControllerState<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>
 pub struct OngoingReconcile<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
     pub triggering_cr: K,
     // pending_req_msg: the request message pending for the handling for k8s api
-    // pending_external_api_input: the response returned by the external library if a request has been processed by it
+    // pending_external_api_input: the request returned by the reconcile_core which should be sent to be external api
     pub pending_req_msg: Option<Message>,
     pub pending_external_api_input: Option<ExternalComm<E::Input, E::Output>>,
     pub local_state: R::T,

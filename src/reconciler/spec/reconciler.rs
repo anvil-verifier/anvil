@@ -14,9 +14,6 @@ verus! {
 pub trait Reconciler<#[verifier(maybe_negative)] K: ResourceView, #[verifier(maybe_negative)] ExternalAPIType: ExternalAPI>: Sized {
     // Here are several internal associated types:
     // T: type of the reconciler state of the reconciler
-    // ExternalAPIInput: type of the request (input) to the external library
-    // ExternalAPIOutput: type of the response (output) from the external library
-    // ExternalState: type of the state of the external library
     type T;
 
     // reconcile_init_state returns the initial local state that the reconciler starts
@@ -39,19 +36,6 @@ pub trait Reconciler<#[verifier(maybe_negative)] K: ResourceView, #[verifier(may
     // reconcile_error is used to tell the controller_runtime whether this reconcile round returns with error.
     // If it is true, controller_runtime will requeue the reconcile.
     open spec fn reconcile_error(state: Self::T) -> bool;
-
-    // external_transition describes the logic of external libraries, which is a spec counterpart of Lib::process.
-    // An alternative way to achieve this is add Lib as a generic or associated type to this Reconciler trait. But since
-    // Lib should contain method process, it should implement a trait (which should be the spec version of ExternalAPI).
-    // It must be a generic currently. This will cause another round of super annoying refactoring. So currently we just
-    // add another method to this trait.
-    // This method consumes the input (which should be computed by reconcile_core) and the current state of the external
-    // library and produces the response and the next state of the library.
-    // Use optional state here because: (1) it's easy to initialize since we don't have to require a default or init method,
-    // (2) some libraries don't need a state to hold information, thus, optional state makes sense.
-    // open spec fn external_transition(input: Self::ExternalAPIInput, state: Self::ExternalState) -> (Option<Self::ExternalAPIOutput>, Self::ExternalState);
-
-    // open spec fn init_external_state() -> Self::ExternalState;
 }
 
 }

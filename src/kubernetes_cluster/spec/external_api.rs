@@ -24,9 +24,11 @@ pub open spec fn external_output_matches_input<T: ExternalAPI>(output: ExternalC
     &&& output.get_Output_1() == input.get_Input_1()
 }
 
+// ExternalAPIState basically adds a set to hold communication between controller and external api to the original external api state.
 pub struct ExternalAPIState<T: ExternalAPI> {
+    // external_api_state is the state of the external api.
     pub external_api_state: T::State,
-    // This field is similar to the in_flight field of the network state.
+    // in_flight is similar to the in_flight field of the network state.
     // We use a set to accommodate the input and output of the external api which haven't been processed.
     pub in_flight: Set<ExternalComm<T::Input, T::Output>>,
 }
