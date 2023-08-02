@@ -43,14 +43,14 @@ pub struct ZookeeperReconciler {}
 
 
 #[verifier(external)]
-impl Reconciler<ZookeeperCluster, ZookeeperReconcileState, ZKSupportInput, ZKSupportOutput, ZKSupport> for ZookeeperReconciler {
+impl Reconciler<ZookeeperCluster, ZookeeperReconcileState, ZKAPIInput, ZKAPIOutput, ZKAPI> for ZookeeperReconciler {
     fn reconcile_init_state(&self) -> ZookeeperReconcileState {
         reconcile_init_state()
     }
 
     fn reconcile_core(
-        &self, zk: &ZookeeperCluster, resp_o: Option<Response<ZKSupportOutput>>, state: ZookeeperReconcileState
-    ) -> (ZookeeperReconcileState, Option<Request<ZKSupportInput>>) {
+        &self, zk: &ZookeeperCluster, resp_o: Option<Response<ZKAPIOutput>>, state: ZookeeperReconcileState
+    ) -> (ZookeeperReconcileState, Option<Request<ZKAPIInput>>) {
         reconcile_core(zk, resp_o, state)
     }
 
@@ -100,8 +100,8 @@ pub fn reconcile_error(state: &ZookeeperReconcileState) -> (res: bool)
 // TODO: make the shim layer pass zk, instead of zk_ref, to reconcile_core
 
 pub fn reconcile_core(
-    zk: &ZookeeperCluster, resp_o: Option<Response<ZKSupportOutput>>, state: ZookeeperReconcileState
-) -> (res: (ZookeeperReconcileState, Option<Request<ZKSupportInput>>))
+    zk: &ZookeeperCluster, resp_o: Option<Response<ZKAPIOutput>>, state: ZookeeperReconcileState
+) -> (res: (ZookeeperReconcileState, Option<Request<ZKAPIInput>>))
     requires
         zk@.metadata.name.is_Some(),
         zk@.metadata.namespace.is_Some(),
@@ -197,7 +197,7 @@ pub fn reconcile_core(
                         let path = cluster_size_zk_node_path(zk);
                         let uri = zk_service_uri(zk);
                         let replicas = i32_to_string(zk.spec().replicas());
-                        let ext_req = ZKSupportInput::ReconcileZKNode(path, uri, replicas);
+                        let ext_req = ZKAPIInput::ReconcileZKNode(path, uri, replicas);
                         proof {
                             zk_support_input_to_view_match(path, uri, replicas);
                         }
@@ -234,7 +234,7 @@ pub fn reconcile_core(
             let path = cluster_size_zk_node_path(zk);
             let uri = zk_service_uri(zk);
             let replicas = i32_to_string(zk.spec().replicas());
-            let ext_req = ZKSupportInput::ReconcileZKNode(path, uri, replicas);
+            let ext_req = ZKAPIInput::ReconcileZKNode(path, uri, replicas);
             proof {
                 zk_support_input_to_view_match(path, uri, replicas);
             }
@@ -248,7 +248,7 @@ pub fn reconcile_core(
             let path = cluster_size_zk_node_path(zk);
             let uri = zk_service_uri(zk);
             let replicas = i32_to_string(zk.spec().replicas());
-            let ext_req = ZKSupportInput::ReconcileZKNode(path, uri, replicas);
+            let ext_req = ZKAPIInput::ReconcileZKNode(path, uri, replicas);
             proof {
                 zk_support_input_to_view_match(path, uri, replicas);
             }

@@ -24,10 +24,14 @@ pub struct RabbitmqReconcileState {
 
 pub struct RabbitmqReconciler {}
 
+pub struct EmptyState {}
+
 impl Reconciler<RabbitmqClusterView> for RabbitmqReconciler {
     type T = RabbitmqReconcileState;
-    type I = ();
-    type O = ();
+    type ExternalAPIInput = ();
+    type ExternalAPIOutput = ();
+    type ExternalState = EmptyState;
+
     open spec fn reconcile_init_state() -> RabbitmqReconcileState {
         reconcile_init_state()
     }
@@ -46,8 +50,12 @@ impl Reconciler<RabbitmqClusterView> for RabbitmqReconciler {
         reconcile_error(state)
     }
 
-    open spec fn external_process(input: ()) -> Option<()> {
-        Option::None
+    open spec fn external_transition(input: (), state: EmptyState) -> (Option<()>, EmptyState) {
+        (Option::None, EmptyState{})
+    }
+
+    open spec fn init_external_state() -> EmptyState {
+        EmptyState{}
     }
 }
 

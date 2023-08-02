@@ -8,11 +8,11 @@ use vstd::prelude::*;
 
 verus! {
 
-pub trait Reconciler<R, T, I, O, Lib>
-    where I: ToView, O: ToView, Lib: ExternalLibrary<I, O>
+pub trait Reconciler<R, T, ExternalAPIInput, ExternalAPIOutput, ExternalAPIType>
+    where ExternalAPIInput: ToView, ExternalAPIOutput: ToView, ExternalAPIType: ExternalAPI<ExternalAPIInput, ExternalAPIOutput>
 {
     fn reconcile_init_state(&self) -> T;
-    fn reconcile_core(&self, cr: &R, resp_o: Option<Response<O>>, state: T) -> (T, Option<Request<I>>);
+    fn reconcile_core(&self, cr: &R, resp_o: Option<Response<ExternalAPIOutput>>, state: T) -> (T, Option<Request<ExternalAPIInput>>);
     fn reconcile_done(&self, state: &T) -> bool;
     fn reconcile_error(&self, state: &T) -> bool;
 }

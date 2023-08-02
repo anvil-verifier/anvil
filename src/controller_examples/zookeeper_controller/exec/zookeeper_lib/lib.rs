@@ -5,56 +5,58 @@ use crate::reconciler::exec::external::*;
 use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::exec::zookeeper_lib::helper_funcs::*;
 use crate::zookeeper_controller::exec::zookeepercluster::*;
-use crate::zookeeper_controller::spec::zookeeper_lib::*;
+use crate::zookeeper_controller::spec::zookeeper_lib::{
+    ZKAPIInputView, ZKAPIOutputView, ZKNodeResultView,
+};
 use vstd::{prelude::*, string::*};
 
 verus! {
 
 #[is_variant]
-pub enum ZKSupportInput {
+pub enum ZKAPIInput {
     ReconcileZKNode(String,String,String),
 }
 
 #[is_variant]
-pub enum ZKSupportOutput {
+pub enum ZKAPIOutput {
     ReconcileZKNode(ZKNodeResult),
 }
 
-impl ToView for ZKSupportInput {
-    type V = ZKSupportInputView;
-    spec fn to_view(&self) -> ZKSupportInputView {
+impl ToView for ZKAPIInput {
+    type V = ZKAPIInputView;
+    spec fn to_view(&self) -> ZKAPIInputView {
         match self {
-            ZKSupportInput::ReconcileZKNode(path, uri, replicas)
-                => ZKSupportInputView::ReconcileZKNode(path@, uri@, replicas@),
+            ZKAPIInput::ReconcileZKNode(path, uri, replicas)
+                => ZKAPIInputView::ReconcileZKNode(path@, uri@, replicas@),
         }
     }
 }
 
 pub proof fn zk_support_input_to_view_match(path: String, uri: String, replicas: String)
     ensures
-        ZKSupportInput::ReconcileZKNode(path, uri, replicas).to_view()
-            == ZKSupportInputView::ReconcileZKNode(path@, uri@, replicas@) {}
+        ZKAPIInput::ReconcileZKNode(path, uri, replicas).to_view()
+            == ZKAPIInputView::ReconcileZKNode(path@, uri@, replicas@) {}
 
 
-impl ToView for ZKSupportOutput {
-    type V = ZKSupportOutputView;
-    spec fn to_view(&self) -> ZKSupportOutputView {
+impl ToView for ZKAPIOutput {
+    type V = ZKAPIOutputView;
+    spec fn to_view(&self) -> ZKAPIOutputView {
         match self {
-            ZKSupportOutput::ReconcileZKNode(result) => ZKSupportOutputView::ReconcileZKNode(ZKNodeResultView{res: result.res}),
+            ZKAPIOutput::ReconcileZKNode(result) => ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{res: result.res}),
         }
     }
 }
 
 pub proof fn zk_support_output_to_view_match(result: ZKNodeResult)
     ensures
-        ZKSupportOutput::ReconcileZKNode(result).to_view() == ZKSupportOutputView::ReconcileZKNode(ZKNodeResultView{res: result.res}) {}
+        ZKAPIOutput::ReconcileZKNode(result).to_view() == ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{res: result.res}) {}
 
-impl ZKSupportOutput {
+impl ZKAPIOutput {
     pub fn is_reconcile_zk_node(&self) -> (res: bool)
         ensures res <==> self.is_ReconcileZKNode(),
     {
         match self {
-            ZKSupportOutput::ReconcileZKNode(_) => true,
+            ZKAPIOutput::ReconcileZKNode(_) => true,
         }
     }
 
@@ -66,19 +68,19 @@ impl ZKSupportOutput {
             result.res.is_Ok() <==> self.get_ReconcileZKNode_0().res.is_Ok(),
     {
         match self {
-            ZKSupportOutput::ReconcileZKNode(result) => result,
+            ZKAPIOutput::ReconcileZKNode(result) => result,
         }
     }
 }
 
-pub struct ZKSupport {}
+pub struct ZKAPI {}
 
-impl ExternalLibrary<ZKSupportInput, ZKSupportOutput> for ZKSupport {
+impl ExternalAPI<ZKAPIInput, ZKAPIOutput> for ZKAPI {
     #[verifier(external)]
-    fn process(input: ZKSupportInput) -> Option<ZKSupportOutput> {
+    fn transition(input: ZKAPIInput) -> Option<ZKAPIOutput> {
         match input {
-            ZKSupportInput::ReconcileZKNode(path, uri, replicas)
-                => Option::Some(ZKSupportOutput::ReconcileZKNode(reconcile_zk_node(path, uri, replicas))),
+            ZKAPIInput::ReconcileZKNode(path, uri, replicas)
+                => Option::Some(ZKAPIOutput::ReconcileZKNode(reconcile_zk_node(path, uri, replicas))),
         }
     }
 }

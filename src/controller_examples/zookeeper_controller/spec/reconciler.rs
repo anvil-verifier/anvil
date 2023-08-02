@@ -27,16 +27,17 @@ pub struct ZookeeperReconciler {}
 
 impl Reconciler<ZookeeperClusterView> for ZookeeperReconciler {
     type T = ZookeeperReconcileState;
-    type I = ZKSupportInputView;
-    type O = ZKSupportOutputView;
+    type ExternalAPIInput = ZKAPIInputView;
+    type ExternalAPIOutput = ZKAPIOutputView;
+    type ExternalState = ZooKeeperState;
 
     open spec fn reconcile_init_state() -> ZookeeperReconcileState {
         reconcile_init_state()
     }
 
     open spec fn reconcile_core(
-        zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKSupportOutputView>>, state: ZookeeperReconcileState
-    ) -> (ZookeeperReconcileState, Option<RequestView<ZKSupportInputView>>) {
+        zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKAPIOutputView>>, state: ZookeeperReconcileState
+    ) -> (ZookeeperReconcileState, Option<RequestView<ZKAPIInputView>>) {
         reconcile_core(zk, resp_o, state)
     }
 
@@ -48,8 +49,12 @@ impl Reconciler<ZookeeperClusterView> for ZookeeperReconciler {
         reconcile_error(state)
     }
 
-    open spec fn external_process(input: ZKSupportInputView) -> Option<ZKSupportOutputView> {
-        Option::None
+    open spec fn external_transition(input: ZKAPIInputView, state: ZooKeeperState) -> (Option<ZKAPIOutputView>, ZooKeeperState) {
+        external_transition(input, state)
+    }
+
+    open spec fn init_external_state() -> ZooKeeperState {
+        ZooKeeperState::default()
     }
 }
 
@@ -75,8 +80,8 @@ pub open spec fn reconcile_error(state: ZookeeperReconcileState) -> bool {
 }
 
 pub open spec fn reconcile_core(
-    zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKSupportOutputView>>, state: ZookeeperReconcileState
-) -> (ZookeeperReconcileState, Option<RequestView<ZKSupportInputView>>)
+    zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKAPIOutputView>>, state: ZookeeperReconcileState
+) -> (ZookeeperReconcileState, Option<RequestView<ZKAPIInputView>>)
     recommends
         zk.metadata.name.is_Some(),
         zk.metadata.namespace.is_Some(),
@@ -158,7 +163,7 @@ pub open spec fn reconcile_core(
                             sts_from_get: Option::Some(found_stateful_set),
                             ..state
                         };
-                        let ext_req = ZKSupportInputView::ReconcileZKNode(
+                        let ext_req = ZKAPIInputView::ReconcileZKNode(
                             cluster_size_zk_node_path(zk), zk_service_uri(zk), int_to_string_view(zk.spec.replicas)
                         );
                         (state_prime, Option::Some(RequestView::ExternalRequest(ext_req)))
@@ -200,7 +205,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
                 ..state
             };
-            let ext_req = ZKSupportInputView::ReconcileZKNode(
+            let ext_req = ZKAPIInputView::ReconcileZKNode(
                 cluster_size_zk_node_path(zk), zk_service_uri(zk), int_to_string_view(zk.spec.replicas)
             );
             (state_prime, Option::Some(RequestView::ExternalRequest(ext_req)))
@@ -210,7 +215,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
                 ..state
             };
-            let ext_req = ZKSupportInputView::ReconcileZKNode(
+            let ext_req = ZKAPIInputView::ReconcileZKNode(
                 cluster_size_zk_node_path(zk), zk_service_uri(zk), int_to_string_view(zk.spec.replicas)
             );
             (state_prime, Option::Some(RequestView::ExternalRequest(ext_req)))
