@@ -8,9 +8,9 @@ verus! {
 #[is_variant]
 pub enum FluentBitReconcileStep {
     Init,
-    AfterCreateClusterRole,
+    AfterCreateRole,
     AfterCreateServiceAccount,
-    AfterCreateClusterRoleBinding,
+    AfterCreateRoleBinding,
     AfterCreateSecret,
     AfterCreateDaemonSet,
     Done,

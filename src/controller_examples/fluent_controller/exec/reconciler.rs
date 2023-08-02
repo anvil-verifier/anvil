@@ -6,10 +6,9 @@ use crate::fluent_controller::exec::fluentbit::*;
 use crate::fluent_controller::spec::reconciler as fluent_spec;
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
-    api_method::*, cluster_role::*, cluster_role_binding::*, common::*, config_map::*,
-    daemon_set::*, label_selector::*, object_meta::*, persistent_volume_claim::*, pod::*,
-    pod_template_spec::*, resource::*, resource_requirements::*, role::*, role_binding::*,
-    secret::*, service::*, service_account::*,
+    api_method::*, common::*, config_map::*, daemon_set::*, label_selector::*, object_meta::*,
+    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
+    resource_requirements::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
@@ -20,10 +19,14 @@ use vstd::string::*;
 
 verus! {
 
-/// FluentBitReconcileState describes the local state with which the reconcile functions makes decisions.
+// TODO:
+// + Use Role after Anvil supports cluster-scoped resources
+//
+// + Add more features
+//
+// + Split the management logic into two reconciliation loops
+
 pub struct FluentBitReconcileState {
-    // reconcile_step, like a program counter, is used to track the progress of reconcile_core
-    // since reconcile_core is frequently "trapped" into the controller_runtime spec.
     pub reconcile_step: FluentBitReconcileStep,
 }
 
@@ -99,20 +102,19 @@ pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyMsg>>,
     let step = state.reconcile_step;
     match step{
         FluentBitReconcileStep::Init => {
-            let cluster_role = make_cluster_role(fluentbit);
+            let role = make_role(fluentbit);
             let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: ClusterRole::api_resource(),
-                // TODO: cluster scoped resources don't need namespace
+                api_resource: Role::api_resource(),
                 namespace: fluentbit.metadata().namespace().unwrap(),
-                obj: cluster_role.to_dynamic_object(),
+                obj: role.to_dynamic_object(),
             });
             let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterCreateClusterRole,
+                reconcile_step: FluentBitReconcileStep::AfterCreateRole,
                 ..state
             };
             return (state_prime, Option::Some(Request::KRequest(req_o)));
         },
-        FluentBitReconcileStep::AfterCreateClusterRole => {
+        FluentBitReconcileStep::AfterCreateRole => {
             let service_account = make_service_account(fluentbit);
             let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                 api_resource: ServiceAccount::api_resource(),
@@ -126,20 +128,19 @@ pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyMsg>>,
             return (state_prime, Option::Some(Request::KRequest(req_o)));
         },
         FluentBitReconcileStep::AfterCreateServiceAccount => {
-            let cluster_role_binding = make_cluster_role_binding(fluentbit);
+            let role_binding = make_role_binding(fluentbit);
             let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: ClusterRoleBinding::api_resource(),
-                // TODO: cluster scoped resources don't need namespace
+                api_resource: RoleBinding::api_resource(),
                 namespace: fluentbit.metadata().namespace().unwrap(),
-                obj: cluster_role_binding.to_dynamic_object(),
+                obj: role_binding.to_dynamic_object(),
             });
             let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterCreateClusterRoleBinding,
+                reconcile_step: FluentBitReconcileStep::AfterCreateRoleBinding,
                 ..state
             };
             return (state_prime, Option::Some(Request::KRequest(req_o)));
         },
-        FluentBitReconcileStep::AfterCreateClusterRoleBinding => {
+        FluentBitReconcileStep::AfterCreateRoleBinding => {
             let secret = make_secret(fluentbit);
             let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                 api_resource: Secret::api_resource(),
@@ -184,17 +185,17 @@ pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyMsg>>,
     }
 }
 
-fn make_cluster_role(fluentbit: &FluentBit) -> (role: ClusterRole)
+fn make_role(fluentbit: &FluentBit) -> (role: Role)
     requires
         fluentbit@.metadata.name.is_Some(),
         fluentbit@.metadata.namespace.is_Some(),
     ensures
-        role@ == fluent_spec::make_cluster_role(fluentbit@),
+        role@ == fluent_spec::make_role(fluentbit@),
 {
-    let mut role = ClusterRole::default();
+    let mut role = Role::default();
     role.set_metadata({
         let mut metadata = ObjectMeta::default();
-        metadata.set_name(new_strlit("fluent-bit-role").to_string());
+        metadata.set_name(fluentbit.metadata().name().unwrap().concat(new_strlit("-role")));
         metadata
     });
     role.set_policy_rules({
@@ -207,7 +208,7 @@ fn make_cluster_role(fluentbit: &FluentBit) -> (role: ClusterRole)
                 proof{
                     assert_seqs_equal!(
                         api_groups@.map_values(|p: String| p@),
-                        fluent_spec::make_cluster_role(fluentbit@).policy_rules.get_Some_0()[0].api_groups.get_Some_0()
+                        fluent_spec::make_role(fluentbit@).policy_rules.get_Some_0()[0].api_groups.get_Some_0()
                     );
                 }
                 api_groups
@@ -218,7 +219,7 @@ fn make_cluster_role(fluentbit: &FluentBit) -> (role: ClusterRole)
                 proof{
                     assert_seqs_equal!(
                         resources@.map_values(|p: String| p@),
-                        fluent_spec::make_cluster_role(fluentbit@).policy_rules.get_Some_0()[0].resources.get_Some_0()
+                        fluent_spec::make_role(fluentbit@).policy_rules.get_Some_0()[0].resources.get_Some_0()
                     );
                 }
                 resources
@@ -229,7 +230,7 @@ fn make_cluster_role(fluentbit: &FluentBit) -> (role: ClusterRole)
                 proof{
                     assert_seqs_equal!(
                         verbs@.map_values(|p: String| p@),
-                        fluent_spec::make_cluster_role(fluentbit@).policy_rules.get_Some_0()[0].verbs
+                        fluent_spec::make_role(fluentbit@).policy_rules.get_Some_0()[0].verbs
                     );
                 }
                 verbs
@@ -239,7 +240,7 @@ fn make_cluster_role(fluentbit: &FluentBit) -> (role: ClusterRole)
         proof{
             assert_seqs_equal!(
                 rules@.map_values(|p: PolicyRule| p@),
-                fluent_spec::make_cluster_role(fluentbit@).policy_rules.get_Some_0()
+                fluent_spec::make_role(fluentbit@).policy_rules.get_Some_0()
             );
         }
         rules
@@ -264,14 +265,14 @@ fn make_service_account(fluentbit: &FluentBit) -> (service_account: ServiceAccou
     service_account
 }
 
-fn make_cluster_role_binding(fluentbit: &FluentBit) -> (role_binding: ClusterRoleBinding)
+fn make_role_binding(fluentbit: &FluentBit) -> (role_binding: RoleBinding)
     requires
         fluentbit@.metadata.name.is_Some(),
         fluentbit@.metadata.namespace.is_Some(),
     ensures
-        role_binding@ == fluent_spec::make_cluster_role_binding(fluentbit@),
+        role_binding@ == fluent_spec::make_role_binding(fluentbit@),
 {
-    let mut role_binding = ClusterRoleBinding::default();
+    let mut role_binding = RoleBinding::default();
     role_binding.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(fluentbit.metadata().name().unwrap().concat(new_strlit("-role-binding")));
@@ -280,8 +281,8 @@ fn make_cluster_role_binding(fluentbit: &FluentBit) -> (role_binding: ClusterRol
     role_binding.set_role_ref({
         let mut role_ref = RoleRef::default();
         role_ref.set_api_group(new_strlit("rbac.authorization.k8s.io").to_string());
-        role_ref.set_kind(new_strlit("ClusterRole").to_string());
-        role_ref.set_name(new_strlit("fluent-bit-role").to_string());
+        role_ref.set_kind(new_strlit("Role").to_string());
+        role_ref.set_name(fluentbit.metadata().name().unwrap().concat(new_strlit("-role")));
         role_ref
     });
     role_binding.set_subjects({
@@ -296,7 +297,7 @@ fn make_cluster_role_binding(fluentbit: &FluentBit) -> (role_binding: ClusterRol
         proof{
             assert_seqs_equal!(
                 subjects@.map_values(|p: Subject| p@),
-                fluent_spec::make_cluster_role_binding(fluentbit@).subjects.get_Some_0()
+                fluent_spec::make_role_binding(fluentbit@).subjects.get_Some_0()
             );
         }
         subjects
@@ -322,9 +323,6 @@ pub fn make_secret(fluentbit: &FluentBit) -> (secret: Secret)
         let mut data = StringMap::empty();
         data.insert(new_strlit("fluent-bit.conf").to_string(), fluentbit.spec().fluentbit_config());
         data.insert(new_strlit("parsers.conf").to_string(), fluentbit.spec().parsers_config());
-        // proof {
-        //     assert(data@ =~= fluent_spec::make_secret(fluentbit@).data.get_Some_0());
-        // }
         data
     });
     secret

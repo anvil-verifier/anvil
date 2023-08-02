@@ -4,10 +4,9 @@
 use crate::fluent_controller::common::*;
 use crate::fluent_controller::spec::fluentbit::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, cluster_role::*, cluster_role_binding::*, common::*, config_map::*,
-    daemon_set::*, label_selector::*, object_meta::*, persistent_volume_claim::*, pod::*,
-    pod_template_spec::*, resource::*, role::*, role_binding::*, secret::*, service::*,
-    service_account::*,
+    api_method::*, common::*, config_map::*, daemon_set::*, label_selector::*, object_meta::*,
+    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, role::*,
+    role_binding::*, secret::*, service::*, service_account::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
@@ -82,18 +81,18 @@ pub open spec fn reconcile_core(
     let step = state.reconcile_step;
     match step{
         FluentBitReconcileStep::Init => {
-            let cluster_role = make_cluster_role(fluentbit);
+            let role = make_role(fluentbit);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: fluentbit.metadata.namespace.get_Some_0(),
-                obj: cluster_role.to_dynamic_object(),
+                obj: role.to_dynamic_object(),
             });
             let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterCreateClusterRole,
+                reconcile_step: FluentBitReconcileStep::AfterCreateRole,
                 ..state
             };
             (state_prime, Option::Some(RequestView::KRequest(req_o)))
         },
-        FluentBitReconcileStep::AfterCreateClusterRole => {
+        FluentBitReconcileStep::AfterCreateRole => {
             let service_account = make_service_account(fluentbit);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: fluentbit.metadata.namespace.get_Some_0(),
@@ -106,18 +105,18 @@ pub open spec fn reconcile_core(
             (state_prime, Option::Some(RequestView::KRequest(req_o)))
         },
         FluentBitReconcileStep::AfterCreateServiceAccount => {
-            let cluster_role_binding = make_cluster_role_binding(fluentbit);
+            let role_binding = make_role_binding(fluentbit);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: fluentbit.metadata.namespace.get_Some_0(),
-                obj: cluster_role_binding.to_dynamic_object(),
+                obj: role_binding.to_dynamic_object(),
             });
             let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterCreateClusterRoleBinding,
+                reconcile_step: FluentBitReconcileStep::AfterCreateRoleBinding,
                 ..state
             };
             (state_prime, Option::Some(RequestView::KRequest(req_o)))
         },
-        FluentBitReconcileStep::AfterCreateClusterRoleBinding => {
+        FluentBitReconcileStep::AfterCreateRoleBinding => {
             let secret = make_secret(fluentbit);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: fluentbit.metadata.namespace.get_Some_0(),
@@ -168,18 +167,18 @@ pub open spec fn reconcile_error_result(state: FluentBitReconcileState) -> (Flue
     (state_prime, req_o)
 }
 
-pub open spec fn make_cluster_role_name() -> StringView {
-    new_strlit("fluent-bit-role")@
+pub open spec fn make_role_name(fluentbit_name: StringView) -> StringView {
+    fluentbit_name + new_strlit("-role")@
 }
 
-pub open spec fn make_cluster_role(fluentbit: FluentBitView) -> ClusterRoleView
+pub open spec fn make_role(fluentbit: FluentBitView) -> RoleView
     recommends
         fluentbit.metadata.name.is_Some(),
         fluentbit.metadata.namespace.is_Some(),
 {
-    ClusterRoleView::default()
+    RoleView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(make_cluster_role_name())
+            .set_name(make_role_name(fluentbit.metadata.name.get_Some_0()))
         ).set_policy_rules(
             seq![
                 PolicyRuleView::default()
@@ -205,22 +204,22 @@ pub open spec fn make_service_account(fluentbit: FluentBitView) -> ServiceAccoun
         )
 }
 
-pub open spec fn make_cluster_role_binding_name(fluentbit_name: StringView) -> StringView {
+pub open spec fn make_role_binding_name(fluentbit_name: StringView) -> StringView {
     fluentbit_name + new_strlit("-role-binding")@
 }
 
-pub open spec fn make_cluster_role_binding(fluentbit: FluentBitView) -> ClusterRoleBindingView
+pub open spec fn make_role_binding(fluentbit: FluentBitView) -> RoleBindingView
     recommends
         fluentbit.metadata.name.is_Some(),
         fluentbit.metadata.namespace.is_Some(),
 {
-    ClusterRoleBindingView::default()
+    RoleBindingView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(make_cluster_role_binding_name(fluentbit.metadata.name.get_Some_0()))
+            .set_name(make_role_binding_name(fluentbit.metadata.name.get_Some_0()))
         ).set_role_ref(RoleRefView::default()
             .set_api_group(new_strlit("rbac.authorization.k8s.io")@)
-            .set_kind(new_strlit("ClusterRole")@)
-            .set_name(make_cluster_role_name())
+            .set_kind(new_strlit("Role")@)
+            .set_name(make_role_name(fluentbit.metadata.name.get_Some_0()))
         ).set_subjects(seq![SubjectView::default()
             .set_kind(new_strlit("ServiceAccount")@)
             .set_name(make_service_account_name(fluentbit.metadata.name.get_Some_0()))
