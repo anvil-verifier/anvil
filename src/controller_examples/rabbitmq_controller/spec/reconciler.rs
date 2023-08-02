@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::{
     persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, role::*,
     role_binding::*, secret::*, service::*, service_account::*, stateful_set::*,
 };
-use crate::kubernetes_cluster::spec::{message::*, external_api::EmptyAPI};
+use crate::kubernetes_cluster::spec::{message::*, external_api::{EmptyAPI, EmptyType}};
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::spec::rabbitmqcluster::*;
@@ -32,8 +32,8 @@ impl Reconciler<RabbitmqClusterView, EmptyAPI> for RabbitmqReconciler {
     }
 
     open spec fn reconcile_core(
-        rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<()>>, state: RabbitmqReconcileState
-    ) -> (RabbitmqReconcileState, Option<RequestView<()>>) {
+        rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyType>>, state: RabbitmqReconcileState
+    ) -> (RabbitmqReconcileState, Option<RequestView<EmptyType>>) {
         reconcile_core(rabbitmq, resp_o, state)
     }
 
@@ -67,8 +67,8 @@ pub open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool {
 }
 
 pub open spec fn reconcile_core(
-    rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<()>>, state: RabbitmqReconcileState
-) -> (RabbitmqReconcileState, Option<RequestView<()>>)
+    rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyType>>, state: RabbitmqReconcileState
+) -> (RabbitmqReconcileState, Option<RequestView<EmptyType>>)
     recommends
         rabbitmq.metadata.name.is_Some(),
         rabbitmq.metadata.namespace.is_Some(),

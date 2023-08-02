@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_cluster::spec::external_api::EmptyType;
 use crate::pervasive_ext::to_view::*;
 use vstd::{prelude::*, view::*};
 
@@ -27,7 +28,7 @@ impl ExternalAPI<EmptyMsg, EmptyMsg> for EmptyLib {
 
 pub struct EmptyMsg {}
 
-type EmptyMsgView = ();
+type EmptyMsgView = EmptyType;
 
 impl ToView for EmptyMsg {
     type V = EmptyMsgView;

@@ -5,7 +5,7 @@ use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, dynamic::DynamicObjectView, object_meta::*,
     resource::*,
 };
-use crate::kubernetes_cluster::spec::{message::*, external_api::EmptyAPI};
+use crate::kubernetes_cluster::spec::{message::*, external_api::{EmptyAPI, EmptyType}};
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::simple_controller::common::*;
 use crate::simple_controller::spec::custom_resource::*;
@@ -35,8 +35,8 @@ impl Reconciler<CustomResourceView, EmptyAPI> for SimpleReconciler {
     }
 
     open spec fn reconcile_core(
-        cr: CustomResourceView, resp_o: Option<ResponseView<()>>, state: SimpleReconcileState
-    ) -> (SimpleReconcileState, Option<RequestView<()>>) {
+        cr: CustomResourceView, resp_o: Option<ResponseView<EmptyType>>, state: SimpleReconcileState
+    ) -> (SimpleReconcileState, Option<RequestView<EmptyType>>) {
         reconcile_core(cr, resp_o, state)
     }
 
@@ -78,8 +78,8 @@ pub open spec fn reconcile_error(state: SimpleReconcileState) -> bool {
 /// it sends requests to create a configmap for the cr.
 /// TODO: make the reconcile_core create more resources such as a statefulset
 pub open spec fn reconcile_core(
-    cr: CustomResourceView, resp_o: Option<ResponseView<()>>, state: SimpleReconcileState
-) -> (SimpleReconcileState, Option<RequestView<()>>)
+    cr: CustomResourceView, resp_o: Option<ResponseView<EmptyType>>, state: SimpleReconcileState
+) -> (SimpleReconcileState, Option<RequestView<EmptyType>>)
     recommends
         cr.metadata.name.is_Some(),
         cr.metadata.namespace.is_Some(),

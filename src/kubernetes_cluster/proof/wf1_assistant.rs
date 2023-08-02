@@ -58,7 +58,7 @@ pub proof fn controller_action_pre_implies_next_pre<K: ResourceView, E: External
     implies controller_next::<K, E, R>().pre(input)(s) by {
         exists_next_controller_step::<K, E, R>(
             action,
-            ControllerActionInput{recv: input.0, extenral_api_output: input.1, scheduled_cr_key: input.2, rest_id_allocator: s.rest_id_allocator},
+            ControllerActionInput{recv: input.0, external_api_output: input.1, scheduled_cr_key: input.2, rest_id_allocator: s.rest_id_allocator},
             s.controller_state
         );
     };
