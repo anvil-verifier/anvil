@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 
+pub mod external_api;
 pub mod kubernetes_api_objects;
 pub mod kubernetes_cluster;
 pub mod pervasive_ext;
@@ -15,9 +16,9 @@ pub mod temporal_logic;
 use builtin::*;
 use builtin_macros::*;
 
+use crate::external_api::exec::*;
 use crate::rabbitmq_controller::exec::rabbitmqcluster::RabbitmqCluster;
 use crate::rabbitmq_controller::exec::reconciler::{RabbitmqReconcileState, RabbitmqReconciler};
-use crate::reconciler::exec::external::*;
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;

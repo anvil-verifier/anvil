@@ -1,8 +1,8 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
-use crate::kubernetes_cluster::spec::external_api::*;
 use crate::kubernetes_cluster::spec::message::*;
 use crate::reconciler::spec::io::*;
 use vstd::prelude::*;

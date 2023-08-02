@@ -1,6 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_cluster::spec::external_api::*;
+use crate::external_api::spec::*;
 use crate::pervasive_ext::string_view::*;
 use crate::zookeeper_controller::{common::*, spec::zookeepercluster::*};
 use vstd::{prelude::*, string::*};

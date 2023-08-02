@@ -1,9 +1,10 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
-    controller::common::*, controller::controller_runtime::*, external_api::*, message::*,
+    controller::common::*, controller::controller_runtime::*, message::*,
 };
 use crate::reconciler::spec::reconciler::*;
 use crate::state_machine::action::*;

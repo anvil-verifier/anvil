@@ -5,6 +5,7 @@ use crate::kubernetes_api_objects::{common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
     cluster::*,
     controller,
+    external_api::*,
     controller::common::{
         ControllerAction, ControllerActionInput<E>, ControllerState, ControllerStep,
     },

@@ -1,6 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_cluster::spec::external_api::EmptyType;
+use crate::external_api::spec::*;
 use crate::pervasive_ext::to_view::*;
 use vstd::{prelude::*, view::*};
 

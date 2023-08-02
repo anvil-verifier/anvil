@@ -1,12 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, object_meta::*, resource::ResourceView,
 };
 use crate::pervasive_ext::string_map::StringMap;
-use crate::reconciler::exec::reconciler::*;
-use crate::reconciler::exec::{external::*, io::*};
+use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::simple_controller::common::*;
 use crate::simple_controller::spec::custom_resource::*;
 use crate::simple_controller::spec::reconciler as simple_spec;

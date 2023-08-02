@@ -1,12 +1,13 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
     persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, role::*,
     role_binding::*, secret::*, service::*, service_account::*, stateful_set::*,
 };
-use crate::kubernetes_cluster::spec::{message::*, external_api::{EmptyAPI, EmptyType}};
+use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::spec::rabbitmqcluster::*;
