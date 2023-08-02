@@ -101,16 +101,16 @@ pub open spec fn continue_reconcile<K: ResourceView, R: Reconciler<K>>() -> Cont
                     },
                     RequestView::ExternalRequest(req) => {
                         // Update the state by calling the external process method.
-                        let (lib_resp_opt, next_lib_state) = R::external_transition(req, s.external_state);
+                        let (external_api_output_opt, external_state_prime) = R::external_transition(req, s.external_state);
                         let reconcile_state_prime = OngoingReconcile {
                             pending_req_msg: Option::None,
-                            pending_external_api_output: lib_resp_opt,
+                            pending_external_api_output: external_api_output_opt,
                             local_state: local_state_prime,
                             ..reconcile_state
                         };
                         let s_prime = ControllerState {
                             ongoing_reconciles: s.ongoing_reconciles.insert(cr_key, reconcile_state_prime),
-                            external_state: next_lib_state,
+                            external_state: external_state_prime,
                             ..s
                         };
                         (s_prime, (Multiset::empty(), input.rest_id_allocator.allocate().0))

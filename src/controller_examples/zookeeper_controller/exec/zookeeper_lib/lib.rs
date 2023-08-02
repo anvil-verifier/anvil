@@ -75,7 +75,7 @@ impl ZKAPIOutput {
 
 pub struct ZKAPI {}
 
-impl ExternalLibrary<ZKAPIInput, ZKAPIOutput> for ZKAPI {
+impl ExternalAPI<ZKAPIInput, ZKAPIOutput> for ZKAPI {
     #[verifier(external)]
     fn process(input: ZKAPIInput) -> Option<ZKAPIOutput> {
         match input {

@@ -42,7 +42,7 @@ where
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
     ResourceWrapperType: ResourceWrapper<K> + Send,
     ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, I, O, Lib> + Send + Sync + Default,
-    ReconcileStateType: Send, I: Send + ToView, O: Send + ToView, Lib: ExternalLibrary<I, O>,
+    ReconcileStateType: Send, I: Send + ToView, O: Send + ToView, Lib: ExternalAPI<I, O>,
 {
     let client = Client::try_default().await?;
     let crs = Api::<K>::all(client.clone());
@@ -87,7 +87,7 @@ where
     K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Serialize,
     K::DynamicType: Default + Clone + Debug,
     ResourceWrapperType: ResourceWrapper<K>,
-    I: ToView, O: ToView, Lib: ExternalLibrary<I, O>,
+    I: ToView, O: ToView, Lib: ExternalAPI<I, O>,
     ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, I, O, Lib>,
 {
     let client = &ctx.client;

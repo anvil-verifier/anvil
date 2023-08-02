@@ -44,7 +44,7 @@ pub trait Reconciler<#[verifier(maybe_negative)] K: ResourceView>: Sized {
 
     // external_transition describes the logic of external libraries, which is a spec counterpart of Lib::process.
     // An alternative way to achieve this is add Lib as a generic or associated type to this Reconciler trait. But since
-    // Lib should contain method process, it should implement a trait (which should be the spec version of ExternalLibrary).
+    // Lib should contain method process, it should implement a trait (which should be the spec version of ExternalAPI).
     // It must be a generic currently. This will cause another round of super annoying refactoring. So currently we just
     // add another method to this trait.
     // This method consumes the input (which should be computed by reconcile_core) and the current state of the external
