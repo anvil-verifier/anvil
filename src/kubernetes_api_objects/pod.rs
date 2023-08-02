@@ -168,6 +168,16 @@ impl PodSpec {
         self.inner.service_account_name = std::option::Option::Some(service_account.into_rust_string())
     }
 
+    #[verifier(external_body)]
+    pub fn set_tolerations(&mut self, tolerations: Vec<Toleration>)
+        ensures
+            self@ == old(self)@,
+    {
+        self.inner.tolerations = std::option::Option::Some(
+            tolerations.into_iter().map(|t: Toleration| t.into_kube()).collect()
+        )
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSpec {
         self.inner
@@ -236,7 +246,7 @@ impl Container {
         self.inner.lifecycle = std::option::Option::Some(lifecycle.into_kube())
     }
 
-    /// Methods for the fields that Anvil currently does not reason about
+    // Methods for the fields that do not appear in spec
 
     #[verifier(external_body)]
     pub fn set_command(&mut self, command: Vec<String>)
@@ -284,6 +294,23 @@ impl Container {
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Container {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct Toleration {
+    inner: deps_hack::k8s_openapi::api::core::v1::Toleration,
+}
+
+impl Toleration {
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Toleration) -> Toleration {
+        Toleration { inner: inner }
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Toleration {
         self.inner
     }
 }

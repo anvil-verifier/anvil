@@ -1,0 +1,578 @@
+// Copyright 2022 VMware, Inc.
+// SPDX-License-Identifier: MIT
+#![allow(unused_imports)]
+use crate::fluent_controller::common::*;
+use crate::fluent_controller::exec::fluentbit::*;
+use crate::fluent_controller::spec::reconciler as fluent_spec;
+use crate::kubernetes_api_objects::resource::ResourceWrapper;
+use crate::kubernetes_api_objects::{
+    api_method::*, cluster_role::*, cluster_role_binding::*, common::*, config_map::*,
+    daemon_set::*, label_selector::*, object_meta::*, persistent_volume_claim::*, pod::*,
+    pod_template_spec::*, resource::*, resource_requirements::*, role::*, role_binding::*,
+    secret::*, service::*, service_account::*,
+};
+use crate::pervasive_ext::string_map::StringMap;
+use crate::pervasive_ext::string_view::*;
+use crate::reconciler::exec::{external::*, io::*, reconciler::*};
+use vstd::prelude::*;
+use vstd::seq_lib::*;
+use vstd::string::*;
+
+verus! {
+
+/// FluentBitReconcileState describes the local state with which the reconcile functions makes decisions.
+pub struct FluentBitReconcileState {
+    // reconcile_step, like a program counter, is used to track the progress of reconcile_core
+    // since reconcile_core is frequently "trapped" into the controller_runtime spec.
+    pub reconcile_step: FluentBitReconcileStep,
+}
+
+impl FluentBitReconcileState {
+    pub open spec fn to_view(&self) -> fluent_spec::FluentBitReconcileState {
+        fluent_spec::FluentBitReconcileState {
+                reconcile_step: self.reconcile_step,
+        }
+    }
+}
+
+pub struct FluentBitReconciler {}
+
+#[verifier(external)]
+impl Reconciler<FluentBit, FluentBitReconcileState, EmptyMsg, EmptyMsg, EmptyLib> for FluentBitReconciler {
+    fn reconcile_init_state(&self) -> FluentBitReconcileState {
+        reconcile_init_state()
+    }
+
+    fn reconcile_core(&self, fluentbit: &FluentBit, resp_o: Option<Response<EmptyMsg>>, state: FluentBitReconcileState) -> (FluentBitReconcileState, Option<Request<EmptyMsg>>) {
+        reconcile_core(fluentbit, resp_o, state)
+    }
+
+    fn reconcile_done(&self, state: &FluentBitReconcileState) -> bool {
+        reconcile_done(state)
+    }
+
+    fn reconcile_error(&self, state: &FluentBitReconcileState) -> bool {
+        reconcile_error(state)
+    }
+}
+
+impl Default for FluentBitReconciler {
+    fn default() -> FluentBitReconciler { FluentBitReconciler{} }
+}
+
+pub fn reconcile_init_state() -> (state: FluentBitReconcileState)
+    ensures
+        state.to_view() == fluent_spec::reconcile_init_state(),
+{
+    FluentBitReconcileState {
+        reconcile_step: FluentBitReconcileStep::Init,
+    }
+}
+
+pub fn reconcile_done(state: &FluentBitReconcileState) -> (res: bool)
+    ensures
+        res == fluent_spec::reconcile_done(state.to_view()),
+{
+    match state.reconcile_step {
+        FluentBitReconcileStep::Done => true,
+        _ => false,
+    }
+}
+
+pub fn reconcile_error(state: &FluentBitReconcileState) -> (res: bool)
+    ensures
+        res == fluent_spec::reconcile_error(state.to_view()),
+{
+    match state.reconcile_step {
+        FluentBitReconcileStep::Error => true,
+        _ => false,
+    }
+}
+
+pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyMsg>>, state: FluentBitReconcileState) -> (res: (FluentBitReconcileState, Option<Request<EmptyMsg>>))
+    requires
+        fluentbit@.metadata.name.is_Some(),
+        fluentbit@.metadata.namespace.is_Some(),
+    ensures
+        (res.0.to_view(), opt_request_to_view(&res.1)) == fluent_spec::reconcile_core(fluentbit@, opt_response_to_view(&resp_o), state.to_view()),
+{
+    let step = state.reconcile_step;
+    match step{
+        FluentBitReconcileStep::Init => {
+            let cluster_role = make_cluster_role(fluentbit);
+            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                api_resource: ClusterRole::api_resource(),
+                // TODO: cluster scoped resources don't need namespace
+                namespace: fluentbit.metadata().namespace().unwrap(),
+                obj: cluster_role.to_dynamic_object(),
+            });
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::AfterCreateClusterRole,
+                ..state
+            };
+            return (state_prime, Option::Some(Request::KRequest(req_o)));
+        },
+        FluentBitReconcileStep::AfterCreateClusterRole => {
+            let service_account = make_service_account(fluentbit);
+            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                api_resource: ServiceAccount::api_resource(),
+                namespace: fluentbit.metadata().namespace().unwrap(),
+                obj: service_account.to_dynamic_object(),
+            });
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::AfterCreateServiceAccount,
+                ..state
+            };
+            return (state_prime, Option::Some(Request::KRequest(req_o)));
+        },
+        FluentBitReconcileStep::AfterCreateServiceAccount => {
+            let cluster_role_binding = make_cluster_role_binding(fluentbit);
+            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                api_resource: ClusterRoleBinding::api_resource(),
+                // TODO: cluster scoped resources don't need namespace
+                namespace: fluentbit.metadata().namespace().unwrap(),
+                obj: cluster_role_binding.to_dynamic_object(),
+            });
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::AfterCreateClusterRoleBinding,
+                ..state
+            };
+            return (state_prime, Option::Some(Request::KRequest(req_o)));
+        },
+        FluentBitReconcileStep::AfterCreateClusterRoleBinding => {
+            let secret = make_secret(fluentbit);
+            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                api_resource: Secret::api_resource(),
+                namespace: fluentbit.metadata().namespace().unwrap(),
+                obj: secret.to_dynamic_object(),
+            });
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::AfterCreateSecret,
+                ..state
+            };
+            return (state_prime, Option::Some(Request::KRequest(req_o)));
+        },
+        FluentBitReconcileStep::AfterCreateSecret => {
+            let daemon_set = make_daemon_set(fluentbit);
+            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                api_resource: DaemonSet::api_resource(),
+                namespace: fluentbit.metadata().namespace().unwrap(),
+                obj: daemon_set.to_dynamic_object(),
+            });
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::AfterCreateDaemonSet,
+                ..state
+            };
+            return (state_prime, Option::Some(Request::KRequest(req_o)));
+        },
+        FluentBitReconcileStep::AfterCreateDaemonSet => {
+            let req_o = Option::None;
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::Done,
+                ..state
+            };
+            (state_prime, req_o)
+        },
+        _ => {
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: step,
+                ..state
+            };
+            let req_o = Option::None;
+            (state_prime, req_o)
+        }
+    }
+}
+
+fn make_cluster_role(fluentbit: &FluentBit) -> (role: ClusterRole)
+    requires
+        fluentbit@.metadata.name.is_Some(),
+        fluentbit@.metadata.namespace.is_Some(),
+    ensures
+        role@ == fluent_spec::make_cluster_role(fluentbit@),
+{
+    let mut role = ClusterRole::default();
+    role.set_metadata({
+        let mut metadata = ObjectMeta::default();
+        metadata.set_name(new_strlit("fluent-bit-role").to_string());
+        metadata
+    });
+    role.set_policy_rules({
+        let mut rules = Vec::new();
+        rules.push({
+            let mut rule = PolicyRule::default();
+            rule.set_api_groups({
+                let mut api_groups = Vec::new();
+                api_groups.push(new_strlit("").to_string());
+                proof{
+                    assert_seqs_equal!(
+                        api_groups@.map_values(|p: String| p@),
+                        fluent_spec::make_cluster_role(fluentbit@).policy_rules.get_Some_0()[0].api_groups.get_Some_0()
+                    );
+                }
+                api_groups
+            });
+            rule.set_resources({
+                let mut resources = Vec::new();
+                resources.push(new_strlit("pods").to_string());
+                proof{
+                    assert_seqs_equal!(
+                        resources@.map_values(|p: String| p@),
+                        fluent_spec::make_cluster_role(fluentbit@).policy_rules.get_Some_0()[0].resources.get_Some_0()
+                    );
+                }
+                resources
+            });
+            rule.set_verbs({
+                let mut verbs = Vec::new();
+                verbs.push(new_strlit("get").to_string());
+                proof{
+                    assert_seqs_equal!(
+                        verbs@.map_values(|p: String| p@),
+                        fluent_spec::make_cluster_role(fluentbit@).policy_rules.get_Some_0()[0].verbs
+                    );
+                }
+                verbs
+            });
+            rule
+        });
+        proof{
+            assert_seqs_equal!(
+                rules@.map_values(|p: PolicyRule| p@),
+                fluent_spec::make_cluster_role(fluentbit@).policy_rules.get_Some_0()
+            );
+        }
+        rules
+    });
+    role
+}
+
+fn make_service_account(fluentbit: &FluentBit) -> (service_account: ServiceAccount)
+    requires
+        fluentbit@.metadata.name.is_Some(),
+        fluentbit@.metadata.namespace.is_Some(),
+    ensures
+        service_account@ == fluent_spec::make_service_account(fluentbit@),
+{
+    let mut service_account = ServiceAccount::default();
+    service_account.set_metadata({
+        let mut metadata = ObjectMeta::default();
+        metadata.set_name(fluentbit.metadata().name().unwrap());
+        metadata
+    });
+
+    service_account
+}
+
+fn make_cluster_role_binding(fluentbit: &FluentBit) -> (role_binding: ClusterRoleBinding)
+    requires
+        fluentbit@.metadata.name.is_Some(),
+        fluentbit@.metadata.namespace.is_Some(),
+    ensures
+        role_binding@ == fluent_spec::make_cluster_role_binding(fluentbit@),
+{
+    let mut role_binding = ClusterRoleBinding::default();
+    role_binding.set_metadata({
+        let mut metadata = ObjectMeta::default();
+        metadata.set_name(fluentbit.metadata().name().unwrap().concat(new_strlit("-role-binding")));
+        metadata
+    });
+    role_binding.set_role_ref({
+        let mut role_ref = RoleRef::default();
+        role_ref.set_api_group(new_strlit("rbac.authorization.k8s.io").to_string());
+        role_ref.set_kind(new_strlit("ClusterRole").to_string());
+        role_ref.set_name(new_strlit("fluent-bit-role").to_string());
+        role_ref
+    });
+    role_binding.set_subjects({
+        let mut subjects = Vec::new();
+        subjects.push({
+            let mut subject = Subject::default();
+            subject.set_kind(new_strlit("ServiceAccount").to_string());
+            subject.set_name(fluentbit.metadata().name().unwrap());
+            subject.set_namespace(fluentbit.metadata().namespace().unwrap());
+            subject
+        });
+        proof{
+            assert_seqs_equal!(
+                subjects@.map_values(|p: Subject| p@),
+                fluent_spec::make_cluster_role_binding(fluentbit@).subjects.get_Some_0()
+            );
+        }
+        subjects
+    });
+
+    role_binding
+}
+
+pub fn make_secret(fluentbit: &FluentBit) -> (secret: Secret)
+    requires
+        fluentbit@.metadata.name.is_Some(),
+        fluentbit@.metadata.namespace.is_Some(),
+    ensures
+        secret@ == fluent_spec::make_secret(fluentbit@),
+{
+    let mut secret = Secret::default();
+    secret.set_metadata({
+        let mut metadata = ObjectMeta::default();
+        metadata.set_name(fluentbit.metadata().name().unwrap().concat(new_strlit("-config-secret")));
+        metadata
+    });
+    secret.set_data({
+        let mut data = StringMap::empty();
+        data.insert(new_strlit("fluent-bit.conf").to_string(), fluentbit.spec().fluentbit_config());
+        data.insert(new_strlit("parsers.conf").to_string(), fluentbit.spec().parsers_config());
+        // proof {
+        //     assert(data@ =~= fluent_spec::make_secret(fluentbit@).data.get_Some_0());
+        // }
+        data
+    });
+    secret
+}
+
+fn make_daemon_set(fluentbit: &FluentBit) -> (daemon_set: DaemonSet)
+    requires
+        fluentbit@.metadata.name.is_Some(),
+        fluentbit@.metadata.namespace.is_Some(),
+    ensures
+        daemon_set@ == fluent_spec::make_daemon_set(fluentbit@),
+{
+    let mut daemon_set = DaemonSet::default();
+    daemon_set.set_metadata({
+        let mut metadata = ObjectMeta::default();
+        metadata.set_name(fluentbit.metadata().name().unwrap());
+        metadata.set_labels({
+            let mut labels = StringMap::empty();
+            labels.insert(new_strlit("app").to_string(), fluentbit.metadata().name().unwrap());
+            labels
+        });
+        metadata
+    });
+    daemon_set.set_spec({
+        let mut daemon_set_spec = DaemonSetSpec::default();
+        // Set the selector used for querying pods of this daemon set
+        daemon_set_spec.set_selector({
+            let mut selector = LabelSelector::default();
+            selector.set_match_labels({
+                let mut match_labels = StringMap::empty();
+                match_labels.insert(new_strlit("app").to_string(), fluentbit.metadata().name().unwrap());
+                match_labels
+            });
+            selector
+        });
+        // Set the template used for creating pods
+        daemon_set_spec.set_template({
+            let mut pod_template_spec = PodTemplateSpec::default();
+            pod_template_spec.set_metadata({
+                let mut metadata = ObjectMeta::default();
+                metadata.set_labels({
+                    let mut labels = StringMap::empty();
+                    labels.insert(new_strlit("app").to_string(), fluentbit.metadata().name().unwrap());
+                    labels
+                });
+                metadata
+            });
+            pod_template_spec.set_spec(make_fluentbit_pod_spec(fluentbit));
+            pod_template_spec
+        });
+        daemon_set_spec
+    });
+    daemon_set
+}
+
+fn make_fluentbit_pod_spec(fluentbit: &FluentBit) -> (pod_spec: PodSpec)
+    requires
+        fluentbit@.metadata.name.is_Some(),
+        fluentbit@.metadata.namespace.is_Some(),
+    ensures
+        pod_spec@ == fluent_spec::make_fluentbit_pod_spec(fluentbit@),
+{
+    let mut pod_spec = PodSpec::default();
+    pod_spec.set_service_account_name(fluentbit.metadata().name().unwrap());
+    pod_spec.set_containers({
+        let mut containers = Vec::new();
+        containers.push({
+            let mut fluentbit_container = Container::default();
+            fluentbit_container.set_name(new_strlit("fluent-bit").to_string());
+            fluentbit_container.set_image(new_strlit("kubesphere/fluent-bit:v2.1.7").to_string());
+            fluentbit_container.set_env(make_env(&fluentbit));
+            fluentbit_container.set_volume_mounts({
+                let mut volume_mounts = Vec::new();
+                volume_mounts.push({
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("varlibcontainers").to_string());
+                    volume_mount.set_read_only(true);
+                    volume_mount.set_mount_path(new_strlit("/containers").to_string());
+                    volume_mount
+                });
+                volume_mounts.push({
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("config").to_string());
+                    volume_mount.set_read_only(true);
+                    volume_mount.set_mount_path(new_strlit("/fluent-bit/config").to_string());
+                    volume_mount
+                });
+                volume_mounts.push({
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("varlogs").to_string());
+                    volume_mount.set_read_only(true);
+                    volume_mount.set_mount_path(new_strlit("/var/log/").to_string());
+                    volume_mount
+                });
+                volume_mounts.push({
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("systemd").to_string());
+                    volume_mount.set_read_only(true);
+                    volume_mount.set_mount_path(new_strlit("/var/log/journal").to_string());
+                    volume_mount
+                });
+                volume_mounts.push({
+                    let mut volume_mount = VolumeMount::default();
+                    volume_mount.set_name(new_strlit("positions").to_string());
+                    volume_mount.set_mount_path(new_strlit("/fluent-bit/tail").to_string());
+                    volume_mount
+                });
+                proof {
+                    assert_seqs_equal!(
+                        volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@),
+                        fluent_spec::make_fluentbit_pod_spec(fluentbit@).containers[0].volume_mounts.get_Some_0()
+                    );
+                }
+                volume_mounts
+            });
+            fluentbit_container.set_ports({
+                let mut ports = Vec::new();
+                ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), 2020));
+                proof {
+                    assert_seqs_equal!(
+                        ports@.map_values(|port: ContainerPort| port@),
+                        fluent_spec::make_fluentbit_pod_spec(fluentbit@).containers[0].ports.get_Some_0()
+                    );
+                }
+                ports
+            });
+            fluentbit_container
+        });
+        proof {
+            assert_seqs_equal!(
+                containers@.map_values(|container: Container| container@),
+                fluent_spec::make_fluentbit_pod_spec(fluentbit@).containers
+            );
+        }
+        containers
+    });
+    pod_spec.set_volumes({
+        let mut volumes = Vec::new();
+        volumes.push({
+            let mut volume = Volume::default();
+            volume.set_name(new_strlit("varlibcontainers").to_string());
+            volume.set_host_path({
+                let mut host_path = HostPathVolumeSource::default();
+                host_path.set_path(new_strlit("/containers").to_string());
+                host_path
+            });
+            volume
+        });
+        volumes.push({
+            let mut volume = Volume::default();
+            volume.set_name(new_strlit("config").to_string());
+            volume.set_secret({
+                let mut secret = SecretVolumeSource::default();
+                secret.set_secret_name(fluentbit.metadata().name().unwrap().concat(new_strlit("-config-secret")));
+                secret
+            });
+            volume
+        });
+        volumes.push({
+            let mut volume = Volume::default();
+            volume.set_name(new_strlit("varlogs").to_string());
+            volume.set_host_path({
+                let mut host_path = HostPathVolumeSource::default();
+                host_path.set_path(new_strlit("/var/log").to_string());
+                host_path
+            });
+            volume
+        });
+        volumes.push({
+            let mut volume = Volume::default();
+            volume.set_name(new_strlit("systemd").to_string());
+            volume.set_host_path({
+                let mut host_path = HostPathVolumeSource::default();
+                host_path.set_path(new_strlit("/var/log/journal").to_string());
+                host_path
+            });
+            volume
+        });
+        volumes.push({
+            let mut volume = Volume::default();
+            volume.set_name(new_strlit("positions").to_string());
+            volume.set_host_path({
+                let mut host_path = HostPathVolumeSource::default();
+                host_path.set_path(new_strlit("/var/lib/fluent-bit/").to_string());
+                host_path
+            });
+            volume
+        });
+        proof {
+            assert_seqs_equal!(
+                volumes@.map_values(|vol: Volume| vol@),
+                fluent_spec::make_fluentbit_pod_spec(fluentbit@).volumes.get_Some_0()
+            );
+        }
+        volumes
+    });
+    pod_spec.set_tolerations(make_tolerations(&fluentbit));
+    pod_spec
+}
+
+#[verifier(external_body)]
+fn make_env(fluentbit: &FluentBit) -> Vec<EnvVar> {
+    let mut env_vars = Vec::new();
+    env_vars.push(
+        EnvVar::from_kube(
+            deps_hack::k8s_openapi::api::core::v1::EnvVar {
+                name: new_strlit("NODE_NAME").to_string().into_rust_string(),
+                value_from: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
+                    field_ref: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
+                        field_path: new_strlit("spec.nodeName").to_string().into_rust_string(),
+                        ..deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default()
+                    }),
+                    ..deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default()
+                }),
+                ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
+            }
+        )
+    );
+    env_vars.push(
+        EnvVar::from_kube(
+            deps_hack::k8s_openapi::api::core::v1::EnvVar {
+                name: new_strlit("HOST_IP").to_string().into_rust_string(),
+                value_from: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
+                    field_ref: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
+                        field_path: new_strlit("status.hostIP").to_string().into_rust_string(),
+                        ..deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default()
+                    }),
+                    ..deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default()
+                }),
+                ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
+            }
+        )
+    );
+    env_vars
+}
+
+#[verifier(external_body)]
+fn make_tolerations(fluentbit: &FluentBit) -> Vec<Toleration> {
+    let mut tolerations = Vec::new();
+    tolerations.push(
+        Toleration::from_kube(
+            deps_hack::k8s_openapi::api::core::v1::Toleration {
+                operator: Some("Exists".to_string()),
+                ..deps_hack::k8s_openapi::api::core::v1::Toleration::default()
+            }
+        )
+    );
+    tolerations
+}
+
+}
