@@ -13,7 +13,7 @@ verus! {
 pub struct ControllerState<K: ResourceView, R: Reconciler<K>> {
     pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile<K, R>>,
     pub scheduled_reconciles: Map<ObjectRef, K>,
-    pub external_lib_state: Option<R::S>,
+    pub external_lib_state: R::LibState,
 }
 
 pub struct OngoingReconcile<K: ResourceView, R: Reconciler<K>> {
@@ -21,7 +21,7 @@ pub struct OngoingReconcile<K: ResourceView, R: Reconciler<K>> {
     // pending_req_msg: the request message pending for the handling for k8s api
     // lib_response: the response returned by the external library if a request has been processed by it
     pub pending_req_msg: Option<Message>,
-    pub lib_response: Option<R::O>,
+    pub lib_response: Option<R::LibResponse>,
     pub local_state: R::T,
 }
 
@@ -52,7 +52,7 @@ pub open spec fn init_controller_state<K: ResourceView, R: Reconciler<K>>() -> C
     ControllerState {
         ongoing_reconciles: Map::empty(),
         scheduled_reconciles: Map::empty(),
-        external_lib_state: Option::None,
+        external_lib_state: R::library_init_state(),
     }
 }
 

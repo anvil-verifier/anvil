@@ -24,31 +24,38 @@ pub struct ZooKeeperState {
     pub data: Map<StringView, StringView>,
 }
 
-pub open spec fn external_process(input: ZKAPIInputView, state: Option<ZooKeeperState>) -> (Option<ZKAPIOutputView>, Option<ZooKeeperState>) {
+impl ZooKeeperState {
+    pub open spec fn default() -> ZooKeeperState {
+        ZooKeeperState {
+            data: Map::empty(),
+        }
+    }
+}
+
+pub open spec fn external_process(input: ZKAPIInputView, state: ZooKeeperState) -> (Option<ZKAPIOutputView>, ZooKeeperState) {
     match input {
         ZKAPIInputView::ReconcileZKNode(path,uri,replicas) => reconcile_zk_node(path, uri, replicas, state),
     }
 }
 
 pub open spec fn reconcile_zk_node(
-    path: StringView, uri: StringView, replicas: StringView, state: Option<ZooKeeperState>
-) -> (Option<ZKAPIOutputView>, Option<ZooKeeperState>) {
-    let old_state = if state.is_None() { ZooKeeperState{ data: Map::empty() } } else { state.get_Some_0() };
-    if old_state.data.contains_key(uri + path) {
+    path: StringView, uri: StringView, replicas: StringView, state: ZooKeeperState
+) -> (Option<ZKAPIOutputView>, ZooKeeperState) {
+    if state.data.contains_key(uri + path) {
         let state_prime = ZooKeeperState {
-            data: old_state.data.insert(uri + path, new_strlit("CLUSTER_SIZE=")@ + replicas),
-            ..old_state
+            data: state.data.insert(uri + path, new_strlit("CLUSTER_SIZE=")@ + replicas),
+            ..state
         };
-        (Option::Some(ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{ res: Ok(()) })), Option::Some(state_prime))
+        (Option::Some(ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{ res: Ok(()) })), state_prime)
     } else {
-        let new_data = old_state.data
+        let new_data = state.data
                     .insert(uri + new_strlit("/zookeeper-operator")@, new_strlit("")@)
                     .insert(uri + path, new_strlit("CLUSTER_SIZE=")@ + replicas);
         let state_prime = ZooKeeperState {
             data: new_data,
-            ..old_state
+            ..state
         };
-        (Option::Some(ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{ res: Ok(()) })), Option::Some(state_prime))
+        (Option::Some(ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{ res: Ok(()) })), state_prime)
     }
 }
 

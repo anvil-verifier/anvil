@@ -27,11 +27,13 @@ pub struct SimpleReconcileState {
 /// including reconcile function (reconcile_core) and triggering conditions (reconcile_trigger)
 pub struct SimpleReconciler {}
 
+pub struct EmptyState {}
+
 impl Reconciler<CustomResourceView> for SimpleReconciler {
     type T = SimpleReconcileState;
-    type I = ();
-    type O = ();
-    type S = ();
+    type LibRequest = ();
+    type LibResponse = ();
+    type LibState = EmptyState;
 
     open spec fn reconcile_init_state() -> SimpleReconcileState {
         reconcile_init_state()
@@ -51,8 +53,12 @@ impl Reconciler<CustomResourceView> for SimpleReconciler {
         reconcile_error(state)
     }
 
-    open spec fn external_process(input: (), state: Option<()>) -> (Option<()>, Option<()>) {
-        (Option::None, Option::None)
+    open spec fn external_process(input: (), state: EmptyState) -> (Option<()>, EmptyState) {
+        (Option::None, EmptyState{})
+    }
+
+    open spec fn library_init_state() -> EmptyState {
+        EmptyState{}
     }
 }
 
