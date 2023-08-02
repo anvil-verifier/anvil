@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_cluster::spec::external_api::*;
 use crate::pervasive_ext::string_view::*;
 use crate::zookeeper_controller::{common::*, spec::zookeepercluster::*};
 use vstd::{prelude::*, string::*};
@@ -32,9 +33,22 @@ impl ZooKeeperState {
     }
 }
 
-pub open spec fn external_transition(input: ZKAPIInputView, state: ZooKeeperState) -> (Option<ZKAPIOutputView>, ZooKeeperState) {
-    match input {
-        ZKAPIInputView::ReconcileZKNode(path,uri,replicas) => reconcile_zk_node(path, uri, replicas, state),
+pub struct ZKAPI {}
+
+impl ExternalAPI for ZKAPI {
+
+    type Input = ZKAPIInputView;
+    type Output = ZKAPIOutputView;
+    type State = ZooKeeperState;
+
+    open spec fn transition(input: ZKAPIInputView, state: ZooKeeperState) -> (Option<ZKAPIOutputView>, ZooKeeperState) {
+        match input {
+            ZKAPIInputView::ReconcileZKNode(path,uri,replicas) => reconcile_zk_node(path, uri, replicas, state),
+        }
+    }
+
+    open spec fn init_state() -> ZooKeeperState {
+        ZooKeeperState::default()
     }
 }
 

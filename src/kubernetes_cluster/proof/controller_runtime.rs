@@ -22,86 +22,86 @@ use vstd::prelude::*;
 verus! {
 
 pub open spec fn reconciler_init_and_no_pending_req
-<K: ResourceView, R: Reconciler<K>>(cr_key: ObjectRef) -> StatePred<State<K, R>> {
-    |s: State<K, R>| {
+<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(cr_key: ObjectRef) -> StatePred<State<K, E, R>> {
+    |s: State<K, E, R>| {
         &&& at_reconcile_state(cr_key, R::reconcile_init_state())(s)
         &&& no_pending_request(s, cr_key)
     }
 }
 
-pub open spec fn reconciler_reconcile_init<K: ResourceView, R: Reconciler<K>>(cr_key: ObjectRef)
-    -> StatePred<State<K, R>>
+pub open spec fn reconciler_reconcile_init<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(cr_key: ObjectRef)
+    -> StatePred<State<K, E, R>>
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
-    |s: State<K, R>| {
+    |s: State<K, E, R>| {
         &&& s.reconcile_state_contains(cr_key)
         &&& R::reconcile_init_state() == s.reconcile_state_of(cr_key).local_state
     }
 }
 
-pub open spec fn reconciler_reconcile_done<K: ResourceView, R: Reconciler<K>>(cr_key: ObjectRef)
-    -> StatePred<State<K, R>>
+pub open spec fn reconciler_reconcile_done<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(cr_key: ObjectRef)
+    -> StatePred<State<K, E, R>>
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
-    |s: State<K, R>| {
+    |s: State<K, E, R>| {
         &&& s.reconcile_state_contains(cr_key)
         &&& R::reconcile_done(s.reconcile_state_of(cr_key).local_state)
     }
 }
 
-pub open spec fn reconciler_reconcile_error<K: ResourceView, R: Reconciler<K>>(cr_key: ObjectRef)
-    -> StatePred<State<K, R>>
+pub open spec fn reconciler_reconcile_error<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(cr_key: ObjectRef)
+    -> StatePred<State<K, E, R>>
     recommends
         cr_key.kind.is_CustomResourceKind(),
 {
-    |s: State<K, R>| {
+    |s: State<K, E, R>| {
         &&& s.reconcile_state_contains(cr_key)
         &&& R::reconcile_error(s.reconcile_state_of(cr_key).local_state)
     }
 }
 
-pub open spec fn at_reconcile_state<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, state: R::T) -> StatePred<State<K, R>>
+pub open spec fn at_reconcile_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(key: ObjectRef, state: R::T) -> StatePred<State<K, E, R>>
     recommends
         key.kind.is_CustomResourceKind()
 {
-    |s: State<K, R>| {
+    |s: State<K, E, R>| {
         &&& s.reconcile_state_contains(key)
         &&& s.reconcile_state_of(key).local_state == state
     }
 }
 
-pub open spec fn at_expected_reconcile_states<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, expected_states: FnSpec(R::T) -> bool) -> StatePred<State<K, R>>
+pub open spec fn at_expected_reconcile_states<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(key: ObjectRef, expected_states: FnSpec(R::T) -> bool) -> StatePred<State<K, E, R>>
     recommends
         key.kind.is_CustomResourceKind()
 {
-    |s: State<K, R>| {
+    |s: State<K, E, R>| {
         &&& s.reconcile_state_contains(key)
         &&& expected_states(s.reconcile_state_of(key).local_state)
     }
 }
 
-pub open spec fn pending_k8s_api_req_msg<K: ResourceView, R: Reconciler<K>>(s: State<K, R>, key: ObjectRef) -> bool {
+pub open spec fn pending_k8s_api_req_msg<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(s: State<K, E, R>, key: ObjectRef) -> bool {
     s.reconcile_state_of(key).pending_req_msg.is_Some()
-    && s.reconcile_state_of(key).pending_external_api_output.is_None()
+    && s.reconcile_state_of(key).pending_external_api_input.is_None()
 }
 
-pub open spec fn pending_k8s_api_req_msg_is<K: ResourceView, R: Reconciler<K>>(s: State<K, R>, key: ObjectRef, req: Message) -> bool {
+pub open spec fn pending_k8s_api_req_msg_is<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(s: State<K, E, R>, key: ObjectRef, req: Message) -> bool {
     s.reconcile_state_of(key).pending_req_msg == Option::Some(req)
-    && s.reconcile_state_of(key).pending_external_api_output.is_None()
+    && s.reconcile_state_of(key).pending_external_api_input.is_None()
 }
 
-pub open spec fn no_pending_request<K: ResourceView, R: Reconciler<K>>(s: State<K, R>, key: ObjectRef) -> bool {
+pub open spec fn no_pending_request<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(s: State<K, E, R>, key: ObjectRef) -> bool {
     s.reconcile_state_of(key).pending_req_msg.is_None()
-    && s.reconcile_state_of(key).pending_external_api_output.is_None()
+    && s.reconcile_state_of(key).pending_external_api_input.is_None()
 }
 
-pub open spec fn pending_req_in_flight_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(key: ObjectRef, state: FnSpec(R::T) -> bool) -> StatePred<State<K, R>>
+pub open spec fn pending_req_in_flight_at_reconcile_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(key: ObjectRef, state: FnSpec(R::T) -> bool) -> StatePred<State<K, E, R>>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: State<K, R>| {
+    |s: State<K, E, R>| {
         at_expected_reconcile_states(key, state)(s)
         && pending_k8s_api_req_msg(s, key)
         && request_sent_by_controller(s.pending_req_of(key))
@@ -115,10 +115,10 @@ pub open spec fn request_sent_by_controller(msg: Message) -> bool {
     && msg.content.is_APIRequest()
 }
 
-pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
+pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
     key: ObjectRef, state: FnSpec(R::T) -> bool, req_msg: Message
-) -> StatePred<State<K, R>> {
-    |s: State<K, R>| {
+) -> StatePred<State<K, E, R>> {
+    |s: State<K, E, R>| {
         at_expected_reconcile_states(key, state)(s)
         && pending_k8s_api_req_msg_is(s, key, req_msg)
         && request_sent_by_controller(req_msg)
@@ -126,13 +126,13 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state<K: Reso
     }
 }
 
-pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
+pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
     key: ObjectRef, state: FnSpec(R::T) -> bool
-) -> StatePred<State<K, R>>
+) -> StatePred<State<K, E, R>>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: State<K, R>| {
+    |s: State<K, E, R>| {
         at_expected_reconcile_states(key, state)(s)
         ==> {
             pending_k8s_api_req_msg(s, key)
@@ -146,25 +146,25 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: R
     }
 }
 
-pub open spec fn pending_req_is_none_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
+pub open spec fn pending_req_is_none_at_reconcile_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
     key: ObjectRef, state: FnSpec(R::T) -> bool
-) -> StatePred<State<K, R>>
+) -> StatePred<State<K, E, R>>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: State<K, R>| {
+    |s: State<K, E, R>| {
         at_expected_reconcile_states(key, state)(s)
         ==> s.reconcile_state_of(key).pending_req_msg.is_None()
     }
 }
 
-pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state<K: ResourceView, R: Reconciler<K>>(
+pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
     key: ObjectRef, state: FnSpec(R::T) -> bool
-) -> StatePred<State<K, R>>
+) -> StatePred<State<K, E, R>>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: State<K, R>| {
+    |s: State<K, E, R>| {
         at_expected_reconcile_states(key, state)(s)
         && pending_k8s_api_req_msg(s, key)
         && request_sent_by_controller(s.pending_req_of(key))
@@ -175,14 +175,14 @@ pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state<K: Resour
     }
 }
 
-pub open spec fn no_pending_req_at_reconcile_init_state<K: ResourceView, R: Reconciler<K>>(
+pub open spec fn no_pending_req_at_reconcile_init_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
     key: ObjectRef
-) -> StatePred<State<K, R>>
+) -> StatePred<State<K, E, R>>
     recommends
         key.kind.is_CustomResourceKind()
 {
-    |s: State<K, R>| {
-        at_reconcile_state::<K, R>(key, R::reconcile_init_state())(s)
+    |s: State<K, E, R>| {
+        at_reconcile_state::<K, E, R>(key, R::reconcile_init_state())(s)
         ==> no_pending_request(s, key)
     }
 }

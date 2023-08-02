@@ -9,7 +9,7 @@ use crate::kubernetes_cluster::{
     },
     spec::{
         cluster::*,
-        controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
+        controller::common::{controller_req_msg, ControllerActionInput<E>, ControllerStep},
         controller::controller_runtime::{
             continue_reconcile, end_reconcile, run_scheduled_reconcile,
         },
@@ -701,7 +701,7 @@ pub proof fn next_and_not_crash_preserves_init_pc_or_reconciler_at_after_get_cr_
     let pre = reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref());
     let post = reconciler_at_after_get_cr_pc_and_exists_pending_req_and_req_in_flight_and_no_resp_in_flight(cr);
     if (!pre(s_prime)) {
-        let next_step = choose |step: Step<CustomResourceView>| next_step(simple_reconciler(), s, s_prime, step);
+        let next_step = choose |step: Step| next_step(simple_reconciler(), s, s_prime, step);
         let input = next_step.get_ControllerStep_0();
         let req_msg = controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr.object_ref()}), s.rest_id_allocator.allocate().1);
         assert(is_controller_get_cr_request_msg(req_msg, cr));

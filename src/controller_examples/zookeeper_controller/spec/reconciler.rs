@@ -25,11 +25,8 @@ pub struct ZookeeperReconcileState {
 
 pub struct ZookeeperReconciler {}
 
-impl Reconciler<ZookeeperClusterView> for ZookeeperReconciler {
+impl Reconciler<ZookeeperClusterView, ZKAPI> for ZookeeperReconciler {
     type T = ZookeeperReconcileState;
-    type ExternalAPIInput = ZKAPIInputView;
-    type ExternalAPIOutput = ZKAPIOutputView;
-    type ExternalState = ZooKeeperState;
 
     open spec fn reconcile_init_state() -> ZookeeperReconcileState {
         reconcile_init_state()
@@ -47,14 +44,6 @@ impl Reconciler<ZookeeperClusterView> for ZookeeperReconciler {
 
     open spec fn reconcile_error(state: ZookeeperReconcileState) -> bool {
         reconcile_error(state)
-    }
-
-    open spec fn external_transition(input: ZKAPIInputView, state: ZooKeeperState) -> (Option<ZKAPIOutputView>, ZooKeeperState) {
-        external_transition(input, state)
-    }
-
-    open spec fn init_external_state() -> ZooKeeperState {
-        ZooKeeperState::default()
     }
 }
 

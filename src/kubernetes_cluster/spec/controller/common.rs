@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
+use crate::kubernetes_cluster::spec::external_api::*;
 use crate::kubernetes_cluster::spec::message::*;
 use crate::reconciler::spec::reconciler::*;
 use crate::state_machine::action::*;
@@ -10,18 +11,17 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub struct ControllerState<K: ResourceView, R: Reconciler<K>> {
-    pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile<K, R>>,
+pub struct ControllerState<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
+    pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile<K, E, R>>,
     pub scheduled_reconciles: Map<ObjectRef, K>,
-    pub external_state: R::ExternalState,
 }
 
-pub struct OngoingReconcile<K: ResourceView, R: Reconciler<K>> {
+pub struct OngoingReconcile<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
     pub triggering_cr: K,
     // pending_req_msg: the request message pending for the handling for k8s api
-    // pending_external_api_output: the response returned by the external library if a request has been processed by it
+    // pending_external_api_input: the response returned by the external library if a request has been processed by it
     pub pending_req_msg: Option<Message>,
-    pub pending_external_api_output: Option<R::ExternalAPIOutput>,
+    pub pending_external_api_input: Option<ExternalComm<E::Input, E::Output>>,
     pub local_state: R::T,
 }
 
@@ -32,27 +32,35 @@ pub enum ControllerStep {
     EndReconcile,
 }
 
-pub struct ControllerActionInput {
+pub struct ControllerActionInput<E: ExternalAPI> {
     pub recv: Option<Message>,
+    pub external_api_output: Option<ExternalComm<E::Input, E::Output>>,
     pub scheduled_cr_key: Option<ObjectRef>,
     pub rest_id_allocator: RestIdAllocator,
 }
 
-pub type ControllerActionOutput = (Multiset<Message>, RestIdAllocator);
+pub struct ControllerActionOutput<E: ExternalAPI> {
+    pub send: Multiset<Message>,
+    pub external_api_input: Option<ExternalComm<E::Input, E::Output>>,
+    pub rest_id_allocator: RestIdAllocator,
+}
 
-pub type ControllerStateMachine<K, R> = StateMachine<ControllerState<K, R>, ControllerActionInput, ControllerActionInput, ControllerActionOutput, ControllerStep>;
+pub type ControllerStateMachine<K, E, R> = StateMachine<ControllerState<K, E, R>, ControllerActionInput<E>, ControllerActionInput<E>, ControllerActionOutput<E>, ControllerStep>;
 
-pub type ControllerAction<K, R> = Action<ControllerState<K, R>, ControllerActionInput, ControllerActionOutput>;
+pub type ControllerAction<K, E, R> = Action<ControllerState<K, E, R>, ControllerActionInput<E>, ControllerActionOutput<E>>;
 
 pub open spec fn controller_req_msg(req: APIRequest, req_id: nat) -> Message {
     form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req, req_id))
 }
 
-pub open spec fn init_controller_state<K: ResourceView, R: Reconciler<K>>() -> ControllerState<K, R> {
+pub open spec fn form_external_input<E: ExternalAPI>(input: E::Input, id: nat) -> ExternalComm<E::Input, E::Output> {
+    ExternalComm::Input(input, id)
+}
+
+pub open spec fn init_controller_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> ControllerState<K, E, R> {
     ControllerState {
         ongoing_reconciles: Map::empty(),
         scheduled_reconciles: Map::empty(),
-        external_state: R::init_external_state(),
     }
 }
 

@@ -3,6 +3,7 @@
 pub mod client;
 pub mod cluster;
 pub mod controller;
+pub mod external_api;
 pub mod kubernetes_api;
 pub mod message;
 pub mod network;

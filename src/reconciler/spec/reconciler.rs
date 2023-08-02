@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
+use crate::kubernetes_cluster::spec::external_api::*;
 use crate::kubernetes_cluster::spec::message::*;
 use crate::reconciler::spec::io::*;
 use vstd::prelude::*;
@@ -10,16 +11,13 @@ verus! {
 
 /// Reconciler is the key data structure we use to pack up all the custom controller-specific logic
 /// and install it to the Kubernetes cluster state machine
-pub trait Reconciler<#[verifier(maybe_negative)] K: ResourceView>: Sized {
+pub trait Reconciler<#[verifier(maybe_negative)] K: ResourceView, #[verifier(maybe_negative)] ExternalAPIType: ExternalAPI>: Sized {
     // Here are several internal associated types:
     // T: type of the reconciler state of the reconciler
     // ExternalAPIInput: type of the request (input) to the external library
     // ExternalAPIOutput: type of the response (output) from the external library
     // ExternalState: type of the state of the external library
     type T;
-    type ExternalAPIInput;
-    type ExternalAPIOutput;
-    type ExternalState;
 
     // reconcile_init_state returns the initial local state that the reconciler starts
     // its reconcile function with.
@@ -31,8 +29,8 @@ pub trait Reconciler<#[verifier(maybe_negative)] K: ResourceView>: Sized {
     // reconcile_core describes the logic of reconcile function and is the key logic we want to verify.
     // Each reconcile_core should take the local state and a response of the previous request (if any) as input
     // and outputs the next local state and the request to send to Kubernetes API (if any).
-    open spec fn reconcile_core(cr: K, resp_o: Option<ResponseView<Self::ExternalAPIOutput>>, state: Self::T)
-        -> (Self::T, Option<RequestView<Self::ExternalAPIInput>>);
+    open spec fn reconcile_core(cr: K, resp_o: Option<ResponseView<ExternalAPIType::Output>>, state: Self::T)
+        -> (Self::T, Option<RequestView<ExternalAPIType::Input>>);
 
     // reconcile_done is used to tell the controller_runtime whether this reconcile round is done.
     // If it is true, controller_runtime will probably requeue the reconcile.
@@ -51,9 +49,9 @@ pub trait Reconciler<#[verifier(maybe_negative)] K: ResourceView>: Sized {
     // library and produces the response and the next state of the library.
     // Use optional state here because: (1) it's easy to initialize since we don't have to require a default or init method,
     // (2) some libraries don't need a state to hold information, thus, optional state makes sense.
-    open spec fn external_transition(input: Self::ExternalAPIInput, state: Self::ExternalState) -> (Option<Self::ExternalAPIOutput>, Self::ExternalState);
+    // open spec fn external_transition(input: Self::ExternalAPIInput, state: Self::ExternalState) -> (Option<Self::ExternalAPIOutput>, Self::ExternalState);
 
-    open spec fn init_external_state() -> Self::ExternalState;
+    // open spec fn init_external_state() -> Self::ExternalState;
 }
 
 }

@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
-    controller::common::*, controller::controller_runtime::*, message::*,
+    controller::common::*, controller::controller_runtime::*, external_api::*, message::*,
 };
 use crate::reconciler::spec::reconciler::*;
 use crate::state_machine::action::*;
@@ -13,24 +13,24 @@ use vstd::prelude::*;
 
 verus! {
 
-pub open spec fn controller<K: ResourceView, R: Reconciler<K>>() -> ControllerStateMachine<K, R> {
+pub open spec fn controller<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> ControllerStateMachine<K, E, R> {
     StateMachine {
-        init: |s: ControllerState<K, R>| {
-            s == init_controller_state::<K, R>()
+        init: |s: ControllerState<K, E, R>| {
+            s == init_controller_state::<K, E, R>()
         },
         actions: set![
-            run_scheduled_reconcile::<K, R>(),
-            continue_reconcile::<K, R>(),
-            end_reconcile::<K, R>()
+            run_scheduled_reconcile::<K, E, R>(),
+            continue_reconcile::<K, E, R>(),
+            end_reconcile::<K, E, R>()
         ],
         step_to_action: |step: ControllerStep| {
             match step {
-                ControllerStep::RunScheduledReconcile => run_scheduled_reconcile::<K, R>(),
-                ControllerStep::ContinueReconcile => continue_reconcile::<K, R>(),
-                ControllerStep::EndReconcile => end_reconcile::<K, R>(),
+                ControllerStep::RunScheduledReconcile => run_scheduled_reconcile::<K, E, R>(),
+                ControllerStep::ContinueReconcile => continue_reconcile::<K, E, R>(),
+                ControllerStep::EndReconcile => end_reconcile::<K, E, R>(),
             }
         },
-        action_input: |step: ControllerStep, input: ControllerActionInput| {
+        action_input: |step: ControllerStep, input: ControllerActionInput<E>| {
             input
         }
     }
