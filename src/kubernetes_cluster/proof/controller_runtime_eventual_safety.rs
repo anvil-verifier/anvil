@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{common::*, resource::*};
 use crate::kubernetes_cluster::{
     proof::{
@@ -138,7 +139,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as<K: R
                         &&& s.reconcile_scheduled_for(cr.object_ref())
                     };
                     let post = the_object_in_reconcile_has_spec_as(cr);
-                    let input = (Option::None, Option::Some(cr.object_ref()));
+                    let input = (Option::None, Option::None, Option::Some(cr.object_ref()));
 
                     K::object_ref_is_well_formed();
                     controller_runtime_liveness::lemma_pre_leads_to_post_by_controller::<K, E, R>(

@@ -1,15 +1,17 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
     client,
     client::{client, ClientActionInput, ClientState},
     cluster::*,
     controller::common::{
-        ControllerAction, ControllerActionInput<E>, ControllerState, OngoingReconcile,
+        ControllerAction, ControllerActionInput, ControllerState, OngoingReconcile,
     },
     controller::state_machine::controller,
+    external_api::*,
     kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
     kubernetes_api::state_machine::kubernetes_api,
     message::*,
@@ -52,16 +54,18 @@ pub proof fn sm_partial_spec_is_stable<K: ResourceView, E: ExternalAPI, R: Recon
         valid(stable(sm_partial_spec::<K, E, R>())),
 {
     always_p_is_stable::<State<K, E, R>>(lift_action(next::<K, E, R>()));
-    tla_forall_action_weak_fairness_is_stable::<K, R, Option<Message>, ()>(kubernetes_api_next());
-    tla_forall_action_weak_fairness_is_stable::<K, R, (Option<Message>, Option<ObjectRef>), ()>(controller_next::<K, E, R>());
-    tla_forall_action_weak_fairness_is_stable::<K, R, ObjectRef, ()>(schedule_controller_reconcile());
-    action_weak_fairness_is_stable::<K, R, ()>(disable_crash());
-    action_weak_fairness_is_stable::<K, R, ()>(disable_busy());
+    tla_forall_action_weak_fairness_is_stable::<K, E, R, Option<Message>, ()>(kubernetes_api_next());
+    tla_forall_action_weak_fairness_is_stable::<K, E, R, (Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>), ()>(controller_next::<K, E, R>());
+    tla_forall_action_weak_fairness_is_stable::<K, E, R, ExternalComm<E::Input, E::Output>, ()>(external_api_next::<K, E, R>());
+    tla_forall_action_weak_fairness_is_stable::<K, E, R, ObjectRef, ()>(schedule_controller_reconcile());
+    action_weak_fairness_is_stable::<K, E, R, ()>(disable_crash());
+    action_weak_fairness_is_stable::<K, E, R, ()>(disable_busy());
 
     stable_and_n!(
         always(lift_action(next::<K, E, R>())),
         tla_forall(|input| kubernetes_api_next().weak_fairness(input)),
         tla_forall(|input| controller_next::<K, E, R>().weak_fairness(input)),
+        tla_forall(|input| external_api_next::<K, E, R>().weak_fairness(input)),
         tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)),
         disable_crash().weak_fairness(()),
         disable_busy().weak_fairness(())

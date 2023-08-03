@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::{
     proof::{
@@ -15,6 +16,7 @@ use crate::kubernetes_cluster::{
             continue_reconcile, end_reconcile, run_scheduled_reconcile,
         },
         controller::state_machine::controller,
+        external_api::*,
         kubernetes_api::state_machine::{handle_request, transition_by_etcd},
         message::*,
     },
@@ -37,7 +39,7 @@ pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled
 }
 
 pub proof fn lemma_pre_leads_to_post_by_controller<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
-    spec: TempPred<State<K, E, R>>, input: (Option<Message>, Option<ObjectRef>), next: ActionPred<State<K, E, R>>,
+    spec: TempPred<State<K, E, R>>, input: (Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>), next: ActionPred<State<K, E, R>>,
     action: ControllerAction<K, E, R>, pre: StatePred<State<K, E, R>>, post: StatePred<State<K, E, R>>
 )
     requires
@@ -50,7 +52,7 @@ pub proof fn lemma_pre_leads_to_post_by_controller<K: ResourceView, E: ExternalA
     ensures
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
-    use_tla_forall::<State<K, E, R>, (Option<Message>, Option<ObjectRef>)>(
+    use_tla_forall::<State<K, E, R>, (Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>)>(
         spec, |i| controller_next::<K, E, R>().weak_fairness(i), input
     );
 
@@ -122,7 +124,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle
     let post = |s: State<K, E, R>| {
         &&& !s.reconcile_state_contains(cr_key)
     };
-    let input = (Option::None, Option::Some(cr_key));
+    let input = (Option::None, Option::None, Option::Some(cr_key));
     lemma_pre_leads_to_post_by_controller::<K, E, R>(
         spec, input, next::<K, E, R>(),
         end_reconcile::<K, E, R>(), pre, post
@@ -146,7 +148,7 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle
 {
     let pre = reconciler_reconcile_error::<K, E, R>(cr_key);
     let post = |s: State<K, E, R>| { !s.reconcile_state_contains(cr_key) };
-    let input = (Option::None, Option::Some(cr_key));
+    let input = (Option::None, Option::None, Option::Some(cr_key));
     lemma_pre_leads_to_post_by_controller::<K, E, R>(
         spec, input,
         next::<K, E, R>(), end_reconcile::<K, E, R>(), pre, post
@@ -180,7 +182,7 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init
         &&& !s.crash_enabled
     };
     strengthen_next::<State<K, E, R>>(spec, next::<K, E, R>(), crash_disabled::<K, E, R>(), stronger_next);
-    let input = (Option::None, Option::Some(cr_key));
+    let input = (Option::None, Option::None, Option::Some(cr_key));
     lemma_pre_leads_to_post_by_controller::<K, E, R>(
         spec, input, stronger_next, run_scheduled_reconcile::<K, E, R>(), pre, post
     );
@@ -320,7 +322,7 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle<K: ResourceVi
 {
     let no_pending_req = |s: State<K, E, R>| {
         at_expected_reconcile_states(cr.object_ref(), init_state)(s)
-        && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_None()
+        && no_pending_req_msg_or_external_api_input::<K, E, R>(s, cr.object_ref())
     };
     temp_pred_equality::<State<K, E, R>>(
         lift_state(pending_req_is_none_at_reconcile_state::<K, E, R>(cr.object_ref(), init_state)),
@@ -337,7 +339,7 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle<K: ResourceVi
     };
     strengthen_next(spec, next::<K, E, R>(), crash_disabled(), stronger_next);
     lemma_pre_leads_to_post_by_controller::<K, E, R>(
-        spec, (Option::None, Option::Some(cr.object_ref())),
+        spec, (Option::None, Option::None, Option::Some(cr.object_ref())),
         stronger_next,
         continue_reconcile::<K, E, R>(),
         no_pending_req,
@@ -414,7 +416,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
                 && s.message_in_flight(msg)
                 && resp_msg_matches_req_msg(msg, s.pending_req_of(cr.object_ref()))
             };
-            let input = (Option::Some(msg), Option::Some(cr.object_ref()));
+            let input = (Option::Some(msg), Option::None, Option::Some(cr.object_ref()));
             lemma_pre_leads_to_post_by_controller::<K, E, R>(
                 spec, input, stronger_next, continue_reconcile::<K, E, R>(), resp_in_flight_state, post
             );
@@ -551,7 +553,7 @@ pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile
 {
     let no_req_at_state = |s: State<K, E, R>| {
         at_expected_reconcile_states(cr.object_ref(), state)(s)
-        && s.reconcile_state_of(cr.object_ref()).pending_req_msg.is_None()
+        && no_pending_req_msg_or_external_api_input::<K, E, R>(s, cr.object_ref())
     };
     temp_pred_equality(lift_state(pending_req_is_none_at_reconcile_state(cr.object_ref(), state)), lift_state(at_expected_reconcile_states(cr.object_ref(), state)).implies(lift_state(no_req_at_state)));
     implies_to_leads_to(spec, lift_state(at_expected_reconcile_states(cr.object_ref(), state)), lift_state(no_req_at_state));
@@ -570,7 +572,8 @@ pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile
         lift_action(next::<K, E, R>())
         .and(lift_state(crash_disabled()))
     );
-    lemma_pre_leads_to_post_by_controller(spec, (Option::None, Option::Some(cr.object_ref())), stronger_next, continue_reconcile(), no_req_at_state, at_expected_reconcile_states(cr.object_ref(), next_state));
+    let input = (Option::None, Option::None, Option::Some(cr.object_ref()));
+    lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, continue_reconcile(), no_req_at_state, at_expected_reconcile_states(cr.object_ref(), next_state));
     leads_to_trans_n!(
         spec,
         lift_state(at_expected_reconcile_states(cr.object_ref(), state)),

@@ -365,7 +365,7 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
     cluster_safety::lemma_always_each_key_in_reconcile_is_consistent_with_its_object::<RabbitmqClusterView, RabbitmqReconciler>(spec);
     safety::lemma_always_pending_msg_at_after_create_server_config_map_step_is_create_cm_req(spec, rabbitmq.object_ref());
     safety::lemma_always_pending_msg_at_after_update_server_config_map_step_is_update_cm_req(spec, rabbitmq.object_ref());
-    controller_runtime_safety::lemma_always_pending_req_is_none_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init));
+    controller_runtime_safety::lemma_always_pending_req_msg_is_none_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init));
     controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<RabbitmqClusterView, RabbitmqReconciler>(
         spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateHeadlessService)
     );

@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{common::*, resource::*};
 use crate::kubernetes_cluster::{
     proof::{kubernetes_api_safety, wf1_assistant::controller_action_pre_implies_next_pre},
@@ -25,7 +26,7 @@ pub open spec fn reconciler_init_and_no_pending_req
 <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(cr_key: ObjectRef) -> StatePred<State<K, E, R>> {
     |s: State<K, E, R>| {
         &&& at_reconcile_state(cr_key, R::reconcile_init_state())(s)
-        &&& no_pending_request(s, cr_key)
+        &&& no_pending_req_msg_or_external_api_input(s, cr_key)
     }
 }
 
@@ -92,7 +93,7 @@ pub open spec fn pending_k8s_api_req_msg_is<K: ResourceView, E: ExternalAPI, R: 
     && s.reconcile_state_of(key).pending_external_api_input.is_None()
 }
 
-pub open spec fn no_pending_request<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(s: State<K, E, R>, key: ObjectRef) -> bool {
+pub open spec fn no_pending_req_msg_or_external_api_input<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(s: State<K, E, R>, key: ObjectRef) -> bool {
     s.reconcile_state_of(key).pending_req_msg.is_None()
     && s.reconcile_state_of(key).pending_external_api_input.is_None()
 }
@@ -146,7 +147,7 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state<K: R
     }
 }
 
-pub open spec fn pending_req_is_none_at_reconcile_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
+pub open spec fn pending_req_msg_is_none_at_reconcile_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
     key: ObjectRef, state: FnSpec(R::T) -> bool
 ) -> StatePred<State<K, E, R>>
     recommends
@@ -155,6 +156,18 @@ pub open spec fn pending_req_is_none_at_reconcile_state<K: ResourceView, E: Exte
     |s: State<K, E, R>| {
         at_expected_reconcile_states(key, state)(s)
         ==> s.reconcile_state_of(key).pending_req_msg.is_None()
+    }
+}
+
+pub open spec fn pending_req_is_none_at_reconcile_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
+    key: ObjectRef, state: FnSpec(R::T) -> bool
+) -> StatePred<State<K, E, R>>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: State<K, E, R>| {
+        at_expected_reconcile_states(key, state)(s)
+        ==> no_pending_req_msg_or_external_api_input::<K, E, R>(s, key)
     }
 }
 
@@ -175,7 +188,7 @@ pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state<K: Resour
     }
 }
 
-pub open spec fn no_pending_req_at_reconcile_init_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
+pub open spec fn no_pending_req_msg_or_external_api_input_at_reconcile_init_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
     key: ObjectRef
 ) -> StatePred<State<K, E, R>>
     recommends
@@ -183,7 +196,7 @@ pub open spec fn no_pending_req_at_reconcile_init_state<K: ResourceView, E: Exte
 {
     |s: State<K, E, R>| {
         at_reconcile_state::<K, E, R>(key, R::reconcile_init_state())(s)
-        ==> no_pending_request(s, key)
+        ==> no_pending_req_msg_or_external_api_input(s, key)
     }
 }
 

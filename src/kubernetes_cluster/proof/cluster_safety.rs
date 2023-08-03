@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, persistent_volume_claim::*, pod::*, resource::*,
     role::*, role_binding::*, secret::*, service::*, service_account::*, stateful_set::*,

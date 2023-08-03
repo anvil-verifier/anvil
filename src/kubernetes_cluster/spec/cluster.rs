@@ -158,6 +158,10 @@ pub open spec fn kubernetes_api_next<K: ResourceView, E: ExternalAPI, R: Reconci
 /// the result computed by the controller as input and store the output of the transition for later use. If no external api
 /// is used (i.e., EmptyAPI is fed to the reconciler), the precondition should not be satisfied since the developer should not
 /// make reconcile_core return a external request.
+/// 
+/// This action simulates the behavior of certain executions where the reconcile process is blocked and waits for the handling
+/// by external api, the external api will then take the input provided by the controller and carry out its own operations.
+/// We make all the operations by the external api each time atomic. 
 pub open spec fn external_api_next<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> Action<State<K, E, R>, ExternalComm<E::Input, E::Output>, ()> {
     Action {
         precondition: |input: ExternalComm<E::Input, E::Output>, s: State<K, E, R>| {

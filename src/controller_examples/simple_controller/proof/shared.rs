@@ -31,7 +31,7 @@ pub open spec fn reconciler_at_init_pc_and_no_pending_req(cr: CustomResourceView
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == SimpleReconcileStep::Init)
-        &&& no_pending_request(s, cr.object_ref())
+        &&& no_pending_req_msg_or_external_api_input(s, cr.object_ref())
     }
 }
 

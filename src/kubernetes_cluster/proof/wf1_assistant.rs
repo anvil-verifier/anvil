@@ -1,16 +1,17 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
     cluster::*,
     controller,
-    external_api::*,
     controller::common::{
-        ControllerAction, ControllerActionInput<E>, ControllerState, ControllerStep,
+        ControllerAction, ControllerActionInput, ControllerState, ControllerStep,
     },
     controller::controller_runtime::{continue_reconcile, end_reconcile, run_scheduled_reconcile},
     controller::state_machine::controller,
+    external_api::*,
     kubernetes_api::common::{
         KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState, KubernetesAPIStep,
     },

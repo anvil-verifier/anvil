@@ -272,7 +272,7 @@ pub proof fn lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(
                     assert(s_prime.network_state.in_flight.count(msg) == 1);
                 },
                 Step::ControllerStep(input) => {
-                    let cr_key = input.1.get_Some_0();
+                    let cr_key = input.2.get_Some_0();
                     if cr_key != key {
                         if cr_key.name != key.name {
                             seq_lemmas::seq_unequal_preserved_by_add(cr_key.name, key.name, new_strlit("-server-conf")@);
@@ -430,7 +430,7 @@ pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
                     assert(s_prime.network_state.in_flight.count(msg) == 1);
                 },
                 Step::ControllerStep(input) => {
-                    let cr_key = input.1.get_Some_0();
+                    let cr_key = input.2.get_Some_0();
                     if cr_key != key {
                         if cr_key.name != key.name {
                             seq_lemmas::seq_unequal_preserved_by_add(cr_key.name, key.name, new_strlit("-server-conf")@);

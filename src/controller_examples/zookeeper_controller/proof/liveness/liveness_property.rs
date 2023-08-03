@@ -153,7 +153,7 @@ proof fn invariants_is_stable(zk: ZookeeperClusterView)
         lift_state(cluster_safety::each_key_in_reconcile_is_consistent_with_its_object::<ZookeeperClusterView, ZookeeperReconciler>()),
         lift_state(helper_invariants::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref())),
         lift_state(helper_invariants::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref())),
-        lift_state(controller_runtime::no_pending_req_at_reconcile_init_state::<ZookeeperClusterView, ZookeeperReconciler>(zk.object_ref())),
+        lift_state(controller_runtime::no_pending_req_msg_or_external_api_input_at_reconcile_init_state::<ZookeeperClusterView, ZookeeperReconciler>(zk.object_ref())),
         lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconciler>(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterUpdateStatefulSet))),
         lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconciler>(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateStatefulSet))),
         lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconciler>(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateHeadlessService))),
@@ -420,7 +420,7 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
             cluster_safety::lemma_always_each_key_in_reconcile_is_consistent_with_its_object::<ZookeeperClusterView, ZookeeperReconciler>(spec);
             helper_invariants::lemma_always_pending_msg_at_after_create_stateful_set_step_is_create_sts_req(spec, zk.object_ref());
             helper_invariants::lemma_always_pending_msg_at_after_update_stateful_set_step_is_update_sts_req(spec, zk.object_ref());
-            controller_runtime_safety::lemma_always_no_pending_req_at_reconcile_init_state::<ZookeeperClusterView, ZookeeperReconciler>(spec, zk.object_ref());
+            controller_runtime_safety::lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_init_state::<ZookeeperClusterView, ZookeeperReconciler>(spec, zk.object_ref());
             controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state_1::<ZookeeperClusterView, ZookeeperReconciler>(spec, zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterUpdateStatefulSet));
             controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state_1::<ZookeeperClusterView, ZookeeperReconciler>(spec, zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateStatefulSet));
             controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state_1::<ZookeeperClusterView, ZookeeperReconciler>(spec, zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateHeadlessService));
@@ -428,7 +428,7 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
             controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state_1::<ZookeeperClusterView, ZookeeperReconciler>(spec, zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateAdminServerService));
             controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state_1::<ZookeeperClusterView, ZookeeperReconciler>(spec, zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateConfigMap));
             controller_runtime_safety::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state_1::<ZookeeperClusterView, ZookeeperReconciler>(spec, zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterGetStatefulSet));
-            controller_runtime_safety::lemma_always_pending_req_is_none_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconciler>(spec, zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateZKNode));
+            controller_runtime_safety::lemma_always_pending_req_msg_is_none_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconciler>(spec, zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateZKNode));
 
             entails_and_n!(
                 spec,
@@ -441,7 +441,7 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
                 always(lift_state(cluster_safety::each_key_in_reconcile_is_consistent_with_its_object())),
                 always(lift_state(helper_invariants::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref()))),
                 always(lift_state(helper_invariants::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref()))),
-                always(lift_state(controller_runtime::no_pending_req_at_reconcile_init_state::<ZookeeperClusterView, ZookeeperReconciler>(zk.object_ref()))),
+                always(lift_state(controller_runtime::no_pending_req_msg_or_external_api_input_at_reconcile_init_state::<ZookeeperClusterView, ZookeeperReconciler>(zk.object_ref()))),
                 always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconciler>(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterUpdateStatefulSet)))),
                 always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconciler>(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateStatefulSet)))),
                 always(lift_state(controller_runtime::pending_req_in_flight_or_resp_in_flight_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconciler>(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::AfterCreateHeadlessService)))),

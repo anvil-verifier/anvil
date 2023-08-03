@@ -39,7 +39,7 @@ pub proof fn lemma_always_reconcile_init_pc_and_no_pending_req(cr: CustomResourc
         && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == SimpleReconcileStep::Init)
         ==> s.reconcile_state_contains(cr.object_ref())
             && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == SimpleReconcileStep::Init)
-            && no_pending_request(s, cr.object_ref())
+            && no_pending_req_msg_or_external_api_input(s, cr.object_ref())
     };
     init_invariant::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), init(simple_reconciler()), next(simple_reconciler()), invariant);
 

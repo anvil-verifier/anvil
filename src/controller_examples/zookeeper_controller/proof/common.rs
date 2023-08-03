@@ -57,7 +57,7 @@ pub open spec fn at_zookeeper_step_with_zk(zk: ZookeeperClusterView, step: Zooke
 pub open spec fn no_pending_req_at_zookeeper_step_with_zk(zk: ZookeeperClusterView, step: ZookeeperReconcileStep) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_zookeeper_step_with_zk(zk, step)(s)
-        &&& no_pending_request(s, zk.object_ref())
+        &&& no_pending_req_msg_or_external_api_input(s, zk.object_ref())
     }
 }
 

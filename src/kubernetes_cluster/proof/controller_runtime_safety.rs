@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{api_method::*, common::*, error::*, resource::*};
 use crate::kubernetes_cluster::{
     proof::{
@@ -60,7 +61,7 @@ proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator<K: Resou
             match msg.content {
                 MessageContent::APIRequest(_, _) => assert(s.rest_id_allocator.rest_id_counter < s_prime.rest_id_allocator.rest_id_counter),
                 MessageContent::APIResponse(_, id) => {
-                    let next_step = choose |step: Step<K>| next_step::<K, E, R>(s, s_prime, step);
+                    let next_step = choose |step: Step<K, E>| next_step::<K, E, R>(s, s_prime, step);
                     match next_step {
                         Step::KubernetesAPIStep(input) => {
                             let req_msg = input.get_Some_0();
@@ -208,7 +209,7 @@ proof fn newly_added_msg_have_different_id_from_existing_ones<K: ResourceView, E
         msg_1.content.get_rest_id() != msg_2.content.get_rest_id(),
 {
     if (msg_2.content.is_APIResponse()) {
-        let next_step = choose |step: Step| next_step::<K, E, R>(s, s_prime, step);
+        let next_step = choose |step: Step<K, E>| next_step::<K, E, R>(s, s_prime, step);
         match next_step {
             Step::KubernetesAPIStep(input) => {
                 let req_msg = input.get_Some_0();
@@ -524,7 +525,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
                     }
                 }
                 Step::ControllerStep(input) => {
-                    let cr_key = input.1.get_Some_0();
+                    let cr_key = input.2.get_Some_0();
                     if cr_key != key {
                         if s.message_in_flight(s.pending_req_of(key)) {
                             assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
@@ -552,7 +553,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
     init_invariant::<State<K, E, R>>(spec, init::<K, E, R>(), stronger_next, invariant);
 }
 
-pub proof fn lemma_always_no_pending_req_at_reconcile_init_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
+pub proof fn lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_init_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
     spec: TempPred<State<K, E, R>>, key: ObjectRef
 )
     requires
@@ -562,9 +563,9 @@ pub proof fn lemma_always_no_pending_req_at_reconcile_init_state<K: ResourceView
             #[trigger] R::reconcile_core(cr, resp_o, pre_state).0 == R::reconcile_init_state()
             ==> R::reconcile_core(cr, resp_o, pre_state).1.is_None(),
     ensures
-        spec.entails(always(lift_state(no_pending_req_at_reconcile_init_state::<K, E, R>(key)))),
+        spec.entails(always(lift_state(no_pending_req_msg_or_external_api_input_at_reconcile_init_state::<K, E, R>(key)))),
 {
-    let invariant = no_pending_req_at_reconcile_init_state::<K, E, R>(key);
+    let invariant = no_pending_req_msg_or_external_api_input_at_reconcile_init_state::<K, E, R>(key);
     assert forall |s, s_prime: State<K, E, R>| invariant(s) &&
     #[trigger] next::<K, E, R>()(s, s_prime) implies invariant(s_prime) by {
         if at_reconcile_state(key, R::reconcile_init_state())(s_prime) {
@@ -579,7 +580,7 @@ pub proof fn lemma_always_no_pending_req_at_reconcile_init_state<K: ResourceView
     init_invariant(spec, init::<K, E, R>(), next::<K, E, R>(), invariant);
 }
 
-pub proof fn lemma_always_pending_req_is_none_at_reconcile_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
+pub proof fn lemma_always_pending_req_msg_is_none_at_reconcile_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
     spec: TempPred<State<K, E, R>>, key: ObjectRef, state: FnSpec(R::T) -> bool
 )
     requires
@@ -593,10 +594,10 @@ pub proof fn lemma_always_pending_req_is_none_at_reconcile_state<K: ResourceView
         spec.entails(always(lift_action(next::<K, E, R>()))),
     ensures
         spec.entails(
-            always(lift_state(pending_req_is_none_at_reconcile_state(key, state)))
+            always(lift_state(pending_req_msg_is_none_at_reconcile_state(key, state)))
         ),
 {
-    let invariant = pending_req_is_none_at_reconcile_state(key, state);
+    let invariant = pending_req_msg_is_none_at_reconcile_state(key, state);
     init_invariant(spec, init::<K, E, R>(), next::<K, E, R>(), invariant);
 }
 
