@@ -43,22 +43,12 @@ pub open spec fn external_api_state_init<T: ExternalAPI>(s: ExternalAPIState<T>)
 }
 
 pub open spec fn external_api_send_output_and_receive_input<T: ExternalAPI>(
-    input: Option<ExternalComm<T::Input, T::Output>>, output: Option<ExternalComm<T::Input, T::Output>>, s: ExternalAPIState<T>
+    output: Option<ExternalComm<T::Input, T::Output>>, input: Option<ExternalComm<T::Input, T::Output>>, s: ExternalAPIState<T>
 ) -> ExternalAPIState<T> {
+    let in_flight_remove_output = if output.is_Some() { s.in_flight.remove(output.get_Some_0()) } else { s.in_flight };
+    let in_flight_prime = if input.is_Some() { in_flight_remove_output.insert(input.get_Some_0()) } else { in_flight_remove_output };
     ExternalAPIState {
-        in_flight: if output.is_Some() {
-            if input.is_Some() {
-                s.in_flight.remove(input.get_Some_0()).insert(output.get_Some_0())
-            } else {
-                s.in_flight.insert(output.get_Some_0())
-            }
-        } else {
-            if input.is_Some() {
-                s.in_flight.remove(input.get_Some_0())
-            } else {
-                s.in_flight
-            }
-        },
+        in_flight: in_flight_prime,
         ..s
     }
 }
