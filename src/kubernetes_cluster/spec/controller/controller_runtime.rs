@@ -57,8 +57,8 @@ pub open spec fn continue_reconcile<K: ResourceView, E: ExternalAPI, R: Reconcil
                 &&& !R::reconcile_error(s.ongoing_reconciles[cr_key].local_state)
                 // Split cases:
                 // (1) there is a pending request which is destined for kubernetes api;
-                // (2) there is a pending external api request (so that we should send a message to the external api) and an external api output
-                // (3) there is no pending request;
+                // (2) there is a pending external api input (so that we should feed the input to the external api) and an external api output
+                // (3) there is no pending request or external api input;
                 // The three cases don't overlap each other, and we must make them mutually exclusive in the
                 // precondition, i.e., there should not be a state which satifies the precondition but fits for more
                 // than one case of the three.

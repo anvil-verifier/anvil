@@ -157,7 +157,7 @@ pub open spec fn kubernetes_api_next<K: ResourceView, E: ExternalAPI, R: Reconci
 pub open spec fn external_api_next<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> Action<State<K, E, R>, ExternalComm<E::Input, E::Output>, ()> {
     Action {
         precondition: |input: ExternalComm<E::Input, E::Output>, s: State<K, E, R>| {
-            // For the external api action, a valid input must be contained by the in_flight field of the external_api_state.
+            // For the external api action, a valid input must exist in the in_flight set of the external_api_state.
             &&& input.is_Input()
             &&& s.external_api_state.in_flight.contains(input)
         },

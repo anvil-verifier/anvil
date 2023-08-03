@@ -6,10 +6,11 @@ use vstd::{prelude::*, view::*};
 
 verus! {
 
-// A trait for the external library of a reconciler.
-// Its core is a process method, and the developer should wrap all possible operations they may need in the function.
-// Input is the ? of Request<?> of the reconciler, i.e., it completes the request type of a reconciler.
-// Similarly, Output composes the Response<?> type of a reconciler.
+// A trait for the external api of a reconciler, whose core is a transition method, and the developer should wrap all 
+// possible operations they may need in the function.
+// Input is the input type of the external api and also the ? of Request<?> of the reconciler, i.e., it completes the 
+// request type of a reconciler.
+// Similarly, Output is the output type of the external api, which composes the Response<?> type of a reconciler.
 // Note that we can encapsulate all the required libraries here, so each reconciler only has one ExternalAPI type.
 pub trait ExternalAPI<Input: ToView, Output: ToView> {
     fn transition(input: Input) -> Option<Output>;
