@@ -190,7 +190,7 @@ pub open spec fn reconcile_core(
                     };
                     (state_prime, Option::None)
                 }
-            }else{
+            } else {
                 // return error state
                 let state_prime = RabbitmqReconcileState {
                     reconcile_step: RabbitmqReconcileStep::Error,
@@ -198,7 +198,6 @@ pub open spec fn reconcile_core(
                 };
                 (state_prime, Option::None)
             }
-
         },
         RabbitmqReconcileStep::AfterUpdateServerConfigMap => {
             let service_account = make_service_account(rabbitmq);
@@ -323,7 +322,6 @@ pub open spec fn reconcile_core(
                 };
                 (state_prime, Option::None)
             }
-
         },
         RabbitmqReconcileStep::AfterCreateStatefulSet => {
             let state_prime = RabbitmqReconcileState {
@@ -346,7 +344,6 @@ pub open spec fn reconcile_core(
             };
             (state_prime, Option::None)
         }
-
     }
 }
 
@@ -368,7 +365,6 @@ pub open spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> Service
         ServicePortView::default().set_name(new_strlit("epmd")@).set_port(4369),
         ServicePortView::default().set_name(new_strlit("cluster-rpc")@).set_port(25672)
     ];
-
     make_service(rabbitmq, rabbitmq.metadata.name.get_Some_0() + new_strlit("-nodes")@, ports, false)
 }
 
@@ -381,8 +377,6 @@ pub open spec fn make_main_service(rabbitmq: RabbitmqClusterView) -> ServiceView
         ServicePortView::default().set_name(new_strlit("amqp")@).set_port(5672).set_app_protocol(new_strlit("amqp")@),
         ServicePortView::default().set_name(new_strlit("management")@).set_port(15672).set_app_protocol(new_strlit("http")@),
     ];
-
-
     make_service(rabbitmq, rabbitmq.metadata.name.get_Some_0(), ports, true)
 }
 
@@ -412,7 +406,6 @@ pub open spec fn make_service(
         })
 }
 
-
 pub open spec fn make_erlang_secret(rabbitmq: RabbitmqClusterView) -> SecretView
     recommends
         rabbitmq.metadata.name.is_Some(),
@@ -421,8 +414,6 @@ pub open spec fn make_erlang_secret(rabbitmq: RabbitmqClusterView) -> SecretView
     let cookie = random_encoded_string(24);
     let data = Map::empty()
         .insert(new_strlit(".erlang.cookie")@, cookie);
-
-
     make_secret(rabbitmq, rabbitmq.metadata.name.get_Some_0() + new_strlit("-erlang-cookie")@, data)
 }
 
@@ -443,8 +434,6 @@ pub open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> Secr
         .insert(new_strlit("provider")@, new_strlit("rabbitmq")@)
         .insert(new_strlit("default_user.conf")@, new_strlit("default_user = user\ndefault_pass = changeme")@)
         .insert(new_strlit(".port")@, new_strlit("5672")@);
-
-
     make_secret(rabbitmq, rabbitmq.metadata.name.get_Some_0() + new_strlit("-default-user")@, data)
 }
 
@@ -550,7 +539,6 @@ pub open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceA
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
         )
-
 }
 
 pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView
@@ -624,10 +612,10 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView) -> StatefulSet
     let sts_name = make_stateful_set_name(name);
     let namespace = rabbitmq.metadata.namespace.get_Some_0();
 
-    let labels = Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0());
+    let labels = Map::empty().insert(new_strlit("app")@, name);
     let metadata = ObjectMetaView::default()
         .set_name(sts_name)
-        .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
+        .set_namespace(namespace)
         .set_labels(labels);
 
     let spec = StatefulSetSpecView::default()
@@ -638,7 +626,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView) -> StatefulSet
             .set_metadata(ObjectMetaView::default()
                 .set_labels(
                     Map::empty()
-                        .insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0())
+                        .insert(new_strlit("app")@, name)
                 )
             )
             .set_spec(make_rabbitmq_pod_spec(rabbitmq))

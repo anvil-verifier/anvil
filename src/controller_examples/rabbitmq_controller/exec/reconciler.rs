@@ -362,12 +362,8 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             let req_o = Option::None;
             (state_prime, req_o)
         }
-
     }
-
-
 }
-
 
 pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     requires
@@ -379,15 +375,12 @@ pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     let mut ports = Vec::new();
     ports.push(ServicePort::new_with(new_strlit("epmd").to_string(), 4369));
     ports.push(ServicePort::new_with(new_strlit("cluster-rpc").to_string(), 25672));
-
-
     proof {
         assert_seqs_equal!(
             ports@.map_values(|port: ServicePort| port@),
             rabbitmq_spec::make_headless_service(rabbitmq@).spec.get_Some_0().ports.get_Some_0()
         );
     }
-
     make_service(rabbitmq, rabbitmq.name().unwrap().concat(new_strlit("-nodes")), ports, false)
 }
 
@@ -410,15 +403,12 @@ pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
         temp.set_app_protocol(new_strlit("http").to_string());
         temp
     });
-
-
     proof {
         assert_seqs_equal!(
             ports@.map_values(|port: ServicePort| port@),
             rabbitmq_spec::make_main_service(rabbitmq@).spec.get_Some_0().ports.get_Some_0()
         );
     }
-
     make_service(rabbitmq, rabbitmq.name().unwrap(), ports, true)
 }
 
@@ -455,11 +445,8 @@ pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServiceP
         service_spec.set_publish_not_ready_addresses(true);
         service_spec
     });
-
     service
-
 }
-
 
 pub fn make_erlang_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
     requires
@@ -471,12 +458,6 @@ pub fn make_erlang_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
     let mut data = StringMap::empty();
     let cookie = random_encoded_string(24);
     data.insert(new_strlit(".erlang.cookie").to_string(), cookie);
-
-
-    proof {
-        assert(data@ =~= rabbitmq_spec::make_erlang_secret(rabbitmq@).data.get_Some_0());
-    }
-
     make_secret(rabbitmq, rabbitmq.name().unwrap().concat(new_strlit("-erlang-cookie")), data)
 }
 
@@ -486,9 +467,8 @@ fn random_encoded_string(data_len: usize) -> (cookie: String)
         cookie@ == rabbitmq_spec::random_encoded_string(data_len),
 {
     let random_bytes: std::vec::Vec<std::primitive::u8> = (0..data_len).map(|_| deps_hack::rand::random::<std::primitive::u8>()).collect();
-   String::from_rust_string(deps_hack::base64::encode(random_bytes))
+    String::from_rust_string(deps_hack::base64::encode(random_bytes))
 }
-
 
 pub fn make_default_user_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
     requires
@@ -507,17 +487,8 @@ pub fn make_default_user_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
     data.insert(new_strlit("provider").to_string(), new_strlit("rabbitmq").to_string());
     data.insert(new_strlit("default_user.conf").to_string(), new_strlit("default_user = user\ndefault_pass = changeme").to_string());
     data.insert(new_strlit(".port").to_string(), new_strlit("5672").to_string());
-
-
-    proof {
-        assert(data@ =~= rabbitmq_spec::make_default_user_secret(rabbitmq@).data.get_Some_0());
-    }
-
     make_secret(rabbitmq, rabbitmq.name().unwrap().concat(new_strlit("-default-user")), data)
 }
-
-
-
 
 pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) -> (secret: Secret)
     requires
@@ -539,11 +510,8 @@ pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) ->
         metadata
     });
     secret.set_data(data);
-
     secret
-
 }
-
 
 fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
     requires
@@ -553,7 +521,6 @@ fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap
         config_map@ == rabbitmq_spec::make_plugins_config_map(rabbitmq@),
 {
     let mut config_map = ConfigMap::default();
-
     config_map.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-plugins-conf")));
@@ -568,12 +535,9 @@ fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap
     let mut data = StringMap::empty();
     data.insert(new_strlit("enabled_plugins").to_string(),
                 new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_management].").to_string());
-
     config_map.set_data(data);
-
     config_map
 }
-
 
 fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
     requires
@@ -583,7 +547,6 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
         config_map@ == rabbitmq_spec::make_server_config_map(rabbitmq@),
 {
     let mut config_map = ConfigMap::default();
-
     config_map.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server-conf")));
@@ -598,7 +561,6 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
     let mut data = StringMap::empty();
     data.insert(new_strlit("operatorDefaults.conf").to_string(),
                 default_rbmq_config(rabbitmq));
-
     data.insert(new_strlit("userDefinedConfiguration.conf").to_string(), {
         let mut rmq_conf_buff = new_strlit("total_memory_available_override_value = 1717986919\n").to_string(); // default value
         if rabbitmq.spec().rabbitmq_config().is_some() {
@@ -610,12 +572,9 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
         }
         rmq_conf_buff
     });
-
     config_map.set_data(data);
-
     config_map
 }
-
 
 fn default_rbmq_config(rabbitmq: &RabbitmqCluster) -> (s: String)
     requires
@@ -659,10 +618,8 @@ fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: Service
         });
         metadata
     });
-
     service_account
 }
-
 
 fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
     requires
@@ -765,13 +722,10 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
                 rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()
             );
         }
-
         rules
     });
-
     role
 }
-
 
 fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
     requires
@@ -816,11 +770,8 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
         }
         subjects
     });
-
     role_binding
 }
-
-
 
 fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
     requires
@@ -895,7 +846,6 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
                 });
                 pvc
             });
-
             proof {
                 assert_seqs_equal!(
                     volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
@@ -925,7 +875,6 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
     });
     stateful_set
 }
-
 
 fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     requires
@@ -1074,16 +1023,12 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         });
         volume
     });
-
     proof {
         assert_seqs_equal!(
             volumes@.map_values(|vol: Volume| vol@),
             rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).volumes.get_Some_0()
         );
     }
-
-
-
     let mut pod_spec = PodSpec::default();
     pod_spec.set_service_account_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
     pod_spec.set_init_containers({
@@ -1155,14 +1100,12 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
             });
             rabbitmq_container
         });
-
         proof {
             assert_seqs_equal!(
                 containers@.map_values(|container: Container| container@),
                 rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).init_containers.unwrap()
             );
         }
-
         containers
     });
     pod_spec.set_containers({
@@ -1220,14 +1163,12 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                     volume_mount.set_sub_path(new_strlit("default_user.conf").to_string());
                     volume_mount
                 });
-
                 proof {
                     assert_seqs_equal!(
                         volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@),
                         rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).containers[0].volume_mounts.get_Some_0()
                     );
                 }
-
                 volume_mounts
             });
             rabbitmq_container.set_ports({
@@ -1248,22 +1189,17 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
             rabbitmq_container.set_readiness_probe(make_readiness_probe());
             rabbitmq_container
         });
-
         proof {
             assert_seqs_equal!(
                 containers@.map_values(|container: Container| container@),
                 rabbitmq_spec::make_rabbitmq_pod_spec(rabbitmq@).containers
             );
         }
-
         containers
     });
     pod_spec.set_volumes(volumes);
-
-
     pod_spec
 }
-
 
 #[verifier(external_body)]
 fn make_readiness_probe() -> Probe
@@ -1364,12 +1300,8 @@ fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> {
             },
         )
     );
-
     env_vars
-
-
 }
-
 
 #[verifier(external_body)]
 fn make_pvc_resource_requirements() -> ResourceRequirements
