@@ -198,7 +198,7 @@ pub open spec fn pending_req_or_resp_at(key: ObjectRef, step: ZookeeperReconcile
 }
 
 pub open spec fn pending_req_is_none(key: ObjectRef, step: ZookeeperReconcileStep) -> TempPred<ClusterState> {
-    lift_state(pending_req_is_none_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconciler>(
+    lift_state(no_pending_req_msg_or_external_api_input_at_reconcile_state::<ZookeeperClusterView, ZookeeperReconciler>(
         key, |s: ZookeeperReconcileState| s.reconcile_step == step
     ))
 }

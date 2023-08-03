@@ -305,7 +305,7 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle<K: ResourceVi
         spec.entails(tla_forall(|i| controller_next::<K, E, R>().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(controller_runtime_safety::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(pending_req_is_none_at_reconcile_state::<K, E, R>(cr.object_ref(), init_state)))),
+        spec.entails(always(lift_state(no_pending_req_msg_or_external_api_input_at_reconcile_state::<K, E, R>(cr.object_ref(), init_state)))),
         forall |s| (#[trigger] init_state(s)) ==> !R::reconcile_error(s) && !R::reconcile_done(s),
         forall |cr_1, resp_o, s|
             init_state(s) ==>
@@ -325,7 +325,7 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle<K: ResourceVi
         && no_pending_req_msg_or_external_api_input::<K, E, R>(s, cr.object_ref())
     };
     temp_pred_equality::<State<K, E, R>>(
-        lift_state(pending_req_is_none_at_reconcile_state::<K, E, R>(cr.object_ref(), init_state)),
+        lift_state(no_pending_req_msg_or_external_api_input_at_reconcile_state::<K, E, R>(cr.object_ref(), init_state)),
         lift_state(at_expected_reconcile_states(cr.object_ref(), init_state)).implies(lift_state(no_pending_req))
     );
     implies_to_leads_to(
@@ -537,7 +537,7 @@ pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| controller_next::<K, E, R>().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(pending_req_is_none_at_reconcile_state(cr.object_ref(), state)))),
+        spec.entails(always(lift_state(no_pending_req_msg_or_external_api_input_at_reconcile_state(cr.object_ref(), state)))),
         forall |s| (#[trigger] state(s)) ==> !R::reconcile_error(s) && !R::reconcile_done(s),
         forall |cr_1, resp_o, s|
             state(s) ==> next_state(#[trigger] R::reconcile_core(cr_1, resp_o, s).0),
@@ -555,7 +555,7 @@ pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile
         at_expected_reconcile_states(cr.object_ref(), state)(s)
         && no_pending_req_msg_or_external_api_input::<K, E, R>(s, cr.object_ref())
     };
-    temp_pred_equality(lift_state(pending_req_is_none_at_reconcile_state(cr.object_ref(), state)), lift_state(at_expected_reconcile_states(cr.object_ref(), state)).implies(lift_state(no_req_at_state)));
+    temp_pred_equality(lift_state(no_pending_req_msg_or_external_api_input_at_reconcile_state(cr.object_ref(), state)), lift_state(at_expected_reconcile_states(cr.object_ref(), state)).implies(lift_state(no_req_at_state)));
     implies_to_leads_to(spec, lift_state(at_expected_reconcile_states(cr.object_ref(), state)), lift_state(no_req_at_state));
 
     let stronger_next = |s, s_prime: State<K, E, R>| {

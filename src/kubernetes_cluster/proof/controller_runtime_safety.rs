@@ -553,22 +553,22 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
     init_invariant::<State<K, E, R>>(spec, init::<K, E, R>(), stronger_next, invariant);
 }
 
-pub proof fn lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_init_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
-    spec: TempPred<State<K, E, R>>, key: ObjectRef
+pub proof fn lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
+    spec: TempPred<State<K, E, R>>, key: ObjectRef, state: FnSpec(R::T) -> bool
 )
     requires
         spec.entails(lift_state(init::<K, E, R>())),
         spec.entails(always(lift_action(next::<K, E, R>()))),
         forall |cr, resp_o, pre_state|
-            #[trigger] R::reconcile_core(cr, resp_o, pre_state).0 == R::reconcile_init_state()
+            #[trigger] state(R::reconcile_core(cr, resp_o, pre_state).0)
             ==> R::reconcile_core(cr, resp_o, pre_state).1.is_None(),
     ensures
-        spec.entails(always(lift_state(no_pending_req_msg_or_external_api_input_at_reconcile_init_state::<K, E, R>(key)))),
+        spec.entails(always(lift_state(no_pending_req_msg_or_external_api_input_at_reconcile_state::<K, E, R>(key, state)))),
 {
-    let invariant = no_pending_req_msg_or_external_api_input_at_reconcile_init_state::<K, E, R>(key);
+    let invariant = no_pending_req_msg_or_external_api_input_at_reconcile_state::<K, E, R>(key, state);
     assert forall |s, s_prime: State<K, E, R>| invariant(s) &&
     #[trigger] next::<K, E, R>()(s, s_prime) implies invariant(s_prime) by {
-        if at_reconcile_state(key, R::reconcile_init_state())(s_prime) {
+        if s_prime.reconcile_state_contains(key) && state(s_prime.reconcile_state_of(key).local_state) {
             if s.controller_state == s_prime.controller_state {
                 assert(s.reconcile_state_of(key).pending_req_msg.is_None());
                 assert(s_prime.reconcile_state_of(key).pending_req_msg.is_None());

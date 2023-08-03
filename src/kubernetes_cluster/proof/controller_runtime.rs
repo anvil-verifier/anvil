@@ -159,7 +159,7 @@ pub open spec fn pending_req_msg_is_none_at_reconcile_state<K: ResourceView, E: 
     }
 }
 
-pub open spec fn pending_req_is_none_at_reconcile_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
+pub open spec fn no_pending_req_msg_or_external_api_input_at_reconcile_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
     key: ObjectRef, state: FnSpec(R::T) -> bool
 ) -> StatePred<State<K, E, R>>
     recommends

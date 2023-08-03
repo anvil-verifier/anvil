@@ -1,13 +1,14 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::EmptyAPI;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, dynamic::*, resource::*, stateful_set::*,
 };
 use crate::kubernetes_cluster::proof::controller_runtime::*;
 use crate::kubernetes_cluster::spec::{
     cluster::*,
-    controller::common::{controller_req_msg, ControllerActionInput<E>, ControllerStep},
+    controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
     controller::controller_runtime::{continue_reconcile, end_reconcile, run_scheduled_reconcile},
     message::*,
 };
@@ -18,10 +19,10 @@ use vstd::prelude::*;
 
 verus! {
 
-pub type ClusterState = State<RabbitmqClusterView, RabbitmqReconciler>;
+pub type ClusterState = State<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>;
 
 pub open spec fn cluster_spec() -> TempPred<ClusterState> {
-    sm_spec::<RabbitmqClusterView, RabbitmqReconciler>()
+    sm_spec::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()
 }
 
 pub open spec fn at_rabbitmq_step(key: ObjectRef, step: RabbitmqReconcileStep) -> StatePred<ClusterState>
