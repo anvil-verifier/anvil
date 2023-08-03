@@ -10,10 +10,13 @@ use crate::kubernetes_cluster::spec::{cluster::*, message::*};
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
+use super::Cluster;
 
 verus! {
 
-pub proof fn lemma_always_rest_id_counter_is_no_smaller_than<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
+impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+
+pub proof fn lemma_always_rest_id_counter_is_no_smaller_than(
     spec: TempPred<State<K, E, R>>, rest_id: RestId
 )
     requires
@@ -26,7 +29,7 @@ pub proof fn lemma_always_rest_id_counter_is_no_smaller_than<K: ResourceView, E:
     init_invariant::<State<K, E, R>>(spec, rest_id_counter_is(rest_id), next::<K, E, R>(), invariant);
 }
 
-pub open spec fn object_is_well_formed<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(key: ObjectRef) -> StatePred<State<K, E, R>> {
+pub open spec fn object_is_well_formed(key: ObjectRef) -> StatePred<State<K, E, R>> {
     |s: State<K, E, R>| {
         &&& s.resource_obj_of(key).object_ref() == key
         &&& s.resource_obj_of(key).metadata.name.is_Some()
@@ -45,28 +48,28 @@ pub open spec fn object_is_well_formed<K: ResourceView, E: ExternalAPI, R: Recon
     }
 }
 
-pub open spec fn each_object_in_etcd_is_well_formed<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> StatePred<State<K, E, R>> {
+pub open spec fn each_object_in_etcd_is_well_formed() -> StatePred<State<K, E, R>> {
     |s: State<K, E, R>| {
         forall |key: ObjectRef|
-            #[trigger] s.resource_key_exists(key) ==> object_is_well_formed(key)(s)
+            #[trigger] s.resource_key_exists(key) ==> Self::object_is_well_formed(key)(s)
     }
 }
 
-pub proof fn lemma_always_each_object_in_etcd_is_well_formed<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
+pub proof fn lemma_always_each_object_in_etcd_is_well_formed(
     spec: TempPred<State<K, E, R>>
 )
     requires
         spec.entails(lift_state(init::<K, E, R>())),
         spec.entails(always(lift_action(next::<K, E, R>()))),
     ensures
-        spec.entails(always(lift_state(each_object_in_etcd_is_well_formed::<K, E, R>()))),
+        spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
 {
-    let invariant = each_object_in_etcd_is_well_formed::<K, E, R>();
+    let invariant = Self::each_object_in_etcd_is_well_formed();
 
     assert forall |s, s_prime: State<K, E, R>| invariant(s) && #[trigger] next::<K, E, R>()(s, s_prime)
     implies invariant(s_prime) by {
         assert forall |key: ObjectRef| #[trigger] s_prime.resource_key_exists(key)
-        implies object_is_well_formed(key)(s_prime) by {
+        implies Self::object_is_well_formed(key)(s_prime) by {
             if s.resource_key_exists(key) {} else {}
         }
     }
@@ -74,7 +77,7 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed<K: ResourceView, E:
     init_invariant(spec, init::<K, E, R>(), next::<K, E, R>(), invariant);
 }
 
-pub open spec fn each_scheduled_key_is_consistent_with_its_object<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> StatePred<State<K, E, R>> {
+pub open spec fn each_scheduled_key_is_consistent_with_its_object() -> StatePred<State<K, E, R>> {
     |s: State<K, E, R>| {
         forall |key: ObjectRef|
             #[trigger] s.reconcile_scheduled_for(key)
@@ -82,25 +85,25 @@ pub open spec fn each_scheduled_key_is_consistent_with_its_object<K: ResourceVie
     }
 }
 
-pub proof fn lemma_always_each_scheduled_key_is_consistent_with_its_object<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
+pub proof fn lemma_always_each_scheduled_key_is_consistent_with_its_object(
     spec: TempPred<State<K, E, R>>
 )
     requires
         spec.entails(lift_state(init::<K, E, R>())),
         spec.entails(always(lift_action(next::<K, E, R>()))),
     ensures
-        spec.entails(always(lift_state(each_scheduled_key_is_consistent_with_its_object::<K, E, R>()))),
+        spec.entails(always(lift_state(Self::each_scheduled_key_is_consistent_with_its_object()))),
 {
-    let invariant = each_scheduled_key_is_consistent_with_its_object::<K, E, R>();
+    let invariant = Self::each_scheduled_key_is_consistent_with_its_object();
 
-    lemma_always_each_object_in_etcd_is_well_formed::<K, E, R>(spec);
+    Self::lemma_always_each_object_in_etcd_is_well_formed(spec);
 
     let stronger_next = |s, s_prime: State<K, E, R>| {
         &&& next::<K, E, R>()(s, s_prime)
-        &&& each_object_in_etcd_is_well_formed()(s)
+        &&& Self::each_object_in_etcd_is_well_formed()(s)
     };
 
-    strengthen_next(spec, next::<K, E, R>(), each_object_in_etcd_is_well_formed(), stronger_next);
+    strengthen_next(spec, next::<K, E, R>(), Self::each_object_in_etcd_is_well_formed(), stronger_next);
 
     assert forall |s, s_prime: State<K, E, R>| invariant(s) && #[trigger] stronger_next(s, s_prime)
     implies invariant(s_prime) by {
@@ -130,7 +133,7 @@ pub proof fn lemma_always_each_scheduled_key_is_consistent_with_its_object<K: Re
     init_invariant(spec, init::<K, E, R>(), stronger_next, invariant);
 }
 
-pub open spec fn each_key_in_reconcile_is_consistent_with_its_object<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> StatePred<State<K, E, R>> {
+pub open spec fn each_key_in_reconcile_is_consistent_with_its_object() -> StatePred<State<K, E, R>> {
     |s: State<K, E, R>| {
         forall |key: ObjectRef|
             #[trigger] s.reconcile_state_contains(key)
@@ -138,25 +141,25 @@ pub open spec fn each_key_in_reconcile_is_consistent_with_its_object<K: Resource
     }
 }
 
-pub proof fn lemma_always_each_key_in_reconcile_is_consistent_with_its_object<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(
+pub proof fn lemma_always_each_key_in_reconcile_is_consistent_with_its_object(
     spec: TempPred<State<K, E, R>>
 )
     requires
         spec.entails(lift_state(init::<K, E, R>())),
         spec.entails(always(lift_action(next::<K, E, R>()))),
     ensures
-        spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object::<K, E, R>()))),
+        spec.entails(always(lift_state(Self::each_key_in_reconcile_is_consistent_with_its_object()))),
 {
-    let invariant = each_key_in_reconcile_is_consistent_with_its_object::<K, E, R>();
+    let invariant = Self::each_key_in_reconcile_is_consistent_with_its_object();
 
-    lemma_always_each_scheduled_key_is_consistent_with_its_object::<K, E, R>(spec);
+    Self::lemma_always_each_scheduled_key_is_consistent_with_its_object(spec);
 
     let stronger_next = |s, s_prime: State<K, E, R>| {
         &&& next::<K, E, R>()(s, s_prime)
-        &&& each_scheduled_key_is_consistent_with_its_object()(s)
+        &&& Self::each_scheduled_key_is_consistent_with_its_object()(s)
     };
 
-    strengthen_next(spec, next::<K, E, R>(), each_scheduled_key_is_consistent_with_its_object(), stronger_next);
+    strengthen_next(spec, next::<K, E, R>(), Self::each_scheduled_key_is_consistent_with_its_object(), stronger_next);
 
     assert forall |s, s_prime: State<K, E, R>| invariant(s) && #[trigger] stronger_next(s, s_prime)
     implies invariant(s_prime) by {
@@ -172,6 +175,6 @@ pub proof fn lemma_always_each_key_in_reconcile_is_consistent_with_its_object<K:
     init_invariant(spec, init::<K, E, R>(), stronger_next, invariant);
 }
 
-
+}
 
 }
