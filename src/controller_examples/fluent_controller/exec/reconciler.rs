@@ -450,6 +450,7 @@ fn make_fluentbit_pod_spec(fluentbit: &FluentBit) -> (pod_spec: PodSpec)
                 }
                 ports
             });
+            fluentbit_container.set_resources(fluentbit.spec().resources());
             fluentbit_container
         });
         proof {

@@ -10,18 +10,26 @@ pub struct ResourceRequirements {
     inner: deps_hack::k8s_openapi::api::core::v1::ResourceRequirements
 }
 
-impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::ResourceRequirements> for ResourceRequirements {
+impl ResourceRequirements {
+    pub spec fn view(&self) -> ResourceRequirementsView;
+
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ResourceRequirements) -> ResourceRequirements {
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ResourceRequirements) -> ResourceRequirements {
         ResourceRequirements { inner: inner }
     }
 
     #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
         self.inner
     }
 }
 
-impl ResourceRequirements {}
+pub struct ResourceRequirementsView {}
+
+impl ResourceRequirementsView {
+    pub open spec fn default() -> ResourceRequirementsView {
+        ResourceRequirementsView {}
+    }
+}
 
 }

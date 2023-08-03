@@ -4,6 +4,7 @@ use crate::fluent_controller::spec::fluentbit::*;
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, resource::*,
+    resource_requirements::*,
 };
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -111,6 +112,14 @@ impl FluentBitSpec {
             parsers_config@ == self@.parsers_config,
     {
         String::from_rust_string(self.inner.parsers_config.to_string())
+    }
+
+    #[verifier(external_body)]
+    pub fn resources(&self) -> (resources: ResourceRequirements)
+        ensures
+            resources@ == self@.resources,
+    {
+        ResourceRequirements::from_kube(self.inner.resources.clone())
     }
 }
 
