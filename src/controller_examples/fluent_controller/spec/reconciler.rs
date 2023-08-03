@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::*;
 use crate::fluent_controller::common::*;
 use crate::fluent_controller::spec::fluentbit::*;
 use crate::kubernetes_api_objects::{
@@ -24,17 +25,16 @@ pub struct FluentBitReconcileState {
 
 pub struct FluentBitReconciler {}
 
-impl Reconciler<FluentBitView> for FluentBitReconciler {
+impl Reconciler<FluentBitView, EmptyAPI> for FluentBitReconciler {
     type T = FluentBitReconcileState;
-    type I = ();
-    type O = ();
+
     open spec fn reconcile_init_state() -> FluentBitReconcileState {
         reconcile_init_state()
     }
 
     open spec fn reconcile_core(
-        fluentbit: FluentBitView, resp_o: Option<ResponseView<()>>, state: FluentBitReconcileState
-    ) -> (FluentBitReconcileState, Option<RequestView<()>>) {
+        fluentbit: FluentBitView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitReconcileState
+    ) -> (FluentBitReconcileState, Option<RequestView<EmptyTypeView>>) {
         reconcile_core(fluentbit, resp_o, state)
     }
 
@@ -44,10 +44,6 @@ impl Reconciler<FluentBitView> for FluentBitReconciler {
 
     open spec fn reconcile_error(state: FluentBitReconcileState) -> bool {
         reconcile_error(state)
-    }
-
-    open spec fn external_process(input: ()) -> Option<()> {
-        Option::None
     }
 }
 
@@ -72,8 +68,8 @@ pub open spec fn reconcile_error(state: FluentBitReconcileState) -> bool {
 }
 
 pub open spec fn reconcile_core(
-    fluentbit: FluentBitView, resp_o: Option<ResponseView<()>>, state: FluentBitReconcileState
-) -> (FluentBitReconcileState, Option<RequestView<()>>)
+    fluentbit: FluentBitView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitReconcileState
+) -> (FluentBitReconcileState, Option<RequestView<EmptyTypeView>>)
     recommends
         fluentbit.metadata.name.is_Some(),
         fluentbit.metadata.namespace.is_Some(),

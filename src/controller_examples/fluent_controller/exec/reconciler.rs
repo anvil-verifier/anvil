@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::exec::*;
 use crate::fluent_controller::common::*;
 use crate::fluent_controller::exec::fluentbit::*;
 use crate::fluent_controller::spec::reconciler as fluent_spec;
@@ -12,7 +13,7 @@ use crate::kubernetes_api_objects::{
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
-use crate::reconciler::exec::{external::*, io::*, reconciler::*};
+use crate::reconciler::exec::{io::*, reconciler::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
@@ -41,12 +42,12 @@ impl FluentBitReconcileState {
 pub struct FluentBitReconciler {}
 
 #[verifier(external)]
-impl Reconciler<FluentBit, FluentBitReconcileState, EmptyMsg, EmptyMsg, EmptyLib> for FluentBitReconciler {
+impl Reconciler<FluentBit, FluentBitReconcileState, EmptyType, EmptyType, EmptyAPI> for FluentBitReconciler {
     fn reconcile_init_state(&self) -> FluentBitReconcileState {
         reconcile_init_state()
     }
 
-    fn reconcile_core(&self, fluentbit: &FluentBit, resp_o: Option<Response<EmptyMsg>>, state: FluentBitReconcileState) -> (FluentBitReconcileState, Option<Request<EmptyMsg>>) {
+    fn reconcile_core(&self, fluentbit: &FluentBit, resp_o: Option<Response<EmptyType>>, state: FluentBitReconcileState) -> (FluentBitReconcileState, Option<Request<EmptyType>>) {
         reconcile_core(fluentbit, resp_o, state)
     }
 
@@ -92,7 +93,7 @@ pub fn reconcile_error(state: &FluentBitReconcileState) -> (res: bool)
     }
 }
 
-pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyMsg>>, state: FluentBitReconcileState) -> (res: (FluentBitReconcileState, Option<Request<EmptyMsg>>))
+pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyType>>, state: FluentBitReconcileState) -> (res: (FluentBitReconcileState, Option<Request<EmptyType>>))
     requires
         fluentbit@.metadata.name.is_Some(),
         fluentbit@.metadata.namespace.is_Some(),
