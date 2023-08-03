@@ -12,7 +12,7 @@ use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::spec::{zookeeper_lib::*, zookeepercluster::*};
+use crate::zookeeper_controller::spec::{zookeeper_api::*, zookeepercluster::*};
 use vstd::prelude::*;
 use vstd::string::*;
 

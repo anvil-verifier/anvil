@@ -3,9 +3,9 @@
 use crate::external_api::exec::*;
 use crate::pervasive_ext::to_view::*;
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::exec::zookeeper_lib::helper_funcs::*;
+use crate::zookeeper_controller::exec::zookeeper_api::helper_funcs::*;
 use crate::zookeeper_controller::exec::zookeepercluster::*;
-use crate::zookeeper_controller::spec::zookeeper_lib::{
+use crate::zookeeper_controller::spec::zookeeper_api::{
     ZKAPIInputView, ZKAPIOutputView, ZKNodeResultView,
 };
 use vstd::{prelude::*, string::*};

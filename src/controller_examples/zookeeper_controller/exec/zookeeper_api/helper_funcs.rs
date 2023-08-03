@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::pervasive_ext::string_view::*;
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::exec::{common::*, zookeeper_lib::*, zookeepercluster::*};
+use crate::zookeeper_controller::exec::{common::*, zookeeper_api::*, zookeepercluster::*};
 use deps_hack::tokio::time::Duration;
 use deps_hack::zookeeper::{Acl, CreateMode, WatchedEvent, Watcher, ZkError, ZooKeeper};
 use vstd::{prelude::*, string::*};

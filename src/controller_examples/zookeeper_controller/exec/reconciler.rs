@@ -11,7 +11,7 @@ use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::{string_view::*, to_view::*};
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::exec::{common::*, zookeeper_lib::lib::*, zookeepercluster::*};
+use crate::zookeeper_controller::exec::{common::*, zookeeper_api::api::*, zookeepercluster::*};
 use crate::zookeeper_controller::spec::reconciler as zk_spec;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
