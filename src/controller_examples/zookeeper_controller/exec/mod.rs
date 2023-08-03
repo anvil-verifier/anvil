@@ -2,5 +2,5 @@
 // SPDX-License-Identifier: MIT
 pub mod common;
 pub mod reconciler;
-pub mod zookeeper_lib;
+pub mod zookeeper_api;
 pub mod zookeepercluster;

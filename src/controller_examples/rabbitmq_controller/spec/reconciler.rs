@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
     persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, role::*,
@@ -24,21 +25,16 @@ pub struct RabbitmqReconcileState {
 
 pub struct RabbitmqReconciler {}
 
-pub struct EmptyState {}
-
-impl Reconciler<RabbitmqClusterView> for RabbitmqReconciler {
+impl Reconciler<RabbitmqClusterView, EmptyAPI> for RabbitmqReconciler {
     type T = RabbitmqReconcileState;
-    type ExternalAPIInput = ();
-    type ExternalAPIOutput = ();
-    type ExternalState = EmptyState;
 
     open spec fn reconcile_init_state() -> RabbitmqReconcileState {
         reconcile_init_state()
     }
 
     open spec fn reconcile_core(
-        rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<()>>, state: RabbitmqReconcileState
-    ) -> (RabbitmqReconcileState, Option<RequestView<()>>) {
+        rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyTypeView>>, state: RabbitmqReconcileState
+    ) -> (RabbitmqReconcileState, Option<RequestView<EmptyTypeView>>) {
         reconcile_core(rabbitmq, resp_o, state)
     }
 
@@ -48,14 +44,6 @@ impl Reconciler<RabbitmqClusterView> for RabbitmqReconciler {
 
     open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool {
         reconcile_error(state)
-    }
-
-    open spec fn external_transition(input: (), state: EmptyState) -> (Option<()>, EmptyState) {
-        (Option::None, EmptyState{})
-    }
-
-    open spec fn init_external_state() -> EmptyState {
-        EmptyState{}
     }
 }
 
@@ -80,8 +68,8 @@ pub open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool {
 }
 
 pub open spec fn reconcile_core(
-    rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<()>>, state: RabbitmqReconcileState
-) -> (RabbitmqReconcileState, Option<RequestView<()>>)
+    rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyTypeView>>, state: RabbitmqReconcileState
+) -> (RabbitmqReconcileState, Option<RequestView<EmptyTypeView>>)
     recommends
         rabbitmq.metadata.name.is_Some(),
         rabbitmq.metadata.namespace.is_Some(),

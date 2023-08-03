@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, error::*, label_selector::*, object_meta::*,
     persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
@@ -8,9 +9,9 @@ use crate::kubernetes_api_objects::{
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::{string_view::*, to_view::*};
-use crate::reconciler::exec::{external::*, io::*, reconciler::*};
+use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::exec::{common::*, zookeeper_lib::lib::*, zookeepercluster::*};
+use crate::zookeeper_controller::exec::{common::*, zookeeper_api::api::*, zookeepercluster::*};
 use crate::zookeeper_controller::spec::reconciler as zk_spec;
 use vstd::prelude::*;
 use vstd::seq_lib::*;

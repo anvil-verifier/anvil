@@ -1,12 +1,12 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, object_meta::*, resource::ResourceView,
 };
 use crate::pervasive_ext::string_map::StringMap;
-use crate::reconciler::exec::reconciler::*;
-use crate::reconciler::exec::{external::*, io::*};
+use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::simple_controller::common::*;
 use crate::simple_controller::spec::custom_resource::*;
 use crate::simple_controller::spec::reconciler as simple_spec;
@@ -33,12 +33,12 @@ impl SimpleReconcileState {
 pub struct SimpleReconciler {}
 
 #[verifier(external)]
-impl Reconciler<CustomResource, SimpleReconcileState, EmptyMsg, EmptyMsg, EmptyLib> for SimpleReconciler {
+impl Reconciler<CustomResource, SimpleReconcileState, EmptyType, EmptyType, EmptyAPI> for SimpleReconciler {
     fn reconcile_init_state(&self) -> SimpleReconcileState {
         reconcile_init_state()
     }
 
-    fn reconcile_core(&self, cr: &CustomResource, resp_o: Option<Response<EmptyMsg>>, state: SimpleReconcileState) -> (SimpleReconcileState, Option<Request<EmptyMsg>>) {
+    fn reconcile_core(&self, cr: &CustomResource, resp_o: Option<Response<EmptyType>>, state: SimpleReconcileState) -> (SimpleReconcileState, Option<Request<EmptyType>>) {
         reconcile_core(cr, resp_o, state)
     }
 
@@ -94,7 +94,7 @@ pub fn reconcile_error(state: &SimpleReconcileState) -> (res: bool)
 // TODO: need to prove whether the object is valid; See an example:
 // ConfigMap "foo_cm" is invalid: metadata.name: Invalid value: "foo_cm": a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.',
 // and must start and end with an alphanumeric character (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')
-pub fn reconcile_core(cr: &CustomResource, resp_o: Option<Response<EmptyMsg>>, state: SimpleReconcileState) -> (res: (SimpleReconcileState, Option<Request<EmptyMsg>>))
+pub fn reconcile_core(cr: &CustomResource, resp_o: Option<Response<EmptyType>>, state: SimpleReconcileState) -> (res: (SimpleReconcileState, Option<Request<EmptyType>>))
     requires
         cr@.metadata.name.is_Some(),
         cr@.metadata.namespace.is_Some(),

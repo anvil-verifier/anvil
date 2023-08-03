@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, dynamic::DynamicObjectView, object_meta::*,
     resource::*,
@@ -27,21 +28,16 @@ pub struct SimpleReconcileState {
 /// including reconcile function (reconcile_core) and triggering conditions (reconcile_trigger)
 pub struct SimpleReconciler {}
 
-pub struct EmptyState {}
-
-impl Reconciler<CustomResourceView> for SimpleReconciler {
+impl Reconciler<CustomResourceView, EmptyAPI> for SimpleReconciler {
     type T = SimpleReconcileState;
-    type ExternalAPIInput = ();
-    type ExternalAPIOutput = ();
-    type ExternalState = EmptyState;
 
     open spec fn reconcile_init_state() -> SimpleReconcileState {
         reconcile_init_state()
     }
 
     open spec fn reconcile_core(
-        cr: CustomResourceView, resp_o: Option<ResponseView<()>>, state: SimpleReconcileState
-    ) -> (SimpleReconcileState, Option<RequestView<()>>) {
+        cr: CustomResourceView, resp_o: Option<ResponseView<EmptyTypeView>>, state: SimpleReconcileState
+    ) -> (SimpleReconcileState, Option<RequestView<EmptyTypeView>>) {
         reconcile_core(cr, resp_o, state)
     }
 
@@ -51,14 +47,6 @@ impl Reconciler<CustomResourceView> for SimpleReconciler {
 
     open spec fn reconcile_error(state: SimpleReconcileState) -> bool {
         reconcile_error(state)
-    }
-
-    open spec fn external_transition(input: (), state: EmptyState) -> (Option<()>, EmptyState) {
-        (Option::None, EmptyState{})
-    }
-
-    open spec fn init_external_state() -> EmptyState {
-        EmptyState{}
     }
 }
 
@@ -91,8 +79,8 @@ pub open spec fn reconcile_error(state: SimpleReconcileState) -> bool {
 /// it sends requests to create a configmap for the cr.
 /// TODO: make the reconcile_core create more resources such as a statefulset
 pub open spec fn reconcile_core(
-    cr: CustomResourceView, resp_o: Option<ResponseView<()>>, state: SimpleReconcileState
-) -> (SimpleReconcileState, Option<RequestView<()>>)
+    cr: CustomResourceView, resp_o: Option<ResponseView<EmptyTypeView>>, state: SimpleReconcileState
+) -> (SimpleReconcileState, Option<RequestView<EmptyTypeView>>)
     recommends
         cr.metadata.name.is_Some(),
         cr.metadata.namespace.is_Some(),

@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::EmptyAPI;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, dynamic::*, resource::*, stateful_set::*,
 };
@@ -18,10 +19,10 @@ use vstd::prelude::*;
 
 verus! {
 
-pub type ClusterState = State<RabbitmqClusterView, RabbitmqReconciler>;
+pub type ClusterState = State<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>;
 
 pub open spec fn cluster_spec() -> TempPred<ClusterState> {
-    sm_spec::<RabbitmqClusterView, RabbitmqReconciler>()
+    sm_spec::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()
 }
 
 pub open spec fn at_rabbitmq_step(key: ObjectRef, step: RabbitmqReconcileStep) -> StatePred<ClusterState>
@@ -50,7 +51,7 @@ pub open spec fn at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, s
 pub open spec fn no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, step: RabbitmqReconcileStep) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
-        &&& no_pending_request(s, rabbitmq.object_ref())
+        &&& no_pending_req_msg_or_external_api_input(s, rabbitmq.object_ref())
     }
 }
 

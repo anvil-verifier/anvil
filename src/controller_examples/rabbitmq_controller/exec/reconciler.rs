@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
@@ -13,7 +14,7 @@ use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::rabbitmqcluster::*;
 use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
-use crate::reconciler::exec::{external::*, io::*, reconciler::*};
+use crate::reconciler::exec::{io::*, reconciler::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
@@ -38,12 +39,12 @@ impl RabbitmqReconcileState {
 pub struct RabbitmqReconciler {}
 
 #[verifier(external)]
-impl Reconciler<RabbitmqCluster, RabbitmqReconcileState, EmptyMsg, EmptyMsg, EmptyLib> for RabbitmqReconciler {
+impl Reconciler<RabbitmqCluster, RabbitmqReconcileState, EmptyType, EmptyType, EmptyAPI> for RabbitmqReconciler {
     fn reconcile_init_state(&self) -> RabbitmqReconcileState {
         reconcile_init_state()
     }
 
-    fn reconcile_core(&self, rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyMsg>>, state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<Request<EmptyMsg>>) {
+    fn reconcile_core(&self, rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState) -> (RabbitmqReconcileState, Option<Request<EmptyType>>) {
         reconcile_core(rabbitmq, resp_o, state)
     }
 
@@ -89,7 +90,7 @@ pub fn reconcile_error(state: &RabbitmqReconcileState) -> (res: bool)
     }
 }
 
-pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyMsg>>, state: RabbitmqReconcileState) -> (res: (RabbitmqReconcileState, Option<Request<EmptyMsg>>))
+pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState) -> (res: (RabbitmqReconcileState, Option<Request<EmptyType>>))
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),

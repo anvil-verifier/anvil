@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 
+pub mod external_api;
 pub mod kubernetes_api_objects;
 pub mod kubernetes_cluster;
 pub mod pervasive_ext;
@@ -15,7 +16,7 @@ pub mod temporal_logic;
 use builtin::*;
 use builtin_macros::*;
 
-use crate::reconciler::exec::external::*;
+use crate::external_api::exec::*;
 use crate::simple_controller::exec::reconciler::{SimpleReconcileState, SimpleReconciler};
 use crate::simple_controller::spec::custom_resource::CustomResource;
 use deps_hack::anyhow::Result;
@@ -38,7 +39,7 @@ async fn main() -> Result<()> {
         println!("{}", serde_yaml::to_string(&deps_hack::SimpleCR::crd())?);
     } else if cmd == String::from("run") {
         println!("running simple-controller");
-        run_controller::<deps_hack::SimpleCR, CustomResource, SimpleReconciler, SimpleReconcileState, EmptyMsg, EmptyMsg, EmptyLib>().await?;
+        run_controller::<deps_hack::SimpleCR, CustomResource, SimpleReconciler, SimpleReconcileState, EmptyType, EmptyType, EmptyAPI>().await?;
         println!("controller terminated");
     } else {
         println!("wrong command; please use \"export\" or \"run\"");

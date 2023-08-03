@@ -7,7 +7,7 @@ use crate::kubernetes_api_objects::{
 use crate::kubernetes_cluster::proof::controller_runtime::*;
 use crate::kubernetes_cluster::spec::{
     cluster::*,
-    controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
+    controller::common::{controller_req_msg, ControllerActionInput<E>, ControllerStep},
     controller::controller_runtime::{continue_reconcile, end_reconcile, run_scheduled_reconcile},
     message::*,
 };
@@ -57,7 +57,7 @@ pub open spec fn at_zookeeper_step_with_zk(zk: ZookeeperClusterView, step: Zooke
 pub open spec fn no_pending_req_at_zookeeper_step_with_zk(zk: ZookeeperClusterView, step: ZookeeperReconcileStep) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_zookeeper_step_with_zk(zk, step)(s)
-        &&& no_pending_request(s, zk.object_ref())
+        &&& no_pending_req_msg_or_external_api_input(s, zk.object_ref())
     }
 }
 
