@@ -31,7 +31,7 @@ verus! {
 
 pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| controller_next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),

@@ -62,7 +62,7 @@ proof fn liveness_proof_forall_rabbitmq()
 
 // Next and all the wf conditions.
 spec fn next_with_wf() -> TempPred<ClusterState> {
-    always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))
+    always(lift_action(ClusterProof::next()))
     .and(tla_forall(|input| kubernetes_api_next().weak_fairness(input)))
     .and(tla_forall(|input| controller_next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>().weak_fairness(input)))
     .and(tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)))
@@ -74,14 +74,14 @@ proof fn next_with_wf_is_stable()
     ensures
         valid(stable(next_with_wf())),
 {
-    always_p_is_stable(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()));
+    always_p_is_stable(lift_action(ClusterProof::next()));
     ClusterProof::tla_forall_action_weak_fairness_is_stable(kubernetes_api_next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>());
     ClusterProof::tla_forall_action_weak_fairness_is_stable(controller_next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>());
     ClusterProof::tla_forall_action_weak_fairness_is_stable(schedule_controller_reconcile::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>());
     ClusterProof::action_weak_fairness_is_stable(disable_crash::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>());
     ClusterProof::action_weak_fairness_is_stable(disable_busy::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>());
     stable_and_n!(
-        always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())),
+        always(lift_action(ClusterProof::next())),
         tla_forall(|input| kubernetes_api_next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>().weak_fairness(input)),
         tla_forall(|input| controller_next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>().weak_fairness(input)),
         tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)),
@@ -616,7 +616,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_rabbitmq_under_eventua
 
 proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(tla_forall(|i| schedule_controller_reconcile().weak_fairness(i))),
         spec.entails(always(lift_state(ClusterProof::desired_state_is(rabbitmq)))),
         rabbitmq.well_formed(),
@@ -640,7 +640,7 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ClusterState>, ra
     let input = rabbitmq.object_ref();
 
     ClusterProof::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(
-        spec, input, next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>(), ClusterProof::desired_state_is(rabbitmq), pre, post
+        spec, input, ClusterProof::next(), ClusterProof::desired_state_is(rabbitmq), pre, post
     );
     valid_implies_implies_leads_to(spec, lift_state(post), lift_state(post));
     or_leads_to_combine(spec, pre, post, post);
@@ -649,7 +649,7 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<ClusterState>, ra
 
 proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(tla_forall(|i| controller_next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(ClusterProof::each_scheduled_key_is_consistent_with_its_object()))),
@@ -671,21 +671,21 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, rabbitm
     let post = no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init);
     let input = (Option::None, Option::None, Option::Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& crash_disabled()(s)
         &&& ClusterProof::each_scheduled_key_is_consistent_with_its_object()(s)
         &&& ClusterProof::the_object_in_schedule_has_spec_as(rabbitmq)(s)
     };
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(crash_disabled()),
         lift_state(ClusterProof::each_scheduled_key_is_consistent_with_its_object()),
         lift_state(ClusterProof::the_object_in_schedule_has_spec_as(rabbitmq))
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(crash_disabled()))
         .and(lift_state(ClusterProof::each_scheduled_key_is_consistent_with_its_object()))
         .and(lift_state(ClusterProof::the_object_in_schedule_has_spec_as(rabbitmq)))
@@ -701,7 +701,7 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
     spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView
 )
     requires
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(tla_forall(|i| controller_next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
         rabbitmq.well_formed(),
@@ -715,17 +715,17 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
     let post = pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateHeadlessService, rabbitmq, arbitrary());
     let input = (Option::None, Option::None, Option::Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& crash_disabled()(s)
     };
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(crash_disabled())
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(crash_disabled()))
     );
 
@@ -746,7 +746,7 @@ proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_
     spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, step: RabbitmqReconcileStep, next_step: RabbitmqReconcileStep
 )
     requires
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(tla_forall(|i| controller_next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>().weak_fairness(i))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
@@ -851,7 +851,7 @@ proof fn lemma_receives_some_resp_at_rabbitmq_step_with_rabbitmq(
     spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, req_msg: Message, step: RabbitmqReconcileStep
 )
     requires
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
@@ -868,21 +868,21 @@ proof fn lemma_receives_some_resp_at_rabbitmq_step_with_rabbitmq(
     let post = exists_resp_in_flight_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, arbitrary());
     let input = Option::Some(req_msg);
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& crash_disabled()(s)
         &&& busy_disabled()(s)
         &&& ClusterProof::every_in_flight_msg_has_unique_id()(s)
     };
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(crash_disabled()),
         lift_state(busy_disabled()),
         lift_state(ClusterProof::every_in_flight_msg_has_unique_id())
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(crash_disabled()))
         .and(lift_state(busy_disabled()))
         .and(lift_state(ClusterProof::every_in_flight_msg_has_unique_id()))
@@ -914,7 +914,7 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
     spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, resp_msg: Message, step: RabbitmqReconcileStep, result_step: RabbitmqReconcileStep
 )
     requires
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(tla_forall(|i| controller_next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
@@ -949,7 +949,7 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
     //    (Note that this is not required for termination)
     //   - each_resp_matches_at_most_one_pending_req: to make sure that the resp_msg will not be used by other cr
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& crash_disabled()(s)
         &&& busy_disabled()(s)
         &&& ClusterProof::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())(s)
@@ -957,14 +957,14 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(crash_disabled()),
         lift_state(busy_disabled()),
         lift_state(ClusterProof::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref()))
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(crash_disabled()))
         .and(lift_state(busy_disabled()))
         .and(lift_state(ClusterProof::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))
@@ -1140,7 +1140,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
     spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, rest_id: nat, req_msg: Message
 )
     requires
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
@@ -1174,7 +1174,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
     };
     let input = Option::Some(req_msg);
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& crash_disabled()(s)
         &&& busy_disabled()(s)
         &&& ClusterProof::every_in_flight_msg_has_unique_id()(s)
@@ -1183,7 +1183,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
     };
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(crash_disabled()),
         lift_state(busy_disabled()),
         lift_state(ClusterProof::every_in_flight_msg_has_unique_id()),
@@ -1192,7 +1192,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(crash_disabled()))
         .and(lift_state(busy_disabled()))
         .and(lift_state(ClusterProof::every_in_flight_msg_has_unique_id()))
@@ -1238,7 +1238,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_create_server_conf
     spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, rest_id: nat, resp_msg: Message
 )
     requires
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(tla_forall(|i| controller_next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(ClusterProof::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))),
@@ -1272,7 +1272,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_create_server_conf
     };
     let input = (Option::Some(resp_msg), Option::None, Option::Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& crash_disabled()(s)
         &&& ClusterProof::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())(s)
         &&& ClusterProof::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())(s)
@@ -1282,7 +1282,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_create_server_conf
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(crash_disabled()),
         lift_state(ClusterProof::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())),
         lift_state(ClusterProof::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())),
@@ -1291,7 +1291,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_create_server_conf
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(crash_disabled()))
         .and(lift_state(ClusterProof::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))
         .and(lift_state(ClusterProof::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())))
@@ -1309,7 +1309,7 @@ proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitm
     spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, rest_id: nat, req_msg: Message
 )
     requires
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
@@ -1345,7 +1345,7 @@ proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitm
     };
     let input = Option::Some(req_msg);
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& crash_disabled()(s)
         &&& busy_disabled()(s)
         &&& ClusterProof::every_in_flight_msg_has_unique_id()(s)
@@ -1354,7 +1354,7 @@ proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitm
     };
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(crash_disabled()),
         lift_state(busy_disabled()),
         lift_state(ClusterProof::every_in_flight_msg_has_unique_id()),
@@ -1363,7 +1363,7 @@ proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitm
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(crash_disabled()))
         .and(lift_state(busy_disabled()))
         .and(lift_state(ClusterProof::every_in_flight_msg_has_unique_id()))
@@ -1552,7 +1552,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
     spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, rest_id: nat, req_msg: Message, object: DynamicObjectView
 )
     requires
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
@@ -1591,7 +1591,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
     };
     let input = Option::Some(req_msg);
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& crash_disabled()(s)
         &&& busy_disabled()(s)
         &&& ClusterProof::every_in_flight_msg_has_unique_id()(s)
@@ -1601,7 +1601,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
     };
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(crash_disabled()),
         lift_state(busy_disabled()),
         lift_state(ClusterProof::every_in_flight_msg_has_unique_id()),
@@ -1611,7 +1611,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(crash_disabled()))
         .and(lift_state(busy_disabled()))
         .and(lift_state(ClusterProof::every_in_flight_msg_has_unique_id()))
@@ -1658,7 +1658,7 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
     spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, rest_id: nat, req_msg: Message, object: DynamicObjectView
 )
     requires
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
@@ -1698,7 +1698,7 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
     };
     let input = Option::Some(req_msg);
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& crash_disabled()(s)
         &&& busy_disabled()(s)
         &&& ClusterProof::every_in_flight_msg_has_unique_id()(s)
@@ -1709,7 +1709,7 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
     };
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(crash_disabled()),
         lift_state(busy_disabled()),
         lift_state(ClusterProof::every_in_flight_msg_has_unique_id()),
@@ -1720,7 +1720,7 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(crash_disabled()))
         .and(lift_state(busy_disabled()))
         .and(lift_state(ClusterProof::every_in_flight_msg_has_unique_id()))
@@ -1754,7 +1754,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_conf
     spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, rest_id: nat, resp_msg: Message, object: DynamicObjectView
 )
     requires
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(tla_forall(|i| controller_next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>().weak_fairness(i))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
@@ -1795,7 +1795,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_conf
     };
     let input = (Option::Some(resp_msg), Option::None, Option::Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& crash_disabled()(s)
         &&& busy_disabled()(s)
         &&& ClusterProof::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())(s)
@@ -1808,7 +1808,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_conf
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(crash_disabled()),
         lift_state(busy_disabled()),
         lift_state(ClusterProof::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())),
@@ -1820,7 +1820,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_conf
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(crash_disabled()))
         .and(lift_state(busy_disabled()))
         .and(lift_state(ClusterProof::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))
@@ -1842,7 +1842,7 @@ proof fn lemma_server_config_map_is_stable(
 )
     requires
         spec.entails(p.leads_to(lift_state(current_state_matches(rabbitmq)))),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(always(lift_state(ClusterProof::no_req_before_rest_id_is_in_flight(rest_id)))),
         spec.entails(always(lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))),
         spec.entails(always(lift_state(safety::every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id)))),
@@ -1851,21 +1851,21 @@ proof fn lemma_server_config_map_is_stable(
 {
     let post = current_state_matches(rabbitmq);
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& ClusterProof::no_req_before_rest_id_is_in_flight(rest_id)(s)
         &&& safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)(s)
         &&& safety::every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id)(s)
     };
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(ClusterProof::no_req_before_rest_id_is_in_flight(rest_id)),
         lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
         lift_state(safety::every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id))
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(ClusterProof::no_req_before_rest_id_is_in_flight(rest_id)))
         .and(lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)))
         .and(lift_state(safety::every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id)))

@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use super::Cluster;
 use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
@@ -19,6 +18,7 @@ use crate::kubernetes_cluster::spec::{
     network,
     network::{network, NetworkState},
 };
+use crate::kubernetes_cluster::Cluster;
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -54,9 +54,9 @@ pub proof fn tla_forall_action_weak_fairness_is_stable<Input, Output>(
 /// Prove partial_spec is stable.
 pub proof fn sm_partial_spec_is_stable()
     ensures
-        valid(stable(sm_partial_spec::<K, E, R>())),
+        valid(stable(Self::sm_partial_spec())),
 {
-    always_p_is_stable::<State<K, E, R>>(lift_action(next::<K, E, R>()));
+    always_p_is_stable::<State<K, E, R>>(lift_action(Self::next()));
     Self::tla_forall_action_weak_fairness_is_stable::<Option<Message>, ()>(kubernetes_api_next());
     Self::tla_forall_action_weak_fairness_is_stable::<(Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>), ()>(controller_next::<K, E, R>());
     Self::tla_forall_action_weak_fairness_is_stable::<ExternalComm<E::Input, E::Output>, ()>(external_api_next::<K, E, R>());
@@ -65,7 +65,7 @@ pub proof fn sm_partial_spec_is_stable()
     Self::action_weak_fairness_is_stable::<()>(disable_busy());
 
     stable_and_n!(
-        always(lift_action(next::<K, E, R>())),
+        always(lift_action(Self::next())),
         tla_forall(|input| kubernetes_api_next().weak_fairness(input)),
         tla_forall(|input| controller_next::<K, E, R>().weak_fairness(input)),
         tla_forall(|input| external_api_next::<K, E, R>().weak_fairness(input)),
@@ -79,35 +79,35 @@ pub proof fn lemma_true_leads_to_crash_always_disabled(
     spec: TempPred<State<K, E, R>>,
 )
     requires
-        spec.entails(always(lift_action(next::<K, E, R>()))),
+        spec.entails(always(lift_action(Self::next()))),
         spec.entails(disable_crash().weak_fairness(())),
     ensures
         spec.entails(true_pred().leads_to(always(lift_state(crash_disabled::<K, E, R>())))),
 {
     let true_state = |s: State<K, E, R>| true;
-    disable_crash().wf1((), spec, next::<K, E, R>(), true_state, crash_disabled::<K, E, R>());
-    leads_to_stable_temp::<State<K, E, R>>(spec, lift_action(next::<K, E, R>()), true_pred(), lift_state(crash_disabled::<K, E, R>()));
+    disable_crash().wf1((), spec, Self::next(), true_state, crash_disabled::<K, E, R>());
+    leads_to_stable_temp::<State<K, E, R>>(spec, lift_action(Self::next()), true_pred(), lift_state(crash_disabled::<K, E, R>()));
 }
 
 pub proof fn lemma_true_leads_to_busy_always_disabled(
     spec: TempPred<State<K, E, R>>,
 )
     requires
-        spec.entails(always(lift_action(next::<K, E, R>()))),
+        spec.entails(always(lift_action(Self::next()))),
         spec.entails(disable_busy().weak_fairness(())),
     ensures
         spec.entails(true_pred().leads_to(always(lift_state(busy_disabled::<K, E, R>())))),
 {
     let true_state = |s: State<K, E, R>| true;
-    disable_busy().wf1((), spec, next::<K, E, R>(), true_state, busy_disabled::<K, E, R>());
-    leads_to_stable_temp::<State<K, E, R>>(spec, lift_action(next::<K, E, R>()), true_pred(), lift_state(busy_disabled::<K, E, R>()));
+    disable_busy().wf1((), spec, Self::next(), true_state, busy_disabled::<K, E, R>());
+    leads_to_stable_temp::<State<K, E, R>>(spec, lift_action(Self::next()), true_pred(), lift_state(busy_disabled::<K, E, R>()));
 }
 
 pub proof fn lemma_any_pred_leads_to_crash_always_disabled(
     spec: TempPred<State<K, E, R>>, any_pred: TempPred<State<K, E, R>>
 )
     requires
-        spec.entails(always(lift_action(next::<K, E, R>()))),
+        spec.entails(always(lift_action(Self::next()))),
         spec.entails(disable_crash().weak_fairness(())),
     ensures
         spec.entails(any_pred.leads_to(always(lift_state(crash_disabled::<K, E, R>())))),

@@ -20,6 +20,7 @@ use crate::kubernetes_cluster::spec::{
     message::*,
     network::{network, NetworkState},
 };
+use crate::kubernetes_cluster::Cluster;
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
@@ -103,6 +104,20 @@ impl<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> State<K, E, R> {
     }
 }
 
+#[is_variant]
+pub enum Step<K, E: ExternalAPI> {
+    KubernetesAPIStep(Option<Message>),
+    ControllerStep((Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>)),
+    ClientStep((Option<Message>, K)),
+    ExternalAPIStep(ExternalComm<E::Input, E::Output>),
+    ScheduleControllerReconcileStep(ObjectRef),
+    RestartController(),
+    DisableCrash(),
+    KubernetesBusy(Option<Message>),
+    DisableBusy(),
+    StutterStep(),
+}
+
 pub open spec fn init<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> StatePred<State<K, E, R>> {
     |s: State<K, E, R>| {
         &&& (kubernetes_api().init)(s.kubernetes_api_state)
@@ -154,14 +169,14 @@ pub open spec fn kubernetes_api_next<K: ResourceView, E: ExternalAPI, R: Reconci
     }
 }
 
-/// This action basically executes the transition process of the external api. When external support is needed, It receives 
+/// This action basically executes the transition process of the external api. When external support is needed, It receives
 /// the result computed by the controller as input and store the output of the transition for later use. If no external api
 /// is used (i.e., EmptyAPI is fed to the reconciler), the precondition should not be satisfied since the developer should not
 /// make reconcile_core return a external request.
-/// 
+///
 /// This action simulates the behavior of certain executions where the reconcile process is blocked and waits for the handling
 /// by external api, the external api will then take the input provided by the controller and carry out its own operations.
-/// We make all the operations by the external api each time atomic. 
+/// We make all the operations by the external api each time atomic.
 pub open spec fn external_api_next<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> Action<State<K, E, R>, ExternalComm<E::Input, E::Output>, ()> {
     Action {
         precondition: |input: ExternalComm<E::Input, E::Output>, s: State<K, E, R>| {
@@ -385,20 +400,6 @@ pub open spec fn stutter<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>()
     }
 }
 
-#[is_variant]
-pub enum Step<K, E: ExternalAPI> {
-    KubernetesAPIStep(Option<Message>),
-    ControllerStep((Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>)),
-    ClientStep((Option<Message>, K)),
-    ExternalAPIStep(ExternalComm<E::Input, E::Output>),
-    ScheduleControllerReconcileStep(ObjectRef),
-    RestartController(),
-    DisableCrash(),
-    KubernetesBusy(Option<Message>),
-    DisableBusy(),
-    StutterStep(),
-}
-
 pub open spec fn next_step<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>
     (s: State<K, E, R>, s_prime: State<K, E, R>, step: Step<K, E>) -> bool {
     match step {
@@ -415,28 +416,31 @@ pub open spec fn next_step<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>
     }
 }
 
+impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 /// `next` chooses:
 /// * which host to take the next action (`Step`)
 /// * whether to deliver a message and which message to deliver (`Option<Message>` in `Step`)
-pub open spec fn next<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> ActionPred<State<K, E, R>> {
+pub open spec fn next() -> ActionPred<State<K, E, R>> {
     |s: State<K, E, R>, s_prime: State<K, E, R>| exists |step: Step<K, E>| next_step::<K, E, R>(s, s_prime, step)
 }
 
 /// We install the reconciler to the Kubernetes cluster state machine spec
 /// TODO: develop a struct for the compound state machine and make reconciler its member
 /// so that we don't have to pass reconciler to init and next in the proof.
-pub open spec fn sm_spec<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> TempPred<State<K, E, R>> {
-    lift_state(init::<K, E, R>()).and(sm_partial_spec::<K, E, R>())
+pub open spec fn sm_spec() -> TempPred<State<K, E, R>> {
+    lift_state(init::<K, E, R>()).and(Self::sm_partial_spec())
 }
 
-pub open spec fn sm_partial_spec<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> TempPred<State<K, E, R>> {
-    always(lift_action(next::<K, E, R>()))
+pub open spec fn sm_partial_spec() -> TempPred<State<K, E, R>> {
+    always(lift_action(Self::next()))
     .and(tla_forall(|input| kubernetes_api_next().weak_fairness(input)))
     .and(tla_forall(|input| controller_next::<K, E, R>().weak_fairness(input)))
     .and(tla_forall(|input| external_api_next::<K, E, R>().weak_fairness(input)))
     .and(tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)))
     .and(disable_crash().weak_fairness(()))
     .and(disable_busy().weak_fairness(()))
+}
+
 }
 
 pub open spec fn kubernetes_api_action_pre<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>(action: KubernetesAPIAction, input: Option<Message>) -> StatePred<State<K, E, R>> {

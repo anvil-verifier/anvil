@@ -80,7 +80,7 @@ pub proof fn lemma_always_pending_msg_at_after_create_server_config_map_step_is_
 )
     requires
         spec.entails(lift_state(init::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
     ensures
         spec.entails(
             always(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))
@@ -89,7 +89,7 @@ pub proof fn lemma_always_pending_msg_at_after_create_server_config_map_step_is_
     let invariant = pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key);
     let init = init::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>();
     let stronger_next = |s, s_prime| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()(s)
     };
 
@@ -97,12 +97,12 @@ pub proof fn lemma_always_pending_msg_at_after_create_server_config_map_step_is_
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object())
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()))
     );
 
@@ -129,7 +129,7 @@ pub proof fn lemma_always_pending_msg_at_after_update_server_config_map_step_is_
 )
     requires
         spec.entails(lift_state(init::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
     ensures
         spec.entails(
             always(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))
@@ -138,7 +138,7 @@ pub proof fn lemma_always_pending_msg_at_after_update_server_config_map_step_is_
     let invariant = pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key);
     let init = init::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>();
     let stronger_next = |s, s_prime| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()(s)
     };
 
@@ -146,12 +146,12 @@ pub proof fn lemma_always_pending_msg_at_after_update_server_config_map_step_is_
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object())
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()))
     );
 
@@ -185,7 +185,7 @@ pub proof fn lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(
         spec.entails(lift_state(rest_id_counter_is(rest_id))),
         spec.entails(lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key))),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))),
@@ -204,7 +204,7 @@ pub proof fn lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(
         &&& pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)(s)
     };
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& crash_disabled()(s)
         &&& busy_disabled()(s)
         &&& pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)(s)
@@ -229,7 +229,7 @@ pub proof fn lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(crash_disabled()),
         lift_state(busy_disabled()),
         lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)),
@@ -239,7 +239,7 @@ pub proof fn lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(crash_disabled()))
         .and(lift_state(busy_disabled()))
         .and(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))
@@ -341,7 +341,7 @@ pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
         spec.entails(lift_state(rest_id_counter_is(rest_id))),
         spec.entails(lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key))),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(always(lift_state(crash_disabled()))),
         spec.entails(always(lift_state(busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))),
@@ -360,7 +360,7 @@ pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
         &&& pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)(s)
     };
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& crash_disabled()(s)
         &&& busy_disabled()(s)
         &&& pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)(s)
@@ -386,7 +386,7 @@ pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(crash_disabled()),
         lift_state(busy_disabled()),
         lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)),
@@ -396,7 +396,7 @@ pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(crash_disabled()))
         .and(lift_state(busy_disabled()))
         .and(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))
@@ -471,7 +471,7 @@ pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
     requires
         spec.entails(lift_state(rest_id_counter_is(rest_id))),
         spec.entails(lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator())),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         spec.entails(always(lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()))),
         spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_state(ClusterProof::the_object_in_reconcile_has_spec_as(rabbitmq)))),
@@ -483,7 +483,7 @@ pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
         &&& ClusterProof::every_in_flight_msg_has_lower_id_than_allocator()(s)
     };
     let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()(s, s_prime)
+        &&& ClusterProof::next()(s, s_prime)
         &&& ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()(s)
         &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
         &&& ClusterProof::the_object_in_reconcile_has_spec_as(rabbitmq)(s)
@@ -503,14 +503,14 @@ pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()),
+        lift_action(ClusterProof::next()),
         lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()),
         lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(ClusterProof::the_object_in_reconcile_has_spec_as(rabbitmq))
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>())
+        lift_action(ClusterProof::next())
         .and(lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()))
         .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
         .and(lift_state(ClusterProof::the_object_in_reconcile_has_spec_as(rabbitmq)))
@@ -574,7 +574,7 @@ pub proof fn lemma_always_no_delete_cm_req_since_rest_id_is_in_flight(
     requires
         spec.entails(lift_state(rest_id_counter_is(rest_id))),
         spec.entails(lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator())),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>()))),
+        spec.entails(always(lift_action(ClusterProof::next()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
@@ -585,7 +585,7 @@ pub proof fn lemma_always_no_delete_cm_req_since_rest_id_is_in_flight(
         &&& rest_id_counter_is(rest_id)(s)
         &&& ClusterProof::every_in_flight_msg_has_lower_id_than_allocator()(s)
     };
-    let next = next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>();
+    let next = ClusterProof::next();
     let invariant = no_delete_cm_req_since_rest_id_is_in_flight(key, rest_id);
 
     entails_and_n!(
