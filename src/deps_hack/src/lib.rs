@@ -52,14 +52,25 @@ pub struct RabbitmqClusterSpec {
     #[serde(rename = "rabbitmq", skip_serializing_if = "Option::is_none")]
     pub rabbitmq_config: Option<RabbitmqClusterConfigurationSpec>,
 }
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct RabbitmqClusterConfigurationSpec {
-    // #[serde(rename = "additionalPlugins", skip_serializing_if = "Option::is_none")]
-    // pub additional_plugins: Option<Vec<String>>,
     #[serde(rename = "additionalConfig", skip_serializing_if = "Option::is_none")]
     pub additional_config: Option<String>,
     #[serde(rename = "advancedConfig", skip_serializing_if = "Option::is_none")]
     pub advanced_config: Option<String>,
     #[serde(rename = "envConfig", skip_serializing_if = "Option::is_none")]
     pub env_config: Option<String>,
+}
+
+#[derive(
+    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
+#[kube(group = "anvil.dev", version = "v1", kind = "FluentBit")]
+#[kube(shortname = "fb", namespaced)]
+pub struct FluentBitSpec {
+    #[serde(rename = "fluentBitConfig")]
+    pub fluentbit_config: String,
+    #[serde(rename = "parsersConfig")]
+    pub parsers_config: String,
 }

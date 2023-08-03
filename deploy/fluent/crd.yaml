@@ -8,7 +8,8 @@ spec:
     categories: []
     kind: FluentBit
     plural: fluentbits
-    shortNames: []
+    shortNames:
+      - fb
     singular: fluentbit
   scope: Namespaced
   versions:
@@ -20,10 +21,13 @@ spec:
           properties:
             spec:
               properties:
-                config:
+                fluentBitConfig:
+                  type: string
+                parsersConfig:
                   type: string
               required:
-                - config
+                - fluentBitConfig
+                - parsersConfig
               type: object
           required:
             - spec

@@ -168,6 +168,16 @@ impl PodSpec {
         self.inner.service_account_name = std::option::Option::Some(service_account.into_rust_string())
     }
 
+    #[verifier(external_body)]
+    pub fn set_tolerations(&mut self, tolerations: Vec<Toleration>)
+        ensures
+            self@ == old(self)@,
+    {
+        self.inner.tolerations = std::option::Option::Some(
+            tolerations.into_iter().map(|t: Toleration| t.into_kube()).collect()
+        )
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSpec {
         self.inner
@@ -236,7 +246,7 @@ impl Container {
         self.inner.lifecycle = std::option::Option::Some(lifecycle.into_kube())
     }
 
-    /// Methods for the fields that Anvil currently does not reason about
+    // Methods for the fields that do not appear in spec
 
     #[verifier(external_body)]
     pub fn set_command(&mut self, command: Vec<String>)
@@ -284,6 +294,23 @@ impl Container {
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Container {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct Toleration {
+    inner: deps_hack::k8s_openapi::api::core::v1::Toleration,
+}
+
+impl Toleration {
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Toleration) -> Toleration {
+        Toleration { inner: inner }
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Toleration {
         self.inner
     }
 }
@@ -419,6 +446,14 @@ impl VolumeMount {
     }
 
     #[verifier(external_body)]
+    pub fn set_read_only(&mut self, read_only: bool)
+        ensures
+            self@ == old(self)@.set_read_only(read_only),
+    {
+        self.inner.read_only = std::option::Option::Some(read_only);
+    }
+
+    #[verifier(external_body)]
     pub fn set_sub_path(&mut self, sub_path: String)
         ensures
             self@ == old(self)@.set_sub_path(sub_path@),
@@ -456,6 +491,14 @@ impl Volume {
             self@ == old(self)@.set_name(name@),
     {
         self.inner.name = name.into_rust_string();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_host_path(&mut self, host_path: HostPathVolumeSource)
+        ensures
+            self@ == old(self)@.set_host_path(host_path@),
+    {
+        self.inner.host_path = std::option::Option::Some(host_path.into_kube());
     }
 
     #[verifier(external_body)]
@@ -573,6 +616,38 @@ impl LifecycleHandler {
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::LifecycleHandler {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct HostPathVolumeSource {
+    inner: deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource,
+}
+
+impl HostPathVolumeSource {
+    pub spec fn view(&self) -> HostPathVolumeSourceView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (host_path_volume_source: HostPathVolumeSource)
+        ensures
+            host_path_volume_source@ == HostPathVolumeSourceView::default(),
+    {
+        HostPathVolumeSource {
+            inner: deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_path(&mut self, path: String)
+        ensures
+            self@ == old(self)@.set_path(path@),
+    {
+        self.inner.path = path.into_rust_string();
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::HostPathVolumeSource {
         self.inner
     }
 }
@@ -1184,9 +1259,7 @@ impl LifecycleView {
             ..self
         }
     }
-
 }
-
 
 pub struct LifecycleHandlerView {
     pub exec_: Option<Seq<StringView>>,
@@ -1251,6 +1324,7 @@ impl Marshalable for ContainerPortView {
 pub struct VolumeMountView {
     pub mount_path: StringView,
     pub name: StringView,
+    pub read_only: Option<bool>,
     pub sub_path: Option<StringView>,
 }
 
@@ -1259,6 +1333,7 @@ impl VolumeMountView {
         VolumeMountView {
             mount_path: new_strlit("")@,
             name: new_strlit("")@,
+            read_only: Option::Some(false),
             sub_path: Option::None,
         }
     }
@@ -1273,6 +1348,13 @@ impl VolumeMountView {
     pub open spec fn set_name(self, name: StringView) -> VolumeMountView {
         VolumeMountView {
             name: name,
+            ..self
+        }
+    }
+
+    pub open spec fn set_read_only(self, read_only: bool) -> VolumeMountView {
+        VolumeMountView {
+            read_only: Option::Some(read_only),
             ..self
         }
     }
@@ -1298,6 +1380,7 @@ impl Marshalable for VolumeMountView {
 }
 
 pub struct VolumeView {
+    pub host_path: Option<HostPathVolumeSourceView>,
     pub config_map: Option<ConfigMapVolumeSourceView>,
     pub name: StringView,
     pub projected: Option<ProjectedVolumeSourceView>,
@@ -1310,9 +1393,17 @@ impl VolumeView {
         VolumeView {
             name: new_strlit("")@,
             config_map: Option::None,
+            host_path: Option::None,
             projected: Option::None,
             secret: Option::None,
             downward_api: Option::None,
+        }
+    }
+
+    pub open spec fn set_host_path(self, host_path: HostPathVolumeSourceView) -> VolumeView {
+        VolumeView {
+            host_path: Option::Some(host_path),
+            ..self
         }
     }
 
@@ -1352,7 +1443,6 @@ impl VolumeView {
     }
 }
 
-
 impl Marshalable for VolumeView {
     spec fn marshal(self) -> Value;
 
@@ -1363,6 +1453,25 @@ impl Marshalable for VolumeView {
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
+}
+
+pub struct HostPathVolumeSourceView {
+    pub path: StringView,
+}
+
+impl HostPathVolumeSourceView {
+    pub open spec fn default() -> HostPathVolumeSourceView {
+        HostPathVolumeSourceView {
+            path: new_strlit("")@,
+        }
+    }
+
+    pub open spec fn set_path(self, path: StringView) -> HostPathVolumeSourceView {
+        HostPathVolumeSourceView {
+            path: path,
+            ..self
+        }
+    }
 }
 
 pub struct ConfigMapVolumeSourceView {
@@ -1426,8 +1535,6 @@ impl Marshalable for SecretVolumeSourceView {
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
-
-
 
 pub struct ProjectedVolumeSourceView {
     pub sources: Option<Seq<VolumeProjectionView>>,
