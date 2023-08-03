@@ -154,6 +154,10 @@ pub open spec fn kubernetes_api_next<K: ResourceView, E: ExternalAPI, R: Reconci
     }
 }
 
+/// This action basically executes the transition process of the external api. When external support is needed, It receives 
+/// the result computed by the controller as input and store the output of the transition for later use. If no external api
+/// is used (i.e., EmptyAPI is fed to the reconciler), the precondition should not be satisfied since the developer should not
+/// make reconcile_core return a external request.
 pub open spec fn external_api_next<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> Action<State<K, E, R>, ExternalComm<E::Input, E::Output>, ()> {
     Action {
         precondition: |input: ExternalComm<E::Input, E::Output>, s: State<K, E, R>| {
@@ -318,9 +322,9 @@ pub open spec fn busy_kubernetes_api_rejects_request<K: ResourceView, E: Externa
     }
 }
 
-/// This action disallows the kubernetes api to be busy from this point.
-/// This is used to constraint the crash behavior for liveness proof:
-/// the controller eventually stops rejecting requests.
+/// This action disallows the Kubernetes API to be busy from this point.
+/// This is used to constraint the transient error of Kubernetes APIs for liveness proof:
+/// the requests from the controller eventually stop being rejected by transient error.
 pub open spec fn disable_busy<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> Action<State<K, E, R>, (), ()> {
     Action {
         precondition: |input:(), s: State<K, E, R>| {
