@@ -33,7 +33,7 @@ impl SimpleReconcileState {
 pub struct SimpleReconciler {}
 
 #[verifier(external)]
-impl Reconciler<CustomResource, SimpleReconcileState, EmptyType, EmptyType, EmptyLib> for SimpleReconciler {
+impl Reconciler<CustomResource, SimpleReconcileState, EmptyType, EmptyType, EmptyAPI> for SimpleReconciler {
     fn reconcile_init_state(&self) -> SimpleReconcileState {
         reconcile_init_state()
     }

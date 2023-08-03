@@ -1,6 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::external_api::spec::*;
+use crate::external_api::spec::EmptyTypeView;
 use crate::pervasive_ext::to_view::*;
 use vstd::{prelude::*, view::*};
 
@@ -17,10 +17,10 @@ pub trait ExternalAPI<Input: ToView, Output: ToView> {
 
 // An empty library that implements External Library.
 // This can be used by those controllers that don't rely on a third-party library.
-// Users can define a reconciler as Reconciler<xx, xx, EmptyType, EmptyType, EmptyLib>.
-pub struct EmptyLib {}
+// Users can define a reconciler as Reconciler<xx, xx, EmptyType, EmptyType, EmptyAPI>.
+pub struct EmptyAPI {}
 
-impl ExternalAPI<EmptyType, EmptyType> for EmptyLib {
+impl ExternalAPI<EmptyType, EmptyType> for EmptyAPI {
     fn transition(input: EmptyType) -> Option<EmptyType> {
         Option::None
     }
