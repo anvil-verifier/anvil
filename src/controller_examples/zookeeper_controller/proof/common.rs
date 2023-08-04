@@ -21,10 +21,10 @@ verus! {
 
 pub type ClusterState = State<ZookeeperClusterView, ZKAPI, ZookeeperReconciler>;
 
-pub type ClusterProof = Cluster<ZookeeperClusterView, ZKAPI, ZookeeperReconciler>;
+pub type ZKCluster = Cluster<ZookeeperClusterView, ZKAPI, ZookeeperReconciler>;
 
 pub open spec fn cluster_spec() -> TempPred<ClusterState> {
-    ClusterProof::sm_spec()
+    ZKCluster::sm_spec()
 }
 
 pub open spec fn zookeeper_reconcile_state_with_sts(step: ZookeeperReconcileStep, sts: Option<StatefulSetView>) -> ZookeeperReconcileState {
@@ -60,7 +60,7 @@ pub open spec fn at_zookeeper_step_with_zk(zk: ZookeeperClusterView, step: Zooke
 pub open spec fn no_pending_req_at_zookeeper_step_with_zk(zk: ZookeeperClusterView, step: ZookeeperReconcileStep) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_zookeeper_step_with_zk(zk, step)(s)
-        &&& ClusterProof::no_pending_req_msg_or_external_api_input(s, zk.object_ref())
+        &&& ZKCluster::no_pending_req_msg_or_external_api_input(s, zk.object_ref())
     }
 }
 
@@ -69,7 +69,7 @@ pub open spec fn pending_req_in_flight_at_zookeeper_step_with_zk(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_zookeeper_step_with_zk(zk, step)(s)
-        &&& ClusterProof::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
         &&& s.message_in_flight(s.pending_req_of(zk.object_ref()))
         &&& is_correct_pending_request_msg_at_zookeeper_step(step, s.pending_req_of(zk.object_ref()), zk, object)
     }
@@ -80,7 +80,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_zookeeper_step_with_zk(zk, step)(s)
-        &&& ClusterProof::pending_k8s_api_req_msg_is(s, zk.object_ref(), req_msg)
+        &&& ZKCluster::pending_k8s_api_req_msg_is(s, zk.object_ref(), req_msg)
         &&& s.message_in_flight(req_msg)
         &&& is_correct_pending_request_msg_at_zookeeper_step(step, req_msg, zk, object)
     }
@@ -91,7 +91,7 @@ pub open spec fn exists_resp_in_flight_at_zookeeper_step_with_zk(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_zookeeper_step_with_zk(zk, step)(s)
-        &&& ClusterProof::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
         &&& is_correct_pending_request_msg_at_zookeeper_step(step, s.pending_req_of(zk.object_ref()), zk, object)
         &&& exists |resp_msg| {
             &&& #[trigger] s.message_in_flight(resp_msg)
@@ -105,7 +105,7 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_zookeeper_step_with_zk(zk, step)(s)
-        &&& ClusterProof::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
         &&& is_correct_pending_request_msg_at_zookeeper_step(step, s.pending_req_of(zk.object_ref()), zk, object)
         &&& s.message_in_flight(resp_msg)
         &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
@@ -117,7 +117,7 @@ pub open spec fn at_after_get_stateful_set_step_with_zk_and_exists_ok_resp_in_fl
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterGetStatefulSet)(s)
-        &&& ClusterProof::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
         &&& is_correct_pending_request_msg_at_zookeeper_step(
             ZookeeperReconcileStep::AfterGetStatefulSet, s.pending_req_of(zk.object_ref()), zk, arbitrary()
         )
@@ -135,7 +135,7 @@ pub open spec fn at_after_get_stateful_set_step_with_zk_and_exists_not_found_res
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterGetStatefulSet)(s)
-        &&& ClusterProof::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
         &&& is_correct_pending_request_msg_at_zookeeper_step(
             ZookeeperReconcileStep::AfterGetStatefulSet, s.pending_req_of(zk.object_ref()), zk, arbitrary()
         )
@@ -153,7 +153,7 @@ pub open spec fn at_after_get_stateful_set_step_with_zk_and_exists_not_found_err
 ) -> StatePred<ClusterState> {
     |s: ClusterState| {
         &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterGetStatefulSet)(s)
-        &&& ClusterProof::pending_k8s_api_req_msg(s, zk.object_ref())
+        &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
         &&& is_correct_pending_request_msg_at_zookeeper_step(
             ZookeeperReconcileStep::AfterGetStatefulSet, s.pending_req_of(zk.object_ref()), zk, arbitrary()
         )

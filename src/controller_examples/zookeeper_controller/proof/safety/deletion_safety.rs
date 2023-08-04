@@ -71,8 +71,8 @@ proof fn deletion_safety_proof(req_msg: Message)
 {
     init_invariant(
         cluster_spec(),
-        ClusterProof::init(),
-        ClusterProof::next(),
+        ZKCluster::init(),
+        ZKCluster::next(),
         deletion_property(req_msg)
     );
 }
