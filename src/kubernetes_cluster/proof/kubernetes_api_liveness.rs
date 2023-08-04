@@ -4,9 +4,7 @@
 use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
 use crate::kubernetes_cluster::spec::{
-    cluster::*,
-    cluster_state_machine::Step,
-    kubernetes_api::common::KubernetesAPIAction,
+    cluster::*, cluster_state_machine::Step, kubernetes_api::common::KubernetesAPIAction,
     message::*,
 };
 use crate::pervasive_ext::multiset_lemmas::*;
@@ -169,8 +167,7 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp
     );
 }
 
-pub proof fn lemma_create_req_leads_to_res_exists
-(spec: TempPred<Self>, msg: Message)
+pub proof fn lemma_create_req_leads_to_res_exists(spec: TempPred<Self>, msg: Message)
     requires
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
@@ -184,6 +181,7 @@ pub proof fn lemma_create_req_leads_to_res_exists
                 &&& msg.content.get_create_request().obj.metadata.name.is_Some()
                 &&& msg.content.get_create_request().obj.metadata.namespace.is_None()
                 &&& Self::object_has_well_formed_spec(msg.content.get_create_request().obj)
+                &&& msg.content.get_create_request().obj.kind == Kind::CustomResourceKind ==> K::rule(msg.content.get_create_request().obj)
             })
                 .leads_to(lift_state(|s: Self|
                     s.resource_key_exists(
@@ -194,13 +192,15 @@ pub proof fn lemma_create_req_leads_to_res_exists
                 ))
         ),
 {
+    let obj = msg.content.get_create_request().obj;
     let pre = |s: Self| {
         &&& s.message_in_flight(msg)
         &&& msg.dst == HostId::KubernetesAPI
         &&& msg.content.is_create_request()
-        &&& msg.content.get_create_request().obj.metadata.name.is_Some()
-        &&& msg.content.get_create_request().obj.metadata.namespace.is_None()
-        &&& Self::object_has_well_formed_spec(msg.content.get_create_request().obj)
+        &&& obj.metadata.name.is_Some()
+        &&& obj.metadata.namespace.is_None()
+        &&& Self::object_has_well_formed_spec(obj)
+        &&& obj.kind == Kind::CustomResourceKind ==> K::rule(obj)
     };
     let post = |s: Self|
         s.resource_key_exists(

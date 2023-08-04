@@ -95,6 +95,8 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
     } else if s.resources.dom().contains(req.obj.set_namespace(req.namespace).object_ref()) {
         // Creation fails because the object already exists
         Option::Some(APIError::ObjectAlreadyExists)
+    } else if req.obj.kind == Kind::CustomResourceKind && !K::rule(req.obj) {
+        Option::Some(APIError::IllegalCustomResource)
     } else {
         Option::None
     }
@@ -178,6 +180,8 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         && req.obj.metadata.resource_version != s.resources[req.key].metadata.resource_version {
         // Update fails because the object has a wrong rv
         Option::Some(APIError::Conflict)
+    } else if req.obj.kind == Kind::CustomResourceKind && !K::update_rule(req.obj, s.resources.index(req.key)) {
+        Option::Some(APIError::IllegalCustomResource)
     } else {
         Option::None
     }
