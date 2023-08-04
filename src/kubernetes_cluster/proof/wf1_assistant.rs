@@ -36,12 +36,12 @@ pub proof fn kubernetes_api_action_pre_implies_next_pre(
         kubernetes_api().actions.contains(action),
     ensures
         valid(
-            lift_state(kubernetes_api_action_pre::<K, E, R>(action, input))
-                .implies(lift_state(kubernetes_api_next().pre(input)))
+            lift_state(Self::kubernetes_api_action_pre(action, input))
+                .implies(lift_state(Self::kubernetes_api_next().pre(input)))
         ),
 {
-    assert forall |s: State<K, E, R>| #[trigger] kubernetes_api_action_pre(action, input)(s)
-    implies kubernetes_api_next().pre(input)(s) by {
+    assert forall |s: State<K, E, R>| #[trigger] Self::kubernetes_api_action_pre(action, input)(s)
+    implies Self::kubernetes_api_next().pre(input)(s) by {
         Self::exists_next_kubernetes_api_step(
             action, KubernetesAPIActionInput{recv: input, rest_id_allocator: s.rest_id_allocator}, s.kubernetes_api_state
         );
@@ -52,15 +52,15 @@ pub proof fn controller_action_pre_implies_next_pre(
     action: ControllerAction<K, E, R>, input: (Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>)
 )
     requires
-        controller::<K, E, R>().actions.contains(action),
+        Self::controller().actions.contains(action),
     ensures
         valid(
-            lift_state(controller_action_pre::<K, E, R>(action, input))
-                .implies(lift_state(controller_next::<K, E, R>().pre(input)))
+            lift_state(Self::controller_action_pre(action, input))
+                .implies(lift_state(Self::controller_next().pre(input)))
         ),
 {
-    assert forall |s| #[trigger] controller_action_pre::<K, E, R>(action, input)(s)
-    implies controller_next::<K, E, R>().pre(input)(s) by {
+    assert forall |s| #[trigger] Self::controller_action_pre(action, input)(s)
+    implies Self::controller_next().pre(input)(s) by {
         Self::exists_next_controller_step(
             action,
             ControllerActionInput{recv: input.0, external_api_output: input.1, scheduled_cr_key: input.2, rest_id_allocator: s.rest_id_allocator},
@@ -85,20 +85,20 @@ pub proof fn exists_next_controller_step(
     action: ControllerAction<K, E, R>, input: ControllerActionInput<E>, s: ControllerState<K, E, R>
 )
     requires
-        controller::<K, E, R>().actions.contains(action),
+        Self::controller().actions.contains(action),
         (action.precondition)(input, s),
     ensures
-        exists |step| (#[trigger] (controller::<K, E, R>().step_to_action)(step).precondition)(input, s),
+        exists |step| (#[trigger] (Self::controller().step_to_action)(step).precondition)(input, s),
 {
     if action == run_scheduled_reconcile::<K, E, R>() {
         let step = ControllerStep::RunScheduledReconcile;
-        assert(((controller::<K, E, R>().step_to_action)(step).precondition)(input, s));
+        assert(((Self::controller().step_to_action)(step).precondition)(input, s));
     } else if action == continue_reconcile::<K, E, R>() {
         let step = ControllerStep::ContinueReconcile;
-        assert(((controller::<K, E, R>().step_to_action)(step).precondition)(input, s));
+        assert(((Self::controller().step_to_action)(step).precondition)(input, s));
     } else {
         let step = ControllerStep::EndReconcile;
-        assert(((controller::<K, E, R>().step_to_action)(step).precondition)(input, s));
+        assert(((Self::controller().step_to_action)(step).precondition)(input, s));
     }
 }
 

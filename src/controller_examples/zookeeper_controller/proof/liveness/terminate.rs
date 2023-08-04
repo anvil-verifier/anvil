@@ -21,7 +21,7 @@ use crate::kubernetes_cluster::{
         controller::controller_runtime::{
             continue_reconcile, end_reconcile, run_scheduled_reconcile,
         },
-        controller::state_machine::controller,
+        controller::state_machine::*,
         kubernetes_api::state_machine::{handle_request, transition_by_etcd, update_is_noop},
         message::*,
     },

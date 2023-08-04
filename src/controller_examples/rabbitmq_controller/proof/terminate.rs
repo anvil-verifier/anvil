@@ -13,7 +13,7 @@ use crate::kubernetes_cluster::{
         controller::controller_runtime::{
             continue_reconcile, end_reconcile, run_scheduled_reconcile,
         },
-        controller::state_machine::controller,
+        controller::state_machine::*,
         kubernetes_api::state_machine::{handle_request, transition_by_etcd, update_is_noop},
         message::*,
     },
@@ -32,10 +32,10 @@ verus! {
 pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(ClusterProof::next()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| controller_next::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>().weak_fairness(i))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(tla_forall(|i| ClusterProof::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| ClusterProof::controller_next().weak_fairness(i))),
+        spec.entails(always(lift_state(ClusterProof::crash_disabled()))),
+        spec.entails(always(lift_state(ClusterProof::busy_disabled()))),
         spec.entails(always(lift_state(ClusterProof::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(ClusterProof::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))),
         spec.entails(always(lift_state(ClusterProof::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())))),

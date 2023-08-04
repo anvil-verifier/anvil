@@ -15,7 +15,7 @@ use crate::kubernetes_cluster::{
         controller::controller_runtime::{
             continue_reconcile, end_reconcile, run_scheduled_reconcile,
         },
-        controller::state_machine::controller,
+        controller::state_machine::*,
         external_api::*,
         kubernetes_api::state_machine::{handle_request, transition_by_etcd},
         message::*,
@@ -37,7 +37,7 @@ pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled
         &&& s.resource_key_exists(cr_key)
         &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
     })))
-    .and(always(lift_state(crash_disabled::<K, E, R>())))
+    .and(always(lift_state(Self::crash_disabled())))
 }
 
 pub proof fn lemma_pre_leads_to_post_by_controller(
@@ -45,27 +45,27 @@ pub proof fn lemma_pre_leads_to_post_by_controller(
     action: ControllerAction<K, E, R>, pre: StatePred<State<K, E, R>>, post: StatePred<State<K, E, R>>
 )
     requires
-        controller::<K, E, R>().actions.contains(action),
+        Self::controller().actions.contains(action),
         forall |s, s_prime: State<K, E, R>| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
-        forall |s, s_prime: State<K, E, R>| pre(s) && #[trigger] next(s, s_prime) && controller_next::<K, E, R>().forward(input)(s, s_prime) ==> post(s_prime),
-        forall |s: State<K, E, R>| #[trigger] pre(s) ==> controller_action_pre::<K, E, R>(action, input)(s),
+        forall |s, s_prime: State<K, E, R>| pre(s) && #[trigger] next(s, s_prime) && Self::controller_next().forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s: State<K, E, R>| #[trigger] pre(s) ==> Self::controller_action_pre(action, input)(s),
         spec.entails(always(lift_action(next))),
-        spec.entails(tla_forall(|i| controller_next::<K, E, R>().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
     ensures
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
     use_tla_forall::<State<K, E, R>, (Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>)>(
-        spec, |i| controller_next::<K, E, R>().weak_fairness(i), input
+        spec, |i| Self::controller_next().weak_fairness(i), input
     );
 
     Self::controller_action_pre_implies_next_pre(action, input);
     valid_implies_trans::<State<K, E, R>>(
         lift_state(pre),
-        lift_state(controller_action_pre::<K, E, R>(action, input)),
-        lift_state(controller_next::<K, E, R>().pre(input))
+        lift_state(Self::controller_action_pre(action, input)),
+        lift_state(Self::controller_next().pre(input))
     );
 
-    controller_next::<K, E, R>().wf1(input, spec, next, pre, post);
+    Self::controller_next().wf1(input, spec, next, pre, post);
 }
 
 pub proof fn lemma_pre_leads_to_post_by_schedule_controller_reconcile(
@@ -74,17 +74,17 @@ pub proof fn lemma_pre_leads_to_post_by_schedule_controller_reconcile(
 )
     requires
         forall |s, s_prime: State<K, E, R>| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
-        forall |s, s_prime: State<K, E, R>| pre(s) && #[trigger] next(s, s_prime) && schedule_controller_reconcile::<K, E, R>().forward(input)(s, s_prime) ==> post(s_prime),
-        forall |s: State<K, E, R>| #[trigger] pre(s) ==> schedule_controller_reconcile::<K, E, R>().pre(input)(s),
+        forall |s, s_prime: State<K, E, R>| pre(s) && #[trigger] next(s, s_prime) && Self::schedule_controller_reconcile().forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s: State<K, E, R>| #[trigger] pre(s) ==> Self::schedule_controller_reconcile().pre(input)(s),
         spec.entails(always(lift_action(next))),
-        spec.entails(tla_forall(|i| schedule_controller_reconcile::<K, E, R>().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::schedule_controller_reconcile().weak_fairness(i))),
     ensures
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
     use_tla_forall::<State<K, E, R>, ObjectRef>(
-        spec, |i| schedule_controller_reconcile::<K, E, R>().weak_fairness(i), input
+        spec, |i| Self::schedule_controller_reconcile().weak_fairness(i), input
     );
-    schedule_controller_reconcile::<K, E, R>().wf1(input, spec, next, pre, post);
+    Self::schedule_controller_reconcile().wf1(input, spec, next, pre, post);
 }
 
 pub proof fn lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(
@@ -93,18 +93,18 @@ pub proof fn lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_fro
 )
     requires
         forall |s, s_prime: State<K, E, R>| pre(s) && c(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
-        forall |s, s_prime: State<K, E, R>| pre(s) && c(s) && #[trigger] next(s, s_prime) && schedule_controller_reconcile::<K, E, R>().forward(input)(s, s_prime) ==> post(s_prime),
-        forall |s: State<K, E, R>| #[trigger] pre(s) && c(s) ==> schedule_controller_reconcile::<K, E, R>().pre(input)(s),
+        forall |s, s_prime: State<K, E, R>| pre(s) && c(s) && #[trigger] next(s, s_prime) && Self::schedule_controller_reconcile().forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s: State<K, E, R>| #[trigger] pre(s) && c(s) ==> Self::schedule_controller_reconcile().pre(input)(s),
         spec.entails(always(lift_action(next))),
-        spec.entails(tla_forall(|i| schedule_controller_reconcile::<K, E, R>().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::schedule_controller_reconcile().weak_fairness(i))),
         spec.entails(always(lift_state(c))),
     ensures
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
     use_tla_forall::<State<K, E, R>, ObjectRef>(
-        spec, |i| schedule_controller_reconcile::<K, E, R>().weak_fairness(i), input
+        spec, |i| Self::schedule_controller_reconcile().weak_fairness(i), input
     );
-    schedule_controller_reconcile::<K, E, R>().wf1_borrow_from_spec(input, spec, next, c, pre, post);
+    Self::schedule_controller_reconcile().wf1_borrow_from_spec(input, spec, next, c, pre, post);
 }
 
 pub proof fn lemma_reconcile_done_leads_to_reconcile_idle
@@ -113,7 +113,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle
         K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| controller_next::<K, E, R>().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
     ensures
         spec.entails(
             lift_state(Self::reconciler_reconcile_done(cr_key))
@@ -139,7 +139,7 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle
         K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| controller_next::<K, E, R>().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
     ensures
         spec.entails(
             lift_state(Self::reconciler_reconcile_error(cr_key))
@@ -163,8 +163,8 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init
         K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(always(lift_state(crash_disabled::<K, E, R>()))),
-        spec.entails(tla_forall(|i| controller_next::<K, E, R>().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::crash_disabled()))),
+        spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
     ensures
         spec.entails(
             lift_state(|s: State<K, E, R>| {
@@ -183,7 +183,7 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init
         &&& Self::next()(s, s_prime)
         &&& !s.crash_enabled
     };
-    strengthen_next::<State<K, E, R>>(spec, Self::next(), crash_disabled::<K, E, R>(), stronger_next);
+    strengthen_next::<State<K, E, R>>(spec, Self::next(), Self::crash_disabled(), stronger_next);
     let input = (Option::None, Option::None, Option::Some(cr_key));
     Self::lemma_pre_leads_to_post_by_controller(
         spec, input, stronger_next, run_scheduled_reconcile::<K, E, R>(), pre, post
@@ -201,7 +201,7 @@ pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption(
             &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
         }))),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|input| schedule_controller_reconcile().weak_fairness(input))),
+        spec.entails(tla_forall(|input| Self::schedule_controller_reconcile().weak_fairness(input))),
     ensures
         spec.entails(
             true_pred().leads_to(lift_state(|s: State<K, E, R>| s.reconcile_scheduled_for(cr_key)))
@@ -218,8 +218,8 @@ pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption(
         &&& cr_key_exists(s)
     };
     strengthen_next::<State<K, E, R>>(spec, Self::next(), cr_key_exists, next_and_cr_exists);
-    temp_pred_equality::<State<K, E, R>>(lift_state(cr_key_exists), lift_state(schedule_controller_reconcile().pre(cr_key)));
-    use_tla_forall::<State<K, E, R>, ObjectRef>(spec, |key| schedule_controller_reconcile().weak_fairness(key), cr_key);
+    temp_pred_equality::<State<K, E, R>>(lift_state(cr_key_exists), lift_state(Self::schedule_controller_reconcile().pre(cr_key)));
+    use_tla_forall::<State<K, E, R>, ObjectRef>(spec, |key| Self::schedule_controller_reconcile().weak_fairness(key), cr_key);
 
     entails_and_temp(spec, always(lift_state(|s: State<K, E, R>| {
         &&& s.resource_key_exists(cr_key)
@@ -232,9 +232,9 @@ pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption(
     temp_pred_equality(lift_state(|s: State<K, E, R>| {
         &&& s.resource_key_exists(cr_key)
         &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
-    }).and(lift_state(|s: State<K, E, R>| { cr_key.kind.is_CustomResourceKind() })), lift_state(pre).implies(lift_state(schedule_controller_reconcile::<K, E, R>().pre(cr_key))));
+    }).and(lift_state(|s: State<K, E, R>| { cr_key.kind.is_CustomResourceKind() })), lift_state(pre).implies(lift_state(Self::schedule_controller_reconcile().pre(cr_key))));
 
-    schedule_controller_reconcile::<K, E, R>().wf1(cr_key, spec, next_and_cr_exists, pre, post);
+    Self::schedule_controller_reconcile().wf1(cr_key, spec, next_and_cr_exists, pre, post);
 }
 
 pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
@@ -243,10 +243,10 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
     requires
         cr.object_ref().kind == K::kind(),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| controller_next::<K, E, R>().weak_fairness(i))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::crash_disabled()))),
+        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
         spec.entails(always(lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
@@ -304,8 +304,8 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(
     requires
         cr.object_ref().kind == K::kind(),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| controller_next::<K, E, R>().weak_fairness(i))),
-        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::crash_disabled()))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Self::no_pending_req_msg_or_external_api_input_at_reconcile_state(cr.object_ref(), init_state)))),
         forall |s| (#[trigger] init_state(s)) ==> !R::reconcile_error(s) && !R::reconcile_done(s),
@@ -339,7 +339,7 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(
         Self::next()(s, s_prime)
         && !s.crash_enabled
     };
-    strengthen_next(spec, Self::next(), crash_disabled(), stronger_next);
+    strengthen_next(spec, Self::next(), Self::crash_disabled(), stronger_next);
     Self::lemma_pre_leads_to_post_by_controller(
         spec, (Option::None, Option::None, Option::Some(cr.object_ref())),
         stronger_next,
@@ -362,9 +362,9 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
     requires
         cr.object_ref().kind == K::kind(),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| controller_next::<K, E, R>().weak_fairness(i))),
-        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::crash_disabled()))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
         spec.entails(always(lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
@@ -382,21 +382,21 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
     let post = Self::at_expected_reconcile_states(cr.object_ref(), next_state);
     let stronger_next = |s, s_prime: State<K, E, R>| {
         &&& Self::next()(s, s_prime)
-        &&& crash_disabled()(s)
+        &&& Self::crash_disabled()(s)
         &&& Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())(s)
         &&& Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())(s)
     };
     entails_always_and_n!(
         spec,
         lift_action(Self::next()),
-        lift_state(crash_disabled()),
+        lift_state(Self::crash_disabled()),
         lift_state(Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())),
         lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref()))
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(Self::next())
-        .and(lift_state(crash_disabled()))
+        .and(lift_state(Self::crash_disabled()))
         .and(lift_state(Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())))
         .and(lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))
     );
@@ -447,10 +447,10 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
     requires
         cr.object_ref().kind == K::kind(),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| controller_next::<K, E, R>().weak_fairness(i))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::crash_disabled()))),
+        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())))),
         spec.entails(always(lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))),
@@ -473,27 +473,27 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
         let post_1 = Self::resp_in_flight_matches_pending_req_at_reconcile_state(cr.object_ref(), state);
         let stronger_next = |s, s_prime: State<K, E, R>| {
             &&& Self::next()(s, s_prime)
-            &&& crash_disabled()(s)
-            &&& busy_disabled()(s)
+            &&& Self::crash_disabled()(s)
+            &&& Self::busy_disabled()(s)
             &&& Self::every_in_flight_msg_has_unique_id()(s)
         };
         entails_always_and_n!(
             spec,
             lift_action(Self::next()),
-            lift_state(crash_disabled()),
-            lift_state(busy_disabled()),
+            lift_state(Self::crash_disabled()),
+            lift_state(Self::busy_disabled()),
             lift_state(Self::every_in_flight_msg_has_unique_id())
         );
         temp_pred_equality(
             lift_action(stronger_next),
             lift_action(Self::next())
-            .and(lift_state(crash_disabled()))
-            .and(lift_state(busy_disabled()))
+            .and(lift_state(Self::crash_disabled()))
+            .and(lift_state(Self::busy_disabled()))
             .and(lift_state(Self::every_in_flight_msg_has_unique_id()))
         );
         let input = Option::Some(req_msg);
         assert forall |s, s_prime: State<K, E, R>| pre_1(s) && #[trigger] stronger_next(s, s_prime)
-        && kubernetes_api_next().forward(input)(s, s_prime) implies post_1(s_prime) by {
+        && Self::kubernetes_api_next().forward(input)(s, s_prime) implies post_1(s_prime) by {
             let resp_msg = transition_by_etcd(req_msg, s.kubernetes_api_state).1;
             assert({
                 &&& s_prime.message_in_flight(resp_msg)
@@ -536,9 +536,9 @@ pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile
     requires
         cr.object_ref().kind == K::kind(),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
-        spec.entails(tla_forall(|i| controller_next::<K, E, R>().weak_fairness(i))),
-        spec.entails(always(lift_state(crash_disabled()))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::crash_disabled()))),
         spec.entails(always(lift_state(Self::no_pending_req_msg_or_external_api_input_at_reconcile_state(cr.object_ref(), state)))),
         forall |s| (#[trigger] state(s)) ==> !R::reconcile_error(s) && !R::reconcile_done(s),
         forall |cr_1, resp_o, s|
@@ -562,17 +562,17 @@ pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile
 
     let stronger_next = |s, s_prime: State<K, E, R>| {
         &&& Self::next()(s, s_prime)
-        &&& crash_disabled()(s)
+        &&& Self::crash_disabled()(s)
     };
     entails_always_and_n!(
         spec,
         lift_action(Self::next()),
-        lift_state(crash_disabled())
+        lift_state(Self::crash_disabled())
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(Self::next())
-        .and(lift_state(crash_disabled()))
+        .and(lift_state(Self::crash_disabled()))
     );
     let input = (Option::None, Option::None, Option::Some(cr.object_ref()));
     Self::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, continue_reconcile(), no_req_at_state, Self::at_expected_reconcile_states(cr.object_ref(), next_state));

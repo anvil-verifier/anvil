@@ -14,7 +14,7 @@ use crate::kubernetes_cluster::{
         controller::controller_runtime::{
             continue_reconcile, end_reconcile, run_scheduled_reconcile,
         },
-        controller::state_machine::controller,
+        controller::state_machine::*,
         message::*,
     },
     Cluster,
@@ -40,7 +40,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_schedule_has_spec_as(
     requires
         K::kind().is_CustomResourceKind(),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| schedule_controller_reconcile().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::schedule_controller_reconcile().weak_fairness(i))),
         spec.entails(always(lift_state(Self::desired_state_is(cr)))),
         spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
     ensures
@@ -87,8 +87,8 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(
     requires
         K::kind().is_CustomResourceKind(),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| controller_next::<K, E, R>().weak_fairness(i))),
-        spec.entails(tla_forall(|i| schedule_controller_reconcile().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::controller_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::schedule_controller_reconcile().weak_fairness(i))),
         spec.entails(always(lift_state(Self::desired_state_is(cr)))),
         spec.entails(true_pred().leads_to(lift_state(|s: State<K, E, R>| !s.reconcile_state_contains(cr.object_ref())))),
         spec.entails(true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_as(cr))))),
@@ -97,8 +97,8 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(
 {
     // We need to prepare a concrete spec which is stable because we will use unpack_conditions_from_spec later
     let stable_spec = always(lift_action(Self::next()))
-        .and(tla_forall(|i| schedule_controller_reconcile().weak_fairness(i)))
-        .and(tla_forall(|i| controller_next::<K, E, R>().weak_fairness(i)))
+        .and(tla_forall(|i| Self::schedule_controller_reconcile().weak_fairness(i)))
+        .and(tla_forall(|i| Self::controller_next().weak_fairness(i)))
         .and(always(lift_state(Self::desired_state_is(cr))))
         .and(true_pred().leads_to(lift_state(|s: State<K, E, R>| !s.reconcile_state_contains(cr.object_ref()))))
         .and(true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_as(cr)))));
@@ -218,16 +218,16 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(
         valid(stable(stable_spec)),
         {
             always_p_is_stable(lift_action(Self::next()));
-            Self::tla_forall_action_weak_fairness_is_stable(schedule_controller_reconcile::<K, E, R>());
-            Self::tla_forall_action_weak_fairness_is_stable(controller_next::<K, E, R>());
+            Self::tla_forall_action_weak_fairness_is_stable(Self::schedule_controller_reconcile());
+            Self::tla_forall_action_weak_fairness_is_stable(Self::controller_next());
             always_p_is_stable(lift_state(Self::desired_state_is(cr)));
             p_leads_to_q_is_stable(true_pred(), lift_state(|s: State<K, E, R>| !s.reconcile_state_contains(cr.object_ref())));
             p_leads_to_q_is_stable(true_pred(), always(lift_state(Self::the_object_in_schedule_has_spec_as(cr))));
 
             stable_and_n!(
                 always(lift_action(Self::next())),
-                tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)),
-                tla_forall(|input| controller_next::<K, E, R>().weak_fairness(input)),
+                tla_forall(|input| Self::schedule_controller_reconcile().weak_fairness(input)),
+                tla_forall(|input| Self::controller_next().weak_fairness(input)),
                 always(lift_state(Self::desired_state_is(cr))),
                 true_pred().leads_to(lift_state(|s: State<K, E, R>| !s.reconcile_state_contains(cr.object_ref()))),
                 true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_as(cr))))
@@ -248,8 +248,8 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(
     entails_and_n!(
         spec,
         always(lift_action(Self::next())),
-        tla_forall(|i| schedule_controller_reconcile().weak_fairness(i)),
-        tla_forall(|i| controller_next::<K, E, R>().weak_fairness(i)),
+        tla_forall(|i| Self::schedule_controller_reconcile().weak_fairness(i)),
+        tla_forall(|i| Self::controller_next().weak_fairness(i)),
         always(lift_state(Self::desired_state_is(cr))),
         true_pred().leads_to(lift_state(|s: State<K, E, R>| !s.reconcile_state_contains(cr.object_ref()))),
         true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_as(cr))))

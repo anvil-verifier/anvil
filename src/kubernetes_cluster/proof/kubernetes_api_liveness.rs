@@ -33,28 +33,28 @@ pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(
     requires
         kubernetes_api().actions.contains(action),
         forall |s, s_prime: State<K, E, R>| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
-        forall |s, s_prime: State<K, E, R>| pre(s) && #[trigger] next(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime) ==> post(s_prime),
-        forall |s: State<K, E, R>| #[trigger] pre(s) ==> kubernetes_api_action_pre(action, input)(s),
+        forall |s, s_prime: State<K, E, R>| pre(s) && #[trigger] next(s, s_prime) && Self::kubernetes_api_next().forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s: State<K, E, R>| #[trigger] pre(s) ==> Self::kubernetes_api_action_pre(action, input)(s),
         spec.entails(always(lift_action(next))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
     ensures
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
-    use_tla_forall::<State<K, E, R>, Option<Message>>(spec, |i| kubernetes_api_next().weak_fairness(i), input);
+    use_tla_forall::<State<K, E, R>, Option<Message>>(spec, |i| Self::kubernetes_api_next().weak_fairness(i), input);
 
     Self::kubernetes_api_action_pre_implies_next_pre(action, input);
     valid_implies_trans::<State<K, E, R>>(
-        lift_state(pre), lift_state(kubernetes_api_action_pre(action, input)), lift_state(kubernetes_api_next().pre(input))
+        lift_state(pre), lift_state(Self::kubernetes_api_action_pre(action, input)), lift_state(Self::kubernetes_api_next().pre(input))
     );
 
-    kubernetes_api_next().wf1(input, spec, next, pre, post);
+    Self::kubernetes_api_next().wf1(input, spec, next, pre, post);
 }
 
 pub proof fn lemma_get_req_leads_to_some_resp
 (spec: TempPred<State<K, E, R>>, msg: Message, key: ObjectRef)
     requires
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
     ensures
         spec.entails(
             lift_state(|s: State<K, E, R>| {
@@ -86,7 +86,7 @@ pub proof fn lemma_get_req_leads_to_some_resp
     };
     assert forall |s, s_prime: State<K, E, R>| pre(s) && #[trigger] Self::next()(s, s_prime) implies
     pre(s_prime) || post(s_prime) by {
-        let step = choose |step| next_step::<K, E, R>(s, s_prime, step);
+        let step = choose |step| Self::next_step(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
                 if input.get_Some_0() == msg {
@@ -117,7 +117,7 @@ pub proof fn lemma_get_req_leads_to_some_resp
         }
     }
     assert forall |s, s_prime: State<K, E, R>|
-        pre(s) && #[trigger] Self::next()(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime)
+        pre(s) && #[trigger] Self::next()(s, s_prime) && Self::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
         if s.resource_key_exists(key) {
             let ok_resp_msg = form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)));
@@ -135,9 +135,9 @@ pub proof fn lemma_get_req_leads_to_some_resp
 pub proof fn lemma_get_req_leads_to_ok_or_err_resp
 (spec: TempPred<State<K, E, R>>, msg: Message, key: ObjectRef)
     requires
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
     ensures
         spec.entails(
             lift_state(|s: State<K, E, R>| {
@@ -166,7 +166,7 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp
         Self::next()(s, s_prime)
         && !s.busy_enabled
     };
-    strengthen_next::<State<K, E, R>>(spec, Self::next(), busy_disabled(), stronger_next);
+    strengthen_next::<State<K, E, R>>(spec, Self::next(), Self::busy_disabled(), stronger_next);
     Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Option::Some(msg), stronger_next, handle_request(), pre, post);
     temp_pred_equality::<State<K, E, R>>(
         lift_state(post),
@@ -178,9 +178,9 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp
 pub proof fn lemma_create_req_leads_to_res_exists
 (spec: TempPred<State<K, E, R>>, msg: Message)
     requires
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
     ensures
         spec.entails(
             lift_state(|s: State<K, E, R>| {
@@ -216,16 +216,16 @@ pub proof fn lemma_create_req_leads_to_res_exists
         Self::next()(s, s_prime)
         && !s.busy_enabled
     };
-    strengthen_next::<State<K, E, R>>(spec, Self::next(), busy_disabled(), stronger_next);
+    strengthen_next::<State<K, E, R>>(spec, Self::next(), Self::busy_disabled(), stronger_next);
     Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Option::Some(msg), stronger_next, handle_request(), pre, post);
 }
 
 pub proof fn lemma_delete_req_leads_to_res_not_exists
 (spec: TempPred<State<K, E, R>>, msg: Message, res: DynamicObjectView)
     requires
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
     ensures
         spec.entails(
             lift_state(|s: State<K, E, R>| {
@@ -250,16 +250,16 @@ pub proof fn lemma_delete_req_leads_to_res_not_exists
         Self::next()(s, s_prime)
         && !s.busy_enabled
     };
-    strengthen_next::<State<K, E, R>>(spec, Self::next(), busy_disabled(), stronger_next);
+    strengthen_next::<State<K, E, R>>(spec, Self::next(), Self::busy_disabled(), stronger_next);
     Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Option::Some(msg), stronger_next, handle_request(), pre, post);
 }
 
 pub proof fn lemma_always_res_always_exists_implies_delete_never_sent
 (spec: TempPred<State<K, E, R>>, msg: Message, res: DynamicObjectView)
     requires
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
     ensures
         spec.entails(always(
             always(lift_state(|s: State<K, E, R>| s.resource_obj_exists(res)))
@@ -321,10 +321,10 @@ pub proof fn lemma_true_leads_to_always_no_req_before_rest_id_is_in_flight(
     spec: TempPred<State<K, E, R>>, rest_id: RestId
 )
     requires
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than::<K, E, R>(rest_id)))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
     ensures
         spec.entails(
             true_pred().leads_to(always(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id))))
@@ -337,7 +337,7 @@ pub proof fn lemma_true_leads_to_always_no_req_before_rest_id_is_in_flight(
         &&& s.rest_id_counter_is_no_smaller_than(rest_id)
     };
     strengthen_next::<State<K, E, R>>(
-        spec, Self::next(), rest_id_counter_is_no_smaller_than::<K, E, R>(rest_id), stronger_next
+        spec, Self::next(), Self::rest_id_counter_is_no_smaller_than(rest_id), stronger_next
     );
 
     assert forall |s, s_prime| Self::no_req_before_rest_id_is_in_flight(rest_id)(s) && #[trigger] stronger_next(s, s_prime)
@@ -354,10 +354,10 @@ pub proof fn lemma_eventually_no_req_before_rest_id_is_in_flight(
     spec: TempPred<State<K, E, R>>, rest_id: RestId
 )
     requires
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than::<K, E, R>(rest_id)))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
     ensures
         spec.entails(
             true_pred().leads_to(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)))
@@ -396,10 +396,10 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(
     spec: TempPred<State<K, E, R>>, rest_id: RestId, msg_num: nat
 )
     requires
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than::<K, E, R>(rest_id)))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
     ensures
         spec.entails(
             lift_state(|s: State<K, E, R>| {
@@ -512,10 +512,10 @@ proof fn pending_requests_num_decreases(
 )
     requires
         msg_num > 0,
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| kubernetes_api_next().weak_fairness(i))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than::<K, E, R>(rest_id)))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
     ensures
         spec.entails(
             lift_state(|s: State<K, E, R>| {
@@ -543,21 +543,21 @@ proof fn pending_requests_num_decreases(
     entails_always_and_n!(
         spec,
         lift_action(Self::next()),
-        lift_state(rest_id_counter_is_no_smaller_than::<K, E, R>(rest_id)),
-        lift_state(busy_disabled())
+        lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)),
+        lift_state(Self::busy_disabled())
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(Self::next())
-        .and(lift_state(rest_id_counter_is_no_smaller_than::<K, E, R>(rest_id)))
-        .and(lift_state(busy_disabled()))
+        .and(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))
+        .and(lift_state(Self::busy_disabled()))
     );
 
     assert forall |s, s_prime: State<K, E, R>| pre(s) && #[trigger] stronger_next(s, s_prime)
     implies pre(s_prime) || post(s_prime) by {
         let pending_req_multiset = s.network_state.in_flight.filter(api_request_msg_before(rest_id));
         let pending_req_multiset_prime = s_prime.network_state.in_flight.filter(api_request_msg_before(rest_id));
-        let step = choose |step| next_step::<K, E, R>(s, s_prime, step);
+        let step = choose |step| Self::next_step(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
                 if pending_req_multiset.count(input.get_Some_0()) > 0 {
@@ -576,7 +576,7 @@ proof fn pending_requests_num_decreases(
         }
     }
     assert forall |s, s_prime: State<K, E, R>|
-        pre(s) && #[trigger] stronger_next(s, s_prime) && kubernetes_api_next().forward(input)(s, s_prime)
+        pre(s) && #[trigger] stronger_next(s, s_prime) && Self::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
         let pending_req_multiset = s.network_state.in_flight.filter(api_request_msg_before(rest_id));
         let pending_req_multiset_prime = s_prime.network_state.in_flight.filter(api_request_msg_before(rest_id));

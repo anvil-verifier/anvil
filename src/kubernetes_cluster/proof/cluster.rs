@@ -10,7 +10,7 @@ use crate::kubernetes_cluster::spec::{
     controller::common::{
         ControllerAction, ControllerActionInput, ControllerState, OngoingReconcile,
     },
-    controller::state_machine::controller,
+    controller::state_machine::*,
     external_api::*,
     kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
     kubernetes_api::state_machine::kubernetes_api,
@@ -57,21 +57,21 @@ pub proof fn sm_partial_spec_is_stable()
         valid(stable(Self::sm_partial_spec())),
 {
     always_p_is_stable::<State<K, E, R>>(lift_action(Self::next()));
-    Self::tla_forall_action_weak_fairness_is_stable::<Option<Message>, ()>(kubernetes_api_next());
-    Self::tla_forall_action_weak_fairness_is_stable::<(Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>), ()>(controller_next::<K, E, R>());
-    Self::tla_forall_action_weak_fairness_is_stable::<ExternalComm<E::Input, E::Output>, ()>(external_api_next::<K, E, R>());
-    Self::tla_forall_action_weak_fairness_is_stable::<ObjectRef, ()>(schedule_controller_reconcile());
-    Self::action_weak_fairness_is_stable::<()>(disable_crash());
-    Self::action_weak_fairness_is_stable::<()>(disable_busy());
+    Self::tla_forall_action_weak_fairness_is_stable::<Option<Message>, ()>(Self::kubernetes_api_next());
+    Self::tla_forall_action_weak_fairness_is_stable::<(Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>), ()>(Self::controller_next());
+    Self::tla_forall_action_weak_fairness_is_stable::<ExternalComm<E::Input, E::Output>, ()>(Self::external_api_next());
+    Self::tla_forall_action_weak_fairness_is_stable::<ObjectRef, ()>(Self::schedule_controller_reconcile());
+    Self::action_weak_fairness_is_stable::<()>(Self::disable_crash());
+    Self::action_weak_fairness_is_stable::<()>(Self::disable_busy());
 
     stable_and_n!(
         always(lift_action(Self::next())),
-        tla_forall(|input| kubernetes_api_next().weak_fairness(input)),
-        tla_forall(|input| controller_next::<K, E, R>().weak_fairness(input)),
-        tla_forall(|input| external_api_next::<K, E, R>().weak_fairness(input)),
-        tla_forall(|input| schedule_controller_reconcile().weak_fairness(input)),
-        disable_crash().weak_fairness(()),
-        disable_busy().weak_fairness(())
+        tla_forall(|input| Self::kubernetes_api_next().weak_fairness(input)),
+        tla_forall(|input| Self::controller_next().weak_fairness(input)),
+        tla_forall(|input| Self::external_api_next().weak_fairness(input)),
+        tla_forall(|input| Self::schedule_controller_reconcile().weak_fairness(input)),
+        Self::disable_crash().weak_fairness(()),
+        Self::disable_busy().weak_fairness(())
     );
 }
 
@@ -80,13 +80,13 @@ pub proof fn lemma_true_leads_to_crash_always_disabled(
 )
     requires
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(disable_crash().weak_fairness(())),
+        spec.entails(Self::disable_crash().weak_fairness(())),
     ensures
-        spec.entails(true_pred().leads_to(always(lift_state(crash_disabled::<K, E, R>())))),
+        spec.entails(true_pred().leads_to(always(lift_state(Self::crash_disabled())))),
 {
     let true_state = |s: State<K, E, R>| true;
-    disable_crash().wf1((), spec, Self::next(), true_state, crash_disabled::<K, E, R>());
-    leads_to_stable_temp::<State<K, E, R>>(spec, lift_action(Self::next()), true_pred(), lift_state(crash_disabled::<K, E, R>()));
+    Self::disable_crash().wf1((), spec, Self::next(), true_state, Self::crash_disabled());
+    leads_to_stable_temp::<State<K, E, R>>(spec, lift_action(Self::next()), true_pred(), lift_state(Self::crash_disabled()));
 }
 
 pub proof fn lemma_true_leads_to_busy_always_disabled(
@@ -94,13 +94,13 @@ pub proof fn lemma_true_leads_to_busy_always_disabled(
 )
     requires
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(disable_busy().weak_fairness(())),
+        spec.entails(Self::disable_busy().weak_fairness(())),
     ensures
-        spec.entails(true_pred().leads_to(always(lift_state(busy_disabled::<K, E, R>())))),
+        spec.entails(true_pred().leads_to(always(lift_state(Self::busy_disabled())))),
 {
     let true_state = |s: State<K, E, R>| true;
-    disable_busy().wf1((), spec, Self::next(), true_state, busy_disabled::<K, E, R>());
-    leads_to_stable_temp::<State<K, E, R>>(spec, lift_action(Self::next()), true_pred(), lift_state(busy_disabled::<K, E, R>()));
+    Self::disable_busy().wf1((), spec, Self::next(), true_state, Self::busy_disabled());
+    leads_to_stable_temp::<State<K, E, R>>(spec, lift_action(Self::next()), true_pred(), lift_state(Self::busy_disabled()));
 }
 
 pub proof fn lemma_any_pred_leads_to_crash_always_disabled(
@@ -108,13 +108,13 @@ pub proof fn lemma_any_pred_leads_to_crash_always_disabled(
 )
     requires
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(disable_crash().weak_fairness(())),
+        spec.entails(Self::disable_crash().weak_fairness(())),
     ensures
-        spec.entails(any_pred.leads_to(always(lift_state(crash_disabled::<K, E, R>())))),
+        spec.entails(any_pred.leads_to(always(lift_state(Self::crash_disabled())))),
 {
     valid_implies_implies_leads_to::<State<K, E, R>>(spec, any_pred, true_pred());
     Self::lemma_true_leads_to_crash_always_disabled(spec);
-    leads_to_trans_temp::<State<K, E, R>>(spec, any_pred, true_pred(), always(lift_state(crash_disabled::<K, E, R>())));
+    leads_to_trans_temp::<State<K, E, R>>(spec, any_pred, true_pred(), always(lift_state(Self::crash_disabled())));
 }
 
 pub open spec fn desired_state_is(cr: K) -> StatePred<State<K, E, R>>

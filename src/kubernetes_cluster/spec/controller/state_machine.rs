@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{common::*, resource::*};
+use crate::kubernetes_cluster::Cluster;
 use crate::kubernetes_cluster::spec::{
     controller::common::*, controller::controller_runtime::*, message::*,
 };
@@ -14,7 +15,9 @@ use vstd::prelude::*;
 
 verus! {
 
-pub open spec fn controller<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> ControllerStateMachine<K, E, R> {
+impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+
+pub open spec fn controller() -> ControllerStateMachine<K, E, R> {
     StateMachine {
         init: |s: ControllerState<K, E, R>| {
             s == init_controller_state::<K, E, R>()
@@ -35,6 +38,8 @@ pub open spec fn controller<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>
             input
         }
     }
+}
+
 }
 
 }

@@ -9,7 +9,7 @@ use crate::kubernetes_cluster::{
     spec::{
         cluster::*,
         controller::common::{ControllerAction, ControllerActionInput},
-        controller::state_machine::controller,
+        controller::state_machine::*,
         kubernetes_api::state_machine::{handle_request, transition_by_etcd},
         message::*,
     },
@@ -41,7 +41,7 @@ pub proof fn lemma_always_every_in_flight_msg_has_lower_id_than_allocator
     invariant(s_prime) by {
         Self::next_preserves_every_in_flight_msg_has_lower_id_than_allocator(s, s_prime);
     };
-    init_invariant::<State<K, E, R>>(Self::sm_spec(), init::<K, E, R>(), Self::next(), invariant);
+    init_invariant::<State<K, E, R>>(Self::sm_spec(), Self::init(), Self::next(), invariant);
 }
 
 proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator(
@@ -61,7 +61,7 @@ proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator(
             match msg.content {
                 MessageContent::APIRequest(_, _) => assert(s.rest_id_allocator.rest_id_counter < s_prime.rest_id_allocator.rest_id_counter),
                 MessageContent::APIResponse(_, id) => {
-                    let next_step = choose |step: Step<K, E>| next_step::<K, E, R>(s, s_prime, step);
+                    let next_step = choose |step: Step<K, E>| Self::next_step(s, s_prime, step);
                     match next_step {
                         Step::KubernetesAPIStep(input) => {
                             let req_msg = input.get_Some_0();
@@ -113,7 +113,7 @@ pub proof fn lemma_always_every_in_flight_req_is_unique()
             }
         };
     };
-    init_invariant::<State<K, E, R>>(Self::sm_spec(), init::<K, E, R>(), stronger_next, invariant);
+    init_invariant::<State<K, E, R>>(Self::sm_spec(), Self::init(), stronger_next, invariant);
 }
 
 pub open spec fn every_in_flight_msg_has_unique_id() -> StatePred<State<K, E, R>> {
@@ -159,7 +159,7 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id()
     invariant(s_prime) by {
         Self::next_and_unique_lower_msg_id_preserves_in_flight_msg_has_unique_id(s, s_prime);
     };
-    init_invariant::<State<K, E, R>>(Self::sm_spec(), init::<K, E, R>(), stronger_next, invariant);
+    init_invariant::<State<K, E, R>>(Self::sm_spec(), Self::init(), stronger_next, invariant);
 }
 
 proof fn next_and_unique_lower_msg_id_preserves_in_flight_msg_has_unique_id(
@@ -209,7 +209,7 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(
         msg_1.content.get_rest_id() != msg_2.content.get_rest_id(),
 {
     if (msg_2.content.is_APIResponse()) {
-        let next_step = choose |step: Step<K, E>| next_step::<K, E, R>(s, s_prime, step);
+        let next_step = choose |step: Step<K, E>| Self::next_step(s, s_prime, step);
         match next_step {
             Step::KubernetesAPIStep(input) => {
                 let req_msg = input.get_Some_0();
@@ -250,7 +250,7 @@ pub proof fn lemma_always_pending_req_has_lower_req_id_than_allocator()
 {
     let invariant = Self::pending_req_has_lower_req_id_than_allocator();
     init_invariant::<State<K, E, R>>(
-        Self::sm_spec(), init::<K, E, R>(), Self::next(), invariant
+        Self::sm_spec(), Self::init(), Self::next(), invariant
     );
 }
 
@@ -398,7 +398,7 @@ pub proof fn lemma_always_resp_matches_at_most_one_pending_req(
     strengthen_next::<State<K, E, R>>(
         Self::sm_spec(), Self::next(), Self::pending_req_has_lower_req_id_than_allocator(), stronger_next
     );
-    init_invariant::<State<K, E, R>>(Self::sm_spec(), init::<K, E, R>(), stronger_next, invariant);
+    init_invariant::<State<K, E, R>>(Self::sm_spec(), Self::init(), stronger_next, invariant);
 }
 
 pub proof fn lemma_forall_resp_always_matches_at_most_one_pending_req(
@@ -459,7 +459,7 @@ pub proof fn lemma_always_each_resp_matches_at_most_one_pending_req(
         Self::sm_spec(), Self::next(),
         Self::pending_req_has_lower_req_id_than_allocator(), stronger_next
     );
-    init_invariant::<State<K, E, R>>(Self::sm_spec(), init::<K, E, R>(), stronger_next, invariant);
+    init_invariant::<State<K, E, R>>(Self::sm_spec(), Self::init(), stronger_next, invariant);
 }
 
 // This lemma ensures that if a controller is at some reconcile state for a cr, there must be the pending request of the
@@ -482,7 +482,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
                 &&& req.is_Some()
                 &&& req.get_Some_0().is_KRequest()
             },
-        spec.entails(lift_state(init::<K, E, R>())),
+        spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(always(lift_state(Self::each_resp_matches_at_most_one_pending_req(key)))),
     ensures
@@ -497,7 +497,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
     };
     assert forall |s, s_prime: State<K, E, R>| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
         if Self::at_expected_reconcile_states(key, state)(s_prime) {
-            let next_step = choose |step| next_step::<K, E, R>(s, s_prime, step);
+            let next_step = choose |step| Self::next_step(s, s_prime, step);
             assert(!next_step.is_RestartController());
             let resp = choose |msg| {
                 #[trigger] s.message_in_flight(msg)
@@ -550,14 +550,14 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
         }
     }
     strengthen_next::<State<K, E, R>>(spec, Self::next(), Self::each_resp_matches_at_most_one_pending_req(key), stronger_next);
-    init_invariant::<State<K, E, R>>(spec, init::<K, E, R>(), stronger_next, invariant);
+    init_invariant::<State<K, E, R>>(spec, Self::init(), stronger_next, invariant);
 }
 
 pub proof fn lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_state(
     spec: TempPred<State<K, E, R>>, key: ObjectRef, state: FnSpec(R::T) -> bool
 )
     requires
-        spec.entails(lift_state(init::<K, E, R>())),
+        spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
         forall |cr, resp_o, pre_state|
             #[trigger] state(R::reconcile_core(cr, resp_o, pre_state).0)
@@ -577,7 +577,7 @@ pub proof fn lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_
             }
         }
     }
-    init_invariant(spec, init::<K, E, R>(), Self::next(), invariant);
+    init_invariant(spec, Self::init(), Self::next(), invariant);
 }
 
 pub proof fn lemma_always_pending_req_msg_is_none_at_reconcile_state(
@@ -590,7 +590,7 @@ pub proof fn lemma_always_pending_req_msg_is_none_at_reconcile_state(
                 req.is_None()
                 || req.get_Some_0().is_ExternalRequest()
             },
-        spec.entails(lift_state(init::<K, E, R>())),
+        spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
         spec.entails(
@@ -598,7 +598,7 @@ pub proof fn lemma_always_pending_req_msg_is_none_at_reconcile_state(
         ),
 {
     let invariant = Self::pending_req_msg_is_none_at_reconcile_state(key, state);
-    init_invariant(spec, init::<K, E, R>(), Self::next(), invariant);
+    init_invariant(spec, Self::init(), Self::next(), invariant);
 }
 
 }

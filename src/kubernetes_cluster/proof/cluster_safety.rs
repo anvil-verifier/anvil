@@ -20,13 +20,13 @@ pub proof fn lemma_always_rest_id_counter_is_no_smaller_than(
     spec: TempPred<State<K, E, R>>, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(Self::rest_id_counter_is(rest_id))),
         spec.entails(always(lift_action(Self::next()))),
     ensures
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than::<K, E, R>(rest_id)))),
+        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
 {
-    let invariant = rest_id_counter_is_no_smaller_than::<K, E, R>(rest_id);
-    init_invariant::<State<K, E, R>>(spec, rest_id_counter_is(rest_id), Self::next(), invariant);
+    let invariant = Self::rest_id_counter_is_no_smaller_than(rest_id);
+    init_invariant::<State<K, E, R>>(spec, Self::rest_id_counter_is(rest_id), Self::next(), invariant);
 }
 
 pub open spec fn object_is_well_formed(key: ObjectRef) -> StatePred<State<K, E, R>> {
@@ -59,7 +59,7 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(
     spec: TempPred<State<K, E, R>>
 )
     requires
-        spec.entails(lift_state(init::<K, E, R>())),
+        spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
         spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
@@ -74,7 +74,7 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(
         }
     }
 
-    init_invariant(spec, init::<K, E, R>(), Self::next(), invariant);
+    init_invariant(spec, Self::init(), Self::next(), invariant);
 }
 
 pub open spec fn each_scheduled_key_is_consistent_with_its_object() -> StatePred<State<K, E, R>> {
@@ -89,7 +89,7 @@ pub proof fn lemma_always_each_scheduled_key_is_consistent_with_its_object(
     spec: TempPred<State<K, E, R>>
 )
     requires
-        spec.entails(lift_state(init::<K, E, R>())),
+        spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
         spec.entails(always(lift_state(Self::each_scheduled_key_is_consistent_with_its_object()))),
@@ -107,7 +107,7 @@ pub proof fn lemma_always_each_scheduled_key_is_consistent_with_its_object(
 
     assert forall |s, s_prime: State<K, E, R>| invariant(s) && #[trigger] stronger_next(s, s_prime)
     implies invariant(s_prime) by {
-        let step = choose |step| next_step::<K, E, R>(s, s_prime, step);
+        let step = choose |step| Self::next_step(s, s_prime, step);
         match step {
             Step::ScheduleControllerReconcileStep(input) => {
                 assert forall |key: ObjectRef| #[trigger] s_prime.reconcile_scheduled_for(key)
@@ -130,7 +130,7 @@ pub proof fn lemma_always_each_scheduled_key_is_consistent_with_its_object(
         }
     }
 
-    init_invariant(spec, init::<K, E, R>(), stronger_next, invariant);
+    init_invariant(spec, Self::init(), stronger_next, invariant);
 }
 
 pub open spec fn each_key_in_reconcile_is_consistent_with_its_object() -> StatePred<State<K, E, R>> {
@@ -145,7 +145,7 @@ pub proof fn lemma_always_each_key_in_reconcile_is_consistent_with_its_object(
     spec: TempPred<State<K, E, R>>
 )
     requires
-        spec.entails(lift_state(init::<K, E, R>())),
+        spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
         spec.entails(always(lift_state(Self::each_key_in_reconcile_is_consistent_with_its_object()))),
@@ -172,7 +172,7 @@ pub proof fn lemma_always_each_key_in_reconcile_is_consistent_with_its_object(
         }
     }
 
-    init_invariant(spec, init::<K, E, R>(), stronger_next, invariant);
+    init_invariant(spec, Self::init(), stronger_next, invariant);
 }
 
 }
