@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 pub mod client;
 pub mod cluster;
+pub mod cluster_state_machine;
 pub mod controller;
 pub mod external_api;
 pub mod kubernetes_api;

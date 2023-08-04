@@ -14,9 +14,8 @@ use crate::kubernetes_cluster::spec::{
     external_api::*,
     kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
     message::*,
-    network::NetworkState,
+    network::types::NetworkState,
 };
-use crate::kubernetes_cluster::Cluster;
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -29,24 +28,24 @@ verus! {
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 /// Prove weak_fairness is stable.
-pub proof fn action_weak_fairness_is_stable<Output>(action: Action<State<K, E, R>, (), Output>)
+pub proof fn action_weak_fairness_is_stable<Output>(action: Action<Self, (), Output>)
     ensures
         valid(stable(action.weak_fairness(()))),
 {
     let split_always = always(lift_state(action.pre(()))).implies(eventually(lift_action(action.forward(()))));
-    always_p_is_stable::<State<K, E, R>>(split_always);
+    always_p_is_stable::<Self>(split_always);
 }
 
 /// Prove weak_fairness for all input is stable.
 pub proof fn tla_forall_action_weak_fairness_is_stable<Input, Output>(
-    action: Action<State<K, E, R>, Input, Output>
+    action: Action<Self, Input, Output>
 )
     ensures
         valid(stable(tla_forall(|input| action.weak_fairness(input)))),
 {
     let split_always = |input| always(lift_state(action.pre(input))).implies(eventually(lift_action(action.forward(input))));
-    tla_forall_always_equality_variant::<State<K, E, R>, Input>(|input| action.weak_fairness(input), split_always);
-    always_p_is_stable::<State<K, E, R>>(tla_forall(split_always));
+    tla_forall_always_equality_variant::<Self, Input>(|input| action.weak_fairness(input), split_always);
+    always_p_is_stable::<Self>(tla_forall(split_always));
 }
 
 /// Prove partial_spec is stable.
@@ -54,7 +53,7 @@ pub proof fn sm_partial_spec_is_stable()
     ensures
         valid(stable(Self::sm_partial_spec())),
 {
-    always_p_is_stable::<State<K, E, R>>(lift_action(Self::next()));
+    always_p_is_stable::<Self>(lift_action(Self::next()));
     Self::tla_forall_action_weak_fairness_is_stable::<Option<Message>, ()>(Self::kubernetes_api_next());
     Self::tla_forall_action_weak_fairness_is_stable::<(Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>), ()>(Self::controller_next());
     Self::tla_forall_action_weak_fairness_is_stable::<ExternalComm<E::Input, E::Output>, ()>(Self::external_api_next());
@@ -74,7 +73,7 @@ pub proof fn sm_partial_spec_is_stable()
 }
 
 pub proof fn lemma_true_leads_to_crash_always_disabled(
-    spec: TempPred<State<K, E, R>>,
+    spec: TempPred<Self>,
 )
     requires
         spec.entails(always(lift_action(Self::next()))),
@@ -82,13 +81,13 @@ pub proof fn lemma_true_leads_to_crash_always_disabled(
     ensures
         spec.entails(true_pred().leads_to(always(lift_state(Self::crash_disabled())))),
 {
-    let true_state = |s: State<K, E, R>| true;
+    let true_state = |s: Self| true;
     Self::disable_crash().wf1((), spec, Self::next(), true_state, Self::crash_disabled());
-    leads_to_stable_temp::<State<K, E, R>>(spec, lift_action(Self::next()), true_pred(), lift_state(Self::crash_disabled()));
+    leads_to_stable_temp::<Self>(spec, lift_action(Self::next()), true_pred(), lift_state(Self::crash_disabled()));
 }
 
 pub proof fn lemma_true_leads_to_busy_always_disabled(
-    spec: TempPred<State<K, E, R>>,
+    spec: TempPred<Self>,
 )
     requires
         spec.entails(always(lift_action(Self::next()))),
@@ -96,13 +95,13 @@ pub proof fn lemma_true_leads_to_busy_always_disabled(
     ensures
         spec.entails(true_pred().leads_to(always(lift_state(Self::busy_disabled())))),
 {
-    let true_state = |s: State<K, E, R>| true;
+    let true_state = |s: Self| true;
     Self::disable_busy().wf1((), spec, Self::next(), true_state, Self::busy_disabled());
-    leads_to_stable_temp::<State<K, E, R>>(spec, lift_action(Self::next()), true_pred(), lift_state(Self::busy_disabled()));
+    leads_to_stable_temp::<Self>(spec, lift_action(Self::next()), true_pred(), lift_state(Self::busy_disabled()));
 }
 
 pub proof fn lemma_any_pred_leads_to_crash_always_disabled(
-    spec: TempPred<State<K, E, R>>, any_pred: TempPred<State<K, E, R>>
+    spec: TempPred<Self>, any_pred: TempPred<Self>
 )
     requires
         spec.entails(always(lift_action(Self::next()))),
@@ -110,16 +109,16 @@ pub proof fn lemma_any_pred_leads_to_crash_always_disabled(
     ensures
         spec.entails(any_pred.leads_to(always(lift_state(Self::crash_disabled())))),
 {
-    valid_implies_implies_leads_to::<State<K, E, R>>(spec, any_pred, true_pred());
+    valid_implies_implies_leads_to::<Self>(spec, any_pred, true_pred());
     Self::lemma_true_leads_to_crash_always_disabled(spec);
-    leads_to_trans_temp::<State<K, E, R>>(spec, any_pred, true_pred(), always(lift_state(Self::crash_disabled())));
+    leads_to_trans_temp::<Self>(spec, any_pred, true_pred(), always(lift_state(Self::crash_disabled())));
 }
 
-pub open spec fn desired_state_is(cr: K) -> StatePred<State<K, E, R>>
+pub open spec fn desired_state_is(cr: K) -> StatePred<Self>
     recommends
         K::kind().is_CustomResourceKind(),
 {
-    |s: State<K, E, R>| {
+    |s: Self| {
         &&& s.resource_key_exists(cr.object_ref())
         &&& K::from_dynamic_object(s.resource_obj_of(cr.object_ref())).is_Ok()
         &&& K::from_dynamic_object(s.resource_obj_of(cr.object_ref())).get_Ok_0().spec() == cr.spec()

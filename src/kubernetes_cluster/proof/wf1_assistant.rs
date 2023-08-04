@@ -5,19 +5,16 @@ use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
     cluster::*,
-    controller,
+    cluster_state_machine::Step,
     controller::common::{
         ControllerAction, ControllerActionInput, ControllerState, ControllerStep,
     },
-    controller::state_machine::*,
     external_api::*,
     kubernetes_api::common::{
         KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState, KubernetesAPIStep,
     },
-    kubernetes_api::state_machine::*,
     message::*,
 };
-use crate::kubernetes_cluster::Cluster;
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -39,7 +36,7 @@ pub proof fn kubernetes_api_action_pre_implies_next_pre(
                 .implies(lift_state(Self::kubernetes_api_next().pre(input)))
         ),
 {
-    assert forall |s: State<K, E, R>| #[trigger] Self::kubernetes_api_action_pre(action, input)(s)
+    assert forall |s: Self| #[trigger] Self::kubernetes_api_action_pre(action, input)(s)
     implies Self::kubernetes_api_next().pre(input)(s) by {
         Self::exists_next_kubernetes_api_step(
             action, KubernetesAPIActionInput{recv: input, rest_id_allocator: s.rest_id_allocator}, s.kubernetes_api_state

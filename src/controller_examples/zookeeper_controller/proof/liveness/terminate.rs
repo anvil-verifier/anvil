@@ -22,7 +22,7 @@ use vstd::prelude::*;
 
 verus! {
 
-pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, zk: ZookeeperClusterView)
+pub proof fn reconcile_eventually_terminates(spec: TempPred<ZKCluster>, zk: ZookeeperClusterView)
     requires
         zk.well_formed(),
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -45,10 +45,10 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, zk: Z
         spec.entails(always(pending_req_is_none(zk.object_ref(), ZookeeperReconcileStep::Init))),
     ensures
         spec.entails(
-            true_pred().leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(zk.object_ref())))
+            true_pred().leads_to(lift_state(|s: ZKCluster| !s.reconcile_state_contains(zk.object_ref())))
         ),
 {
-    let reconcile_idle = |s: ClusterState| { !s.reconcile_state_contains(zk.object_ref()) };
+    let reconcile_idle = |s: ZKCluster| { !s.reconcile_state_contains(zk.object_ref()) };
     ZKCluster::lemma_reconcile_error_leads_to_reconcile_idle(spec, zk.object_ref());
     ZKCluster::lemma_reconcile_done_leads_to_reconcile_idle(spec, zk.object_ref());
     temp_pred_equality(
@@ -170,19 +170,19 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, zk: Z
     );
 }
 
-pub open spec fn at_step(zk: ZookeeperClusterView, step: ZookeeperReconcileStep) -> StatePred<ClusterState> {
+pub open spec fn at_step(zk: ZookeeperClusterView, step: ZookeeperReconcileStep) -> StatePred<ZKCluster> {
     ZKCluster::at_expected_reconcile_states(
         zk.object_ref(), |s: ZookeeperReconcileState| s.reconcile_step == step
     )
 }
 
-pub open spec fn pending_req_or_resp_at(key: ObjectRef, step: ZookeeperReconcileStep) -> TempPred<ClusterState> {
+pub open spec fn pending_req_or_resp_at(key: ObjectRef, step: ZookeeperReconcileStep) -> TempPred<ZKCluster> {
     lift_state(ZKCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
         key, |s: ZookeeperReconcileState| s.reconcile_step == step
     ))
 }
 
-pub open spec fn pending_req_is_none(key: ObjectRef, step: ZookeeperReconcileStep) -> TempPred<ClusterState> {
+pub open spec fn pending_req_is_none(key: ObjectRef, step: ZookeeperReconcileStep) -> TempPred<ZKCluster> {
     lift_state(ZKCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(
         key, |s: ZookeeperReconcileState| s.reconcile_step == step
     ))

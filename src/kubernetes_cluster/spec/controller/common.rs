@@ -4,7 +4,6 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::spec::{external_api::*, message::*};
-use crate::kubernetes_cluster::Cluster;
 use crate::reconciler::spec::reconciler::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -52,21 +51,6 @@ pub type ControllerAction<K, E, R> = Action<ControllerState<K, E, R>, Controller
 
 pub open spec fn controller_req_msg(req: APIRequest, req_id: nat) -> Message {
     form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req, req_id))
-}
-
-impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
-
-pub open spec fn form_external_input(input: E::Input, id: nat) -> ExternalComm<E::Input, E::Output> {
-    ExternalComm::Input(input, id)
-}
-
-pub open spec fn init_controller_state() -> ControllerState<K, E, R> {
-    ControllerState {
-        ongoing_reconciles: Map::empty(),
-        scheduled_reconciles: Map::empty(),
-    }
-}
-
 }
 
 }

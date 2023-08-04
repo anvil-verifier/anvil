@@ -8,10 +8,10 @@ use crate::kubernetes_api_objects::{
     service::*, service_account::*, stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
+    cluster::Cluster,
     kubernetes_api::{builtin_controllers::statefulset_controller, common::*},
     message::*,
 };
-use crate::kubernetes_cluster::Cluster;
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
-use crate::kubernetes_cluster::spec::message::*;
-use crate::kubernetes_cluster::Cluster;
+use crate::kubernetes_api_objects::resource::ResourceView;
+use crate::kubernetes_cluster::spec::{cluster::Cluster, message::*};
+use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
@@ -32,7 +33,7 @@ pub struct ExternalAPIState<T: ExternalAPI> {
     pub in_flight: Set<ExternalComm<T::Input, T::Output>>,
 }
 
-impl<K, E: ExternalAPI, R> Cluster<K, E, R> {
+impl<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn external_output_matches_input(output: ExternalComm<E::Input, E::Output>, input: ExternalComm<E::Input, E::Output>) -> bool {
     &&& output.is_Output()

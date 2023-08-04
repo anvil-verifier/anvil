@@ -1,18 +1,17 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::kubernetes_cluster::spec::message::*;
-use crate::kubernetes_cluster::Cluster;
+use super::types::*;
+use crate::external_api::spec::*;
+use crate::kubernetes_api_objects::resource::*;
+use crate::kubernetes_cluster::spec::{cluster::Cluster, message::*};
+use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
 use vstd::{multiset::*, prelude::*};
 
 verus! {
-
-pub struct NetworkState {
-    pub in_flight: Multiset<Message>,
-}
 
 pub open spec fn deliver() -> Action<NetworkState, MessageOps, ()> {
     Action {
@@ -35,7 +34,7 @@ pub open spec fn deliver() -> Action<NetworkState, MessageOps, ()> {
     }
 }
 
-impl <K, E, R> Cluster<K, E, R> {
+impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn network() -> NetworkStateMachine<NetworkState, MessageOps> {
     NetworkStateMachine {

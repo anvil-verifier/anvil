@@ -379,4 +379,12 @@ pub open spec fn api_request_msg_before(rest_id: RestId) -> FnSpec(Message) -> b
         && msg.content.get_rest_id() < rest_id
 }
 
+pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostId) -> bool {
+    if recv.is_Some() {
+        recv.get_Some_0().dst == host_id
+    } else {
+        true
+    }
+}
+
 }

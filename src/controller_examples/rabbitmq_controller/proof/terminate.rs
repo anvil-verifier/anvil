@@ -25,7 +25,7 @@ use vstd::prelude::*;
 
 verus! {
 
-pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView)
+pub proof fn reconcile_eventually_terminates(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
@@ -44,10 +44,10 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, rabbi
         )))),
     ensures
         spec.entails(
-            true_pred().leads_to(lift_state(|s: ClusterState| !s.reconcile_state_contains(rabbitmq.object_ref())))
+            true_pred().leads_to(lift_state(|s: RMQCluster| !s.reconcile_state_contains(rabbitmq.object_ref())))
         ),
 {
-    let reconcile_idle = |s: ClusterState| { !s.reconcile_state_contains(rabbitmq.object_ref()) };
+    let reconcile_idle = |s: RMQCluster| { !s.reconcile_state_contains(rabbitmq.object_ref()) };
     RMQCluster::lemma_reconcile_error_leads_to_reconcile_idle(spec, rabbitmq.object_ref());
     RMQCluster::lemma_reconcile_done_leads_to_reconcile_idle(spec, rabbitmq.object_ref());
     temp_pred_equality(
@@ -65,7 +65,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, rabbi
         lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterUpdateStatefulSet)),
         lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateStatefulSet)),
         lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::Error));
-        lift_state(|s: ClusterState| { !s.reconcile_state_contains(rabbitmq.object_ref()) })
+        lift_state(|s: RMQCluster| { !s.reconcile_state_contains(rabbitmq.object_ref()) })
     );
     let next_state = |s: RabbitmqReconcileState| {
         s.reconcile_step == RabbitmqReconcileStep::AfterUpdateStatefulSet
@@ -92,7 +92,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, rabbi
         lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterUpdateServerConfigMap)),
         lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateServerConfigMap)),
         lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::Error));
-        lift_state(|s: ClusterState| { !s.reconcile_state_contains(rabbitmq.object_ref()) })
+        lift_state(|s: RMQCluster| { !s.reconcile_state_contains(rabbitmq.object_ref()) })
     );
     let next_state_1 = |s: RabbitmqReconcileState| {
         s.reconcile_step == RabbitmqReconcileStep::AfterUpdateServerConfigMap
@@ -140,7 +140,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ClusterState>, rabbi
     );
 }
 
-pub open spec fn at_step_state_pred(rabbitmq: RabbitmqClusterView, step: RabbitmqReconcileStep) -> StatePred<ClusterState> {
+pub open spec fn at_step_state_pred(rabbitmq: RabbitmqClusterView, step: RabbitmqReconcileStep) -> StatePred<RMQCluster> {
     RMQCluster::at_expected_reconcile_states(rabbitmq.object_ref(), |s: RabbitmqReconcileState| s.reconcile_step == step)
 }
 

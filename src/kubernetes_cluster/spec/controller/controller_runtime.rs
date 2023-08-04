@@ -3,8 +3,9 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
-use crate::kubernetes_cluster::spec::{controller::common::*, external_api::*, message::*};
-use crate::kubernetes_cluster::Cluster;
+use crate::kubernetes_cluster::spec::{
+    cluster::Cluster, controller::common::*, external_api::*, message::*,
+};
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
