@@ -120,7 +120,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))),
         spec.entails(always(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))),
+        spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
@@ -139,7 +139,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
         &&& ZKCluster::busy_disabled()(s)
         &&& pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)(s)
         &&& ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)(s)
+        &&& ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
         &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
     };
     let invariant = filtered_create_sts_req_len_is_at_most_one(key, rest_id);
@@ -164,7 +164,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
         lift_state(ZKCluster::busy_disabled()),
         lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)),
         lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)),
+        lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(ZKCluster::every_in_flight_msg_has_unique_id())
     );
     temp_pred_equality(
@@ -174,7 +174,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
         .and(lift_state(ZKCluster::busy_disabled()))
         .and(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))
         .and(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))
+        .and(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))
         .and(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))
     );
 
@@ -301,7 +301,7 @@ pub proof fn lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))),
         spec.entails(always(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))),
+        spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
@@ -431,7 +431,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))),
         spec.entails(always(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))),
+        spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
@@ -450,7 +450,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
         &&& ZKCluster::busy_disabled()(s)
         &&& pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)(s)
         &&& ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)(s)
+        &&& ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
         &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
     };
     let invariant = filtered_update_sts_req_len_is_at_most_one(key, rest_id);
@@ -475,7 +475,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
         lift_state(ZKCluster::busy_disabled()),
         lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)),
         lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)),
+        lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(ZKCluster::every_in_flight_msg_has_unique_id())
     );
     temp_pred_equality(
@@ -485,7 +485,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
         .and(lift_state(ZKCluster::busy_disabled()))
         .and(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))
         .and(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))
+        .and(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))
         .and(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))
     );
 
@@ -612,7 +612,7 @@ pub proof fn lemma_always_at_most_one_update_sts_req_since_rest_id_is_in_flight(
         spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))),
         spec.entails(always(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))),
+        spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
@@ -672,7 +672,7 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
         spec.entails(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(always(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))),
+        spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_as(zk)))),
     ensures
         spec.entails(always(lift_state(every_update_sts_req_since_rest_id_does_the_same(zk, rest_id)))),
@@ -684,7 +684,7 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
     let stronger_next = |s, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)(s)
+        &&& ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
         &&& ZKCluster::the_object_in_reconcile_has_spec_as(zk)(s)
     };
     let invariant = every_update_sts_req_since_rest_id_does_the_same(zk, rest_id);
@@ -704,14 +704,14 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
         spec,
         lift_action(ZKCluster::next()),
         lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)),
+        lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(ZKCluster::the_object_in_reconcile_has_spec_as(zk))
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(ZKCluster::next())
         .and(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))
+        .and(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))
         .and(lift_state(ZKCluster::the_object_in_reconcile_has_spec_as(zk)))
     );
 

@@ -173,7 +173,7 @@ proof fn invariants_is_stable(rabbitmq: RabbitmqClusterView)
 // They only hold since some point (e.g., when the rest id counter is the same as rest_id).
 // Some of these invariants are also based on the assumptions.
 spec fn invariants_since_rest_id(rabbitmq: RabbitmqClusterView, rest_id: RestId) -> TempPred<RMQCluster> {
-    always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))
+    always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))
     .and(always(lift_state(safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))))
     .and(always(lift_state(safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))))
     .and(always(lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))))
@@ -185,7 +185,7 @@ proof fn invariants_since_rest_id_is_stable(rabbitmq: RabbitmqClusterView, rest_
         valid(stable(invariants_since_rest_id(rabbitmq, rest_id))),
 {
     stable_and_always_n!(
-        lift_state(RMQCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)),
+        lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
         lift_state(safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
         lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
@@ -515,7 +515,7 @@ proof fn lemma_some_rest_id_leads_to_always_current_state_matches_rabbitmq(rabbi
             eliminate_always(spec_with_rest_id, lift_state(safety::pending_msg_at_after_create_server_config_map_step_is_create_cm_req(rabbitmq.object_ref())));
             eliminate_always(spec_with_rest_id, lift_state(safety::pending_msg_at_after_update_server_config_map_step_is_update_cm_req(rabbitmq.object_ref())));
 
-            RMQCluster::lemma_always_rest_id_counter_is_no_smaller_than(spec_with_rest_id, rest_id);
+            RMQCluster::lemma_always_has_rest_id_counter_no_smaller_than(spec_with_rest_id, rest_id);
             safety::lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(spec_with_rest_id, rabbitmq.object_ref(), rest_id);
             safety::lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(spec_with_rest_id, rabbitmq.object_ref(), rest_id);
             safety::lemma_always_no_delete_cm_req_since_rest_id_is_in_flight(spec_with_rest_id, rabbitmq.object_ref(), rest_id);
@@ -523,7 +523,7 @@ proof fn lemma_some_rest_id_leads_to_always_current_state_matches_rabbitmq(rabbi
 
             entails_and_n!(
                 spec_with_rest_id,
-                always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id))),
+                always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id))),
                 always(lift_state(safety::at_most_one_create_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))),
                 always(lift_state(safety::at_most_one_update_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))),
                 always(lift_state(safety::no_delete_cm_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))),

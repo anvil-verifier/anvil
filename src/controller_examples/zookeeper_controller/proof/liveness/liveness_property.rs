@@ -161,7 +161,7 @@ proof fn invariants_is_stable(zk: ZookeeperClusterView)
 // They only hold since some point (e.g., when the rest id counter is the same as rest_id).
 // Some of these invariants are also based on the assumptions.
 spec fn invariants_since_rest_id(zk: ZookeeperClusterView, rest_id: RestId) -> TempPred<ZKCluster> {
-    always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))
+    always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))
     .and(always(lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))))
     .and(always(lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))))
     .and(always(lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))))
@@ -173,7 +173,7 @@ proof fn invariants_since_rest_id_is_stable(zk: ZookeeperClusterView, rest_id: R
         valid(stable(invariants_since_rest_id(zk, rest_id))),
 {
     stable_and_always_n!(
-        lift_state(ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)),
+        lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
         lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
         lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)),
@@ -520,7 +520,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_from_idle_with_rest
             eliminate_always(spec, lift_state(helper_invariants::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref())));
             eliminate_always(spec, lift_state(helper_invariants::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref())));
 
-            ZKCluster::lemma_always_rest_id_counter_is_no_smaller_than(spec, rest_id);
+            ZKCluster::lemma_always_has_rest_id_counter_no_smaller_than(spec, rest_id);
             helper_invariants::lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(spec, zk.object_ref(), rest_id);
             helper_invariants::lemma_always_at_most_one_update_sts_req_since_rest_id_is_in_flight(spec, zk.object_ref(), rest_id);
             helper_invariants::lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(spec, zk.object_ref(), rest_id);
@@ -528,7 +528,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_from_idle_with_rest
 
             entails_and_n!(
                 spec,
-                always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id))),
+                always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id))),
                 always(lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))),
                 always(lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))),
                 always(lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id))),

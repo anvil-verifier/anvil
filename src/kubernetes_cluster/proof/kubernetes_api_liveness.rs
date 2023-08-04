@@ -319,7 +319,7 @@ pub proof fn lemma_true_leads_to_always_no_req_before_rest_id_is_in_flight(
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
-        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))),
+        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
     ensures
         spec.entails(
             true_pred().leads_to(always(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id))))
@@ -329,10 +329,10 @@ pub proof fn lemma_true_leads_to_always_no_req_before_rest_id_is_in_flight(
 
     let stronger_next = |s, s_prime: Self| {
         &&& Self::next()(s, s_prime)
-        &&& s.rest_id_counter_is_no_smaller_than(rest_id)
+        &&& s.has_rest_id_counter_no_smaller_than(rest_id)
     };
     strengthen_next::<Self>(
-        spec, Self::next(), Self::rest_id_counter_is_no_smaller_than_state_pred(rest_id), stronger_next
+        spec, Self::next(), Self::rest_id_counter_is_no_smaller_than(rest_id), stronger_next
     );
 
     assert forall |s, s_prime| Self::no_req_before_rest_id_is_in_flight(rest_id)(s) && #[trigger] stronger_next(s, s_prime)
@@ -352,7 +352,7 @@ pub proof fn lemma_eventually_no_req_before_rest_id_is_in_flight(
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
-        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))),
+        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
     ensures
         spec.entails(
             true_pred().leads_to(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)))
@@ -394,7 +394,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
-        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))),
+        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
     ensures
         spec.entails(
             lift_state(|s: Self| {
@@ -510,7 +510,7 @@ proof fn pending_requests_num_decreases(
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
-        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))),
+        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
     ensures
         spec.entails(
             lift_state(|s: Self| {
@@ -532,19 +532,19 @@ proof fn pending_requests_num_decreases(
     let input = Option::Some(msg);
     let stronger_next = |s, s_prime: Self| {
         &&& Self::next()(s, s_prime)
-        &&& s.rest_id_counter_is_no_smaller_than(rest_id)
+        &&& s.has_rest_id_counter_no_smaller_than(rest_id)
         &&& !s.busy_enabled
     };
     entails_always_and_n!(
         spec,
         lift_action(Self::next()),
-        lift_state(Self::rest_id_counter_is_no_smaller_than_state_pred(rest_id)),
+        lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(Self::busy_disabled())
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(Self::next())
-        .and(lift_state(Self::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))
+        .and(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))
         .and(lift_state(Self::busy_disabled()))
     );
 

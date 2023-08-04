@@ -399,7 +399,7 @@ pub open spec fn rest_id_counter_is(rest_id: nat) -> StatePred<Self> {
     |s: Self| s.rest_id_allocator.rest_id_counter == rest_id
 }
 
-pub open spec fn rest_id_counter_is_no_smaller_than_state_pred(rest_id: nat) -> StatePred<Self> {
+pub open spec fn rest_id_counter_is_no_smaller_than(rest_id: nat) -> StatePred<Self> {
     |s: Self| s.rest_id_allocator.rest_id_counter >= rest_id
 }
 

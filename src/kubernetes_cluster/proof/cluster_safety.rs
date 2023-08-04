@@ -15,16 +15,16 @@ verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
-pub proof fn lemma_always_rest_id_counter_is_no_smaller_than(
+pub proof fn lemma_always_has_rest_id_counter_no_smaller_than(
     spec: TempPred<Self>, rest_id: RestId
 )
     requires
         spec.entails(lift_state(Self::rest_id_counter_is(rest_id))),
         spec.entails(always(lift_action(Self::next()))),
     ensures
-        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))),
+        spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
 {
-    let invariant = Self::rest_id_counter_is_no_smaller_than_state_pred(rest_id);
+    let invariant = Self::rest_id_counter_is_no_smaller_than(rest_id);
     init_invariant::<Self>(spec, Self::rest_id_counter_is(rest_id), Self::next(), invariant);
 }
 

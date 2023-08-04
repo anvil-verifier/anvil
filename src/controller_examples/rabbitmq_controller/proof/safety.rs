@@ -185,7 +185,7 @@ pub proof fn lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))),
         spec.entails(always(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))),
+        spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
@@ -204,7 +204,7 @@ pub proof fn lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(
         &&& RMQCluster::busy_disabled()(s)
         &&& pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)(s)
         &&& RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& RMQCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)(s)
+        &&& RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
     };
     let invariant = at_most_one_create_cm_req_since_rest_id_is_in_flight(key, rest_id);
@@ -229,7 +229,7 @@ pub proof fn lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(
         lift_state(RMQCluster::busy_disabled()),
         lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)),
         lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(RMQCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)),
+        lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id())
     );
     temp_pred_equality(
@@ -239,7 +239,7 @@ pub proof fn lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(
         .and(lift_state(RMQCluster::busy_disabled()))
         .and(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))
         .and(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))
+        .and(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))
         .and(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))
     );
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
@@ -341,7 +341,7 @@ pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))),
         spec.entails(always(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))),
+        spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
@@ -360,7 +360,7 @@ pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
         &&& RMQCluster::busy_disabled()(s)
         &&& pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)(s)
         &&& RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& RMQCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)(s)
+        &&& RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
     };
 
@@ -386,7 +386,7 @@ pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
         lift_state(RMQCluster::busy_disabled()),
         lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)),
         lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(RMQCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)),
+        lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id())
     );
     temp_pred_equality(
@@ -396,7 +396,7 @@ pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
         .and(lift_state(RMQCluster::busy_disabled()))
         .and(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))
         .and(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))
+        .and(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))
         .and(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))
     );
 
@@ -468,7 +468,7 @@ pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
         spec.entails(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(always(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))),
+        spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq)))),
     ensures
         spec.entails(always(lift_state(every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id)))),
@@ -480,7 +480,7 @@ pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& RMQCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)(s)
+        &&& RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
         &&& RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq)(s)
     };
     let invariant = every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id);
@@ -500,14 +500,14 @@ pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
         spec,
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(RMQCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)),
+        lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq))
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(RMQCluster::next())
         .and(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than_state_pred(rest_id)))
+        .and(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))
         .and(lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq)))
     );
 
