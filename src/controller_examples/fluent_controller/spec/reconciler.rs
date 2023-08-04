@@ -330,6 +330,7 @@ pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecVie
                         .set_name(new_strlit("metrics")@)
                         .set_container_port(2020),
                 ])
+                .set_resources(fluentbit.spec.resources)
         ])
 }
 

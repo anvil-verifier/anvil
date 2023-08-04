@@ -73,4 +73,6 @@ pub struct FluentBitSpec {
     pub fluentbit_config: String,
     #[serde(rename = "parsersConfig")]
     pub parsers_config: String,
+    #[serde(default)]
+    pub resources: k8s_openapi::api::core::v1::ResourceRequirements,
 }

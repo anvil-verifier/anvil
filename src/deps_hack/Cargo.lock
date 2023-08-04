@@ -736,6 +736,7 @@ dependencies = [
  "base64 0.20.0",
  "bytes 1.4.0",
  "chrono",
+ "schemars",
  "serde",
  "serde-value",
  "serde_json",

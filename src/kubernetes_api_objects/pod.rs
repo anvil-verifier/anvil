@@ -7,6 +7,7 @@ use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
+use crate::kubernetes_api_objects::resource_requirements::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -244,6 +245,14 @@ impl Container {
             self@ == old(self)@.set_lifecycle(lifecycle@),
     {
         self.inner.lifecycle = std::option::Option::Some(lifecycle.into_kube())
+    }
+
+    #[verifier(external_body)]
+    pub fn set_resources(&mut self, resources: ResourceRequirements)
+        ensures
+            self@ == old(self)@.set_resources(resources@),
+    {
+        self.inner.resources = std::option::Option::Some(resources.into_kube())
     }
 
     // Methods for the fields that do not appear in spec
@@ -1181,6 +1190,7 @@ pub struct ContainerView {
     pub ports: Option<Seq<ContainerPortView>>,
     pub volume_mounts: Option<Seq<VolumeMountView>>,
     pub lifecycle: Option<LifecycleView>,
+    pub resources: Option<ResourceRequirementsView>,
 }
 
 impl ContainerView {
@@ -1191,6 +1201,7 @@ impl ContainerView {
             ports: Option::None,
             volume_mounts: Option::None,
             lifecycle: Option::None,
+            resources: Option::None,
         }
     }
 
@@ -1225,6 +1236,13 @@ impl ContainerView {
     pub open spec fn set_lifecycle(self, lifecycle: LifecycleView) -> ContainerView {
         ContainerView {
             lifecycle: Option::Some(lifecycle),
+            ..self
+        }
+    }
+
+    pub open spec fn set_resources(self, resources: ResourceRequirementsView) -> ContainerView {
+        ContainerView {
+            resources: Option::Some(resources),
             ..self
         }
     }
