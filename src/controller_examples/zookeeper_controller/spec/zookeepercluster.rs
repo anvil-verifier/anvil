@@ -82,7 +82,7 @@ impl CustomResourceView for ZookeeperClusterView {
         true
     }
 
-    open spec fn update_rule(new_zk: DynamicObjectView, old_zk: DynamicObjectView) -> bool {
+    open spec fn transition_rule(new_zk: DynamicObjectView, old_zk: DynamicObjectView) -> bool {
         true
     }
 

@@ -138,7 +138,7 @@ pub trait CustomResourceView: Sized {
 
     open spec fn rule(obj: DynamicObjectView) -> bool;
 
-    open spec fn update_rule(new_cr: DynamicObjectView, old_cr: DynamicObjectView) -> bool;
+    open spec fn transition_rule(new_cr: DynamicObjectView, old_cr: DynamicObjectView) -> bool;
 
 }
 

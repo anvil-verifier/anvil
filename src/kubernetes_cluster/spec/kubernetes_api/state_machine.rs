@@ -180,7 +180,7 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         && req.obj.metadata.resource_version != s.resources[req.key].metadata.resource_version {
         // Update fails because the object has a wrong rv
         Option::Some(APIError::Conflict)
-    } else if req.obj.kind == Kind::CustomResourceKind && !K::update_rule(req.obj, s.resources.index(req.key)) {
+    } else if req.obj.kind == Kind::CustomResourceKind && !K::transition_rule(req.obj, s.resources.index(req.key)) {
         Option::Some(APIError::IllegalCustomResource)
     } else {
         Option::None
