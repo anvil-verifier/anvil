@@ -13,10 +13,8 @@ use crate::kubernetes_cluster::spec::{
     controller::state_machine::*,
     external_api::*,
     kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
-    kubernetes_api::state_machine::kubernetes_api,
     message::*,
-    network,
-    network::{network, NetworkState},
+    network::NetworkState,
 };
 use crate::kubernetes_cluster::Cluster;
 use crate::reconciler::spec::reconciler::Reconciler;

@@ -4,21 +4,15 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
 use crate::kubernetes_cluster::spec::{
-    client::{client, ClientActionInput, ClientState},
+    client::{ClientActionInput, ClientState},
     controller::{
-        common::{
-            init_controller_state, ControllerAction, ControllerActionInput, ControllerState,
-            OngoingReconcile,
-        },
+        common::{ControllerAction, ControllerActionInput, ControllerState, OngoingReconcile},
         state_machine::*,
     },
     external_api::*,
-    kubernetes_api::{
-        common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
-        state_machine::kubernetes_api,
-    },
+    kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
     message::*,
-    network::{network, NetworkState},
+    network::NetworkState,
 };
 use crate::kubernetes_cluster::Cluster;
 use crate::reconciler::spec::reconciler::Reconciler;
@@ -130,11 +124,11 @@ impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn init() -> StatePred<State<K, E, R>> {
     |s: State<K, E, R>| {
-        &&& (kubernetes_api().init)(s.kubernetes_api_state)
+        &&& (Self::kubernetes_api().init)(s.kubernetes_api_state)
         &&& (Self::controller().init)(s.controller_state)
-        &&& (client::<K>().init)(s.client_state)
-        &&& (network().init)(s.network_state)
-        &&& external_api_state_init(s.external_api_state)
+        &&& (Self::client().init)(s.client_state)
+        &&& (Self::network().init)(s.network_state)
+        &&& Self::external_api_state_init(s.external_api_state)
         &&& s.crash_enabled
         &&& s.busy_enabled
     }
@@ -142,7 +136,7 @@ pub open spec fn init() -> StatePred<State<K, E, R>> {
 
 pub open spec fn kubernetes_api_next() -> Action<State<K, E, R>, Option<Message>, ()> {
     let result = |input: Option<Message>, s: State<K, E, R>| {
-        let host_result = kubernetes_api().next_result(
+        let host_result = Self::kubernetes_api().next_result(
             KubernetesAPIActionInput{recv: input, rest_id_allocator: s.rest_id_allocator},
             s.kubernetes_api_state
         );
@@ -150,7 +144,7 @@ pub open spec fn kubernetes_api_next() -> Action<State<K, E, R>, Option<Message>
             recv: input,
             send: host_result.get_Enabled_1().0,
         };
-        let network_result = network().next_result(msg_ops, s.network_state);
+        let network_result = Self::network().next_result(msg_ops, s.network_state);
 
         (host_result, network_result)
     };
@@ -217,7 +211,7 @@ pub open spec fn controller_next() -> Action<State<K, E, R>, (Option<Message>, O
             recv: input.0,
             send: host_result.get_Enabled_1().send,
         };
-        let network_result = network().next_result(msg_ops, s.network_state);
+        let network_result = Self::network().next_result(msg_ops, s.network_state);
 
         (host_result, network_result)
     };
@@ -237,7 +231,7 @@ pub open spec fn controller_next() -> Action<State<K, E, R>, (Option<Message>, O
                 controller_state: host_result.get_Enabled_0(),
                 network_state: network_result.get_Enabled_0(),
                 rest_id_allocator: host_result.get_Enabled_1().rest_id_allocator,
-                external_api_state: external_api_send_output_and_receive_input::<E>(input.1, host_result.get_Enabled_1().external_api_input, s.external_api_state),
+                external_api_state: Self::external_api_send_output_and_receive_input(input.1, host_result.get_Enabled_1().external_api_input, s.external_api_state),
                 ..s
             }, ())
         },
@@ -291,7 +285,7 @@ pub open spec fn restart_controller() -> Action<State<K, E, R>, (), ()> {
         },
         transition: |input: (), s: State<K, E, R>| {
             (State {
-                controller_state: init_controller_state(),
+                controller_state: Self::init_controller_state(),
                 ..s
             }, ())
         },
@@ -323,7 +317,7 @@ pub open spec fn busy_kubernetes_api_rejects_request() -> Action<State<K, E, R>,
             recv: input,
             send: Multiset::singleton(resp),
         };
-        let result = network().next_result(msg_ops, s.network_state);
+        let result = Self::network().next_result(msg_ops, s.network_state);
         result
     };
     Action {
@@ -361,7 +355,7 @@ pub open spec fn disable_busy() -> Action<State<K, E, R>, (), ()> {
 
 pub open spec fn client_next() -> Action<State<K, E, R>, (Option<Message>, K), ()> {
     let result = |input: (Option<Message>, K), s: State<K, E, R>| {
-        let host_result = client().next_result(
+        let host_result = Self::client().next_result(
             ClientActionInput{recv: input.0, cr: input.1, rest_id_allocator: s.rest_id_allocator},
             s.client_state
         );
@@ -369,7 +363,7 @@ pub open spec fn client_next() -> Action<State<K, E, R>, (Option<Message>, K), (
             recv: input.0,
             send: host_result.get_Enabled_1().0,
         };
-        let network_result = network().next_result(msg_ops, s.network_state);
+        let network_result = Self::network().next_result(msg_ops, s.network_state);
 
         (host_result, network_result)
     };
@@ -442,7 +436,7 @@ pub open spec fn sm_partial_spec() -> TempPred<State<K, E, R>> {
 
 pub open spec fn kubernetes_api_action_pre(action: KubernetesAPIAction, input: Option<Message>) -> StatePred<State<K, E, R>> {
     |s: State<K, E, R>| {
-        let host_result = kubernetes_api().next_action_result(
+        let host_result = Self::kubernetes_api().next_action_result(
             action,
             KubernetesAPIActionInput{recv: input, rest_id_allocator: s.rest_id_allocator},
             s.kubernetes_api_state
@@ -451,7 +445,7 @@ pub open spec fn kubernetes_api_action_pre(action: KubernetesAPIAction, input: O
             recv: input,
             send: host_result.get_Enabled_1().0,
         };
-        let network_result = network().next_result(msg_ops, s.network_state);
+        let network_result = Self::network().next_result(msg_ops, s.network_state);
 
         &&& received_msg_destined_for(input, HostId::KubernetesAPI)
         &&& host_result.is_Enabled()
@@ -470,7 +464,7 @@ pub open spec fn controller_action_pre(action: ControllerAction<K, E, R>, input:
             recv: input.0,
             send: host_result.get_Enabled_1().send,
         };
-        let network_result = network().next_result(msg_ops, s.network_state);
+        let network_result = Self::network().next_result(msg_ops, s.network_state);
 
         &&& received_msg_destined_for(input.0, HostId::CustomController)
         &&& input.1.is_Some() ==> s.external_api_state.in_flight.contains(input.1.get_Some_0())

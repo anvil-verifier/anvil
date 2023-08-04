@@ -1,6 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, dynamic::*, error::*, object_meta::*,
     persistent_volume_claim::*, pod::*, resource::*, role::*, role_binding::*, secret::*,
@@ -10,6 +11,8 @@ use crate::kubernetes_cluster::spec::{
     kubernetes_api::{builtin_controllers::statefulset_controller, common::*},
     message::*,
 };
+use crate::kubernetes_cluster::Cluster;
+use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
@@ -283,6 +286,8 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
     }
 }
 
+impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+
 pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine {
     StateMachine {
         init: |s: KubernetesAPIState| {
@@ -298,6 +303,8 @@ pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine {
             input
         }
     }
+}
+
 }
 
 }

@@ -3,24 +3,15 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
-use crate::kubernetes_cluster::Cluster;
-use crate::kubernetes_cluster::{
-    proof::{
-        controller_runtime::*, controller_runtime_safety::*, kubernetes_api_liveness::*,
-        kubernetes_api_safety, wf1_assistant::*,
-    },
-    spec::{
-        cluster::*,
-        controller::common::{ControllerAction, ControllerActionInput},
-        controller::controller_runtime::{
-            continue_reconcile, end_reconcile, run_scheduled_reconcile,
-        },
-        controller::state_machine::*,
-        external_api::*,
-        kubernetes_api::state_machine::{handle_request, transition_by_etcd},
-        message::*,
-    },
+use crate::kubernetes_cluster::spec::{
+    cluster::*,
+    controller::common::{ControllerAction, ControllerActionInput},
+    controller::state_machine::*,
+    external_api::*,
+    kubernetes_api::state_machine::{handle_request, transition_by_etcd},
+    message::*,
 };
+use crate::kubernetes_cluster::Cluster;
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
@@ -129,7 +120,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle
     let input = (Option::None, Option::None, Option::Some(cr_key));
     Self::lemma_pre_leads_to_post_by_controller(
         spec, input, Self::next(),
-        end_reconcile::<K, E, R>(), pre, post
+        Self::end_reconcile(), pre, post
     );
 }
 
@@ -153,7 +144,7 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle
     let input = (Option::None, Option::None, Option::Some(cr_key));
     Self::lemma_pre_leads_to_post_by_controller(
         spec, input,
-        Self::next(), end_reconcile::<K, E, R>(), pre, post
+        Self::next(), Self::end_reconcile(), pre, post
     );
 }
 
@@ -186,7 +177,7 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init
     strengthen_next::<State<K, E, R>>(spec, Self::next(), Self::crash_disabled(), stronger_next);
     let input = (Option::None, Option::None, Option::Some(cr_key));
     Self::lemma_pre_leads_to_post_by_controller(
-        spec, input, stronger_next, run_scheduled_reconcile::<K, E, R>(), pre, post
+        spec, input, stronger_next, Self::run_scheduled_reconcile(), pre, post
     );
 }
 
@@ -342,9 +333,7 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(
     strengthen_next(spec, Self::next(), Self::crash_disabled(), stronger_next);
     Self::lemma_pre_leads_to_post_by_controller(
         spec, (Option::None, Option::None, Option::Some(cr.object_ref())),
-        stronger_next,
-        continue_reconcile::<K, E, R>(),
-        no_pending_req,
+        stronger_next, Self::continue_reconcile(), no_pending_req,
         Self::at_expected_reconcile_states(cr.object_ref(), next_state)
     );
     leads_to_trans_n!(
@@ -420,7 +409,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
             };
             let input = (Option::Some(msg), Option::None, Option::Some(cr.object_ref()));
             Self::lemma_pre_leads_to_post_by_controller(
-                spec, input, stronger_next, continue_reconcile::<K, E, R>(), resp_in_flight_state, post
+                spec, input, stronger_next, Self::continue_reconcile(), resp_in_flight_state, post
             );
     };
     leads_to_exists_intro::<State<K, E, R>, Message>(spec, known_resp_in_flight, lift_state(post));
@@ -575,7 +564,7 @@ pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile
         .and(lift_state(Self::crash_disabled()))
     );
     let input = (Option::None, Option::None, Option::Some(cr.object_ref()));
-    Self::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, continue_reconcile(), no_req_at_state, Self::at_expected_reconcile_states(cr.object_ref(), next_state));
+    Self::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, Self::continue_reconcile(), no_req_at_state, Self::at_expected_reconcile_states(cr.object_ref(), next_state));
     leads_to_trans_n!(
         spec,
         lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)),

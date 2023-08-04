@@ -5,21 +5,15 @@ use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, dynamic::*, resource::*,
 };
-use crate::kubernetes_cluster::{
-    proof::*,
-    spec::{
-        cluster::*,
-        controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
-        controller::controller_runtime::{
-            continue_reconcile, end_reconcile, run_scheduled_reconcile,
-        },
-        controller::state_machine::*,
-        kubernetes_api::state_machine::{
-            handle_create_request, handle_get_request, handle_request, transition_by_etcd,
-            update_is_noop,
-        },
-        message::*,
+use crate::kubernetes_cluster::spec::{
+    cluster::*,
+    controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
+    controller::state_machine::*,
+    kubernetes_api::state_machine::{
+        handle_create_request, handle_get_request, handle_request, transition_by_etcd,
+        update_is_noop,
     },
+    message::*,
 };
 use crate::rabbitmq_controller::{
     common::*,
@@ -693,7 +687,7 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, rabbitm
 
     ClusterProof::lemma_pre_leads_to_post_by_controller(
         spec, input, stronger_next,
-        run_scheduled_reconcile::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>(), pre, post
+        ClusterProof::run_scheduled_reconcile(), pre, post
     );
 }
 
@@ -729,10 +723,7 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
         .and(lift_state(ClusterProof::crash_disabled()))
     );
 
-    ClusterProof::lemma_pre_leads_to_post_by_controller(
-        spec, input, stronger_next,
-        continue_reconcile::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>(), pre, post
-    );
+    ClusterProof::lemma_pre_leads_to_post_by_controller( spec, input, stronger_next, ClusterProof::continue_reconcile(), pre, post);
 }
 
 // This lemma ensures that rabbitmq controller at some step with pending request in flight will finally enter its next step.
@@ -988,7 +979,7 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
 
     ClusterProof::lemma_pre_leads_to_post_by_controller(
         spec, input, stronger_next,
-        continue_reconcile::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>(), pre, post
+        ClusterProof::continue_reconcile(), pre, post
     );
 }
 
@@ -1301,7 +1292,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_create_server_conf
 
     ClusterProof::lemma_pre_leads_to_post_by_controller(
         spec, input, stronger_next,
-        continue_reconcile::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>(), pre, post
+        ClusterProof::continue_reconcile(), pre, post
     );
 }
 
@@ -1833,7 +1824,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_conf
 
     ClusterProof::lemma_pre_leads_to_post_by_controller(
         spec, input, stronger_next,
-        continue_reconcile::<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>(), pre, post
+        ClusterProof::continue_reconcile(), pre, post
     );
 }
 

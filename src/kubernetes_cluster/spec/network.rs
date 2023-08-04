@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_cluster::spec::message::*;
+use crate::kubernetes_cluster::Cluster;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
@@ -34,11 +35,15 @@ pub open spec fn deliver() -> Action<NetworkState, MessageOps, ()> {
     }
 }
 
+impl <K, E, R> Cluster<K, E, R> {
+
 pub open spec fn network() -> NetworkStateMachine<NetworkState, MessageOps> {
     NetworkStateMachine {
         init: |s: NetworkState| s.in_flight == Multiset::<Message>::empty(),
         deliver: deliver(),
     }
+}
+
 }
 
 }

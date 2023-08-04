@@ -20,18 +20,18 @@ impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 pub open spec fn controller() -> ControllerStateMachine<K, E, R> {
     StateMachine {
         init: |s: ControllerState<K, E, R>| {
-            s == init_controller_state::<K, E, R>()
+            s == Self::init_controller_state()
         },
         actions: set![
-            run_scheduled_reconcile::<K, E, R>(),
-            continue_reconcile::<K, E, R>(),
-            end_reconcile::<K, E, R>()
+            Self::run_scheduled_reconcile(),
+            Self::continue_reconcile(),
+            Self::end_reconcile()
         ],
         step_to_action: |step: ControllerStep| {
             match step {
-                ControllerStep::RunScheduledReconcile => run_scheduled_reconcile::<K, E, R>(),
-                ControllerStep::ContinueReconcile => continue_reconcile::<K, E, R>(),
-                ControllerStep::EndReconcile => end_reconcile::<K, E, R>(),
+                ControllerStep::RunScheduledReconcile => Self::run_scheduled_reconcile(),
+                ControllerStep::ContinueReconcile => Self::continue_reconcile(),
+                ControllerStep::EndReconcile => Self::end_reconcile(),
             }
         },
         action_input: |step: ControllerStep, input: ControllerActionInput<E>| {

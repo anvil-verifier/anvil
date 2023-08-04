@@ -4,6 +4,7 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::spec::{controller::common::*, external_api::*, message::*};
+use crate::kubernetes_cluster::Cluster;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -12,7 +13,9 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub open spec fn run_scheduled_reconcile<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> ControllerAction<K, E, R> {
+impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+
+pub open spec fn run_scheduled_reconcile() -> ControllerAction<K, E, R> {
     Action {
         precondition: |input: ControllerActionInput<E>, s: ControllerState<K, E, R>| {
             &&& input.scheduled_cr_key.is_Some()
@@ -45,7 +48,7 @@ pub open spec fn run_scheduled_reconcile<K: ResourceView, E: ExternalAPI, R: Rec
     }
 }
 
-pub open spec fn continue_reconcile<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> ControllerAction<K, E, R> {
+pub open spec fn continue_reconcile() -> ControllerAction<K, E, R> {
     Action {
         precondition: |input: ControllerActionInput<E>, s: ControllerState<K, E, R>| {
             if input.scheduled_cr_key.is_Some() {
@@ -76,7 +79,7 @@ pub open spec fn continue_reconcile<K: ResourceView, E: ExternalAPI, R: Reconcil
                     // This branch is for case (2)
                     &&& input.recv.is_None()
                     &&& input.external_api_output.is_Some()
-                    &&& external_output_matches_input::<E>(input.external_api_output.get_Some_0(), s.ongoing_reconciles[cr_key].pending_external_api_input.get_Some_0())
+                    &&& Self::external_output_matches_input(input.external_api_output.get_Some_0(), s.ongoing_reconciles[cr_key].pending_external_api_input.get_Some_0())
                 } else {
                     // This is for case (3)
                     &&& input.recv.is_None()
@@ -122,7 +125,7 @@ pub open spec fn continue_reconcile<K: ResourceView, E: ExternalAPI, R: Reconcil
                     RequestView::ExternalRequest(req) => {
                         // Update the state by calling the external process method.
                         let (rest_id_allocator_prime, external_api_input)
-                            = (input.rest_id_allocator.allocate().0, Option::Some(form_external_input::<E>(req, input.rest_id_allocator.allocate().1)));
+                            = (input.rest_id_allocator.allocate().0, Option::Some(Self::form_external_input(req, input.rest_id_allocator.allocate().1)));
                         let reconcile_state_prime = OngoingReconcile {
                             pending_req_msg: Option::None,
                             pending_external_api_input: external_api_input,
@@ -163,7 +166,7 @@ pub open spec fn continue_reconcile<K: ResourceView, E: ExternalAPI, R: Reconcil
     }
 }
 
-pub open spec fn end_reconcile<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> ControllerAction<K, E, R> {
+pub open spec fn end_reconcile() -> ControllerAction<K, E, R> {
     Action {
         precondition: |input: ControllerActionInput<E>, s: ControllerState<K, E, R>| {
             if input.scheduled_cr_key.is_Some() {
@@ -192,6 +195,8 @@ pub open spec fn end_reconcile<K: ResourceView, E: ExternalAPI, R: Reconciler<K,
             (s_prime, output)
         }
     }
+}
+
 }
 
 }

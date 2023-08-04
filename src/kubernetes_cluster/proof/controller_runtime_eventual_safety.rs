@@ -4,16 +4,9 @@
 use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{common::*, resource::*};
 use crate::kubernetes_cluster::{
-    proof::{
-        cluster::*, cluster_safety::*, controller_runtime_liveness::*, kubernetes_api_safety::*,
-        wf1_assistant::*,
-    },
     spec::{
         cluster::*,
         controller::common::{ControllerAction, ControllerActionInput},
-        controller::controller_runtime::{
-            continue_reconcile, end_reconcile, run_scheduled_reconcile,
-        },
         controller::state_machine::*,
         message::*,
     },
@@ -146,8 +139,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(
 
                     K::object_ref_is_well_formed();
                     Self::lemma_pre_leads_to_post_by_controller(
-                        stable_spec_with_assumption, input, stronger_next,
-                        run_scheduled_reconcile::<K, E, R>(), pre, post
+                        stable_spec_with_assumption, input, stronger_next, Self::run_scheduled_reconcile(), pre, post
                     );
                 }
             );

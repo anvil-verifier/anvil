@@ -3,18 +3,13 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
-use crate::kubernetes_cluster::Cluster;
-use crate::kubernetes_cluster::{
-    proof::wf1_assistant::*,
-    spec::{
-        cluster::*,
-        kubernetes_api::common::KubernetesAPIAction,
-        kubernetes_api::state_machine::{
-            handle_request, kubernetes_api, object_has_well_formed_spec,
-        },
-        message::*,
-    },
+use crate::kubernetes_cluster::spec::{
+    cluster::*,
+    kubernetes_api::common::KubernetesAPIAction,
+    kubernetes_api::state_machine::{handle_request, object_has_well_formed_spec},
+    message::*,
 };
+use crate::kubernetes_cluster::Cluster;
 use crate::pervasive_ext::multiset_lemmas::*;
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::temporal_logic::defs::*;
@@ -31,7 +26,7 @@ pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(
     pre: StatePred<State<K, E, R>>, post: StatePred<State<K, E, R>>
 )
     requires
-        kubernetes_api().actions.contains(action),
+        Self::kubernetes_api().actions.contains(action),
         forall |s, s_prime: State<K, E, R>| pre(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
         forall |s, s_prime: State<K, E, R>| pre(s) && #[trigger] next(s, s_prime) && Self::kubernetes_api_next().forward(input)(s, s_prime) ==> post(s_prime),
         forall |s: State<K, E, R>| #[trigger] pre(s) ==> Self::kubernetes_api_action_pre(action, input)(s),

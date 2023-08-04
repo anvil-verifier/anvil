@@ -5,13 +5,9 @@ use crate::kubernetes_api_objects::{
     api_method::*, common::*, dynamic::*, resource::*, stateful_set::*,
 };
 use crate::kubernetes_cluster::{
-    proof::*,
     spec::{
         cluster::*,
-        controller::common::{controller_req_msg, ControllerActionInput<E>, ControllerStep},
-        controller::controller_runtime::{
-            continue_reconcile, end_reconcile, run_scheduled_reconcile,
-        },
+        controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
         controller::state_machine::*,
         kubernetes_api::state_machine::{
             handle_create_request, handle_get_request, handle_request, transition_by_etcd,
@@ -1125,7 +1121,7 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ClusterState>, zk: Zoo
 
     ClusterProof::lemma_pre_leads_to_post_by_controller(
         spec, input, stronger_next,
-        run_scheduled_reconcile::<ZookeeperClusterView, ZookeeperReconciler>(), pre, post
+        ClusterProof::run_scheduled_reconcile(), pre, post
     );
 }
 
@@ -1161,10 +1157,7 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
         .and(lift_state(crash_disabled()))
     );
 
-    ClusterProof::lemma_pre_leads_to_post_by_controller(
-        spec, input, stronger_next,
-        continue_reconcile::<ZookeeperClusterView, ZookeeperReconciler>(), pre, post
-    );
+    ClusterProof::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, ClusterProof::continue_reconcile(), pre, post);
 }
 
 // This lemma ensures that zookeeper controller at some step with a response in flight that matches its pending request will finally enter its next step.
@@ -1251,10 +1244,7 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
         }
     }
 
-    ClusterProof::lemma_pre_leads_to_post_by_controller(
-        spec, input, stronger_next,
-        continue_reconcile::<ZookeeperClusterView, ZookeeperReconciler>(), pre, post
-    );
+    ClusterProof::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, Self::continue_reconcile(), pre, post);
 }
 
 proof fn lemma_receives_some_resp_at_zookeeper_step_with_zk(
@@ -1499,10 +1489,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         .and(lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
     );
 
-    ClusterProof::lemma_pre_leads_to_post_by_controller(
-        spec, input, stronger_next,
-        continue_reconcile::<ZookeeperClusterView, ZookeeperReconciler>(), pre, post
-    );
+    ClusterProof::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, Self::continue_reconcile(), pre, post);
 }
 
 proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
@@ -1764,10 +1751,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_create_stateful_set_ste
         .and(lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(zk.object_ref(), rest_id)))
     );
 
-    ClusterProof::lemma_pre_leads_to_post_by_controller(
-        spec, input, stronger_next,
-        continue_reconcile::<ZookeeperClusterView, ZookeeperReconciler>(), pre, post
-    );
+    ClusterProof::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, Self::continue_reconcile(), pre, post);
 }
 
 proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_zk(
