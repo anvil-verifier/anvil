@@ -53,15 +53,4 @@ pub open spec fn controller_req_msg(req: APIRequest, req_id: nat) -> Message {
     form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req, req_id))
 }
 
-pub open spec fn form_external_input<E: ExternalAPI>(input: E::Input, id: nat) -> ExternalComm<E::Input, E::Output> {
-    ExternalComm::Input(input, id)
-}
-
-pub open spec fn init_controller_state<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>>() -> ControllerState<K, E, R> {
-    ControllerState {
-        ongoing_reconciles: Map::empty(),
-        scheduled_reconciles: Map::empty(),
-    }
-}
-
 }

@@ -10,10 +10,7 @@ use crate::kubernetes_cluster::{
     spec::{
         cluster::*,
         controller::common::{controller_req_msg, ControllerActionInput<E>, ControllerStep},
-        controller::controller_runtime::{
-            continue_reconcile, end_reconcile, run_scheduled_reconcile,
-        },
-        controller::state_machine::controller,
+        controller::state_machine::*,
         kubernetes_api::state_machine::handle_request,
         message::*,
     },
@@ -353,7 +350,7 @@ proof fn lemma_after_get_cr_pc_leads_to_cm_exists(cr: CustomResourceView)
             let s = ex.suffix(i).head();
             let req_msg = choose |req_msg: Message| {
                 #[trigger] is_controller_get_cr_request_msg(req_msg, cr)
-                && pending_k8s_api_req_msg_is(s, cr.object_ref(), req_msg)
+                && ClusterProof::pending_k8s_api_req_msg_is(s, cr.object_ref(), req_msg)
                 && (s.message_in_flight(req_msg)
                     || exists |resp_msg: Message| {
                         #[trigger] s.message_in_flight(resp_msg)
@@ -409,7 +406,7 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_cm_exists(cr: CustomResourceV
             let s = ex.suffix(i).head();
             let req_msg = choose |msg| {
                 &&& #[trigger] is_controller_get_cr_request_msg(msg, cr)
-                &&& pending_k8s_api_req_msg_is(s, cr.object_ref(), msg)
+                &&& ClusterProof::pending_k8s_api_req_msg_is(s, cr.object_ref(), msg)
                 &&& ! exists |resp_msg: Message| {
                     &&& #[trigger] s.message_in_flight(resp_msg)
                     &&& resp_msg_matches_req_msg(resp_msg, msg)

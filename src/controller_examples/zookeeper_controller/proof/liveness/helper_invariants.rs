@@ -4,34 +4,15 @@
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, error::*, resource::*, stateful_set::*,
 };
-use crate::kubernetes_cluster::{
-    proof::{
-        cluster::*,
-        cluster_safety::{
-            each_key_in_reconcile_is_consistent_with_its_object,
-            lemma_always_each_key_in_reconcile_is_consistent_with_its_object,
-        },
-        controller_runtime::*,
-        controller_runtime_eventual_safety,
-        controller_runtime_safety::{
-            each_resp_matches_at_most_one_pending_req,
-            every_in_flight_msg_has_lower_id_than_allocator, every_in_flight_msg_has_unique_id,
-            lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state,
-        },
-        kubernetes_api_safety,
+use crate::kubernetes_cluster::spec::{
+    cluster::*,
+    cluster_state_machine::Step,
+    controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
+    controller::state_machine::*,
+    kubernetes_api::state_machine::{
+        handle_request, object_has_well_formed_spec, transition_by_etcd,
     },
-    spec::{
-        cluster::*,
-        controller::common::{controller_req_msg, ControllerActionInput<E>, ControllerStep},
-        controller::controller_runtime::{
-            continue_reconcile, end_reconcile, run_scheduled_reconcile,
-        },
-        controller::state_machine::controller,
-        kubernetes_api::state_machine::{
-            handle_request, object_has_well_formed_spec, transition_by_etcd,
-        },
-        message::*,
-    },
+    message::*,
 };
 use crate::pervasive_ext::multiset_lemmas;
 use crate::reconciler::spec::reconciler::*;
@@ -62,48 +43,48 @@ pub open spec fn sts_create_request_msg_since(key: ObjectRef, rest_id: RestId) -
 
 pub open spec fn pending_msg_at_after_create_stateful_set_step_is_create_sts_req(
     key: ObjectRef
-) -> StatePred<ClusterState>
+) -> StatePred<ZKCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: ClusterState| {
+    |s: ZKCluster| {
         at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s)
             ==> {
-                &&& pending_k8s_api_req_msg(s, key)
+                &&& ZKCluster::pending_k8s_api_req_msg(s, key)
                 &&& sts_create_request_msg(key)(s.pending_req_of(key))
             }
     }
 }
 
 pub proof fn lemma_always_pending_msg_at_after_create_stateful_set_step_is_create_sts_req(
-    spec: TempPred<ClusterState>, key: ObjectRef
+    spec: TempPred<ZKCluster>, key: ObjectRef
 )
     requires
-        spec.entails(lift_state(init::<ZookeeperClusterView, ZookeeperReconciler>())),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>()))),
+        spec.entails(lift_state(ZKCluster::init())),
+        spec.entails(always(lift_action(ZKCluster::next()))),
     ensures
         spec.entails(
             always(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))
         ),
 {
     let invariant = pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key);
-    let init = init::<ZookeeperClusterView, ZookeeperReconciler>();
+    let init = ZKCluster::init();
     let stronger_next = |s, s_prime| {
-        &&& next::<ZookeeperClusterView, ZookeeperReconciler>()(s, s_prime)
-        &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& ZKCluster::next()(s, s_prime)
+        &&& ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
     };
 
-    lemma_always_each_key_in_reconcile_is_consistent_with_its_object::<ZookeeperClusterView, ZookeeperReconciler>(spec);
+    ZKCluster::lemma_always_each_key_in_reconcile_is_consistent_with_its_object(spec);
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>()),
-        lift_state(each_key_in_reconcile_is_consistent_with_its_object())
+        lift_action(ZKCluster::next()),
+        lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object())
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>())
-        .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
+        lift_action(ZKCluster::next())
+        .and(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))
     );
 
     init_invariant(spec, init, stronger_next, invariant);
@@ -111,11 +92,11 @@ pub proof fn lemma_always_pending_msg_at_after_create_stateful_set_step_is_creat
 
 pub open spec fn filtered_create_sts_req_len_is_at_most_one(
     key: ObjectRef, rest_id: RestId
-) -> StatePred<ClusterState>
+) -> StatePred<ZKCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: ClusterState| {
+    |s: ZKCluster| {
         s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() > 0
         ==> {
             &&& at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s)
@@ -128,76 +109,76 @@ pub open spec fn filtered_create_sts_req_len_is_at_most_one(
 }
 
 proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
-    spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
+    spec: TempPred<ZKCluster>, key: ObjectRef, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_state(ZKCluster::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key))),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>()))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_action(ZKCluster::next()))),
+        spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
+        spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))),
-        spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
             always(lift_state(filtered_create_sts_req_len_is_at_most_one(key, rest_id)))
         ),
 {
-    let init = |s: ClusterState| {
-        &&& rest_id_counter_is(rest_id)(s)
-        &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
+    let init = |s: ZKCluster| {
+        &&& ZKCluster::rest_id_counter_is(rest_id)(s)
+        &&& ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
         &&& pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)(s)
     };
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<ZookeeperClusterView, ZookeeperReconciler>()(s, s_prime)
-        &&& crash_disabled()(s)
-        &&& busy_disabled()(s)
+    let stronger_next = |s, s_prime: ZKCluster| {
+        &&& ZKCluster::next()(s, s_prime)
+        &&& ZKCluster::crash_disabled()(s)
+        &&& ZKCluster::busy_disabled()(s)
         &&& pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)(s)
-        &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
-        &&& every_in_flight_msg_has_unique_id()(s)
+        &&& ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
+        &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
     };
     let invariant = filtered_create_sts_req_len_is_at_most_one(key, rest_id);
 
     entails_and_n!(
         spec,
-        lift_state(rest_id_counter_is(rest_id)),
-        lift_state(every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(ZKCluster::rest_id_counter_is(rest_id)),
+        lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key))
     );
     temp_pred_equality(
         lift_state(init),
-        lift_state(rest_id_counter_is(rest_id))
-        .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator()))
+        lift_state(ZKCluster::rest_id_counter_is(rest_id))
+        .and(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()))
         .and(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))
     );
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>()),
-        lift_state(crash_disabled()),
-        lift_state(busy_disabled()),
+        lift_action(ZKCluster::next()),
+        lift_state(ZKCluster::crash_disabled()),
+        lift_state(ZKCluster::busy_disabled()),
         lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)),
-        lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
-        lift_state(every_in_flight_msg_has_unique_id())
+        lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()),
+        lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)),
+        lift_state(ZKCluster::every_in_flight_msg_has_unique_id())
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>())
-        .and(lift_state(crash_disabled()))
-        .and(lift_state(busy_disabled()))
+        lift_action(ZKCluster::next())
+        .and(lift_state(ZKCluster::crash_disabled()))
+        .and(lift_state(ZKCluster::busy_disabled()))
         .and(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))
-        .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
-        .and(lift_state(every_in_flight_msg_has_unique_id()))
+        .and(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))
+        .and(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))
+        .and(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))
     );
 
-    assert forall |s: ClusterState| #[trigger] init(s) implies invariant(s) by {
+    assert forall |s: ZKCluster| #[trigger] init(s) implies invariant(s) by {
         let sts_create_req_multiset = s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id));
 
         assert forall |msg| sts_create_req_multiset.count(msg) == 0 by {
@@ -206,11 +187,11 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
         multiset_lemmas::len_is_zero_means_count_for_each_value_is_zero(sts_create_req_multiset);
     }
 
-    assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime)
+    assert forall |s, s_prime: ZKCluster| invariant(s) && #[trigger] stronger_next(s, s_prime)
     implies invariant(s_prime) by {
         let sts_create_req_multiset = s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id));
         let sts_create_req_multiset_prime = s_prime.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id));
-        let step = choose |step| next_step::<ZookeeperClusterView, ZookeeperReconciler>(s, s_prime, step);
+        let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
                 if !at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s) {
@@ -290,11 +271,11 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
 
 pub open spec fn at_most_one_create_sts_req_since_rest_id_is_in_flight(
     key: ObjectRef, rest_id: RestId
-) -> StatePred<ClusterState>
+) -> StatePred<ZKCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: ClusterState| {
+    |s: ZKCluster| {
         forall |msg| {
             &&& #[trigger] s.network_state.in_flight.contains(msg)
             &&& sts_create_request_msg_since(key, rest_id)(msg)
@@ -309,19 +290,19 @@ pub open spec fn at_most_one_create_sts_req_since_rest_id_is_in_flight(
 }
 
 pub proof fn lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(
-    spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
+    spec: TempPred<ZKCluster>, key: ObjectRef, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_state(ZKCluster::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key))),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>()))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_action(ZKCluster::next()))),
+        spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
+        spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))),
-        spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
@@ -373,48 +354,48 @@ pub open spec fn sts_update_request_msg_since(key: ObjectRef, rest_id: RestId) -
 
 pub open spec fn pending_msg_at_after_update_stateful_set_step_is_update_sts_req(
     key: ObjectRef
-) -> StatePred<ClusterState>
+) -> StatePred<ZKCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: ClusterState| {
+    |s: ZKCluster| {
         at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s)
             ==> {
-                &&& pending_k8s_api_req_msg(s, key)
+                &&& ZKCluster::pending_k8s_api_req_msg(s, key)
                 &&& sts_update_request_msg(key)(s.pending_req_of(key))
             }
     }
 }
 
 pub proof fn lemma_always_pending_msg_at_after_update_stateful_set_step_is_update_sts_req(
-    spec: TempPred<ClusterState>, key: ObjectRef
+    spec: TempPred<ZKCluster>, key: ObjectRef
 )
     requires
-        spec.entails(lift_state(init::<ZookeeperClusterView, ZookeeperReconciler>())),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>()))),
+        spec.entails(lift_state(ZKCluster::init())),
+        spec.entails(always(lift_action(ZKCluster::next()))),
     ensures
         spec.entails(
             always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))
         ),
 {
     let invariant = pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key);
-    let init = init::<ZookeeperClusterView, ZookeeperReconciler>();
+    let init = ZKCluster::init();
     let stronger_next = |s, s_prime| {
-        &&& next::<ZookeeperClusterView, ZookeeperReconciler>()(s, s_prime)
-        &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& ZKCluster::next()(s, s_prime)
+        &&& ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
     };
 
-    lemma_always_each_key_in_reconcile_is_consistent_with_its_object::<ZookeeperClusterView, ZookeeperReconciler>(spec);
+    ZKCluster::lemma_always_each_key_in_reconcile_is_consistent_with_its_object(spec);
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>()),
-        lift_state(each_key_in_reconcile_is_consistent_with_its_object())
+        lift_action(ZKCluster::next()),
+        lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object())
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>())
-        .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
+        lift_action(ZKCluster::next())
+        .and(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))
     );
 
     init_invariant(spec, init, stronger_next, invariant);
@@ -422,11 +403,11 @@ pub proof fn lemma_always_pending_msg_at_after_update_stateful_set_step_is_updat
 
 pub open spec fn filtered_update_sts_req_len_is_at_most_one(
     key: ObjectRef, rest_id: RestId
-) -> StatePred<ClusterState>
+) -> StatePred<ZKCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: ClusterState| {
+    |s: ZKCluster| {
         s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() > 0
         ==> {
             &&& at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s)
@@ -439,76 +420,76 @@ pub open spec fn filtered_update_sts_req_len_is_at_most_one(
 }
 
 proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
-    spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
+    spec: TempPred<ZKCluster>, key: ObjectRef, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_state(ZKCluster::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key))),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>()))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_action(ZKCluster::next()))),
+        spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
+        spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))),
-        spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
             always(lift_state(filtered_update_sts_req_len_is_at_most_one(key, rest_id)))
         ),
 {
-    let init = |s: ClusterState| {
-        &&& rest_id_counter_is(rest_id)(s)
-        &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
+    let init = |s: ZKCluster| {
+        &&& ZKCluster::rest_id_counter_is(rest_id)(s)
+        &&& ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
         &&& pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)(s)
     };
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<ZookeeperClusterView, ZookeeperReconciler>()(s, s_prime)
-        &&& crash_disabled()(s)
-        &&& busy_disabled()(s)
+    let stronger_next = |s, s_prime: ZKCluster| {
+        &&& ZKCluster::next()(s, s_prime)
+        &&& ZKCluster::crash_disabled()(s)
+        &&& ZKCluster::busy_disabled()(s)
         &&& pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)(s)
-        &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
-        &&& every_in_flight_msg_has_unique_id()(s)
+        &&& ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
+        &&& ZKCluster::every_in_flight_msg_has_unique_id()(s)
     };
     let invariant = filtered_update_sts_req_len_is_at_most_one(key, rest_id);
 
     entails_and_n!(
         spec,
-        lift_state(rest_id_counter_is(rest_id)),
-        lift_state(every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(ZKCluster::rest_id_counter_is(rest_id)),
+        lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key))
     );
     temp_pred_equality(
         lift_state(init),
-        lift_state(rest_id_counter_is(rest_id))
-        .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator()))
+        lift_state(ZKCluster::rest_id_counter_is(rest_id))
+        .and(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()))
         .and(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))
     );
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>()),
-        lift_state(crash_disabled()),
-        lift_state(busy_disabled()),
+        lift_action(ZKCluster::next()),
+        lift_state(ZKCluster::crash_disabled()),
+        lift_state(ZKCluster::busy_disabled()),
         lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)),
-        lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
-        lift_state(every_in_flight_msg_has_unique_id())
+        lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()),
+        lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)),
+        lift_state(ZKCluster::every_in_flight_msg_has_unique_id())
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>())
-        .and(lift_state(crash_disabled()))
-        .and(lift_state(busy_disabled()))
+        lift_action(ZKCluster::next())
+        .and(lift_state(ZKCluster::crash_disabled()))
+        .and(lift_state(ZKCluster::busy_disabled()))
         .and(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))
-        .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
-        .and(lift_state(every_in_flight_msg_has_unique_id()))
+        .and(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))
+        .and(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))
+        .and(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))
     );
 
-    assert forall |s: ClusterState| #[trigger] init(s) implies invariant(s) by {
+    assert forall |s: ZKCluster| #[trigger] init(s) implies invariant(s) by {
         let sts_update_req_multiset = s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id));
 
         assert forall |msg| sts_update_req_multiset.count(msg) == 0 by {
@@ -517,11 +498,11 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
         multiset_lemmas::len_is_zero_means_count_for_each_value_is_zero(sts_update_req_multiset);
     }
 
-    assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime)
+    assert forall |s, s_prime: ZKCluster| invariant(s) && #[trigger] stronger_next(s, s_prime)
     implies invariant(s_prime) by {
         let sts_update_req_multiset = s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id));
         let sts_update_req_multiset_prime = s_prime.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id));
-        let step = choose |step| next_step::<ZookeeperClusterView, ZookeeperReconciler>(s, s_prime, step);
+        let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
                 if !at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s) {
@@ -601,11 +582,11 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
 
 pub open spec fn at_most_one_update_sts_req_since_rest_id_is_in_flight(
     key: ObjectRef, rest_id: RestId
-) -> StatePred<ClusterState>
+) -> StatePred<ZKCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: ClusterState| {
+    |s: ZKCluster| {
         forall |msg| {
             &&& #[trigger] s.network_state.in_flight.contains(msg)
             &&& sts_update_request_msg_since(key, rest_id)(msg)
@@ -620,19 +601,19 @@ pub open spec fn at_most_one_update_sts_req_since_rest_id_is_in_flight(
 }
 
 pub proof fn lemma_always_at_most_one_update_sts_req_since_rest_id_is_in_flight(
-    spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
+    spec: TempPred<ZKCluster>, key: ObjectRef, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_state(ZKCluster::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key))),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>()))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_action(ZKCluster::next()))),
+        spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
+        spec.entails(always(lift_state(ZKCluster::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))),
-        spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(ZKCluster::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
@@ -671,11 +652,11 @@ pub proof fn lemma_always_at_most_one_update_sts_req_since_rest_id_is_in_flight(
 
 pub open spec fn every_update_sts_req_since_rest_id_does_the_same(
     zk: ZookeeperClusterView, rest_id: RestId
-) -> StatePred<ClusterState>
+) -> StatePred<ZKCluster>
     recommends
         zk.well_formed(),
 {
-    |s: ClusterState| {
+    |s: ZKCluster| {
         forall |msg: Message| {
             &&& #[trigger] s.network_state.in_flight.contains(msg)
             &&& sts_update_request_msg_since(zk.object_ref(), rest_id)(msg)
@@ -684,57 +665,57 @@ pub open spec fn every_update_sts_req_since_rest_id_does_the_same(
 }
 
 pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
-    spec: TempPred<ClusterState>, zk: ZookeeperClusterView, rest_id: RestId
+    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>()))),
-        spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(zk)))),
+        spec.entails(lift_state(ZKCluster::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(always(lift_action(ZKCluster::next()))),
+        spec.entails(always(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_as(zk)))),
     ensures
         spec.entails(always(lift_state(every_update_sts_req_since_rest_id_does_the_same(zk, rest_id)))),
 {
-    let init = |s: ClusterState| {
-        &&& rest_id_counter_is(rest_id)(s)
-        &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
+    let init = |s: ZKCluster| {
+        &&& ZKCluster::rest_id_counter_is(rest_id)(s)
+        &&& ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
     };
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<ZookeeperClusterView, ZookeeperReconciler>()(s, s_prime)
-        &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
-        &&& controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(zk)(s)
+    let stronger_next = |s, s_prime: ZKCluster| {
+        &&& ZKCluster::next()(s, s_prime)
+        &&& ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
+        &&& ZKCluster::the_object_in_reconcile_has_spec_as(zk)(s)
     };
     let invariant = every_update_sts_req_since_rest_id_does_the_same(zk, rest_id);
 
     entails_and_n!(
         spec,
-        lift_state(rest_id_counter_is(rest_id)),
-        lift_state(every_in_flight_msg_has_lower_id_than_allocator())
+        lift_state(ZKCluster::rest_id_counter_is(rest_id)),
+        lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator())
     );
     temp_pred_equality(
         lift_state(init),
-        lift_state(rest_id_counter_is(rest_id))
-        .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator()))
+        lift_state(ZKCluster::rest_id_counter_is(rest_id))
+        .and(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()))
     );
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>()),
-        lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
-        lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(zk))
+        lift_action(ZKCluster::next()),
+        lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()),
+        lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)),
+        lift_state(ZKCluster::the_object_in_reconcile_has_spec_as(zk))
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>())
-        .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
-        .and(lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(zk)))
+        lift_action(ZKCluster::next())
+        .and(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))
+        .and(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))
+        .and(lift_state(ZKCluster::the_object_in_reconcile_has_spec_as(zk)))
     );
 
-    assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime)
+    assert forall |s, s_prime: ZKCluster| invariant(s) && #[trigger] stronger_next(s, s_prime)
     implies invariant(s_prime) by {
         assert forall |msg: Message|
             #[trigger] s_prime.network_state.in_flight.contains(msg)
@@ -762,11 +743,11 @@ pub open spec fn sts_delete_request_msg_since(key: ObjectRef, rest_id: RestId) -
 
 pub open spec fn no_delete_sts_req_since_rest_id_is_in_flight(
     key: ObjectRef, rest_id: RestId
-) -> StatePred<ClusterState>
+) -> StatePred<ZKCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: ClusterState| {
+    |s: ZKCluster| {
         forall |msg: Message| !{
             &&& #[trigger] s.message_in_flight(msg)
             &&& sts_delete_request_msg_since(key, rest_id)(msg)
@@ -775,37 +756,37 @@ pub open spec fn no_delete_sts_req_since_rest_id_is_in_flight(
 }
 
 pub proof fn lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(
-    spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
+    spec: TempPred<ZKCluster>, key: ObjectRef, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
-        spec.entails(always(lift_action(next::<ZookeeperClusterView, ZookeeperReconciler>()))),
+        spec.entails(lift_state(ZKCluster::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(always(lift_action(ZKCluster::next()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
             always(lift_state(no_delete_sts_req_since_rest_id_is_in_flight(key, rest_id)))
         ),
 {
-    let init = |s: ClusterState| {
-        &&& rest_id_counter_is(rest_id)(s)
-        &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
+    let init = |s: ZKCluster| {
+        &&& ZKCluster::rest_id_counter_is(rest_id)(s)
+        &&& ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
     };
-    let next = next::<ZookeeperClusterView, ZookeeperReconciler>();
+    let next = ZKCluster::next();
     let invariant = no_delete_sts_req_since_rest_id_is_in_flight(key, rest_id);
 
     entails_and_n!(
         spec,
-        lift_state(rest_id_counter_is(rest_id)),
-        lift_state(every_in_flight_msg_has_lower_id_than_allocator())
+        lift_state(ZKCluster::rest_id_counter_is(rest_id)),
+        lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator())
     );
     temp_pred_equality(
         lift_state(init),
-        lift_state(rest_id_counter_is(rest_id))
-        .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator()))
+        lift_state(ZKCluster::rest_id_counter_is(rest_id))
+        .and(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()))
     );
 
-    assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] next(s, s_prime)
+    assert forall |s, s_prime: ZKCluster| invariant(s) && #[trigger] next(s, s_prime)
     implies invariant(s_prime) by {
         assert forall |msg: Message|
         !(#[trigger] s_prime.message_in_flight(msg) && sts_delete_request_msg_since(key, rest_id)(msg)) by {

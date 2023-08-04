@@ -5,34 +5,15 @@ use crate::external_api::spec::EmptyAPI;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, error::*, resource::*,
 };
-use crate::kubernetes_cluster::{
-    proof::{
-        cluster::*,
-        cluster_safety::{
-            each_key_in_reconcile_is_consistent_with_its_object,
-            lemma_always_each_key_in_reconcile_is_consistent_with_its_object,
-        },
-        controller_runtime::*,
-        controller_runtime_eventual_safety,
-        controller_runtime_safety::{
-            each_resp_matches_at_most_one_pending_req,
-            every_in_flight_msg_has_lower_id_than_allocator, every_in_flight_msg_has_unique_id,
-            lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state,
-        },
-        kubernetes_api_safety,
+use crate::kubernetes_cluster::spec::{
+    cluster::*,
+    cluster_state_machine::Step,
+    controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
+    controller::state_machine::*,
+    kubernetes_api::state_machine::{
+        handle_request, object_has_well_formed_spec, transition_by_etcd,
     },
-    spec::{
-        cluster::*,
-        controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
-        controller::controller_runtime::{
-            continue_reconcile, end_reconcile, run_scheduled_reconcile,
-        },
-        controller::state_machine::controller,
-        kubernetes_api::state_machine::{
-            handle_request, object_has_well_formed_spec, transition_by_etcd,
-        },
-        message::*,
-    },
+    message::*,
 };
 use crate::pervasive_ext::{multiset_lemmas, seq_lemmas};
 use crate::rabbitmq_controller::{
@@ -76,48 +57,48 @@ pub open spec fn cm_update_request_msg_since(key: ObjectRef, rest_id: RestId) ->
 
 pub open spec fn pending_msg_at_after_create_server_config_map_step_is_create_cm_req(
     key: ObjectRef
-) -> StatePred<ClusterState>
+) -> StatePred<RMQCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: ClusterState| {
+    |s: RMQCluster| {
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s)
             ==> {
-                &&& pending_k8s_api_req_msg(s, key)
+                &&& RMQCluster::pending_k8s_api_req_msg(s, key)
                 &&& cm_create_request_msg(key)(s.pending_req_of(key))
             }
     }
 }
 
 pub proof fn lemma_always_pending_msg_at_after_create_server_config_map_step_is_create_cm_req(
-    spec: TempPred<ClusterState>, key: ObjectRef
+    spec: TempPred<RMQCluster>, key: ObjectRef
 )
     requires
-        spec.entails(lift_state(init::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>())),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()))),
+        spec.entails(lift_state(RMQCluster::init())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
         spec.entails(
             always(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))
         ),
 {
     let invariant = pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key);
-    let init = init::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>();
+    let init = RMQCluster::init();
     let stronger_next = |s, s_prime| {
-        &&& next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()(s, s_prime)
-        &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& RMQCluster::next()(s, s_prime)
+        &&& RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
     };
 
-    lemma_always_each_key_in_reconcile_is_consistent_with_its_object::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>(spec);
+    RMQCluster::lemma_always_each_key_in_reconcile_is_consistent_with_its_object(spec);
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()),
-        lift_state(each_key_in_reconcile_is_consistent_with_its_object())
+        lift_action(RMQCluster::next()),
+        lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object())
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>())
-        .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
+        lift_action(RMQCluster::next())
+        .and(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))
     );
 
     init_invariant(spec, init, stronger_next, invariant);
@@ -125,48 +106,48 @@ pub proof fn lemma_always_pending_msg_at_after_create_server_config_map_step_is_
 
 pub open spec fn pending_msg_at_after_update_server_config_map_step_is_update_cm_req(
     key: ObjectRef
-) -> StatePred<ClusterState>
+) -> StatePred<RMQCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: ClusterState| {
+    |s: RMQCluster| {
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s)
             ==> {
-                &&& pending_k8s_api_req_msg(s, key)
+                &&& RMQCluster::pending_k8s_api_req_msg(s, key)
                 &&& cm_update_request_msg(key)(s.pending_req_of(key))
             }
     }
 }
 
 pub proof fn lemma_always_pending_msg_at_after_update_server_config_map_step_is_update_cm_req(
-    spec: TempPred<ClusterState>, key: ObjectRef
+    spec: TempPred<RMQCluster>, key: ObjectRef
 )
     requires
-        spec.entails(lift_state(init::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>())),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()))),
+        spec.entails(lift_state(RMQCluster::init())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
         spec.entails(
             always(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))
         ),
 {
     let invariant = pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key);
-    let init = init::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>();
+    let init = RMQCluster::init();
     let stronger_next = |s, s_prime| {
-        &&& next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()(s, s_prime)
-        &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& RMQCluster::next()(s, s_prime)
+        &&& RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
     };
 
-    lemma_always_each_key_in_reconcile_is_consistent_with_its_object::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>(spec);
+    RMQCluster::lemma_always_each_key_in_reconcile_is_consistent_with_its_object(spec);
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()),
-        lift_state(each_key_in_reconcile_is_consistent_with_its_object())
+        lift_action(RMQCluster::next()),
+        lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object())
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>())
-        .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
+        lift_action(RMQCluster::next())
+        .and(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))
     );
 
     init_invariant(spec, init, stronger_next, invariant);
@@ -174,11 +155,11 @@ pub proof fn lemma_always_pending_msg_at_after_update_server_config_map_step_is_
 
 pub open spec fn at_most_one_create_cm_req_since_rest_id_is_in_flight(
     key: ObjectRef, rest_id: RestId
-) -> StatePred<ClusterState>
+) -> StatePred<RMQCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: ClusterState| {
+    |s: RMQCluster| {
         forall |msg| {
             &&& #[trigger] s.network_state.in_flight.contains(msg)
             &&& cm_create_request_msg_since(key, rest_id)(msg)
@@ -193,78 +174,78 @@ pub open spec fn at_most_one_create_cm_req_since_rest_id_is_in_flight(
 }
 
 pub proof fn lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(
-    spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
+    spec: TempPred<RMQCluster>, key: ObjectRef, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_state(RMQCluster::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key))),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
+        spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))),
-        spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
             always(lift_state(at_most_one_create_cm_req_since_rest_id_is_in_flight(key, rest_id)))
         ),
 {
-    let init = |s: ClusterState| {
-        &&& rest_id_counter_is(rest_id)(s)
-        &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
+    let init = |s: RMQCluster| {
+        &&& RMQCluster::rest_id_counter_is(rest_id)(s)
+        &&& RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
         &&& pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)(s)
     };
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()(s, s_prime)
-        &&& crash_disabled()(s)
-        &&& busy_disabled()(s)
+    let stronger_next = |s, s_prime: RMQCluster| {
+        &&& RMQCluster::next()(s, s_prime)
+        &&& RMQCluster::crash_disabled()(s)
+        &&& RMQCluster::busy_disabled()(s)
         &&& pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)(s)
-        &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
-        &&& every_in_flight_msg_has_unique_id()(s)
+        &&& RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
+        &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
     };
     let invariant = at_most_one_create_cm_req_since_rest_id_is_in_flight(key, rest_id);
 
     entails_and_n!(
         spec,
-        lift_state(rest_id_counter_is(rest_id)),
-        lift_state(every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(RMQCluster::rest_id_counter_is(rest_id)),
+        lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key))
     );
     temp_pred_equality(
         lift_state(init),
-        lift_state(rest_id_counter_is(rest_id))
-        .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator()))
+        lift_state(RMQCluster::rest_id_counter_is(rest_id))
+        .and(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))
         .and(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))
     );
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()),
-        lift_state(crash_disabled()),
-        lift_state(busy_disabled()),
+        lift_action(RMQCluster::next()),
+        lift_state(RMQCluster::crash_disabled()),
+        lift_state(RMQCluster::busy_disabled()),
         lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)),
-        lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
-        lift_state(every_in_flight_msg_has_unique_id())
+        lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
+        lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)),
+        lift_state(RMQCluster::every_in_flight_msg_has_unique_id())
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>())
-        .and(lift_state(crash_disabled()))
-        .and(lift_state(busy_disabled()))
+        lift_action(RMQCluster::next())
+        .and(lift_state(RMQCluster::crash_disabled()))
+        .and(lift_state(RMQCluster::busy_disabled()))
         .and(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))
-        .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
-        .and(lift_state(every_in_flight_msg_has_unique_id()))
+        .and(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))
+        .and(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))
+        .and(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))
     );
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
         let pending_msg = s_prime.pending_req_of(key);
         assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && cm_create_request_msg_since(key, rest_id)(msg) implies at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime) && pending_msg.content.get_rest_id() >= rest_id && msg == pending_msg && s_prime.network_state.in_flight.count(msg) == 1 by {
-            let step = choose |step| next_step::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>(s, s_prime, step);
+            let step = choose |step| RMQCluster::next_step(s, s_prime, step);
             match step {
                 Step::KubernetesAPIStep(input) => {
                     assert(s.message_in_flight(msg));
@@ -330,11 +311,11 @@ pub proof fn lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(
 
 pub open spec fn at_most_one_update_cm_req_since_rest_id_is_in_flight(
     key: ObjectRef, rest_id: RestId
-) -> StatePred<ClusterState>
+) -> StatePred<RMQCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: ClusterState| {
+    |s: RMQCluster| {
         forall |msg| {
             &&& #[trigger] s.network_state.in_flight.contains(msg)
             &&& cm_update_request_msg_since(key, rest_id)(msg)
@@ -349,80 +330,80 @@ pub open spec fn at_most_one_update_cm_req_since_rest_id_is_in_flight(
 }
 
 pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
-    spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
+    spec: TempPred<RMQCluster>, key: ObjectRef, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_state(RMQCluster::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key))),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
+        spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))),
-        spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
             always(lift_state(at_most_one_update_cm_req_since_rest_id_is_in_flight(key, rest_id)))
         ),
 {
-    let init = |s: ClusterState| {
-        &&& rest_id_counter_is(rest_id)(s)
-        &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
+    let init = |s: RMQCluster| {
+        &&& RMQCluster::rest_id_counter_is(rest_id)(s)
+        &&& RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
         &&& pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)(s)
     };
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()(s, s_prime)
-        &&& crash_disabled()(s)
-        &&& busy_disabled()(s)
+    let stronger_next = |s, s_prime: RMQCluster| {
+        &&& RMQCluster::next()(s, s_prime)
+        &&& RMQCluster::crash_disabled()(s)
+        &&& RMQCluster::busy_disabled()(s)
         &&& pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)(s)
-        &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
-        &&& every_in_flight_msg_has_unique_id()(s)
+        &&& RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
+        &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
     };
 
     let invariant = at_most_one_update_cm_req_since_rest_id_is_in_flight(key, rest_id);
 
     entails_and_n!(
         spec,
-        lift_state(rest_id_counter_is(rest_id)),
-        lift_state(every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(RMQCluster::rest_id_counter_is(rest_id)),
+        lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key))
     );
     temp_pred_equality(
         lift_state(init),
-        lift_state(rest_id_counter_is(rest_id))
-        .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator()))
+        lift_state(RMQCluster::rest_id_counter_is(rest_id))
+        .and(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))
         .and(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))
     );
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()),
-        lift_state(crash_disabled()),
-        lift_state(busy_disabled()),
+        lift_action(RMQCluster::next()),
+        lift_state(RMQCluster::crash_disabled()),
+        lift_state(RMQCluster::busy_disabled()),
         lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)),
-        lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
-        lift_state(every_in_flight_msg_has_unique_id())
+        lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
+        lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)),
+        lift_state(RMQCluster::every_in_flight_msg_has_unique_id())
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>())
-        .and(lift_state(crash_disabled()))
-        .and(lift_state(busy_disabled()))
+        lift_action(RMQCluster::next())
+        .and(lift_state(RMQCluster::crash_disabled()))
+        .and(lift_state(RMQCluster::busy_disabled()))
         .and(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))
-        .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
-        .and(lift_state(every_in_flight_msg_has_unique_id()))
+        .and(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))
+        .and(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))
+        .and(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))
     );
 
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
         let pending_msg = s_prime.pending_req_of(key);
         assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && cm_update_request_msg_since(key, rest_id)(msg) implies at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime) && pending_msg.content.get_rest_id() >= rest_id && msg == pending_msg && s_prime.network_state.in_flight.count(msg) == 1 by {
-            let step = choose |step| next_step::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>(s, s_prime, step);
+            let step = choose |step| RMQCluster::next_step(s, s_prime, step);
             match step {
                 Step::KubernetesAPIStep(input) => {
                     assert(s.message_in_flight(msg));
@@ -467,11 +448,11 @@ pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
 
 pub open spec fn every_update_cm_req_since_rest_id_does_the_same(
     rabbitmq: RabbitmqClusterView, rest_id: RestId
-) -> StatePred<ClusterState>
+) -> StatePred<RMQCluster>
     recommends
         rabbitmq.well_formed(),
 {
-    |s: ClusterState| {
+    |s: RMQCluster| {
         forall |msg: Message| {
             &&& #[trigger] s.network_state.in_flight.contains(msg)
             &&& cm_update_request_msg_since(rabbitmq.object_ref(), rest_id)(msg)
@@ -480,64 +461,64 @@ pub open spec fn every_update_cm_req_since_rest_id_does_the_same(
 }
 
 pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
-    spec: TempPred<ClusterState>, rabbitmq: RabbitmqClusterView, rest_id: RestId
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()))),
-        spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(rabbitmq)))),
+        spec.entails(lift_state(RMQCluster::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(always(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq)))),
     ensures
         spec.entails(always(lift_state(every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id)))),
 {
-    let init = |s: ClusterState| {
-        &&& rest_id_counter_is(rest_id)(s)
-        &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
+    let init = |s: RMQCluster| {
+        &&& RMQCluster::rest_id_counter_is(rest_id)(s)
+        &&& RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
     };
-    let stronger_next = |s, s_prime: ClusterState| {
-        &&& next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()(s, s_prime)
-        &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
-        &&& controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(rabbitmq)(s)
+    let stronger_next = |s, s_prime: RMQCluster| {
+        &&& RMQCluster::next()(s, s_prime)
+        &&& RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
+        &&& RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq)(s)
     };
     let invariant = every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id);
 
     entails_and_n!(
         spec,
-        lift_state(rest_id_counter_is(rest_id)),
-        lift_state(every_in_flight_msg_has_lower_id_than_allocator())
+        lift_state(RMQCluster::rest_id_counter_is(rest_id)),
+        lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())
     );
     temp_pred_equality(
         lift_state(init),
-        lift_state(rest_id_counter_is(rest_id))
-        .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator()))
+        lift_state(RMQCluster::rest_id_counter_is(rest_id))
+        .and(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))
     );
 
     entails_always_and_n!(
         spec,
-        lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()),
-        lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
-        lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(rabbitmq))
+        lift_action(RMQCluster::next()),
+        lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
+        lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)),
+        lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq))
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>())
-        .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
-        .and(lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(rabbitmq)))
+        lift_action(RMQCluster::next())
+        .and(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))
+        .and(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))
+        .and(lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq)))
     );
 
-    assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime)
+    assert forall |s, s_prime: RMQCluster| invariant(s) && #[trigger] stronger_next(s, s_prime)
     implies invariant(s_prime) by {
         assert forall |msg: Message|
             #[trigger] s_prime.network_state.in_flight.contains(msg)
             && cm_update_request_msg_since(rabbitmq.object_ref(), rest_id)(msg)
         implies msg.content.get_update_request().obj.spec == ConfigMapView::marshal_spec((make_server_config_map(rabbitmq).data, ())) by {
             if !s.message_in_flight(msg) {
-                let step = choose |step| next_step::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>(s, s_prime, step);
+                let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 assert(step.is_ControllerStep());
                 let other_rmq = s.reconcile_state_of(step.get_ControllerStep_0().2.get_Some_0()).triggering_cr;
                 seq_lemmas::seq_equal_preserved_by_add(
@@ -570,11 +551,11 @@ pub open spec fn cm_delete_request_msg_since(key: ObjectRef, rest_id: RestId) ->
 
 pub open spec fn no_delete_cm_req_since_rest_id_is_in_flight(
     key: ObjectRef, rest_id: RestId
-) -> StatePred<ClusterState>
+) -> StatePred<RMQCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
-    |s: ClusterState| {
+    |s: RMQCluster| {
         forall |msg: Message| !{
             &&& #[trigger] s.message_in_flight(msg)
             &&& cm_delete_request_msg_since(key, rest_id)(msg)
@@ -583,37 +564,37 @@ pub open spec fn no_delete_cm_req_since_rest_id_is_in_flight(
 }
 
 pub proof fn lemma_always_no_delete_cm_req_since_rest_id_is_in_flight(
-    spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
+    spec: TempPred<RMQCluster>, key: ObjectRef, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
-        spec.entails(always(lift_action(next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>()))),
+        spec.entails(lift_state(RMQCluster::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
             always(lift_state(no_delete_cm_req_since_rest_id_is_in_flight(key, rest_id)))
         ),
 {
-    let init = |s: ClusterState| {
-        &&& rest_id_counter_is(rest_id)(s)
-        &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
+    let init = |s: RMQCluster| {
+        &&& RMQCluster::rest_id_counter_is(rest_id)(s)
+        &&& RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
     };
-    let next = next::<RabbitmqClusterView, EmptyAPI,  RabbitmqReconciler>();
+    let next = RMQCluster::next();
     let invariant = no_delete_cm_req_since_rest_id_is_in_flight(key, rest_id);
 
     entails_and_n!(
         spec,
-        lift_state(rest_id_counter_is(rest_id)),
-        lift_state(every_in_flight_msg_has_lower_id_than_allocator())
+        lift_state(RMQCluster::rest_id_counter_is(rest_id)),
+        lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())
     );
     temp_pred_equality(
         lift_state(init),
-        lift_state(rest_id_counter_is(rest_id))
-        .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator()))
+        lift_state(RMQCluster::rest_id_counter_is(rest_id))
+        .and(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))
     );
 
-    assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] next(s, s_prime)
+    assert forall |s, s_prime: RMQCluster| invariant(s) && #[trigger] next(s, s_prime)
     implies invariant(s_prime) by {
         assert forall |msg: Message|
         !(#[trigger] s_prime.message_in_flight(msg) && cm_delete_request_msg_since(key, rest_id)(msg)) by {

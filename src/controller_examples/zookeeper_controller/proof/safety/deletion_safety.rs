@@ -12,11 +12,8 @@ use crate::kubernetes_cluster::{
     },
     spec::{
         cluster::*,
-        controller::common::{controller_req_msg, ControllerActionInput<E>, ControllerStep},
-        controller::controller_runtime::{
-            continue_reconcile, end_reconcile, run_scheduled_reconcile,
-        },
-        controller::state_machine::controller,
+        controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
+        controller::state_machine::*,
         kubernetes_api::state_machine::{
             handle_create_request, handle_get_request, handle_request, transition_by_etcd,
             update_is_noop,
@@ -34,7 +31,7 @@ use vstd::prelude::*;
 
 verus! {
 
-spec fn is_in_flight_controller_request_msg(s: ClusterState, req_msg: Message) -> bool {
+spec fn is_in_flight_controller_request_msg(s: ZKCluster, req_msg: Message) -> bool {
     &&& req_msg.src.is_CustomController()
     &&& req_msg.content.is_APIRequest()
     &&& s.message_in_flight(req_msg)
@@ -46,16 +43,16 @@ spec fn is_not_delete_request(req_msg: Message) -> bool {
     !req_msg.content.is_delete_request()
 }
 
-spec fn deletion_property(req_msg: Message) -> StatePred<ClusterState> {
+spec fn deletion_property(req_msg: Message) -> StatePred<ZKCluster> {
     // The safety properties related to controller requests should be in the form:
     // controller_msg(msg) /\ in_flight(msg) ==> desired properties
-    |s: ClusterState| {
+    |s: ZKCluster| {
         is_in_flight_controller_request_msg(s, req_msg)
         ==> is_not_delete_request(req_msg)
     }
 }
 
-spec fn always_deletion_safety(req_msg: Message) -> TempPred<ClusterState> {
+spec fn always_deletion_safety(req_msg: Message) -> TempPred<ZKCluster> {
     always(lift_state(deletion_property(req_msg)))
 }
 
@@ -74,8 +71,8 @@ proof fn deletion_safety_proof(req_msg: Message)
 {
     init_invariant(
         cluster_spec(),
-        init::<ZookeeperClusterView, ZookeeperReconciler>(),
-        next::<ZookeeperClusterView, ZookeeperReconciler>(),
+        ZKCluster::init(),
+        ZKCluster::next(),
         deletion_property(req_msg)
     );
 }
