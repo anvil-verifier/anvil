@@ -7,7 +7,7 @@ use crate::kubernetes_api_objects::{
 use crate::kubernetes_cluster::{
     spec::{
         cluster::*,
-        controller::common::{controller_req_msg, ControllerActionInput<E>, ControllerStep},
+        controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
         controller::state_machine::*,
         kubernetes_api::state_machine::{
             handle_request, object_has_well_formed_spec, transition_by_etcd,
@@ -72,7 +72,7 @@ pub proof fn lemma_always_pending_msg_at_after_create_stateful_set_step_is_creat
     let init = ClusterProof::init();
     let stronger_next = |s, s_prime| {
         &&& ClusterProof::next()(s, s_prime)
-        &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()(s)
     };
 
     ClusterProof::lemma_always_each_key_in_reconcile_is_consistent_with_its_object(spec);
@@ -80,12 +80,12 @@ pub proof fn lemma_always_pending_msg_at_after_create_stateful_set_step_is_creat
     entails_always_and_n!(
         spec,
         lift_action(ClusterProof::next()),
-        lift_state(each_key_in_reconcile_is_consistent_with_its_object())
+        lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object())
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(ClusterProof::next())
-        .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
+        .and(lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()))
     );
 
     init_invariant(spec, init, stronger_next, invariant);
@@ -113,16 +113,16 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
     spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_state(ClusterProof::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key))),
         spec.entails(always(lift_action(ClusterProof::next()))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(ClusterProof::crash_disabled()))),
+        spec.entails(always(lift_state(ClusterProof::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))),
-        spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(ClusterProof::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(ClusterProof::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
@@ -130,53 +130,53 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
         ),
 {
     let init = |s: ClusterState| {
-        &&& rest_id_counter_is(rest_id)(s)
-        &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
+        &&& ClusterProof::rest_id_counter_is(rest_id)(s)
+        &&& ClusterProof::every_in_flight_msg_has_lower_id_than_allocator()(s)
         &&& pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)(s)
     };
     let stronger_next = |s, s_prime: ClusterState| {
         &&& ClusterProof::next()(s, s_prime)
-        &&& crash_disabled()(s)
-        &&& busy_disabled()(s)
+        &&& ClusterProof::crash_disabled()(s)
+        &&& ClusterProof::busy_disabled()(s)
         &&& pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)(s)
-        &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
-        &&& every_in_flight_msg_has_unique_id()(s)
+        &&& ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& ClusterProof::rest_id_counter_is_no_smaller_than(rest_id)(s)
+        &&& ClusterProof::every_in_flight_msg_has_unique_id()(s)
     };
     let invariant = filtered_create_sts_req_len_is_at_most_one(key, rest_id);
 
     entails_and_n!(
         spec,
-        lift_state(rest_id_counter_is(rest_id)),
-        lift_state(every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(ClusterProof::rest_id_counter_is(rest_id)),
+        lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key))
     );
     temp_pred_equality(
         lift_state(init),
-        lift_state(rest_id_counter_is(rest_id))
-        .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator()))
+        lift_state(ClusterProof::rest_id_counter_is(rest_id))
+        .and(lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator()))
         .and(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))
     );
 
     entails_always_and_n!(
         spec,
         lift_action(ClusterProof::next()),
-        lift_state(crash_disabled()),
-        lift_state(busy_disabled()),
+        lift_state(ClusterProof::crash_disabled()),
+        lift_state(ClusterProof::busy_disabled()),
         lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)),
-        lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
-        lift_state(every_in_flight_msg_has_unique_id())
+        lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()),
+        lift_state(ClusterProof::rest_id_counter_is_no_smaller_than(rest_id)),
+        lift_state(ClusterProof::every_in_flight_msg_has_unique_id())
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(ClusterProof::next())
-        .and(lift_state(crash_disabled()))
-        .and(lift_state(busy_disabled()))
+        .and(lift_state(ClusterProof::crash_disabled()))
+        .and(lift_state(ClusterProof::busy_disabled()))
         .and(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))
-        .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
-        .and(lift_state(every_in_flight_msg_has_unique_id()))
+        .and(lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()))
+        .and(lift_state(ClusterProof::rest_id_counter_is_no_smaller_than(rest_id)))
+        .and(lift_state(ClusterProof::every_in_flight_msg_has_unique_id()))
     );
 
     assert forall |s: ClusterState| #[trigger] init(s) implies invariant(s) by {
@@ -294,16 +294,16 @@ pub proof fn lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(
     spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_state(ClusterProof::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key))),
         spec.entails(always(lift_action(ClusterProof::next()))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(ClusterProof::crash_disabled()))),
+        spec.entails(always(lift_state(ClusterProof::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))),
-        spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(ClusterProof::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(ClusterProof::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
@@ -383,7 +383,7 @@ pub proof fn lemma_always_pending_msg_at_after_update_stateful_set_step_is_updat
     let init = ClusterProof::init();
     let stronger_next = |s, s_prime| {
         &&& ClusterProof::next()(s, s_prime)
-        &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()(s)
     };
 
     ClusterProof::lemma_always_each_key_in_reconcile_is_consistent_with_its_object(spec);
@@ -391,12 +391,12 @@ pub proof fn lemma_always_pending_msg_at_after_update_stateful_set_step_is_updat
     entails_always_and_n!(
         spec,
         lift_action(ClusterProof::next()),
-        lift_state(each_key_in_reconcile_is_consistent_with_its_object())
+        lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object())
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(ClusterProof::next())
-        .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
+        .and(lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()))
     );
 
     init_invariant(spec, init, stronger_next, invariant);
@@ -424,16 +424,16 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
     spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_state(ClusterProof::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key))),
         spec.entails(always(lift_action(ClusterProof::next()))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(ClusterProof::crash_disabled()))),
+        spec.entails(always(lift_state(ClusterProof::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))),
-        spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(ClusterProof::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(ClusterProof::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
@@ -441,53 +441,53 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
         ),
 {
     let init = |s: ClusterState| {
-        &&& rest_id_counter_is(rest_id)(s)
-        &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
+        &&& ClusterProof::rest_id_counter_is(rest_id)(s)
+        &&& ClusterProof::every_in_flight_msg_has_lower_id_than_allocator()(s)
         &&& pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)(s)
     };
     let stronger_next = |s, s_prime: ClusterState| {
         &&& ClusterProof::next()(s, s_prime)
-        &&& crash_disabled()(s)
-        &&& busy_disabled()(s)
+        &&& ClusterProof::crash_disabled()(s)
+        &&& ClusterProof::busy_disabled()(s)
         &&& pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)(s)
-        &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
-        &&& every_in_flight_msg_has_unique_id()(s)
+        &&& ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& ClusterProof::rest_id_counter_is_no_smaller_than(rest_id)(s)
+        &&& ClusterProof::every_in_flight_msg_has_unique_id()(s)
     };
     let invariant = filtered_update_sts_req_len_is_at_most_one(key, rest_id);
 
     entails_and_n!(
         spec,
-        lift_state(rest_id_counter_is(rest_id)),
-        lift_state(every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(ClusterProof::rest_id_counter_is(rest_id)),
+        lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key))
     );
     temp_pred_equality(
         lift_state(init),
-        lift_state(rest_id_counter_is(rest_id))
-        .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator()))
+        lift_state(ClusterProof::rest_id_counter_is(rest_id))
+        .and(lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator()))
         .and(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))
     );
 
     entails_always_and_n!(
         spec,
         lift_action(ClusterProof::next()),
-        lift_state(crash_disabled()),
-        lift_state(busy_disabled()),
+        lift_state(ClusterProof::crash_disabled()),
+        lift_state(ClusterProof::busy_disabled()),
         lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)),
-        lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
-        lift_state(every_in_flight_msg_has_unique_id())
+        lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()),
+        lift_state(ClusterProof::rest_id_counter_is_no_smaller_than(rest_id)),
+        lift_state(ClusterProof::every_in_flight_msg_has_unique_id())
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(ClusterProof::next())
-        .and(lift_state(crash_disabled()))
-        .and(lift_state(busy_disabled()))
+        .and(lift_state(ClusterProof::crash_disabled()))
+        .and(lift_state(ClusterProof::busy_disabled()))
         .and(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))
-        .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
-        .and(lift_state(every_in_flight_msg_has_unique_id()))
+        .and(lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()))
+        .and(lift_state(ClusterProof::rest_id_counter_is_no_smaller_than(rest_id)))
+        .and(lift_state(ClusterProof::every_in_flight_msg_has_unique_id()))
     );
 
     assert forall |s: ClusterState| #[trigger] init(s) implies invariant(s) by {
@@ -605,16 +605,16 @@ pub proof fn lemma_always_at_most_one_update_sts_req_since_rest_id_is_in_flight(
     spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_state(ClusterProof::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key))),
         spec.entails(always(lift_action(ClusterProof::next()))),
-        spec.entails(always(lift_state(crash_disabled()))),
-        spec.entails(always(lift_state(busy_disabled()))),
+        spec.entails(always(lift_state(ClusterProof::crash_disabled()))),
+        spec.entails(always(lift_state(ClusterProof::busy_disabled()))),
         spec.entails(always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))),
-        spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(ClusterProof::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(ClusterProof::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
@@ -669,51 +669,51 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
     spec: TempPred<ClusterState>, zk: ZookeeperClusterView, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_state(ClusterProof::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(always(lift_action(ClusterProof::next()))),
-        spec.entails(always(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(zk)))),
+        spec.entails(always(lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(ClusterProof::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(ClusterProof::the_object_in_reconcile_has_spec_as(zk)))),
     ensures
         spec.entails(always(lift_state(every_update_sts_req_since_rest_id_does_the_same(zk, rest_id)))),
 {
     let init = |s: ClusterState| {
-        &&& rest_id_counter_is(rest_id)(s)
-        &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
+        &&& ClusterProof::rest_id_counter_is(rest_id)(s)
+        &&& ClusterProof::every_in_flight_msg_has_lower_id_than_allocator()(s)
     };
     let stronger_next = |s, s_prime: ClusterState| {
         &&& ClusterProof::next()(s, s_prime)
-        &&& each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& rest_id_counter_is_no_smaller_than(rest_id)(s)
-        &&& controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(zk)(s)
+        &&& ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& ClusterProof::rest_id_counter_is_no_smaller_than(rest_id)(s)
+        &&& ClusterProof::the_object_in_reconcile_has_spec_as(zk)(s)
     };
     let invariant = every_update_sts_req_since_rest_id_does_the_same(zk, rest_id);
 
     entails_and_n!(
         spec,
-        lift_state(rest_id_counter_is(rest_id)),
-        lift_state(every_in_flight_msg_has_lower_id_than_allocator())
+        lift_state(ClusterProof::rest_id_counter_is(rest_id)),
+        lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator())
     );
     temp_pred_equality(
         lift_state(init),
-        lift_state(rest_id_counter_is(rest_id))
-        .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator()))
+        lift_state(ClusterProof::rest_id_counter_is(rest_id))
+        .and(lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator()))
     );
 
     entails_always_and_n!(
         spec,
         lift_action(ClusterProof::next()),
-        lift_state(each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(rest_id_counter_is_no_smaller_than(rest_id)),
-        lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(zk))
+        lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()),
+        lift_state(ClusterProof::rest_id_counter_is_no_smaller_than(rest_id)),
+        lift_state(ClusterProof::the_object_in_reconcile_has_spec_as(zk))
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(ClusterProof::next())
-        .and(lift_state(each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(rest_id_counter_is_no_smaller_than(rest_id)))
-        .and(lift_state(controller_runtime_eventual_safety::the_object_in_reconcile_has_spec_as(zk)))
+        .and(lift_state(ClusterProof::each_key_in_reconcile_is_consistent_with_its_object()))
+        .and(lift_state(ClusterProof::rest_id_counter_is_no_smaller_than(rest_id)))
+        .and(lift_state(ClusterProof::the_object_in_reconcile_has_spec_as(zk)))
     );
 
     assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] stronger_next(s, s_prime)
@@ -760,8 +760,8 @@ pub proof fn lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(
     spec: TempPred<ClusterState>, key: ObjectRef, rest_id: RestId
 )
     requires
-        spec.entails(lift_state(rest_id_counter_is(rest_id))),
-        spec.entails(lift_state(every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_state(ClusterProof::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator())),
         spec.entails(always(lift_action(ClusterProof::next()))),
         key.kind.is_CustomResourceKind(),
     ensures
@@ -770,21 +770,21 @@ pub proof fn lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(
         ),
 {
     let init = |s: ClusterState| {
-        &&& rest_id_counter_is(rest_id)(s)
-        &&& every_in_flight_msg_has_lower_id_than_allocator()(s)
+        &&& ClusterProof::rest_id_counter_is(rest_id)(s)
+        &&& ClusterProof::every_in_flight_msg_has_lower_id_than_allocator()(s)
     };
     let next = ClusterProof::next();
     let invariant = no_delete_sts_req_since_rest_id_is_in_flight(key, rest_id);
 
     entails_and_n!(
         spec,
-        lift_state(rest_id_counter_is(rest_id)),
-        lift_state(every_in_flight_msg_has_lower_id_than_allocator())
+        lift_state(ClusterProof::rest_id_counter_is(rest_id)),
+        lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator())
     );
     temp_pred_equality(
         lift_state(init),
-        lift_state(rest_id_counter_is(rest_id))
-        .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator()))
+        lift_state(ClusterProof::rest_id_counter_is(rest_id))
+        .and(lift_state(ClusterProof::every_in_flight_msg_has_lower_id_than_allocator()))
     );
 
     assert forall |s, s_prime: ClusterState| invariant(s) && #[trigger] next(s, s_prime)
