@@ -34,6 +34,8 @@ verus! {
 //
 // + Support more operations like List
 
+impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+
 // TODO: maybe make it a method of DynamicObjectView?
 pub open spec fn object_has_well_formed_spec(obj: DynamicObjectView) -> bool {
     &&& obj.kind == ConfigMapView::kind() ==> ConfigMapView::unmarshal_spec(obj.spec).is_Ok()
@@ -75,7 +77,7 @@ pub open spec fn handle_list_request(msg: Message, s: KubernetesAPIState) -> (Et
         msg.content.is_list_request(),
 {
     let req = msg.content.get_list_request();
-    let result = Result::Ok(list_query(req, s));
+    let result = Result::Ok(Self::list_query(req, s));
     let resp = form_list_resp_msg(msg, result);
     (s.resources, resp, Option::None)
 }
@@ -87,7 +89,7 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
     } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Creation fails because the namespace of the provided object does not match the namespace sent on the request
         Option::Some(APIError::BadRequest)
-    } else if !object_has_well_formed_spec(req.obj) {
+    } else if !Self::object_has_well_formed_spec(req.obj) {
         // Creation fails because the spec of the provided object is not well formed
         Option::Some(APIError::BadRequest) // TODO: should the error be BadRequest?
     } else if s.resources.dom().contains(req.obj.set_namespace(req.namespace).object_ref()) {
@@ -103,9 +105,9 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
         msg.content.is_create_request(),
 {
     let req = msg.content.get_create_request();
-    if validate_create_request(req, s).is_Some() {
+    if Self::validate_create_request(req, s).is_Some() {
         // Creation fails because the name of the provided object is not provided
-        let result = Result::Err(validate_create_request(req, s).get_Some_0());
+        let result = Result::Err(Self::validate_create_request(req, s).get_Some_0());
         let resp = form_create_resp_msg(msg, result);
         (s.resources, resp, Option::None)
     } else {
@@ -166,7 +168,7 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         // Update fails because the kind of the provided object
         // does not match the kind sent on the request
         Option::Some(APIError::BadRequest)
-    } else if !object_has_well_formed_spec(req.obj) {
+    } else if !Self::object_has_well_formed_spec(req.obj) {
         // Update fails because the spec of the provided object is not well formed
         Option::Some(APIError::BadRequest) // TODO: should the error be BadRequest?
     } else if !s.resources.dom().contains(req.key) {
@@ -186,11 +188,11 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
         msg.content.is_update_request(),
 {
     let req = msg.content.get_update_request();
-    if validate_update_request(req, s).is_Some() {
-        let result = Result::Err(validate_update_request(req, s).get_Some_0());
+    if Self::validate_update_request(req, s).is_Some() {
+        let result = Result::Err(Self::validate_update_request(req, s).get_Some_0());
         let resp = form_update_resp_msg(msg, result);
         (s.resources, resp, Option::None)
-    } else if update_is_noop(req.obj, s.resources[req.key]) {
+    } else if Self::update_is_noop(req.obj, s.resources[req.key]) {
         // Update is a noop because there is nothing to update
         // so the resource version counter does not increase here
         let result = Result::Ok(s.resources[req.key]);
@@ -214,11 +216,11 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Etc
         msg.content.is_APIRequest(),
 {
     match msg.content.get_APIRequest_0() {
-        APIRequest::GetRequest(_) => handle_get_request(msg, s),
-        APIRequest::ListRequest(_) => handle_list_request(msg, s),
-        APIRequest::CreateRequest(_) => handle_create_request(msg, s),
-        APIRequest::DeleteRequest(_) => handle_delete_request(msg, s),
-        APIRequest::UpdateRequest(_) => handle_update_request(msg, s),
+        APIRequest::GetRequest(_) => Self::handle_get_request(msg, s),
+        APIRequest::ListRequest(_) => Self::handle_list_request(msg, s),
+        APIRequest::CreateRequest(_) => Self::handle_create_request(msg, s),
+        APIRequest::DeleteRequest(_) => Self::handle_delete_request(msg, s),
+        APIRequest::UpdateRequest(_) => Self::handle_update_request(msg, s),
     }
 }
 
@@ -263,7 +265,7 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
             let input_msg = input.recv;
             let input_rest_id_allocator = input.rest_id_allocator;
 
-            let (etcd_state, etcd_resp, etcd_notify_o) = transition_by_etcd(input_msg.get_Some_0(), s);
+            let (etcd_state, etcd_resp, etcd_notify_o) = Self::transition_by_etcd(input_msg.get_Some_0(), s);
             let rv_counter_increment = if etcd_notify_o.is_Some() { 1 as nat } else { 0 as nat };
             let s_after_etcd_transition = KubernetesAPIState {
                 resources: etcd_state,
@@ -271,7 +273,7 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
                 ..s
             };
             if etcd_notify_o.is_Some() {
-                let (rest_id_allocator_prime, controller_requests) = transition_by_builtin_controllers(
+                let (rest_id_allocator_prime, controller_requests) = Self::transition_by_builtin_controllers(
                     etcd_notify_o.get_Some_0(), s_after_etcd_transition, input_rest_id_allocator
                 );
                 let s_prime = KubernetesAPIState {
@@ -286,17 +288,15 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
     }
 }
 
-impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
-
 pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine {
     StateMachine {
         init: |s: KubernetesAPIState| {
             s.resources == Map::<ObjectRef, DynamicObjectView>::empty()
         },
-        actions: set![handle_request()],
+        actions: set![Self::handle_request()],
         step_to_action: |step: KubernetesAPIStep| {
             match step {
-                KubernetesAPIStep::HandleRequest => handle_request(),
+                KubernetesAPIStep::HandleRequest => Self::handle_request(),
             }
         },
         action_input: |step: KubernetesAPIStep, input: KubernetesAPIActionInput| {

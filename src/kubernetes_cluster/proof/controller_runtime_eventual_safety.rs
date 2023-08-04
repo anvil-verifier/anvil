@@ -16,7 +16,7 @@ use vstd::prelude::*;
 
 verus! {
 
-impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn the_object_in_schedule_has_spec_as(cr: K) -> StatePred<Self> {
     |s: Self| s.reconcile_scheduled_for(cr.object_ref()) ==> s.reconcile_scheduled_obj_of(cr.object_ref()).spec() == cr.spec()

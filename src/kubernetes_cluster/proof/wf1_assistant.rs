@@ -23,7 +23,7 @@ use vstd::prelude::*;
 
 verus! {
 
-impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub proof fn kubernetes_api_action_pre_implies_next_pre(
     action: KubernetesAPIAction, input: Option<Message>

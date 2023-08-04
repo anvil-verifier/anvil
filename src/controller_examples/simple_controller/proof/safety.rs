@@ -12,7 +12,6 @@ use crate::kubernetes_cluster::{
     spec::{
         controller::common::{controller_req_msg, ControllerAction, ControllerActionInput},
         cluster::*,
-        kubernetes_api::state_machine::handle_get_request,
         message::*,
     },
 };

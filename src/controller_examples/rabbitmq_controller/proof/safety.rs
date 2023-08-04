@@ -9,10 +9,6 @@ use crate::kubernetes_cluster::spec::{
     cluster::*,
     cluster_state_machine::Step,
     controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
-    controller::state_machine::*,
-    kubernetes_api::state_machine::{
-        handle_request, object_has_well_formed_spec, transition_by_etcd,
-    },
     message::*,
 };
 use crate::pervasive_ext::{multiset_lemmas, seq_lemmas};

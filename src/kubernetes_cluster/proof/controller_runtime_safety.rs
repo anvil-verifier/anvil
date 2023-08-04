@@ -3,15 +3,11 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{api_method::*, common::*, error::*, resource::*};
-use crate::kubernetes_cluster::{
-    spec::{
-        cluster::*,
-        cluster_state_machine::Step,
-        controller::common::{ControllerAction, ControllerActionInput},
-        controller::state_machine::*,
-        kubernetes_api::state_machine::{handle_request, transition_by_etcd},
-        message::*,
-    },
+use crate::kubernetes_cluster::spec::{
+    cluster::*,
+    cluster_state_machine::Step,
+    controller::common::{ControllerAction, ControllerActionInput},
+    message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::temporal_logic::defs::*;
@@ -20,7 +16,7 @@ use vstd::prelude::*;
 
 verus! {
 
-impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn every_in_flight_msg_has_lower_id_than_allocator() -> StatePred<Self> {
     |s: Self| {
@@ -505,7 +501,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
             match next_step {
                 Step::KubernetesAPIStep(input) => {
                     if input == Option::Some(s.pending_req_of(key)) {
-                        let resp_msg = transition_by_etcd(s.pending_req_of(key), s.kubernetes_api_state).1;
+                        let resp_msg = Self::transition_by_etcd(s.pending_req_of(key), s.kubernetes_api_state).1;
                         assert(s_prime.message_in_flight(resp_msg));
                     } else {
                         if !s.message_in_flight(s.pending_req_of(key)) {

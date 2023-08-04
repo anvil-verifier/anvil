@@ -7,7 +7,6 @@ use crate::kubernetes_cluster::spec::{
     cluster::*,
     cluster_state_machine::Step,
     kubernetes_api::common::KubernetesAPIAction,
-    kubernetes_api::state_machine::{handle_request, object_has_well_formed_spec},
     message::*,
 };
 use crate::pervasive_ext::multiset_lemmas::*;
@@ -19,7 +18,7 @@ use vstd::prelude::*;
 
 verus! {
 
-impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(
     spec: TempPred<Self>, input: Option<Message>, next: ActionPred<Self>, action: KubernetesAPIAction,
@@ -124,7 +123,7 @@ pub proof fn lemma_get_req_leads_to_some_resp
             assert(resp_msg_matches_req_msg(err_resp_msg, msg));
         }
     };
-    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, Self::next(), handle_request(), pre, post);
+    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, Self::next(), Self::handle_request(), pre, post);
 }
 
 pub proof fn lemma_get_req_leads_to_ok_or_err_resp
@@ -162,7 +161,7 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp
         && !s.busy_enabled
     };
     strengthen_next::<Self>(spec, Self::next(), Self::busy_disabled(), stronger_next);
-    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Option::Some(msg), stronger_next, handle_request(), pre, post);
+    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Option::Some(msg), stronger_next, Self::handle_request(), pre, post);
     temp_pred_equality::<Self>(
         lift_state(post),
         lift_state(|s: Self| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)))))
@@ -184,7 +183,7 @@ pub proof fn lemma_create_req_leads_to_res_exists
                 &&& msg.content.is_create_request()
                 &&& msg.content.get_create_request().obj.metadata.name.is_Some()
                 &&& msg.content.get_create_request().obj.metadata.namespace.is_None()
-                &&& object_has_well_formed_spec(msg.content.get_create_request().obj)
+                &&& Self::object_has_well_formed_spec(msg.content.get_create_request().obj)
             })
                 .leads_to(lift_state(|s: Self|
                     s.resource_key_exists(
@@ -201,7 +200,7 @@ pub proof fn lemma_create_req_leads_to_res_exists
         &&& msg.content.is_create_request()
         &&& msg.content.get_create_request().obj.metadata.name.is_Some()
         &&& msg.content.get_create_request().obj.metadata.namespace.is_None()
-        &&& object_has_well_formed_spec(msg.content.get_create_request().obj)
+        &&& Self::object_has_well_formed_spec(msg.content.get_create_request().obj)
     };
     let post = |s: Self|
         s.resource_key_exists(
@@ -212,7 +211,7 @@ pub proof fn lemma_create_req_leads_to_res_exists
         && !s.busy_enabled
     };
     strengthen_next::<Self>(spec, Self::next(), Self::busy_disabled(), stronger_next);
-    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Option::Some(msg), stronger_next, handle_request(), pre, post);
+    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Option::Some(msg), stronger_next, Self::handle_request(), pre, post);
 }
 
 pub proof fn lemma_delete_req_leads_to_res_not_exists
@@ -246,7 +245,7 @@ pub proof fn lemma_delete_req_leads_to_res_not_exists
         && !s.busy_enabled
     };
     strengthen_next::<Self>(spec, Self::next(), Self::busy_disabled(), stronger_next);
-    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Option::Some(msg), stronger_next, handle_request(), pre, post);
+    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Option::Some(msg), stronger_next, Self::handle_request(), pre, post);
 }
 
 pub proof fn lemma_always_res_always_exists_implies_delete_never_sent
@@ -578,7 +577,7 @@ proof fn pending_requests_num_decreases(
         assert(pending_req_multiset.remove(msg) =~= pending_req_multiset_prime);
     }
     Self::lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, input, stronger_next, handle_request(), pre, post
+        spec, input, stronger_next, Self::handle_request(), pre, post
     );
 }
 

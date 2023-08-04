@@ -34,7 +34,7 @@ pub enum Step<K, E: ExternalAPI> {
     StutterStep(),
 }
 
-impl<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn init() -> StatePred<Self> {
     |s: Self| {

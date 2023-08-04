@@ -32,7 +32,7 @@ impl ZookeeperClusterView {
                 && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
-impl ResourceView for ZookeeperClusterView {
+impl CustomResourceView for ZookeeperClusterView {
     type Spec = ZookeeperClusterSpecView;
 
     open spec fn metadata(self) -> ObjectMetaView {
@@ -76,6 +76,14 @@ impl ResourceView for ZookeeperClusterView {
                 spec: ZookeeperClusterView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
         }
+    }
+
+    open spec fn rule(self) -> bool {
+        true
+    }
+
+    open spec fn update_rule(self, old_self: ZookeeperClusterView) -> bool {
+        true
     }
 
     proof fn to_dynamic_preserves_integrity() {

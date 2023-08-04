@@ -14,7 +14,7 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn run_scheduled_reconcile() -> ControllerAction<K, E, R> {
     Action {

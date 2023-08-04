@@ -18,7 +18,7 @@ use builtin_macros::*;
 
 use crate::external_api::exec::*;
 use crate::simple_controller::exec::reconciler::{SimpleReconcileState, SimpleReconciler};
-use crate::simple_controller::spec::custom_resource::CustomResource;
+use crate::simple_controller::spec::custom_resource::SimpleCR;
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
         println!("{}", serde_yaml::to_string(&deps_hack::SimpleCR::crd())?);
     } else if cmd == String::from("run") {
         println!("running simple-controller");
-        run_controller::<deps_hack::SimpleCR, CustomResource, SimpleReconciler, SimpleReconcileState, EmptyType, EmptyType, EmptyAPI>().await?;
+        run_controller::<deps_hack::SimpleCR, SimpleCR, SimpleReconciler, SimpleReconcileState, EmptyType, EmptyType, EmptyAPI>().await?;
         println!("controller terminated");
     } else {
         println!("wrong command; please use \"export\" or \"run\"");

@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use super::types::*;
 use crate::external_api::spec::*;
-use crate::kubernetes_api_objects::resource::ResourceView;
+use crate::kubernetes_api_objects::resource::*;
 use crate::kubernetes_cluster::spec::{cluster::Cluster, message::*};
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
@@ -17,7 +17,7 @@ pub open spec fn client_req_msg(msg_content: MessageContent) -> Message {
     form_msg(HostId::Client, HostId::KubernetesAPI, msg_content)
 }
 
-impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn create_custom_resource() -> ClientAction<K> {
     Action {

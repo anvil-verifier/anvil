@@ -28,7 +28,7 @@ pub struct SimpleReconcileState {
 /// including reconcile function (reconcile_core) and triggering conditions (reconcile_trigger)
 pub struct SimpleReconciler {}
 
-impl Reconciler<CustomResourceView, EmptyAPI> for SimpleReconciler {
+impl Reconciler<SimpleCRView, EmptyAPI> for SimpleReconciler {
     type T = SimpleReconcileState;
 
     open spec fn reconcile_init_state() -> SimpleReconcileState {
@@ -36,7 +36,7 @@ impl Reconciler<CustomResourceView, EmptyAPI> for SimpleReconciler {
     }
 
     open spec fn reconcile_core(
-        cr: CustomResourceView, resp_o: Option<ResponseView<EmptyTypeView>>, state: SimpleReconcileState
+        cr: SimpleCRView, resp_o: Option<ResponseView<EmptyTypeView>>, state: SimpleReconcileState
     ) -> (SimpleReconcileState, Option<RequestView<EmptyTypeView>>) {
         reconcile_core(cr, resp_o, state)
     }
@@ -79,7 +79,7 @@ pub open spec fn reconcile_error(state: SimpleReconcileState) -> bool {
 /// it sends requests to create a configmap for the cr.
 /// TODO: make the reconcile_core create more resources such as a statefulset
 pub open spec fn reconcile_core(
-    cr: CustomResourceView, resp_o: Option<ResponseView<EmptyTypeView>>, state: SimpleReconcileState
+    cr: SimpleCRView, resp_o: Option<ResponseView<EmptyTypeView>>, state: SimpleReconcileState
 ) -> (SimpleReconcileState, Option<RequestView<EmptyTypeView>>)
     recommends
         cr.metadata.name.is_Some(),
@@ -106,7 +106,7 @@ pub open spec fn reconcile_core(
     }
 }
 
-pub open spec fn make_config_map(cr: CustomResourceView) -> ConfigMapView
+pub open spec fn make_config_map(cr: SimpleCRView) -> ConfigMapView
 {
     let config_map = ConfigMapView::default()
         .set_metadata(ObjectMetaView::default()
@@ -116,7 +116,7 @@ pub open spec fn make_config_map(cr: CustomResourceView) -> ConfigMapView
     config_map
 }
 
-pub open spec fn create_cm_req(cr: CustomResourceView) -> APIRequest
+pub open spec fn create_cm_req(cr: SimpleCRView) -> APIRequest
 {
     APIRequest::CreateRequest(CreateRequest{
         namespace: cr.metadata.namespace.get_Some_0(),
