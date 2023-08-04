@@ -85,11 +85,11 @@ impl CustomResourceView for RabbitmqClusterView {
         }
     }
 
-    open spec fn rule(self) -> bool {
+    open spec fn rule(obj: DynamicObjectView) -> bool {
         true
     }
 
-    open spec fn update_rule(self, old_self: RabbitmqClusterView) -> bool {
+    open spec fn update_rule(new_rabbitmq: DynamicObjectView, old_rabbitmq: DynamicObjectView) -> bool {
         true
     }
 
@@ -100,6 +100,7 @@ impl CustomResourceView for RabbitmqClusterView {
     proof fn from_dynamic_preserves_metadata() {}
 
     proof fn from_dynamic_preserves_kind() {}
+    
 }
 
 pub struct RabbitmqClusterSpecView {

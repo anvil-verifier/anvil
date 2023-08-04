@@ -156,11 +156,11 @@ impl CustomResourceView for SimpleCRView {
         }
     }
 
-    open spec fn rule(self) -> bool {
+    open spec fn rule(obj: DynamicObjectView) -> bool {
         true
     }
 
-    open spec fn update_rule(self, old_self: SimpleCRView) -> bool {
+    open spec fn update_rule(new_cr: DynamicObjectView, old_cr: DynamicObjectView) -> bool {
         true
     }
 

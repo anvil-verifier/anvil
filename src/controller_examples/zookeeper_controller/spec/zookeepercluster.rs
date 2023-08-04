@@ -78,11 +78,11 @@ impl CustomResourceView for ZookeeperClusterView {
         }
     }
 
-    open spec fn rule(self) -> bool {
+    open spec fn rule(obj: DynamicObjectView) -> bool {
         true
     }
 
-    open spec fn update_rule(self, old_self: ZookeeperClusterView) -> bool {
+    open spec fn update_rule(new_zk: ZookeeperClusterView, old_zk: ZookeeperClusterView) -> bool {
         true
     }
 

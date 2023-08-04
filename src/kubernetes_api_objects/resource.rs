@@ -136,9 +136,9 @@ pub trait CustomResourceView: Sized {
                 #[trigger] Self::from_dynamic_object(d).is_Ok()
                     ==> d.kind == Self::kind();
 
-    open spec fn rule(self) -> bool;
+    open spec fn rule(obj: DynamicObjectView) -> bool;
 
-    open spec fn update_rule(self, old_self: Self) -> bool;
+    open spec fn update_rule(new_cr: DynamicObjectView, old_cr: DynamicObjectView) -> bool;
 
 }
 
