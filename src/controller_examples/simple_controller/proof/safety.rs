@@ -27,7 +27,7 @@ use vstd::prelude::*;
 
 verus! {
 
-pub proof fn lemma_always_reconcile_init_pc_and_no_pending_req(cr: ResourceView)
+pub proof fn lemma_always_reconcile_init_pc_and_no_pending_req(cr: SimpleCRView)
     ensures
         sm_spec(simple_reconciler()).entails(always(
             lift_state(reconciler_at_init_pc(cr)).implies(lift_state(reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())))
@@ -48,7 +48,7 @@ pub proof fn lemma_always_reconcile_init_pc_and_no_pending_req(cr: ResourceView)
     temp_pred_equality::<State<SimpleReconcileState>>(lift_state(invariant), invariant_temp_pred);
 }
 
-pub open spec fn reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         s.reconcile_state_contains(cr.object_ref())
         && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
@@ -65,7 +65,7 @@ pub open spec fn reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_
 }
 
 /// If the reconcile is at get_cr_done_pc, then (1) a get cr request message is sent or (2) the corresponding response is sent.
-pub proof fn lemma_always_reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr: ResourceView)
+pub proof fn lemma_always_reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr: SimpleCRView)
     ensures
         sm_spec(simple_reconciler()).entails(always(lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr)))),
 {
@@ -87,7 +87,7 @@ pub proof fn lemma_always_reconcile_get_cr_done_implies_pending_req_in_flight_or
 }
 
 // next (and each_resp_matches_at_most_one_pending_req) preserves reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight
-proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr: ResourceView, s: State<SimpleReconcileState>, s_prime: State<SimpleReconcileState>)
+proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr: SimpleCRView, s: State<SimpleReconcileState>, s_prime: State<SimpleReconcileState>)
     requires
         reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr)(s),
         controller_runtime_safety::each_resp_matches_at_most_one_pending_req::<SimpleReconcileState>(cr.object_ref())(s),
@@ -136,7 +136,7 @@ pub open spec fn metadata_with_same_name_and_namespace(metadata1: ObjectMetaView
     metadata1.name == metadata2.name && metadata1.namespace == metadata2.namespace
 }
 
-pub open spec fn delete_cm_req_msg_not_in_flight(cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn delete_cm_req_msg_not_in_flight(cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         !exists |m: Message| {
             &&& #[trigger] s.message_in_flight(m)
@@ -147,7 +147,7 @@ pub open spec fn delete_cm_req_msg_not_in_flight(cr: ResourceView) -> StatePred<
     }
 }
 
-pub proof fn lemma_delete_cm_req_msg_never_in_flight(cr: ResourceView)
+pub proof fn lemma_delete_cm_req_msg_never_in_flight(cr: SimpleCRView)
     ensures
         sm_spec(simple_reconciler()).entails(always(lift_state(delete_cm_req_msg_not_in_flight(cr)))),
 {
