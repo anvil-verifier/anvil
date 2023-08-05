@@ -48,6 +48,7 @@ pub open spec fn object_has_well_formed_spec(obj: DynamicObjectView) -> bool {
     &&& obj.kind == SecretView::kind() ==> SecretView::unmarshal_spec(obj.spec).is_Ok()
     &&& obj.kind == ServiceView::kind() ==> ServiceView::unmarshal_spec(obj.spec).is_Ok()
     &&& obj.kind == StatefulSetView::kind() ==> StatefulSetView::unmarshal_spec(obj.spec).is_Ok()
+    &&& obj.kind == ServiceAccountView::kind() ==> ServiceAccountView::unmarshal_spec(obj.spec).is_Ok()
     &&& obj.kind == K::kind() ==> K::unmarshal_spec(obj.spec).is_Ok()
 }
 
