@@ -37,6 +37,9 @@ spec:
                 replicas:
                   format: int32
                   type: integer
+                  x-kubernetes-validations:
+                  - rule: "self >= oldSelf"
+                    message: scaling down is not supported
               required:
                 - replicas
               type: object

@@ -96,7 +96,7 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
         // Creation fails because the object already exists
         Option::Some(APIError::ObjectAlreadyExists)
     } else if req.obj.kind == Kind::CustomResourceKind && !K::rule(req.obj) {
-        Option::Some(APIError::IllegalCustomResource)
+        Option::Some(APIError::Invalid)
     } else {
         Option::None
     }
@@ -181,7 +181,7 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         // Update fails because the object has a wrong rv
         Option::Some(APIError::Conflict)
     } else if req.obj.kind == Kind::CustomResourceKind && !K::transition_rule(req.obj, s.resources[req.key]) {
-        Option::Some(APIError::IllegalCustomResource)
+        Option::Some(APIError::Invalid)
     } else {
         Option::None
     }

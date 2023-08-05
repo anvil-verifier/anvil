@@ -17,7 +17,6 @@ pub enum APIError {
     ObjectAlreadyExists,
     NotSupported,
     ServerTimeout,
-    IllegalCustomResource,
     Other
 }
 
@@ -32,7 +31,6 @@ impl std::fmt::Debug for APIError {
             APIError::ObjectAlreadyExists => write!(f, "ObjectAlreadyExists"),
             APIError::NotSupported => write!(f, "NotSupported"),
             APIError::ServerTimeout => write!(f, "ServerTimeout"),
-            APIError::IllegalCustomResource => write!(f, "IllegalCustomResource"),
             APIError::Other => write!(f, "Other"),
         }
     }
