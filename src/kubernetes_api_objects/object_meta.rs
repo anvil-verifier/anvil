@@ -64,18 +64,6 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
-    pub fn uid(&self) -> (uid: Option<String>)
-        ensures
-            self@.uid.is_Some() == uid.is_Some(),
-            uid.is_Some() ==> uid.get_Some_0()@ == self@.uid.get_Some_0(),
-    {
-        match &self.inner.uid {
-            std::option::Option::Some(n) => Option::Some(String::from_rust_string(n.to_string())),
-            std::option::Option::None => Option::None,
-        }
-    }
-
-    #[verifier(external_body)]
     pub fn resource_version(&self) -> (version: Option<u64>)
         ensures
             self@.resource_version.is_Some() == version.is_Some(),
@@ -86,7 +74,6 @@ impl ObjectMeta {
             std::option::Option::None => Option::None,
         }
     }
-
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
@@ -159,7 +146,7 @@ pub struct ObjectMetaView {
     pub namespace: Option<StringView>,
     pub generate_name: Option<StringView>,
     pub resource_version: Option<nat>, // make rv a nat so that it is easy to compare in spec/proof
-    pub uid: Option<StringView>,
+    pub uid: Option<nat>,
     pub labels: Option<Map<StringView, StringView>>,
     pub annotations: Option<Map<StringView, StringView>>,
     pub owner_references: Option<Seq<OwnerReferenceView>>,
