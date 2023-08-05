@@ -32,7 +32,7 @@ impl ZookeeperClusterView {
                 && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
-impl CustomResourceView for ZookeeperClusterView {
+impl ResourceView for ZookeeperClusterView {
     type Spec = ZookeeperClusterSpecView;
 
     open spec fn metadata(self) -> ObjectMetaView {

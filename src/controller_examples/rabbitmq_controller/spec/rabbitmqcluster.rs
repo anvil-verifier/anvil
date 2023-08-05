@@ -39,7 +39,7 @@ impl RabbitmqClusterView {
                 && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
-impl CustomResourceView for RabbitmqClusterView {
+impl ResourceView for RabbitmqClusterView {
     type Spec = RabbitmqClusterSpecView;
 
     open spec fn metadata(self) -> ObjectMetaView {

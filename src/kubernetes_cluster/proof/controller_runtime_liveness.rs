@@ -16,7 +16,7 @@ use vstd::prelude::*;
 
 verus! {
 
-impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled(cr_key: ObjectRef) -> TempPred<Self> {
     Self::sm_partial_spec()

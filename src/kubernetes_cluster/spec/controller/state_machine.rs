@@ -15,7 +15,7 @@ use vstd::prelude::*;
 
 verus! {
 
-impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn form_external_input(input: E::Input, id: nat) -> ExternalComm<E::Input, E::Output> {
     ExternalComm::Input(input, id)

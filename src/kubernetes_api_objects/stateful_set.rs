@@ -331,6 +331,14 @@ impl ResourceView for StatefulSetView {
     proof fn from_dynamic_preserves_metadata() {}
 
     proof fn from_dynamic_preserves_kind() {}
+
+    open spec fn rule(obj: DynamicObjectView) -> bool {
+        true
+    }
+
+    open spec fn transition_rule(new_cr: DynamicObjectView, old_cr: DynamicObjectView) -> bool {
+        true
+    }
 }
 
 pub struct StatefulSetSpecView {

@@ -13,7 +13,7 @@ use vstd::prelude::*;
 
 verus! {
 
-impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub proof fn lemma_always_has_rest_id_counter_no_smaller_than(
     spec: TempPred<Self>, rest_id: RestId

@@ -17,7 +17,7 @@ pub open spec fn client_req_msg(msg_content: MessageContent) -> Message {
     form_msg(HostId::Client, HostId::KubernetesAPI, msg_content)
 }
 
-impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn create_custom_resource() -> ClientAction<K> {
     Action {

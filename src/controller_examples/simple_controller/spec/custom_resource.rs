@@ -110,7 +110,7 @@ impl SimpleCRView {
                 && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
-impl CustomResourceView for SimpleCRView {
+impl ResourceView for SimpleCRView {
     type Spec = SimpleCRSpecView;
 
     open spec fn metadata(self) -> ObjectMetaView {

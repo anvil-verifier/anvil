@@ -20,14 +20,14 @@ verus! {
 
 pub closed spec fn dummy_trigger<A>(x: A);
 
-pub open spec fn reconciler_at_init_pc(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_init_pc(cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == SimpleReconcileStep::Init)
     }
 }
 
-pub open spec fn reconciler_at_init_pc_and_no_pending_req(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_init_pc_and_no_pending_req(cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == SimpleReconcileStep::Init)
@@ -35,14 +35,14 @@ pub open spec fn reconciler_at_init_pc_and_no_pending_req(cr: CustomResourceView
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_get_cr_pc(cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req(msg: Message, cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req(msg: Message, cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
@@ -51,7 +51,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req(msg: Message, cr:
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg: Message, cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg: Message, cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
@@ -62,7 +62,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespa
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc_and_exists_pending_req_and_req_in_flight_and_no_resp_in_flight(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_get_cr_pc_and_exists_pending_req_and_req_in_flight_and_no_resp_in_flight(cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
@@ -79,7 +79,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_exists_pending_req_and_req_in
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight(req_msg: Message, cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight(req_msg: Message, cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
@@ -93,7 +93,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight(msg: Message, cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight(msg: Message, cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
@@ -103,7 +103,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_exists_resp_in_flight(msg: Message, cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_exists_resp_in_flight(msg: Message, cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
@@ -116,7 +116,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_exists_resp_i
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_flight(req_msg: Message, resp_msg: Message, cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_flight(req_msg: Message, resp_msg: Message, cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
@@ -127,7 +127,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_fligh
     }
 }
 
-pub open spec fn reconciler_at_after_create_cm_pc_and_req_in_flight_and_cm_created(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_create_cm_pc_and_req_in_flight_and_cm_created(cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         reconciler_at_after_create_cm_pc(cr)(s)
         && exists |req_msg: Message|
@@ -140,28 +140,28 @@ pub open spec fn reconciler_at_after_create_cm_pc_and_req_in_flight_and_cm_creat
     }
 }
 
-pub open spec fn reconciler_at_after_create_cm_pc(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_create_cm_pc(cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_create_cm_pc()
     }
 }
 
-pub open spec fn reconciler_reconcile_done(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_reconcile_done(cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& simple_reconciler().reconcile_done(s.reconcile_state_of(cr.object_ref()).local_state)
     }
 }
 
-pub open spec fn reconciler_reconcile_error(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_reconcile_error(cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& simple_reconciler().reconcile_error(s.reconcile_state_of(cr.object_ref()).local_state)
     }
 }
 
-pub open spec fn reconciler_reconcile_done_or_error(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_reconcile_done_or_error(cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         s.reconcile_state_contains(cr.object_ref())
         && (simple_reconciler().reconcile_done(s.reconcile_state_of(cr.object_ref()).local_state) ||
@@ -169,18 +169,18 @@ pub open spec fn reconciler_reconcile_done_or_error(cr: CustomResourceView) -> S
     }
 }
 
-pub open spec fn cm_exists(cr: CustomResourceView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn cm_exists(cr: ResourceView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| s.resource_key_exists(reconciler::make_config_map(cr).object_ref())
 }
 
-pub open spec fn is_controller_get_cr_request_msg(msg: Message, cr: CustomResourceView) -> bool {
+pub open spec fn is_controller_get_cr_request_msg(msg: Message, cr: ResourceView) -> bool {
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI
     &&& msg.content.is_get_request()
     &&& msg.content.get_get_request().key == cr.object_ref()
 }
 
-pub open spec fn is_controller_create_cm_request_msg(msg: Message, cr: CustomResourceView) -> bool {
+pub open spec fn is_controller_create_cm_request_msg(msg: Message, cr: ResourceView) -> bool {
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI
     &&& msg.content.is_create_request()

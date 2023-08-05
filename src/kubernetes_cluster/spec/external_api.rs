@@ -33,7 +33,7 @@ pub struct ExternalAPIState<T: ExternalAPI> {
     pub in_flight: Set<ExternalComm<T::Input, T::Output>>,
 }
 
-impl<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn external_output_matches_input(output: ExternalComm<E::Input, E::Output>, input: ExternalComm<E::Input, E::Output>) -> bool {
     &&& output.is_Output()

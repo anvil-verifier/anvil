@@ -25,7 +25,7 @@ verus! {
 ///
 /// By using such a struct, we don't have to let all the functions carry the generics; and therefore we don't need to
 /// specify the generics whenever calling those spec or proof functions.
-pub struct Cluster<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
+pub struct Cluster<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
     pub kubernetes_api_state: KubernetesAPIState,
     pub controller_state: ControllerState<K, E, R>,
     pub client_state: ClientState,
@@ -36,7 +36,7 @@ pub struct Cluster<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
     pub busy_enabled: bool,
 }
 
-impl<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
     #[verifier(inline)]
     pub open spec fn message_in_flight(self, msg: Message) -> bool {
         self.network_state.in_flight.contains(msg)

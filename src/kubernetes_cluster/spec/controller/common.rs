@@ -11,12 +11,12 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub struct ControllerState<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
+pub struct ControllerState<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
     pub ongoing_reconciles: Map<ObjectRef, OngoingReconcile<K, E, R>>,
     pub scheduled_reconciles: Map<ObjectRef, K>,
 }
 
-pub struct OngoingReconcile<K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
+pub struct OngoingReconcile<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
     pub triggering_cr: K,
     // pending_req_msg: the request message pending for the handling for k8s api
     // pending_external_api_input: the request returned by the reconcile_core which should be sent to be external api

@@ -25,7 +25,7 @@ use vstd::prelude::*;
 
 verus! {
 
-impl <K: CustomResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
+impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 /// Prove weak_fairness is stable.
 pub proof fn action_weak_fairness_is_stable<Output>(action: Action<Self, (), Output>)
