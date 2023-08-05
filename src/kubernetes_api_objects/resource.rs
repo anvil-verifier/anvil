@@ -77,10 +77,20 @@ pub trait ResourceView: Sized {
             forall |d: DynamicObjectView|
                 #[trigger] Self::from_dynamic_object(d).is_Ok()
                     ==> d.kind == Self::kind();
-    
-    open spec fn rule(obj: DynamicObjectView) -> bool;
 
-    open spec fn transition_rule(new_cr: DynamicObjectView, old_cr: DynamicObjectView) -> bool;
+    closed spec fn marshal_spec(s: Self::Spec) -> Value;
+
+    closed spec fn unmarshal_spec(v: Value) -> Result<Self::Spec, ParseDynamicObjectError>;
+
+    proof fn spec_integrity_is_preserved_by_marshal()
+        ensures
+            forall |s: Self::Spec|
+                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
+                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0();
+
+    open spec fn rule(spec: Self::Spec) -> bool;
+
+    open spec fn transition_rule(new_spec: Self::Spec, old_spec: Self::Spec) -> bool;
 }
 
 }

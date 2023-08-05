@@ -97,18 +97,7 @@ impl ResourceWrapper<deps_hack::SimpleCR> for SimpleCR {
     }
 }
 
-impl SimpleCRView {
-    pub closed spec fn marshal_spec(s: SimpleCRSpecView) -> Value;
-
-    pub closed spec fn unmarshal_spec(v: Value) -> Result<SimpleCRSpecView, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    pub proof fn spec_integrity_is_preserved_by_marshal()
-        ensures
-            forall |s: SimpleCRSpecView|
-                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
-                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
-}
+impl SimpleCRView { }
 
 impl ResourceView for SimpleCRView {
     type Spec = SimpleCRSpecView;
@@ -156,14 +145,6 @@ impl ResourceView for SimpleCRView {
         }
     }
 
-    open spec fn rule(obj: DynamicObjectView) -> bool {
-        true
-    }
-
-    open spec fn transition_rule(new_cr: DynamicObjectView, old_cr: DynamicObjectView) -> bool {
-        true
-    }
-
     proof fn to_dynamic_preserves_integrity() {
         SimpleCRView::spec_integrity_is_preserved_by_marshal();
     }
@@ -171,6 +152,21 @@ impl ResourceView for SimpleCRView {
     proof fn from_dynamic_preserves_metadata() {}
 
     proof fn from_dynamic_preserves_kind() {}
+
+    closed spec fn marshal_spec(s: SimpleCRSpecView) -> Value;
+
+    closed spec fn unmarshal_spec(v: Value) -> Result<SimpleCRSpecView, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn spec_integrity_is_preserved_by_marshal() {}
+
+    open spec fn rule(spec: SimpleCRSpecView) -> bool {
+        true
+    }
+
+    open spec fn transition_rule(new_spec: SimpleCRSpecView, old_spec: SimpleCRSpecView) -> bool {
+        true
+    }
 }
 
 #[verifier(external_body)]

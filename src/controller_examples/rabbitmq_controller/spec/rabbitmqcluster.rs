@@ -26,17 +26,6 @@ impl RabbitmqClusterView {
     pub open spec fn namespace(self) -> Option<StringView> {
         self.metadata.namespace
     }
-
-    pub closed spec fn marshal_spec(s: RabbitmqClusterSpecView) -> Value;
-
-    pub closed spec fn unmarshal_spec(v: Value) -> Result<RabbitmqClusterSpecView, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    pub proof fn spec_integrity_is_preserved_by_marshal()
-        ensures
-            forall |s: RabbitmqClusterSpecView|
-                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
-                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for RabbitmqClusterView {
@@ -85,14 +74,6 @@ impl ResourceView for RabbitmqClusterView {
         }
     }
 
-    open spec fn rule(obj: DynamicObjectView) -> bool {
-        true
-    }
-
-    open spec fn transition_rule(new_rabbitmq: DynamicObjectView, old_rabbitmq: DynamicObjectView) -> bool {
-        true
-    }
-
     proof fn to_dynamic_preserves_integrity() {
         RabbitmqClusterView::spec_integrity_is_preserved_by_marshal();
     }
@@ -100,6 +81,21 @@ impl ResourceView for RabbitmqClusterView {
     proof fn from_dynamic_preserves_metadata() {}
 
     proof fn from_dynamic_preserves_kind() {}
+
+    closed spec fn marshal_spec(s: RabbitmqClusterSpecView) -> Value;
+
+    closed spec fn unmarshal_spec(v: Value) -> Result<RabbitmqClusterSpecView, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn spec_integrity_is_preserved_by_marshal() {}
+
+    open spec fn rule(spec: RabbitmqClusterSpecView) -> bool {
+        true
+    }
+
+    open spec fn transition_rule(new_spec: RabbitmqClusterSpecView, old_spec: RabbitmqClusterSpecView) -> bool {
+        true
+    }
 
 }
 

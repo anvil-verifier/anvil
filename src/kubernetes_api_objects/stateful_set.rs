@@ -265,17 +265,6 @@ impl StatefulSetView {
             ..self
         }
     }
-
-    pub closed spec fn marshal_spec(s: Option<StatefulSetSpecView>) -> Value;
-
-    pub closed spec fn unmarshal_spec(v: Value) -> Result<Option<StatefulSetSpecView>, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    pub proof fn spec_integrity_is_preserved_by_marshal()
-        ensures
-            forall |s: Option<StatefulSetSpecView>|
-                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
-                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for StatefulSetView {
@@ -332,11 +321,18 @@ impl ResourceView for StatefulSetView {
 
     proof fn from_dynamic_preserves_kind() {}
 
-    open spec fn rule(obj: DynamicObjectView) -> bool {
+    closed spec fn marshal_spec(s: Option<StatefulSetSpecView>) -> Value;
+
+    closed spec fn unmarshal_spec(v: Value) -> Result<Option<StatefulSetSpecView>, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn spec_integrity_is_preserved_by_marshal() {}
+
+    open spec fn rule(spec: Option<StatefulSetSpecView>) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_cr: DynamicObjectView, old_cr: DynamicObjectView) -> bool {
+    open spec fn transition_rule(new_spec: Option<StatefulSetSpecView>, old_spec: Option<StatefulSetSpecView>) -> bool {
         true
     }
 }
