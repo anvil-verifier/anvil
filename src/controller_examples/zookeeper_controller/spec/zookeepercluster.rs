@@ -19,17 +19,6 @@ impl ZookeeperClusterView {
         &&& self.metadata.name.is_Some()
         &&& self.metadata.namespace.is_Some()
     }
-
-    pub closed spec fn marshal_spec(s: ZookeeperClusterSpecView) -> Value;
-
-    pub closed spec fn unmarshal_spec(v: Value) -> Result<ZookeeperClusterSpecView, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    pub proof fn spec_integrity_is_preserved_by_marshal()
-        ensures
-            forall |s: ZookeeperClusterSpecView|
-                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
-                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for ZookeeperClusterView {
@@ -85,6 +74,21 @@ impl ResourceView for ZookeeperClusterView {
     proof fn from_dynamic_preserves_metadata() {}
 
     proof fn from_dynamic_preserves_kind() {}
+
+    closed spec fn marshal_spec(s: ZookeeperClusterSpecView) -> Value;
+
+    closed spec fn unmarshal_spec(v: Value) -> Result<ZookeeperClusterSpecView, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn spec_integrity_is_preserved_by_marshal() {}
+
+    open spec fn rule(obj: ZookeeperClusterView) -> bool {
+        true
+    }
+
+    open spec fn transition_rule(new_obj: ZookeeperClusterView, old_obj: ZookeeperClusterView) -> bool {
+        true
+    }
 }
 
 pub struct ZookeeperClusterSpecView {

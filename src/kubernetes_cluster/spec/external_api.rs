@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
-use crate::kubernetes_api_objects::resource::ResourceView;
+use crate::kubernetes_api_objects::resource::*;
 use crate::kubernetes_cluster::spec::{cluster::Cluster, message::*};
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;

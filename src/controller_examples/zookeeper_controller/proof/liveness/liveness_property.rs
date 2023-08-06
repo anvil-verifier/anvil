@@ -9,10 +9,6 @@ use crate::kubernetes_cluster::spec::{
     cluster_state_machine::Step,
     controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
     controller::state_machine::*,
-    kubernetes_api::state_machine::{
-        handle_create_request, handle_get_request, handle_request, transition_by_etcd,
-        update_is_noop,
-    },
     message::*,
 };
 use crate::temporal_logic::{defs::*, rules::*};
@@ -1289,7 +1285,7 @@ proof fn lemma_receives_some_resp_at_zookeeper_step_with_zk(
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && ZKCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        let resp_msg = transition_by_etcd(req_msg, s.kubernetes_api_state).1;
+        let resp_msg = ZKCluster::transition_by_etcd(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.message_in_flight(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -1297,7 +1293,7 @@ proof fn lemma_receives_some_resp_at_zookeeper_step_with_zk(
     }
 
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, input, stronger_next, handle_request(), pre, post
+        spec, input, stronger_next, ZKCluster::handle_request(), pre, post
     );
 }
 
@@ -1378,7 +1374,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
         match step {
             Step::KubernetesAPIStep(input) => {
                 if input.get_Some_0() == req_msg {
-                    let resp_msg = handle_get_request(req_msg, s.kubernetes_api_state).1;
+                    let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.message_in_flight(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -1393,7 +1389,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && ZKCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        let resp_msg = handle_get_request(req_msg, s.kubernetes_api_state).1;
+        let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.message_in_flight(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -1403,7 +1399,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
     }
 
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, input, stronger_next, handle_request(), pre, post
+        spec, input, stronger_next, ZKCluster::handle_request(), pre, post
     );
 }
 
@@ -1583,7 +1579,7 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
     }
 
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, input, stronger_next, handle_request(), pre, post
+        spec, input, stronger_next, ZKCluster::handle_request(), pre, post
     );
 }
 
@@ -1656,7 +1652,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_zk(
         match step {
             Step::KubernetesAPIStep(input) => {
                 if input.get_Some_0() == req_msg {
-                    let resp_msg = handle_get_request(req_msg, s.kubernetes_api_state).1;
+                    let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.message_in_flight(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -1671,7 +1667,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_zk(
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && ZKCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        let resp_msg = handle_get_request(req_msg, s.kubernetes_api_state).1;
+        let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.message_in_flight(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -1681,7 +1677,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_zk(
     }
 
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, input, stronger_next, handle_request(), pre, post
+        spec, input, stronger_next, ZKCluster::handle_request(), pre, post
     );
 }
 
@@ -1835,7 +1831,7 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_zk(
     }
 
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, input, stronger_next, handle_request(), pre, post
+        spec, input, stronger_next, ZKCluster::handle_request(), pre, post
     );
 }
 

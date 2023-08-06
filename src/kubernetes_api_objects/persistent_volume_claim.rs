@@ -202,17 +202,6 @@ impl PersistentVolumeClaimView {
             ..self
         }
     }
-
-    pub closed spec fn marshal_spec(s: Option<PersistentVolumeClaimSpecView>) -> Value;
-
-    pub closed spec fn unmarshal_spec(v: Value) -> Result<Option<PersistentVolumeClaimSpecView>, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    pub proof fn spec_integrity_is_preserved_by_marshal()
-        ensures
-            forall |s: Option<PersistentVolumeClaimSpecView>|
-                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
-                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for PersistentVolumeClaimView {
@@ -268,6 +257,21 @@ impl ResourceView for PersistentVolumeClaimView {
     proof fn from_dynamic_preserves_metadata() {}
 
     proof fn from_dynamic_preserves_kind() {}
+
+    closed spec fn marshal_spec(s: Option<PersistentVolumeClaimSpecView>) -> Value;
+
+    closed spec fn unmarshal_spec(v: Value) -> Result<Option<PersistentVolumeClaimSpecView>, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn spec_integrity_is_preserved_by_marshal() {}
+
+    open spec fn rule(obj: PersistentVolumeClaimView) -> bool {
+        true
+    }
+
+    open spec fn transition_rule(new_obj: PersistentVolumeClaimView, old_obj: PersistentVolumeClaimView) -> bool {
+        true
+    }
 }
 
 impl Marshalable for PersistentVolumeClaimView {

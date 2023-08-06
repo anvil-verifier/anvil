@@ -189,17 +189,6 @@ impl RoleView {
             ..self
         }
     }
-
-    pub closed spec fn marshal_spec(s: RoleSpecView) -> Value;
-
-    pub closed spec fn unmarshal_spec(v: Value) -> Result<RoleSpecView, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    pub proof fn spec_integrity_is_preserved_by_marshal()
-        ensures
-            forall |s: RoleSpecView|
-                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
-                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for RoleView {
@@ -255,6 +244,21 @@ impl ResourceView for RoleView {
     proof fn from_dynamic_preserves_metadata() {}
 
     proof fn from_dynamic_preserves_kind() {}
+
+    closed spec fn marshal_spec(s: RoleSpecView) -> Value;
+
+    closed spec fn unmarshal_spec(v: Value) -> Result<RoleSpecView, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn spec_integrity_is_preserved_by_marshal() {}
+
+    open spec fn rule(obj: RoleView) -> bool {
+        true
+    }
+
+    open spec fn transition_rule(new_obj: RoleView, old_obj: RoleView) -> bool {
+        true
+    }
 }
 
 pub struct PolicyRuleView {

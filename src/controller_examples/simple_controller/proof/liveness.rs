@@ -27,11 +27,11 @@ use vstd::prelude::*;
 
 verus! {
 
-spec fn cr_exists(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState>> {
+spec fn cr_exists(cr: SimpleCRView) -> TempPred<State<SimpleReconcileState>> {
     lift_state(|s: State<SimpleReconcileState>| s.resource_obj_exists(cr.to_dynamic_object()) && cr.metadata.name.is_Some() && cr.metadata.namespace.is_Some())
 }
 
-spec fn cr_matched(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState>> {
+spec fn cr_matched(cr: SimpleCRView) -> TempPred<State<SimpleReconcileState>> {
     lift_state(|s: State<SimpleReconcileState>|
         s.resource_key_exists(reconciler::make_config_map(cr).object_ref()))
 }
@@ -46,7 +46,7 @@ spec fn cr_matched(cr: CustomResourceView) -> TempPred<State<SimpleReconcileStat
 ///     (7) By the transitivity of leads_to relation, we have spec |= []cr_exists ~> []cr_matched.
 
 /// To prove the liveness property, we need some invariants (these invariants have already contained "always" constraint).
-spec fn all_invariants(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState>> {
+spec fn all_invariants(cr: SimpleCRView) -> TempPred<State<SimpleReconcileState>> {
     tla_forall(|msg| always(lift_state(resp_matches_at_most_one_pending_req(msg, cr.object_ref()))))
     .and(tla_forall(|resp_msg: Message| always(lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref())))))
     .and(always(lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr))))
@@ -56,27 +56,27 @@ spec fn all_invariants(cr: CustomResourceView) -> TempPred<State<SimpleReconcile
     .and(always(lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>())))
 }
 
-spec fn partial_spec_with_invariants_and_assumptions(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState>> {
+spec fn partial_spec_with_invariants_and_assumptions(cr: SimpleCRView) -> TempPred<State<SimpleReconcileState>> {
     sm_partial_spec(simple_reconciler())
     .and(always(lift_state(crash_disabled::<SimpleReconcileState>())))
     .and(all_invariants(cr))
     .and(always(cr_exists(cr)))
 }
 
-spec fn liveness(cr: CustomResourceView) -> TempPred<State<SimpleReconcileState>> {
+spec fn liveness(cr: SimpleCRView) -> TempPred<State<SimpleReconcileState>> {
     always(cr_exists(cr)).leads_to(always(cr_matched(cr)))
 }
 
 proof fn liveness_proof_forall_cr()
     ensures
-        forall |cr: CustomResourceView| #[trigger] sm_spec(simple_reconciler()).entails(liveness(cr)),
+        forall |cr: SimpleCRView| #[trigger] sm_spec(simple_reconciler()).entails(liveness(cr)),
 {
-    assert forall |cr: CustomResourceView| #[trigger] sm_spec(simple_reconciler()).entails(liveness(cr)) by {
+    assert forall |cr: SimpleCRView| #[trigger] sm_spec(simple_reconciler()).entails(liveness(cr)) by {
         liveness_proof(cr);
     };
 }
 
-proof fn liveness_proof(cr: CustomResourceView)
+proof fn liveness_proof(cr: SimpleCRView)
     ensures
         sm_spec(simple_reconciler()).entails(
             always(cr_exists(cr)).leads_to(always(cr_matched(cr)))
@@ -94,7 +94,7 @@ proof fn liveness_proof(cr: CustomResourceView)
         always(cr_exists(cr)).and(always(lift_state(crash_disabled::<SimpleReconcileState>()))), always(cr_matched(cr)));
 }
 
-proof fn lemma_sm_spec_entails_cr_always_exists_and_crash_always_disabled_leads_to_cm_always_exists(cr: CustomResourceView)
+proof fn lemma_sm_spec_entails_cr_always_exists_and_crash_always_disabled_leads_to_cm_always_exists(cr: SimpleCRView)
     ensures
         sm_spec(simple_reconciler()).entails(
             always(cr_exists(cr)).and(always(lift_state(crash_disabled::<SimpleReconcileState>())))
@@ -121,7 +121,7 @@ proof fn lemma_sm_spec_entails_cr_always_exists_and_crash_always_disabled_leads_
 }
 
 // Step (2)
-proof fn lemma_true_leads_to_cm_exists(cr: CustomResourceView)
+proof fn lemma_true_leads_to_cm_exists(cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             true_pred::<State<SimpleReconcileState>>().leads_to(lift_state(cm_exists(cr)))
@@ -142,7 +142,7 @@ proof fn lemma_true_leads_to_cm_exists(cr: CustomResourceView)
 }
 
 // Step (3), prove the stability of partial_spec /\ all_invariants.
-proof fn lemma_sm_partial_spec_is_stable_and_invariants(cr: CustomResourceView)
+proof fn lemma_sm_partial_spec_is_stable_and_invariants(cr: SimpleCRView)
     ensures
         valid(stable(sm_partial_spec(simple_reconciler()).and(all_invariants(cr)))),
 {
@@ -185,7 +185,7 @@ proof fn lemma_sm_partial_spec_is_stable_and_invariants(cr: CustomResourceView)
 
 // Step (4)
 // This proof is straightforward: Use the lemmas which prove spec |= invariant_i for i = 1, 2, 3, 4, 5, 6 respectively.
-proof fn lemma_sm_spec_entails_all_invariants(cr: CustomResourceView)
+proof fn lemma_sm_spec_entails_all_invariants(cr: SimpleCRView)
     ensures
         sm_spec(simple_reconciler()).entails(all_invariants(cr)),
 {
@@ -206,7 +206,7 @@ proof fn lemma_sm_spec_entails_all_invariants(cr: CustomResourceView)
         always(lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>())));
 }
 
-proof fn lemma_p_leads_to_cm_always_exists(cr: CustomResourceView, p: TempPred<State<SimpleReconcileState>>)
+proof fn lemma_p_leads_to_cm_always_exists(cr: SimpleCRView, p: TempPred<State<SimpleReconcileState>>)
     requires
         sm_spec(simple_reconciler()).entails(
             p.leads_to(lift_state(cm_exists(cr)))
@@ -229,7 +229,7 @@ proof fn lemma_p_leads_to_cm_always_exists(cr: CustomResourceView, p: TempPred<S
         p, lift_state(cm_exists(cr)));
 }
 
-proof fn lemma_reconcile_idle_leads_to_cm_exists(cr: CustomResourceView)
+proof fn lemma_reconcile_idle_leads_to_cm_exists(cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
         lift_state(|s: State<SimpleReconcileState>| !s.reconcile_state_contains(cr.object_ref()))
@@ -262,7 +262,7 @@ proof fn lemma_reconcile_idle_leads_to_cm_exists(cr: CustomResourceView)
         reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref()), cm_exists(cr));
 }
 
-proof fn lemma_reconcile_ongoing_leads_to_cm_exists(cr: CustomResourceView)
+proof fn lemma_reconcile_ongoing_leads_to_cm_exists(cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
         lift_state(|s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.object_ref()))
@@ -287,7 +287,7 @@ proof fn lemma_reconcile_ongoing_leads_to_cm_exists(cr: CustomResourceView)
         lift_state(cm_exists(cr)));
 }
 
-proof fn lemma_error_pc_leads_to_cm_exists(cr: CustomResourceView)
+proof fn lemma_error_pc_leads_to_cm_exists(cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
         lift_state(reconciler_reconcile_error(cr))
@@ -319,7 +319,7 @@ proof fn lemma_error_pc_leads_to_cm_exists(cr: CustomResourceView)
         reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref()), cm_exists(cr));
 }
 
-proof fn lemma_init_pc_leads_to_cm_exists(cr: CustomResourceView)
+proof fn lemma_init_pc_leads_to_cm_exists(cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_init_pc(cr))
@@ -333,7 +333,7 @@ proof fn lemma_init_pc_leads_to_cm_exists(cr: CustomResourceView)
     leads_to_trans_auto::<State<SimpleReconcileState>>(partial_spec_with_invariants_and_assumptions(cr));
 }
 
-proof fn lemma_after_get_cr_pc_leads_to_cm_exists(cr: CustomResourceView)
+proof fn lemma_after_get_cr_pc_leads_to_cm_exists(cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_after_get_cr_pc(cr))
@@ -374,7 +374,7 @@ proof fn lemma_after_get_cr_pc_leads_to_cm_exists(cr: CustomResourceView)
     };
 }
 
-proof fn lemma_after_create_cm_pc_leads_to_cm_exists(cr: CustomResourceView)
+proof fn lemma_after_create_cm_pc_leads_to_cm_exists(cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_after_create_cm_pc(cr))
@@ -389,7 +389,7 @@ proof fn lemma_after_create_cm_pc_leads_to_cm_exists(cr: CustomResourceView)
     leads_to_trans(partial_spec_with_invariants_and_assumptions(cr), pre, post, cm_exists(cr));
 }
 
-proof fn lemma_init_pc_and_no_pending_req_leads_to_cm_exists(cr: CustomResourceView)
+proof fn lemma_init_pc_and_no_pending_req_leads_to_cm_exists(cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref()))
@@ -431,7 +431,7 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_cm_exists(cr: CustomResourceV
         cm_exists(cr));
 }
 
-proof fn lemma_req_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_msg: Message, cr: CustomResourceView)
+proof fn lemma_req_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_msg: Message, cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight(req_msg, cr))
@@ -478,7 +478,7 @@ proof fn lemma_req_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_msg: Mess
         reconciler_at_after_get_cr_pc_and_pending_req_and_exists_resp_in_flight(req_msg, cr), cm_exists(cr));
 }
 
-proof fn lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_msg: Message, cr: CustomResourceView)
+proof fn lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_msg: Message, cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_exists_resp_in_flight(req_msg, cr))
@@ -505,7 +505,7 @@ proof fn lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_m
     temp_pred_equality::<State<SimpleReconcileState>>(exists_m_to_pre, tla_exists(m_to_pre));
 }
 
-proof fn lemma_init_pc_and_no_pending_req_leads_to_after_get_cr_pc_and_exists_pending_req_and_req_in_flight_and_no_resp_in_flight(cr: CustomResourceView)
+proof fn lemma_init_pc_and_no_pending_req_leads_to_after_get_cr_pc_and_exists_pending_req_and_req_in_flight_and_no_resp_in_flight(cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref()))
@@ -536,7 +536,7 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_after_get_cr_pc_and_exists_pe
     lemma_pre_leads_to_post_by_controller(partial_spec_with_invariants_and_assumptions(cr), simple_reconciler(), input, stronger_next, continue_reconcile(simple_reconciler()), pre, post);
 }
 
-proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_leads_to_ok_resp_in_flight(req_msg: Message, cr: CustomResourceView)
+proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_leads_to_ok_resp_in_flight(req_msg: Message, cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight(req_msg, cr))
@@ -567,7 +567,7 @@ proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_l
 
 // This lemma proves:
 // ideal_spec |= get_cr_pc /\ pending_req /\ ok_resp_in_flight ~> cm_exists
-proof fn lemma_after_get_cr_pc_and_ok_resp_in_flight_leads_to_cm_exists(req_msg: Message, cr: CustomResourceView)
+proof fn lemma_after_get_cr_pc_and_ok_resp_in_flight_leads_to_cm_exists(req_msg: Message, cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr))
@@ -618,7 +618,7 @@ proof fn lemma_after_get_cr_pc_and_ok_resp_in_flight_leads_to_cm_exists(req_msg:
         cm_created, cm_exists(cr));
 }
 
-spec fn strengthen_next_with_rep_resp_injectivity(resp_msg: Message, req_msg: Message, cr: CustomResourceView) -> ActionPred<State<SimpleReconcileState>> {
+spec fn strengthen_next_with_rep_resp_injectivity(resp_msg: Message, req_msg: Message, cr: SimpleCRView) -> ActionPred<State<SimpleReconcileState>> {
     |s, s_prime: State<SimpleReconcileState>| {
         &&& next(simple_reconciler())(s, s_prime)
         &&& at_most_one_resp_matches_req(resp_msg, cr.object_ref())(s)
@@ -627,7 +627,7 @@ spec fn strengthen_next_with_rep_resp_injectivity(resp_msg: Message, req_msg: Me
     }
 }
 
-proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(resp_msg: Message, req_msg: Message, cr: CustomResourceView)
+proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(resp_msg: Message, req_msg: Message, cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_flight(req_msg, resp_msg, cr)).leads_to(lift_state(cm_exists(cr)))
@@ -654,7 +654,7 @@ proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(resp_msg: Me
     leads_to_trans(partial_spec_with_invariants_and_assumptions(cr), pre, post, cm_exists(cr));
 }
 
-proof fn spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg: Message, req_msg: Message, cr: CustomResourceView)
+proof fn spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg: Message, req_msg: Message, cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             always(lift_action(strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr)))
@@ -688,7 +688,7 @@ proof fn spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg: Messag
         .and(lift_state(crash_disabled::<SimpleReconcileState>())));
 }
 
-pub proof fn next_and_not_crash_preserves_init_pc_or_reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight(cr: CustomResourceView, s: State<SimpleReconcileState>, s_prime: State<SimpleReconcileState>)
+pub proof fn next_and_not_crash_preserves_init_pc_or_reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight(cr: SimpleCRView, s: State<SimpleReconcileState>, s_prime: State<SimpleReconcileState>)
     requires
         next(simple_reconciler())(s, s_prime), !s.crash_enabled, every_in_flight_msg_has_lower_id_than_allocator::<SimpleReconcileState>()(s),
         reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())(s),

@@ -13,24 +13,24 @@ use vstd::string::*;
 
 verus! {
 
-// TODO: CustomResource should be defined by the controller developer
+// TODO: SimpleCR should be defined by the controller developer
 #[verifier(external_body)]
-pub struct CustomResource {
+pub struct SimpleCR {
     inner: deps_hack::SimpleCR
 }
 
-pub struct CustomResourceView {
+pub struct SimpleCRView {
     pub metadata: ObjectMetaView,
-    pub spec: CustomResourceSpecView,
+    pub spec: SimpleCRSpecView,
 }
 
-impl CustomResource {
-    pub spec fn view(&self) -> CustomResourceView;
+impl SimpleCR {
+    pub spec fn view(&self) -> SimpleCRView;
 
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
-            res@.kind == CustomResourceView::kind(),
+            res@.kind == SimpleCRView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::SimpleCR>(&()))
     }
@@ -44,11 +44,11 @@ impl CustomResource {
     }
 
     #[verifier(external_body)]
-    pub fn spec(&self) -> (spec: CustomResourceSpec)
+    pub fn spec(&self) -> (spec: SimpleCRSpec)
         ensures
             spec@ == self@.spec,
     {
-        CustomResourceSpec {
+        SimpleCRSpec {
             inner: self.inner.spec.clone()
         }
     }
@@ -65,17 +65,17 @@ impl CustomResource {
         )
     }
 
-    /// Convert a DynamicObject to a CustomResource
+    /// Convert a DynamicObject to a SimpleCR
     // NOTE: This function assumes try_parse won't fail!
     #[verifier(external_body)]
-    fn from_dynamic_object(obj: DynamicObject) -> (res: Result<CustomResource, ParseDynamicObjectError>)
+    fn from_dynamic_object(obj: DynamicObject) -> (res: Result<SimpleCR, ParseDynamicObjectError>)
         ensures
-            res.is_Ok() == CustomResourceView::from_dynamic_object(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == CustomResourceView::from_dynamic_object(obj@).get_Ok_0(),
+            res.is_Ok() == SimpleCRView::from_dynamic_object(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == SimpleCRView::from_dynamic_object(obj@).get_Ok_0(),
     {
         let parse_result = obj.into_kube().try_parse::<deps_hack::SimpleCR>();
         if parse_result.is_ok() {
-            let res = CustomResource { inner: parse_result.unwrap() };
+            let res = SimpleCR { inner: parse_result.unwrap() };
             Result::Ok(res)
         } else {
             Result::Err(ParseDynamicObjectError::ExecError)
@@ -83,10 +83,10 @@ impl CustomResource {
     }
 }
 
-impl ResourceWrapper<deps_hack::SimpleCR> for CustomResource {
+impl ResourceWrapper<deps_hack::SimpleCR> for SimpleCR {
     #[verifier(external)]
-    fn from_kube(inner: deps_hack::SimpleCR) -> CustomResource {
-        CustomResource {
+    fn from_kube(inner: deps_hack::SimpleCR) -> SimpleCR {
+        SimpleCR {
             inner: inner
         }
     }
@@ -97,21 +97,10 @@ impl ResourceWrapper<deps_hack::SimpleCR> for CustomResource {
     }
 }
 
-impl CustomResourceView {
-    pub closed spec fn marshal_spec(s: CustomResourceSpecView) -> Value;
+impl SimpleCRView { }
 
-    pub closed spec fn unmarshal_spec(v: Value) -> Result<CustomResourceSpecView, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    pub proof fn spec_integrity_is_preserved_by_marshal()
-        ensures
-            forall |s: CustomResourceSpecView|
-                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
-                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
-}
-
-impl ResourceView for CustomResourceView {
-    type Spec = CustomResourceSpecView;
+impl ResourceView for SimpleCRView {
+    type Spec = SimpleCRSpecView;
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
@@ -135,47 +124,62 @@ impl ResourceView for CustomResourceView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            spec: CustomResourceView::marshal_spec(self.spec),
+            spec: SimpleCRView::marshal_spec(self.spec),
         }
     }
 
-    open spec fn spec(self) -> CustomResourceSpecView {
+    open spec fn spec(self) -> SimpleCRSpecView {
         self.spec
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<CustomResourceView, ParseDynamicObjectError> {
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<SimpleCRView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
-        } else if !CustomResourceView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !SimpleCRView::unmarshal_spec(obj.spec).is_Ok() {
             Result::Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            Result::Ok(CustomResourceView {
+            Result::Ok(SimpleCRView {
                 metadata: obj.metadata,
-                spec: CustomResourceView::unmarshal_spec(obj.spec).get_Ok_0(),
+                spec: SimpleCRView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
         }
     }
 
     proof fn to_dynamic_preserves_integrity() {
-        CustomResourceView::spec_integrity_is_preserved_by_marshal();
+        SimpleCRView::spec_integrity_is_preserved_by_marshal();
     }
 
     proof fn from_dynamic_preserves_metadata() {}
 
     proof fn from_dynamic_preserves_kind() {}
+
+    closed spec fn marshal_spec(s: SimpleCRSpecView) -> Value;
+
+    closed spec fn unmarshal_spec(v: Value) -> Result<SimpleCRSpecView, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn spec_integrity_is_preserved_by_marshal() {}
+
+    open spec fn rule(obj: SimpleCRView) -> bool {
+        true
+    }
+
+    open spec fn transition_rule(new_obj: SimpleCRView, old_obj: SimpleCRView) -> bool {
+        true
+    }
 }
 
 #[verifier(external_body)]
-pub struct CustomResourceSpec {
+pub struct SimpleCRSpec {
     inner: deps_hack::SimpleCRSpec
 }
 
-pub struct CustomResourceSpecView {
+pub struct SimpleCRSpecView {
     pub content: StringView,
 }
 
-impl CustomResourceSpec {
-    pub spec fn view(&self) -> CustomResourceSpecView;
+impl SimpleCRSpec {
+    pub spec fn view(&self) -> SimpleCRSpecView;
 
     #[verifier(external_body)]
     pub fn content(&self) -> (content: String)
@@ -186,7 +190,7 @@ impl CustomResourceSpec {
     }
 }
 
-impl Marshalable for CustomResourceSpecView {
+impl Marshalable for SimpleCRSpecView {
     spec fn marshal(self) -> Value;
 
     spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;

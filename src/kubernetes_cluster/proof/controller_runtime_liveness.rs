@@ -6,9 +6,7 @@ use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
     cluster::*,
     controller::common::{ControllerAction, ControllerActionInput},
-    controller::state_machine::*,
     external_api::*,
-    kubernetes_api::state_machine::{handle_request, transition_by_etcd},
     message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
@@ -481,14 +479,14 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
         let input = Option::Some(req_msg);
         assert forall |s, s_prime: Self| pre_1(s) && #[trigger] stronger_next(s, s_prime)
         && Self::kubernetes_api_next().forward(input)(s, s_prime) implies post_1(s_prime) by {
-            let resp_msg = transition_by_etcd(req_msg, s.kubernetes_api_state).1;
+            let resp_msg = Self::transition_by_etcd(req_msg, s.kubernetes_api_state).1;
             assert({
                 &&& s_prime.message_in_flight(resp_msg)
                 &&& resp_msg_matches_req_msg(resp_msg, req_msg)
             });
         };
         Self::lemma_pre_leads_to_post_by_kubernetes_api(
-            spec, input, stronger_next, handle_request(), pre_1, post_1
+            spec, input, stronger_next, Self::handle_request(), pre_1, post_1
         );
     }
     let msg_2_temp = |msg| lift_state(Self::req_msg_is_the_in_flight_pending_req_at_reconcile_state(cr.object_ref(), state, msg));

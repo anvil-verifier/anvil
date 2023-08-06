@@ -9,11 +9,6 @@ use crate::kubernetes_cluster::spec::{
     cluster::*,
     cluster_state_machine::Step,
     controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
-    controller::state_machine::*,
-    kubernetes_api::state_machine::{
-        handle_create_request, handle_get_request, handle_request, transition_by_etcd,
-        update_is_noop,
-    },
     message::*,
 };
 use crate::rabbitmq_controller::{
@@ -882,7 +877,7 @@ proof fn lemma_receives_some_resp_at_rabbitmq_step_with_rabbitmq(
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        let resp_msg = transition_by_etcd(req_msg, s.kubernetes_api_state).1;
+        let resp_msg = RMQCluster::transition_by_etcd(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.message_in_flight(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -890,7 +885,7 @@ proof fn lemma_receives_some_resp_at_rabbitmq_step_with_rabbitmq(
     }
 
     RMQCluster::lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, input, stronger_next, handle_request(), pre, post
+        spec, input, stronger_next, RMQCluster::handle_request(), pre, post
     );
 }
 
@@ -1197,7 +1192,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
         match step {
             Step::KubernetesAPIStep(input) => {
                 if input.get_Some_0() == req_msg {
-                    let resp_msg = handle_get_request(req_msg, s.kubernetes_api_state).1;
+                    let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.message_in_flight(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -1212,7 +1207,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        let resp_msg = handle_get_request(req_msg, s.kubernetes_api_state).1;
+        let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.message_in_flight(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -1222,7 +1217,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
     }
 
     RMQCluster::lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, input, stronger_next, handle_request(), pre, post
+        spec, input, stronger_next, RMQCluster::handle_request(), pre, post
     );
 }
 
@@ -1379,7 +1374,7 @@ proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitm
     }
 
     RMQCluster::lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, input, stronger_next, handle_request(), pre, post
+        spec, input, stronger_next, RMQCluster::handle_request(), pre, post
     );
 }
 
@@ -1617,7 +1612,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
         match step {
             Step::KubernetesAPIStep(input) => {
                 if input.get_Some_0() == req_msg {
-                    let resp_msg = handle_get_request(req_msg, s.kubernetes_api_state).1;
+                    let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.message_in_flight(resp_msg)
                         &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -1632,7 +1627,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        let resp_msg = handle_get_request(req_msg, s.kubernetes_api_state).1;
+        let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.message_in_flight(resp_msg)
             &&& resp_msg_matches_req_msg(resp_msg, req_msg)
@@ -1642,7 +1637,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
     }
 
     RMQCluster::lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, input, stronger_next, handle_request(), pre, post
+        spec, input, stronger_next, RMQCluster::handle_request(), pre, post
     );
 }
 
@@ -1738,7 +1733,7 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
     }
 
     RMQCluster::lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, input, stronger_next, handle_request(), pre, post
+        spec, input, stronger_next, RMQCluster::handle_request(), pre, post
     );
 }
 

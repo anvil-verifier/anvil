@@ -165,17 +165,6 @@ impl ConfigMapView {
             ..self
         }
     }
-
-    pub closed spec fn marshal_spec(s: ConfigMapSpecView) -> Value;
-
-    pub closed spec fn unmarshal_spec(v: Value) -> Result<ConfigMapSpecView, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    pub proof fn spec_integrity_is_preserved_by_marshal()
-        ensures
-            forall |s: ConfigMapSpecView|
-                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
-                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for ConfigMapView {
@@ -231,6 +220,21 @@ impl ResourceView for ConfigMapView {
     proof fn from_dynamic_preserves_metadata() {}
 
     proof fn from_dynamic_preserves_kind() {}
+
+    closed spec fn marshal_spec(s: ConfigMapSpecView) -> Value;
+
+    closed spec fn unmarshal_spec(v: Value) -> Result<ConfigMapSpecView, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn spec_integrity_is_preserved_by_marshal() {}
+
+    open spec fn rule(obj: ConfigMapView) -> bool {
+        true
+    }
+
+    open spec fn transition_rule(new_obj: ConfigMapView, old_obj: ConfigMapView) -> bool {
+        true
+    }
 }
 
 }

@@ -1058,17 +1058,6 @@ impl PodView {
             ..self
         }
     }
-
-    pub closed spec fn marshal_spec(s: Option<PodSpecView>) -> Value;
-
-    pub closed spec fn unmarshal_spec(v: Value) -> Result<Option<PodSpecView>, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    pub proof fn spec_integrity_is_preserved_by_marshal()
-        ensures
-            forall |s: Option<PodSpecView>|
-                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
-                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for PodView {
@@ -1124,6 +1113,21 @@ impl ResourceView for PodView {
     proof fn from_dynamic_preserves_metadata() {}
 
     proof fn from_dynamic_preserves_kind() {}
+
+    closed spec fn marshal_spec(s: Option<PodSpecView>) -> Value;
+
+    closed spec fn unmarshal_spec(v: Value) -> Result<Option<PodSpecView>, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn spec_integrity_is_preserved_by_marshal(){}
+
+    open spec fn rule(obj: PodView) -> bool {
+        true
+    }
+
+    open spec fn transition_rule(new_obj: PodView, old_obj: PodView) -> bool {
+        true
+    }
 }
 
 pub struct PodSpecView {

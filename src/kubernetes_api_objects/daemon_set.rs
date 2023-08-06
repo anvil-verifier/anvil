@@ -208,17 +208,6 @@ impl DaemonSetView {
             ..self
         }
     }
-
-    pub closed spec fn marshal_spec(s: Option<DaemonSetSpecView>) -> Value;
-
-    pub closed spec fn unmarshal_spec(v: Value) -> Result<Option<DaemonSetSpecView>, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    pub proof fn spec_integrity_is_preserved_by_marshal()
-        ensures
-            forall |s: Option<DaemonSetSpecView>|
-                Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
-                && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0() {}
 }
 
 impl ResourceView for DaemonSetView {
@@ -274,6 +263,21 @@ impl ResourceView for DaemonSetView {
     proof fn from_dynamic_preserves_metadata() {}
 
     proof fn from_dynamic_preserves_kind() {}
+
+    closed spec fn marshal_spec(s: Option<DaemonSetSpecView>) -> Value;
+
+    closed spec fn unmarshal_spec(v: Value) -> Result<Option<DaemonSetSpecView>, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn spec_integrity_is_preserved_by_marshal() {}
+
+    open spec fn rule(obj: DaemonSetView) -> bool {
+        true
+    }
+
+    open spec fn transition_rule(new_obj: DaemonSetView, old_obj: DaemonSetView) -> bool {
+        true
+    }
 }
 
 pub struct DaemonSetSpecView {
