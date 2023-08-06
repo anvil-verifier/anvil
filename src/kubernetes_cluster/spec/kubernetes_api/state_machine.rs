@@ -28,9 +28,7 @@ verus! {
 //
 // + Delete should be done in two phases
 //
-// + Update should not update the rv if the object remains unchanged
-//
-// + Set uid when creating and set deletiontimestamp when deleting
+// + Set deletiontimestamp when deleting
 //
 // + Support more operations like List
 //
@@ -229,7 +227,7 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
     }
 }
 
-// etcd is modeled as a centralized map that handles get/create/delete
+// etcd is modeled as a centralized map that handles get/list/create/delete/update
 pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (KubernetesAPIState, Message)
     recommends
         msg.content.is_APIRequest(),
@@ -268,11 +266,9 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
             // When seeing a new statefulset is created,
             // it will send requests to create pods and volumes owned by this statefulset.
             //
-            // Here we simplify step (1) ~ (5) and make the following compromise in this specification:
-            // (a) making the apiserver directly forward requests to the datastore without validation;
-            // (b) omitting the notification stream from the datastore to apiserver then to built-in controller,
-            //  and making built-in controllers immediately activated by updates to cluster state;
-            // (c) baking them into one action, which makes them atomic.
+            // Here we simplify step (1) ~ (5) by omitting the process that state changes are streamed
+            // to built-in controllers and activate their reconciliation.
+            // Built-in controllers will be specified as actions of this state machine.
             let (s_prime, etcd_resp) = Self::transition_by_etcd(input.recv.get_Some_0(), s);
             (s_prime, (Multiset::singleton(etcd_resp), input.rest_id_allocator))
         },
