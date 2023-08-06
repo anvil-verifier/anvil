@@ -328,11 +328,11 @@ impl ResourceView for StatefulSetView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
-    open spec fn rule(spec: Option<StatefulSetSpecView>) -> bool {
+    open spec fn rule(obj: StatefulSetView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_spec: Option<StatefulSetSpecView>, old_spec: Option<StatefulSetSpecView>) -> bool {
+    open spec fn transition_rule(new_obj: StatefulSetView, old_obj: StatefulSetView) -> bool {
         true
     }
 }

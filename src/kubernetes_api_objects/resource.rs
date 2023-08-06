@@ -88,9 +88,11 @@ pub trait ResourceView: Sized {
                 Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
                 && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0();
 
-    open spec fn rule(spec: Self::Spec) -> bool;
+    /// This method specifies the validation rule that only checks the new object.
+    open spec fn rule(obj: Self) -> bool;
 
-    open spec fn transition_rule(new_spec: Self::Spec, old_spec: Self::Spec) -> bool;
+    /// This method specifies the validation rule that checks the relations between the new and old object.
+    open spec fn transition_rule(new_obj: Self, old_obj: Self) -> bool;
 }
 
 }

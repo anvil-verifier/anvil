@@ -218,11 +218,11 @@ impl ResourceView for ClusterRoleBindingView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
-    open spec fn rule(spec: ClusterRoleBindingSpecView) -> bool {
+    open spec fn rule(obj: ClusterRoleBindingView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_spec: ClusterRoleBindingSpecView, old_spec: ClusterRoleBindingSpecView) -> bool {
+    open spec fn transition_rule(new_obj: ClusterRoleBindingView, old_obj: ClusterRoleBindingView) -> bool {
         true
     }
 }

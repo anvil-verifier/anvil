@@ -181,7 +181,7 @@ pub proof fn lemma_create_req_leads_to_res_exists(spec: TempPred<Self>, msg: Mes
                 &&& msg.content.get_create_request().obj.metadata.name.is_Some()
                 &&& msg.content.get_create_request().obj.metadata.namespace.is_None()
                 &&& Self::object_has_well_formed_spec(msg.content.get_create_request().obj)
-                &&& msg.content.get_create_request().obj.kind == K::kind() ==> K::rule(K::unmarshal_spec(msg.content.get_create_request().obj.spec).get_Ok_0())
+                &&& msg.content.get_create_request().obj.kind == K::kind() ==> K::rule(K::from_dynamic_object(msg.content.get_create_request().obj).get_Ok_0())
             })
                 .leads_to(lift_state(|s: Self|
                     s.resource_key_exists(
@@ -200,7 +200,7 @@ pub proof fn lemma_create_req_leads_to_res_exists(spec: TempPred<Self>, msg: Mes
         &&& obj.metadata.name.is_Some()
         &&& obj.metadata.namespace.is_None()
         &&& Self::object_has_well_formed_spec(obj)
-        &&& obj.kind == K::kind() ==> K::rule(K::unmarshal_spec(obj.spec).get_Ok_0())
+        &&& obj.kind == K::kind() ==> K::rule(K::from_dynamic_object(obj).get_Ok_0())
     };
     let post = |s: Self|
         s.resource_key_exists(

@@ -323,11 +323,11 @@ impl ResourceView for ServiceView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
-    open spec fn rule(spec: Option<ServiceSpecView>) -> bool {
+    open spec fn rule(obj: ServiceView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_spec: Option<ServiceSpecView>, old_spec: Option<ServiceSpecView>) -> bool {
+    open spec fn transition_rule(new_obj: ServiceView, old_obj: ServiceView) -> bool {
         true
     }
 }

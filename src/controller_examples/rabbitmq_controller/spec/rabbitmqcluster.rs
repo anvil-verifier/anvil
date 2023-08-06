@@ -89,11 +89,11 @@ impl ResourceView for RabbitmqClusterView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
-    open spec fn rule(spec: RabbitmqClusterSpecView) -> bool {
+    open spec fn rule(obj: RabbitmqClusterView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_spec: RabbitmqClusterSpecView, old_spec: RabbitmqClusterSpecView) -> bool {
+    open spec fn transition_rule(new_obj: RabbitmqClusterView, old_obj: RabbitmqClusterView) -> bool {
         true
     }
 

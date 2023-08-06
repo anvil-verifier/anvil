@@ -318,11 +318,11 @@ impl ResourceView for RoleBindingView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
-    open spec fn rule(spec: RoleBindingSpecView) -> bool {
+    open spec fn rule(obj: RoleBindingView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_spec: RoleBindingSpecView, old_spec: RoleBindingSpecView) -> bool {
+    open spec fn transition_rule(new_obj: RoleBindingView, old_obj: RoleBindingView) -> bool {
         true
     }
 }

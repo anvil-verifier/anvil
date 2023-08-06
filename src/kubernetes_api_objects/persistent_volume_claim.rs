@@ -265,11 +265,11 @@ impl ResourceView for PersistentVolumeClaimView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
-    open spec fn rule(spec: Option<PersistentVolumeClaimSpecView>) -> bool {
+    open spec fn rule(obj: PersistentVolumeClaimView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_spec: Option<PersistentVolumeClaimSpecView>, old_spec: Option<PersistentVolumeClaimSpecView>) -> bool {
+    open spec fn transition_rule(new_obj: PersistentVolumeClaimView, old_obj: PersistentVolumeClaimView) -> bool {
         true
     }
 }

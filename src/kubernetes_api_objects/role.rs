@@ -252,11 +252,11 @@ impl ResourceView for RoleView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
-    open spec fn rule(spec: RoleSpecView) -> bool {
+    open spec fn rule(obj: RoleView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_spec: RoleSpecView, old_spec: RoleSpecView) -> bool {
+    open spec fn transition_rule(new_obj: RoleView, old_obj: RoleView) -> bool {
         true
     }
 }

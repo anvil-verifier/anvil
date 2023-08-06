@@ -82,11 +82,11 @@ impl ResourceView for FluentBitView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
-    open spec fn rule(spec: FluentBitSpecView) -> bool {
+    open spec fn rule(obj: FluentBitView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_spec: FluentBitSpecView, old_spec: FluentBitSpecView) -> bool {
+    open spec fn transition_rule(new_obj: FluentBitView, old_obj: FluentBitView) -> bool {
         true
     }
 }

@@ -95,7 +95,7 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
     } else if s.resources.dom().contains(req.obj.set_namespace(req.namespace).object_ref()) {
         // Creation fails because the object already exists
         Option::Some(APIError::ObjectAlreadyExists)
-    } else if req.obj.kind == K::kind() && !K::rule(K::unmarshal_spec(req.obj.spec).get_Ok_0()) {
+    } else if req.obj.kind == K::kind() && !K::rule(K::from_dynamic_object(req.obj).get_Ok_0()) {
         Option::Some(APIError::Invalid)
     } else {
         Option::None
@@ -180,7 +180,10 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         && req.obj.metadata.resource_version != s.resources[req.key].metadata.resource_version {
         // Update fails because the object has a wrong rv
         Option::Some(APIError::Conflict)
-    } else if req.obj.kind == K::kind() && !K::transition_rule(K::unmarshal_spec(req.obj.spec).get_Ok_0(), K::unmarshal_spec(s.resources[req.key].spec).get_Ok_0()) {
+    } else if req.obj.kind == K::kind() && !(
+        K::rule(K::from_dynamic_object(req.obj).get_Ok_0())
+        && K::transition_rule(K::from_dynamic_object(req.obj).get_Ok_0(), K::from_dynamic_object(s.resources[req.key]).get_Ok_0())
+    ) {
         Option::Some(APIError::Invalid)
     } else {
         Option::None

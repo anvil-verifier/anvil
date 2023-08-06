@@ -82,11 +82,11 @@ impl ResourceView for ZookeeperClusterView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
-    open spec fn rule(spec: ZookeeperClusterSpecView) -> bool {
+    open spec fn rule(obj: ZookeeperClusterView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_spec: ZookeeperClusterSpecView, old_spec: ZookeeperClusterSpecView) -> bool {
+    open spec fn transition_rule(new_obj: ZookeeperClusterView, old_obj: ZookeeperClusterView) -> bool {
         true
     }
 }

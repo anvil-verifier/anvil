@@ -189,11 +189,11 @@ impl ResourceView for ServiceAccountView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
-    open spec fn rule(spec: ServiceAccountSpecView) -> bool {
+    open spec fn rule(obj: ServiceAccountView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_spec: ServiceAccountSpecView, old_spec: ServiceAccountSpecView) -> bool {
+    open spec fn transition_rule(new_obj: ServiceAccountView, old_obj: ServiceAccountView) -> bool {
         true
     }
 }

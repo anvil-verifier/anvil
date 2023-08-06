@@ -228,11 +228,11 @@ impl ResourceView for ConfigMapView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
-    open spec fn rule(spec: ConfigMapSpecView) -> bool {
+    open spec fn rule(obj: ConfigMapView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_spec: ConfigMapSpecView, old_spec: ConfigMapSpecView) -> bool {
+    open spec fn transition_rule(new_obj: ConfigMapView, old_obj: ConfigMapView) -> bool {
         true
     }
 }

@@ -160,11 +160,11 @@ impl ResourceView for SimpleCRView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
-    open spec fn rule(spec: SimpleCRSpecView) -> bool {
+    open spec fn rule(obj: SimpleCRView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_spec: SimpleCRSpecView, old_spec: SimpleCRSpecView) -> bool {
+    open spec fn transition_rule(new_obj: SimpleCRView, old_obj: SimpleCRView) -> bool {
         true
     }
 }

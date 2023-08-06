@@ -271,11 +271,11 @@ impl ResourceView for DaemonSetView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
-    open spec fn rule(spec: Option<DaemonSetSpecView>) -> bool {
+    open spec fn rule(obj: DaemonSetView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_spec: Option<DaemonSetSpecView>, old_spec: Option<DaemonSetSpecView>) -> bool {
+    open spec fn transition_rule(new_obj: DaemonSetView, old_obj: DaemonSetView) -> bool {
         true
     }
 }

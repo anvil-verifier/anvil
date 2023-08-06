@@ -238,11 +238,11 @@ impl ResourceView for SecretView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
-    open spec fn rule(spec: SecretSpecView) -> bool {
+    open spec fn rule(obj: SecretView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_spec: SecretSpecView, old_spec: SecretSpecView) -> bool {
+    open spec fn transition_rule(new_obj: SecretView, old_obj: SecretView) -> bool {
         true
     }
 }

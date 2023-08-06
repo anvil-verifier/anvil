@@ -1121,11 +1121,11 @@ impl ResourceView for PodView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal(){}
 
-    open spec fn rule(spec: Option<PodSpecView>) -> bool {
+    open spec fn rule(obj: PodView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_spec: Option<PodSpecView>, old_spec: Option<PodSpecView>) -> bool {
+    open spec fn transition_rule(new_obj: PodView, old_obj: PodView) -> bool {
         true
     }
 }
