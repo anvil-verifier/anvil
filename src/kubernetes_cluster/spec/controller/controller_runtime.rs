@@ -30,8 +30,8 @@ pub open spec fn run_scheduled_reconcile() -> ControllerAction<K, E, R> {
             let cr_key = input.scheduled_cr_key.get_Some_0();
             let initialized_ongoing_reconcile = OngoingReconcile {
                 triggering_cr: s.scheduled_reconciles[cr_key],
-                pending_req_msg: Option::None,
-                pending_external_api_input: Option::None,
+                pending_req_msg: None,
+                pending_external_api_input: None,
                 local_state: R::reconcile_init_state(),
             };
             let s_prime = ControllerState {
@@ -41,7 +41,7 @@ pub open spec fn run_scheduled_reconcile() -> ControllerAction<K, E, R> {
             };
             let output = ControllerActionOutput {
                 send: Multiset::empty(),
-                external_api_input: Option::None,
+                external_api_input: None,
                 rest_id_allocator: input.rest_id_allocator,
             };
             (s_prime, output)
@@ -94,21 +94,21 @@ pub open spec fn continue_reconcile() -> ControllerAction<K, E, R> {
             let cr_key = input.scheduled_cr_key.get_Some_0();
             let reconcile_state = s.ongoing_reconciles[cr_key];
             let resp_o = if input.recv.is_Some() {
-                Option::Some(ResponseView::KResponse(input.recv.get_Some_0().content.get_APIResponse_0()))
+                Some(ResponseView::KResponse(input.recv.get_Some_0().content.get_APIResponse_0()))
             } else if input.external_api_output.is_Some() {
-                Option::Some(ResponseView::ExternalResponse(input.external_api_output.get_Some_0().get_Output_0()))
+                Some(ResponseView::ExternalResponse(input.external_api_output.get_Some_0().get_Output_0()))
             } else {
-                Option::None
+                None
             };
             let (local_state_prime, req_o) = R::reconcile_core(reconcile_state.triggering_cr, resp_o, reconcile_state.local_state);
             if req_o.is_Some() {
                 match req_o.get_Some_0() {
                     RequestView::KRequest(req) => {
                         let (rest_id_allocator_prime, pending_req_msg)
-                            = (input.rest_id_allocator.allocate().0, Option::Some(controller_req_msg(req, input.rest_id_allocator.allocate().1)));
+                            = (input.rest_id_allocator.allocate().0, Some(controller_req_msg(req, input.rest_id_allocator.allocate().1)));
                         let reconcile_state_prime = OngoingReconcile {
                             pending_req_msg: pending_req_msg,
-                            pending_external_api_input: Option::None,
+                            pending_external_api_input: None,
                             local_state: local_state_prime,
                             ..reconcile_state
                         };
@@ -118,7 +118,7 @@ pub open spec fn continue_reconcile() -> ControllerAction<K, E, R> {
                         };
                         let output = ControllerActionOutput {
                             send: Multiset::singleton(pending_req_msg.get_Some_0()),
-                            external_api_input: Option::None,
+                            external_api_input: None,
                             rest_id_allocator: rest_id_allocator_prime,
                         };
                         (s_prime, output)
@@ -126,9 +126,9 @@ pub open spec fn continue_reconcile() -> ControllerAction<K, E, R> {
                     RequestView::ExternalRequest(req) => {
                         // Update the state by calling the external process method.
                         let (rest_id_allocator_prime, external_api_input)
-                            = (input.rest_id_allocator.allocate().0, Option::Some(Self::form_external_input(req, input.rest_id_allocator.allocate().1)));
+                            = (input.rest_id_allocator.allocate().0, Some(Self::form_external_input(req, input.rest_id_allocator.allocate().1)));
                         let reconcile_state_prime = OngoingReconcile {
-                            pending_req_msg: Option::None,
+                            pending_req_msg: None,
                             pending_external_api_input: external_api_input,
                             local_state: local_state_prime,
                             ..reconcile_state
@@ -147,8 +147,8 @@ pub open spec fn continue_reconcile() -> ControllerAction<K, E, R> {
                 }
             } else {
                 let reconcile_state_prime = OngoingReconcile {
-                    pending_req_msg: Option::None,
-                    pending_external_api_input: Option::None,
+                    pending_req_msg: None,
+                    pending_external_api_input: None,
                     local_state: local_state_prime,
                     ..reconcile_state
                 };
@@ -158,7 +158,7 @@ pub open spec fn continue_reconcile() -> ControllerAction<K, E, R> {
                 };
                 let output = ControllerActionOutput {
                     send: Multiset::empty(),
-                    external_api_input: Option::None,
+                    external_api_input: None,
                     rest_id_allocator: input.rest_id_allocator.allocate().0,
                 };
                 (s_prime, output)
@@ -190,7 +190,7 @@ pub open spec fn end_reconcile() -> ControllerAction<K, E, R> {
             };
             let output = ControllerActionOutput {
                 send: Multiset::empty(),
-                external_api_input: Option::None,
+                external_api_input: None,
                 rest_id_allocator: input.rest_id_allocator,
             };
             (s_prime, output)

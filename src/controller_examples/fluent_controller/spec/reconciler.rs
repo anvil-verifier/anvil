@@ -86,7 +86,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: FluentBitReconcileStep::AfterCreateRole,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         FluentBitReconcileStep::AfterCreateRole => {
             let service_account = make_service_account(fluentbit);
@@ -98,7 +98,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: FluentBitReconcileStep::AfterCreateServiceAccount,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         FluentBitReconcileStep::AfterCreateServiceAccount => {
             let role_binding = make_role_binding(fluentbit);
@@ -110,7 +110,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: FluentBitReconcileStep::AfterCreateRoleBinding,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         FluentBitReconcileStep::AfterCreateRoleBinding => {
             let secret = make_secret(fluentbit);
@@ -122,7 +122,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: FluentBitReconcileStep::AfterCreateSecret,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         FluentBitReconcileStep::AfterCreateSecret => {
             let daemon_set = make_daemon_set(fluentbit);
@@ -134,21 +134,21 @@ pub open spec fn reconcile_core(
                 reconcile_step: FluentBitReconcileStep::AfterCreateDaemonSet,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         FluentBitReconcileStep::AfterCreateDaemonSet => {
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::Done,
                 ..state
             };
-            (state_prime, Option::None)
+            (state_prime, None)
         },
         _ => {
             let state_prime = FluentBitReconcileState {
                 reconcile_step: step,
                 ..state
             };
-            (state_prime, Option::None)
+            (state_prime, None)
         }
 
     }
@@ -159,7 +159,7 @@ pub open spec fn reconcile_error_result(state: FluentBitReconcileState) -> (Flue
         reconcile_step: FluentBitReconcileStep::Error,
         ..state
     };
-    let req_o = Option::None;
+    let req_o = None;
     (state_prime, req_o)
 }
 

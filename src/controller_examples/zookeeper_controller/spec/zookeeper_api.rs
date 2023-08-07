@@ -60,7 +60,7 @@ pub open spec fn reconcile_zk_node(
             data: state.data.insert(uri + path, new_strlit("CLUSTER_SIZE=")@ + replicas),
             ..state
         };
-        (Option::Some(ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{ res: Ok(()) })), state_prime)
+        (Some(ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{ res: Ok(()) })), state_prime)
     } else {
         let new_data = state.data
                     .insert(uri + new_strlit("/zookeeper-operator")@, new_strlit("")@)
@@ -69,7 +69,7 @@ pub open spec fn reconcile_zk_node(
             data: new_data,
             ..state
         };
-        (Option::Some(ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{ res: Ok(()) })), state_prime)
+        (Some(ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{ res: Ok(()) })), state_prime)
     }
 }
 

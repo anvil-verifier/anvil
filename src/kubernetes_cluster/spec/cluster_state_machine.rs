@@ -97,8 +97,8 @@ pub open spec fn external_api_next() -> Action<Self, ExternalComm<E::Input, E::O
         transition: |input: ExternalComm<E::Input, E::Output>, s: Self| {
             let s_external = s.external_api_state;
             let (external_api_output_opt, external_api_state_prime) = E::transition(input.get_Input_0(), s_external.external_api_state);
-            let output = if external_api_output_opt.is_None() { Option::None }
-                            else { Option::Some(ExternalComm::Output(external_api_output_opt.get_Some_0(), input.get_Input_1())) };
+            let output = if external_api_output_opt.is_None() { None }
+                            else { Some(ExternalComm::Output(external_api_output_opt.get_Some_0(), input.get_Input_1())) };
             // After this action, the input should be removed, and, if there is an output destined for the external api,
             // it should be inserted to the in_flight set.
             let s_prime_external = ExternalAPIState {
@@ -226,7 +226,7 @@ pub open spec fn disable_crash() -> Action<Self, (), ()> {
 pub open spec fn busy_kubernetes_api_rejects_request() -> Action<Self, Option<Message>, ()> {
     let network_result = |input: Option<Message>, s: Self| {
         let req_msg = input.get_Some_0();
-        let resp = form_matched_resp_msg(req_msg, Result::Err(APIError::ServerTimeout));
+        let resp = form_matched_resp_msg(req_msg, Err(APIError::ServerTimeout));
         let msg_ops = MessageOps {
             recv: input,
             send: Multiset::singleton(resp),

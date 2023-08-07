@@ -77,7 +77,7 @@ impl Secret {
         for (key, value) in string_map {
             binary_map.insert(key, deps_hack::k8s_openapi::ByteString(value.into_bytes()));
         }
-        self.inner.data = std::option::Option::Some(binary_map)
+        self.inner.data = Some(binary_map)
     }
 
     #[verifier(external_body)]
@@ -85,7 +85,7 @@ impl Secret {
         ensures
             self@ == old(self)@.set_type(type_@),
     {
-        self.inner.type_ = std::option::Option::Some(type_.into_rust_string())
+        self.inner.type_ = Some(type_.into_rust_string())
     }
 
     #[verifier(external)]
@@ -127,9 +127,9 @@ impl Secret {
         let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::Secret>();
         if parse_result.is_ok() {
             let res = Secret { inner: parse_result.unwrap() };
-            Result::Ok(res)
+            Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::ExecError)
+            Err(ParseDynamicObjectError::ExecError)
         }
     }
 }
@@ -149,8 +149,8 @@ impl SecretView {
     pub open spec fn default() -> SecretView {
         SecretView {
             metadata: ObjectMetaView::default(),
-            data: Option::None,
-            type_: Option::None,
+            data: None,
+            type_: None,
         }
     }
 
@@ -163,14 +163,14 @@ impl SecretView {
 
     pub open spec fn set_data(self, data: Map<StringView, StringView>) -> SecretView {
         SecretView {
-            data: Option::Some(data),
+            data: Some(data),
             ..self
         }
     }
 
     pub open spec fn set_type(self, type_: StringView) -> SecretView {
         SecretView {
-            type_: Option::Some(type_),
+            type_: Some(type_),
             ..self
         }
     }
@@ -211,11 +211,11 @@ impl ResourceView for SecretView {
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<SecretView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else if !SecretView::unmarshal_spec(obj.spec).is_Ok() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            Result::Ok(SecretView {
+            Ok(SecretView {
                 metadata: obj.metadata,
                 data: SecretView::unmarshal_spec(obj.spec).get_Ok_0().0,
                 type_: SecretView::unmarshal_spec(obj.spec).get_Ok_0().1,

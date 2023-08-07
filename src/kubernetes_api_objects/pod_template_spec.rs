@@ -38,7 +38,7 @@ impl PodTemplateSpec {
         ensures
             self@ == old(self)@.set_metadata(metadata@),
     {
-        self.inner.metadata = std::option::Option::Some(metadata.into_kube());
+        self.inner.metadata = Some(metadata.into_kube());
     }
 
     #[verifier(external_body)]
@@ -46,7 +46,7 @@ impl PodTemplateSpec {
         ensures
             self@ == old(self)@.set_spec(spec@),
     {
-        self.inner.spec = std::option::Option::Some(spec.into_kube());
+        self.inner.spec = Some(spec.into_kube());
     }
 
     #[verifier(external)]
@@ -63,21 +63,21 @@ pub struct PodTemplateSpecView {
 impl PodTemplateSpecView {
     pub open spec fn default() -> PodTemplateSpecView {
         PodTemplateSpecView {
-            metadata: Option::None,
-            spec: Option::None,
+            metadata: None,
+            spec: None,
         }
     }
 
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> PodTemplateSpecView {
         PodTemplateSpecView {
-            metadata: Option::Some(metadata),
+            metadata: Some(metadata),
             ..self
         }
     }
 
     pub open spec fn set_spec(self, spec: PodSpecView) -> PodTemplateSpecView {
         PodTemplateSpecView {
-            spec: Option::Some(spec),
+            spec: Some(spec),
             ..self
         }
     }

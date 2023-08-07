@@ -57,12 +57,12 @@ pub open spec fn handle_get_request(msg: Message, s: KubernetesAPIState) -> (Kub
     let req = msg.content.get_get_request();
     if !s.resources.dom().contains(req.key) {
         // Get fails
-        let result = Result::Err(APIError::ObjectNotFound);
+        let result = Err(APIError::ObjectNotFound);
         let resp = form_get_resp_msg(msg, result);
         (s, resp)
     } else {
         // Get succeeds
-        let result = Result::Ok(s.resources[req.key]);
+        let result = Ok(s.resources[req.key]);
         let resp = form_get_resp_msg(msg, result);
         (s, resp)
     }
@@ -78,7 +78,7 @@ pub open spec fn handle_list_request(msg: Message, s: KubernetesAPIState) -> (Ku
         msg.content.is_list_request(),
 {
     let req = msg.content.get_list_request();
-    let result = Result::Ok(Self::list_query(req, s));
+    let result = Ok(Self::list_query(req, s));
     let resp = form_list_resp_msg(msg, result);
     (s, resp)
 }
@@ -86,20 +86,20 @@ pub open spec fn handle_list_request(msg: Message, s: KubernetesAPIState) -> (Ku
 pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPIState) -> Option<APIError> {
     if req.obj.metadata.name.is_None() {
         // Creation fails because the name of the provided object is not provided
-        Option::Some(APIError::Invalid)
+        Some(APIError::Invalid)
     } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Creation fails because the namespace of the provided object does not match the namespace sent on the request
-        Option::Some(APIError::BadRequest)
+        Some(APIError::BadRequest)
     } else if !Self::object_has_well_formed_spec(req.obj) {
         // Creation fails because the spec of the provided object is not well formed
-        Option::Some(APIError::BadRequest) // TODO: should the error be BadRequest?
+        Some(APIError::BadRequest) // TODO: should the error be BadRequest?
     } else if s.resources.dom().contains(req.obj.set_namespace(req.namespace).object_ref()) {
         // Creation fails because the object already exists
-        Option::Some(APIError::ObjectAlreadyExists)
+        Some(APIError::ObjectAlreadyExists)
     } else if req.obj.kind == K::kind() && !K::rule(K::from_dynamic_object(req.obj).get_Ok_0()) {
-        Option::Some(APIError::Invalid)
+        Some(APIError::Invalid)
     } else {
-        Option::None
+        None
     }
 }
 
@@ -110,14 +110,14 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
     let req = msg.content.get_create_request();
     if Self::validate_create_request(req, s).is_Some() {
         // Creation fails because the name of the provided object is not provided
-        let result = Result::Err(Self::validate_create_request(req, s).get_Some_0());
+        let result = Err(Self::validate_create_request(req, s).get_Some_0());
         let resp = form_create_resp_msg(msg, result);
         (s, resp)
     } else {
         // Creation succeeds
         // Set the namespace and the resource_version of the created object
         let created_obj = req.obj.set_namespace(req.namespace).set_resource_version(s.resource_version_counter).set_uid(s.uid_counter);
-        let result = Result::Ok(created_obj);
+        let result = Ok(created_obj);
         let resp = form_create_resp_msg(msg, result);
         // The cluster state is updated, so we send a notification to the built-in controllers
         (KubernetesAPIState {
@@ -136,14 +136,14 @@ pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (
     let req = msg.content.get_delete_request();
     if !s.resources.dom().contains(req.key) {
         // Deletion fails
-        let result = Result::Err(APIError::ObjectNotFound);
+        let result = Err(APIError::ObjectNotFound);
         let resp = form_delete_resp_msg(msg, result);
         (s, resp)
     } else {
         // Path where deletion succeeds
         let obj_before_deletion = s.resources[req.key];
         // The cluster state is updated, so we send a notification to the custom controller
-        let result = Result::Ok(obj_before_deletion);
+        let result = Ok(obj_before_deletion);
         let resp = form_delete_resp_msg(msg, result);
         (KubernetesAPIState {
             resources: s.resources.remove(req.key),
@@ -163,37 +163,37 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
     // let req = msg.content.get_update_request();
     if req.obj.metadata.name.is_None() {
         // Update fails because the name of the object is not provided
-        Option::Some(APIError::BadRequest)
+        Some(APIError::BadRequest)
     } else if req.key.name != req.obj.metadata.name.get_Some_0() {
         // Update fails because the name of the provided object
         // does not match the name sent on the request
-        Option::Some(APIError::BadRequest)
+        Some(APIError::BadRequest)
     } else if req.obj.metadata.namespace.is_Some()
         && req.key.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Update fails because the namespace of the provided object
         // does not match the namespace sent on the request
-        Option::Some(APIError::BadRequest)
+        Some(APIError::BadRequest)
     } else if req.obj.kind != req.key.kind {
         // Update fails because the kind of the provided object
         // does not match the kind sent on the request
-        Option::Some(APIError::BadRequest)
+        Some(APIError::BadRequest)
     } else if !Self::object_has_well_formed_spec(req.obj) {
         // Update fails because the spec of the provided object is not well formed
-        Option::Some(APIError::BadRequest) // TODO: should the error be BadRequest?
+        Some(APIError::BadRequest) // TODO: should the error be BadRequest?
     } else if !s.resources.dom().contains(req.key) {
         // Update fails because the object does not exist
-        Option::Some(APIError::ObjectNotFound)
+        Some(APIError::ObjectNotFound)
     } else if req.obj.metadata.resource_version.is_Some()
         && req.obj.metadata.resource_version != s.resources[req.key].metadata.resource_version {
         // Update fails because the object has a wrong rv
-        Option::Some(APIError::Conflict)
+        Some(APIError::Conflict)
     } else if req.obj.kind == K::kind() && !(
         K::rule(K::from_dynamic_object(req.obj).get_Ok_0())
         && K::transition_rule(K::from_dynamic_object(req.obj).get_Ok_0(), K::from_dynamic_object(s.resources[req.key]).get_Ok_0())
     ) {
-        Option::Some(APIError::Invalid)
+        Some(APIError::Invalid)
     } else {
-        Option::None
+        None
     }
 }
 
@@ -203,20 +203,20 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
 {
     let req = msg.content.get_update_request();
     if Self::validate_update_request(req, s).is_Some() {
-        let result = Result::Err(Self::validate_update_request(req, s).get_Some_0());
+        let result = Err(Self::validate_update_request(req, s).get_Some_0());
         let resp = form_update_resp_msg(msg, result);
         (s, resp)
     } else if Self::update_is_noop(req.obj, s.resources[req.key]) {
         // Update is a noop because there is nothing to update
         // so the resource version counter does not increase here
-        let result = Result::Ok(s.resources[req.key]);
+        let result = Ok(s.resources[req.key]);
         let resp = form_update_resp_msg(msg, result);
         (s, resp)
     } else {
         // Update succeeds
         // Updates the resource version of the object
         let updated_obj = req.obj.set_namespace(req.key.namespace).set_resource_version(s.resource_version_counter);
-        let result = Result::Ok(updated_obj);
+        let result = Ok(updated_obj);
         let resp = form_update_resp_msg(msg, result);
         // The cluster state is updated, so we send a notification to the built-in controllers
         (KubernetesAPIState {

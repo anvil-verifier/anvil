@@ -70,7 +70,7 @@ impl RoleBinding {
         ensures
             self@ == old(self)@.set_subjects(subjects@.map_values(|s: Subject| s@)),
     {
-        self.inner.subjects = std::option::Option::Some(
+        self.inner.subjects = Some(
             subjects.into_iter().map(|s: Subject| s.into_kube()).collect()
         );
     }
@@ -108,9 +108,9 @@ impl RoleBinding {
         let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::rbac::v1::RoleBinding>();
         if parse_result.is_ok() {
             let res = RoleBinding { inner: parse_result.unwrap() };
-            Result::Ok(res)
+            Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::ExecError)
+            Err(ParseDynamicObjectError::ExecError)
         }
     }
 }
@@ -205,7 +205,7 @@ impl Subject {
         ensures
             self@ == old(self)@.set_namespace(namespace@),
     {
-        self.inner.namespace = std::option::Option::Some(namespace.into_rust_string());
+        self.inner.namespace = Some(namespace.into_rust_string());
     }
 
     #[verifier(external)]
@@ -230,7 +230,7 @@ impl RoleBindingView {
         RoleBindingView {
             metadata: ObjectMetaView::default(),
             role_ref: RoleRefView::default(),
-            subjects: Option::None,
+            subjects: None,
         }
     }
 
@@ -250,7 +250,7 @@ impl RoleBindingView {
 
     pub open spec fn set_subjects(self, subjects: Seq<SubjectView>) -> RoleBindingView {
         RoleBindingView {
-            subjects: Option::Some(subjects),
+            subjects: Some(subjects),
             ..self
         }
     }
@@ -291,11 +291,11 @@ impl ResourceView for RoleBindingView {
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<RoleBindingView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else if !RoleBindingView::unmarshal_spec(obj.spec).is_Ok() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            Result::Ok(RoleBindingView {
+            Ok(RoleBindingView {
                 metadata: obj.metadata,
                 role_ref: RoleBindingView::unmarshal_spec(obj.spec).get_Ok_0().0,
                 subjects: RoleBindingView::unmarshal_spec(obj.spec).get_Ok_0().1,
@@ -390,7 +390,7 @@ impl SubjectView {
         SubjectView {
             kind: new_strlit("")@,
             name: new_strlit("")@,
-            namespace: Option::None,
+            namespace: None,
         }
     }
 
@@ -410,7 +410,7 @@ impl SubjectView {
 
     pub open spec fn set_namespace(self, namespace: StringView) -> SubjectView {
         SubjectView {
-            namespace: Option::Some(namespace),
+            namespace: Some(namespace),
             ..self
         }
     }

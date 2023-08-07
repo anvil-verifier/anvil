@@ -65,7 +65,7 @@ pub proof fn lemma_get_req_leads_to_some_resp
                 )
         ),
 {
-    let input = Option::Some(msg);
+    let input = Some(msg);
     let pre = |s: Self| {
         &&& s.message_in_flight(msg)
         &&& msg.dst == HostId::KubernetesAPI
@@ -83,11 +83,11 @@ pub proof fn lemma_get_req_leads_to_some_resp
             Step::KubernetesAPIStep(input) => {
                 if input.get_Some_0() == msg {
                     if s.resource_key_exists(key) {
-                        let ok_resp_msg = form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)));
+                        let ok_resp_msg = form_get_resp_msg(msg, Ok(s.resource_obj_of(key)));
                         assert(s_prime.message_in_flight(ok_resp_msg));
                         assert(resp_msg_matches_req_msg(ok_resp_msg, msg));
                     } else {
-                        let err_resp_msg = form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound));
+                        let err_resp_msg = form_get_resp_msg(msg, Err(APIError::ObjectNotFound));
                         assert(s_prime.message_in_flight(err_resp_msg));
                         assert(resp_msg_matches_req_msg(err_resp_msg, msg));
                     }
@@ -97,7 +97,7 @@ pub proof fn lemma_get_req_leads_to_some_resp
             },
             Step::KubernetesBusy(input) => {
                 if input.get_Some_0() == msg {
-                    let resp = form_matched_resp_msg(msg, Result::Err(APIError::ServerTimeout));
+                    let resp = form_matched_resp_msg(msg, Err(APIError::ServerTimeout));
                     assert(s_prime.message_in_flight(resp));
                     assert(resp_msg_matches_req_msg(resp, msg));
                     assert(post(s_prime));
@@ -112,11 +112,11 @@ pub proof fn lemma_get_req_leads_to_some_resp
         pre(s) && #[trigger] Self::next()(s, s_prime) && Self::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
         if s.resource_key_exists(key) {
-            let ok_resp_msg = form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)));
+            let ok_resp_msg = form_get_resp_msg(msg, Ok(s.resource_obj_of(key)));
             assert(s_prime.message_in_flight(ok_resp_msg));
             assert(resp_msg_matches_req_msg(ok_resp_msg, msg));
         } else {
-            let err_resp_msg = form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound));
+            let err_resp_msg = form_get_resp_msg(msg, Err(APIError::ObjectNotFound));
             assert(s_prime.message_in_flight(err_resp_msg));
             assert(resp_msg_matches_req_msg(err_resp_msg, msg));
         }
@@ -139,8 +139,8 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp
                 &&& msg.content.get_get_request().key == key
             })
                 .leads_to(
-                    lift_state(|s: Self| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)))))
-                    .or(lift_state(|s: Self| s.message_in_flight(form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound)))))
+                    lift_state(|s: Self| s.message_in_flight(form_get_resp_msg(msg, Ok(s.resource_obj_of(key)))))
+                    .or(lift_state(|s: Self| s.message_in_flight(form_get_resp_msg(msg, Err(APIError::ObjectNotFound)))))
                 )
         ),
 {
@@ -151,19 +151,19 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp
         &&& msg.content.get_get_request().key == key
     };
     let post = |s: Self| {
-        ||| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key))))
-        ||| s.message_in_flight(form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound)))
+        ||| s.message_in_flight(form_get_resp_msg(msg, Ok(s.resource_obj_of(key))))
+        ||| s.message_in_flight(form_get_resp_msg(msg, Err(APIError::ObjectNotFound)))
     };
     let stronger_next = |s, s_prime: Self| {
         Self::next()(s, s_prime)
         && !s.busy_enabled
     };
     strengthen_next::<Self>(spec, Self::next(), Self::busy_disabled(), stronger_next);
-    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Option::Some(msg), stronger_next, Self::handle_request(), pre, post);
+    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Some(msg), stronger_next, Self::handle_request(), pre, post);
     temp_pred_equality::<Self>(
         lift_state(post),
-        lift_state(|s: Self| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)))))
-        .or(lift_state(|s: Self| s.message_in_flight(form_get_resp_msg(msg, Result::Err(APIError::ObjectNotFound)))))
+        lift_state(|s: Self| s.message_in_flight(form_get_resp_msg(msg, Ok(s.resource_obj_of(key)))))
+        .or(lift_state(|s: Self| s.message_in_flight(form_get_resp_msg(msg, Err(APIError::ObjectNotFound)))))
     );
 }
 
@@ -211,7 +211,7 @@ pub proof fn lemma_create_req_leads_to_res_exists(spec: TempPred<Self>, msg: Mes
         && !s.busy_enabled
     };
     strengthen_next::<Self>(spec, Self::next(), Self::busy_disabled(), stronger_next);
-    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Option::Some(msg), stronger_next, Self::handle_request(), pre, post);
+    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Some(msg), stronger_next, Self::handle_request(), pre, post);
 }
 
 pub proof fn lemma_delete_req_leads_to_res_not_exists
@@ -245,7 +245,7 @@ pub proof fn lemma_delete_req_leads_to_res_not_exists
         && !s.busy_enabled
     };
     strengthen_next::<Self>(spec, Self::next(), Self::busy_disabled(), stronger_next);
-    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Option::Some(msg), stronger_next, Self::handle_request(), pre, post);
+    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Some(msg), stronger_next, Self::handle_request(), pre, post);
 }
 
 pub proof fn lemma_always_res_always_exists_implies_delete_never_sent
@@ -528,7 +528,7 @@ proof fn pending_requests_num_decreases(
     let post = |s: Self| {
         s.network_state.in_flight.filter(api_request_msg_before(rest_id)).len() == (msg_num - 1) as nat
     };
-    let input = Option::Some(msg);
+    let input = Some(msg);
     let stronger_next = |s, s_prime: Self| {
         &&& Self::next()(s, s_prime)
         &&& s.has_rest_id_counter_no_smaller_than(rest_id)

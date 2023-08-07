@@ -50,7 +50,7 @@ impl OwnerReference {
         ensures
             self@ == old(self)@.set_block_owner_deletion(block_owner_deletion),
     {
-        self.inner.block_owner_deletion = std::option::Option::Some(block_owner_deletion);
+        self.inner.block_owner_deletion = Some(block_owner_deletion);
     }
 
     #[verifier(external_body)]
@@ -58,7 +58,7 @@ impl OwnerReference {
         ensures
             self@ == old(self)@.set_controller(controller),
     {
-        self.inner.controller = std::option::Option::Some(controller);
+        self.inner.controller = Some(controller);
     }
 
     #[verifier(external_body)]
@@ -115,8 +115,8 @@ impl OwnerReferenceView {
     pub open spec fn default() -> OwnerReferenceView {
         OwnerReferenceView {
             api_version: new_strlit("")@,
-            block_owner_deletion: Option::None,
-            controller: Option::None,
+            block_owner_deletion: None,
+            controller: None,
             kind: new_strlit("")@,
             name: new_strlit("")@,
             uid: new_strlit("")@,

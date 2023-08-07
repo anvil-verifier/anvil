@@ -92,7 +92,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: SimpleReconcileStep::AfterCreateConfigMap,
                 ..state
             };
-            let req_o = Option::Some(RequestView::KRequest(create_cm_req(cr)));
+            let req_o = Some(RequestView::KRequest(create_cm_req(cr)));
             (state_prime, req_o)
         }
         _ => {
@@ -100,7 +100,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: step,
                 ..state
             };
-            let req_o = Option::None;
+            let req_o = None;
             (state_prime, req_o)
         }
     }

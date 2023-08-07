@@ -56,9 +56,9 @@ impl ConfigMap {
             data.is_Some() ==> data.get_Some_0()@ == self@.data.get_Some_0(),
     {
         if self.inner.data.is_none() {
-            Option::None
+            None
         } else {
-            Option::Some(StringMap::from_rust_map(self.inner.data.clone().unwrap()))
+            Some(StringMap::from_rust_map(self.inner.data.clone().unwrap()))
         }
     }
 
@@ -75,7 +75,7 @@ impl ConfigMap {
         ensures
             self@ == old(self)@.set_data(data@),
     {
-        self.inner.data = std::option::Option::Some(data.into_rust_map())
+        self.inner.data = Some(data.into_rust_map())
     }
 
     #[verifier(external_body)]
@@ -105,9 +105,9 @@ impl ConfigMap {
         let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::ConfigMap>();
         if parse_result.is_ok() {
             let res = ConfigMap { inner: parse_result.unwrap() };
-            Result::Ok(res)
+            Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::ExecError)
+            Err(ParseDynamicObjectError::ExecError)
         }
     }
 }
@@ -148,7 +148,7 @@ impl ConfigMapView {
     pub open spec fn default() -> ConfigMapView {
         ConfigMapView {
             metadata: ObjectMetaView::default(),
-            data: Option::None,
+            data: None,
         }
     }
 
@@ -161,7 +161,7 @@ impl ConfigMapView {
 
     pub open spec fn set_data(self, data: Map<StringView, StringView>) -> ConfigMapView {
         ConfigMapView {
-            data: Option::Some(data),
+            data: Some(data),
             ..self
         }
     }
@@ -202,11 +202,11 @@ impl ResourceView for ConfigMapView {
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ConfigMapView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else if !ConfigMapView::unmarshal_spec(obj.spec).is_Ok() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            Result::Ok(ConfigMapView {
+            Ok(ConfigMapView {
                 metadata: obj.metadata,
                 data: ConfigMapView::unmarshal_spec(obj.spec).get_Ok_0().0,
             })

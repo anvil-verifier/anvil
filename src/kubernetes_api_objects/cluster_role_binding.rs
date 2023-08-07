@@ -69,7 +69,7 @@ impl ClusterRoleBinding {
         ensures
             self@ == old(self)@.set_subjects(subjects@.map_values(|s: Subject| s@)),
     {
-        self.inner.subjects = std::option::Option::Some(
+        self.inner.subjects = Some(
             subjects.into_iter().map(|s: Subject| s.into_kube()).collect()
         );
     }
@@ -106,9 +106,9 @@ impl ClusterRoleBinding {
         let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::rbac::v1::ClusterRoleBinding>();
         if parse_result.is_ok() {
             let res = ClusterRoleBinding { inner: parse_result.unwrap() };
-            Result::Ok(res)
+            Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::ExecError)
+            Err(ParseDynamicObjectError::ExecError)
         }
     }
 }
@@ -129,7 +129,7 @@ impl ClusterRoleBindingView {
         ClusterRoleBindingView {
             metadata: ObjectMetaView::default(),
             role_ref: RoleRefView::default(),
-            subjects: Option::None,
+            subjects: None,
         }
     }
 
@@ -149,7 +149,7 @@ impl ClusterRoleBindingView {
 
     pub open spec fn set_subjects(self, subjects: Seq<SubjectView>) -> ClusterRoleBindingView {
         ClusterRoleBindingView {
-            subjects: Option::Some(subjects),
+            subjects: Some(subjects),
             ..self
         }
     }
@@ -191,11 +191,11 @@ impl ResourceView for ClusterRoleBindingView {
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ClusterRoleBindingView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else if !ClusterRoleBindingView::unmarshal_spec(obj.spec).is_Ok() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            Result::Ok(ClusterRoleBindingView {
+            Ok(ClusterRoleBindingView {
                 metadata: obj.metadata,
                 role_ref: ClusterRoleBindingView::unmarshal_spec(obj.spec).get_Ok_0().0,
                 subjects: ClusterRoleBindingView::unmarshal_spec(obj.spec).get_Ok_0().1,

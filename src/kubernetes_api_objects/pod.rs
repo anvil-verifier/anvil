@@ -75,7 +75,7 @@ impl Pod {
         ensures
             self@ == old(self)@.set_spec(spec@),
     {
-        self.inner.spec = std::option::Option::Some(spec.into_kube());
+        self.inner.spec = Some(spec.into_kube());
     }
 
     #[verifier(external)]
@@ -112,9 +112,9 @@ impl Pod {
         let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::Pod>();
         if parse_result.is_ok() {
             let res = Pod { inner: parse_result.unwrap() };
-            Result::Ok(res)
+            Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::ExecError)
+            Err(ParseDynamicObjectError::ExecError)
         }
     }
 }
@@ -150,7 +150,7 @@ impl PodSpec {
         ensures
             self@ == old(self)@.set_volumes(volumes@.map_values(|vol: Volume| vol@)),
     {
-        self.inner.volumes = std::option::Option::Some(volumes.into_iter().map(|vol: Volume| vol.into_kube()).collect())
+        self.inner.volumes = Some(volumes.into_iter().map(|vol: Volume| vol.into_kube()).collect())
     }
 
     #[verifier(external_body)]
@@ -158,7 +158,7 @@ impl PodSpec {
         ensures
             self@ == old(self)@.set_init_containers(init_containers@.map_values(|container: Container| container@)),
     {
-        self.inner.init_containers = std::option::Option::Some(init_containers.into_iter().map(|container: Container| container.into_kube()).collect())
+        self.inner.init_containers = Some(init_containers.into_iter().map(|container: Container| container.into_kube()).collect())
     }
 
     #[verifier(external_body)]
@@ -166,7 +166,7 @@ impl PodSpec {
         ensures
             self@ == old(self)@.set_service_account_name(service_account@),
     {
-        self.inner.service_account_name = std::option::Option::Some(service_account.into_rust_string())
+        self.inner.service_account_name = Some(service_account.into_rust_string())
     }
 
     #[verifier(external_body)]
@@ -174,7 +174,7 @@ impl PodSpec {
         ensures
             self@ == old(self)@,
     {
-        self.inner.tolerations = std::option::Option::Some(
+        self.inner.tolerations = Some(
             tolerations.into_iter().map(|t: Toleration| t.into_kube()).collect()
         )
     }
@@ -208,7 +208,7 @@ impl Container {
         ensures
             self@ == old(self)@.set_image(image@),
     {
-        self.inner.image = std::option::Option::Some(image.into_rust_string())
+        self.inner.image = Some(image.into_rust_string())
     }
 
     #[verifier(external_body)]
@@ -224,7 +224,7 @@ impl Container {
         ensures
             self@ == old(self)@.set_volume_mounts(volume_mounts@.map_values(|mount: VolumeMount| mount@)),
     {
-        self.inner.volume_mounts = std::option::Option::Some(
+        self.inner.volume_mounts = Some(
             volume_mounts.into_iter().map(|mount: VolumeMount| mount.into_kube()).collect()
         )
     }
@@ -234,7 +234,7 @@ impl Container {
         ensures
             self@ == old(self)@.set_ports(ports@.map_values(|port: ContainerPort| port@)),
     {
-        self.inner.ports = std::option::Option::Some(
+        self.inner.ports = Some(
             ports.into_iter().map(|port: ContainerPort| port.into_kube()).collect()
         )
     }
@@ -244,7 +244,7 @@ impl Container {
         ensures
             self@ == old(self)@.set_lifecycle(lifecycle@),
     {
-        self.inner.lifecycle = std::option::Option::Some(lifecycle.into_kube())
+        self.inner.lifecycle = Some(lifecycle.into_kube())
     }
 
     #[verifier(external_body)]
@@ -252,7 +252,7 @@ impl Container {
         ensures
             self@ == old(self)@.set_resources(resources@),
     {
-        self.inner.resources = std::option::Option::Some(resources.into_kube())
+        self.inner.resources = Some(resources.into_kube())
     }
 
     // Methods for the fields that do not appear in spec
@@ -262,7 +262,7 @@ impl Container {
         ensures
             self@ == old(self)@,
     {
-        self.inner.command = std::option::Option::Some(
+        self.inner.command = Some(
             command.into_iter().map(|c: String| c.into_rust_string()).collect()
         )
     }
@@ -272,7 +272,7 @@ impl Container {
         ensures
             self@ == old(self)@,
     {
-        self.inner.image_pull_policy = std::option::Option::Some(image_pull_policy.into_rust_string())
+        self.inner.image_pull_policy = Some(image_pull_policy.into_rust_string())
     }
 
     #[verifier(external_body)]
@@ -280,7 +280,7 @@ impl Container {
         ensures
             self@ == old(self)@,
     {
-        self.inner.liveness_probe = std::option::Option::Some(liveness_probe.into_kube())
+        self.inner.liveness_probe = Some(liveness_probe.into_kube())
     }
 
     #[verifier(external_body)]
@@ -288,7 +288,7 @@ impl Container {
         ensures
             self@ == old(self)@,
     {
-        self.inner.readiness_probe = std::option::Option::Some(readiness_probe.into_kube())
+        self.inner.readiness_probe = Some(readiness_probe.into_kube())
     }
 
     #[verifier(external_body)]
@@ -296,7 +296,7 @@ impl Container {
         ensures
             self@ == old(self)@,
     {
-        self.inner.env = std::option::Option::Some(
+        self.inner.env = Some(
             env.into_iter().map(|e: EnvVar| e.into_kube()).collect()
         )
     }
@@ -366,7 +366,7 @@ impl ContainerPort {
         ensures
             self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = std::option::Option::Some(name.into_rust_string());
+        self.inner.name = Some(name.into_rust_string());
     }
 
     #[verifier(external)]
@@ -459,7 +459,7 @@ impl VolumeMount {
         ensures
             self@ == old(self)@.set_read_only(read_only),
     {
-        self.inner.read_only = std::option::Option::Some(read_only);
+        self.inner.read_only = Some(read_only);
     }
 
     #[verifier(external_body)]
@@ -467,7 +467,7 @@ impl VolumeMount {
         ensures
             self@ == old(self)@.set_sub_path(sub_path@),
     {
-        self.inner.sub_path = std::option::Option::Some(sub_path.into_rust_string());
+        self.inner.sub_path = Some(sub_path.into_rust_string());
     }
 
     #[verifier(external)]
@@ -507,7 +507,7 @@ impl Volume {
         ensures
             self@ == old(self)@.set_host_path(host_path@),
     {
-        self.inner.host_path = std::option::Option::Some(host_path.into_kube());
+        self.inner.host_path = Some(host_path.into_kube());
     }
 
     #[verifier(external_body)]
@@ -515,7 +515,7 @@ impl Volume {
         ensures
             self@ == old(self)@.set_config_map(config_map@),
     {
-        self.inner.config_map = std::option::Option::Some(config_map.into_kube());
+        self.inner.config_map = Some(config_map.into_kube());
     }
 
     #[verifier(external_body)]
@@ -523,7 +523,7 @@ impl Volume {
         ensures
             self@ == old(self)@.set_projected(projected@),
     {
-        self.inner.projected = std::option::Option::Some(projected.into_kube());
+        self.inner.projected = Some(projected.into_kube());
     }
 
     #[verifier(external_body)]
@@ -531,7 +531,7 @@ impl Volume {
         ensures
             self@ == old(self)@.set_secret(secret@),
     {
-        self.inner.secret = std::option::Option::Some(secret.into_kube());
+        self.inner.secret = Some(secret.into_kube());
     }
 
     #[verifier(external_body)]
@@ -539,7 +539,7 @@ impl Volume {
         ensures
             self@ == old(self)@.set_downward_api(downward_api@),
     {
-        self.inner.downward_api = std::option::Option::Some(downward_api.into_kube());
+        self.inner.downward_api = Some(downward_api.into_kube());
     }
 
     #[verifier(external)]
@@ -554,7 +554,7 @@ impl Volume {
         ensures
             self@ == old(self)@,
     {
-        self.inner.empty_dir = std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource{
+        self.inner.empty_dir = Some(deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource{
             ..deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource::default()
         });
     }
@@ -583,7 +583,7 @@ impl Lifecycle {
         ensures
             self@ == old(self)@.set_pre_stop(handler@),
     {
-        self.inner.pre_stop = std::option::Option::Some(handler.into_kube());
+        self.inner.pre_stop = Some(handler.into_kube());
     }
 
     #[verifier(external)]
@@ -615,10 +615,10 @@ impl LifecycleHandler {
         ensures
             self@ == old(self)@.set_exec(commands@.map_values(|c: String| c@)),
     {
-        self.inner.exec = std::option::Option::Some(
+        self.inner.exec = Some(
             // TODO: wrap a resource wrapper for ExecAction
             deps_hack::k8s_openapi::api::core::v1::ExecAction {
-                command: std::option::Option::Some(commands.into_iter().map(|c: String| c.into_rust_string()).collect())
+                command: Some(commands.into_iter().map(|c: String| c.into_rust_string()).collect())
             }
         );
     }
@@ -684,7 +684,7 @@ impl ConfigMapVolumeSource {
         ensures
             self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = std::option::Option::Some(name.into_rust_string());
+        self.inner.name = Some(name.into_rust_string());
     }
 
     #[verifier(external)]
@@ -716,7 +716,7 @@ impl SecretVolumeSource {
         ensures
             self@ == old(self)@.set_secret_name(secret_name@),
     {
-        self.inner.secret_name = std::option::Option::Some(secret_name.into_rust_string());
+        self.inner.secret_name = Some(secret_name.into_rust_string());
     }
 
     #[verifier(external)]
@@ -748,7 +748,7 @@ impl ProjectedVolumeSource {
         ensures
             self@ == old(self)@.set_sources(sources@.map_values(|v: VolumeProjection| v@)),
     {
-        self.inner.sources = std::option::Option::Some(
+        self.inner.sources = Some(
             sources.into_iter().map(|v: VolumeProjection| v.into_kube()).collect()
         );
     }
@@ -782,7 +782,7 @@ impl VolumeProjection {
         ensures
             self@ == old(self)@.set_config_map(config_map@),
     {
-        self.inner.config_map = std::option::Option::Some(config_map.into_kube());
+        self.inner.config_map = Some(config_map.into_kube());
     }
 
     #[verifier(external_body)]
@@ -790,7 +790,7 @@ impl VolumeProjection {
         ensures
             self@ == old(self)@.set_secret(secret@),
     {
-        self.inner.secret = std::option::Option::Some(secret.into_kube());
+        self.inner.secret = Some(secret.into_kube());
     }
 
     #[verifier(external)]
@@ -822,7 +822,7 @@ impl ConfigMapProjection {
         ensures
             self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = std::option::Option::Some(name.into_rust_string());
+        self.inner.name = Some(name.into_rust_string());
     }
 
     #[verifier(external_body)]
@@ -830,7 +830,7 @@ impl ConfigMapProjection {
         ensures
             self@ == old(self)@.set_items(items@.map_values(|v: KeyToPath| v@)),
     {
-        self.inner.items = std::option::Option::Some(
+        self.inner.items = Some(
             items.into_iter().map(|v: KeyToPath| v.into_kube()).collect()
         );
     }
@@ -864,7 +864,7 @@ impl SecretProjection {
         ensures
             self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = std::option::Option::Some(name.into_rust_string());
+        self.inner.name = Some(name.into_rust_string());
     }
 
     #[verifier(external_body)]
@@ -872,7 +872,7 @@ impl SecretProjection {
         ensures
             self@ == old(self)@.set_items(items@.map_values(|v: KeyToPath| v@)),
     {
-        self.inner.items = std::option::Option::Some(
+        self.inner.items = Some(
             items.into_iter().map(|v: KeyToPath| v.into_kube()).collect()
         );
     }
@@ -946,7 +946,7 @@ impl DownwardAPIVolumeSource {
         ensures
             self@ == old(self)@.set_items(items@.map_values(|v: DownwardAPIVolumeFile| v@)),
     {
-        self.inner.items = std::option::Option::Some(
+        self.inner.items = Some(
             items.into_iter().map(|v: DownwardAPIVolumeFile| v.into_kube()).collect()
         );
     }
@@ -980,7 +980,7 @@ impl DownwardAPIVolumeFile {
         ensures
             self@ == old(self)@.set_field_ref(field_ref@),
     {
-        self.inner.field_ref = std::option::Option::Some(field_ref.into_kube());
+        self.inner.field_ref = Some(field_ref.into_kube());
     }
 
     #[verifier(external_body)]
@@ -1041,7 +1041,7 @@ impl PodView {
     pub open spec fn default() -> PodView {
         PodView {
             metadata: ObjectMetaView::default(),
-            spec: Option::None,
+            spec: None,
         }
     }
 
@@ -1054,7 +1054,7 @@ impl PodView {
 
     pub open spec fn set_spec(self, spec: PodSpecView) -> PodView {
         PodView {
-            spec: Option::Some(spec),
+            spec: Some(spec),
             ..self
         }
     }
@@ -1095,11 +1095,11 @@ impl ResourceView for PodView {
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<PodView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else if !PodView::unmarshal_spec(obj.spec).is_Ok() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            Result::Ok(PodView {
+            Ok(PodView {
                 metadata: obj.metadata,
                 spec: PodView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
@@ -1141,9 +1141,9 @@ impl PodSpecView {
     pub open spec fn default() -> PodSpecView {
         PodSpecView {
             containers: Seq::empty(),
-            volumes: Option::None,
-            init_containers: Option::None,
-            service_account_name: Option::None,
+            volumes: None,
+            init_containers: None,
+            service_account_name: None,
         }
     }
 
@@ -1156,21 +1156,21 @@ impl PodSpecView {
 
     pub open spec fn set_volumes(self, volumes: Seq<VolumeView>) -> PodSpecView {
         PodSpecView {
-            volumes: Option::Some(volumes),
+            volumes: Some(volumes),
             ..self
         }
     }
 
     pub open spec fn set_init_containers(self, init_containers: Seq<ContainerView>) -> PodSpecView {
         PodSpecView {
-            init_containers: Option::Some(init_containers),
+            init_containers: Some(init_containers),
             ..self
         }
     }
 
     pub open spec fn set_service_account_name(self, service_account_name: StringView) -> PodSpecView {
         PodSpecView {
-            service_account_name: Option::Some(service_account_name),
+            service_account_name: Some(service_account_name),
             ..self
         }
     }
@@ -1200,18 +1200,18 @@ pub struct ContainerView {
 impl ContainerView {
     pub open spec fn default() -> ContainerView {
         ContainerView {
-            image: Option::None,
+            image: None,
             name: new_strlit("")@,
-            ports: Option::None,
-            volume_mounts: Option::None,
-            lifecycle: Option::None,
-            resources: Option::None,
+            ports: None,
+            volume_mounts: None,
+            lifecycle: None,
+            resources: None,
         }
     }
 
     pub open spec fn set_image(self, image: StringView) -> ContainerView {
         ContainerView {
-            image: Option::Some(image),
+            image: Some(image),
             ..self
         }
     }
@@ -1225,28 +1225,28 @@ impl ContainerView {
 
     pub open spec fn set_ports(self, ports: Seq<ContainerPortView>) -> ContainerView {
         ContainerView {
-            ports: Option::Some(ports),
+            ports: Some(ports),
             ..self
         }
     }
 
     pub open spec fn set_volume_mounts(self, volume_mounts: Seq<VolumeMountView>) -> ContainerView {
         ContainerView {
-            volume_mounts: Option::Some(volume_mounts),
+            volume_mounts: Some(volume_mounts),
             ..self
         }
     }
 
     pub open spec fn set_lifecycle(self, lifecycle: LifecycleView) -> ContainerView {
         ContainerView {
-            lifecycle: Option::Some(lifecycle),
+            lifecycle: Some(lifecycle),
             ..self
         }
     }
 
     pub open spec fn set_resources(self, resources: ResourceRequirementsView) -> ContainerView {
         ContainerView {
-            resources: Option::Some(resources),
+            resources: Some(resources),
             ..self
         }
     }
@@ -1271,13 +1271,13 @@ pub struct LifecycleView {
 impl LifecycleView {
     pub open spec fn default() -> LifecycleView {
         LifecycleView {
-            pre_stop: Option::None,
+            pre_stop: None,
         }
     }
 
     pub open spec fn set_pre_stop(self, pre_stop: LifecycleHandlerView) -> LifecycleView {
         LifecycleView {
-            pre_stop: Option::Some(pre_stop),
+            pre_stop: Some(pre_stop),
             ..self
         }
     }
@@ -1290,14 +1290,14 @@ pub struct LifecycleHandlerView {
 impl LifecycleHandlerView {
     pub open spec fn default() -> LifecycleHandlerView {
         LifecycleHandlerView {
-            exec_: Option::None,
+            exec_: None,
         }
     }
 
     pub open spec fn set_exec(self, commands: Seq<StringView>) -> LifecycleHandlerView {
         // TODO: implement a ghost type for ExecAction
         LifecycleHandlerView {
-            exec_: Option::Some(commands),
+            exec_: Some(commands),
             ..self
         }
     }
@@ -1312,7 +1312,7 @@ impl ContainerPortView {
     pub open spec fn default() -> ContainerPortView {
         ContainerPortView {
             container_port: 0, // TODO: is this the correct default value?
-            name: Option::None,
+            name: None,
         }
     }
 
@@ -1325,7 +1325,7 @@ impl ContainerPortView {
 
     pub open spec fn set_name(self, name: StringView) -> ContainerPortView {
         ContainerPortView {
-            name: Option::Some(name),
+            name: Some(name),
             ..self
         }
     }
@@ -1355,8 +1355,8 @@ impl VolumeMountView {
         VolumeMountView {
             mount_path: new_strlit("")@,
             name: new_strlit("")@,
-            read_only: Option::Some(false),
-            sub_path: Option::None,
+            read_only: Some(false),
+            sub_path: None,
         }
     }
 
@@ -1376,14 +1376,14 @@ impl VolumeMountView {
 
     pub open spec fn set_read_only(self, read_only: bool) -> VolumeMountView {
         VolumeMountView {
-            read_only: Option::Some(read_only),
+            read_only: Some(read_only),
             ..self
         }
     }
 
     pub open spec fn set_sub_path(self, sub_path: StringView) -> VolumeMountView {
         VolumeMountView {
-            sub_path: Option::Some(sub_path),
+            sub_path: Some(sub_path),
             ..self
         }
     }
@@ -1414,24 +1414,24 @@ impl VolumeView {
     pub open spec fn default() -> VolumeView {
         VolumeView {
             name: new_strlit("")@,
-            config_map: Option::None,
-            host_path: Option::None,
-            projected: Option::None,
-            secret: Option::None,
-            downward_api: Option::None,
+            config_map: None,
+            host_path: None,
+            projected: None,
+            secret: None,
+            downward_api: None,
         }
     }
 
     pub open spec fn set_host_path(self, host_path: HostPathVolumeSourceView) -> VolumeView {
         VolumeView {
-            host_path: Option::Some(host_path),
+            host_path: Some(host_path),
             ..self
         }
     }
 
     pub open spec fn set_config_map(self, config_map: ConfigMapVolumeSourceView) -> VolumeView {
         VolumeView {
-            config_map: Option::Some(config_map),
+            config_map: Some(config_map),
             ..self
         }
     }
@@ -1445,21 +1445,21 @@ impl VolumeView {
 
     pub open spec fn set_projected(self, projected: ProjectedVolumeSourceView) -> VolumeView {
         VolumeView {
-            projected: Option::Some(projected),
+            projected: Some(projected),
             ..self
         }
     }
 
     pub open spec fn set_secret(self, secret: SecretVolumeSourceView) -> VolumeView  {
         VolumeView {
-            secret: Option::Some(secret),
+            secret: Some(secret),
             ..self
         }
     }
 
     pub open spec fn set_downward_api(self, downward_api: DownwardAPIVolumeSourceView) -> VolumeView {
         VolumeView {
-            downward_api: Option::Some(downward_api),
+            downward_api: Some(downward_api),
             ..self
         }
     }
@@ -1503,13 +1503,13 @@ pub struct ConfigMapVolumeSourceView {
 impl ConfigMapVolumeSourceView {
     pub open spec fn default() -> ConfigMapVolumeSourceView {
         ConfigMapVolumeSourceView {
-            name: Option::None,
+            name: None,
         }
     }
 
     pub open spec fn set_name(self, name: StringView) -> ConfigMapVolumeSourceView {
         ConfigMapVolumeSourceView {
-            name: Option::Some(name),
+            name: Some(name),
             ..self
         }
     }
@@ -1534,13 +1534,13 @@ pub struct SecretVolumeSourceView {
 impl SecretVolumeSourceView {
     pub open spec fn default() -> SecretVolumeSourceView {
         SecretVolumeSourceView {
-            secret_name: Option::None,
+            secret_name: None,
         }
     }
 
     pub open spec fn set_secret_name(self, secret_name: StringView) -> SecretVolumeSourceView {
         SecretVolumeSourceView {
-            secret_name: Option::Some(secret_name),
+            secret_name: Some(secret_name),
             ..self
         }
     }
@@ -1565,13 +1565,13 @@ pub struct ProjectedVolumeSourceView {
 impl ProjectedVolumeSourceView {
     pub open spec fn default() -> ProjectedVolumeSourceView {
         ProjectedVolumeSourceView {
-            sources: Option::None,
+            sources: None,
         }
     }
 
     pub open spec fn set_sources(self, sources: Seq<VolumeProjectionView>) -> ProjectedVolumeSourceView {
         ProjectedVolumeSourceView {
-            sources: Option::Some(sources),
+            sources: Some(sources),
             ..self
         }
     }
@@ -1598,21 +1598,21 @@ pub struct VolumeProjectionView {
 impl VolumeProjectionView {
     pub open spec fn default() -> VolumeProjectionView {
         VolumeProjectionView {
-            config_map: Option::None,
-            secret: Option::None,
+            config_map: None,
+            secret: None,
         }
     }
 
     pub open spec fn set_config_map(self, config_map: ConfigMapProjectionView) -> VolumeProjectionView {
         VolumeProjectionView {
-            config_map: Option::Some(config_map),
+            config_map: Some(config_map),
             ..self
         }
     }
 
     pub open spec fn set_secret(self, secret: SecretProjectionView) -> VolumeProjectionView {
         VolumeProjectionView {
-            secret: Option::Some(secret),
+            secret: Some(secret),
             ..self
         }
     }
@@ -1643,21 +1643,21 @@ pub struct ConfigMapProjectionView {
 impl ConfigMapProjectionView {
     pub open spec fn default() -> ConfigMapProjectionView {
         ConfigMapProjectionView {
-            items: Option::None,
-            name: Option::None,
+            items: None,
+            name: None,
         }
     }
 
     pub open spec fn set_items(self, items: Seq<KeyToPathView>) -> ConfigMapProjectionView {
         ConfigMapProjectionView {
-            items: Option::Some(items),
+            items: Some(items),
             ..self
         }
     }
 
     pub open spec fn set_name(self, name: StringView) -> ConfigMapProjectionView {
         ConfigMapProjectionView {
-            name: Option::Some(name),
+            name: Some(name),
             ..self
         }
     }
@@ -1687,21 +1687,21 @@ pub struct SecretProjectionView {
 impl SecretProjectionView {
     pub open spec fn default() -> SecretProjectionView {
         SecretProjectionView {
-            items: Option::None,
-            name: Option::None,
+            items: None,
+            name: None,
         }
     }
 
     pub open spec fn set_items(self, items: Seq<KeyToPathView>) -> SecretProjectionView {
         SecretProjectionView {
-            items: Option::Some(items),
+            items: Some(items),
             ..self
         }
     }
 
     pub open spec fn set_name(self, name: StringView) -> SecretProjectionView {
         SecretProjectionView {
-            name: Option::Some(name),
+            name: Some(name),
             ..self
         }
     }
@@ -1765,13 +1765,13 @@ pub struct DownwardAPIVolumeSourceView {
 impl DownwardAPIVolumeSourceView {
     pub open spec fn default() -> DownwardAPIVolumeSourceView {
         DownwardAPIVolumeSourceView {
-            items: Option::None,
+            items: None,
         }
     }
 
     pub open spec fn set_items(self, items: Seq<DownwardAPIVolumeFileView>) -> DownwardAPIVolumeSourceView {
         DownwardAPIVolumeSourceView {
-            items: Option::Some(items),
+            items: Some(items),
             ..self
         }
     }
@@ -1796,14 +1796,14 @@ pub struct DownwardAPIVolumeFileView {
 impl DownwardAPIVolumeFileView {
     pub open spec fn default() -> DownwardAPIVolumeFileView {
         DownwardAPIVolumeFileView {
-            field_ref: Option::None,
+            field_ref: None,
             path: new_strlit("")@,
         }
     }
 
     pub open spec fn set_field_ref(self, field_ref: ObjectFieldSelectorView) -> DownwardAPIVolumeFileView {
         DownwardAPIVolumeFileView {
-            field_ref: Option::Some(field_ref),
+            field_ref: Some(field_ref),
             ..self
         }
     }

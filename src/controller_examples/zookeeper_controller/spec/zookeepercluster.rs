@@ -56,11 +56,11 @@ impl ResourceView for ZookeeperClusterView {
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ZookeeperClusterView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else if !ZookeeperClusterView::unmarshal_spec(obj.spec).is_Ok() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            Result::Ok(ZookeeperClusterView {
+            Ok(ZookeeperClusterView {
                 metadata: obj.metadata,
                 spec: ZookeeperClusterView::unmarshal_spec(obj.spec).get_Ok_0(),
             })

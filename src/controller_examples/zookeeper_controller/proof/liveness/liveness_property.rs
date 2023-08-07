@@ -1092,7 +1092,7 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ZKCluster>, zk: Zookee
         &&& s.reconcile_scheduled_for(zk.object_ref())
     };
     let post = no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init);
-    let input = (Option::None, Option::Some(zk.object_ref()));
+    let input = (None, Some(zk.object_ref()));
     let stronger_next = |s, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::crash_disabled()(s)
@@ -1136,7 +1136,7 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
 {
     let pre = no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init);
     let post = pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, arbitrary());
-    let input = (Option::None, Option::Some(zk.object_ref()));
+    let input = (None, Some(zk.object_ref()));
     let stronger_next = |s, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::crash_disabled()(s)
@@ -1192,7 +1192,7 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
 {
     let pre = resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(step, zk, resp_msg, arbitrary());
     let post = pending_req_in_flight_at_zookeeper_step_with_zk(result_step, zk, arbitrary());
-    let input = (Option::Some(resp_msg), Option::Some(zk.object_ref()));
+    let input = (Some(resp_msg), Some(zk.object_ref()));
 
     // For every part of stronger_next:
     //   - next(): the next predicate of the state machine
@@ -1261,7 +1261,7 @@ proof fn lemma_receives_some_resp_at_zookeeper_step_with_zk(
 {
     let pre = req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(step, zk, req_msg, arbitrary());
     let post = exists_resp_in_flight_at_zookeeper_step_with_zk(step, zk, arbitrary());
-    let input = Option::Some(req_msg);
+    let input = Some(req_msg);
     let stronger_next = |s, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::crash_disabled()(s)
@@ -1338,7 +1338,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
         &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
         &&& at_after_get_stateful_set_step_with_zk_and_exists_ok_resp_in_flight(zk, object)(s)
     };
-    let input = Option::Some(req_msg);
+    let input = Some(req_msg);
     let stronger_next = |s, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::crash_disabled()(s)
@@ -1446,7 +1446,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
         &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterUpdateStatefulSet, zk, object)(s)
     };
-    let input = (Option::Some(resp_msg), Option::Some(zk.object_ref()));
+    let input = (Some(resp_msg), Some(zk.object_ref()));
     let stronger_next = |s, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::crash_disabled()(s)
@@ -1529,7 +1529,7 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
         &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(zk.object_ref()))).is_Ok()
         &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(zk.object_ref()))).get_Ok_0().spec == make_stateful_set(zk).spec
     };
-    let input = Option::Some(req_msg);
+    let input = Some(req_msg);
     let stronger_next = |s, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::crash_disabled()(s)
@@ -1619,7 +1619,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_zk(
         &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
         &&& at_after_get_stateful_set_step_with_zk_and_exists_not_found_resp_in_flight(zk)(s)
     };
-    let input = Option::Some(req_msg);
+    let input = Some(req_msg);
     let stronger_next = |s, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::crash_disabled()(s)
@@ -1717,7 +1717,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_create_stateful_set_ste
         &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
         &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateStatefulSet, zk, arbitrary())(s)
     };
-    let input = (Option::Some(resp_msg), Option::Some(zk.object_ref()));
+    let input = (Some(resp_msg), Some(zk.object_ref()));
     let stronger_next = |s, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::crash_disabled()(s)
@@ -1787,7 +1787,7 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_zk(
         &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(zk.object_ref()))).is_Ok()
         &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(zk.object_ref()))).get_Ok_0().spec == make_stateful_set(zk).spec
     };
-    let input = Option::Some(req_msg);
+    let input = Some(req_msg);
     let stronger_next = |s, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::crash_disabled()(s)

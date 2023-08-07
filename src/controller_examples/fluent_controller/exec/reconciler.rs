@@ -113,7 +113,7 @@ pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyType>>
                 reconcile_step: FluentBitReconcileStep::AfterCreateRole,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         FluentBitReconcileStep::AfterCreateRole => {
             let service_account = make_service_account(fluentbit);
@@ -126,7 +126,7 @@ pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyType>>
                 reconcile_step: FluentBitReconcileStep::AfterCreateServiceAccount,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         FluentBitReconcileStep::AfterCreateServiceAccount => {
             let role_binding = make_role_binding(fluentbit);
@@ -139,7 +139,7 @@ pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyType>>
                 reconcile_step: FluentBitReconcileStep::AfterCreateRoleBinding,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         FluentBitReconcileStep::AfterCreateRoleBinding => {
             let secret = make_secret(fluentbit);
@@ -152,7 +152,7 @@ pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyType>>
                 reconcile_step: FluentBitReconcileStep::AfterCreateSecret,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         FluentBitReconcileStep::AfterCreateSecret => {
             let daemon_set = make_daemon_set(fluentbit);
@@ -165,10 +165,10 @@ pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyType>>
                 reconcile_step: FluentBitReconcileStep::AfterCreateDaemonSet,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         FluentBitReconcileStep::AfterCreateDaemonSet => {
-            let req_o = Option::None;
+            let req_o = None;
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::Done,
                 ..state
@@ -180,7 +180,7 @@ pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyType>>
                 reconcile_step: step,
                 ..state
             };
-            let req_o = Option::None;
+            let req_o = None;
             (state_prime, req_o)
         }
     }
@@ -532,8 +532,8 @@ fn make_env(fluentbit: &FluentBit) -> Vec<EnvVar> {
         EnvVar::from_kube(
             deps_hack::k8s_openapi::api::core::v1::EnvVar {
                 name: new_strlit("NODE_NAME").to_string().into_rust_string(),
-                value_from: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
-                    field_ref: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
+                value_from: Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
+                    field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
                         field_path: new_strlit("spec.nodeName").to_string().into_rust_string(),
                         ..deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default()
                     }),
@@ -547,8 +547,8 @@ fn make_env(fluentbit: &FluentBit) -> Vec<EnvVar> {
         EnvVar::from_kube(
             deps_hack::k8s_openapi::api::core::v1::EnvVar {
                 name: new_strlit("HOST_IP").to_string().into_rust_string(),
-                value_from: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
-                    field_ref: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
+                value_from: Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
+                    field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
                         field_path: new_strlit("status.hostIP").to_string().into_rust_string(),
                         ..deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default()
                     }),

@@ -26,8 +26,8 @@ impl RabbitmqCluster {
             name.is_Some() ==> name.get_Some_0()@ == self@.name().get_Some_0(),
     {
         match &self.inner.metadata.name {
-            std::option::Option::Some(n) => Option::Some(String::from_rust_string(n.to_string())),
-            std::option::Option::None => Option::None,
+            Some(n) => Some(String::from_rust_string(n.to_string())),
+            None => None,
         }
     }
 
@@ -38,8 +38,8 @@ impl RabbitmqCluster {
             namespace.is_Some() ==> namespace.get_Some_0()@ == self@.namespace().get_Some_0(),
     {
         match &self.inner.metadata.namespace {
-            std::option::Option::Some(n) => Option::Some(String::from_rust_string(n.to_string())),
-            std::option::Option::None => Option::None,
+            Some(n) => Some(String::from_rust_string(n.to_string())),
+            None => None,
         }
     }
 
@@ -86,9 +86,9 @@ impl RabbitmqCluster {
         let parse_result = obj.into_kube().try_parse::<deps_hack::RabbitmqCluster>();
         if parse_result.is_ok() {
             let res = RabbitmqCluster { inner: parse_result.unwrap() };
-            Result::Ok(res)
+            Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::ExecError)
+            Err(ParseDynamicObjectError::ExecError)
         }
     }
 }
@@ -131,8 +131,8 @@ impl RabbitmqClusterSpec {
             rabbitmq_config.is_Some() ==> rabbitmq_config.get_Some_0()@ == self@.rabbitmq_config.get_Some_0(),
     {
         match &self.inner.rabbitmq_config {
-            std::option::Option::Some(n) => Option::Some(RabbitmqClusterConfigurationSpec { inner: n.clone()}),
-            std::option::Option::None => Option::None,
+            Some(n) => Some(RabbitmqClusterConfigurationSpec { inner: n.clone()}),
+            None => None,
         }
     }
 }
@@ -153,8 +153,8 @@ impl RabbitmqClusterConfigurationSpec {
             additional_config.is_Some() ==> additional_config.get_Some_0()@ == self@.additional_config.get_Some_0(),
     {
         match &self.inner.additional_config {
-            std::option::Option::Some(n) => Option::Some(String::from_rust_string(n.to_string())),
-            std::option::Option::None => Option::None,
+            Some(n) => Some(String::from_rust_string(n.to_string())),
+            None => None,
         }
     }
 }

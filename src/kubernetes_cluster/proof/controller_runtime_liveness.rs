@@ -113,7 +113,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle
     let post = |s: Self| {
         &&& !s.reconcile_state_contains(cr_key)
     };
-    let input = (Option::None, Option::None, Option::Some(cr_key));
+    let input = (None, None, Some(cr_key));
     Self::lemma_pre_leads_to_post_by_controller(
         spec, input, Self::next(),
         Self::end_reconcile(), pre, post
@@ -137,7 +137,7 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle
 {
     let pre = Self::reconciler_reconcile_error(cr_key);
     let post = |s: Self| { !s.reconcile_state_contains(cr_key) };
-    let input = (Option::None, Option::None, Option::Some(cr_key));
+    let input = (None, None, Some(cr_key));
     Self::lemma_pre_leads_to_post_by_controller(
         spec, input,
         Self::next(), Self::end_reconcile(), pre, post
@@ -171,7 +171,7 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init
         &&& !s.crash_enabled
     };
     strengthen_next::<Self>(spec, Self::next(), Self::crash_disabled(), stronger_next);
-    let input = (Option::None, Option::None, Option::Some(cr_key));
+    let input = (None, None, Some(cr_key));
     Self::lemma_pre_leads_to_post_by_controller(
         spec, input, stronger_next, Self::run_scheduled_reconcile(), pre, post
     );
@@ -328,7 +328,7 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(
     };
     strengthen_next(spec, Self::next(), Self::crash_disabled(), stronger_next);
     Self::lemma_pre_leads_to_post_by_controller(
-        spec, (Option::None, Option::None, Option::Some(cr.object_ref())),
+        spec, (None, None, Some(cr.object_ref())),
         stronger_next, Self::continue_reconcile(), no_pending_req,
         Self::at_expected_reconcile_states(cr.object_ref(), next_state)
     );
@@ -403,7 +403,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
                 && s.message_in_flight(msg)
                 && resp_msg_matches_req_msg(msg, s.pending_req_of(cr.object_ref()))
             };
-            let input = (Option::Some(msg), Option::None, Option::Some(cr.object_ref()));
+            let input = (Some(msg), None, Some(cr.object_ref()));
             Self::lemma_pre_leads_to_post_by_controller(
                 spec, input, stronger_next, Self::continue_reconcile(), resp_in_flight_state, post
             );
@@ -476,7 +476,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
             .and(lift_state(Self::busy_disabled()))
             .and(lift_state(Self::every_in_flight_msg_has_unique_id()))
         );
-        let input = Option::Some(req_msg);
+        let input = Some(req_msg);
         assert forall |s, s_prime: Self| pre_1(s) && #[trigger] stronger_next(s, s_prime)
         && Self::kubernetes_api_next().forward(input)(s, s_prime) implies post_1(s_prime) by {
             let resp_msg = Self::transition_by_etcd(req_msg, s.kubernetes_api_state).1;
@@ -559,7 +559,7 @@ pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile
         lift_action(Self::next())
         .and(lift_state(Self::crash_disabled()))
     );
-    let input = (Option::None, Option::None, Option::Some(cr.object_ref()));
+    let input = (None, None, Some(cr.object_ref()));
     Self::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, Self::continue_reconcile(), no_req_at_state, Self::at_expected_reconcile_states(cr.object_ref(), next_state));
     leads_to_trans_n!(
         spec,

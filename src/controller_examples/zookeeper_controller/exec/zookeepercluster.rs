@@ -63,9 +63,9 @@ impl ZookeeperCluster {
         let parse_result = obj.into_kube().try_parse::<deps_hack::ZookeeperCluster>();
         if parse_result.is_ok() {
             let res = ZookeeperCluster { inner: parse_result.unwrap() };
-            Result::Ok(res)
+            Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::ExecError)
+            Err(ParseDynamicObjectError::ExecError)
         }
     }
 }

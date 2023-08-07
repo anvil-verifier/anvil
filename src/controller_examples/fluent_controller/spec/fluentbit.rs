@@ -56,11 +56,11 @@ impl ResourceView for FluentBitView {
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<FluentBitView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else if !FluentBitView::unmarshal_spec(obj.spec).is_Ok() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            Result::Ok(FluentBitView {
+            Ok(FluentBitView {
                 metadata: obj.metadata,
                 spec: FluentBitView::unmarshal_spec(obj.spec).get_Ok_0(),
             })

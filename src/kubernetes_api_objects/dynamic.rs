@@ -93,7 +93,7 @@ impl DynamicObjectView {
     pub open spec fn set_namespace(self, namespace: StringView) -> DynamicObjectView {
         DynamicObjectView {
             metadata: ObjectMetaView {
-                namespace: Option::Some(namespace),
+                namespace: Some(namespace),
                 ..self.metadata
             },
             ..self
@@ -103,7 +103,7 @@ impl DynamicObjectView {
     pub open spec fn set_resource_version(self, resource_version: nat) -> DynamicObjectView {
         DynamicObjectView {
             metadata: ObjectMetaView {
-                resource_version: Option::Some(resource_version),
+                resource_version: Some(resource_version),
                 ..self.metadata
             },
             ..self
@@ -113,7 +113,7 @@ impl DynamicObjectView {
     pub open spec fn set_uid(self, uid: nat) -> DynamicObjectView {
         DynamicObjectView {
             metadata: ObjectMetaView {
-                uid: Option::Some(uid),
+                uid: Some(uid),
                 ..self.metadata
             },
             ..self

@@ -159,8 +159,8 @@ impl KubeAPIRequest {
 
 pub open spec fn opt_req_to_view(req: &Option<KubeAPIRequest>) -> Option<APIRequest> {
     match req {
-        Option::Some(req) => Option::Some(req.to_view()),
-        Option::None => Option::None,
+        Some(req) => Some(req.to_view()),
+        None => None,
     }
 }
 
@@ -253,8 +253,8 @@ pub struct KubeUpdateResponse {
 
 pub open spec fn result_obj_to_view(res: Result<DynamicObject, APIError>) -> Result<DynamicObjectView, APIError> {
     match res {
-        Result::Ok(obj) => Result::Ok(obj@),
-        Result::Err(err) => Result::Err(err),
+        Ok(obj) => Ok(obj@),
+        Err(err) => Err(err),
     }
 }
 
@@ -264,8 +264,8 @@ pub open spec fn vec_obj_to_view(res: &Vec<DynamicObject>) -> Seq<DynamicObjectV
 
 pub open spec fn result_objs_to_view(res: Result<Vec<DynamicObject>, APIError>) -> Result<Seq<DynamicObjectView>, APIError> {
     match res {
-        Result::Ok(objs) => Result::Ok(vec_obj_to_view(&objs)),
-        Result::Err(err) => Result::Err(err),
+        Ok(objs) => Ok(vec_obj_to_view(&objs)),
+        Err(err) => Err(err),
     }
 }
 
@@ -329,8 +329,8 @@ impl KubeAPIResponse {
 
 pub open spec fn opt_resp_to_view(resp: &Option<KubeAPIResponse>) -> Option<APIResponse> {
     match resp {
-        Option::Some(resp) => Option::Some(resp.to_view()),
-        Option::None => Option::None,
+        Some(resp) => Some(resp.to_view()),
+        None => None,
     }
 }
 

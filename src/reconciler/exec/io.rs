@@ -120,15 +120,15 @@ impl <T: ToView> Request<T> {
 
 pub open spec fn opt_response_to_view<T: ToView>(resp: &Option<Response<T>>) -> Option<ResponseView<T::V>> {
     match resp {
-        Option::Some(resp) => Option::Some(resp.to_view()),
-        Option::None => Option::None,
+        Some(resp) => Some(resp.to_view()),
+        None => None,
     }
 }
 
 pub open spec fn opt_request_to_view<T: ToView>(request: &Option<Request<T>>) -> Option<RequestView<T::V>> {
     match request {
-        Option::Some(req) => Option::Some(req.to_view()),
-        Option::None => Option::None,
+        Some(req) => Some(req.to_view()),
+        None => None,
     }
 }
 

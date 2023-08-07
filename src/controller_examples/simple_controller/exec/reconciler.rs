@@ -114,14 +114,14 @@ pub fn reconcile_core(cr: &SimpleCR, resp_o: Option<Response<EmptyType>>, state:
                 namespace: cr.metadata().namespace().unwrap(),
                 obj: config_map.to_dynamic_object(),
             });
-            (state_prime, Option::Some(Request::KRequest(req_o)))
+            (state_prime, Some(Request::KRequest(req_o)))
         }
         _ => {
             let state_prime = SimpleReconcileState {
                 reconcile_step: step,
                 ..state
             };
-            (state_prime, Option::None)
+            (state_prime, None)
         }
     }
 }

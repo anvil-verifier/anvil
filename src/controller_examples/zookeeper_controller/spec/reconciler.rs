@@ -50,7 +50,7 @@ impl Reconciler<ZookeeperClusterView, ZKAPI> for ZookeeperReconciler {
 pub open spec fn reconcile_init_state() -> ZookeeperReconcileState {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
-        sts_from_get: Option::None,
+        sts_from_get: None,
     }
 }
 
@@ -87,7 +87,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateHeadlessService,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         ZookeeperReconcileStep::AfterCreateHeadlessService => {
             let client_service = make_client_service(zk);
@@ -99,7 +99,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateClientService,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         ZookeeperReconcileStep::AfterCreateClientService => {
             let admin_server_service = make_admin_server_service(zk);
@@ -111,7 +111,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateAdminServerService,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         ZookeeperReconcileStep::AfterCreateAdminServerService => {
             let config_map = make_config_map(zk);
@@ -123,7 +123,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateConfigMap,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         ZookeeperReconcileStep::AfterCreateConfigMap => {
             let req_o = APIRequest::GetRequest(GetRequest{
@@ -137,7 +137,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         ZookeeperReconcileStep::AfterGetStatefulSet => {
             if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
@@ -149,19 +149,19 @@ pub open spec fn reconcile_core(
                         let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).get_Ok_0();
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
-                            sts_from_get: Option::Some(found_stateful_set),
+                            sts_from_get: Some(found_stateful_set),
                             ..state
                         };
                         let ext_req = ZKAPIInputView::ReconcileZKNode(
                             cluster_size_zk_node_path(zk), zk_service_uri(zk), int_to_string_view(zk.spec.replicas)
                         );
-                        (state_prime, Option::Some(RequestView::ExternalRequest(ext_req)))
+                        (state_prime, Some(RequestView::ExternalRequest(ext_req)))
                     } else {
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::Error,
                             ..state
                         };
-                        (state_prime, Option::None)
+                        (state_prime, None)
                     }
                 } else if get_sts_resp.get_Err_0().is_ObjectNotFound() {
                     // create
@@ -173,20 +173,20 @@ pub open spec fn reconcile_core(
                         reconcile_step: ZookeeperReconcileStep::AfterCreateStatefulSet,
                         ..state
                     };
-                    (state_prime, Option::Some(RequestView::KRequest(req_o)))
+                    (state_prime, Some(RequestView::KRequest(req_o)))
                 } else {
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::Error,
                         ..state
                     };
-                    (state_prime, Option::None)
+                    (state_prime, None)
                 }
             } else {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Error,
                     ..state
                 };
-                (state_prime, Option::None)
+                (state_prime, None)
             }
         },
         ZookeeperReconcileStep::AfterCreateStatefulSet => {
@@ -197,7 +197,7 @@ pub open spec fn reconcile_core(
             let ext_req = ZKAPIInputView::ReconcileZKNode(
                 cluster_size_zk_node_path(zk), zk_service_uri(zk), int_to_string_view(zk.spec.replicas)
             );
-            (state_prime, Option::Some(RequestView::ExternalRequest(ext_req)))
+            (state_prime, Some(RequestView::ExternalRequest(ext_req)))
         },
         ZookeeperReconcileStep::AfterUpdateStatefulSet => {
             let state_prime = ZookeeperReconcileState {
@@ -207,7 +207,7 @@ pub open spec fn reconcile_core(
             let ext_req = ZKAPIInputView::ReconcileZKNode(
                 cluster_size_zk_node_path(zk), zk_service_uri(zk), int_to_string_view(zk.spec.replicas)
             );
-            (state_prime, Option::Some(RequestView::ExternalRequest(ext_req)))
+            (state_prime, Some(RequestView::ExternalRequest(ext_req)))
         },
         ZookeeperReconcileStep::AfterUpdateZKNode => {
             if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
@@ -220,15 +220,15 @@ pub open spec fn reconcile_core(
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
-                    sts_from_get: Option::None,
+                    sts_from_get: None,
                 };
-                (state_prime,  Option::Some(RequestView::KRequest(req_o)))
+                (state_prime,  Some(RequestView::KRequest(req_o)))
             } else {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Error,
                     ..state
                 };
-                (state_prime, Option::None)
+                (state_prime, None)
             }
         },
         ZookeeperReconcileStep::AfterCreateZKNode => {
@@ -240,20 +240,20 @@ pub open spec fn reconcile_core(
                         reconcile_step: ZookeeperReconcileStep::Done,
                         ..state
                     };
-                    (state_prime, Option::None)
+                    (state_prime, None)
                 } else {
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::Error,
                         ..state
                     };
-                    (state_prime, Option::None)
+                    (state_prime, None)
                 }
             } else {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Error,
                     ..state
                 };
-                (state_prime, Option::None)
+                (state_prime, None)
             }
         },
         _ => {
@@ -261,7 +261,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: step,
                 ..state
             };
-            (state_prime, Option::None)
+            (state_prime, None)
         }
     }
 }
@@ -271,7 +271,7 @@ pub open spec fn reconcile_error_result(state: ZookeeperReconcileState) -> (Zook
         reconcile_step: ZookeeperReconcileStep::Error,
         ..state
     };
-    (state_prime, Option::None)
+    (state_prime, None)
 }
 
 pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView

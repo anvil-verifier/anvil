@@ -33,8 +33,8 @@ impl ZookeeperReconcileState {
         zk_spec::ZookeeperReconcileState {
             reconcile_step: self.reconcile_step,
             sts_from_get: match &self.sts_from_get {
-                Some(sts) => Option::Some(sts@),
-                None => Option::None,
+                Some(sts) => Some(sts@),
+                None => None,
             },
         }
     }
@@ -74,7 +74,7 @@ pub fn reconcile_init_state() -> (state: ZookeeperReconcileState)
 {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
-        sts_from_get: Option::None,
+        sts_from_get: None,
     }
 }
 
@@ -122,7 +122,7 @@ pub fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateHeadlessService,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         ZookeeperReconcileStep::AfterCreateHeadlessService => {
             let client_service = make_client_service(zk);
@@ -135,7 +135,7 @@ pub fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateClientService,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         ZookeeperReconcileStep::AfterCreateClientService => {
             let admin_server_service = make_admin_server_service(zk);
@@ -148,7 +148,7 @@ pub fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateAdminServerService,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         ZookeeperReconcileStep::AfterCreateAdminServerService => {
             let config_map = make_config_map(zk);
@@ -161,7 +161,7 @@ pub fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterCreateConfigMap,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         ZookeeperReconcileStep::AfterCreateConfigMap => {
             let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
@@ -173,7 +173,7 @@ pub fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         ZookeeperReconcileStep::AfterGetStatefulSet => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
@@ -203,7 +203,7 @@ pub fn reconcile_core(
                             zk_support_input_to_view_match(path, uri, replicas);
                         }
                         // Call external APIs to update the content in ZKNode
-                        return (state_prime, Option::Some(Request::ExternalRequest(ext_req)));
+                        return (state_prime, Some(Request::ExternalRequest(ext_req)));
                     }
 
                 } else if get_sts_resp.unwrap_err().is_object_not_found() {
@@ -217,7 +217,7 @@ pub fn reconcile_core(
                         reconcile_step: ZookeeperReconcileStep::AfterCreateStatefulSet,
                         ..state
                     };
-                    return (state_prime, Option::Some(Request::KRequest(req_o)));
+                    return (state_prime, Some(Request::KRequest(req_o)));
                 }
             }
             // return error state
@@ -225,7 +225,7 @@ pub fn reconcile_core(
                 reconcile_step: ZookeeperReconcileStep::Error,
                 ..state
             };
-            return (state_prime, Option::None);
+            return (state_prime, None);
         },
         ZookeeperReconcileStep::AfterCreateStatefulSet => {
             let state_prime = ZookeeperReconcileState {
@@ -239,7 +239,7 @@ pub fn reconcile_core(
             proof {
                 zk_support_input_to_view_match(path, uri, replicas);
             }
-            return (state_prime, Option::Some(Request::ExternalRequest(ext_req)));
+            return (state_prime, Some(Request::ExternalRequest(ext_req)));
         },
         ZookeeperReconcileStep::AfterUpdateStatefulSet => {
             let state_prime = ZookeeperReconcileState {
@@ -253,7 +253,7 @@ pub fn reconcile_core(
             proof {
                 zk_support_input_to_view_match(path, uri, replicas);
             }
-            return (state_prime, Option::Some(Request::ExternalRequest(ext_req)));
+            return (state_prime, Some(Request::ExternalRequest(ext_req)));
         },
         ZookeeperReconcileStep::AfterUpdateZKNode => {
             // update sts
@@ -272,16 +272,16 @@ pub fn reconcile_core(
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
-                    sts_from_get: Option::None
+                    sts_from_get: None
                 };
-                return (state_prime, Option::Some(Request::KRequest(req_o)));
+                return (state_prime, Some(Request::KRequest(req_o)));
             } else {
                 // return error state
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Error,
                     ..state
                 };
-                return (state_prime, Option::None);
+                return (state_prime, None);
             }
         },
         ZookeeperReconcileStep::AfterCreateZKNode => {
@@ -296,20 +296,20 @@ pub fn reconcile_core(
                         reconcile_step: ZookeeperReconcileStep::Done,
                         ..state
                     };
-                    return (state_prime, Option::None);
+                    return (state_prime, None);
                 } else {
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::Error,
                         ..state
                     };
-                    return (state_prime, Option::None);
+                    return (state_prime, None);
                 }
             } else {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Error,
                     ..state
                 };
-                return (state_prime, Option::None);
+                return (state_prime, None);
             }
         },
         _ => {
@@ -317,7 +317,7 @@ pub fn reconcile_core(
                 reconcile_step: step,
                 ..state
             };
-            return (state_prime, Option::None);
+            return (state_prime, None);
         }
     }
 }
@@ -791,14 +791,14 @@ fn make_readiness_probe() -> Probe
 {
     Probe::from_kube(
         deps_hack::k8s_openapi::api::core::v1::Probe {
-            exec: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::ExecAction {
-                command: std::option::Option::Some(vec!["zookeeperReady.sh".to_string()]),
+            exec: Some(deps_hack::k8s_openapi::api::core::v1::ExecAction {
+                command: Some(vec!["zookeeperReady.sh".to_string()]),
             }),
-            failure_threshold: std::option::Option::Some(3),
-            initial_delay_seconds: std::option::Option::Some(10),
-            period_seconds: std::option::Option::Some(10),
-            success_threshold: std::option::Option::Some(1),
-            timeout_seconds: std::option::Option::Some(10),
+            failure_threshold: Some(3),
+            initial_delay_seconds: Some(10),
+            period_seconds: Some(10),
+            success_threshold: Some(1),
+            timeout_seconds: Some(10),
             ..deps_hack::k8s_openapi::api::core::v1::Probe::default()
         }
     )
@@ -809,14 +809,14 @@ fn make_liveness_probe() -> Probe
 {
     Probe::from_kube(
         deps_hack::k8s_openapi::api::core::v1::Probe {
-            exec: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::ExecAction {
-                command: std::option::Option::Some(vec!["zookeeperLive.sh".to_string()]),
+            exec: Some(deps_hack::k8s_openapi::api::core::v1::ExecAction {
+                command: Some(vec!["zookeeperLive.sh".to_string()]),
             }),
-            failure_threshold: std::option::Option::Some(3),
-            initial_delay_seconds: std::option::Option::Some(10),
-            period_seconds: std::option::Option::Some(10),
-            success_threshold: std::option::Option::Some(1),
-            timeout_seconds: std::option::Option::Some(10),
+            failure_threshold: Some(3),
+            initial_delay_seconds: Some(10),
+            period_seconds: Some(10),
+            success_threshold: Some(1),
+            timeout_seconds: Some(10),
             ..deps_hack::k8s_openapi::api::core::v1::Probe::default()
         }
     )
@@ -827,7 +827,7 @@ fn make_resource_requirements() -> ResourceRequirements
 {
     ResourceRequirements::from_kube(
         deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
-            requests: std::option::Option::Some(std::collections::BTreeMap::from([(
+            requests: Some(std::collections::BTreeMap::from([(
                 "storage".to_string(),
                 deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity("20Gi".to_string()),
             )])),

@@ -86,7 +86,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: RabbitmqReconcileStep::AfterCreateHeadlessService,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         RabbitmqReconcileStep::AfterCreateHeadlessService => {
             let main_service = make_main_service(rabbitmq);
@@ -98,7 +98,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: RabbitmqReconcileStep::AfterCreateService,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         RabbitmqReconcileStep::AfterCreateService => {
             let erlang_secret = make_erlang_secret(rabbitmq);
@@ -110,7 +110,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: RabbitmqReconcileStep::AfterCreateErlangCookieSecret,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         RabbitmqReconcileStep::AfterCreateErlangCookieSecret => {
             let default_user_secret = make_default_user_secret(rabbitmq);
@@ -122,7 +122,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: RabbitmqReconcileStep::AfterCreateDefaultUserSecret,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         RabbitmqReconcileStep::AfterCreateDefaultUserSecret => {
             let plugins_config_map = make_plugins_config_map(rabbitmq);
@@ -134,7 +134,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: RabbitmqReconcileStep::AfterCreatePluginsConfigMap,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         RabbitmqReconcileStep::AfterCreatePluginsConfigMap => {
             let req_o = APIRequest::GetRequest(GetRequest{
@@ -144,7 +144,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: RabbitmqReconcileStep::AfterGetServerConfigMap,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         RabbitmqReconcileStep::AfterGetServerConfigMap => {
             if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() &&
@@ -164,13 +164,13 @@ pub open spec fn reconcile_core(
                             reconcile_step: RabbitmqReconcileStep::AfterUpdateServerConfigMap,
                             ..state
                         };
-                        (state_prime, Option::Some(RequestView::KRequest(req_o)))
+                        (state_prime, Some(RequestView::KRequest(req_o)))
                     } else {
                         let state_prime = RabbitmqReconcileState {
                             reconcile_step: RabbitmqReconcileStep::Error,
                             ..state
                         };
-                        (state_prime, Option::None)
+                        (state_prime, None)
                     }
                 } else if get_config_resp.get_Err_0().is_ObjectNotFound() {
                     // create
@@ -182,13 +182,13 @@ pub open spec fn reconcile_core(
                         reconcile_step: RabbitmqReconcileStep::AfterCreateServerConfigMap,
                         ..state
                     };
-                    (state_prime, Option::Some(RequestView::KRequest(req_o)))
+                    (state_prime, Some(RequestView::KRequest(req_o)))
                 } else {
                     let state_prime = RabbitmqReconcileState {
                         reconcile_step: RabbitmqReconcileStep::Error,
                         ..state
                     };
-                    (state_prime, Option::None)
+                    (state_prime, None)
                 }
             } else {
                 // return error state
@@ -196,7 +196,7 @@ pub open spec fn reconcile_core(
                     reconcile_step: RabbitmqReconcileStep::Error,
                     ..state
                 };
-                (state_prime, Option::None)
+                (state_prime, None)
             }
         },
         RabbitmqReconcileStep::AfterUpdateServerConfigMap => {
@@ -209,7 +209,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         RabbitmqReconcileStep::AfterCreateServerConfigMap => {
             let service_account = make_service_account(rabbitmq);
@@ -221,7 +221,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         RabbitmqReconcileStep::AfterCreateServiceAccount => {
             let role = make_role(rabbitmq);
@@ -233,7 +233,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: RabbitmqReconcileStep::AfterCreateRole,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         RabbitmqReconcileStep::AfterCreateRole => {
             let role_binding = make_role_binding(rabbitmq);
@@ -245,7 +245,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: RabbitmqReconcileStep::AfterCreateRoleBinding,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         RabbitmqReconcileStep::AfterCreateRoleBinding => {
             let req_o = APIRequest::GetRequest(GetRequest{
@@ -259,7 +259,7 @@ pub open spec fn reconcile_core(
                 reconcile_step: RabbitmqReconcileStep::AfterGetStatefulSet,
                 ..state
             };
-            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+            (state_prime, Some(RequestView::KRequest(req_o)))
         },
         RabbitmqReconcileStep::AfterGetStatefulSet => {
             if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
@@ -281,20 +281,20 @@ pub open spec fn reconcile_core(
                                 reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
                                 ..state
                             };
-                            (state_prime, Option::Some(RequestView::KRequest(req_o)))
+                            (state_prime, Some(RequestView::KRequest(req_o)))
                         } else {
                             let state_prime = RabbitmqReconcileState {
                                 reconcile_step: RabbitmqReconcileStep::Error,
                                 ..state
                             };
-                            (state_prime, Option::None)
+                            (state_prime, None)
                         }
                     } else {
                         let state_prime = RabbitmqReconcileState {
                             reconcile_step: RabbitmqReconcileStep::Error,
                             ..state
                         };
-                        (state_prime, Option::None)
+                        (state_prime, None)
                     }
                 } else if get_sts_resp.get_Err_0().is_ObjectNotFound() {
                     // create
@@ -306,13 +306,13 @@ pub open spec fn reconcile_core(
                         reconcile_step: RabbitmqReconcileStep::AfterCreateStatefulSet,
                         ..state
                     };
-                    (state_prime, Option::Some(RequestView::KRequest(req_o)))
+                    (state_prime, Some(RequestView::KRequest(req_o)))
                 } else {
                     let state_prime = RabbitmqReconcileState {
                         reconcile_step: RabbitmqReconcileStep::Error,
                         ..state
                     };
-                    (state_prime, Option::None)
+                    (state_prime, None)
                 }
             }else{
                 // return error state
@@ -320,7 +320,7 @@ pub open spec fn reconcile_core(
                     reconcile_step: RabbitmqReconcileStep::Error,
                     ..state
                 };
-                (state_prime, Option::None)
+                (state_prime, None)
             }
         },
         RabbitmqReconcileStep::AfterCreateStatefulSet => {
@@ -328,21 +328,21 @@ pub open spec fn reconcile_core(
                 reconcile_step: RabbitmqReconcileStep::Done,
                 ..state
             };
-            (state_prime, Option::None)
+            (state_prime, None)
         },
         RabbitmqReconcileStep::AfterUpdateStatefulSet => {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::Done,
                 ..state
             };
-            (state_prime, Option::None)
+            (state_prime, None)
         },
         _ => {
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: step,
                 ..state
             };
-            (state_prime, Option::None)
+            (state_prime, None)
         }
     }
 }
@@ -352,7 +352,7 @@ pub open spec fn reconcile_error_result(state: RabbitmqReconcileState) -> (Rabbi
         reconcile_step: RabbitmqReconcileStep::Error,
         ..state
     };
-    let req_o = Option::None;
+    let req_o = None;
     (state_prime, req_o)
 }
 

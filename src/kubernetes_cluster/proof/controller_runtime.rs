@@ -81,7 +81,7 @@ pub open spec fn pending_k8s_api_req_msg(s: Self, key: ObjectRef) -> bool {
 }
 
 pub open spec fn pending_k8s_api_req_msg_is(s: Self, key: ObjectRef, req: Message) -> bool {
-    s.reconcile_state_of(key).pending_req_msg == Option::Some(req)
+    s.reconcile_state_of(key).pending_req_msg == Some(req)
     && s.reconcile_state_of(key).pending_external_api_input.is_None()
 }
 

@@ -62,9 +62,9 @@ impl DaemonSet {
             spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
     {
         if self.inner.spec.is_none() {
-            Option::None
+            None
         } else {
-            Option::Some(DaemonSetSpec::from_kube(self.inner.spec.as_ref().unwrap().clone()))
+            Some(DaemonSetSpec::from_kube(self.inner.spec.as_ref().unwrap().clone()))
         }
     }
 
@@ -81,7 +81,7 @@ impl DaemonSet {
         ensures
             self@ == old(self)@.set_spec(spec@),
     {
-        self.inner.spec = std::option::Option::Some(spec.into_kube());
+        self.inner.spec = Some(spec.into_kube());
     }
 
     #[verifier(external_body)]
@@ -113,9 +113,9 @@ impl DaemonSet {
         let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::apps::v1::DaemonSet>();
         if parse_result.is_ok() {
             let res = DaemonSet { inner: parse_result.unwrap() };
-            Result::Ok(res)
+            Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::ExecError)
+            Err(ParseDynamicObjectError::ExecError)
         }
     }
 }
@@ -191,7 +191,7 @@ impl DaemonSetView {
     pub open spec fn default() -> DaemonSetView {
         DaemonSetView {
             metadata: ObjectMetaView::default(),
-            spec: Option::None,
+            spec: None,
         }
     }
 
@@ -204,7 +204,7 @@ impl DaemonSetView {
 
     pub open spec fn set_spec(self, spec: DaemonSetSpecView) -> DaemonSetView {
         DaemonSetView {
-            spec: Option::Some(spec),
+            spec: Some(spec),
             ..self
         }
     }
@@ -245,11 +245,11 @@ impl ResourceView for DaemonSetView {
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<DaemonSetView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else if !DaemonSetView::unmarshal_spec(obj.spec).is_Ok() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            Result::Ok(DaemonSetView {
+            Ok(DaemonSetView {
                 metadata: obj.metadata,
                 spec: DaemonSetView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
