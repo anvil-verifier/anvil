@@ -240,10 +240,20 @@ pub proof fn lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(
     );
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
         let pending_msg = s_prime.pending_req_of(key);
-        assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && cm_create_request_msg_since(key, rest_id)(msg) implies at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime) && pending_msg.content.get_rest_id() >= rest_id && msg == pending_msg && s_prime.network_state.in_flight.count(msg) == 1 by {
+        assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && cm_create_request_msg_since(key, rest_id)(msg)
+        implies at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime)
+            && pending_msg.content.get_rest_id() >= rest_id
+            && msg == pending_msg
+            && s_prime.network_state.in_flight.count(msg) == 1 by {
             let step = choose |step| RMQCluster::next_step(s, s_prime, step);
             match step {
                 Step::KubernetesAPIStep(input) => {
+                    assert(s.message_in_flight(msg));
+                    assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
+                    assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime));
+                    assert(s_prime.network_state.in_flight.count(msg) == 1);
+                },
+                Step::BuiltinControllersStep(input) => {
                     assert(s.message_in_flight(msg));
                     assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
                     assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime));
@@ -402,6 +412,12 @@ pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
             let step = choose |step| RMQCluster::next_step(s, s_prime, step);
             match step {
                 Step::KubernetesAPIStep(input) => {
+                    assert(s.message_in_flight(msg));
+                    assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
+                    assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime));
+                    assert(s_prime.network_state.in_flight.count(msg) == 1);
+                },
+                Step::BuiltinControllersStep(input) => {
                     assert(s.message_in_flight(msg));
                     assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
                     assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime));
