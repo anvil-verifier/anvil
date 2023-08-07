@@ -71,7 +71,7 @@ impl PersistentVolumeClaim {
         ensures
             self@ == old(self)@.set_spec(spec@),
     {
-        self.inner.spec = std::option::Option::Some(spec.into_kube());
+        self.inner.spec = Some(spec.into_kube());
     }
 
     #[verifier(external_body)]
@@ -145,7 +145,7 @@ impl PersistentVolumeClaimSpec {
         ensures
             self@ == old(self)@.set_access_modes(access_modes@.map_values(|mode: String| mode@)),
     {
-        self.inner.access_modes = std::option::Option::Some(
+        self.inner.access_modes = Some(
             access_modes.into_iter().map(|mode: String| mode.into_rust_string()).collect()
         )
     }
@@ -155,7 +155,7 @@ impl PersistentVolumeClaimSpec {
         ensures
             self@ == old(self)@,
     {
-        self.inner.resources = std::option::Option::Some(resources.into_kube())
+        self.inner.resources = Some(resources.into_kube())
     }
 }
 
@@ -185,7 +185,7 @@ impl PersistentVolumeClaimView {
     pub open spec fn default() -> PersistentVolumeClaimView {
         PersistentVolumeClaimView {
             metadata: ObjectMetaView::default(),
-            spec: Option::None,
+            spec: None,
         }
     }
 
@@ -198,7 +198,7 @@ impl PersistentVolumeClaimView {
 
     pub open spec fn set_spec(self, spec: PersistentVolumeClaimSpecView) -> PersistentVolumeClaimView {
         PersistentVolumeClaimView {
-            spec: Option::Some(spec),
+            spec: Some(spec),
             ..self
         }
     }
@@ -293,13 +293,13 @@ pub struct PersistentVolumeClaimSpecView {
 impl PersistentVolumeClaimSpecView {
     pub open spec fn default() -> PersistentVolumeClaimSpecView {
         PersistentVolumeClaimSpecView {
-            access_modes: Option::None,
+            access_modes: None,
         }
     }
 
     pub open spec fn set_access_modes(self, access_modes: Seq<StringView>) -> PersistentVolumeClaimSpecView {
         PersistentVolumeClaimSpecView {
-            access_modes: Option::Some(access_modes),
+            access_modes: Some(access_modes),
             ..self
         }
     }

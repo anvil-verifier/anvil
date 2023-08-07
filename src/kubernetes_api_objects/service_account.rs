@@ -116,7 +116,7 @@ impl ServiceAccountView {
     pub open spec fn default() -> ServiceAccountView {
         ServiceAccountView {
             metadata: ObjectMetaView::default(),
-            automount_service_account_token: Option::None,
+            automount_service_account_token: None,
         }
     }
 

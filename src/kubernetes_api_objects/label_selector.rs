@@ -43,7 +43,7 @@ impl LabelSelector {
         ensures
             self@ == old(self)@.set_match_labels(match_labels@),
     {
-        self.inner.match_labels = std::option::Option::Some(match_labels.into_rust_map());
+        self.inner.match_labels = Some(match_labels.into_rust_map());
     }
 }
 
@@ -71,13 +71,13 @@ pub struct LabelSelectorView {
 impl LabelSelectorView {
     pub open spec fn default() -> LabelSelectorView {
         LabelSelectorView {
-            match_labels: Option::None,
+            match_labels: None,
         }
     }
 
     pub open spec fn set_match_labels(self, match_labels: Map<StringView, StringView>) -> LabelSelectorView {
         LabelSelectorView {
-            match_labels: Option::Some(match_labels),
+            match_labels: Some(match_labels),
             ..self
         }
     }

@@ -72,7 +72,7 @@ impl Service {
         ensures
             self@ == old(self)@.set_spec(spec@),
     {
-        self.inner.spec = std::option::Option::Some(spec.into_kube());
+        self.inner.spec = Some(spec.into_kube());
     }
 
     #[verifier(external)]
@@ -137,7 +137,7 @@ impl ServiceSpec {
         ensures
             self@ == old(self)@.set_cluster_ip(cluster_ip@),
     {
-        self.inner.cluster_ip = std::option::Option::Some(cluster_ip.into_rust_string())
+        self.inner.cluster_ip = Some(cluster_ip.into_rust_string())
     }
 
     #[verifier(external_body)]
@@ -145,7 +145,7 @@ impl ServiceSpec {
         ensures
             self@ == old(self)@.set_ports(ports@.map_values(|port: ServicePort| port@)),
     {
-        self.inner.ports = std::option::Option::Some(
+        self.inner.ports = Some(
             ports.into_iter().map(|port: ServicePort| port.into_kube()).collect()
         )
     }
@@ -155,7 +155,7 @@ impl ServiceSpec {
         ensures
             self@ == old(self)@.set_selector(selector@),
     {
-        self.inner.selector = std::option::Option::Some(selector.into_rust_map())
+        self.inner.selector = Some(selector.into_rust_map())
     }
 
     #[verifier(external_body)]
@@ -163,7 +163,7 @@ impl ServiceSpec {
         ensures
             self@ == old(self)@.set_publish_not_ready_addresses(publish_not_ready_addresses),
     {
-        self.inner.publish_not_ready_addresses = std::option::Option::Some(publish_not_ready_addresses);
+        self.inner.publish_not_ready_addresses = Some(publish_not_ready_addresses);
     }
 
     #[verifier(external)]
@@ -206,7 +206,7 @@ impl ServicePort {
         ensures
             self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = std::option::Option::Some(name.into_rust_string());
+        self.inner.name = Some(name.into_rust_string());
     }
 
     #[verifier(external_body)]
@@ -222,7 +222,7 @@ impl ServicePort {
         ensures
             self@ == old(self)@.set_app_protocol(app_protocol@),
     {
-        self.inner.app_protocol = std::option::Option::Some(app_protocol.into_rust_string());
+        self.inner.app_protocol = Some(app_protocol.into_rust_string());
     }
 
     #[verifier(external)]
@@ -243,7 +243,7 @@ impl ServiceView {
     pub open spec fn default() -> ServiceView {
         ServiceView {
             metadata: ObjectMetaView::default(),
-            spec: Option::None,
+            spec: None,
         }
     }
 
@@ -256,7 +256,7 @@ impl ServiceView {
 
     pub open spec fn set_spec(self, spec: ServiceSpecView) -> ServiceView {
         ServiceView {
-            spec: Option::Some(spec),
+            spec: Some(spec),
             ..self
         }
     }
@@ -342,37 +342,37 @@ pub struct ServiceSpecView {
 impl ServiceSpecView {
     pub open spec fn default() -> ServiceSpecView {
         ServiceSpecView {
-            cluster_ip: Option::None,
-            ports: Option::None,
-            selector: Option::None,
-            publish_not_ready_addresses: Option::None,
+            cluster_ip: None,
+            ports: None,
+            selector: None,
+            publish_not_ready_addresses: None,
         }
     }
 
     pub open spec fn set_cluster_ip(self, cluster_ip: StringView) -> ServiceSpecView {
         ServiceSpecView {
-            cluster_ip: Option::Some(cluster_ip),
+            cluster_ip: Some(cluster_ip),
             ..self
         }
     }
 
     pub open spec fn set_ports(self, ports: Seq<ServicePortView>) -> ServiceSpecView {
         ServiceSpecView {
-            ports: Option::Some(ports),
+            ports: Some(ports),
             ..self
         }
     }
 
     pub open spec fn set_selector(self, selector: Map<StringView, StringView>) -> ServiceSpecView {
         ServiceSpecView {
-            selector: Option::Some(selector),
+            selector: Some(selector),
             ..self
         }
     }
 
     pub open spec fn set_publish_not_ready_addresses(self, publish_not_ready_addresses: bool) -> ServiceSpecView {
         ServiceSpecView {
-            publish_not_ready_addresses: Option::Some(publish_not_ready_addresses),
+            publish_not_ready_addresses: Some(publish_not_ready_addresses),
             ..self
         }
     }
@@ -399,15 +399,15 @@ pub struct ServicePortView {
 impl ServicePortView {
     pub open spec fn default() -> ServicePortView {
         ServicePortView {
-            name: Option::None,
+            name: None,
             port: 0, // TODO: is this the correct default value?
-            app_protocol: Option::None,
+            app_protocol: None,
         }
     }
 
     pub open spec fn set_name(self, name: StringView) -> ServicePortView {
         ServicePortView {
-            name: Option::Some(name),
+            name: Some(name),
             ..self
         }
     }
@@ -421,7 +421,7 @@ impl ServicePortView {
 
     pub open spec fn set_app_protocol(self, app_protocol: StringView) -> ServicePortView {
         ServicePortView {
-            app_protocol: Option::Some(app_protocol),
+            app_protocol: Some(app_protocol),
             ..self
         }
     }

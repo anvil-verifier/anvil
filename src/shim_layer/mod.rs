@@ -115,7 +115,7 @@ where
 
     let cr_wrapper = ResourceWrapperType::from_kube(cr);
     let mut state = reconciler.reconcile_init_state();
-    let mut resp_option: Option<Response<ExternalAPIOutput>> = Option::None;
+    let mut resp_option: Option<Response<ExternalAPIOutput>> = None;
 
     // Call reconcile_core in a loop
     loop {
@@ -132,7 +132,7 @@ where
         let (state_prime, request_option) = reconciler.reconcile_core(&cr_wrapper, resp_option, state);
         // Pattern match the request and send requests to the Kubernetes API via kube-rs methods
         match request_option {
-            Option::Some(request) => match request {
+            Some(request) => match request {
                 Request::KRequest(req) => {
                     let kube_resp: KubeAPIResponse;
                     match req {
@@ -201,14 +201,14 @@ where
                             panic!("Not supported yet");
                         }
                     }
-                    resp_option = Option::Some(Response::KResponse(kube_resp));
+                    resp_option = Some(Response::KResponse(kube_resp));
                 },
                 Request::ExternalRequest(req) => {
                     let ret = ExternalAPIType::transition(req);
-                    resp_option = if ret.is_some() {Option::Some(Response::ExternalResponse(ret.unwrap()))} else {Option::None};
+                    resp_option = if ret.is_some() {Some(Response::ExternalResponse(ret.unwrap()))} else {None};
                 },
             },
-            _ => resp_option = Option::None,
+            _ => resp_option = None,
         }
         state = state_prime;
     }

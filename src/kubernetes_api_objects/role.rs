@@ -60,7 +60,7 @@ impl Role {
         ensures
             self@ == old(self)@.set_policy_rules(policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)),
     {
-        self.inner.rules = std::option::Option::Some(
+        self.inner.rules = Some(
             policy_rules.into_iter().map(|p| p.into_kube()).collect()
         )
     }
@@ -127,7 +127,7 @@ impl PolicyRule {
         ensures
             self@ == old(self)@.set_api_groups(api_groups@.map_values(|api_group: String| api_group@)),
     {
-        self.inner.api_groups = std::option::Option::Some(
+        self.inner.api_groups = Some(
             api_groups.into_iter().map(|a: String| a.into_rust_string()).collect()
         )
     }
@@ -137,7 +137,7 @@ impl PolicyRule {
         ensures
             self@ == old(self)@.set_resources(resources@.map_values(|resource: String| resource@)),
     {
-        self.inner.resources = std::option::Option::Some(
+        self.inner.resources = Some(
             resources.into_iter().map(|r: String| r.into_rust_string()).collect()
         )
     }
@@ -172,7 +172,7 @@ impl RoleView {
     pub open spec fn default() -> RoleView {
         RoleView {
             metadata: ObjectMetaView::default(),
-            policy_rules: Option::None,
+            policy_rules: None,
         }
     }
 
@@ -185,7 +185,7 @@ impl RoleView {
 
     pub open spec fn set_policy_rules(self, policy_rules: Seq<PolicyRuleView>) -> RoleView {
         RoleView {
-            policy_rules: Option::Some(policy_rules),
+            policy_rules: Some(policy_rules),
             ..self
         }
     }
@@ -270,22 +270,22 @@ pub struct PolicyRuleView {
 impl PolicyRuleView {
     pub open spec fn default() -> PolicyRuleView {
         PolicyRuleView {
-            api_groups: Option::None,
-            resources: Option::None,
+            api_groups: None,
+            resources: None,
             verbs: Seq::empty(),
         }
     }
 
     pub open spec fn set_api_groups(self, api_groups: Seq<StringView>) -> PolicyRuleView {
         PolicyRuleView {
-            api_groups: Option::Some(api_groups),
+            api_groups: Some(api_groups),
             ..self
         }
     }
 
     pub open spec fn set_resources(self, resources: Seq<StringView>) -> PolicyRuleView {
         PolicyRuleView {
-            resources: Option::Some(resources),
+            resources: Some(resources),
             ..self
         }
     }

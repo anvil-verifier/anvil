@@ -159,8 +159,8 @@ impl KubeAPIRequest {
 
 pub open spec fn opt_req_to_view(req: &Option<KubeAPIRequest>) -> Option<APIRequest> {
     match req {
-        Option::Some(req) => Option::Some(req.to_view()),
-        Option::None => Option::None,
+        Some(req) => Some(req.to_view()),
+        None => None,
     }
 }
 
@@ -329,8 +329,8 @@ impl KubeAPIResponse {
 
 pub open spec fn opt_resp_to_view(resp: &Option<KubeAPIResponse>) -> Option<APIResponse> {
     match resp {
-        Option::Some(resp) => Option::Some(resp.to_view()),
-        Option::None => Option::None,
+        Some(resp) => Some(resp.to_view()),
+        None => None,
     }
 }
 

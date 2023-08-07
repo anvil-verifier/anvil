@@ -46,8 +46,8 @@ impl ObjectMeta {
             name.is_Some() ==> name.get_Some_0()@ == self@.name.get_Some_0(),
     {
         match &self.inner.name {
-            std::option::Option::Some(n) => Option::Some(String::from_rust_string(n.to_string())),
-            std::option::Option::None => Option::None,
+            Some(n) => Some(String::from_rust_string(n.to_string())),
+            None => None,
         }
     }
 
@@ -58,8 +58,8 @@ impl ObjectMeta {
             namespace.is_Some() ==> namespace.get_Some_0()@ == self@.namespace.get_Some_0(),
     {
         match &self.inner.namespace {
-            std::option::Option::Some(n) => Option::Some(String::from_rust_string(n.to_string())),
-            std::option::Option::None => Option::None,
+            Some(n) => Some(String::from_rust_string(n.to_string())),
+            None => None,
         }
     }
 
@@ -70,8 +70,8 @@ impl ObjectMeta {
             version.is_Some() ==> version.get_Some_0() == self@.resource_version.get_Some_0(),
     {
         match &self.inner.resource_version {
-            std::option::Option::Some(n) => Option::Some( n.parse::<std::primitive::u64>().unwrap() as u64 ),
-            std::option::Option::None => Option::None,
+            Some(n) => Some( n.parse::<std::primitive::u64>().unwrap() as u64 ),
+            None => None,
         }
     }
 
@@ -80,7 +80,7 @@ impl ObjectMeta {
         ensures
             self@ == old(self)@.set_name(name@),
     {
-        self.inner.name = std::option::Option::Some(name.into_rust_string());
+        self.inner.name = Some(name.into_rust_string());
     }
 
     #[verifier(external_body)]
@@ -88,7 +88,7 @@ impl ObjectMeta {
         ensures
             self@ == old(self)@.set_namespace(namespace@),
     {
-        self.inner.namespace = std::option::Option::Some(namespace.into_rust_string());
+        self.inner.namespace = Some(namespace.into_rust_string());
     }
 
     #[verifier(external_body)]
@@ -96,7 +96,7 @@ impl ObjectMeta {
         ensures
             self@ == old(self)@.set_generate_name(generate_name@),
     {
-        self.inner.generate_name = std::option::Option::Some(generate_name.into_rust_string());
+        self.inner.generate_name = Some(generate_name.into_rust_string());
     }
 
     #[verifier(external_body)]
@@ -104,7 +104,7 @@ impl ObjectMeta {
         ensures
             self@ == old(self)@.set_labels(labels@),
     {
-        self.inner.labels = std::option::Option::Some(labels.into_rust_map());
+        self.inner.labels = Some(labels.into_rust_map());
     }
 
     #[verifier(external_body)]
@@ -112,7 +112,7 @@ impl ObjectMeta {
         ensures
             self@ == old(self)@.set_annotations(annotations@),
     {
-        self.inner.annotations = std::option::Option::Some(annotations.into_rust_map());
+        self.inner.annotations = Some(annotations.into_rust_map());
     }
 
     #[verifier(external_body)]
@@ -120,7 +120,7 @@ impl ObjectMeta {
         ensures
             self@ == old(self)@.set_owner_references(owner_references@.map_values(|o: OwnerReference| o@)),
     {
-        self.inner.owner_references = std::option::Option::Some(
+        self.inner.owner_references = Some(
             owner_references.into_iter().map(|o: OwnerReference| o.into_kube()).collect(),
         );
     }
@@ -155,62 +155,62 @@ pub struct ObjectMetaView {
 impl ObjectMetaView {
     pub open spec fn default() -> ObjectMetaView {
         ObjectMetaView {
-            name: Option::None,
-            namespace: Option::None,
-            generate_name: Option::None,
-            resource_version: Option::None,
-            uid: Option::None,
-            labels: Option::None,
-            annotations: Option::None,
-            owner_references: Option::None,
+            name: None,
+            namespace: None,
+            generate_name: None,
+            resource_version: None,
+            uid: None,
+            labels: None,
+            annotations: None,
+            owner_references: None,
         }
     }
 
     pub open spec fn set_name(self, name: StringView) -> ObjectMetaView {
         ObjectMetaView {
-            name: Option::Some(name),
+            name: Some(name),
             ..self
         }
     }
 
     pub open spec fn set_namespace(self, namespace: StringView) -> ObjectMetaView {
         ObjectMetaView {
-            namespace: Option::Some(namespace),
+            namespace: Some(namespace),
             ..self
         }
     }
 
     pub open spec fn set_generate_name(self, generate_name: StringView) -> ObjectMetaView {
         ObjectMetaView {
-            generate_name: Option::Some(generate_name),
+            generate_name: Some(generate_name),
             ..self
         }
     }
 
     pub open spec fn set_labels(self, labels: Map<StringView, StringView>) -> ObjectMetaView {
         ObjectMetaView {
-            labels: Option::Some(labels),
+            labels: Some(labels),
             ..self
         }
     }
 
     pub open spec fn set_annotations(self, annotations: Map<StringView, StringView>) -> ObjectMetaView {
         ObjectMetaView {
-            annotations: Option::Some(annotations),
+            annotations: Some(annotations),
             ..self
         }
     }
 
     pub open spec fn set_resource_version(self, resource_version: nat) -> ObjectMetaView {
         ObjectMetaView {
-            resource_version: Option::Some(resource_version),
+            resource_version: Some(resource_version),
             ..self
         }
     }
 
     pub open spec fn set_owner_references(self, owner_references: Seq<OwnerReferenceView>) -> ObjectMetaView {
         ObjectMetaView {
-            owner_references: Option::Some(owner_references),
+            owner_references: Some(owner_references),
             ..self
         }
     }

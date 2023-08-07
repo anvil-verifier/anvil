@@ -99,8 +99,8 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
     if s_prime.reconcile_state_contains(cr.object_ref()) && s_prime.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc() {
         // Depending on whether reconcile state is at after_get_cr_pc, we need to reason about different transitions
         if s.reconcile_state_contains(cr.object_ref()) && s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc() {
-            let req_msg = choose |req_msg| #[trigger] is_controller_get_cr_request_msg(req_msg, cr) && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg);
-            assert(is_controller_get_cr_request_msg(req_msg, cr) && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg));
+            let req_msg = choose |req_msg| #[trigger] is_controller_get_cr_request_msg(req_msg, cr) && s.reconcile_state_of(cr.object_ref()).pending_req_msg == Some(req_msg);
+            assert(is_controller_get_cr_request_msg(req_msg, cr) && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg == Some(req_msg));
             // If req_msg is in flight at s...
             if s.message_in_flight(req_msg) {
                 // ... then either (1) the req_msg is still in flight at s_prime, or (2) req_msg is handled by k8s and the resp is in flight
@@ -125,7 +125,7 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
             // which means the req_msg is just sent to the network, so of course it is in flight
             let req_msg = controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr.object_ref()}), s.rest_id_allocator.rest_id_counter);
             assert(is_controller_get_cr_request_msg(req_msg, cr)
-                && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg == Option::Some(req_msg)
+                && s_prime.reconcile_state_of(cr.object_ref()).pending_req_msg == Some(req_msg)
                 && s_prime.message_in_flight(req_msg)
             ); // providing witness for exists |req_msg| ...
         }

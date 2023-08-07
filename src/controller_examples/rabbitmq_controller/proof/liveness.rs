@@ -659,7 +659,7 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<RMQCluster>, rabbitmq:
         &&& s.reconcile_scheduled_for(rabbitmq.object_ref())
     };
     let post = no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init);
-    let input = (Option::None, Option::None, Option::Some(rabbitmq.object_ref()));
+    let input = (None, None, Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
@@ -703,7 +703,7 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
 {
     let pre = no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init);
     let post = pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateHeadlessService, rabbitmq, arbitrary());
-    let input = (Option::None, Option::None, Option::Some(rabbitmq.object_ref()));
+    let input = (None, None, Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
@@ -853,7 +853,7 @@ proof fn lemma_receives_some_resp_at_rabbitmq_step_with_rabbitmq(
 {
     let pre = req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, req_msg, arbitrary());
     let post = exists_resp_in_flight_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, arbitrary());
-    let input = Option::Some(req_msg);
+    let input = Some(req_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
@@ -927,7 +927,7 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
 {
     let pre = resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, resp_msg, arbitrary());
     let post = pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(result_step, rabbitmq, arbitrary());
-    let input = (Option::Some(resp_msg), Option::None, Option::Some(rabbitmq.object_ref()));
+    let input = (Some(resp_msg), None, Some(rabbitmq.object_ref()));
 
     // For every part of stronger_next:
     //   - next(): the next predicate of the state machine
@@ -1159,7 +1159,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
         &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
         &&& at_after_get_server_config_map_step_with_rabbitmq_and_exists_not_found_resp_in_flight(rabbitmq)(s)
     };
-    let input = Option::Some(req_msg);
+    let input = Some(req_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
@@ -1257,7 +1257,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_create_server_conf
         &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
         &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServerConfigMap, rabbitmq, arbitrary())(s)
     };
-    let input = (Option::Some(resp_msg), Option::None, Option::Some(rabbitmq.object_ref()));
+    let input = (Some(resp_msg), None, Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
@@ -1330,7 +1330,7 @@ proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitm
         &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).is_Ok()
         &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).get_Ok_0().data == make_server_config_map(rabbitmq).data
     };
-    let input = Option::Some(req_msg);
+    let input = Some(req_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
@@ -1576,7 +1576,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
         &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
         &&& at_after_get_server_config_map_step_with_rabbitmq_and_exists_ok_resp_in_flight(rabbitmq, object)(s)
     };
-    let input = Option::Some(req_msg);
+    let input = Some(req_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
@@ -1683,7 +1683,7 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
         &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).is_Ok()
         &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).get_Ok_0().data == make_server_config_map(rabbitmq).data
     };
-    let input = Option::Some(req_msg);
+    let input = Some(req_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
@@ -1780,7 +1780,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_conf
         &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
         &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateServerConfigMap, rabbitmq, object)(s)
     };
-    let input = (Option::Some(resp_msg), Option::None, Option::Some(rabbitmq.object_ref()));
+    let input = (Some(resp_msg), None, Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)

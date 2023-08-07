@@ -62,9 +62,9 @@ impl DaemonSet {
             spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
     {
         if self.inner.spec.is_none() {
-            Option::None
+            None
         } else {
-            Option::Some(DaemonSetSpec::from_kube(self.inner.spec.as_ref().unwrap().clone()))
+            Some(DaemonSetSpec::from_kube(self.inner.spec.as_ref().unwrap().clone()))
         }
     }
 
@@ -81,7 +81,7 @@ impl DaemonSet {
         ensures
             self@ == old(self)@.set_spec(spec@),
     {
-        self.inner.spec = std::option::Option::Some(spec.into_kube());
+        self.inner.spec = Some(spec.into_kube());
     }
 
     #[verifier(external_body)]
@@ -191,7 +191,7 @@ impl DaemonSetView {
     pub open spec fn default() -> DaemonSetView {
         DaemonSetView {
             metadata: ObjectMetaView::default(),
-            spec: Option::None,
+            spec: None,
         }
     }
 
@@ -204,7 +204,7 @@ impl DaemonSetView {
 
     pub open spec fn set_spec(self, spec: DaemonSetSpecView) -> DaemonSetView {
         DaemonSetView {
-            spec: Option::Some(spec),
+            spec: Some(spec),
             ..self
         }
     }

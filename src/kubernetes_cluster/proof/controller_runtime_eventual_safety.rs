@@ -132,7 +132,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(
                         &&& s.reconcile_scheduled_for(cr.object_ref())
                     };
                     let post = Self::the_object_in_reconcile_has_spec_as(cr);
-                    let input = (Option::None, Option::None, Option::Some(cr.object_ref()));
+                    let input = (None, None, Some(cr.object_ref()));
 
                     K::object_ref_is_well_formed();
                     Self::lemma_pre_leads_to_post_by_controller(

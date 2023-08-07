@@ -383,7 +383,7 @@ proof fn lemma_after_create_cm_pc_leads_to_cm_exists(cr: SimpleCRView)
 {
     let pre = reconciler_at_after_create_cm_pc(cr);
     let post = |s: State<SimpleReconcileState>| !s.reconcile_state_contains(cr.object_ref());
-    let input = (Option::None, Option::Some(cr.object_ref()));
+    let input = (None, Some(cr.object_ref()));
     lemma_pre_leads_to_post_by_controller(partial_spec_with_invariants_and_assumptions(cr), simple_reconciler(), input, next(simple_reconciler()), end_reconcile(simple_reconciler()), pre, post);
     lemma_reconcile_idle_leads_to_cm_exists(cr);
     leads_to_trans(partial_spec_with_invariants_and_assumptions(cr), pre, post, cm_exists(cr));
@@ -514,7 +514,7 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_after_get_cr_pc_and_exists_pe
 {
     let pre = reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref());
     let post = reconciler_at_after_get_cr_pc_and_exists_pending_req_and_req_in_flight_and_no_resp_in_flight(cr);
-    let input = (Option::None, Option::Some(cr.object_ref()));
+    let input = (None, Some(cr.object_ref()));
     let stronger_next = |s, s_prime: State<SimpleReconcileState>| {
         &&& next(simple_reconciler())(s, s_prime)
         &&& !s.crash_enabled
@@ -562,7 +562,7 @@ proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_l
         .and(cr_exists(cr))
         .and(lift_state(every_in_flight_msg_has_unique_id::<SimpleReconcileState>())));
     kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api(partial_spec_with_invariants_and_assumptions(cr),
-        simple_reconciler(), Option::Some(req_msg), stronger_next, handle_request(), pre, post);
+        simple_reconciler(), Some(req_msg), stronger_next, handle_request(), pre, post);
 }
 
 // This lemma proves:
@@ -575,7 +575,7 @@ proof fn lemma_after_get_cr_pc_and_ok_resp_in_flight_leads_to_cm_exists(req_msg:
         ),
 {
     let resp_msg = form_get_resp_msg(req_msg, Result::Ok(cr.to_dynamic_object()));
-    let input = (Option::Some(resp_msg), Option::Some(cr.object_ref()));
+    let input = (Some(resp_msg), Some(cr.object_ref()));
     let pre = reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr);
     let spec = partial_spec_with_invariants_and_assumptions(cr);
     let stronger_next = strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr);
@@ -610,7 +610,7 @@ proof fn lemma_after_get_cr_pc_and_ok_resp_in_flight_leads_to_cm_exists(req_msg:
                 &&& req_msg.content.is_create_request()
                 &&& req_msg.content.get_create_request().obj == reconciler::make_config_map(cr).to_dynamic_object()
             };
-            kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api(spec, simple_reconciler(), Option::Some(req_msg), next(simple_reconciler()), handle_request(), kube_pre, cm_exists(cr));
+            kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api(spec, simple_reconciler(), Some(req_msg), next(simple_reconciler()), handle_request(), kube_pre, cm_exists(cr));
             instantiate_entailed_leads_to(ex, i, spec, lift_state(kube_pre), lift_state(cm_exists(cr)));
         }
     };
@@ -636,7 +636,7 @@ proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(resp_msg: Me
     // First, show spec |= get_cr_pc /\ pending_req /\ resp_in_flight ~> error_pc /\ reconcile_done
     let pre = reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_flight(req_msg, resp_msg, cr);
     let post = reconciler_reconcile_done_or_error(cr);
-    let input = (Option::Some(resp_msg), Option::Some(cr.object_ref()));
+    let input = (Some(resp_msg), Some(cr.object_ref()));
     let spec = partial_spec_with_invariants_and_assumptions(cr);
     spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr);
 

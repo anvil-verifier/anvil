@@ -110,7 +110,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: RabbitmqReconcileStep::AfterCreateHeadlessService,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         RabbitmqReconcileStep::AfterCreateHeadlessService => {
             let main_service = make_main_service(rabbitmq);
@@ -123,7 +123,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: RabbitmqReconcileStep::AfterCreateService,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         RabbitmqReconcileStep::AfterCreateService => {
             let erlang_secret = make_erlang_secret(rabbitmq);
@@ -136,7 +136,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: RabbitmqReconcileStep::AfterCreateErlangCookieSecret,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         RabbitmqReconcileStep::AfterCreateErlangCookieSecret => {
             let default_user_secret = make_default_user_secret(rabbitmq);
@@ -149,7 +149,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: RabbitmqReconcileStep::AfterCreateDefaultUserSecret,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         RabbitmqReconcileStep::AfterCreateDefaultUserSecret => {
             let plugins_config_map = make_plugins_config_map(rabbitmq);
@@ -162,7 +162,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: RabbitmqReconcileStep::AfterCreatePluginsConfigMap,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         RabbitmqReconcileStep::AfterCreatePluginsConfigMap => {
             let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
@@ -174,7 +174,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: RabbitmqReconcileStep::AfterGetServerConfigMap,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         RabbitmqReconcileStep::AfterGetServerConfigMap => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
@@ -197,7 +197,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                             reconcile_step: RabbitmqReconcileStep::AfterUpdateServerConfigMap,
                             ..state
                         };
-                        return (state_prime, Option::Some(Request::KRequest(req_o)));
+                        return (state_prime, Some(Request::KRequest(req_o)));
                     }
                 } else if get_config_resp.unwrap_err().is_object_not_found() {
                     // create
@@ -211,7 +211,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                         reconcile_step: RabbitmqReconcileStep::AfterCreateServerConfigMap,
                         ..state
                     };
-                    return (state_prime, Option::Some(Request::KRequest(req_o)));
+                    return (state_prime, Some(Request::KRequest(req_o)));
                 }
 
             }
@@ -220,7 +220,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: RabbitmqReconcileStep::Error,
                 ..state
             };
-            let req_o = Option::None;
+            let req_o = None;
             (state_prime, req_o)
         },
         RabbitmqReconcileStep::AfterUpdateServerConfigMap => {
@@ -234,7 +234,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         RabbitmqReconcileStep::AfterCreateServerConfigMap => {
             let service_account = make_service_account(rabbitmq);
@@ -247,7 +247,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         RabbitmqReconcileStep::AfterCreateServiceAccount => {
             let role = make_role(rabbitmq);
@@ -260,7 +260,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: RabbitmqReconcileStep::AfterCreateRole,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         RabbitmqReconcileStep::AfterCreateRole => {
             let role_binding = make_role_binding(rabbitmq);
@@ -273,7 +273,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: RabbitmqReconcileStep::AfterCreateRoleBinding,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         RabbitmqReconcileStep::AfterCreateRoleBinding => {
             let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
@@ -285,7 +285,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: RabbitmqReconcileStep::AfterGetStatefulSet,
                 ..state
             };
-            return (state_prime, Option::Some(Request::KRequest(req_o)));
+            return (state_prime, Some(Request::KRequest(req_o)));
         },
         RabbitmqReconcileStep::AfterGetStatefulSet => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
@@ -312,7 +312,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                                     reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
                                     ..state
                                 };
-                                return (state_prime, Option::Some(Request::KRequest(req_o)));
+                                return (state_prime, Some(Request::KRequest(req_o)));
                         }
                     }
                 } else if get_sts_resp.unwrap_err().is_object_not_found() {
@@ -326,7 +326,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                         reconcile_step: RabbitmqReconcileStep::AfterCreateStatefulSet,
                         ..state
                     };
-                    return (state_prime, Option::Some(Request::KRequest(req_o)));
+                    return (state_prime, Some(Request::KRequest(req_o)));
                 }
 
             }
@@ -335,11 +335,11 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: RabbitmqReconcileStep::Error,
                 ..state
             };
-            let req_o = Option::None;
+            let req_o = None;
             return (state_prime, req_o);
         },
         RabbitmqReconcileStep::AfterCreateStatefulSet => {
-            let req_o = Option::None;
+            let req_o = None;
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::Done,
                 ..state
@@ -347,7 +347,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             (state_prime, req_o)
         },
         RabbitmqReconcileStep::AfterUpdateStatefulSet => {
-            let req_o = Option::None;
+            let req_o = None;
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::Done,
                 ..state
@@ -359,7 +359,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: step,
                 ..state
             };
-            let req_o = Option::None;
+            let req_o = None;
             (state_prime, req_o)
         }
     }
@@ -1206,12 +1206,12 @@ fn make_readiness_probe() -> Probe
 {
     Probe::from_kube(
         deps_hack::k8s_openapi::api::core::v1::Probe {
-            failure_threshold: std::option::Option::Some(3),
-            initial_delay_seconds: std::option::Option::Some(50),
-            period_seconds: std::option::Option::Some(10),
-            success_threshold: std::option::Option::Some(1),
-            timeout_seconds: std::option::Option::Some(5),
-            tcp_socket: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::TCPSocketAction{
+            failure_threshold: Some(3),
+            initial_delay_seconds: Some(50),
+            period_seconds: Some(10),
+            success_threshold: Some(1),
+            timeout_seconds: Some(5),
+            tcp_socket: Some(deps_hack::k8s_openapi::api::core::v1::TCPSocketAction{
                 port: deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::String(new_strlit("amqp").to_string().into_rust_string()),
                 ..deps_hack::k8s_openapi::api::core::v1::TCPSocketAction::default()
             }),
@@ -1227,10 +1227,10 @@ fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> {
         EnvVar::from_kube(
             deps_hack::k8s_openapi::api::core::v1::EnvVar {
             name: new_strlit("MY_POD_NAME").to_string().into_rust_string(),
-            value_from: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
-                field_ref: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
+            value_from: Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
+                field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
                     field_path: new_strlit("metadata.name").to_string().into_rust_string(),
-                    api_version: std::option::Option::Some(new_strlit("v1").to_string().into_rust_string()),
+                    api_version: Some(new_strlit("v1").to_string().into_rust_string()),
                     ..deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default()
                 }),
                 ..deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default()
@@ -1243,10 +1243,10 @@ fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> {
         EnvVar::from_kube(
             deps_hack::k8s_openapi::api::core::v1::EnvVar {
             name: new_strlit("MY_POD_NAMESPACE").to_string().into_rust_string(),
-            value_from: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
-                field_ref: std::option::Option::Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
+            value_from: Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
+                field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
                     field_path: new_strlit("metadata.namespace").to_string().into_rust_string(),
-                    api_version: std::option::Option::Some( new_strlit("v1").to_string().into_rust_string()),
+                    api_version: Some( new_strlit("v1").to_string().into_rust_string()),
                     ..deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default()
                 }),
                 ..deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default()
@@ -1259,7 +1259,7 @@ fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> {
         EnvVar::from_kube(
             deps_hack::k8s_openapi::api::core::v1::EnvVar {
             name: new_strlit("K8S_SERVICE_NAME").to_string().into_rust_string(),
-            value: std::option::Option::Some(rabbitmq.name().unwrap().concat(new_strlit("-nodes")).into_rust_string() ),
+            value: Some(rabbitmq.name().unwrap().concat(new_strlit("-nodes")).into_rust_string() ),
             ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
             }
         )
@@ -1268,7 +1268,7 @@ fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> {
         EnvVar::from_kube(
             deps_hack::k8s_openapi::api::core::v1::EnvVar {
                 name: new_strlit("RABBITMQ_ENABLED_PLUGINS_FILE").to_string().into_rust_string(),
-                value: std::option::Option::Some(new_strlit("/operator/enabled_plugins").to_string().into_rust_string()),
+                value: Some(new_strlit("/operator/enabled_plugins").to_string().into_rust_string()),
                 ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
             },
         )
@@ -1277,7 +1277,7 @@ fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> {
         EnvVar::from_kube(
             deps_hack::k8s_openapi::api::core::v1::EnvVar {
                 name: new_strlit("RABBITMQ_USE_LONGNAME").to_string().into_rust_string(),
-                value: std::option::Option::Some(new_strlit("true").to_string().into_rust_string()),
+                value: Some(new_strlit("true").to_string().into_rust_string()),
                 ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
             },
         )
@@ -1286,7 +1286,7 @@ fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> {
         EnvVar::from_kube(
             deps_hack::k8s_openapi::api::core::v1::EnvVar {
                 name: new_strlit("RABBITMQ_NODENAME").to_string().into_rust_string(),
-                value: std::option::Option::Some(new_strlit("rabbit@$(MY_POD_NAME).$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)").to_string().into_rust_string()),
+                value: Some(new_strlit("rabbit@$(MY_POD_NAME).$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)").to_string().into_rust_string()),
                 ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
             },
         )
@@ -1295,7 +1295,7 @@ fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> {
         EnvVar::from_kube(
             deps_hack::k8s_openapi::api::core::v1::EnvVar {
                 name: new_strlit("K8S_HOSTNAME_SUFFIX").to_string().into_rust_string(),
-                value: std::option::Option::Some(new_strlit(".$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)").to_string().into_rust_string()),
+                value: Some(new_strlit(".$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)").to_string().into_rust_string()),
                 ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
             },
         )
@@ -1308,7 +1308,7 @@ fn make_pvc_resource_requirements() -> ResourceRequirements
 {
     ResourceRequirements::from_kube(
         deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
-            requests: std::option::Option::Some(std::collections::BTreeMap::from([(
+            requests: Some(std::collections::BTreeMap::from([(
                 "storage".to_string(),
                 deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity("10Gi".to_string()),
             )])),

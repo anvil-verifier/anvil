@@ -65,7 +65,7 @@ pub proof fn lemma_get_req_leads_to_some_resp
                 )
         ),
 {
-    let input = Option::Some(msg);
+    let input = Some(msg);
     let pre = |s: Self| {
         &&& s.message_in_flight(msg)
         &&& msg.dst == HostId::KubernetesAPI
@@ -159,7 +159,7 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp
         && !s.busy_enabled
     };
     strengthen_next::<Self>(spec, Self::next(), Self::busy_disabled(), stronger_next);
-    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Option::Some(msg), stronger_next, Self::handle_request(), pre, post);
+    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Some(msg), stronger_next, Self::handle_request(), pre, post);
     temp_pred_equality::<Self>(
         lift_state(post),
         lift_state(|s: Self| s.message_in_flight(form_get_resp_msg(msg, Result::Ok(s.resource_obj_of(key)))))
@@ -211,7 +211,7 @@ pub proof fn lemma_create_req_leads_to_res_exists(spec: TempPred<Self>, msg: Mes
         && !s.busy_enabled
     };
     strengthen_next::<Self>(spec, Self::next(), Self::busy_disabled(), stronger_next);
-    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Option::Some(msg), stronger_next, Self::handle_request(), pre, post);
+    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Some(msg), stronger_next, Self::handle_request(), pre, post);
 }
 
 pub proof fn lemma_delete_req_leads_to_res_not_exists
@@ -245,7 +245,7 @@ pub proof fn lemma_delete_req_leads_to_res_not_exists
         && !s.busy_enabled
     };
     strengthen_next::<Self>(spec, Self::next(), Self::busy_disabled(), stronger_next);
-    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Option::Some(msg), stronger_next, Self::handle_request(), pre, post);
+    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Some(msg), stronger_next, Self::handle_request(), pre, post);
 }
 
 pub proof fn lemma_always_res_always_exists_implies_delete_never_sent
@@ -528,7 +528,7 @@ proof fn pending_requests_num_decreases(
     let post = |s: Self| {
         s.network_state.in_flight.filter(api_request_msg_before(rest_id)).len() == (msg_num - 1) as nat
     };
-    let input = Option::Some(msg);
+    let input = Some(msg);
     let stronger_next = |s, s_prime: Self| {
         &&& Self::next()(s, s_prime)
         &&& s.has_rest_id_counter_no_smaller_than(rest_id)

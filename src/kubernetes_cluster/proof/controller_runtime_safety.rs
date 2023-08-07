@@ -500,7 +500,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
             };
             match next_step {
                 Step::KubernetesAPIStep(input) => {
-                    if input == Option::Some(s.pending_req_of(key)) {
+                    if input == Some(s.pending_req_of(key)) {
                         let resp_msg = Self::transition_by_etcd(s.pending_req_of(key), s.kubernetes_api_state).1;
                         assert(s_prime.message_in_flight(resp_msg));
                     } else {
@@ -510,7 +510,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
                     }
                 }
                 Step::KubernetesBusy(input) => {
-                    if input == Option::Some(s.pending_req_of(key)) {
+                    if input == Some(s.pending_req_of(key)) {
                         let resp_msg = form_matched_resp_msg(s.pending_req_of(key), Result::Err(APIError::ServerTimeout));
                         assert(s_prime.message_in_flight(resp_msg));
                     } else {

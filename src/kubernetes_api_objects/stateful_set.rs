@@ -63,9 +63,9 @@ impl StatefulSet {
             spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
     {
         if self.inner.spec.is_none() {
-            Option::None
+            None
         } else {
-            Option::Some(StatefulSetSpec::from_kube(self.inner.spec.as_ref().unwrap().clone()))
+            Some(StatefulSetSpec::from_kube(self.inner.spec.as_ref().unwrap().clone()))
         }
     }
 
@@ -82,7 +82,7 @@ impl StatefulSet {
         ensures
             self@ == old(self)@.set_spec(spec@),
     {
-        self.inner.spec = std::option::Option::Some(spec.into_kube());
+        self.inner.spec = Some(spec.into_kube());
     }
 
     #[verifier(external_body)]
@@ -156,7 +156,7 @@ impl StatefulSetSpec {
         ensures
             self@ == old(self)@.set_replicas(replicas as int),
     {
-        self.inner.replicas = std::option::Option::Some(replicas)
+        self.inner.replicas = Some(replicas)
     }
 
     #[verifier(external_body)]
@@ -188,7 +188,7 @@ impl StatefulSetSpec {
         ensures
             self@ == old(self)@.set_volume_claim_templates(volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@)),
     {
-        self.inner.volume_claim_templates = std::option::Option::Some(
+        self.inner.volume_claim_templates = Some(
             volume_claim_templates.into_iter().map(|pvc: PersistentVolumeClaim| pvc.into_kube()).collect()
         )
     }
@@ -198,7 +198,7 @@ impl StatefulSetSpec {
         ensures
             self@ == old(self)@.set_pod_management_policy(pod_management_policy@),
     {
-        self.inner.pod_management_policy = std::option::Option::Some(pod_management_policy.into_rust_string())
+        self.inner.pod_management_policy = Some(pod_management_policy.into_rust_string())
     }
 
     #[verifier(external_body)]
@@ -206,7 +206,7 @@ impl StatefulSetSpec {
         ensures
             self@ == old(self)@.set_pvc_retention_policy(pvc_retention_policy@),
     {
-        self.inner.persistent_volume_claim_retention_policy = std::option::Option::Some(pvc_retention_policy.into_kube())
+        self.inner.persistent_volume_claim_retention_policy = Some(pvc_retention_policy.into_kube())
     }
 
     #[verifier(external_body)]
@@ -216,9 +216,9 @@ impl StatefulSetSpec {
             replicas.is_Some() ==> replicas.get_Some_0() == self@.replicas.get_Some_0(),
     {
         if self.inner.replicas.is_none() {
-            Option::None
+            None
         } else {
-            Option::Some(self.inner.replicas.clone().unwrap())
+            Some(self.inner.replicas.clone().unwrap())
         }
     }
 
@@ -248,7 +248,7 @@ impl StatefulSetView {
     pub open spec fn default() -> StatefulSetView {
         StatefulSetView {
             metadata: ObjectMetaView::default(),
-            spec: Option::None,
+            spec: None,
         }
     }
 
@@ -261,7 +261,7 @@ impl StatefulSetView {
 
     pub open spec fn set_spec(self, spec: StatefulSetSpecView) -> StatefulSetView {
         StatefulSetView {
-            spec: Option::Some(spec),
+            spec: Some(spec),
             ..self
         }
     }
@@ -350,19 +350,19 @@ pub struct StatefulSetSpecView {
 impl StatefulSetSpecView {
     pub open spec fn default() -> StatefulSetSpecView {
         StatefulSetSpecView {
-            replicas: Option::None,
+            replicas: None,
             selector: LabelSelectorView::default(),
             service_name: new_strlit("")@,
             template: PodTemplateSpecView::default(),
-            volume_claim_templates: Option::None,
-            pod_management_policy: Option::None,
-            persistent_volume_claim_retention_policy: Option::None,
+            volume_claim_templates: None,
+            pod_management_policy: None,
+            persistent_volume_claim_retention_policy: None,
         }
     }
 
     pub open spec fn set_replicas(self, replicas: int) -> StatefulSetSpecView {
         StatefulSetSpecView {
-            replicas: Option::Some(replicas),
+            replicas: Some(replicas),
             ..self
         }
     }
@@ -390,21 +390,21 @@ impl StatefulSetSpecView {
 
     pub open spec fn set_volume_claim_templates(self, volume_claim_templates: Seq<PersistentVolumeClaimView>) -> StatefulSetSpecView {
         StatefulSetSpecView {
-            volume_claim_templates: Option::Some(volume_claim_templates),
+            volume_claim_templates: Some(volume_claim_templates),
             ..self
         }
     }
 
     pub open spec fn set_pod_management_policy(self, pod_management_policy: StringView) -> StatefulSetSpecView {
         StatefulSetSpecView {
-            pod_management_policy: Option::Some(pod_management_policy),
+            pod_management_policy: Some(pod_management_policy),
             ..self
         }
     }
 
     pub open spec fn set_pvc_retention_policy(self, pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicyView) -> StatefulSetSpecView {
         StatefulSetSpecView {
-            persistent_volume_claim_retention_policy: Option::Some(pvc_retention_policy),
+            persistent_volume_claim_retention_policy: Some(pvc_retention_policy),
             ..self
         }
     }
@@ -445,7 +445,7 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicy {
         ensures
             self@ == old(self)@.set_when_deleted(when_deleted@),
     {
-        self.inner.when_deleted = std::option::Option::Some(
+        self.inner.when_deleted = Some(
             when_deleted.into_rust_string()
         )
     }
@@ -455,7 +455,7 @@ impl StatefulSetPersistentVolumeClaimRetentionPolicy {
         ensures
             self@ == old(self)@.set_when_scaled(when_scaled@),
     {
-        self.inner.when_scaled = std::option::Option::Some(
+        self.inner.when_scaled = Some(
             when_scaled.into_rust_string()
         )
     }
@@ -484,21 +484,21 @@ pub struct StatefulSetPersistentVolumeClaimRetentionPolicyView {
 impl StatefulSetPersistentVolumeClaimRetentionPolicyView {
     pub open spec fn default() -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
         StatefulSetPersistentVolumeClaimRetentionPolicyView {
-            when_deleted: Option::None,
-            when_scaled: Option::None,
+            when_deleted: None,
+            when_scaled: None,
         }
     }
 
     pub open spec fn set_when_deleted(self, when_deleted: StringView) -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
         StatefulSetPersistentVolumeClaimRetentionPolicyView {
-            when_deleted: Option::Some(when_deleted),
+            when_deleted: Some(when_deleted),
             ..self
         }
     }
 
     pub open spec fn set_when_scaled(self, when_scaled: StringView) -> StatefulSetPersistentVolumeClaimRetentionPolicyView {
         StatefulSetPersistentVolumeClaimRetentionPolicyView {
-            when_scaled: Option::Some(when_scaled),
+            when_scaled: Some(when_scaled),
             ..self
         }
     }

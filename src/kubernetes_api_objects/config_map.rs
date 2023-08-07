@@ -56,9 +56,9 @@ impl ConfigMap {
             data.is_Some() ==> data.get_Some_0()@ == self@.data.get_Some_0(),
     {
         if self.inner.data.is_none() {
-            Option::None
+            None
         } else {
-            Option::Some(StringMap::from_rust_map(self.inner.data.clone().unwrap()))
+            Some(StringMap::from_rust_map(self.inner.data.clone().unwrap()))
         }
     }
 
@@ -75,7 +75,7 @@ impl ConfigMap {
         ensures
             self@ == old(self)@.set_data(data@),
     {
-        self.inner.data = std::option::Option::Some(data.into_rust_map())
+        self.inner.data = Some(data.into_rust_map())
     }
 
     #[verifier(external_body)]
@@ -148,7 +148,7 @@ impl ConfigMapView {
     pub open spec fn default() -> ConfigMapView {
         ConfigMapView {
             metadata: ObjectMetaView::default(),
-            data: Option::None,
+            data: None,
         }
     }
 
@@ -161,7 +161,7 @@ impl ConfigMapView {
 
     pub open spec fn set_data(self, data: Map<StringView, StringView>) -> ConfigMapView {
         ConfigMapView {
-            data: Option::Some(data),
+            data: Some(data),
             ..self
         }
     }

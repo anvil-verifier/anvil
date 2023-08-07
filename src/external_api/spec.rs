@@ -34,7 +34,7 @@ impl ExternalAPI for EmptyAPI {
     type State = EmptyTypeView;
 
     open spec fn transition(input: EmptyTypeView, state: EmptyTypeView) -> (Option<EmptyTypeView>, EmptyTypeView) {
-        (Option::None, EmptyTypeView{})
+        (None, EmptyTypeView{})
     }
 
     open spec fn init_state() -> EmptyTypeView {

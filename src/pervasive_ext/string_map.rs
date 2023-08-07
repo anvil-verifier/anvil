@@ -34,8 +34,8 @@ impl StringMap {
             old_v.is_Some() ==> old_v.get_Some_0()@ == old(self)@[key@],
     {
         match self.inner.insert(key.into_rust_string(), value.into_rust_string()) {
-            std::option::Option::Some(old_v) => Some(String::from_rust_string(old_v)),
-            std::option::Option::None => None,
+            Some(old_v) => Some(String::from_rust_string(old_v)),
+            None => None,
         }
     }
 
@@ -46,8 +46,8 @@ impl StringMap {
             v.is_Some() ==> v.get_Some_0()@ == self@[key@],
     {
         match self.inner.get(key.as_rust_string_ref()) {
-            std::option::Option::Some(v) => Some(StrSlice::from_rust_str(v)),
-            std::option::Option::None => None,
+            Some(v) => Some(StrSlice::from_rust_str(v)),
+            None => None,
         }
     }
 

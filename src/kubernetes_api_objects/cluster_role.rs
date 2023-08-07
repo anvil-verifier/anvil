@@ -60,7 +60,7 @@ impl ClusterRole {
         ensures
             self@ == old(self)@.set_policy_rules(policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)),
     {
-        self.inner.rules = std::option::Option::Some(
+        self.inner.rules = Some(
             policy_rules.into_iter().map(|p| p.into_kube()).collect()
         )
     }
@@ -118,7 +118,7 @@ impl ClusterRoleView {
     pub open spec fn default() -> ClusterRoleView {
         ClusterRoleView {
             metadata: ObjectMetaView::default(),
-            policy_rules: Option::None,
+            policy_rules: None,
         }
     }
 
@@ -131,7 +131,7 @@ impl ClusterRoleView {
 
     pub open spec fn set_policy_rules(self, policy_rules: Seq<PolicyRuleView>) -> ClusterRoleView {
         ClusterRoleView {
-            policy_rules: Option::Some(policy_rules),
+            policy_rules: Some(policy_rules),
             ..self
         }
     }

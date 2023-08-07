@@ -86,20 +86,20 @@ pub open spec fn handle_list_request(msg: Message, s: KubernetesAPIState) -> (Ku
 pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPIState) -> Option<APIError> {
     if req.obj.metadata.name.is_None() {
         // Creation fails because the name of the provided object is not provided
-        Option::Some(APIError::Invalid)
+        Some(APIError::Invalid)
     } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Creation fails because the namespace of the provided object does not match the namespace sent on the request
-        Option::Some(APIError::BadRequest)
+        Some(APIError::BadRequest)
     } else if !Self::object_has_well_formed_spec(req.obj) {
         // Creation fails because the spec of the provided object is not well formed
-        Option::Some(APIError::BadRequest) // TODO: should the error be BadRequest?
+        Some(APIError::BadRequest) // TODO: should the error be BadRequest?
     } else if s.resources.dom().contains(req.obj.set_namespace(req.namespace).object_ref()) {
         // Creation fails because the object already exists
-        Option::Some(APIError::ObjectAlreadyExists)
+        Some(APIError::ObjectAlreadyExists)
     } else if req.obj.kind == K::kind() && !K::rule(K::from_dynamic_object(req.obj).get_Ok_0()) {
-        Option::Some(APIError::Invalid)
+        Some(APIError::Invalid)
     } else {
-        Option::None
+        None
     }
 }
 
@@ -163,37 +163,37 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
     // let req = msg.content.get_update_request();
     if req.obj.metadata.name.is_None() {
         // Update fails because the name of the object is not provided
-        Option::Some(APIError::BadRequest)
+        Some(APIError::BadRequest)
     } else if req.key.name != req.obj.metadata.name.get_Some_0() {
         // Update fails because the name of the provided object
         // does not match the name sent on the request
-        Option::Some(APIError::BadRequest)
+        Some(APIError::BadRequest)
     } else if req.obj.metadata.namespace.is_Some()
         && req.key.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Update fails because the namespace of the provided object
         // does not match the namespace sent on the request
-        Option::Some(APIError::BadRequest)
+        Some(APIError::BadRequest)
     } else if req.obj.kind != req.key.kind {
         // Update fails because the kind of the provided object
         // does not match the kind sent on the request
-        Option::Some(APIError::BadRequest)
+        Some(APIError::BadRequest)
     } else if !Self::object_has_well_formed_spec(req.obj) {
         // Update fails because the spec of the provided object is not well formed
-        Option::Some(APIError::BadRequest) // TODO: should the error be BadRequest?
+        Some(APIError::BadRequest) // TODO: should the error be BadRequest?
     } else if !s.resources.dom().contains(req.key) {
         // Update fails because the object does not exist
-        Option::Some(APIError::ObjectNotFound)
+        Some(APIError::ObjectNotFound)
     } else if req.obj.metadata.resource_version.is_Some()
         && req.obj.metadata.resource_version != s.resources[req.key].metadata.resource_version {
         // Update fails because the object has a wrong rv
-        Option::Some(APIError::Conflict)
+        Some(APIError::Conflict)
     } else if req.obj.kind == K::kind() && !(
         K::rule(K::from_dynamic_object(req.obj).get_Ok_0())
         && K::transition_rule(K::from_dynamic_object(req.obj).get_Ok_0(), K::from_dynamic_object(s.resources[req.key]).get_Ok_0())
     ) {
-        Option::Some(APIError::Invalid)
+        Some(APIError::Invalid)
     } else {
-        Option::None
+        None
     }
 }
 

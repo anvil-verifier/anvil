@@ -69,7 +69,7 @@ impl ClusterRoleBinding {
         ensures
             self@ == old(self)@.set_subjects(subjects@.map_values(|s: Subject| s@)),
     {
-        self.inner.subjects = std::option::Option::Some(
+        self.inner.subjects = Some(
             subjects.into_iter().map(|s: Subject| s.into_kube()).collect()
         );
     }
@@ -129,7 +129,7 @@ impl ClusterRoleBindingView {
         ClusterRoleBindingView {
             metadata: ObjectMetaView::default(),
             role_ref: RoleRefView::default(),
-            subjects: Option::None,
+            subjects: None,
         }
     }
 
@@ -149,7 +149,7 @@ impl ClusterRoleBindingView {
 
     pub open spec fn set_subjects(self, subjects: Seq<SubjectView>) -> ClusterRoleBindingView {
         ClusterRoleBindingView {
-            subjects: Option::Some(subjects),
+            subjects: Some(subjects),
             ..self
         }
     }

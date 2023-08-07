@@ -80,7 +80,7 @@ impl ExternalAPI<ZKAPIInput, ZKAPIOutput> for ZKAPI {
     fn transition(input: ZKAPIInput) -> Option<ZKAPIOutput> {
         match input {
             ZKAPIInput::ReconcileZKNode(path, uri, replicas)
-                => Option::Some(ZKAPIOutput::ReconcileZKNode(reconcile_zk_node(path, uri, replicas))),
+                => Some(ZKAPIOutput::ReconcileZKNode(reconcile_zk_node(path, uri, replicas))),
         }
     }
 }
