@@ -109,6 +109,16 @@ impl DynamicObjectView {
             ..self
         }
     }
+
+    pub open spec fn set_uid(self, uid: nat) -> DynamicObjectView {
+        DynamicObjectView {
+            metadata: ObjectMetaView {
+                uid: Option::Some(uid),
+                ..self.metadata
+            },
+            ..self
+        }
+    }
 }
 
 }

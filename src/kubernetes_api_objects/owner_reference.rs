@@ -84,7 +84,6 @@ impl OwnerReference {
     {
         self.inner.uid = uid.into_rust_string();
     }
-
 }
 
 impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference> for OwnerReference {
