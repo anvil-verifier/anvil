@@ -509,6 +509,13 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
                         }
                     }
                 }
+                Step::BuiltinControllersStep(input) => {
+                    if s.message_in_flight(s.pending_req_of(key)) {
+                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
+                    } else {
+                        assert(s_prime.message_in_flight(resp));
+                    }
+                }
                 Step::KubernetesBusy(input) => {
                     if input == Some(s.pending_req_of(key)) {
                         let resp_msg = form_matched_resp_msg(s.pending_req_of(key), Err(APIError::ServerTimeout));
