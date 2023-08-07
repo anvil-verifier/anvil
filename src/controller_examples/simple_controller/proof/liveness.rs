@@ -574,7 +574,7 @@ proof fn lemma_after_get_cr_pc_and_ok_resp_in_flight_leads_to_cm_exists(req_msg:
                 .leads_to(lift_state(cm_exists(cr)))
         ),
 {
-    let resp_msg = form_get_resp_msg(req_msg, Result::Ok(cr.to_dynamic_object()));
+    let resp_msg = form_get_resp_msg(req_msg, Ok(cr.to_dynamic_object()));
     let input = (Some(resp_msg), Some(cr.object_ref()));
     let pre = reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr);
     let spec = partial_spec_with_invariants_and_assumptions(cr);

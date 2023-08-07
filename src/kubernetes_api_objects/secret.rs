@@ -127,9 +127,9 @@ impl Secret {
         let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::Secret>();
         if parse_result.is_ok() {
             let res = Secret { inner: parse_result.unwrap() };
-            Result::Ok(res)
+            Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::ExecError)
+            Err(ParseDynamicObjectError::ExecError)
         }
     }
 }
@@ -211,11 +211,11 @@ impl ResourceView for SecretView {
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<SecretView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else if !SecretView::unmarshal_spec(obj.spec).is_Ok() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            Result::Ok(SecretView {
+            Ok(SecretView {
                 metadata: obj.metadata,
                 data: SecretView::unmarshal_spec(obj.spec).get_Ok_0().0,
                 type_: SecretView::unmarshal_spec(obj.spec).get_Ok_0().1,

@@ -113,9 +113,9 @@ impl DaemonSet {
         let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::apps::v1::DaemonSet>();
         if parse_result.is_ok() {
             let res = DaemonSet { inner: parse_result.unwrap() };
-            Result::Ok(res)
+            Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::ExecError)
+            Err(ParseDynamicObjectError::ExecError)
         }
     }
 }
@@ -245,11 +245,11 @@ impl ResourceView for DaemonSetView {
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<DaemonSetView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else if !DaemonSetView::unmarshal_spec(obj.spec).is_Ok() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            Result::Ok(DaemonSetView {
+            Ok(DaemonSetView {
                 metadata: obj.metadata,
                 spec: DaemonSetView::unmarshal_spec(obj.spec).get_Ok_0(),
             })

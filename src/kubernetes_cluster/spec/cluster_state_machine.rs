@@ -226,7 +226,7 @@ pub open spec fn disable_crash() -> Action<Self, (), ()> {
 pub open spec fn busy_kubernetes_api_rejects_request() -> Action<Self, Option<Message>, ()> {
     let network_result = |input: Option<Message>, s: Self| {
         let req_msg = input.get_Some_0();
-        let resp = form_matched_resp_msg(req_msg, Result::Err(APIError::ServerTimeout));
+        let resp = form_matched_resp_msg(req_msg, Err(APIError::ServerTimeout));
         let msg_ops = MessageOps {
             recv: input,
             send: Multiset::singleton(resp),

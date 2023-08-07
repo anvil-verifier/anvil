@@ -253,8 +253,8 @@ pub struct KubeUpdateResponse {
 
 pub open spec fn result_obj_to_view(res: Result<DynamicObject, APIError>) -> Result<DynamicObjectView, APIError> {
     match res {
-        Result::Ok(obj) => Result::Ok(obj@),
-        Result::Err(err) => Result::Err(err),
+        Ok(obj) => Ok(obj@),
+        Err(err) => Err(err),
     }
 }
 
@@ -264,8 +264,8 @@ pub open spec fn vec_obj_to_view(res: &Vec<DynamicObject>) -> Seq<DynamicObjectV
 
 pub open spec fn result_objs_to_view(res: Result<Vec<DynamicObject>, APIError>) -> Result<Seq<DynamicObjectView>, APIError> {
     match res {
-        Result::Ok(objs) => Result::Ok(vec_obj_to_view(&objs)),
-        Result::Err(err) => Result::Err(err),
+        Ok(objs) => Ok(vec_obj_to_view(&objs)),
+        Err(err) => Err(err),
     }
 }
 

@@ -97,9 +97,9 @@ impl Role {
         let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::rbac::v1::Role>();
         if parse_result.is_ok() {
             let res = Role { inner: parse_result.unwrap() };
-            Result::Ok(res)
+            Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::ExecError)
+            Err(ParseDynamicObjectError::ExecError)
         }
     }
 }
@@ -226,11 +226,11 @@ impl ResourceView for RoleView {
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<RoleView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else if !RoleView::unmarshal_spec(obj.spec).is_Ok() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            Result::Ok(RoleView {
+            Ok(RoleView {
                 metadata: obj.metadata,
                 policy_rules: RoleView::unmarshal_spec(obj.spec).get_Ok_0().0,
             })

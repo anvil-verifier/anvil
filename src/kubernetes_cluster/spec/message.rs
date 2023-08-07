@@ -246,7 +246,7 @@ pub open spec fn form_matched_resp_msg(req_msg: Message, result: Result<DynamicO
 {
     match req_msg.content.get_APIRequest_0() {
         APIRequest::GetRequest(_) => form_get_resp_msg(req_msg, result),
-        APIRequest::ListRequest(_) => form_list_resp_msg(req_msg, Result::Err(APIError::Invalid)),
+        APIRequest::ListRequest(_) => form_list_resp_msg(req_msg, Err(APIError::Invalid)),
         APIRequest::CreateRequest(_) => form_create_resp_msg(req_msg, result),
         APIRequest::DeleteRequest(_) => form_delete_resp_msg(req_msg, result),
         APIRequest::UpdateRequest(_) => form_update_resp_msg(req_msg, result),

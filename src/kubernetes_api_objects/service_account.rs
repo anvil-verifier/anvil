@@ -96,9 +96,9 @@ impl ServiceAccount {
         let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::ServiceAccount>();
         if parse_result.is_ok() {
             let res = ServiceAccount { inner: parse_result.unwrap() };
-            Result::Ok(res)
+            Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::ExecError)
+            Err(ParseDynamicObjectError::ExecError)
         }
     }
 }
@@ -163,11 +163,11 @@ impl ResourceView for ServiceAccountView {
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ServiceAccountView, ParseDynamicObjectError> {
             if obj.kind != Self::kind() {
-                Result::Err(ParseDynamicObjectError::UnmarshalError)
+                Err(ParseDynamicObjectError::UnmarshalError)
             } else if !ServiceAccountView::unmarshal_spec(obj.spec).is_Ok() {
-                Result::Err(ParseDynamicObjectError::UnmarshalError)
+                Err(ParseDynamicObjectError::UnmarshalError)
             } else {
-                Result::Ok(ServiceAccountView {
+                Ok(ServiceAccountView {
                     metadata: obj.metadata,
                     automount_service_account_token: ServiceAccountView::unmarshal_spec(obj.spec).get_Ok_0().0,
                 })

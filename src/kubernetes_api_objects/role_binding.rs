@@ -108,9 +108,9 @@ impl RoleBinding {
         let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::rbac::v1::RoleBinding>();
         if parse_result.is_ok() {
             let res = RoleBinding { inner: parse_result.unwrap() };
-            Result::Ok(res)
+            Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::ExecError)
+            Err(ParseDynamicObjectError::ExecError)
         }
     }
 }
@@ -291,11 +291,11 @@ impl ResourceView for RoleBindingView {
 
     open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<RoleBindingView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else if !RoleBindingView::unmarshal_spec(obj.spec).is_Ok() {
-            Result::Err(ParseDynamicObjectError::UnmarshalError)
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            Result::Ok(RoleBindingView {
+            Ok(RoleBindingView {
                 metadata: obj.metadata,
                 role_ref: RoleBindingView::unmarshal_spec(obj.spec).get_Ok_0().0,
                 subjects: RoleBindingView::unmarshal_spec(obj.spec).get_Ok_0().1,

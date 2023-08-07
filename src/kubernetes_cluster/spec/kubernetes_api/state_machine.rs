@@ -57,12 +57,12 @@ pub open spec fn handle_get_request(msg: Message, s: KubernetesAPIState) -> (Kub
     let req = msg.content.get_get_request();
     if !s.resources.dom().contains(req.key) {
         // Get fails
-        let result = Result::Err(APIError::ObjectNotFound);
+        let result = Err(APIError::ObjectNotFound);
         let resp = form_get_resp_msg(msg, result);
         (s, resp)
     } else {
         // Get succeeds
-        let result = Result::Ok(s.resources[req.key]);
+        let result = Ok(s.resources[req.key]);
         let resp = form_get_resp_msg(msg, result);
         (s, resp)
     }
@@ -78,7 +78,7 @@ pub open spec fn handle_list_request(msg: Message, s: KubernetesAPIState) -> (Ku
         msg.content.is_list_request(),
 {
     let req = msg.content.get_list_request();
-    let result = Result::Ok(Self::list_query(req, s));
+    let result = Ok(Self::list_query(req, s));
     let resp = form_list_resp_msg(msg, result);
     (s, resp)
 }
@@ -110,14 +110,14 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
     let req = msg.content.get_create_request();
     if Self::validate_create_request(req, s).is_Some() {
         // Creation fails because the name of the provided object is not provided
-        let result = Result::Err(Self::validate_create_request(req, s).get_Some_0());
+        let result = Err(Self::validate_create_request(req, s).get_Some_0());
         let resp = form_create_resp_msg(msg, result);
         (s, resp)
     } else {
         // Creation succeeds
         // Set the namespace and the resource_version of the created object
         let created_obj = req.obj.set_namespace(req.namespace).set_resource_version(s.resource_version_counter).set_uid(s.uid_counter);
-        let result = Result::Ok(created_obj);
+        let result = Ok(created_obj);
         let resp = form_create_resp_msg(msg, result);
         // The cluster state is updated, so we send a notification to the built-in controllers
         (KubernetesAPIState {
@@ -136,14 +136,14 @@ pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (
     let req = msg.content.get_delete_request();
     if !s.resources.dom().contains(req.key) {
         // Deletion fails
-        let result = Result::Err(APIError::ObjectNotFound);
+        let result = Err(APIError::ObjectNotFound);
         let resp = form_delete_resp_msg(msg, result);
         (s, resp)
     } else {
         // Path where deletion succeeds
         let obj_before_deletion = s.resources[req.key];
         // The cluster state is updated, so we send a notification to the custom controller
-        let result = Result::Ok(obj_before_deletion);
+        let result = Ok(obj_before_deletion);
         let resp = form_delete_resp_msg(msg, result);
         (KubernetesAPIState {
             resources: s.resources.remove(req.key),
@@ -203,20 +203,20 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
 {
     let req = msg.content.get_update_request();
     if Self::validate_update_request(req, s).is_Some() {
-        let result = Result::Err(Self::validate_update_request(req, s).get_Some_0());
+        let result = Err(Self::validate_update_request(req, s).get_Some_0());
         let resp = form_update_resp_msg(msg, result);
         (s, resp)
     } else if Self::update_is_noop(req.obj, s.resources[req.key]) {
         // Update is a noop because there is nothing to update
         // so the resource version counter does not increase here
-        let result = Result::Ok(s.resources[req.key]);
+        let result = Ok(s.resources[req.key]);
         let resp = form_update_resp_msg(msg, result);
         (s, resp)
     } else {
         // Update succeeds
         // Updates the resource version of the object
         let updated_obj = req.obj.set_namespace(req.key.namespace).set_resource_version(s.resource_version_counter);
-        let result = Result::Ok(updated_obj);
+        let result = Ok(updated_obj);
         let resp = form_update_resp_msg(msg, result);
         // The cluster state is updated, so we send a notification to the built-in controllers
         (KubernetesAPIState {

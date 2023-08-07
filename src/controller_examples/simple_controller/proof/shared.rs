@@ -57,7 +57,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespa
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
         &&& is_controller_get_cr_request_msg(req_msg, cr)
         &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg == Some(req_msg)
-        &&& s.message_in_flight(form_get_resp_msg(req_msg, Result::Ok(cr.to_dynamic_object())))
+        &&& s.message_in_flight(form_get_resp_msg(req_msg, Ok(cr.to_dynamic_object())))
         &&& (cr.metadata.name.is_Some() && cr.metadata.namespace.is_Some())
     }
 }

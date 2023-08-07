@@ -69,9 +69,9 @@ impl FluentBit {
         let parse_result = obj.into_kube().try_parse::<deps_hack::FluentBit>();
         if parse_result.is_ok() {
             let res = FluentBit { inner: parse_result.unwrap() };
-            Result::Ok(res)
+            Ok(res)
         } else {
-            Result::Err(ParseDynamicObjectError::ExecError)
+            Err(ParseDynamicObjectError::ExecError)
         }
     }
 }
