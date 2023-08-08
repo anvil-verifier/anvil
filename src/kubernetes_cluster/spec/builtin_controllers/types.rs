@@ -14,10 +14,12 @@ pub type StoredState = Map<ObjectRef, DynamicObjectView>;
 
 pub struct BuiltinControllersState {}
 
+#[is_variant]
 pub enum BuiltinControllersStep {
-    Reconcile,
+    RunGarbageCollector,
 }
 
+#[is_variant]
 pub enum BuiltinControllerChoice {
     GarbageCollector,
 }
@@ -40,5 +42,9 @@ pub type BuiltinControllersStateMachine = StateMachine<BuiltinControllersState,
 pub type BuiltinControllersAction = Action<BuiltinControllersState,
                                         BuiltinControllersActionInput,
                                         BuiltinControllersActionOutput>;
+
+pub open spec fn built_in_controller_req_msg(msg_content: MessageContent) -> Message {
+    form_msg(HostId::BuiltinController, HostId::KubernetesAPI, msg_content)
+}
 
 }
