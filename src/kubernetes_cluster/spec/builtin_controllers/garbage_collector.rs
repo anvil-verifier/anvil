@@ -16,13 +16,21 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
+// TODO:
+// + Specify foreground deletion
+//
+// + Specify orphan dependents
+
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
     Action {
         precondition: |input: BuiltinControllersActionInput, s: BuiltinControllersState| {
+            // The garbage collector is chosen by the top level state machine
             &&& input.choice.is_GarbageCollector()
+            // The object exists in the cluster state
             &&& input.resources.dom().contains(input.key)
+            // and it has at least one owner reference
             &&& input.resources[input.key].metadata.owner_references.is_Some()
             &&& input.resources[input.key].metadata.owner_references.get_Some_0().len() > 0
         },
@@ -31,8 +39,13 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
             let key = input.key;
             let namespace = resources[key].metadata.namespace.get_Some_0();
             let owner_references = resources[key].metadata.owner_references.get_Some_0();
+            // The garbage collector decides whether to delete an object by checking its owner references,
+            // it deletes the object if for each owner reference...
             if forall |i| #![trigger owner_references[i]] {
+                // the referred owner object does not exist in the cluster state
                 ||| !resources.dom().contains(owner_reference_to_object_reference(owner_references[i], namespace))
+                // or it exists but has a different uid
+                // (which means the actual owner was deleted and another object with the same name gets created again)
                 ||| resources[owner_reference_to_object_reference(owner_references[i], namespace)].metadata.uid.get_Some_0() != owner_references[i].uid
             } {
                 let delete_req_msg = built_in_controller_req_msg(delete_req_msg_content(
