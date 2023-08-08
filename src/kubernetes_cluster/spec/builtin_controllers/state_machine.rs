@@ -3,9 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, dynamic::*, error::*, object_meta::*,
-    persistent_volume_claim::*, pod::*, resource::*, role::*, role_binding::*, secret::*,
-    service::*, service_account::*, stateful_set::*,
+    api_method::*, common::*, dynamic::*, error::*, object_meta::*, owner_reference::*, resource::*,
 };
 use crate::kubernetes_cluster::spec::{
     builtin_controllers::types::*, cluster::Cluster, message::*,
@@ -18,16 +16,36 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
+pub open spec fn built_in_controller_req_msg(msg_content: MessageContent) -> Message {
+    form_msg(HostId::BuiltinController, HostId::KubernetesAPI, msg_content)
+}
+
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn garbage_collector_precondition(input: BuiltinControllersActionInput, s: BuiltinControllersState) -> bool {
-    input.resources.dom().contains(input.key)
+    &&& input.resources.dom().contains(input.key)
+    &&& input.resources[input.key].metadata.owner_references.is_Some()
+    &&& input.resources[input.key].metadata.owner_references.get_Some_0().len() > 0
 }
 
 pub open spec fn garbage_collector_transition(
     input: BuiltinControllersActionInput, s: BuiltinControllersState
 ) -> (BuiltinControllersState, BuiltinControllersActionOutput) {
-    (s, (Multiset::empty(), input.rest_id_allocator))
+    let resources = input.resources;
+    let key = input.key;
+    let namespace = resources[key].metadata.namespace.get_Some_0();
+    let owner_references = resources[key].metadata.owner_references.get_Some_0();
+    if forall |i| {
+        ||| !resources.dom().contains(owner_reference_to_object_reference(#[trigger] owner_references[i], namespace))
+        ||| resources[owner_reference_to_object_reference(owner_references[i], namespace)].metadata.uid.get_Some_0() != owner_references[i].uid
+    } {
+        let delete_req_msg = built_in_controller_req_msg(delete_req_msg_content(
+            key, input.rest_id_allocator.allocate().1
+        ));
+        (s, (Multiset::singleton(delete_req_msg), input.rest_id_allocator.allocate().0))
+    } else {
+        (s, (Multiset::empty(), input.rest_id_allocator))
+    }
 }
 
 pub open spec fn reconcile() -> BuiltinControllersAction {

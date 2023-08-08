@@ -21,6 +21,7 @@ pub struct Message {
 #[is_variant]
 pub enum HostId {
     KubernetesAPI,
+    BuiltinController,
     CustomController,
     Client,
 }
