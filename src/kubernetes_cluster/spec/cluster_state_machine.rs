@@ -53,6 +53,11 @@ pub open spec fn init() -> StatePred<Self> {
     }
 }
 
+/// kubernetes_api_next models the behavior that the Kubernetes API server (and its backend, a key-value store)
+/// handles one request from some client or controller that gets/lists/creates/updates/deletes some object(s).
+/// Handling each create/update/delete request will potentially change the objects stored in the key-value store
+/// (etcd by default).
+/// The persistent state stored in the key-value store is modeled as a Map.
 pub open spec fn kubernetes_api_next() -> Action<Self, Option<Message>, ()> {
     let result = |input: Option<Message>, s: Self| {
         let host_result = Self::kubernetes_api().next_result(
@@ -84,6 +89,10 @@ pub open spec fn kubernetes_api_next() -> Action<Self, Option<Message>, ()> {
     }
 }
 
+/// builtin_controllers_next models the behavior that one of the built-in controllers reconciles one object.
+/// The cluster state machine chooses which built-in controller to run and which object to reconcile.
+/// The behavior of each built-in controller is modeled as a function that takes the current cluster state
+/// (objects stored in the key-value store) and returns request(s) to update the cluster state.
 pub open spec fn builtin_controllers_next() -> Action<Self, (BuiltinControllerChoice, ObjectRef), ()> {
     let result = |input: (BuiltinControllerChoice, ObjectRef), s: Self| {
         let host_result = Self::builtin_controllers().next_result(
