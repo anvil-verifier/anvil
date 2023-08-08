@@ -4,7 +4,9 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
 use crate::kubernetes_cluster::spec::{
-    builtin_controllers::types::{BuiltinControllersAction, BuiltinControllersActionInput},
+    builtin_controllers::types::{
+        BuiltinControllerChoice, BuiltinControllersAction, BuiltinControllersActionInput,
+    },
     client::types::ClientActionInput,
     cluster::Cluster,
     controller::common::{
@@ -24,7 +26,7 @@ verus! {
 #[is_variant]
 pub enum Step<K, E: ExternalAPI> {
     KubernetesAPIStep(Option<Message>),
-    BuiltinControllersStep(ObjectRef),
+    BuiltinControllersStep((BuiltinControllerChoice, ObjectRef)),
     ControllerStep((Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>)),
     ClientStep((Option<Message>, K)),
     ExternalAPIStep(ExternalComm<E::Input, E::Output>),
@@ -82,11 +84,12 @@ pub open spec fn kubernetes_api_next() -> Action<Self, Option<Message>, ()> {
     }
 }
 
-pub open spec fn builtin_controllers_next() -> Action<Self, ObjectRef, ()> {
-    let result = |input: ObjectRef, s: Self| {
+pub open spec fn builtin_controllers_next() -> Action<Self, (BuiltinControllerChoice, ObjectRef), ()> {
+    let result = |input: (BuiltinControllerChoice, ObjectRef), s: Self| {
         let host_result = Self::builtin_controllers().next_result(
             BuiltinControllersActionInput{
-                key: input,
+                choice: input.0,
+                key: input.1,
                 resources: s.kubernetes_api_state.resources,
                 rest_id_allocator: s.rest_id_allocator,
             },
@@ -101,11 +104,11 @@ pub open spec fn builtin_controllers_next() -> Action<Self, ObjectRef, ()> {
         (host_result, network_result)
     };
     Action {
-        precondition: |input: ObjectRef, s: Self| {
+        precondition: |input: (BuiltinControllerChoice, ObjectRef), s: Self| {
             &&& result(input, s).0.is_Enabled()
             &&& result(input, s).1.is_Enabled()
         },
-        transition: |input: ObjectRef, s: Self| {
+        transition: |input: (BuiltinControllerChoice, ObjectRef), s: Self| {
             (Self {
                 builtin_controllers_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
@@ -406,12 +409,13 @@ pub open spec fn kubernetes_api_action_pre(action: KubernetesAPIAction, input: O
     }
 }
 
-pub open spec fn builtin_controllers_action_pre(action: BuiltinControllersAction, input: ObjectRef) -> StatePred<Self> {
+pub open spec fn builtin_controllers_action_pre(action: BuiltinControllersAction, input: (BuiltinControllerChoice, ObjectRef)) -> StatePred<Self> {
     |s: Self| {
         let host_result = Self::builtin_controllers().next_action_result(
             action,
             BuiltinControllersActionInput{
-                key: input,
+                choice: input.0,
+                key: input.1,
                 resources: s.kubernetes_api_state.resources,
                 rest_id_allocator: s.rest_id_allocator},
             s.builtin_controllers_state

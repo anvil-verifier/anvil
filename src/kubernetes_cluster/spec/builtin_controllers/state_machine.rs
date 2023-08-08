@@ -20,13 +20,27 @@ verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
-pub open spec fn garbage_collector() -> BuiltinControllersAction {
+pub open spec fn garbage_collector_precondition(input: BuiltinControllersActionInput, s: BuiltinControllersState) -> bool {
+    input.resources.dom().contains(input.key)
+}
+
+pub open spec fn garbage_collector_transition(
+    input: BuiltinControllersActionInput, s: BuiltinControllersState
+) -> (BuiltinControllersState, BuiltinControllersActionOutput) {
+    (s, (Multiset::empty(), input.rest_id_allocator))
+}
+
+pub open spec fn reconcile() -> BuiltinControllersAction {
     Action {
         precondition: |input: BuiltinControllersActionInput, s: BuiltinControllersState| {
-            true
+            match input.choice {
+                BuiltinControllerChoice::GarbageCollector => Self::garbage_collector_precondition(input, s)
+            }
         },
         transition: |input: BuiltinControllersActionInput, s: BuiltinControllersState| {
-            (s, (Multiset::empty(), input.rest_id_allocator))
+            match input.choice {
+                BuiltinControllerChoice::GarbageCollector => Self::garbage_collector_transition(input, s)
+            }
         },
     }
 }
@@ -36,10 +50,10 @@ pub open spec fn builtin_controllers() -> BuiltinControllersStateMachine {
         init: |s: BuiltinControllersState| {
             true
         },
-        actions: set![Self::garbage_collector()],
+        actions: set![Self::reconcile()],
         step_to_action: |step: BuiltinControllersStep| {
             match step {
-                BuiltinControllersStep::GarbageCollector => Self::garbage_collector(),
+                BuiltinControllersStep::Reconcile => Self::reconcile(),
             }
         },
         action_input: |step: BuiltinControllersStep, input: BuiltinControllersActionInput| {

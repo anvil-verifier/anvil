@@ -15,10 +15,15 @@ pub type StoredState = Map<ObjectRef, DynamicObjectView>;
 pub struct BuiltinControllersState {}
 
 pub enum BuiltinControllersStep {
+    Reconcile,
+}
+
+pub enum BuiltinControllerChoice {
     GarbageCollector,
 }
 
 pub struct BuiltinControllersActionInput {
+    pub choice: BuiltinControllerChoice,
     pub key: ObjectRef,
     pub resources: StoredState,
     pub rest_id_allocator: RestIdAllocator,
@@ -26,8 +31,14 @@ pub struct BuiltinControllersActionInput {
 
 pub type BuiltinControllersActionOutput = (Multiset<Message>, RestIdAllocator);
 
-pub type BuiltinControllersStateMachine = StateMachine<BuiltinControllersState, BuiltinControllersActionInput, BuiltinControllersActionInput, BuiltinControllersActionOutput, BuiltinControllersStep>;
+pub type BuiltinControllersStateMachine = StateMachine<BuiltinControllersState,
+                                            BuiltinControllersActionInput,
+                                            BuiltinControllersActionInput,
+                                            BuiltinControllersActionOutput,
+                                            BuiltinControllersStep>;
 
-pub type BuiltinControllersAction = Action<BuiltinControllersState, BuiltinControllersActionInput, BuiltinControllersActionOutput>;
+pub type BuiltinControllersAction = Action<BuiltinControllersState,
+                                        BuiltinControllersActionInput,
+                                        BuiltinControllersActionOutput>;
 
 }
