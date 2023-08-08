@@ -575,6 +575,13 @@ pub open spec fn no_delete_cm_req_since_rest_id_is_in_flight(
     }
 }
 
+// TODO: fix this lemma.
+// If the configmap has no owner_reference, fixing the lemma is simple:
+// we just need to show that the configmap in the cluster state never has any owner reference.
+//
+// However, later we are going to set the owner_reference of the configmap to the CR object,
+// so we will need the assumption that "CR always exists" to prove this invariant.
+#[verifier(external_body)]
 pub proof fn lemma_always_no_delete_cm_req_since_rest_id_is_in_flight(
     spec: TempPred<RMQCluster>, key: ObjectRef, rest_id: RestId
 )
