@@ -314,7 +314,7 @@ pub open spec fn reconcile_core(
                     };
                     (state_prime, None)
                 }
-            }else{
+            } else {
                 // return error state
                 let state_prime = RabbitmqReconcileState {
                     reconcile_step: RabbitmqReconcileStep::Error,

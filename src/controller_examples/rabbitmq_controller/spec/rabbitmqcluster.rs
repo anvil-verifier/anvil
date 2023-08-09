@@ -94,7 +94,7 @@ impl ResourceView for RabbitmqClusterView {
     }
 
     open spec fn transition_rule(new_obj: RabbitmqClusterView, old_obj: RabbitmqClusterView) -> bool {
-        true
+        new_obj.spec.replicas >= old_obj.spec.replicas
     }
 
 }
