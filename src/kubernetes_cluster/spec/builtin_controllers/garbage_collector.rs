@@ -46,7 +46,7 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
                 ||| !resources.dom().contains(owner_reference_to_object_reference(owner_references[i], namespace))
                 // or it exists but has a different uid
                 // (which means the actual owner was deleted and another object with the same name gets created again)
-                ||| resources[owner_reference_to_object_reference(owner_references[i], namespace)].metadata.uid.get_Some_0() != owner_references[i].uid
+                ||| resources[owner_reference_to_object_reference(owner_references[i], namespace)].metadata.uid != Some(owner_references[i].uid)
             } {
                 let delete_req_msg = built_in_controller_req_msg(delete_req_msg_content(
                     key, input.rest_id_allocator.allocate().1
