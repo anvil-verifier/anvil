@@ -175,6 +175,7 @@ pub open spec fn make_role(fluentbit: FluentBitView) -> RoleView
     RoleView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(make_role_name(fluentbit.metadata.name.get_Some_0()))
+            .set_owner_references(seq![fluentbit.controller_owner_ref()])
         ).set_policy_rules(
             seq![
                 PolicyRuleView::default()
@@ -197,6 +198,7 @@ pub open spec fn make_service_account(fluentbit: FluentBitView) -> ServiceAccoun
     ServiceAccountView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(make_service_account_name(fluentbit.metadata.name.get_Some_0()))
+            .set_owner_references(seq![fluentbit.controller_owner_ref()])
         )
 }
 
@@ -212,6 +214,7 @@ pub open spec fn make_role_binding(fluentbit: FluentBitView) -> RoleBindingView
     RoleBindingView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(make_role_binding_name(fluentbit.metadata.name.get_Some_0()))
+            .set_owner_references(seq![fluentbit.controller_owner_ref()])
         ).set_role_ref(RoleRefView::default()
             .set_api_group(new_strlit("rbac.authorization.k8s.io")@)
             .set_kind(new_strlit("Role")@)
@@ -235,6 +238,7 @@ pub open spec fn make_secret(fluentbit: FluentBitView) -> SecretView
     SecretView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(make_secret_name(fluentbit.metadata.name.get_Some_0()))
+            .set_owner_references(seq![fluentbit.controller_owner_ref()])
         ).set_data(Map::empty()
             .insert(new_strlit("fluent-bit.conf")@, fluentbit.spec.fluentbit_config)
             .insert(new_strlit("parsers.conf")@, fluentbit.spec.parsers_config)
@@ -255,6 +259,7 @@ pub open spec fn make_daemon_set(fluentbit: FluentBitView) -> DaemonSetView
         .set_metadata(ObjectMetaView::default()
             .set_name(make_daemon_set_name(fluentbit.metadata.name.get_Some_0()))
             .set_labels(labels)
+            .set_owner_references(seq![fluentbit.controller_owner_ref()])
         ).set_spec(DaemonSetSpecView::default()
             .set_selector(LabelSelectorView::default().set_match_labels(labels))
             .set_template(PodTemplateSpecView::default()

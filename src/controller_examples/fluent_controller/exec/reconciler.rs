@@ -8,7 +8,7 @@ use crate::fluent_controller::spec::reconciler as fluent_spec;
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, daemon_set::*, label_selector::*, object_meta::*,
-    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
+    owner_reference::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
     resource_requirements::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
@@ -197,6 +197,17 @@ fn make_role(fluentbit: &FluentBit) -> (role: Role)
     role.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(fluentbit.metadata().name().unwrap().concat(new_strlit("-role")));
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(fluentbit.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    fluent_spec::make_role(fluentbit@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata
     });
     role.set_policy_rules({
@@ -260,6 +271,17 @@ fn make_service_account(fluentbit: &FluentBit) -> (service_account: ServiceAccou
     service_account.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(fluentbit.metadata().name().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(fluentbit.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    fluent_spec::make_service_account(fluentbit@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata
     });
 
@@ -277,6 +299,17 @@ fn make_role_binding(fluentbit: &FluentBit) -> (role_binding: RoleBinding)
     role_binding.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(fluentbit.metadata().name().unwrap().concat(new_strlit("-role-binding")));
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(fluentbit.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    fluent_spec::make_role_binding(fluentbit@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata
     });
     role_binding.set_role_ref({
@@ -318,6 +351,17 @@ pub fn make_secret(fluentbit: &FluentBit) -> (secret: Secret)
     secret.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(fluentbit.metadata().name().unwrap().concat(new_strlit("-config-secret")));
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(fluentbit.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    fluent_spec::make_secret(fluentbit@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata
     });
     secret.set_data({
@@ -344,6 +388,17 @@ fn make_daemon_set(fluentbit: &FluentBit) -> (daemon_set: DaemonSet)
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), fluentbit.metadata().name().unwrap());
             labels
+        });
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(fluentbit.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    fluent_spec::make_daemon_set(fluentbit@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
         });
         metadata
     });
