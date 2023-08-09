@@ -4,6 +4,9 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
 use crate::kubernetes_cluster::spec::{
+    builtin_controllers::types::{
+        BuiltinControllerChoice, BuiltinControllersAction, BuiltinControllersActionInput,
+    },
     client::types::ClientActionInput,
     cluster::Cluster,
     controller::common::{
@@ -23,6 +26,7 @@ verus! {
 #[is_variant]
 pub enum Step<K, E: ExternalAPI> {
     KubernetesAPIStep(Option<Message>),
+    BuiltinControllersStep((BuiltinControllerChoice, ObjectRef)),
     ControllerStep((Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>)),
     ClientStep((Option<Message>, K)),
     ExternalAPIStep(ExternalComm<E::Input, E::Output>),
@@ -39,6 +43,7 @@ impl<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 pub open spec fn init() -> StatePred<Self> {
     |s: Self| {
         &&& (Self::kubernetes_api().init)(s.kubernetes_api_state)
+        &&& (Self::builtin_controllers().init)(s.builtin_controllers_state)
         &&& (Self::controller().init)(s.controller_state)
         &&& (Self::client().init)(s.client_state)
         &&& (Self::network().init)(s.network_state)
@@ -48,6 +53,11 @@ pub open spec fn init() -> StatePred<Self> {
     }
 }
 
+/// kubernetes_api_next models the behavior that the Kubernetes API server (and its backend, a key-value store)
+/// handles one request from some client or controller that gets/lists/creates/updates/deletes some object(s).
+/// Handling each create/update/delete request will potentially change the objects stored in the key-value store
+/// (etcd by default).
+/// The persistent state stored in the key-value store is modeled as a Map.
 pub open spec fn kubernetes_api_next() -> Action<Self, Option<Message>, ()> {
     let result = |input: Option<Message>, s: Self| {
         let host_result = Self::kubernetes_api().next_result(
@@ -71,6 +81,45 @@ pub open spec fn kubernetes_api_next() -> Action<Self, Option<Message>, ()> {
         transition: |input: Option<Message>, s: Self| {
             (Self {
                 kubernetes_api_state: result(input, s).0.get_Enabled_0(),
+                network_state: result(input, s).1.get_Enabled_0(),
+                rest_id_allocator: result(input, s).0.get_Enabled_1().1,
+                ..s
+            }, ())
+        },
+    }
+}
+
+/// builtin_controllers_next models the behavior that one of the built-in controllers reconciles one object.
+/// The cluster state machine chooses which built-in controller to run and which object to reconcile.
+/// The behavior of each built-in controller is modeled as a function that takes the current cluster state
+/// (objects stored in the key-value store) and returns request(s) to update the cluster state.
+pub open spec fn builtin_controllers_next() -> Action<Self, (BuiltinControllerChoice, ObjectRef), ()> {
+    let result = |input: (BuiltinControllerChoice, ObjectRef), s: Self| {
+        let host_result = Self::builtin_controllers().next_result(
+            BuiltinControllersActionInput{
+                choice: input.0,
+                key: input.1,
+                resources: s.kubernetes_api_state.resources,
+                rest_id_allocator: s.rest_id_allocator,
+            },
+            s.builtin_controllers_state
+        );
+        let msg_ops = MessageOps {
+            recv: None,
+            send: host_result.get_Enabled_1().0,
+        };
+        let network_result = Self::network().next_result(msg_ops, s.network_state);
+
+        (host_result, network_result)
+    };
+    Action {
+        precondition: |input: (BuiltinControllerChoice, ObjectRef), s: Self| {
+            &&& result(input, s).0.is_Enabled()
+            &&& result(input, s).1.is_Enabled()
+        },
+        transition: |input: (BuiltinControllerChoice, ObjectRef), s: Self| {
+            (Self {
+                builtin_controllers_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
                 rest_id_allocator: result(input, s).0.get_Enabled_1().1,
                 ..s
@@ -312,6 +361,7 @@ pub open spec fn stutter() -> Action<Self, (), ()> {
 pub open spec fn next_step(s: Self, s_prime: Self, step: Step<K, E>) -> bool {
     match step {
         Step::KubernetesAPIStep(input) => Self::kubernetes_api_next().forward(input)(s, s_prime),
+        Step::BuiltinControllersStep(input) => Self::builtin_controllers_next().forward(input)(s, s_prime),
         Step::ControllerStep(input) => Self::controller_next().forward(input)(s, s_prime),
         Step::ClientStep(input) => Self::client_next().forward(input)(s, s_prime),
         Step::ExternalAPIStep(input) => Self::external_api_next().forward(input)(s, s_prime),
@@ -341,6 +391,7 @@ pub open spec fn sm_spec() -> TempPred<Self> {
 pub open spec fn sm_partial_spec() -> TempPred<Self> {
     always(lift_action(Self::next()))
     .and(tla_forall(|input| Self::kubernetes_api_next().weak_fairness(input)))
+    .and(tla_forall(|input| Self::builtin_controllers_next().weak_fairness(input)))
     .and(tla_forall(|input| Self::controller_next().weak_fairness(input)))
     .and(tla_forall(|input| Self::external_api_next().weak_fairness(input)))
     .and(tla_forall(|input| Self::schedule_controller_reconcile().weak_fairness(input)))
@@ -362,6 +413,28 @@ pub open spec fn kubernetes_api_action_pre(action: KubernetesAPIAction, input: O
         let network_result = Self::network().next_result(msg_ops, s.network_state);
 
         &&& received_msg_destined_for(input, HostId::KubernetesAPI)
+        &&& host_result.is_Enabled()
+        &&& network_result.is_Enabled()
+    }
+}
+
+pub open spec fn builtin_controllers_action_pre(action: BuiltinControllersAction, input: (BuiltinControllerChoice, ObjectRef)) -> StatePred<Self> {
+    |s: Self| {
+        let host_result = Self::builtin_controllers().next_action_result(
+            action,
+            BuiltinControllersActionInput{
+                choice: input.0,
+                key: input.1,
+                resources: s.kubernetes_api_state.resources,
+                rest_id_allocator: s.rest_id_allocator},
+            s.builtin_controllers_state
+        );
+        let msg_ops = MessageOps {
+            recv: None,
+            send: host_result.get_Enabled_1().0,
+        };
+        let network_result = Self::network().next_result(msg_ops, s.network_state);
+
         &&& host_result.is_Enabled()
         &&& network_result.is_Enabled()
     }

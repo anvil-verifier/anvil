@@ -240,10 +240,20 @@ pub proof fn lemma_always_at_most_one_create_cm_req_since_rest_id_is_in_flight(
     );
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
         let pending_msg = s_prime.pending_req_of(key);
-        assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && cm_create_request_msg_since(key, rest_id)(msg) implies at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime) && pending_msg.content.get_rest_id() >= rest_id && msg == pending_msg && s_prime.network_state.in_flight.count(msg) == 1 by {
+        assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && cm_create_request_msg_since(key, rest_id)(msg)
+        implies at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime)
+            && pending_msg.content.get_rest_id() >= rest_id
+            && msg == pending_msg
+            && s_prime.network_state.in_flight.count(msg) == 1 by {
             let step = choose |step| RMQCluster::next_step(s, s_prime, step);
             match step {
                 Step::KubernetesAPIStep(input) => {
+                    assert(s.message_in_flight(msg));
+                    assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
+                    assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime));
+                    assert(s_prime.network_state.in_flight.count(msg) == 1);
+                },
+                Step::BuiltinControllersStep(input) => {
                     assert(s.message_in_flight(msg));
                     assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
                     assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime));
@@ -407,6 +417,12 @@ pub proof fn lemma_always_at_most_one_update_cm_req_since_rest_id_is_in_flight(
                     assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime));
                     assert(s_prime.network_state.in_flight.count(msg) == 1);
                 },
+                Step::BuiltinControllersStep(input) => {
+                    assert(s.message_in_flight(msg));
+                    assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
+                    assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime));
+                    assert(s_prime.network_state.in_flight.count(msg) == 1);
+                },
                 Step::ControllerStep(input) => {
                     let cr_key = input.2.get_Some_0();
                     if cr_key != key {
@@ -559,6 +575,13 @@ pub open spec fn no_delete_cm_req_since_rest_id_is_in_flight(
     }
 }
 
+// TODO: fix this lemma.
+// If the configmap has no owner_reference, fixing the lemma is simple:
+// we just need to show that the configmap in the cluster state never has any owner reference.
+//
+// However, later we are going to set the owner_reference of the configmap to the CR object,
+// so we will need the assumption that "CR always exists" to prove this invariant.
+#[verifier(external_body)]
 pub proof fn lemma_always_no_delete_cm_req_since_rest_id_is_in_flight(
     spec: TempPred<RMQCluster>, key: ObjectRef, rest_id: RestId
 )

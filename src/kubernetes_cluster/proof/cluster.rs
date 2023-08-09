@@ -4,6 +4,7 @@
 use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
+    builtin_controllers::types::BuiltinControllerChoice,
     client,
     client::*,
     cluster::*,
@@ -55,6 +56,7 @@ pub proof fn sm_partial_spec_is_stable()
 {
     always_p_is_stable::<Self>(lift_action(Self::next()));
     Self::tla_forall_action_weak_fairness_is_stable::<Option<Message>, ()>(Self::kubernetes_api_next());
+    Self::tla_forall_action_weak_fairness_is_stable::<(BuiltinControllerChoice, ObjectRef), ()>(Self::builtin_controllers_next());
     Self::tla_forall_action_weak_fairness_is_stable::<(Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>), ()>(Self::controller_next());
     Self::tla_forall_action_weak_fairness_is_stable::<ExternalComm<E::Input, E::Output>, ()>(Self::external_api_next());
     Self::tla_forall_action_weak_fairness_is_stable::<ObjectRef, ()>(Self::schedule_controller_reconcile());
@@ -64,6 +66,7 @@ pub proof fn sm_partial_spec_is_stable()
     stable_and_n!(
         always(lift_action(Self::next())),
         tla_forall(|input| Self::kubernetes_api_next().weak_fairness(input)),
+        tla_forall(|input| Self::builtin_controllers_next().weak_fairness(input)),
         tla_forall(|input| Self::controller_next().weak_fairness(input)),
         tla_forall(|input| Self::external_api_next().weak_fairness(input)),
         tla_forall(|input| Self::schedule_controller_reconcile().weak_fairness(input)),

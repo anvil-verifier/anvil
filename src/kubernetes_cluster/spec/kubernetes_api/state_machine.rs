@@ -7,11 +7,7 @@ use crate::kubernetes_api_objects::{
     persistent_volume_claim::*, pod::*, resource::*, role::*, role_binding::*, secret::*,
     service::*, service_account::*, stateful_set::*,
 };
-use crate::kubernetes_cluster::spec::{
-    cluster::Cluster,
-    kubernetes_api::{builtin_controllers::statefulset_controller, common::*},
-    message::*,
-};
+use crate::kubernetes_cluster::spec::{cluster::Cluster, kubernetes_api::common::*, message::*};
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;

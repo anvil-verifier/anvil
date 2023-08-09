@@ -560,6 +560,9 @@ proof fn pending_requests_num_decreases(
                     assert(pending_req_multiset =~= pending_req_multiset_prime);
                 }
             },
+            Step::BuiltinControllersStep(input) => {
+                assert(pending_req_multiset =~= pending_req_multiset_prime);
+            },
             Step::ControllerStep(input) => {
                 assert(pending_req_multiset =~= pending_req_multiset_prime);
             },
