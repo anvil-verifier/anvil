@@ -3,10 +3,11 @@
 use crate::fluent_controller::spec::fluentbit::*;
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
-    api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, resource::*,
-    resource_requirements::*,
+    api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*,
+    resource::*, resource_requirements::*,
 };
 use crate::pervasive_ext::string_view::*;
+use deps_hack::kube::Resource;
 use vstd::prelude::*;
 
 verus! {
@@ -46,6 +47,17 @@ impl FluentBit {
             res@.kind == FluentBitView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::FluentBit>(&()))
+    }
+
+    #[verifier(external_body)]
+    pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
+        ensures
+            owner_reference@ == self@.controller_owner_ref(),
+    {
+        OwnerReference::from_kube(
+            // We can safely unwrap here because the trait method implementation always returns a Some(...)
+            self.inner.controller_owner_ref(&()).unwrap()
+        )
     }
 
     // NOTE: This function assumes serde_json::to_string won't fail!
