@@ -20,7 +20,7 @@ jobs:
         with:
           go-version: "^1.20"
       - name: Install kind and create cluster
-        run: go install sigs.k8s.io/kind@latest && kind create cluster
+        run: go install sigs.k8s.io/kind@v0.20.0 && kind create cluster
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y

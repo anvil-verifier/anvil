@@ -46,7 +46,7 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
     let rabbitmq_sts_name = format!("{}-server", &rabbitmq_name);
     let rabbitmq_cm_name = format!("{}-server-conf", &rabbitmq_name);
 
-    let seconds = Duration::from_secs(360);
+    let seconds = Duration::from_secs(900);
     let start = Instant::now();
     loop {
         sleep(Duration::from_secs(5)).await;
