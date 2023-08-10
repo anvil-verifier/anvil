@@ -23,6 +23,8 @@ verus! {
 //
 // + Create and update should ignore the status fields provided by the object
 //
+// + UpdateRequest should not carry kind
+//
 // + Delete should be done in two phases
 //
 // + Set deletiontimestamp when deleting
@@ -113,7 +115,9 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
     } else {
         // Creation succeeds.
         // Set the namespace, the resource_version and the uid of the created object.
-        let created_obj = req.obj.set_namespace(req.namespace).set_resource_version(s.resource_version_counter).set_uid(s.uid_counter);
+        let created_obj = req.obj.set_namespace(req.namespace)
+                            .set_resource_version(s.resource_version_counter)
+                            .set_uid(s.uid_counter);
         let result = Ok(created_obj);
         let resp = form_create_resp_msg(msg, result);
         (KubernetesAPIState {
@@ -198,6 +202,11 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         && req.obj.metadata.resource_version != s.resources[req.key].metadata.resource_version {
         // Update fails because the object has a wrong rv
         Some(APIError::Conflict)
+    } else if req.obj.metadata.uid.is_Some()
+        && req.obj.metadata.uid != s.resources[req.key].metadata.uid {
+        // Update fails because the object has a wrong uid
+        // TODO: double check the Error type
+        Some(APIError::InternalError)
     } else if req.obj.kind == K::kind() && !(
         K::rule(K::from_dynamic_object(req.obj).get_Ok_0())
         && K::transition_rule(K::from_dynamic_object(req.obj).get_Ok_0(), K::from_dynamic_object(s.resources[req.key]).get_Ok_0())
@@ -227,7 +236,10 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
     } else {
         // Update succeeds.
         // Updates the resource version of the object.
-        let updated_obj = req.obj.set_namespace(req.key.namespace).set_resource_version(s.resource_version_counter);
+        let old_obj = s.resources[req.key];
+        let updated_obj = req.obj.set_namespace(req.key.namespace)
+                            .set_resource_version(s.resource_version_counter)
+                            .set_uid(old_obj.metadata.uid.get_Some_0());
         let result = Ok(updated_obj);
         let resp = form_update_resp_msg(msg, result);
         (KubernetesAPIState {
