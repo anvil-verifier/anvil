@@ -151,6 +151,11 @@ pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (
             let result = Ok(stamped_obj);
             let resp = form_delete_resp_msg(msg, result);
             (KubernetesAPIState {
+                // Here we use req.key, instead of stamped_obj.object_ref(), to insert to the map.
+                // This is intended because using stamped_obj.object_ref() will require us to use
+                // the invariant each_object_in_etcd_is_well_formed a lot more frequently:
+                // we need this invariant to convince Verus that the stamped_obj is well formed
+                // so the key we use to insert to the map is the same as req.key.
                 resources: s.resources.insert(req.key, stamped_obj),
                 resource_version_counter: s.resource_version_counter + 1,
                 ..s
