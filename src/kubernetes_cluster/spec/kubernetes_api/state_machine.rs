@@ -151,7 +151,7 @@ pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (
             let result = Ok(stamped_obj);
             let resp = form_delete_resp_msg(msg, result);
             (KubernetesAPIState {
-                resources: s.resources.insert(stamped_obj.object_ref(), stamped_obj),
+                resources: s.resources.insert(req.key, stamped_obj),
                 resource_version_counter: s.resource_version_counter + 1,
                 ..s
             }, resp)
