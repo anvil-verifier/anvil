@@ -70,30 +70,7 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(
     implies invariant(s_prime) by {
         assert forall |key: ObjectRef| #[trigger] s_prime.resource_key_exists(key)
         implies Self::object_is_well_formed(key)(s_prime) by {
-            let step = choose |step| Self::next_step(s, s_prime, step);
-            match step {
-                Step::KubernetesAPIStep(input) => {
-                    match input.get_Some_0().content.get_APIRequest_0() {
-                        APIRequest::DeleteRequest(req) => {
-                            if req.key == key {
-                                if s.resource_key_exists(key) {} else {}
-                            } else {
-                                if s.resource_key_exists(req.key) {
-                                    if s.resource_key_exists(key) {} else {}
-                                } else {
-                                    if s.resource_key_exists(key) {} else {}
-                                }
-                            }
-                        },
-                        _ => {
-                            if s.resource_key_exists(key) {} else {}
-                        },
-                    }
-                },
-                _ => {
-                    if s.resource_key_exists(key) {} else {}
-                }
-            }
+            if s.resource_key_exists(key) {} else {}
         }
     }
 
