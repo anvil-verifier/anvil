@@ -23,7 +23,7 @@ verus! {
 //
 // + Create and update should ignore the status fields provided by the object
 //
-// + UpdateRequest should not carry kind
+// + Make Create/Update/DeleteRequest consistent on whether to carry kind or not
 //
 // + Delete should be done in two phases
 //
