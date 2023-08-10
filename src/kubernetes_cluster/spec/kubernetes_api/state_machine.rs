@@ -291,7 +291,7 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
             //
             // Here we simplify step (1) ~ (5) by omitting the process that state changes are streamed
             // to built-in controllers and activate their reconciliation.
-            // Built-in controllers will be specified as actions of this state machine.
+            // Built-in controllers will be specified as actions of the top level cluster state machine.
             let (s_prime, etcd_resp) = Self::transition_by_etcd(input.recv.get_Some_0(), s);
             (s_prime, (Multiset::singleton(etcd_resp), input.rest_id_allocator))
         },
