@@ -76,6 +76,14 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn has_deletion_timestamp(&self) -> (b: bool)
+        ensures
+            b == self@.deletion_timestamp.is_Some(),
+    {
+        self.inner.deletion_timestamp.is_some()
+    }
+
+    #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures
             self@ == old(self)@.set_name(name@),
@@ -161,6 +169,7 @@ pub struct ObjectMetaView {
     pub annotations: Option<Map<StringView, StringView>>,
     pub owner_references: Option<Seq<OwnerReferenceView>>,
     pub finalizers: Option<Seq<StringView>>,
+    pub deletion_timestamp: Option<StringView>,
 }
 
 impl ObjectMetaView {
@@ -175,6 +184,7 @@ impl ObjectMetaView {
             annotations: None,
             owner_references: None,
             finalizers: None,
+            deletion_timestamp: None,
         }
     }
 
@@ -230,6 +240,13 @@ impl ObjectMetaView {
     pub open spec fn set_finalizers(self, finalizers: Seq<StringView>) -> ObjectMetaView {
         ObjectMetaView {
             finalizers: Some(finalizers),
+            ..self
+        }
+    }
+
+    pub open spec fn set_deletion_timestamp(self, deletion_timestamp: StringView) -> ObjectMetaView {
+        ObjectMetaView {
+            deletion_timestamp: Some(deletion_timestamp),
             ..self
         }
     }
