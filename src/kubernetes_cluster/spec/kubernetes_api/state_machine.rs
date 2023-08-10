@@ -8,6 +8,7 @@ use crate::kubernetes_api_objects::{
     service::*, service_account::*, stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{cluster::Cluster, kubernetes_api::common::*, message::*};
+use crate::pervasive_ext::string_view::*;
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -105,17 +106,16 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
 {
     let req = msg.content.get_create_request();
     if Self::validate_create_request(req, s).is_Some() {
-        // Creation fails because the name of the provided object is not provided
+        // Creation fails.
         let result = Err(Self::validate_create_request(req, s).get_Some_0());
         let resp = form_create_resp_msg(msg, result);
         (s, resp)
     } else {
-        // Creation succeeds
-        // Set the namespace and the resource_version of the created object
+        // Creation succeeds.
+        // Set the namespace, the resource_version and the uid of the created object.
         let created_obj = req.obj.set_namespace(req.namespace).set_resource_version(s.resource_version_counter).set_uid(s.uid_counter);
         let result = Ok(created_obj);
         let resp = form_create_resp_msg(msg, result);
-        // The cluster state is updated, so we send a notification to the built-in controllers
         (KubernetesAPIState {
             resources: s.resources.insert(created_obj.object_ref(), created_obj),
             uid_counter: s.uid_counter + 1,
@@ -125,27 +125,42 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
     }
 }
 
+pub closed spec fn deletion_timestamp() -> StringView;
+
 pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (KubernetesAPIState, Message)
     recommends
         msg.content.is_delete_request(),
 {
     let req = msg.content.get_delete_request();
     if !s.resources.dom().contains(req.key) {
-        // Deletion fails
+        // Deletion fails.
         let result = Err(APIError::ObjectNotFound);
         let resp = form_delete_resp_msg(msg, result);
         (s, resp)
     } else {
-        // Path where deletion succeeds
-        let obj_before_deletion = s.resources[req.key];
-        // The cluster state is updated, so we send a notification to the custom controller
-        let result = Ok(obj_before_deletion);
-        let resp = form_delete_resp_msg(msg, result);
-        (KubernetesAPIState {
-            resources: s.resources.remove(req.key),
-            resource_version_counter: s.resource_version_counter + 1,
-            ..s
-        }, resp)
+        // Deletion succeeds.
+        let obj = s.resources[req.key];
+        if obj.metadata.finalizers.is_Some() && obj.metadata.finalizers.get_Some_0().len() > 0 {
+            // With the finalizer(s) in the object, we cannot immediately delete it from the key-value store.
+            // Instead, we set the deletion timestamp of this object.
+            let stamped_obj = obj.set_deletion_timestamp(Self::deletion_timestamp());
+            let result = Ok(stamped_obj);
+            let resp = form_delete_resp_msg(msg, result);
+            (KubernetesAPIState {
+                resources: s.resources.insert(stamped_obj.object_ref(), stamped_obj),
+                resource_version_counter: s.resource_version_counter + 1,
+                ..s
+            }, resp)
+        } else {
+            // The object can be immediately removed from the key-value store.
+            let result = Ok(obj);
+            let resp = form_delete_resp_msg(msg, result);
+            (KubernetesAPIState {
+                resources: s.resources.remove(req.key),
+                resource_version_counter: s.resource_version_counter + 1,
+                ..s
+            }, resp)
+        }
     }
 }
 
@@ -199,22 +214,22 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
 {
     let req = msg.content.get_update_request();
     if Self::validate_update_request(req, s).is_Some() {
+        // Update fails.
         let result = Err(Self::validate_update_request(req, s).get_Some_0());
         let resp = form_update_resp_msg(msg, result);
         (s, resp)
     } else if Self::update_is_noop(req.obj, s.resources[req.key]) {
         // Update is a noop because there is nothing to update
-        // so the resource version counter does not increase here
+        // so the resource version counter does not increase here.
         let result = Ok(s.resources[req.key]);
         let resp = form_update_resp_msg(msg, result);
         (s, resp)
     } else {
-        // Update succeeds
-        // Updates the resource version of the object
+        // Update succeeds.
+        // Updates the resource version of the object.
         let updated_obj = req.obj.set_namespace(req.key.namespace).set_resource_version(s.resource_version_counter);
         let result = Ok(updated_obj);
         let resp = form_update_resp_msg(msg, result);
-        // The cluster state is updated, so we send a notification to the built-in controllers
         (KubernetesAPIState {
             resources: s.resources.insert(updated_obj.object_ref(), updated_obj),
             resource_version_counter: s.resource_version_counter + 1,
