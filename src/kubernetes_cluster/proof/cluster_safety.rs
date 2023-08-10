@@ -34,6 +34,7 @@ pub open spec fn object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
         &&& s.resource_obj_of(key).metadata.name.is_Some()
         &&& s.resource_obj_of(key).metadata.namespace.is_Some()
         &&& s.resource_obj_of(key).metadata.resource_version.is_Some()
+        &&& s.resource_obj_of(key).metadata.uid.is_Some()
         &&& {
             &&& key.kind == ConfigMapView::kind() ==> ConfigMapView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
             &&& key.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()

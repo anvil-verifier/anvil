@@ -76,6 +76,14 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn has_deletion_timestamp(&self) -> (b: bool)
+        ensures
+            b == self@.deletion_timestamp.is_Some(),
+    {
+        self.inner.deletion_timestamp.is_some()
+    }
+
+    #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures
             self@ == old(self)@.set_name(name@),
@@ -124,6 +132,16 @@ impl ObjectMeta {
             owner_references.into_iter().map(|o: OwnerReference| o.into_kube()).collect(),
         );
     }
+
+    #[verifier(external_body)]
+    pub fn set_finalizers(&mut self, finalizers: Vec<String>)
+        ensures
+            self@ == old(self)@.set_finalizers(finalizers@.map_values(|s: String| s@)),
+    {
+        self.inner.finalizers = Some(
+            finalizers.into_iter().map(|s: String| s.into_rust_string()).collect(),
+        );
+    }
 }
 
 impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta> for ObjectMeta {
@@ -150,6 +168,8 @@ pub struct ObjectMetaView {
     pub labels: Option<Map<StringView, StringView>>,
     pub annotations: Option<Map<StringView, StringView>>,
     pub owner_references: Option<Seq<OwnerReferenceView>>,
+    pub finalizers: Option<Seq<StringView>>,
+    pub deletion_timestamp: Option<StringView>,
 }
 
 impl ObjectMetaView {
@@ -163,6 +183,8 @@ impl ObjectMetaView {
             labels: None,
             annotations: None,
             owner_references: None,
+            finalizers: None,
+            deletion_timestamp: None,
         }
     }
 
@@ -211,6 +233,20 @@ impl ObjectMetaView {
     pub open spec fn set_owner_references(self, owner_references: Seq<OwnerReferenceView>) -> ObjectMetaView {
         ObjectMetaView {
             owner_references: Some(owner_references),
+            ..self
+        }
+    }
+
+    pub open spec fn set_finalizers(self, finalizers: Seq<StringView>) -> ObjectMetaView {
+        ObjectMetaView {
+            finalizers: Some(finalizers),
+            ..self
+        }
+    }
+
+    pub open spec fn set_deletion_timestamp(self, deletion_timestamp: StringView) -> ObjectMetaView {
+        ObjectMetaView {
+            deletion_timestamp: Some(deletion_timestamp),
             ..self
         }
     }

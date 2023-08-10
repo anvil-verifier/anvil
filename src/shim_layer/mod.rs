@@ -252,6 +252,8 @@ pub fn kube_error_to_ghost(error: &deps_hack::kube::Error) -> APIError {
                 APIError::Conflict
             } else if &error_resp.reason == "Invalid" {
                 APIError::Invalid
+            } else if &error_resp.reason == "InternalError" {
+                APIError::InternalError
             } else {
                 APIError::Other
             }
