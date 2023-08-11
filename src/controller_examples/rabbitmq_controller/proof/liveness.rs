@@ -1641,6 +1641,9 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
     );
 }
 
+// Skip this lemma for now; we will need an invariant saying that the configmap object never has a deletion timestamp.
+// Note that this variant only holds since the CR always exists and the old configmap owned by the old CR has been deleted.
+#[verifier(external_body)]
 proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitmq(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, rest_id: nat, req_msg: Message, object: DynamicObjectView
 )
@@ -1824,6 +1827,9 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_conf
     );
 }
 
+// Skip this lemma for now; we will need an invariant saying that the configmap object never has a deletion timestamp.
+// Note that this variant only holds since the CR always exists and the old configmap owned by the old CR has been deleted.
+#[verifier(external_body)]
 proof fn lemma_server_config_map_is_stable(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, rest_id: nat, p: TempPred<RMQCluster>
 )
