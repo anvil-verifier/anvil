@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
-    api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, resource::*,
+    api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*,
+    resource::*,
 };
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::spec::rabbitmqcluster::*;
+use deps_hack::kube::Resource;
 use vstd::prelude::*;
 
 verus! {
@@ -63,6 +65,17 @@ impl RabbitmqCluster {
             res@.kind == RabbitmqClusterView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::RabbitmqCluster>(&()))
+    }
+
+    #[verifier(external_body)]
+    pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
+        ensures
+            owner_reference@ == self@.controller_owner_ref(),
+    {
+        OwnerReference::from_kube(
+            // We can safely unwrap here because the trait method implementation always returns a Some(...)
+            self.inner.controller_owner_ref(&()).unwrap()
+        )
     }
 
     // NOTE: This function assumes serde_json::to_string won't fail!

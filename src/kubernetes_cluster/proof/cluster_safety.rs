@@ -44,6 +44,7 @@ pub open spec fn object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
             &&& key.kind == SecretView::kind() ==> SecretView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
             &&& key.kind == ServiceView::kind() ==> ServiceView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
             &&& key.kind == StatefulSetView::kind() ==> StatefulSetView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
+            &&& key.kind == K::kind() ==> K::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
         }
     }
 }
@@ -55,9 +56,7 @@ pub open spec fn each_object_in_etcd_is_well_formed() -> StatePred<Self> {
     }
 }
 
-pub proof fn lemma_always_each_object_in_etcd_is_well_formed(
-    spec: TempPred<Self>
-)
+pub proof fn lemma_always_each_object_in_etcd_is_well_formed(spec: TempPred<Self>)
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),

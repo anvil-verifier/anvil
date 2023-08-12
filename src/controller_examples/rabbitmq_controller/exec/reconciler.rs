@@ -4,7 +4,7 @@
 use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
+    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*, owner_reference::*,
     persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
     resource_requirements::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
     stateful_set::*,
@@ -424,6 +424,17 @@ pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServiceP
         let mut metadata = ObjectMeta::default();
         metadata.set_name(name);
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
@@ -502,6 +513,17 @@ pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) ->
         let mut metadata = ObjectMeta::default();
         metadata.set_name(name);
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
@@ -525,6 +547,17 @@ fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-plugins-conf")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
@@ -551,6 +584,17 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server-conf")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
@@ -611,6 +655,17 @@ fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: Service
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
@@ -633,6 +688,17 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-peer-discovery")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
@@ -739,6 +805,17 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
@@ -785,6 +862,17 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
