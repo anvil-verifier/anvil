@@ -761,12 +761,13 @@ proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_
         spec.entails(always(lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))),
         step != RabbitmqReconcileStep::Error, step != RabbitmqReconcileStep::Done,
         // next_step != RabbitmqReconcileStep::Init,
-        forall |resp_o|
-            #[trigger] reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).0.reconcile_step == next_step
-            && reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.is_Some()
-            && reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().is_KRequest()
-            && is_correct_pending_request_at_rabbitmq_step(
-                next_step, reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().get_KRequest_0(), rabbitmq
+        forall |rabbitmq_1, resp_o|
+            #[trigger] reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).0.reconcile_step == next_step
+            && reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.is_Some()
+            && reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().is_KRequest()
+            && (
+                rabbitmq_1.object_ref() == rabbitmq.object_ref() && rabbitmq_1.spec() == rabbitmq.spec() && rabbitmq_1.metadata().uid == rabbitmq.metadata().uid
+                ==> is_correct_pending_request_at_rabbitmq_step(next_step, reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().get_KRequest_0(), rabbitmq)
             ),
         rabbitmq.well_formed(),
     ensures
@@ -926,12 +927,13 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
         // result_step != RabbitmqReconcileStep::Init,
         // This forall rabbitmq_1 constraint is used because the cr passed to reconcile_core is not necessarily rabbitmq here.
         // We only know that rabbitmq_1.object_ref() == rabbitmq.object_ref() && rabbitmq_1.spec == rabbitmq.spec.
-        forall |resp_o|
-            #[trigger] reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).0.reconcile_step == result_step
-            && reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.is_Some()
-            && reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().is_KRequest()
-            && is_correct_pending_request_at_rabbitmq_step(
-                result_step, reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().get_KRequest_0(), rabbitmq
+        forall |rabbitmq_1, resp_o|
+            #[trigger] reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).0.reconcile_step == result_step
+            && reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.is_Some()
+            && reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().is_KRequest()
+            && (
+                rabbitmq_1.object_ref() == rabbitmq.object_ref() && rabbitmq_1.spec() == rabbitmq.spec() && rabbitmq_1.metadata().uid == rabbitmq.metadata().uid
+                ==> is_correct_pending_request_at_rabbitmq_step(result_step, reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().get_KRequest_0(), rabbitmq)
             ),
         rabbitmq.well_formed(),
     ensures
@@ -977,7 +979,7 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
         match step {
             Step::ControllerStep(input) => {
                 if input.2.is_Some() && input.2.get_Some_0() == rabbitmq.object_ref() {
-                    assert(s.reconcile_state_of(rabbitmq.object_ref()).local_state.reconcile_step == result_step);
+                    assert(s_prime.reconcile_state_of(rabbitmq.object_ref()).local_state.reconcile_step == result_step);
                     assert(post(s_prime));
                 } else {
                     assert(pre(s_prime));
