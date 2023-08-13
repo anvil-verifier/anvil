@@ -41,8 +41,8 @@ pub open spec fn at_step_closure(step: RabbitmqReconcileStep) -> FnSpec(Rabbitmq
 pub open spec fn at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, step: RabbitmqReconcileStep) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         &&& s.reconcile_state_contains(rabbitmq.object_ref())
-        &&& s.reconcile_state_of(rabbitmq.object_ref()).triggering_cr.object_ref() == rabbitmq.object_ref()
-        &&& s.reconcile_state_of(rabbitmq.object_ref()).triggering_cr.spec == rabbitmq.spec
+        // &&& s.reconcile_state_of(rabbitmq.object_ref()).triggering_cr.object_ref() == rabbitmq.object_ref()
+        &&& s.reconcile_state_of(rabbitmq.object_ref()).triggering_cr == rabbitmq
         &&& s.reconcile_state_of(rabbitmq.object_ref()).local_state.reconcile_step == step
     }
 }

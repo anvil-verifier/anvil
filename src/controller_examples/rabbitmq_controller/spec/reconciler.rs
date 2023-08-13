@@ -265,10 +265,7 @@ pub open spec fn reconcile_core(
                     // update
                     if StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).is_Ok() {
                         let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).get_Ok_0();
-                        if found_stateful_set.spec.is_Some()
-                        && found_stateful_set.spec.get_Some_0().replicas.is_Some()
-                        && found_stateful_set.spec.get_Some_0().replicas.get_Some_0() <= rabbitmq.spec.replicas
-                        {
+                        if found_stateful_set.metadata.owner_references_contains(rabbitmq.controller_owner_ref()) {
                             let req_o = APIRequest::UpdateRequest(UpdateRequest {
                                 key: make_stateful_set_key(rabbitmq.object_ref()),
                                 obj: update_stateful_set(rabbitmq, found_stateful_set).to_dynamic_object(),

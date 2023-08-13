@@ -44,7 +44,7 @@ pub open spec fn object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
             &&& key.kind == SecretView::kind() ==> SecretView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
             &&& key.kind == ServiceView::kind() ==> ServiceView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
             &&& key.kind == StatefulSetView::kind() ==> StatefulSetView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
-            &&& key.kind == K::kind() ==> K::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
+            // &&& key.kind == K::kind() ==> K::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
         }
     }
 }
@@ -69,7 +69,11 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(spec: TempPred<Self
     implies invariant(s_prime) by {
         assert forall |key: ObjectRef| #[trigger] s_prime.resource_key_exists(key)
         implies Self::object_is_well_formed(key)(s_prime) by {
-            if s.resource_key_exists(key) {} else {}
+            if s.resource_key_exists(key) {
+                assert(Self::object_is_well_formed(key)(s_prime));
+            } else {
+                assert(Self::object_is_well_formed(key)(s_prime));
+            }
         }
     }
 

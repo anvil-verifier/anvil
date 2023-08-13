@@ -18,13 +18,15 @@ verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
-pub open spec fn the_object_in_schedule_has_spec_as(cr: K) -> StatePred<Self> {
-    |s: Self| s.reconcile_scheduled_for(cr.object_ref()) ==> s.reconcile_scheduled_obj_of(cr.object_ref()).spec() == cr.spec()
+pub open spec fn the_object_in_schedule_has_spec_and_uid_as(cr: K) -> StatePred<Self> {
+    |s: Self| s.reconcile_scheduled_for(cr.object_ref())
+    ==> s.reconcile_scheduled_obj_of(cr.object_ref()).spec() == cr.spec()
+    && s.reconcile_scheduled_obj_of(cr.object_ref()).metadata().uid == cr.metadata().uid
 }
 
 // This lemma says that under the spec where []desired_state_is(cr), it will eventually reach a state where any object
 // in schedule for cr.object_ref() has the same spec as cr.spec.
-pub proof fn lemma_true_leads_to_always_the_object_in_schedule_has_spec_as(
+pub proof fn lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(
     spec: TempPred<Self>, cr: K
 )
     requires
@@ -34,10 +36,10 @@ pub proof fn lemma_true_leads_to_always_the_object_in_schedule_has_spec_as(
         spec.entails(always(lift_state(Self::desired_state_is(cr)))),
         spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
     ensures
-        spec.entails(true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_as(cr))))),
+        spec.entails(true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr))))),
 {
     let pre = |s: Self| true;
-    let post = Self::the_object_in_schedule_has_spec_as(cr);
+    let post = Self::the_object_in_schedule_has_spec_and_uid_as(cr);
     let input = cr.object_ref();
     let stronger_next = |s, s_prime: Self| {
         &&& Self::next()(s, s_prime)
@@ -81,7 +83,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(
         spec.entails(tla_forall(|i| Self::schedule_controller_reconcile().weak_fairness(i))),
         spec.entails(always(lift_state(Self::desired_state_is(cr)))),
         spec.entails(true_pred().leads_to(lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref())))),
-        spec.entails(true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_as(cr))))),
+        spec.entails(true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr))))),
     ensures
         spec.entails(true_pred().leads_to(always(lift_state(Self::the_object_in_reconcile_has_spec_as(cr))))),
 {
@@ -91,9 +93,9 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(
         .and(tla_forall(|i| Self::controller_next().weak_fairness(i)))
         .and(always(lift_state(Self::desired_state_is(cr))))
         .and(true_pred().leads_to(lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref()))))
-        .and(true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_as(cr)))));
+        .and(true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr)))));
 
-    let stable_spec_with_assumption = stable_spec.and(always(lift_state(Self::the_object_in_schedule_has_spec_as(cr))));
+    let stable_spec_with_assumption = stable_spec.and(always(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr))));
 
     // Let's first prove true ~> []the_object_in_reconcile_has_spec_as(cr)
     assert_by(
@@ -104,17 +106,17 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(
         {
             let stronger_next = |s, s_prime: Self| {
                 &&& Self::next()(s, s_prime)
-                &&& Self::the_object_in_schedule_has_spec_as(cr)(s)
+                &&& Self::the_object_in_schedule_has_spec_and_uid_as(cr)(s)
             };
             entails_always_and_n!(
                 stable_spec_with_assumption,
                 lift_action(Self::next()),
-                lift_state(Self::the_object_in_schedule_has_spec_as(cr))
+                lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr))
             );
             temp_pred_equality(
                 lift_action(stronger_next),
                 lift_action(Self::next())
-                .and(lift_state(Self::the_object_in_schedule_has_spec_as(cr)))
+                .and(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr)))
             );
 
             // Here we split the cases by whether s.reconcile_scheduled_for(cr.object_ref()) is true
@@ -202,7 +204,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(
         }
     );
 
-    // By unpacking the conditions we will have: stable_spec |= []the_object_in_schedule_has_spec_as(cr) ~> []the_object_in_reconcile_has_spec_as(cr)
+    // By unpacking the conditions we will have: stable_spec |= []the_object_in_schedule_has_spec_and_uid_as(cr) ~> []the_object_in_reconcile_has_spec_as(cr)
     assert_by(
         valid(stable(stable_spec)),
         {
@@ -211,7 +213,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(
             Self::tla_forall_action_weak_fairness_is_stable(Self::controller_next());
             always_p_is_stable(lift_state(Self::desired_state_is(cr)));
             p_leads_to_q_is_stable(true_pred(), lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref())));
-            p_leads_to_q_is_stable(true_pred(), always(lift_state(Self::the_object_in_schedule_has_spec_as(cr))));
+            p_leads_to_q_is_stable(true_pred(), always(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr))));
 
             stable_and_n!(
                 always(lift_action(Self::next())),
@@ -219,19 +221,19 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(
                 tla_forall(|input| Self::controller_next().weak_fairness(input)),
                 always(lift_state(Self::desired_state_is(cr))),
                 true_pred().leads_to(lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref()))),
-                true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_as(cr))))
+                true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr))))
             );
         }
     );
     unpack_conditions_from_spec(
         stable_spec,
-        always(lift_state(Self::the_object_in_schedule_has_spec_as(cr))),
+        always(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr))),
         true_pred(),
         always(lift_state(Self::the_object_in_reconcile_has_spec_as(cr)))
     );
-    temp_pred_equality(true_pred().and(always(lift_state(Self::the_object_in_schedule_has_spec_as(cr)))), always(lift_state(Self::the_object_in_schedule_has_spec_as(cr))));
+    temp_pred_equality(true_pred().and(always(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr)))), always(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr))));
 
-    leads_to_trans_temp(stable_spec, true_pred(), always(lift_state(Self::the_object_in_schedule_has_spec_as(cr))), always(lift_state(Self::the_object_in_reconcile_has_spec_as(cr))));
+    leads_to_trans_temp(stable_spec, true_pred(), always(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr))), always(lift_state(Self::the_object_in_reconcile_has_spec_as(cr))));
 
     // Because spec might be different from stable_spec, we need this extra step
     entails_and_n!(
@@ -241,7 +243,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(
         tla_forall(|i| Self::controller_next().weak_fairness(i)),
         always(lift_state(Self::desired_state_is(cr))),
         true_pred().leads_to(lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref()))),
-        true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_as(cr))))
+        true_pred().leads_to(always(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr))))
     );
     entails_trans(spec, stable_spec, true_pred().leads_to(always(lift_state(Self::the_object_in_reconcile_has_spec_as(cr)))));
 }

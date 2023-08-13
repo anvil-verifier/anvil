@@ -86,7 +86,7 @@ spec fn assumptions(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(lift_state(RMQCluster::crash_disabled()))
     .and(always(lift_state(RMQCluster::busy_disabled())))
     .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
-    .and(always(lift_state(RMQCluster::the_object_in_schedule_has_spec_as(rabbitmq))))
+    .and(always(lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq))))
     .and(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq))))
 }
 
@@ -98,7 +98,7 @@ proof fn assumptions_is_stable(rabbitmq: RabbitmqClusterView)
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::desired_state_is(rabbitmq)),
-        lift_state(RMQCluster::the_object_in_schedule_has_spec_as(rabbitmq)),
+        lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)),
         lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq))
     );
 }
@@ -212,7 +212,7 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
         ),
         {
             let spec = next_with_wf().and(invariants(rabbitmq)).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))).and(always(lift_state(RMQCluster::crash_disabled()))).and(always(lift_state(RMQCluster::busy_disabled())));
-            let other_assumptions = always(lift_state(RMQCluster::the_object_in_schedule_has_spec_as(rabbitmq)))
+            let other_assumptions = always(lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)))
                 .and(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq))));
             temp_pred_equality(
                 next_with_wf().and(invariants(rabbitmq)).and(assumptions(rabbitmq)),
@@ -241,17 +241,17 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
             temp_pred_equality(true_pred().and(other_assumptions), other_assumptions);
 
             terminate::reconcile_eventually_terminates(spec, rabbitmq);
-            RMQCluster::lemma_true_leads_to_always_the_object_in_schedule_has_spec_as(spec, rabbitmq);
+            RMQCluster::lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, rabbitmq);
             RMQCluster::lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(spec, rabbitmq);
 
             leads_to_always_combine_n!(
                 spec, true_pred(),
-                lift_state(RMQCluster::the_object_in_schedule_has_spec_as(rabbitmq)),
+                lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)),
                 lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq))
             );
 
             always_and_equality_n!(
-                lift_state(RMQCluster::the_object_in_schedule_has_spec_as(rabbitmq)),
+                lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)),
                 lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq))
             );
 
@@ -577,6 +577,11 @@ proof fn lemma_true_leads_to_always_current_state_matches_rabbitmq_under_eventua
     lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, rabbitmq,
         RabbitmqReconcileStep::AfterCreatePluginsConfigMap, RabbitmqReconcileStep::AfterGetServerConfigMap);
     lemma_from_after_get_server_config_map_to_rabbitmq_matches(rabbitmq, rest_id);
+    lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, rabbitmq, RabbitmqReconcileStep::AfterCreateServerConfigMap, RabbitmqReconcileStep::AfterCreateServiceAccount);
+    lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, rabbitmq, RabbitmqReconcileStep::AfterUpdateServerConfigMap, RabbitmqReconcileStep::AfterCreateServiceAccount);
+    lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, rabbitmq, RabbitmqReconcileStep::AfterCreateServiceAccount, RabbitmqReconcileStep::AfterCreateRole);
+    lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, rabbitmq, RabbitmqReconcileStep::AfterCreateRole, RabbitmqReconcileStep::AfterCreateRoleBinding);
+    lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(spec, rabbitmq, RabbitmqReconcileStep::AfterCreateRoleBinding, RabbitmqReconcileStep::AfterGetStatefulSet);
 
     leads_to_trans_n!(
         spec,
@@ -643,7 +648,7 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<RMQCluster>, rabbitmq:
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::each_scheduled_key_is_consistent_with_its_object()))),
-        spec.entails(always(lift_state(RMQCluster::the_object_in_schedule_has_spec_as(rabbitmq)))),
+        spec.entails(always(lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)))),
         rabbitmq.well_formed(),
     ensures
         spec.entails(
@@ -664,21 +669,21 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<RMQCluster>, rabbitmq:
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
         &&& RMQCluster::each_scheduled_key_is_consistent_with_its_object()(s)
-        &&& RMQCluster::the_object_in_schedule_has_spec_as(rabbitmq)(s)
+        &&& RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)(s)
     };
     entails_always_and_n!(
         spec,
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::each_scheduled_key_is_consistent_with_its_object()),
-        lift_state(RMQCluster::the_object_in_schedule_has_spec_as(rabbitmq))
+        lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq))
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(RMQCluster::next())
         .and(lift_state(RMQCluster::crash_disabled()))
         .and(lift_state(RMQCluster::each_scheduled_key_is_consistent_with_its_object()))
-        .and(lift_state(RMQCluster::the_object_in_schedule_has_spec_as(rabbitmq)))
+        .and(lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)))
     );
 
     RMQCluster::lemma_pre_leads_to_post_by_controller(
@@ -740,14 +745,13 @@ proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_
         spec.entails(always(lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))),
         step != RabbitmqReconcileStep::Error, step != RabbitmqReconcileStep::Done,
         // next_step != RabbitmqReconcileStep::Init,
-        forall |rabbitmq_1, resp_o|
-            #[trigger] reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).0.reconcile_step == next_step
+        forall |resp_o|
+            #[trigger] reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).0.reconcile_step == next_step
             && reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.is_Some()
             && reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().is_KRequest()
-            && (rabbitmq_1.object_ref() == rabbitmq.object_ref() && rabbitmq_1.spec == rabbitmq.spec ==>
-            is_correct_pending_request_at_rabbitmq_step(
+            && is_correct_pending_request_at_rabbitmq_step(
                 next_step, reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().get_KRequest_0(), rabbitmq
-            )),
+            ),
         rabbitmq.well_formed(),
     ensures
         spec.entails(
@@ -906,14 +910,13 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
         // result_step != RabbitmqReconcileStep::Init,
         // This forall rabbitmq_1 constraint is used because the cr passed to reconcile_core is not necessarily rabbitmq here.
         // We only know that rabbitmq_1.object_ref() == rabbitmq.object_ref() && rabbitmq_1.spec == rabbitmq.spec.
-        forall |rabbitmq_1, resp_o|
-            #[trigger] reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).0.reconcile_step == result_step
+        forall |resp_o|
+            #[trigger] reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).0.reconcile_step == result_step
             && reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.is_Some()
             && reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().is_KRequest()
-            && (rabbitmq_1.object_ref() == rabbitmq.object_ref() && rabbitmq_1.spec == rabbitmq.spec ==>
-            is_correct_pending_request_at_rabbitmq_step(
+            && is_correct_pending_request_at_rabbitmq_step(
                 result_step, reconcile_core(rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().get_KRequest_0(), rabbitmq
-            )),
+            ),
         rabbitmq.well_formed(),
     ensures
         spec.entails(
@@ -990,8 +993,8 @@ proof fn lemma_from_after_get_server_config_map_to_rabbitmq_matches(rabbitmq: Ra
 {
     let spec = next_with_wf().and(invariants(rabbitmq)).and(assumptions(rabbitmq))
     .and(invariants_since_rest_id(rabbitmq, rest_id)).and(invariants_led_to_by_rest_id(rabbitmq, rest_id));
-    lemma_from_after_get_server_config_map_and_key_not_exists_to_rabbitmq_matches(rabbitmq, rest_id);
-    lemma_from_after_get_server_config_map_and_key_exists_to_rabbitmq_matches(rabbitmq, rest_id);
+    lemma_from_after_get_server_config_map_and_key_not_exists_to_after_create_server_config_map(rabbitmq, rest_id);
+    lemma_from_after_get_server_config_map_and_key_exists_to_after_create_server_config_map(rabbitmq, rest_id);
     let key_not_exists = |s: RMQCluster| {
             &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
             &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq)(s)
@@ -1007,7 +1010,7 @@ proof fn lemma_from_after_get_server_config_map_to_rabbitmq_matches(rabbitmq: Ra
     );
 }
 
-proof fn lemma_from_after_get_server_config_map_and_key_not_exists_to_rabbitmq_matches(rabbitmq: RabbitmqClusterView, rest_id: nat)
+proof fn lemma_from_after_get_server_config_map_and_key_not_exists_to_after_create_server_config_map(rabbitmq: RabbitmqClusterView, rest_id: nat)
     requires
         rabbitmq.well_formed(),
     ensures
