@@ -481,7 +481,7 @@ pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(always(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
         spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq)))),
+        spec.entails(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))),
     ensures
         spec.entails(always(lift_state(every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id)))),
 {
@@ -493,7 +493,7 @@ pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
         &&& RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
-        &&& RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq)(s)
+        &&& RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)(s)
     };
     let invariant = every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id);
 
@@ -513,14 +513,14 @@ pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
         lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)),
-        lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq))
+        lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(RMQCluster::next())
         .and(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))
         .and(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))
-        .and(lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq)))
+        .and(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))
     );
 
     assert forall |s, s_prime: RMQCluster| invariant(s) && #[trigger] stronger_next(s, s_prime)

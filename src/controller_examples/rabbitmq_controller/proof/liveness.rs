@@ -87,7 +87,7 @@ spec fn assumptions(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     .and(always(lift_state(RMQCluster::busy_disabled())))
     .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
     .and(always(lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq))))
-    .and(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq))))
+    .and(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))))
 }
 
 proof fn assumptions_is_stable(rabbitmq: RabbitmqClusterView)
@@ -99,7 +99,7 @@ proof fn assumptions_is_stable(rabbitmq: RabbitmqClusterView)
         lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::desired_state_is(rabbitmq)),
         lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)),
-        lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq))
+        lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
     );
 }
 
@@ -213,7 +213,7 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
         {
             let spec = next_with_wf().and(invariants(rabbitmq)).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))).and(always(lift_state(RMQCluster::crash_disabled()))).and(always(lift_state(RMQCluster::busy_disabled())));
             let other_assumptions = always(lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)))
-                .and(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq))));
+                .and(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))));
             temp_pred_equality(
                 next_with_wf().and(invariants(rabbitmq)).and(assumptions(rabbitmq)),
                 next_with_wf().and(invariants(rabbitmq)).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
@@ -242,17 +242,17 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
 
             terminate::reconcile_eventually_terminates(spec, rabbitmq);
             RMQCluster::lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, rabbitmq);
-            RMQCluster::lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(spec, rabbitmq);
+            RMQCluster::lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, rabbitmq);
 
             leads_to_always_combine_n!(
                 spec, true_pred(),
                 lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)),
-                lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq))
+                lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
             );
 
             always_and_equality_n!(
                 lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)),
-                lift_state(RMQCluster::the_object_in_reconcile_has_spec_as(rabbitmq))
+                lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
             );
 
             leads_to_trans_temp(spec, true_pred(), other_assumptions, always(lift_state(current_state_matches(rabbitmq))));

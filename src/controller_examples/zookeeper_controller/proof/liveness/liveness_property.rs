@@ -87,7 +87,7 @@ spec fn assumptions(zk: ZookeeperClusterView) -> TempPred<ZKCluster> {
     .and(always(lift_state(ZKCluster::busy_disabled())))
     .and(always(lift_state(ZKCluster::desired_state_is(zk))))
     .and(always(lift_state(ZKCluster::the_object_in_schedule_has_spec_and_uid_as(zk))))
-    .and(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_as(zk))))
+    .and(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zk))))
 }
 
 proof fn assumptions_is_stable(zk: ZookeeperClusterView)
@@ -99,7 +99,7 @@ proof fn assumptions_is_stable(zk: ZookeeperClusterView)
         lift_state(ZKCluster::busy_disabled()),
         lift_state(ZKCluster::desired_state_is(zk)),
         lift_state(ZKCluster::the_object_in_schedule_has_spec_and_uid_as(zk)),
-        lift_state(ZKCluster::the_object_in_reconcile_has_spec_as(zk))
+        lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zk))
     );
 }
 
@@ -267,7 +267,7 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
         {
             let spec = next_with_wf().and(invariants(zk)).and(always(lift_state(ZKCluster::desired_state_is(zk)))).and(always(lift_state(ZKCluster::crash_disabled()))).and(always(lift_state(ZKCluster::busy_disabled())));
             let other_assumptions = always(lift_state(ZKCluster::the_object_in_schedule_has_spec_and_uid_as(zk)))
-                .and(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_as(zk))));
+                .and(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zk))));
             temp_pred_equality(
                 next_with_wf().and(invariants(zk)).and(assumptions(zk)),
                 next_with_wf().and(invariants(zk)).and(always(lift_state(ZKCluster::desired_state_is(zk))))
@@ -296,17 +296,17 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
 
             terminate::reconcile_eventually_terminates(spec, zk);
             ZKCluster::lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, zk);
-            ZKCluster::lemma_true_leads_to_always_the_object_in_reconcile_has_spec_as(spec, zk);
+            ZKCluster::lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, zk);
 
             leads_to_always_combine_n!(
                 spec, true_pred(),
                 lift_state(ZKCluster::the_object_in_schedule_has_spec_and_uid_as(zk)),
-                lift_state(ZKCluster::the_object_in_reconcile_has_spec_as(zk))
+                lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zk))
             );
 
             always_and_equality_n!(
                 lift_state(ZKCluster::the_object_in_schedule_has_spec_and_uid_as(zk)),
-                lift_state(ZKCluster::the_object_in_reconcile_has_spec_as(zk))
+                lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zk))
             );
 
             leads_to_trans_temp(spec, true_pred(), other_assumptions, always(lift_state(current_state_matches(zk))));

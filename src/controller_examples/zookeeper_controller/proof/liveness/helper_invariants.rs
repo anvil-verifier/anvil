@@ -669,7 +669,7 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(always(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
         spec.entails(always(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
-        spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_as(zk)))),
+        spec.entails(always(lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zk)))),
     ensures
         spec.entails(always(lift_state(every_update_sts_req_since_rest_id_does_the_same(zk, rest_id)))),
 {
@@ -681,7 +681,7 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
         &&& ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
-        &&& ZKCluster::the_object_in_reconcile_has_spec_as(zk)(s)
+        &&& ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zk)(s)
     };
     let invariant = every_update_sts_req_since_rest_id_does_the_same(zk, rest_id);
 
@@ -701,14 +701,14 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
         lift_action(ZKCluster::next()),
         lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()),
         lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)),
-        lift_state(ZKCluster::the_object_in_reconcile_has_spec_as(zk))
+        lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zk))
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(ZKCluster::next())
         .and(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()))
         .and(lift_state(ZKCluster::rest_id_counter_is_no_smaller_than(rest_id)))
-        .and(lift_state(ZKCluster::the_object_in_reconcile_has_spec_as(zk)))
+        .and(lift_state(ZKCluster::the_object_in_reconcile_has_spec_and_uid_as(zk)))
     );
 
     assert forall |s, s_prime: ZKCluster| invariant(s) && #[trigger] stronger_next(s, s_prime)
