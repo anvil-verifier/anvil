@@ -18,26 +18,24 @@ verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
-pub open spec fn scheduled_cr_has_lower_uid_than_uid_counter(key: ObjectRef) -> StatePred<Self>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
+pub open spec fn scheduled_cr_has_lower_uid_than_uid_counter() -> StatePred<Self> {
     |s: Self| {
-        s.controller_state.scheduled_reconciles.contains_key(key)
+        forall |key: ObjectRef| 
+        #[trigger] s.controller_state.scheduled_reconciles.contains_key(key)
+        && key.kind.is_CustomResourceKind()
         ==> s.controller_state.scheduled_reconciles[key].metadata().uid.is_Some()
         && s.controller_state.scheduled_reconciles[key].metadata().uid.get_Some_0() < s.kubernetes_api_state.uid_counter
     }
 }
 
-pub proof fn lemma_always_scheduled_cr_has_lower_uid_than_uid_counter(spec: TempPred<Self>, key: ObjectRef)
+pub proof fn lemma_always_scheduled_cr_has_lower_uid_than_uid_counter(spec: TempPred<Self>)
     requires
-        key.kind.is_CustomResourceKind(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
-        spec.entails(always(lift_state(Self::scheduled_cr_has_lower_uid_than_uid_counter(key)))),
+        spec.entails(always(lift_state(Self::scheduled_cr_has_lower_uid_than_uid_counter()))),
 {
-    let invariant = Self::scheduled_cr_has_lower_uid_than_uid_counter(key);
+    let invariant = Self::scheduled_cr_has_lower_uid_than_uid_counter();
     let stronger_next = |s, s_prime| {
         Self::next()(s, s_prime)
         && Self::every_object_in_etcd_has_lower_uid_than_uid_counter()(s)
@@ -51,45 +49,44 @@ pub proof fn lemma_always_scheduled_cr_has_lower_uid_than_uid_counter(spec: Temp
         lift_action(Self::next()).and(lift_state(Self::every_object_in_etcd_has_lower_uid_than_uid_counter()))
     );
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        if s_prime.controller_state.scheduled_reconciles.contains_key(key) {
+        // if s_prime.controller_state.scheduled_reconciles.contains_key(key) {
             assert(s.kubernetes_api_state.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
             K::from_dynamic_preserves_metadata();
-        }
+        // }
     }
     init_invariant(spec, Self::init(), stronger_next, invariant);
 }
 
-pub open spec fn triggering_cr_has_lower_uid_than_uid_counter(key: ObjectRef) -> StatePred<Self>
-    recommends
-        key.kind.is_CustomResourceKind(),
+pub open spec fn triggering_cr_has_lower_uid_than_uid_counter() -> StatePred<Self>
 {
     |s: Self| {
-        s.reconcile_state_contains(key)
+        forall |key: ObjectRef|
+        #[trigger] s.reconcile_state_contains(key)
+        && key.kind.is_CustomResourceKind()
         ==> s.reconcile_state_of(key).triggering_cr.metadata().uid.is_Some()
         && s.reconcile_state_of(key).triggering_cr.metadata().uid.get_Some_0() < s.kubernetes_api_state.uid_counter
     }
 }
 
-pub proof fn lemma_always_triggering_cr_has_lower_uid_than_uid_counter(spec: TempPred<Self>, key: ObjectRef)
+pub proof fn lemma_always_triggering_cr_has_lower_uid_than_uid_counter(spec: TempPred<Self>)
     requires
-        key.kind.is_CustomResourceKind(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
-        spec.entails(always(lift_state(Self::triggering_cr_has_lower_uid_than_uid_counter(key)))),
+        spec.entails(always(lift_state(Self::triggering_cr_has_lower_uid_than_uid_counter()))),
 {
-    let invariant = Self::triggering_cr_has_lower_uid_than_uid_counter(key);
+    let invariant = Self::triggering_cr_has_lower_uid_than_uid_counter();
     let stronger_next = |s, s_prime| {
         Self::next()(s, s_prime)
-        && Self::scheduled_cr_has_lower_uid_than_uid_counter(key)(s)
+        && Self::scheduled_cr_has_lower_uid_than_uid_counter()(s)
     };
-    Self::lemma_always_scheduled_cr_has_lower_uid_than_uid_counter(spec, key);
+    Self::lemma_always_scheduled_cr_has_lower_uid_than_uid_counter(spec);
     entails_always_and_n!(
-        spec, lift_action(Self::next()), lift_state(Self::scheduled_cr_has_lower_uid_than_uid_counter(key))
+        spec, lift_action(Self::next()), lift_state(Self::scheduled_cr_has_lower_uid_than_uid_counter())
     );
     temp_pred_equality(
         lift_action(stronger_next),
-        lift_action(Self::next()).and(lift_state(Self::scheduled_cr_has_lower_uid_than_uid_counter(key)))
+        lift_action(Self::next()).and(lift_state(Self::scheduled_cr_has_lower_uid_than_uid_counter()))
     );
     init_invariant(spec, Self::init(), stronger_next, invariant);
 }

@@ -624,4 +624,76 @@ pub proof fn lemma_always_no_delete_cm_req_since_rest_id_is_in_flight(
     init_invariant(spec, init, next, invariant);
 }
 
+pub open spec fn create_stateful_set_msg_has_lower_owner_ref_uid_than_uid_counter(key: ObjectRef) -> StatePred<RMQCluster>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: RMQCluster| {
+        forall |msg: Message| {
+            let create_req = msg.content.get_APIRequest_0().get_CreateRequest_0();
+            RMQCluster::request_sent_by_controller(msg)
+            && #[trigger] s.message_in_flight(msg)
+            && msg.content.get_APIRequest_0().is_CreateRequest()
+            && create_req.namespace == key.namespace
+            && create_req.obj.object_ref() == make_stateful_set_key(key)
+            ==> create_req.obj.metadata.owner_references.is_Some()
+            && (
+                forall |i| #![trigger create_req.obj.metadata.owner_references.get_Some_0()[i]]
+                create_req.obj.metadata.owner_references.get_Some_0()[i].uid < s.kubernetes_api_state.uid_counter
+            )
+        }
+    }
+}
+
+pub proof fn lemma_always_create_stateful_set_msg_has_lower_owner_ref_uid_than_uid_counter(spec: TempPred<RMQCluster>, key: ObjectRef)
+    requires
+        key.kind.is_CustomResourceKind(),
+        spec.entails(lift_state(RMQCluster::init())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+    ensures
+        spec.entails(always(lift_state(create_stateful_set_msg_has_lower_owner_ref_uid_than_uid_counter(key)))),
+{
+    let invariant = create_stateful_set_msg_has_lower_owner_ref_uid_than_uid_counter(key);
+    let stronger_next = |s, s_prime| {
+        RMQCluster::next()(s, s_prime)
+        && RMQCluster::triggering_cr_has_lower_uid_than_uid_counter()(s)
+    };
+    RMQCluster::lemma_always_triggering_cr_has_lower_uid_than_uid_counter(spec);
+    entails_always_and_n!(
+        spec, lift_action(RMQCluster::next()), lift_state(RMQCluster::triggering_cr_has_lower_uid_than_uid_counter())
+    );
+    temp_pred_equality(
+        lift_action(stronger_next),
+        lift_action(RMQCluster::next()).and(lift_state(RMQCluster::triggering_cr_has_lower_uid_than_uid_counter()))
+    );
+    assert forall |s, s_prime: RMQCluster| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
+        assert(s.kubernetes_api_state.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
+        assert forall |msg| RMQCluster::request_sent_by_controller(msg) && #[trigger] s_prime.message_in_flight(msg)
+        && msg.content.get_APIRequest_0().is_CreateRequest() && msg.content.get_APIRequest_0().get_CreateRequest_0().namespace == key.namespace && msg.content.get_APIRequest_0().get_CreateRequest_0().obj.object_ref() == make_stateful_set_key(key)
+        implies msg.content.get_APIRequest_0().get_CreateRequest_0().obj.metadata.owner_references.is_Some()
+        && (
+            forall |i| #![trigger msg.content.get_APIRequest_0().get_CreateRequest_0().obj.metadata.owner_references.get_Some_0()[i]]
+            msg.content.get_APIRequest_0().get_CreateRequest_0().obj.metadata.owner_references.get_Some_0()[i].uid < s_prime.kubernetes_api_state.uid_counter
+        ) by {
+            let owner_ref = msg.content.get_APIRequest_0().get_CreateRequest_0().obj.metadata.owner_references;
+            let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+            match step {
+                Step::ControllerStep(input) => {
+                    if !s.message_in_flight(msg) {
+                        assert(owner_ref == Some(seq![s.reconcile_state_of(input.2.get_Some_0()).triggering_cr.controller_owner_ref()]));
+                        assert(s.reconcile_state_of(input.2.get_Some_0()).triggering_cr.metadata.uid.get_Some_0() < s.kubernetes_api_state.uid_counter);
+                    } else {
+                        assert(msg.content.get_APIRequest_0().get_CreateRequest_0().obj.metadata.owner_references.is_Some());
+                    }
+                    assert(msg.content.get_APIRequest_0().get_CreateRequest_0().obj.metadata.owner_references.is_Some());
+                },
+                _ => {
+                    assert(msg.content.get_APIRequest_0().get_CreateRequest_0().obj.metadata.owner_references.is_Some());
+                }
+            }
+        }
+    }
+    init_invariant(spec, RMQCluster::init(), stronger_next, invariant);
+}
+
 }

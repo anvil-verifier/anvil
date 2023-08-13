@@ -724,7 +724,23 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
         .and(lift_state(RMQCluster::crash_disabled()))
     );
 
-    RMQCluster::lemma_pre_leads_to_post_by_controller( spec, input, stronger_next, RMQCluster::continue_reconcile(), pre, post);
+    assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
+        let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+        match step {
+            Step::ControllerStep(input) => {
+                if input.2.get_Some_0() != rabbitmq.object_ref() {
+                    assert(pre(s_prime));
+                } else {
+                    assert(post(s_prime));
+                }
+            },
+            _ => {
+                assert(pre(s_prime));
+            }
+        }
+    }
+
+    RMQCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, RMQCluster::continue_reconcile(), pre, post);
 }
 
 // This lemma ensures that rabbitmq controller at some step with pending request in flight will finally enter its next step.
@@ -961,6 +977,7 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
         match step {
             Step::ControllerStep(input) => {
                 if input.2.is_Some() && input.2.get_Some_0() == rabbitmq.object_ref() {
+                    assert(s.reconcile_state_of(rabbitmq.object_ref()).local_state.reconcile_step == result_step);
                     assert(post(s_prime));
                 } else {
                     assert(pre(s_prime));
@@ -993,8 +1010,8 @@ proof fn lemma_from_after_get_server_config_map_to_rabbitmq_matches(rabbitmq: Ra
 {
     let spec = next_with_wf().and(invariants(rabbitmq)).and(assumptions(rabbitmq))
     .and(invariants_since_rest_id(rabbitmq, rest_id)).and(invariants_led_to_by_rest_id(rabbitmq, rest_id));
-    lemma_from_after_get_server_config_map_and_key_not_exists_to_after_create_server_config_map(rabbitmq, rest_id);
-    lemma_from_after_get_server_config_map_and_key_exists_to_after_create_server_config_map(rabbitmq, rest_id);
+    lemma_from_after_get_server_config_map_and_key_not_exists_to_rabbitmq_matches(rabbitmq, rest_id);
+    lemma_from_after_get_server_config_map_and_key_exists_to_rabbitmq_matches(rabbitmq, rest_id);
     let key_not_exists = |s: RMQCluster| {
             &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
             &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq)(s)
@@ -1010,7 +1027,7 @@ proof fn lemma_from_after_get_server_config_map_to_rabbitmq_matches(rabbitmq: Ra
     );
 }
 
-proof fn lemma_from_after_get_server_config_map_and_key_not_exists_to_after_create_server_config_map(rabbitmq: RabbitmqClusterView, rest_id: nat)
+proof fn lemma_from_after_get_server_config_map_and_key_not_exists_to_rabbitmq_matches(rabbitmq: RabbitmqClusterView, rest_id: nat)
     requires
         rabbitmq.well_formed(),
     ensures
