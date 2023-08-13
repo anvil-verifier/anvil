@@ -325,4 +325,6 @@ pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_no
     }
 }
 
+// pub open spec fn stateful_set_has_owner_reference_pointing_to_current_cr()
+
 }

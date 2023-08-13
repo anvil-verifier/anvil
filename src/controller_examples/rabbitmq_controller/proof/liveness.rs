@@ -747,7 +747,8 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
 // For step and next_step, they both require the reconcile_state to have a pending request which is the correct request for that step.
 // Note that in this lemma we add some constraints to step:
 //    1. There is only one possible next_step for it.
-//    2. When the controller enters this step, it must create a request (which is piggybacked by the pending request message)
+//    2. When the controller enters the next step, it must create a request that satisfies some requirements (which is piggybacked 
+// by the pending request message)
 proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, step: RabbitmqReconcileStep, next_step: RabbitmqReconcileStep
 )
@@ -760,14 +761,17 @@ proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))),
         step != RabbitmqReconcileStep::Error, step != RabbitmqReconcileStep::Done,
-        // next_step != RabbitmqReconcileStep::Init,
-        forall |rabbitmq_1, resp_o|
-            #[trigger] reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).0.reconcile_step == next_step
-            && reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.is_Some()
-            && reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().is_KRequest()
+        // We have to use a quantifier here because we have no idea of what the cr is when conducting reconcile_core.
+        // We don't have the triggering cr is the same as the rabbitmq here by `at_rabbitmq_step_with_rabbitmq`. Fortunately,
+        // having the same reference, spec and uid (which is required by `at_rabbitmq_step_with_rabbitmq`) is enough for 
+        // proving that the returned request is valid.
+        forall |any_rabbitmq, resp_o|
+            #[trigger] reconcile_core(any_rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).0.reconcile_step == next_step
+            && reconcile_core(any_rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.is_Some()
+            && reconcile_core(any_rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().is_KRequest()
             && (
-                rabbitmq_1.object_ref() == rabbitmq.object_ref() && rabbitmq_1.spec() == rabbitmq.spec() && rabbitmq_1.metadata().uid == rabbitmq.metadata().uid
-                ==> is_correct_pending_request_at_rabbitmq_step(next_step, reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().get_KRequest_0(), rabbitmq)
+                any_rabbitmq.object_ref() == rabbitmq.object_ref() && any_rabbitmq.spec() == rabbitmq.spec() && any_rabbitmq.metadata().uid == rabbitmq.metadata().uid
+                ==> is_correct_pending_request_at_rabbitmq_step(next_step, reconcile_core(any_rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().get_KRequest_0(), rabbitmq)
             ),
         rabbitmq.well_formed(),
     ensures
@@ -924,16 +928,17 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))),
         step != RabbitmqReconcileStep::Done, step != RabbitmqReconcileStep::Error,
-        // result_step != RabbitmqReconcileStep::Init,
-        // This forall rabbitmq_1 constraint is used because the cr passed to reconcile_core is not necessarily rabbitmq here.
-        // We only know that rabbitmq_1.object_ref() == rabbitmq.object_ref() && rabbitmq_1.spec == rabbitmq.spec.
-        forall |rabbitmq_1, resp_o|
-            #[trigger] reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).0.reconcile_step == result_step
-            && reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.is_Some()
-            && reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().is_KRequest()
+        // We have to use a quantifier here because we have no idea of what the cr is when conducting reconcile_core.
+        // We don't have the triggering cr is the same as the rabbitmq here by `at_rabbitmq_step_with_rabbitmq`. Fortunately,
+        // having the same reference, spec and uid (which is required by `at_rabbitmq_step_with_rabbitmq`) is enough for 
+        // proving that the returned request is valid.
+        forall |any_rabbitmq, resp_o|
+            #[trigger] reconcile_core(any_rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).0.reconcile_step == result_step
+            && reconcile_core(any_rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.is_Some()
+            && reconcile_core(any_rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().is_KRequest()
             && (
-                rabbitmq_1.object_ref() == rabbitmq.object_ref() && rabbitmq_1.spec() == rabbitmq.spec() && rabbitmq_1.metadata().uid == rabbitmq.metadata().uid
-                ==> is_correct_pending_request_at_rabbitmq_step(result_step, reconcile_core(rabbitmq_1, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().get_KRequest_0(), rabbitmq)
+                any_rabbitmq.object_ref() == rabbitmq.object_ref() && any_rabbitmq.spec() == rabbitmq.spec() && any_rabbitmq.metadata().uid == rabbitmq.metadata().uid
+                ==> is_correct_pending_request_at_rabbitmq_step(result_step, reconcile_core(any_rabbitmq, resp_o, RabbitmqReconcileState{ reconcile_step: step }).1.get_Some_0().get_KRequest_0(), rabbitmq)
             ),
         rabbitmq.well_formed(),
     ensures
