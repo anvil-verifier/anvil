@@ -180,6 +180,16 @@ pub open spec fn update_is_noop(o1: DynamicObjectView, o2: DynamicObjectView) ->
     &&& o1.spec == o2.spec
 }
 
+// Unconditional update means one can update the object without providing a resource version.
+// For all the supported kinds, unconditional update is disallowed for CustomResource only.
+// Note that if the resource version is provided, it has to be the correct one.
+pub open spec fn allow_unconditional_update(kind: Kind) -> bool {
+    match kind {
+        Kind::CustomResourceKind => false,
+        _ => true,
+    }
+}
+
 pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPIState) -> Option<APIError> {
     // let req = msg.content.get_update_request();
     if req.obj.metadata.name.is_None() {
@@ -206,6 +216,10 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         // Update fails because the object does not exist
         // TODO: check AllowCreateOnUpdate() to see whether to support create-on-update
         Some(APIError::ObjectNotFound)
+    } else if req.obj.metadata.resource_version.is_None()
+        && !Self::allow_unconditional_update(req.key.kind) {
+        // Update fails because the object does not provide a rv and unconditional update is not supported
+        Some(APIError::Invalid)
     } else if req.obj.metadata.resource_version.is_Some()
         && req.obj.metadata.resource_version != s.resources[req.key].metadata.resource_version {
         // Update fails because the object has a wrong rv
