@@ -4,7 +4,7 @@
 use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
+    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*, owner_reference::*,
     persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
     resource_requirements::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
     stateful_set::*,
@@ -294,25 +294,29 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 let get_sts_resp = resp_o.unwrap().into_k_response().into_get_response().res;
                 if get_sts_resp.is_ok() {
                     // update
-                    let found_stateful_set = StatefulSet::from_dynamic_object(get_sts_resp.unwrap());
-                    if found_stateful_set.is_ok(){
-                        let mut new_stateful_set = found_stateful_set.unwrap();
-                        // rabbitmq controller doesn't support scale down, so new replicas must be greater than or equal to old replicas
-                        if new_stateful_set.spec().is_some()
-                            && new_stateful_set.spec().unwrap().replicas().is_some()
-                            && new_stateful_set.spec().unwrap().replicas().unwrap() <= rabbitmq.spec().replicas() {
-                                new_stateful_set.set_spec(stateful_set.spec().unwrap());
-                                let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
-                                    api_resource: StatefulSet::api_resource(),
-                                    name: stateful_set.metadata().name().unwrap(),
-                                    namespace: rabbitmq.namespace().unwrap(),
-                                    obj: new_stateful_set.to_dynamic_object(),
-                                });
-                                let state_prime = RabbitmqReconcileState {
-                                    reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
-                                    ..state
-                                };
-                                return (state_prime, Some(Request::KRequest(req_o)));
+                    let get_sts_result = StatefulSet::from_dynamic_object(get_sts_resp.unwrap());
+                    if get_sts_result.is_ok(){
+                        let mut found_stateful_set = get_sts_result.unwrap();
+                        // We check the owner reference of the found stateful set here to ensure that it is not created from
+                        // previously existing (and now deleted) cr. Otherwise, if the replicas of the current cr is smaller 
+                        // than the previous one, scaling down, which should be prohibited, will happen.
+                        // If the found stateful set doesn't contain the controller owner reference of the current cr, we will 
+                        // just let the reconciler enter the error state and wait for the garbage collector to delete it. So 
+                        // after that, when a new round of reconcile starts, there is no stateful set in etcd, the reconciler 
+                        // will go to create a new one.
+                        if found_stateful_set.metadata().owner_references_contains(rabbitmq.controller_owner_ref()) {
+                            found_stateful_set.set_spec(stateful_set.spec().unwrap());
+                            let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                                api_resource: StatefulSet::api_resource(),
+                                name: stateful_set.metadata().name().unwrap(),
+                                namespace: rabbitmq.namespace().unwrap(),
+                                obj: found_stateful_set.to_dynamic_object(),
+                            });
+                            let state_prime = RabbitmqReconcileState {
+                                reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
+                                ..state
+                            };
+                            return (state_prime, Some(Request::KRequest(req_o)));
                         }
                     }
                 } else if get_sts_resp.unwrap_err().is_object_not_found() {
@@ -424,6 +428,17 @@ pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServiceP
         let mut metadata = ObjectMeta::default();
         metadata.set_name(name);
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
@@ -502,6 +517,17 @@ pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) ->
         let mut metadata = ObjectMeta::default();
         metadata.set_name(name);
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
@@ -525,6 +551,17 @@ fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-plugins-conf")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
@@ -551,6 +588,17 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server-conf")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
@@ -611,6 +659,17 @@ fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: Service
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
@@ -633,6 +692,17 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-peer-discovery")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
@@ -739,6 +809,17 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
@@ -785,6 +866,17 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
+        metadata.set_owner_references({
+            let mut owner_references = Vec::new();
+            owner_references.push(rabbitmq.controller_owner_ref());
+            proof {
+                assert_seqs_equal!(
+                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                );
+            }
+            owner_references
+        });
         metadata.set_labels({
             let mut labels = StringMap::empty();
             labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());

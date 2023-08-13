@@ -64,6 +64,17 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn owner_references_contains(&self, owner_ref: OwnerReference) -> (res: bool)
+        ensures
+            res == self@.owner_references_contains(owner_ref@),
+    {
+        match &self.inner.owner_references {
+            Some(owner_refs) => owner_refs.contains(&owner_ref.into_kube()),
+            None => false,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn resource_version(&self) -> (version: Option<u64>)
         ensures
             self@.resource_version.is_Some() == version.is_Some(),
@@ -185,6 +196,13 @@ impl ObjectMetaView {
             owner_references: None,
             finalizers: None,
             deletion_timestamp: None,
+        }
+    }
+
+    pub open spec fn owner_references_contains(self, owner_ref: OwnerReferenceView) -> bool {
+        match self.owner_references {
+            Some(owner_refs) => owner_refs.contains(owner_ref),
+            None => false,
         }
     }
 

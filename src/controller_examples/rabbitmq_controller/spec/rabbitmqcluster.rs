@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
-    api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, resource::*,
+    api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*,
+    resource::*,
 };
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -25,6 +26,16 @@ impl RabbitmqClusterView {
 
     pub open spec fn namespace(self) -> Option<StringView> {
         self.metadata.namespace
+    }
+
+    pub open spec fn controller_owner_ref(self) -> OwnerReferenceView {
+        OwnerReferenceView {
+            block_owner_deletion: None,
+            controller: Some(true),
+            kind: Self::kind(),
+            name: self.metadata.name.get_Some_0(),
+            uid: self.metadata.uid.get_Some_0(),
+        }
     }
 }
 
@@ -94,7 +105,7 @@ impl ResourceView for RabbitmqClusterView {
     }
 
     open spec fn transition_rule(new_obj: RabbitmqClusterView, old_obj: RabbitmqClusterView) -> bool {
-        true
+        new_obj.spec.replicas >= old_obj.spec.replicas
     }
 
 }

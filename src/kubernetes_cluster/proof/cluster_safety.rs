@@ -55,9 +55,7 @@ pub open spec fn each_object_in_etcd_is_well_formed() -> StatePred<Self> {
     }
 }
 
-pub proof fn lemma_always_each_object_in_etcd_is_well_formed(
-    spec: TempPred<Self>
-)
+pub proof fn lemma_always_each_object_in_etcd_is_well_formed(spec: TempPred<Self>)
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
