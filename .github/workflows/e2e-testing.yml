@@ -19,7 +19,7 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: "^1.20"
-      - name: Install kind and create cluster
+      - name: Install kind
         run: go install sigs.k8s.io/kind@v0.20.0
       - name: Create kind cluster with local registry
         run: ./e2e/deploy/kind-with-registry.sh
@@ -29,13 +29,13 @@ jobs:
       - name: Build zookeeper controller image
         run: |
           cp docker/zookeeper-controller/Dockerfile .
-          docker build -t localhost:5001/zookeeper-controller:1.0
+          docker build -t localhost:5001/zookeeper-controller:1.0 .
       - name: Push zookeeper controller image to local registry
         run: docker push localhost:5001/zookeeper-controller:1.0
       - name: Build rabbitmq controller image
         run: |
           cp docker/rabbitmq-controller/Dockerfile .
-          docker build -t localhost:5001/rabbitmq-controller:1.0
+          docker build -t localhost:5001/rabbitmq-controller:1.0 .
       - name: Push rabbitmq controller image to local registry
         run: docker push localhost:5001/rabbitmq-controller:1.0
       - name: Deploy zookeeper controller
