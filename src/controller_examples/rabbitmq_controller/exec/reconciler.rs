@@ -298,13 +298,13 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                     if get_sts_result.is_ok(){
                         let mut found_stateful_set = get_sts_result.unwrap();
                         // We check the owner reference of the found stateful set here to ensure that it is not created from
-                        // previously existing (and now deleted) cr. Otherwise, if the replicas of the current cr is smaller 
+                        // previously existing (and now deleted) cr. Otherwise, if the replicas of the current cr is smaller
                         // than the previous one, scaling down, which should be prohibited, will happen.
-                        // If the found stateful set doesn't contain the controller owner reference of the current cr, we will 
-                        // just let the reconciler enter the error state and wait for the garbage collector to delete it. So 
-                        // after that, when a new round of reconcile starts, there is no stateful set in etcd, the reconciler 
+                        // If the found stateful set doesn't contain the controller owner reference of the current cr, we will
+                        // just let the reconciler enter the error state and wait for the garbage collector to delete it. So
+                        // after that, when a new round of reconcile starts, there is no stateful set in etcd, the reconciler
                         // will go to create a new one.
-                        if found_stateful_set.metadata().owner_references_contains(rabbitmq.controller_owner_ref()) {
+                        if found_stateful_set.metadata().owner_references_only_contains(rabbitmq.controller_owner_ref()) {
                             found_stateful_set.set_spec(stateful_set.spec().unwrap());
                             let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                                 api_resource: StatefulSet::api_resource(),

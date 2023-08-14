@@ -793,4 +793,32 @@ pub proof fn lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(
     init_invariant(spec, init, next, invariant);
 }
 
+pub open spec fn pending_msg_at_after_update_stateful_set_step_is_update_sts_req(
+    key: ObjectRef
+) -> StatePred<RMQCluster>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: RMQCluster| {
+        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s)
+            ==> {
+                &&& RMQCluster::pending_k8s_api_req_msg(s, key)
+                &&& sts_update_request_msg(key)(s.pending_req_of(key))
+            }
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_pending_msg_at_after_update_stateful_set_step_is_update_cm_req(
+    spec: TempPred<RMQCluster>, key: ObjectRef
+)
+    requires
+        spec.entails(lift_state(RMQCluster::init())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+    ensures
+        spec.entails(
+            always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_cm_req(key)))
+        ),
+{}
+
 }

@@ -126,6 +126,12 @@ impl MessageContent {
         &&& self.get_APIRequest_0().is_DeleteRequest()
     }
 
+    pub open spec fn is_delete_request_with_key(self, key: ObjectRef) -> bool {
+        &&& self.is_APIRequest()
+        &&& self.get_APIRequest_0().is_DeleteRequest()
+        &&& self.get_APIRequest_0().get_DeleteRequest_0().key == key
+    }
+
     pub open spec fn get_delete_request(self) -> DeleteRequest
         recommends
             self.is_delete_request()

@@ -64,12 +64,12 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
-    pub fn owner_references_contains(&self, owner_ref: OwnerReference) -> (res: bool)
+    pub fn owner_references_only_contains(&self, owner_ref: OwnerReference) -> (res: bool)
         ensures
-            res == self@.owner_references_contains(owner_ref@),
+            res == self@.owner_references_only_contains(owner_ref@),
     {
         match &self.inner.owner_references {
-            Some(owner_refs) => owner_refs.contains(&owner_ref.into_kube()),
+            Some(owner_refs) => owner_refs.len() == 1 && owner_refs.contains(&owner_ref.into_kube()),
             None => false,
         }
     }
@@ -199,9 +199,9 @@ impl ObjectMetaView {
         }
     }
 
-    pub open spec fn owner_references_contains(self, owner_ref: OwnerReferenceView) -> bool {
+    pub open spec fn owner_references_only_contains(self, owner_ref: OwnerReferenceView) -> bool {
         match self.owner_references {
-            Some(owner_refs) => owner_refs.contains(owner_ref),
+            Some(owner_refs) => owner_refs == seq![owner_ref],
             None => false,
         }
     }

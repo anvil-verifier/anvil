@@ -3,7 +3,8 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::EmptyAPI;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, error::*, resource::*,
+    api_method::*, common::*, config_map::*, error::*, owner_reference::*, resource::*,
+    stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
     cluster::*,
@@ -50,6 +51,8 @@ pub open spec fn cm_update_request_msg_since(key: ObjectRef, rest_id: RestId) ->
         cm_update_request_msg(key)(msg)
         && msg.content.get_rest_id() >= rest_id
 }
+
+
 
 pub open spec fn pending_msg_at_after_create_server_config_map_step_is_create_cm_req(
     key: ObjectRef
@@ -472,6 +475,42 @@ pub open spec fn every_update_cm_req_since_rest_id_does_the_same(
     }
 }
 
+pub open spec fn stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+        ==> s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
+    }
+}
+
+pub open spec fn stateful_set_only_has_controller_owner_ref(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+        ==> exists |uid: nat|
+            s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.owner_references == Some(seq![OwnerReferenceView {
+                block_owner_deletion: None,
+                controller: Some(true),
+                kind: RabbitmqClusterView::kind(),
+                name: rabbitmq.metadata.name.get_Some_0(),
+                uid: uid,
+            }])
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_stateful_set_only_has_controller_owner_ref(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
+    requires
+        spec.entails(lift_state(RMQCluster::init())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+    ensures
+        spec.entails(always(lift_state(stateful_set_only_has_controller_owner_ref(rabbitmq)))),
+{
+    let invariant = stateful_set_only_has_controller_owner_ref(rabbitmq);
+    assert forall |s, s_prime: RMQCluster| invariant(s) && #[trigger] RMQCluster::next()(s, s_prime) implies invariant(s_prime) by {
+
+    }
+    init_invariant(spec, RMQCluster::init(), RMQCluster::next(), invariant);
+}
+
 pub proof fn lemma_always_every_update_cm_req_since_rest_id_does_the_same(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, rest_id: RestId
 )
@@ -623,5 +662,251 @@ pub proof fn lemma_always_no_delete_cm_req_since_rest_id_is_in_flight(
 
     init_invariant(spec, init, next, invariant);
 }
+
+pub open spec fn sts_create_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
+    |msg: Message|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_create_request()
+        && msg.content.get_create_request().namespace == make_stateful_set_key(key).namespace
+        && msg.content.get_create_request().obj.metadata.name.get_Some_0() == make_stateful_set_key(key).name
+        && msg.content.get_create_request().obj.kind == make_stateful_set_key(key).kind
+}
+
+pub open spec fn sts_create_request_msg_since(key: ObjectRef, rest_id: RestId) -> FnSpec(Message) -> bool {
+    |msg: Message|
+        sts_create_request_msg(key)(msg)
+        && msg.content.get_rest_id() >= rest_id
+}
+
+pub open spec fn sts_update_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
+    |msg: Message|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_update_request()
+        && msg.content.get_update_request().key == make_stateful_set_key(key)
+}
+
+pub open spec fn sts_update_request_msg_since(key: ObjectRef, rest_id: RestId) -> FnSpec(Message) -> bool {
+    |msg: Message|
+        sts_update_request_msg(key)(msg)
+        && msg.content.get_rest_id() >= rest_id
+}
+
+pub open spec fn every_update_sts_req_since_rest_id_does_the_same(
+    rabbitmq: RabbitmqClusterView, rest_id: RestId
+) -> StatePred<RMQCluster>
+    recommends
+        rabbitmq.well_formed(),
+{
+    |s: RMQCluster| {
+        forall |msg: Message| {
+            &&& #[trigger] s.network_state.in_flight.contains(msg)
+            &&& sts_update_request_msg_since(rabbitmq.object_ref(), rest_id)(msg)
+        } ==> msg.content.get_update_request().obj.spec == StatefulSetView::marshal_spec(make_stateful_set(rabbitmq).spec)
+            && msg.content.get_update_request().obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, rest_id: RestId
+)
+    requires
+        spec.entails(lift_state(RMQCluster::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(always(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))),
+    ensures
+        spec.entails(always(lift_state(every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)))),
+{}
+
+pub open spec fn pending_msg_at_after_create_stateful_set_step_is_create_sts_req(
+    key: ObjectRef
+) -> StatePred<RMQCluster>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: RMQCluster| {
+        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s)
+            ==> {
+                &&& RMQCluster::pending_k8s_api_req_msg(s, key)
+                &&& sts_create_request_msg(key)(s.pending_req_of(key))
+            }
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_pending_msg_at_after_create_stateful_set_step_is_create_sts_req(
+    spec: TempPred<RMQCluster>, key: ObjectRef
+)
+    requires
+        spec.entails(lift_state(RMQCluster::init())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+    ensures
+        spec.entails(
+            always(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))
+        ),
+{}
+
+pub open spec fn pending_msg_at_after_update_stateful_set_step_is_update_sts_req(
+    key: ObjectRef
+) -> StatePred<RMQCluster>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: RMQCluster| {
+        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s)
+            ==> {
+                &&& RMQCluster::pending_k8s_api_req_msg(s, key)
+                &&& sts_update_request_msg(key)(s.pending_req_of(key))
+            }
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_pending_msg_at_after_update_stateful_set_step_is_update_sts_req(
+    spec: TempPred<RMQCluster>, key: ObjectRef
+)
+    requires
+        spec.entails(lift_state(RMQCluster::init())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+    ensures
+        spec.entails(
+            always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))
+        ),
+{}
+
+pub open spec fn at_most_one_create_sts_req_since_rest_id_is_in_flight(
+    key: ObjectRef, rest_id: RestId
+) -> StatePred<RMQCluster>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: RMQCluster| {
+        forall |msg| {
+            &&& #[trigger] s.network_state.in_flight.contains(msg)
+            &&& sts_create_request_msg_since(key, rest_id)(msg)
+        } ==> {
+            let pending_msg = s.pending_req_of(key);
+            &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s)
+            &&& pending_msg.content.get_rest_id() >= rest_id
+            &&& msg == pending_msg
+            &&& s.network_state.in_flight.count(msg) == 1
+        }
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(
+    spec: TempPred<RMQCluster>, key: ObjectRef, rest_id: RestId
+)
+    requires
+        spec.entails(lift_state(RMQCluster::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key))),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
+        spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
+        spec.entails(always(lift_state(pending_msg_at_after_create_stateful_set_step_is_create_sts_req(key)))),
+        spec.entails(always(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
+        key.kind.is_CustomResourceKind(),
+    ensures
+        spec.entails(
+            always(lift_state(at_most_one_create_sts_req_since_rest_id_is_in_flight(key, rest_id)))
+        ),
+{}
+
+pub open spec fn at_most_one_update_sts_req_since_rest_id_is_in_flight(
+    key: ObjectRef, rest_id: RestId
+) -> StatePred<RMQCluster>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: RMQCluster| {
+        forall |msg| {
+            &&& #[trigger] s.network_state.in_flight.contains(msg)
+            &&& sts_update_request_msg_since(key, rest_id)(msg)
+        } ==> {
+            let pending_msg = s.pending_req_of(key);
+            &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s)
+            &&& pending_msg.content.get_rest_id() >= rest_id
+            &&& msg == pending_msg
+            &&& s.network_state.in_flight.count(msg) == 1
+        }
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_at_most_one_update_sts_req_since_rest_id_is_in_flight(
+    spec: TempPred<RMQCluster>, key: ObjectRef, rest_id: RestId
+)
+    requires
+        spec.entails(lift_state(RMQCluster::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key))),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
+        spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
+        spec.entails(always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))),
+        spec.entails(always(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
+        key.kind.is_CustomResourceKind(),
+    ensures
+        spec.entails(
+            always(lift_state(at_most_one_update_sts_req_since_rest_id_is_in_flight(key, rest_id)))
+        ),
+{}
+
+pub open spec fn sts_delete_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
+    |msg: Message|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_delete_request()
+        && msg.content.get_delete_request().key == make_stateful_set_key(key)
+}
+
+pub open spec fn sts_delete_request_msg_since(key: ObjectRef, rest_id: RestId) -> FnSpec(Message) -> bool {
+    |msg: Message|
+        sts_delete_request_msg(key)(msg)
+        && msg.content.get_rest_id() >= rest_id
+}
+
+pub open spec fn no_delete_sts_req_since_rest_id_is_in_flight(
+    key: ObjectRef, rest_id: RestId
+) -> StatePred<RMQCluster>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: RMQCluster| {
+        forall |msg: Message| !{
+            &&& #[trigger] s.message_in_flight(msg)
+            &&& sts_delete_request_msg_since(key, rest_id)(msg)
+        }
+    }
+}
+
+// TODO: fix this lemma.
+// If the configmap has no owner_reference, fixing the lemma is simple:
+// we just need to show that the configmap in the cluster state never has any owner reference.
+//
+// However, later we are going to set the owner_reference of the configmap to the CR object,
+// so we will need the assumption that "CR always exists" to prove this invariant.
+#[verifier(external_body)]
+pub proof fn lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(
+    spec: TempPred<RMQCluster>, key: ObjectRef, rest_id: RestId
+)
+    requires
+        spec.entails(lift_state(RMQCluster::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        key.kind.is_CustomResourceKind(),
+    ensures
+        spec.entails(
+            always(lift_state(no_delete_sts_req_since_rest_id_is_in_flight(key, rest_id)))
+        ),
+{}
 
 }
