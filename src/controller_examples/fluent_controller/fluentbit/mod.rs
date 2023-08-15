@@ -1,4 +1,5 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-pub mod fluentbit;
-pub mod fluentbit_config;
+pub mod common;
+pub mod exec;
+pub mod spec;

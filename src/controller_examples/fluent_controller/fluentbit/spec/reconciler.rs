@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
-use crate::fluent_controller::common::*;
-use crate::fluent_controller::spec::fluentbit::*;
+use crate::fluent_controller::fluentbit::common::*;
+use crate::fluent_controller::fluentbit::spec::types::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, daemon_set::*, label_selector::*, object_meta::*,
     persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, role::*,
@@ -77,16 +77,48 @@ pub open spec fn reconcile_core(
     let step = state.reconcile_step;
     match step{
         FluentBitReconcileStep::Init => {
-            let role = make_role(fluentbit);
-            let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: fluentbit.metadata.namespace.get_Some_0(),
-                obj: role.to_dynamic_object(),
+            let req_o = APIRequest::GetRequest(GetRequest{
+                key: ObjectRef {
+                    kind: SecretView::kind(),
+                    name: fluentbit.spec.fluentbit_config_name,
+                    namespace: fluentbit.metadata.namespace.get_Some_0(),
+                }
             });
             let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterCreateRole,
+                reconcile_step: FluentBitReconcileStep::AfterGetSecret,
                 ..state
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
+        },
+        FluentBitReconcileStep::AfterGetSecret => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
+            && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
+                let get_secret_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
+                if get_secret_resp.is_Ok() {
+                    let role = make_role(fluentbit);
+                    let req_o = APIRequest::CreateRequest(CreateRequest{
+                        namespace: fluentbit.metadata.namespace.get_Some_0(),
+                        obj: role.to_dynamic_object(),
+                    });
+                    let state_prime = FluentBitReconcileState {
+                        reconcile_step: FluentBitReconcileStep::AfterCreateRole,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::KRequest(req_o)))
+                } else {
+                    let state_prime = FluentBitReconcileState {
+                        reconcile_step: FluentBitReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         FluentBitReconcileStep::AfterCreateRole => {
             let service_account = make_service_account(fluentbit);
@@ -113,18 +145,6 @@ pub open spec fn reconcile_core(
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
         FluentBitReconcileStep::AfterCreateRoleBinding => {
-            let secret = make_secret(fluentbit);
-            let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: fluentbit.metadata.namespace.get_Some_0(),
-                obj: secret.to_dynamic_object(),
-            });
-            let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterCreateSecret,
-                ..state
-            };
-            (state_prime, Some(RequestView::KRequest(req_o)))
-        },
-        FluentBitReconcileStep::AfterCreateSecret => {
             let daemon_set = make_daemon_set(fluentbit);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: fluentbit.metadata.namespace.get_Some_0(),
@@ -226,25 +246,6 @@ pub open spec fn make_role_binding(fluentbit: FluentBitView) -> RoleBindingView
         ])
 }
 
-pub open spec fn make_secret_name(fluentbit_name: StringView) -> StringView {
-    fluentbit_name + new_strlit("-config-secret")@
-}
-
-pub open spec fn make_secret(fluentbit: FluentBitView) -> SecretView
-    recommends
-        fluentbit.metadata.name.is_Some(),
-        fluentbit.metadata.namespace.is_Some(),
-{
-    SecretView::default()
-        .set_metadata(ObjectMetaView::default()
-            .set_name(make_secret_name(fluentbit.metadata.name.get_Some_0()))
-            .set_owner_references(seq![fluentbit.controller_owner_ref()])
-        ).set_data(Map::empty()
-            .insert(new_strlit("fluent-bit.conf")@, fluentbit.spec.fluentbit_config)
-            .insert(new_strlit("parsers.conf")@, fluentbit.spec.parsers_config)
-        )
-}
-
 pub open spec fn make_daemon_set_name(fluentbit_name: StringView) -> StringView {
     fluentbit_name
 }
@@ -287,7 +288,7 @@ pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecVie
             VolumeView::default()
                 .set_name(new_strlit("config")@)
                 .set_secret(SecretVolumeSourceView::default()
-                    .set_secret_name(make_secret_name(fluentbit.metadata.name.get_Some_0()))
+                    .set_secret_name(fluentbit.spec.fluentbit_config_name)
                 ),
             VolumeView::default()
                 .set_name(new_strlit("varlogs")@)

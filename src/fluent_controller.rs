@@ -17,8 +17,10 @@ use builtin::*;
 use builtin_macros::*;
 
 use crate::external_api::exec::*;
-use crate::fluent_controller::exec::fluentbit::FluentBit;
-use crate::fluent_controller::exec::reconciler::{FluentBitReconcileState, FluentBitReconciler};
+use crate::fluent_controller::fluentbit::exec::reconciler::{
+    FluentBitReconcileState, FluentBitReconciler,
+};
+use crate::fluent_controller::fluentbit::exec::types::FluentBit;
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;

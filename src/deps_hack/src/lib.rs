@@ -69,10 +69,20 @@ pub struct RabbitmqClusterConfigurationSpec {
 #[kube(group = "anvil.dev", version = "v1", kind = "FluentBit")]
 #[kube(shortname = "fb", namespaced)]
 pub struct FluentBitSpec {
+    #[serde(rename = "fluentBitConfigName")]
+    pub fluentbit_config_name: String,
+    #[serde(default)]
+    pub resources: k8s_openapi::api::core::v1::ResourceRequirements,
+}
+
+#[derive(
+    kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
+)]
+#[kube(group = "anvil.dev", version = "v1", kind = "FluentBitConfig")]
+#[kube(shortname = "fbc", namespaced)]
+pub struct FluentBitConfigSpec {
     #[serde(rename = "fluentBitConfig")]
     pub fluentbit_config: String,
     #[serde(rename = "parsersConfig")]
     pub parsers_config: String,
-    #[serde(default)]
-    pub resources: k8s_openapi::api::core::v1::ResourceRequirements,
 }
