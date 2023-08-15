@@ -465,9 +465,9 @@ pub proof fn lemma_always_stateful_set_only_has_controller_owner_ref(spec: TempP
     init_invariant(spec, RMQCluster::init(), RMQCluster::next(), invariant);
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
+        valid(stable(spec)),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
@@ -483,49 +483,39 @@ pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: 
         cm_update_request_msg(rabbitmq.object_ref())(msg)
         ==> msg.content.get_update_request().obj.spec == ConfigMapView::marshal_spec((make_server_config_map(rabbitmq).data, ()))
     };
+    eliminate_always(spec, lift_action(RMQCluster::next()));
+    eliminate_always(spec, lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()));
+    eliminate_always(spec, lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)));
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_action(RMQCluster::every_new_in_flight_req_msg_is_expected(requirements)).satisfied_by(ex) by {
+        let s = ex.head();
+        let s_prime = ex.head_next();
+        entails_apply(ex, spec, lift_action(RMQCluster::next()));
+        entails_apply(ex, spec, lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()));
+        entails_apply(ex, spec, lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)));
+        assert(lift_action(RMQCluster::next()).satisfied_by(ex));
+        assert(RMQCluster::next()(s, s_prime));
+        assert forall |msg: Message| !s.message_in_flight(msg) && #[trigger] s_prime.message_in_flight(msg) 
+        && msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest() implies requirements(msg) by {
+            if cm_update_request_msg(rabbitmq.object_ref())(msg) {
+                let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+                assert(step.is_ControllerStep());
+                let other_rmq = s.reconcile_state_of(step.get_ControllerStep_0().2.get_Some_0()).triggering_cr;
+                seq_lemmas::seq_equal_preserved_by_add(
+                    other_rmq.metadata.name.get_Some_0(),
+                    rabbitmq.metadata.name.get_Some_0(),
+                    new_strlit("-server-conf")@
+                );
+                assert(other_rmq.object_ref() == rabbitmq.object_ref());
+                assert(other_rmq == s.reconcile_state_of(other_rmq.object_ref()).triggering_cr);
+                assert(rabbitmq.spec() == other_rmq.spec());
+            }
+        }
+    }
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_is_expected(spec, requirements);
-    let stronger_next = |s, s_prime: RMQCluster| {
-        &&& RMQCluster::next()(s, s_prime)
-        &&& RMQCluster::busy_disabled()(s)
-        &&& RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
-        &&& RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)(s)
-    };
-    entails_always_and_n!(
-        spec,
-        lift_action(RMQCluster::next()),
-        lift_state(RMQCluster::busy_disabled()),
-        lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
-    );
     temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::busy_disabled()))
-        .and(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))
-        .and(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))
+        lift_state(RMQCluster::every_in_flight_req_msg_is_expected(requirements)),
+        lift_state(every_update_cm_req_does_the_same(rabbitmq))
     );
-    // assert forall |ex| #[trigger] spec.satisfied_by(ex) implies RMQCluster::
-    // assert forall |s, s_prime: RMQCluster| invariant(s) && #[trigger] stronger_next(s, s_prime)
-    // implies invariant(s_prime) by {
-    //     assert forall |msg: Message|
-    //         #[trigger] s_prime.network_state.in_flight.contains(msg)
-    //         && cm_update_request_msg_since(rabbitmq.object_ref(), rest_id)(msg)
-    //     implies msg.content.get_update_request().obj.spec == ConfigMapView::marshal_spec((make_server_config_map(rabbitmq).data, ())) by {
-    //         if !s.message_in_flight(msg) {
-    //             let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-    //             assert(step.is_ControllerStep());
-    //             let other_rmq = s.reconcile_state_of(step.get_ControllerStep_0().2.get_Some_0()).triggering_cr;
-    //             seq_lemmas::seq_equal_preserved_by_add(
-    //                 other_rmq.metadata.name.get_Some_0(),
-    //                 rabbitmq.metadata.name.get_Some_0(),
-    //                 new_strlit("-server-conf")@
-    //             );
-    //             assert(other_rmq.object_ref() == rabbitmq.object_ref());
-    //             assert(other_rmq == s.reconcile_state_of(other_rmq.object_ref()).triggering_cr);
-    //             assert(rabbitmq.spec() == other_rmq.spec());
-    //         }
-    //     }
-    // }
 }
 
 pub open spec fn cm_delete_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
