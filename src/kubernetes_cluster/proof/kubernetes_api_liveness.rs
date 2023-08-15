@@ -246,6 +246,165 @@ pub open spec fn no_req_before_rest_id_is_in_flight(rest_id: RestId) -> StatePre
     }
 }
 
+pub open spec fn every_new_in_flight_req_msg_is_expected(expected_messages: FnSpec(Message) -> bool) -> ActionPred<Self> {
+    |s: Self, s_prime: Self| {
+        forall |msg: Message| 
+            !s.message_in_flight(msg) 
+            && #[trigger] s_prime.message_in_flight(msg) 
+            && msg.dst.is_KubernetesAPI()
+            && msg.content.is_APIRequest()
+            ==> expected_messages(msg)
+    }
+}
+
+pub open spec fn every_in_flight_req_msg_is_expected(expected_messages: FnSpec(Message) -> bool) -> StatePred<Self> {
+    |s: Self| {
+        forall |msg: Message| 
+            #[trigger] s.message_in_flight(msg)
+            && msg.dst.is_KubernetesAPI()
+            && msg.content.is_APIRequest()
+            ==> expected_messages(msg)
+    }
+}
+
+/// This lemma shows that if spec ensures every new created Kubernetes api request message satisfies some requirements,
+/// the system will eventually reaches a state where all Kubernetes api request messages satisfy those requirements.
+pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_is_expected(
+    spec: TempPred<Self>, expected_messages: FnSpec(Message) -> bool
+)
+    requires
+        valid(stable(spec)),
+        spec.entails(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(always(lift_state(Self::busy_disabled()))),
+        spec.entails(always(lift_action(Self::next()))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages)))),
+    ensures
+        spec.entails(
+            true_pred().leads_to(always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))
+        ),
+{
+    assert forall |rest_id| spec.entails(
+        lift_state(#[trigger] Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))
+    ) by {
+        Self::lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_is_expected_with_rest_id(spec, expected_messages, rest_id);
+    }
+    let has_rest_id = |rest_id| lift_state(Self::rest_id_counter_is(rest_id));
+    leads_to_exists_intro(spec, has_rest_id, always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))));
+    assert_by(
+        tla_exists(has_rest_id) == true_pred::<Self>(),
+        {
+            assert forall |ex| #[trigger] true_pred::<Self>().satisfied_by(ex)
+            implies tla_exists(has_rest_id).satisfied_by(ex) by {
+                let rest_id = ex.head().rest_id_allocator.rest_id_counter;
+                assert(has_rest_id(rest_id).satisfied_by(ex));
+            }
+            temp_pred_equality(tla_exists(has_rest_id), true_pred::<Self>());
+        }
+    );
+}
+
+/// This lemma is an assistant one for the previous one without rest_id.
+pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_is_expected_with_rest_id(
+    spec: TempPred<Self>, expected_messages: FnSpec(Message) -> bool, rest_id: nat
+)
+    requires
+        valid(stable(spec)),
+        spec.entails(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(always(lift_state(Self::busy_disabled()))),
+        spec.entails(always(lift_action(Self::next()))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages)))),
+    ensures
+        spec.entails(
+            lift_state(Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))
+        ),
+{
+    let spec_with_rest_id = spec.and(lift_state(Self::rest_id_counter_is(rest_id)));
+    entails_trans(spec_with_rest_id, spec, lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()));
+    entails_trans(spec_with_rest_id, spec, always(lift_state(Self::busy_disabled())));
+    entails_trans(spec_with_rest_id, spec, always(lift_action(Self::next())));
+    entails_trans(spec_with_rest_id, spec, tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i)));
+    entails_trans(spec_with_rest_id, spec, always(lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages))));
+
+    // With rest_id known, we first prove that spec /\ rest_id |= true ~> every_in_flight_msg_is_expected
+    // We divide the proof into three steps:
+    // (1) Prove an invariant that forall message with a no smaller rest_id than rest_id, it satisfies the given predicate.
+    // (2) Prove that spec |= true ~> msg_has_lower_rest_id_all_gone.
+    // (3) With the first invariant, prove that msg_has_lower_rest_id_all_gone implies all messages in flight are expected.
+    assert_by(
+        spec_with_rest_id.entails(true_pred().leads_to(always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))),
+        {
+            Self::lemma_always_has_rest_id_counter_no_smaller_than(spec_with_rest_id, rest_id);
+            let invariant = |s: Self| {
+                forall |msg: Message| #[trigger] 
+                    s.message_in_flight(msg) 
+                    && msg.content.get_rest_id() >= rest_id
+                    && msg.dst.is_KubernetesAPI()
+                    && msg.content.is_APIRequest()
+                    ==> expected_messages(msg)
+            };
+            assert_by(
+                spec_with_rest_id.entails(always(lift_state(invariant))),
+                {
+                    let init = |s: Self| {
+                        Self::rest_id_counter_is(rest_id)(s)
+                        && Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
+                    };
+                    entails_and_temp(spec_with_rest_id, lift_state(Self::rest_id_counter_is(rest_id)), lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()));
+                    temp_pred_equality(
+                        lift_state(init), lift_state(Self::rest_id_counter_is(rest_id)).and(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))
+                    );
+                    let stronger_next = |s, s_prime| {
+                        Self::next()(s, s_prime)
+                        && Self::rest_id_counter_is_no_smaller_than(rest_id)(s)
+                        && Self::every_new_in_flight_req_msg_is_expected(expected_messages)(s, s_prime)
+                    };
+                    entails_always_and_n!(
+                        spec_with_rest_id,
+                        lift_action(Self::next()),
+                        lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)),
+                        lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages))
+                    );
+                    temp_pred_equality(
+                        lift_action(stronger_next),
+                        lift_action(Self::next()).and(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))
+                        .and(lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages)))
+                    );
+                    init_invariant(spec_with_rest_id, init, stronger_next, invariant);
+                }
+            );
+            
+            Self::lemma_true_leads_to_always_no_req_before_rest_id_is_in_flight(spec_with_rest_id, rest_id);
+
+            implies_preserved_by_always_temp(
+                lift_state(invariant), 
+                lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id))
+                .implies(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages)))
+            );
+            entails_trans(
+                spec_with_rest_id, always(lift_state(invariant)),
+                always(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)).implies(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))
+            );
+            always_implies_preserved_by_always_temp(spec_with_rest_id, lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)), lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages)));
+            leads_to_weaken_temp(
+                spec_with_rest_id, 
+                true_pred(), always(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id))),
+                true_pred(), always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages)))
+            );
+        }
+    );
+
+    // Then unpack the condition from spec.
+    unpack_conditions_from_spec(
+        spec, lift_state(Self::rest_id_counter_is(rest_id)), true_pred(),
+        always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages)))
+    );
+    temp_pred_equality(
+        true_pred().and(lift_state(Self::rest_id_counter_is(rest_id))),
+        lift_state(Self::rest_id_counter_is(rest_id))
+    );
+}
 // All the APIRequest messages with a smaller id than rest_id will eventually leave the network.
 // The intuition is that (1) The number of such APIRequest messages are bounded by rest_id,
 // and (2) weak fairness assumption ensures each message will eventually be handled by Kubernetes.
