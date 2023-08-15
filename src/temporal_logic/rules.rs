@@ -961,6 +961,27 @@ pub proof fn eliminate_always<T>(spec: TempPred<T>, p: TempPred<T>)
     }
 }
 
+pub proof fn stable_spec_entails_always_p<T>(spec: TempPred<T>, p: TempPred<T>)
+    requires
+        valid(stable(spec)),
+        spec.entails(p),
+    ensures
+        spec.entails(always(p)),
+{
+    assert_by(
+        spec.entails(always(spec)),
+        {
+            assert forall |ex| #[trigger] spec.implies(always(spec)).satisfied_by(ex) by {
+                assert(valid(stable(spec)));
+                assert(stable(spec).satisfied_by(ex));
+                stable_unfold::<T>(ex, spec);
+            }
+        }
+    );
+    implies_preserved_by_always_temp(spec, p);
+    entails_trans(spec, always(spec), always(p));
+}
+
 /// Entails p and q if entails each of them.
 /// pre:
 ///     spec |= p

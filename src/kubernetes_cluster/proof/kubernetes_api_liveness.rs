@@ -267,18 +267,22 @@ pub open spec fn every_in_flight_req_msg_is_expected(expected_messages: FnSpec(M
     }
 }
 
-/// This lemma shows that if spec ensures every new created Kubernetes api request message satisfies some requirements,
+/// This lemma shows that if spec ensures every newly created Kubernetes api request message satisfies some requirements,
 /// the system will eventually reaches a state where all Kubernetes api request messages satisfy those requirements.
+/// To require "every newly create Kubernetes api request message satisfies some requirements", we use a FnSpec as parameter
+/// which can be defined by callers and want spec |= [](every_new_in_flight_req_msg_is_expected(expected_messages)).
+/// Note that in the precondition, we don't require always for this predicate, because the spec need to be stable and the always
+/// one can be derived. This also alleviate the preliminary work for the callers to use this lemma.
 pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_is_expected(
     spec: TempPred<Self>, expected_messages: FnSpec(Message) -> bool
 )
     requires
         valid(stable(spec)),
-        spec.entails(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages))),
+        spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
-        spec.entails(always(lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages)))),
     ensures
         spec.entails(
             true_pred().leads_to(always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))
@@ -310,16 +314,18 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_is_expec
 )
     requires
         valid(stable(spec)),
-        spec.entails(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages))),
+        spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
-        spec.entails(always(lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages)))),
     ensures
         spec.entails(
             lift_state(Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))
         ),
 {
+    stable_spec_entails_always_p(spec, lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages)));
+    eliminate_always(spec, lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()));
     let spec_with_rest_id = spec.and(lift_state(Self::rest_id_counter_is(rest_id)));
     entails_trans(spec_with_rest_id, spec, lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()));
     entails_trans(spec_with_rest_id, spec, always(lift_state(Self::busy_disabled())));

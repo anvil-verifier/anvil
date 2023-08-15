@@ -468,8 +468,10 @@ pub proof fn lemma_always_stateful_set_only_has_controller_owner_ref(spec: TempP
 #[verifier(external_body)]
 pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
+        spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
         spec.entails(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))),
     ensures
@@ -477,44 +479,32 @@ pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: 
             true_pred().leads_to(always(lift_state(every_update_cm_req_does_the_same(rabbitmq))))
         ),
 {
-    // let init = |s: RMQCluster| {
-    //     &&& RMQCluster::rest_id_counter_is(rest_id)(s)
-    //     &&& RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
-    // };
-    // let stronger_next = |s, s_prime: RMQCluster| {
-    //     &&& RMQCluster::next()(s, s_prime)
-    //     &&& RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
-    //     &&& RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
-    //     &&& RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)(s)
-    // };
-    // let invariant = every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id);
-
-    // entails_and_n!(
-    //     spec,
-    //     lift_state(RMQCluster::rest_id_counter_is(rest_id)),
-    //     lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())
-    // );
-    // temp_pred_equality(
-    //     lift_state(init),
-    //     lift_state(RMQCluster::rest_id_counter_is(rest_id))
-    //     .and(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))
-    // );
-
-    // entails_always_and_n!(
-    //     spec,
-    //     lift_action(RMQCluster::next()),
-    //     lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
-    //     lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)),
-    //     lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
-    // );
-    // temp_pred_equality(
-    //     lift_action(stronger_next),
-    //     lift_action(RMQCluster::next())
-    //     .and(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))
-    //     .and(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))
-    //     .and(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))
-    // );
-
+    let requirements = |msg: Message| {
+        cm_update_request_msg(rabbitmq.object_ref())(msg)
+        ==> msg.content.get_update_request().obj.spec == ConfigMapView::marshal_spec((make_server_config_map(rabbitmq).data, ()))
+    };
+    RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_is_expected(spec, requirements);
+    let stronger_next = |s, s_prime: RMQCluster| {
+        &&& RMQCluster::next()(s, s_prime)
+        &&& RMQCluster::busy_disabled()(s)
+        &&& RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)(s)
+    };
+    entails_always_and_n!(
+        spec,
+        lift_action(RMQCluster::next()),
+        lift_state(RMQCluster::busy_disabled()),
+        lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
+        lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
+    );
+    temp_pred_equality(
+        lift_action(stronger_next),
+        lift_action(RMQCluster::next())
+        .and(lift_state(RMQCluster::busy_disabled()))
+        .and(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))
+        .and(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))
+    );
+    // assert forall |ex| #[trigger] spec.satisfied_by(ex) implies RMQCluster::
     // assert forall |s, s_prime: RMQCluster| invariant(s) && #[trigger] stronger_next(s, s_prime)
     // implies invariant(s_prime) by {
     //     assert forall |msg: Message|
@@ -536,8 +526,6 @@ pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: 
     //         }
     //     }
     // }
-
-    // init_invariant(spec, init, stronger_next, invariant);
 }
 
 pub open spec fn cm_delete_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
