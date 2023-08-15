@@ -402,22 +402,38 @@ pub open spec fn stateful_set_has_owner_reference_pointing_to_current_cr(rabbitm
     }
 }
 
-pub open spec fn server_config_map_has_no_finalizers_or_timestamp(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+pub open spec fn server_config_map_has_owner_reference_pointing_to_current_cr(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        // TODO: add no deleted msg in flight
+        s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        ==> s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())).metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
+    }
+}
+
+pub open spec fn server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
         ==>
             s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())).metadata.deletion_timestamp.is_None()
             && s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())).metadata.finalizers.is_None()
+            && exists |uid: nat| #![auto]
+            s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())).metadata.owner_references == Some(seq![OwnerReferenceView {
+                block_owner_deletion: None,
+                controller: Some(true),
+                kind: RabbitmqClusterView::kind(),
+                name: rabbitmq.metadata.name.get_Some_0(),
+                uid: uid,
+            }])
     }
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_always_server_config_map_has_no_finalizers_or_timestamp(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_always_server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
-        spec.entails(always(lift_state(server_config_map_has_no_finalizers_or_timestamp(rabbitmq)))),
+        spec.entails(always(lift_state(server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)))),
 {}
 
 pub open spec fn stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
@@ -608,6 +624,32 @@ pub proof fn lemma_true_leads_to_always_every_create_sts_req_does_the_same(spec:
     ensures
         spec.entails(
             true_pred().leads_to(always(lift_state(every_create_sts_req_does_the_same(rabbitmq))))
+        ),
+{}
+
+pub open spec fn every_create_cm_req_does_the_same(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
+    recommends
+        rabbitmq.well_formed(),
+{
+    |s: RMQCluster| {
+        forall |msg: Message| {
+            &&& #[trigger] s.network_state.in_flight.contains(msg)
+            &&& cm_create_request_msg(rabbitmq.object_ref())(msg)
+        } ==> msg.content.get_update_request().obj.spec == ConfigMapView::marshal_spec((make_server_config_map(rabbitmq).data, ()))
+            && msg.content.get_create_request().obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_true_leads_to_always_every_create_cm_req_does_the_same(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
+    requires
+        spec.entails(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(always(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))),
+    ensures
+        spec.entails(
+            true_pred().leads_to(always(lift_state(every_create_cm_req_does_the_same(rabbitmq))))
         ),
 {}
 
