@@ -402,10 +402,21 @@ pub open spec fn stateful_set_has_owner_reference_pointing_to_current_cr(rabbitm
     }
 }
 
-pub open spec fn stateful_set_only_has_controller_owner_ref(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+pub open spec fn config_map_has_no_finalizers_or_timestamp(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        ==>
+            s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())).metadata.deletion_timestamp.is_None()
+            && s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())).metadata.finalizers.is_None()
+    }
+}
+
+pub open spec fn stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-        ==> s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.finalizers.is_None()
+        ==>
+            s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.deletion_timestamp.is_None()
+            && s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.finalizers.is_None()
             && exists |uid: nat| #![auto]
             s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.owner_references == Some(seq![OwnerReferenceView {
                 block_owner_deletion: None,
@@ -418,14 +429,14 @@ pub open spec fn stateful_set_only_has_controller_owner_ref(rabbitmq: RabbitmqCl
 }
 
 #[verifier(external_body)]
-pub proof fn lemma_always_stateful_set_only_has_controller_owner_ref(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_always_stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
-        spec.entails(always(lift_state(stateful_set_only_has_controller_owner_ref(rabbitmq)))),
+        spec.entails(always(lift_state(stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)))),
 {
-    let invariant = stateful_set_only_has_controller_owner_ref(rabbitmq);
+    let invariant = stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq);
     assert forall |s, s_prime: RMQCluster| invariant(s) && #[trigger] RMQCluster::next()(s, s_prime) implies invariant(s_prime) by {
 
     }
@@ -461,7 +472,7 @@ pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: 
         entails_apply(ex, spec, lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)));
         assert(lift_action(RMQCluster::next()).satisfied_by(ex));
         assert(RMQCluster::next()(s, s_prime));
-        assert forall |msg: Message| !s.message_in_flight(msg) && #[trigger] s_prime.message_in_flight(msg) 
+        assert forall |msg: Message| !s.message_in_flight(msg) && #[trigger] s_prime.message_in_flight(msg)
         && msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest() implies requirements(msg) by {
             if cm_update_request_msg(rabbitmq.object_ref())(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);

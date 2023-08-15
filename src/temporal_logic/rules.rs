@@ -2354,6 +2354,19 @@ pub proof fn leads_to_trans_relaxed_auto<T>(spec: TempPred<T>)
     };
 }
 
+pub proof fn implies_with_spec_to_leads_to<T>(spec: TempPred<T>, pre: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    requires
+        spec.entails(always(pre)),
+        pre.entails(p.implies(q)),
+        spec.entails(q.leads_to(r)),
+    ensures
+        spec.entails(p.leads_to(r)),
+{
+    implies_preserved_by_always_temp(pre, p.implies(q));
+    entails_trans(spec, always(pre), always(p.implies(q)));
+    leads_to_weaken_temp(spec, q, r, p, r);
+}
+
 /// Weaken leads_to by implies.
 /// pre:
 ///     spec |= [](p2 => p1)
