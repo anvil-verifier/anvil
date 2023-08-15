@@ -10,11 +10,13 @@ use builtin_macros::*;
 use core::fmt::Debug;
 use core::hash::Hash;
 use deps_hack::anyhow::Result;
-use deps_hack::futures::StreamExt;
-use deps_hack::futures::TryFuture;
+use deps_hack::futures::{Future, Stream, StreamExt, TryFuture};
 use deps_hack::kube::{
     api::{Api, ListParams, ObjectMeta, PostParams, Resource},
-    runtime::controller::{Action, Controller},
+    runtime::{
+        controller::{self, Action, Controller},
+        reflector, watcher,
+    },
     Client, CustomResource, CustomResourceExt,
 };
 use deps_hack::kube_core::{ErrorResponse, NamespaceResourceScope};
@@ -26,16 +28,16 @@ use vstd::{string::*, view::*};
 
 verus! {
 
-/// The shim layer connects the verified reconciler to the trusted kube-rs APIs.
-/// The key is to implement the reconcile function (impl FnMut(Arc<K>, Arc<Ctx>) -> ReconcilerFut),
-/// which is required by the kube-rs framework to build a controller,
-/// on top of reconcile_core, which is provided by the developer.
+// The shim layer connects the verified reconciler to the trusted kube-rs APIs.
+// The key is to implement the reconcile function (impl FnMut(Arc<K>, Arc<Ctx>) -> ReconcilerFut),
+// which is required by the kube-rs framework to build a controller,
+// on top of reconcile_core, which is provided by the developer.
 
-/// run_controller prepares and runs the controller. It requires:
-/// K: the custom resource type
-/// ResourceWrapperType: the resource wrapper type
-/// ReconcilerType: the reconciler type
-/// ReconcileStateType: the local state of the reconciler
+// run_controller prepares and runs the controller. It requires:
+// K: the custom resource type
+// ResourceWrapperType: the resource wrapper type
+// ReconcilerType: the reconciler type
+// ReconcileStateType: the local state of the reconciler
 #[verifier(external)]
 pub async fn run_controller<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ExternalAPIInput, ExternalAPIOutput, ExternalAPIType>() -> Result<()>
 where
@@ -43,7 +45,8 @@ where
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
     ResourceWrapperType: ResourceWrapper<K> + Send,
     ReconcilerType: Reconciler<ResourceWrapperType, ReconcileStateType, ExternalAPIInput, ExternalAPIOutput, ExternalAPIType> + Send + Sync + Default,
-    ReconcileStateType: Send, ExternalAPIInput: Send + ToView, ExternalAPIOutput: Send + ToView, ExternalAPIType: ExternalAPI<ExternalAPIInput, ExternalAPIOutput>,
+    ReconcileStateType: Send,
+    ExternalAPIInput: Send + ToView, ExternalAPIOutput: Send + ToView, ExternalAPIType: ExternalAPI<ExternalAPIInput, ExternalAPIOutput>,
 {
     let client = Client::try_default().await?;
     let crs = Api::<K>::all(client.clone());
@@ -71,15 +74,14 @@ where
     Ok(())
 }
 
-/// reconcile_with implements the reconcile function by repeatedly invoking reconciler.reconcile_core.
-/// reconcile_with will be invoked by kube-rs whenever kube-rs's watcher receives any relevant event to the controller.
-/// In each invocation, reconcile_with invokes reconciler.reconcile_core in a loop:
-/// it starts with reconciler.reconcile_init_state, and in each iteration it invokes reconciler.reconcile_core
-/// with the new state returned by the previous invocation.
-/// For each request from reconciler.reconcile_core, it invokes kube-rs APIs to send the request to the Kubernetes API.
-/// It ends the loop when the reconciler reports the reconcile is done (reconciler.reconcile_done)
-/// or encounters error (reconciler.reconcile_error).
-
+// reconcile_with implements the reconcile function by repeatedly invoking reconciler.reconcile_core.
+// reconcile_with will be invoked by kube-rs whenever kube-rs's watcher receives any relevant event to the controller.
+// In each invocation, reconcile_with invokes reconciler.reconcile_core in a loop:
+// it starts with reconciler.reconcile_init_state, and in each iteration it invokes reconciler.reconcile_core
+// with the new state returned by the previous invocation.
+// For each request from reconciler.reconcile_core, it invokes kube-rs APIs to send the request to the Kubernetes API.
+// It ends the loop when the reconciler reports the reconcile is done (reconciler.reconcile_done)
+// or encounters error (reconciler.reconcile_error).
 #[verifier(external)]
 pub async fn reconcile_with<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ExternalAPIInput, ExternalAPIOutput, ExternalAPIType>(
     reconciler: &ReconcilerType, cr: Arc<K>, ctx: Arc<Data>
@@ -216,7 +218,7 @@ where
     return Ok(Action::requeue(Duration::from_secs(60)));
 }
 
-/// error_policy defines the controller's behavior when the reconcile ends with an error.
+// error_policy defines the controller's behavior when the reconcile ends with an error.
 
 #[verifier(external)]
 pub fn error_policy<K>(_object: Arc<K>, _error: &Error, _ctx: Arc<Data>) -> Action
@@ -227,15 +229,15 @@ where
     Action::requeue(Duration::from_secs(10))
 }
 
-/// Data is passed to reconcile_with.
-/// It carries the client that communicates with Kubernetes API.
+// Data is passed to reconcile_with.
+// It carries the client that communicates with Kubernetes API.
 #[verifier(external_body)]
 pub struct Data {
     pub client: Client,
 }
 
-/// kube_error_to_ghost translates the API error from kube-rs APIs
-/// to the form that can be processed by reconcile_core.
+// kube_error_to_ghost translates the API error from kube-rs APIs
+// to the form that can be processed by reconcile_core.
 
 // TODO: match more error types.
 #[verifier(external)]

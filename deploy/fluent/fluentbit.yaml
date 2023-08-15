@@ -1,5 +1,5 @@
 apiVersion: anvil.dev/v1
-kind: FluentBitConfig
+kind: FluentBit
 metadata:
     name: fluent-bit-config
     namespace: default
