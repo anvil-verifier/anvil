@@ -309,6 +309,24 @@ pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_no
     }
 }
 
+pub open spec fn at_after_get_stateful_set_step_with_rabbitmq_and_exists_not_found_resp_in_flight(
+    rabbitmq: RabbitmqClusterView
+) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::AfterGetStatefulSet)(s)
+        &&& RMQCluster::pending_k8s_api_req_msg(s, rabbitmq.object_ref())
+        &&& is_correct_pending_request_msg_at_rabbitmq_step(
+            RabbitmqReconcileStep::AfterGetStatefulSet, s.pending_req_of(rabbitmq.object_ref()), rabbitmq
+        )
+        &&& exists |resp_msg| {
+            &&& #[trigger] s.message_in_flight(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
+            &&& resp_msg.content.get_get_response().res.is_Err()
+            &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+        }
+    }
+}
+
 pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_not_found_err_resp_in_flight(
     rabbitmq: RabbitmqClusterView
 ) -> StatePred<RMQCluster> {
