@@ -305,12 +305,11 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                         // after that, when a new round of reconcile starts, there is no stateful set in etcd, the reconciler
                         // will go to create a new one.
                         if found_stateful_set.metadata().owner_references_only_contains(rabbitmq.controller_owner_ref()) {
-                            found_stateful_set.set_spec(stateful_set.spec().unwrap());
                             let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                                 api_resource: StatefulSet::api_resource(),
                                 name: stateful_set.metadata().name().unwrap(),
                                 namespace: rabbitmq.namespace().unwrap(),
-                                obj: found_stateful_set.to_dynamic_object(),
+                                obj: update_stateful_set(rabbitmq, found_stateful_set).to_dynamic_object(),
                             });
                             let state_prime = RabbitmqReconcileState {
                                 reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
@@ -852,6 +851,29 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
         subjects
     });
     role_binding
+}
+
+fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: StatefulSet) -> (stateful_set: StatefulSet)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        stateful_set@ == rabbitmq_spec::update_stateful_set(rabbitmq@, found_stateful_set@),
+{
+    let mut owner_references = Vec::new();
+    owner_references.push(rabbitmq.controller_owner_ref());
+    proof {
+        assert_seqs_equal!(
+            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+            rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+        );
+    }
+    let mut metadata = found_stateful_set.metadata();
+    metadata.set_owner_references(owner_references);
+    metadata.reset_finalizers();
+    found_stateful_set.set_spec(make_stateful_set(rabbitmq).spec().unwrap());
+    found_stateful_set.set_metadata(metadata);
+    found_stateful_set
 }
 
 fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)

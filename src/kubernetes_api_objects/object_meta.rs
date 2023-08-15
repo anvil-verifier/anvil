@@ -153,6 +153,14 @@ impl ObjectMeta {
             finalizers.into_iter().map(|s: String| s.into_rust_string()).collect(),
         );
     }
+
+    #[verifier(external_body)]
+    pub fn reset_finalizers(&mut self)
+        ensures
+            self@ == old(self)@.reset_finalizers(),
+    {
+        self.inner.finalizers = None;
+    }
 }
 
 impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta> for ObjectMeta {
@@ -258,6 +266,13 @@ impl ObjectMetaView {
     pub open spec fn set_finalizers(self, finalizers: Seq<StringView>) -> ObjectMetaView {
         ObjectMetaView {
             finalizers: Some(finalizers),
+            ..self
+        }
+    }
+
+    pub open spec fn reset_finalizers(self) -> ObjectMetaView {
+        ObjectMetaView {
+            finalizers: None,
             ..self
         }
     }

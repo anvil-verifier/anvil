@@ -402,7 +402,7 @@ pub open spec fn stateful_set_has_owner_reference_pointing_to_current_cr(rabbitm
     }
 }
 
-pub open spec fn config_map_has_no_finalizers_or_timestamp(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+pub open spec fn server_config_map_has_no_finalizers_or_timestamp(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
         ==>
@@ -410,6 +410,15 @@ pub open spec fn config_map_has_no_finalizers_or_timestamp(rabbitmq: RabbitmqClu
             && s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())).metadata.finalizers.is_None()
     }
 }
+
+#[verifier(external_body)]
+pub proof fn lemma_always_server_config_map_has_no_finalizers_or_timestamp(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
+    requires
+        spec.entails(lift_state(RMQCluster::init())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+    ensures
+        spec.entails(always(lift_state(server_config_map_has_no_finalizers_or_timestamp(rabbitmq)))),
+{}
 
 pub open spec fn stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {

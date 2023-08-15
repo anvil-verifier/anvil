@@ -599,11 +599,7 @@ pub open spec fn update_stateful_set(rabbitmq: RabbitmqClusterView, found_statef
         rabbitmq.metadata.name.is_Some(),
         rabbitmq.metadata.namespace.is_Some(),
 {
-    let metadata = ObjectMetaView {
-        finalizers: None,
-        owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
-        ..found_stateful_set.metadata
-    };
+    let metadata = found_stateful_set.metadata.set_owner_references(seq![rabbitmq.controller_owner_ref()]).reset_finalizers();
     found_stateful_set.set_spec(make_stateful_set(rabbitmq).spec.get_Some_0()).set_metadata(metadata)
 }
 
