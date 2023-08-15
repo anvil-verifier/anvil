@@ -16,7 +16,10 @@ pub struct FluentBitSpec {
 #[kube(group = "anvil.dev", version = "v1", kind = "FluentBitConfig")]
 #[kube(namespaced)]
 pub struct FluentBitConfigSpec {
-    pub config: String,
+    #[serde(rename = "fluentBitConfig")]
+    pub fluentbit_config: String,
+    #[serde(rename = "parsersConfig")]
+    pub parsers_config: String,
 }
 
 #[derive(Debug, Error)]

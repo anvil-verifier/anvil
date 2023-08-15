@@ -17,10 +17,13 @@ use builtin::*;
 use builtin_macros::*;
 
 use crate::external_api::exec::*;
-use crate::fluent_controller::fluentbit::exec::reconciler::{
-    FluentBitReconcileState, FluentBitReconciler,
-};
 use crate::fluent_controller::fluentbit::exec::types::FluentBit;
+use crate::fluent_controller::{
+    fluentbit::exec::reconciler::{FluentBitReconcileState, FluentBitReconciler},
+    fluentbit_config::exec::reconciler::{
+        FluentBitConfigReconcileState, FluentBitConfigReconciler,
+    },
+};
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
@@ -39,6 +42,7 @@ async fn main() -> Result<()> {
     if cmd == String::from("export") {
         println!("exporting custom resource definition");
         println!("{}", serde_yaml::to_string(&deps_hack::FluentBit::crd())?);
+        println!("{}", serde_yaml::to_string(&deps_hack::FluentBitConfig::crd())?);
     } else if cmd == String::from("run") {
         println!("running fluent-controller");
         run_controller::<deps_hack::FluentBit, FluentBit, FluentBitReconciler, FluentBitReconcileState, EmptyType, EmptyType, EmptyAPI>().await?;
