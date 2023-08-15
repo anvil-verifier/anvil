@@ -9,7 +9,7 @@ use thiserror::Error;
 #[kube(namespaced)]
 pub struct FluentBitSpec {
     #[serde(rename = "fluentBitConfigName")]
-    pub fluent_bit_config_name: String,
+    pub fluentbit_config_name: String,
 }
 
 #[derive(CustomResource, Debug, Clone, Deserialize, Serialize, JsonSchema)]

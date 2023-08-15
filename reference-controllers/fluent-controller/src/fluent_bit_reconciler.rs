@@ -192,7 +192,7 @@ fn make_daemon_set(fb: &FluentBit) -> DaemonSet {
                         corev1::Volume {
                             name: "config".to_string(),
                             secret: Some(corev1::SecretVolumeSource {
-                                secret_name: Some(fb.spec.fluent_bit_config_name.clone()),
+                                secret_name: Some(fb.spec.fluentbit_config_name.clone()),
                                 ..corev1::SecretVolumeSource::default()
                             }),
                             ..corev1::Volume::default()
@@ -362,7 +362,7 @@ pub async fn fluent_bit_reconcile(
 
     let secret_api = Api::<Secret>::namespaced(client.clone(), &fb_ns);
     // Check whether the secret that contains configuration data exists.
-    let get_result = secret_api.get(&fb.spec.fluent_bit_config_name).await;
+    let get_result = secret_api.get(&fb.spec.fluentbit_config_name).await;
     match get_result {
         Err(e) => return Err(Error::SecretGetFailed(e)),
         _ => {}
