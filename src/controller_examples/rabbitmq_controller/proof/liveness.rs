@@ -4,9 +4,10 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, dynamic::*, owner_reference::*, resource::*,
+    stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
-    builtin_controllers::types::BuiltinControllerChoice,
+    builtin_controllers::types::{built_in_controller_req_msg, BuiltinControllerChoice},
     cluster::*,
     cluster_state_machine::Step,
     controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
@@ -185,8 +186,8 @@ spec fn invariants_since_rest_id(rabbitmq: RabbitmqClusterView, rest_id: RestId)
     .and(always(lift_state(helper_invariants::every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id))))
     .and(always(lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))))
     .and(always(lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))))
-    .and(always(lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))))
     .and(always(lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id))))
+    .and(always(lift_state(helper_invariants::every_create_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id))))
 }
 
 proof fn invariants_since_rest_id_is_stable(rabbitmq: RabbitmqClusterView, rest_id: RestId)
@@ -201,8 +202,8 @@ proof fn invariants_since_rest_id_is_stable(rabbitmq: RabbitmqClusterView, rest_
         lift_state(helper_invariants::every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id)),
         lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
         lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
-        lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id)),
-        lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id))
+        lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)),
+        lift_state(helper_invariants::every_create_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id))
     );
 }
 
@@ -508,9 +509,9 @@ proof fn lemma_some_rest_id_leads_to_always_current_state_matches_rabbitmq(rabbi
             invariants_since_rest_id_is_stable(rabbitmq, rest_id);
             always_p_is_stable(lift_state(RMQCluster::no_req_before_rest_id_is_in_flight(rest_id)));
             stable_and_n!(
-                next_with_wf(), 
-                invariants(rabbitmq), 
-                assumptions(rabbitmq), 
+                next_with_wf(),
+                invariants(rabbitmq),
+                assumptions(rabbitmq),
                 invariants_since_rest_id(rabbitmq, rest_id),
                 always(lift_state(RMQCluster::no_req_before_rest_id_is_in_flight(rest_id)))
             );
@@ -548,9 +549,9 @@ proof fn lemma_some_rest_id_leads_to_always_current_state_matches_rabbitmq(rabbi
                 always(lift_state(current_state_matches(rabbitmq)))
             );
             stable_and_n!(
-                next_with_wf(), 
-                invariants(rabbitmq), 
-                assumptions(rabbitmq), 
+                next_with_wf(),
+                invariants(rabbitmq),
+                assumptions(rabbitmq),
                 invariants_since_rest_id(rabbitmq, rest_id)
             );
             unpack_conditions_from_spec(
@@ -592,8 +593,8 @@ proof fn lemma_some_rest_id_leads_to_always_current_state_matches_rabbitmq(rabbi
             helper_invariants::lemma_always_every_update_cm_req_since_rest_id_does_the_same(spec_with_rest_id, rabbitmq, rest_id);
             helper_invariants::lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(spec_with_rest_id, rabbitmq.object_ref(), rest_id);
             helper_invariants::lemma_always_at_most_one_update_sts_req_since_rest_id_is_in_flight(spec_with_rest_id, rabbitmq.object_ref(), rest_id);
-            helper_invariants::lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(spec_with_rest_id, rabbitmq.object_ref(), rest_id);
             helper_invariants::lemma_always_every_update_sts_req_since_rest_id_does_the_same(spec_with_rest_id, rabbitmq, rest_id);
+            helper_invariants::lemma_always_every_create_sts_req_since_rest_id_does_the_same(spec_with_rest_id, rabbitmq, rest_id);
 
             entails_and_n!(
                 spec_with_rest_id,
@@ -604,8 +605,8 @@ proof fn lemma_some_rest_id_leads_to_always_current_state_matches_rabbitmq(rabbi
                 always(lift_state(helper_invariants::every_update_cm_req_since_rest_id_does_the_same(rabbitmq, rest_id))),
                 always(lift_state(helper_invariants::at_most_one_create_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))),
                 always(lift_state(helper_invariants::at_most_one_update_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))),
-                always(lift_state(helper_invariants::no_delete_sts_req_since_rest_id_is_in_flight(rabbitmq.object_ref(), rest_id))),
-                always(lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)))
+                always(lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id))),
+                always(lift_state(helper_invariants::every_create_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)))
             );
         }
     );
@@ -1933,16 +1934,36 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_conf
     );
 }
 
-#[verifier(external_body)]
+pub open spec fn sts_key_not_exists_or_delete_msg_in_flight_or_sts_has_current_ref(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    let sts_key = make_stateful_set_key(rabbitmq.object_ref());
+    |s: RMQCluster| {
+        ||| {
+            &&& s.resource_key_exists(sts_key)
+            &&& (
+                    (exists |msg: Message| {
+                        #[trigger] s.message_in_flight(msg)
+                        && msg.dst.is_KubernetesAPI()
+                        && msg.content.is_delete_request_with_key(sts_key)
+                    })
+                    || s.resource_obj_of(sts_key).metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
+            )
+        }
+        ||| !s.resource_key_exists(sts_key)
+    }
+}
+
 proof fn lemma_eventually_only_valid_stateful_set_exists(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, rest_id: nat)
     requires
         rabbitmq.well_formed(),
+        spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
         spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| RMQCluster::builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_only_has_controller_owner_ref(rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)))),
+        spec.entails(always(lift_state(helper_invariants::every_create_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)))),
         spec.entails(always(lift_state(RMQCluster::no_req_before_rest_id_is_in_flight(rest_id)))),
     ensures
         spec.entails(true_pred().leads_to(always(lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq))))),
@@ -1955,64 +1976,233 @@ proof fn lemma_eventually_only_valid_stateful_set_exists(spec: TempPred<RMQClust
     };
     let key_exists_and_old_ref = |s: RMQCluster| {
         s.resource_key_exists(sts_key)
-        && exists |uid: nat|
-        (uid != rabbitmq.metadata.uid.get_Some_0() && s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.owner_references == Some(seq![OwnerReferenceView {
+        && exists |uid: nat| #![auto]
+        uid != rabbitmq.metadata.uid.get_Some_0() && s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.owner_references == Some(seq![OwnerReferenceView {
             block_owner_deletion: None,
             controller: Some(true),
             kind: RabbitmqClusterView::kind(),
             name: rabbitmq.metadata.name.get_Some_0(),
             uid: uid,
-        }]))
-        && (!exists |msg: Message|
-        s.message_in_flight(msg)
-        && msg.dst.is_KubernetesAPI()
-        && msg.content.is_delete_request_with_key(sts_key))
+        }])
     };
-    let delete_msg_in_flight = |s: RMQCluster| {
-        &&& s.resource_key_exists(sts_key)
-        &&& ((exists |msg: Message|
-            s.message_in_flight(msg)
-            && msg.dst.is_KubernetesAPI()
-            && msg.content.is_delete_request_with_key(sts_key)
-        ) || s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
-    )
-    };
+    let delete_msg_in_flight = sts_key_not_exists_or_delete_msg_in_flight_or_sts_has_current_ref(rabbitmq);
+    implies_to_leads_to(spec, lift_state(key_not_exists), lift_state(delete_msg_in_flight));
+    implies_to_leads_to(spec, lift_state(key_exists_and_current_ref), lift_state(delete_msg_in_flight));
     let post = helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq);
     let input = (BuiltinControllerChoice::GarbageCollector, sts_key);
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
+        &&& RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
         &&& RMQCluster::desired_state_is(rabbitmq)(s)
         &&& helper_invariants::stateful_set_only_has_controller_owner_ref(rabbitmq)(s)
+        &&& helper_invariants::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)(s)
+        &&& helper_invariants::every_create_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)(s)
+        &&& RMQCluster::no_req_before_rest_id_is_in_flight(rest_id)(s)
     };
     entails_always_and_n!(
         spec,
         lift_action(RMQCluster::next()),
+        lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(RMQCluster::desired_state_is(rabbitmq)),
-        lift_state(helper_invariants::stateful_set_only_has_controller_owner_ref(rabbitmq))
+        lift_state(helper_invariants::stateful_set_only_has_controller_owner_ref(rabbitmq)),
+        lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)),
+        lift_state(helper_invariants::every_create_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)),
+        lift_state(RMQCluster::no_req_before_rest_id_is_in_flight(rest_id))
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(RMQCluster::next())
+        .and(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))
         .and(lift_state(RMQCluster::desired_state_is(rabbitmq)))
         .and(lift_state(helper_invariants::stateful_set_only_has_controller_owner_ref(rabbitmq)))
+        .and(lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)))
+        .and(lift_state(helper_invariants::every_create_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)))
+        .and(lift_state(RMQCluster::no_req_before_rest_id_is_in_flight(rest_id)))
     );
 
     assert forall |s, s_prime: RMQCluster| key_exists_and_old_ref(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::builtin_controllers_next().forward(input)(s, s_prime) implies delete_msg_in_flight(s_prime) by {
         let owner_references = s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.owner_references.get_Some_0();
-        assert forall |i|
-                owner_reference_to_object_reference(owner_references[i], rabbitmq.metadata.namespace.get_Some_0()) == rabbitmq.object_ref()
-                // the referred owner object does not exist in the cluster state
-                && s.resource_key_exists(rabbitmq.object_ref())
-                // or it exists but has a different uid
-                // (which means the actual owner was deleted and another object with the same name gets created again)
-                && s.resource_obj_of(rabbitmq.object_ref()).metadata.uid != Some(owner_references[i].uid)
-            by {}
+        assert(owner_references.len() == 1);
+        let new_delete_msg = built_in_controller_req_msg(delete_req_msg_content(
+            sts_key, s.rest_id_allocator.allocate().1
+        ));
+        assert(s_prime.resource_key_exists(sts_key));
+        assert(s_prime.message_in_flight(new_delete_msg));
+    }
+
+    assert forall |s, s_prime: RMQCluster| key_exists_and_old_ref(s) && #[trigger] stronger_next(s, s_prime) implies key_exists_and_old_ref(s_prime) || delete_msg_in_flight(s_prime) by {
+        let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+        match step {
+            Step::BuiltinControllersStep(i) => {
+                if i == input {
+                    assert(delete_msg_in_flight(s_prime));
+                } else {
+                    assert(key_exists_and_old_ref(s_prime));
+                }
+            },
+            Step::KubernetesAPIStep(i) => {
+                if i.get_Some_0().content.is_update_request_with_key(sts_key) {
+                    if RMQCluster::validate_update_request(i.get_Some_0().content.get_update_request(), s.kubernetes_api_state).is_Some()
+                    || RMQCluster::update_is_noop(i.get_Some_0().content.get_update_request().obj, s.resource_obj_of(sts_key)) {
+                        assert(key_exists_and_old_ref(s_prime));
+                    } else {
+                        assert(i.get_Some_0().content.get_APIRequest_1() >= rest_id);
+                        assert(i.get_Some_0().content.get_update_request().obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()]));
+                        StatefulSetView::spec_integrity_is_preserved_by_marshal();
+                        assert(!s_prime.resource_key_exists(sts_key) || (s_prime.resource_key_exists(sts_key) && s_prime.resource_obj_of(sts_key).metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])));
+                    }
+                } else if i.get_Some_0().content.is_delete_request_with_key(sts_key) {
+                    assert(s.resource_obj_of(sts_key).metadata.finalizers.is_None());
+                    assert(!s_prime.resource_key_exists(sts_key));
+                } else {
+                    assert(key_exists_and_old_ref(s_prime));
+                }
+            },
+            _ => {
+                assert(key_exists_and_old_ref(s_prime) || delete_msg_in_flight(s_prime));
+            }
+        }
     }
 
     RMQCluster::lemma_pre_leads_to_post_by_builtin_controllers(
         spec, input, stronger_next, RMQCluster::run_garbage_collector(), key_exists_and_old_ref, delete_msg_in_flight
     );
-    // leads_to_stable_temp(spec, lift_action(stronger_next), lift_state(pre), lift_state(post));
+    or_leads_to_combine_n!(
+        spec,
+        lift_state(key_not_exists), lift_state(key_exists_and_current_ref), lift_state(key_exists_and_old_ref);
+        lift_state(delete_msg_in_flight)
+    );
+    implies_preserved_by_always_temp(
+        lift_state(helper_invariants::stateful_set_only_has_controller_owner_ref(rabbitmq)),
+        true_pred().implies(lift_state(key_not_exists).or(lift_state(key_exists_and_current_ref)).or(lift_state(key_exists_and_old_ref)))
+    );
+    entails_trans(
+        spec,
+        always(lift_state(helper_invariants::stateful_set_only_has_controller_owner_ref(rabbitmq))),
+        always(true_pred().implies(lift_state(key_not_exists).or(lift_state(key_exists_and_current_ref)).or(lift_state(key_exists_and_old_ref))))
+    );
+    implies_to_leads_to(spec, true_pred(), lift_state(key_not_exists).or(lift_state(key_exists_and_current_ref)).or(lift_state(key_exists_and_old_ref)));
+    lemma_delete_msg_in_flight_leads_to_only_valid_sts_exists(spec, rabbitmq, rest_id);
+    leads_to_trans_n!(
+        spec,
+        true_pred(), lift_state(key_not_exists).or(lift_state(key_exists_and_current_ref)).or(lift_state(key_exists_and_old_ref)),
+        lift_state(delete_msg_in_flight),
+        lift_state(post)
+    );
+    leads_to_stable(spec, stronger_next, |s: RMQCluster| true, post);
+}
+
+proof fn lemma_delete_msg_in_flight_leads_to_only_valid_sts_exists(
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, rest_id: nat
+)
+    requires
+        rabbitmq.well_formed(),
+        spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
+        spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| RMQCluster::builtin_controllers_next().weak_fairness(i))),
+        spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::stateful_set_only_has_controller_owner_ref(rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)))),
+        spec.entails(always(lift_state(helper_invariants::every_create_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)))),
+        spec.entails(always(lift_state(RMQCluster::no_req_before_rest_id_is_in_flight(rest_id)))),
+    ensures
+        spec.entails(lift_state(sts_key_not_exists_or_delete_msg_in_flight_or_sts_has_current_ref(rabbitmq)).leads_to(lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)))),
+{
+    let pre = sts_key_not_exists_or_delete_msg_in_flight_or_sts_has_current_ref(rabbitmq);
+    let post = helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq);
+    let sts_key = make_stateful_set_key(rabbitmq.object_ref());
+    let key_exists_and_delete_msg_exists = |s: RMQCluster| {
+        &&& s.resource_key_exists(sts_key)
+        &&& exists |msg: Message| {
+            #[trigger] s.message_in_flight(msg)
+            && msg.dst.is_KubernetesAPI()
+            && msg.content.is_delete_request_with_key(sts_key)
+        }
+    };
+    let key_exists_and_current_ref = |s: RMQCluster| {
+        &&& s.resource_key_exists(sts_key)
+        &&& s.resource_obj_of(sts_key).metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
+    };
+    let key_not_exists = |s: RMQCluster| !s.resource_key_exists(sts_key);
+    valid_implies_implies_leads_to(spec, lift_state(key_exists_and_current_ref), lift_state(post));
+    valid_implies_implies_leads_to(spec, lift_state(key_not_exists), lift_state(post));
+    
+    assert_by(
+        spec.entails(lift_state(key_exists_and_delete_msg_exists).leads_to(lift_state(post))),
+        {
+            let msg_to_p = |msg: Message| {
+                lift_state(|s: RMQCluster| {
+                    &&& s.resource_key_exists(sts_key)
+                    &&& s.message_in_flight(msg)
+                    &&& msg.dst.is_KubernetesAPI()
+                    &&& msg.content.is_delete_request_with_key(sts_key)
+                })
+            };
+            assert forall |msg: Message| spec.entails((#[trigger] msg_to_p(msg)).leads_to(lift_state(post))) by {
+                let input = Some(msg);
+                let msg_to_p_state = |s: RMQCluster| {
+                    &&& s.resource_key_exists(sts_key)
+                    &&& s.message_in_flight(msg)
+                    &&& msg.dst.is_KubernetesAPI()
+                    &&& msg.content.is_delete_request_with_key(sts_key)
+                };
+                let stronger_next = |s, s_prime: RMQCluster| {
+                    &&& RMQCluster::next()(s, s_prime)
+                    &&& RMQCluster::busy_disabled()(s)
+                    &&& RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)(s)
+                    &&& RMQCluster::no_req_before_rest_id_is_in_flight(rest_id)(s)
+                    &&& helper_invariants::stateful_set_only_has_controller_owner_ref(rabbitmq)(s)
+                    &&& helper_invariants::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)(s)
+                };
+                entails_always_and_n!(
+                    spec,
+                    lift_action(RMQCluster::next()),
+                    lift_state(RMQCluster::busy_disabled()),
+                    lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)),
+                    lift_state(RMQCluster::no_req_before_rest_id_is_in_flight(rest_id)),
+                    lift_state(helper_invariants::stateful_set_only_has_controller_owner_ref(rabbitmq)),
+                    lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id))
+                );
+                temp_pred_equality(
+                    lift_action(stronger_next),
+                    lift_action(RMQCluster::next())
+                    .and(lift_state(RMQCluster::busy_disabled()))
+                    .and(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))
+                    .and(lift_state(RMQCluster::no_req_before_rest_id_is_in_flight(rest_id)))
+                    .and(lift_state(helper_invariants::stateful_set_only_has_controller_owner_ref(rabbitmq)))
+                    .and(lift_state(helper_invariants::every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)))
+                );
+                RMQCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, RMQCluster::handle_request(), msg_to_p_state, post);
+            }
+            leads_to_exists_intro(spec, msg_to_p, lift_state(post));
+            assert_by(
+                tla_exists(msg_to_p) == lift_state(key_exists_and_delete_msg_exists),
+                {
+                    assert forall |ex| #[trigger] lift_state(key_exists_and_delete_msg_exists).satisfied_by(ex) implies tla_exists(msg_to_p).satisfied_by(ex) by {
+                        assert(ex.head().resource_key_exists(sts_key));
+                        let msg = choose |msg| {
+                            &&& #[trigger] ex.head().message_in_flight(msg)
+                            &&& msg.dst.is_KubernetesAPI()
+                            &&& msg.content.is_delete_request_with_key(sts_key)
+                        };
+                        assert(msg_to_p(msg).satisfied_by(ex));
+                    }
+                    temp_pred_equality(tla_exists(msg_to_p), lift_state(key_exists_and_delete_msg_exists));
+                }
+            )
+        }
+    );
+    temp_pred_equality(
+        lift_state(key_exists_and_delete_msg_exists).or(lift_state(key_exists_and_current_ref)).or(lift_state(key_not_exists)),
+        lift_state(pre)
+    );
+    or_leads_to_combine_n!(
+        spec,
+        lift_state(key_exists_and_delete_msg_exists), lift_state(key_exists_and_current_ref), lift_state(key_not_exists);
+        lift_state(post)
+    );
 }
 
 // Skip this lemma for now; we will need an invariant saying that the configmap object never has a deletion timestamp.

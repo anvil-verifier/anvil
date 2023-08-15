@@ -144,6 +144,12 @@ impl MessageContent {
         &&& self.get_APIRequest_0().is_UpdateRequest()
     }
 
+    pub open spec fn is_update_request_with_key(self, key: ObjectRef) -> bool {
+        &&& self.is_APIRequest()
+        &&& self.get_APIRequest_0().is_UpdateRequest()
+        &&& self.get_APIRequest_0().get_UpdateRequest_0().key == key
+    }
+
     pub open spec fn get_update_request(self) -> UpdateRequest
         recommends
             self.is_update_request()

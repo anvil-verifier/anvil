@@ -477,6 +477,7 @@ pub open spec fn every_update_cm_req_since_rest_id_does_the_same(
 
 pub open spec fn stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
+        // TODO: add no deleted msg in flight
         s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
         ==> s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
     }
@@ -485,7 +486,8 @@ pub open spec fn stateful_set_has_owner_reference_pointing_to_current_cr(rabbitm
 pub open spec fn stateful_set_only_has_controller_owner_ref(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-        ==> exists |uid: nat|
+        ==> s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.finalizers.is_None()
+            && exists |uid: nat|
             s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.owner_references == Some(seq![OwnerReferenceView {
                 block_owner_deletion: None,
                 controller: Some(true),
@@ -719,6 +721,36 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
         spec.entails(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))),
     ensures
         spec.entails(always(lift_state(every_update_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)))),
+{}
+
+pub open spec fn every_create_sts_req_since_rest_id_does_the_same(
+    rabbitmq: RabbitmqClusterView, rest_id: RestId
+) -> StatePred<RMQCluster>
+    recommends
+        rabbitmq.well_formed(),
+{
+    |s: RMQCluster| {
+        forall |msg: Message| {
+            &&& #[trigger] s.network_state.in_flight.contains(msg)
+            &&& sts_create_request_msg_since(rabbitmq.object_ref(), rest_id)(msg)
+        } ==> msg.content.get_create_request().obj.spec == StatefulSetView::marshal_spec(make_stateful_set(rabbitmq).spec)
+            && msg.content.get_create_request().obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
+    }
+}
+
+#[verifier(external_body)]
+pub proof fn lemma_always_every_create_sts_req_since_rest_id_does_the_same(
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, rest_id: RestId
+)
+    requires
+        spec.entails(lift_state(RMQCluster::rest_id_counter_is(rest_id))),
+        spec.entails(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(always(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))),
+        spec.entails(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))),
+    ensures
+        spec.entails(always(lift_state(every_create_sts_req_since_rest_id_does_the_same(rabbitmq, rest_id)))),
 {}
 
 pub open spec fn pending_msg_at_after_create_stateful_set_step_is_create_sts_req(

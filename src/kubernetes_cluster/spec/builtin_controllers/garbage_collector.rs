@@ -37,11 +37,12 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
         transition: |input: BuiltinControllersActionInput, s: BuiltinControllersState| {
             let resources = input.resources;
             let key = input.key;
-            let namespace = resources[key].metadata.namespace.get_Some_0();
+            let namespace = key.namespace;
             let owner_references = resources[key].metadata.owner_references.get_Some_0();
+            let n_owner_refs = owner_references.len();
             // The garbage collector decides whether to delete an object by checking its owner references,
             // it deletes the object if for each owner reference...
-            if forall |i| #![trigger owner_references[i]] {
+            if forall |i| #![trigger owner_references[i]] 0 <= i < n_owner_refs ==> {
                 // the referred owner object does not exist in the cluster state
                 ||| !resources.dom().contains(owner_reference_to_object_reference(owner_references[i], namespace))
                 // or it exists but has a different uid
