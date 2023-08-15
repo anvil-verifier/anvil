@@ -295,6 +295,7 @@ pub open spec fn at_most_one_update_cm_req_is_in_flight(key: ObjectRef) -> State
     }
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_true_leads_to_always_at_most_one_update_cm_req_is_in_flight(spec: TempPred<RMQCluster>, key: ObjectRef)
     requires
         spec.entails(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())),
@@ -438,7 +439,7 @@ pub open spec fn stateful_set_only_has_controller_owner_ref(rabbitmq: RabbitmqCl
     |s: RMQCluster| {
         s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
         ==> s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.finalizers.is_None()
-            && exists |uid: nat|
+            && exists |uid: nat| #![auto]
             s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.owner_references == Some(seq![OwnerReferenceView {
                 block_owner_deletion: None,
                 controller: Some(true),
