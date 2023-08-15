@@ -85,6 +85,17 @@ proof fn next_with_wf_is_stable()
     );
 }
 
+spec fn next_with_wf_and_assumption(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
+    always(lift_action(RMQCluster::next()))
+    .and(tla_forall(|input| RMQCluster::kubernetes_api_next().weak_fairness(input)))
+    .and(tla_forall(|input| RMQCluster::controller_next().weak_fairness(input)))
+    .and(tla_forall(|input| RMQCluster::schedule_controller_reconcile().weak_fairness(input)))
+    .and(tla_forall(|input| RMQCluster::builtin_controllers_next().weak_fairness(input)))
+    .and(RMQCluster::disable_crash().weak_fairness(()))
+    .and(RMQCluster::disable_busy().weak_fairness(()))
+    .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
+}
+
 spec fn next_with_wf_and_assumption_and_all_invariants(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(lift_action(RMQCluster::next()))
     .and(tla_forall(|input| RMQCluster::kubernetes_api_next().weak_fairness(input)))
@@ -93,12 +104,25 @@ spec fn next_with_wf_and_assumption_and_all_invariants(rabbitmq: RabbitmqCluster
     .and(tla_forall(|input| RMQCluster::builtin_controllers_next().weak_fairness(input)))
     .and(RMQCluster::disable_crash().weak_fairness(()))
     .and(RMQCluster::disable_busy().weak_fairness(()))
+    .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
     .and(invariants_phase_I(rabbitmq))
     .and(invariants_phase_II(rabbitmq))
     .and(invariants_phase_III(rabbitmq))
     .and(invariants_phase_IV(rabbitmq))
     .and(invariants_phase_V(rabbitmq))
     .and(invariants_phase_VI(rabbitmq))
+}
+
+proof fn next_with_wf_and_assumption_is_stable(rabbitmq: RabbitmqClusterView)
+    ensures
+        valid(stable(next_with_wf_and_assumption(rabbitmq))),
+{
+    always_p_is_stable(lift_state(RMQCluster::desired_state_is(rabbitmq)));
+    next_with_wf_is_stable();
+    stable_and_temp(
+        next_with_wf(),
+        always(lift_state(RMQCluster::desired_state_is(rabbitmq)))
+    );
 }
 
 // The safety invariants that are required to prove liveness.
@@ -170,7 +194,6 @@ proof fn invariants_is_stable(rabbitmq: RabbitmqClusterView)
 spec fn invariants_phase_II(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(lift_state(RMQCluster::crash_disabled()))
     .and(always(lift_state(RMQCluster::busy_disabled())))
-    .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
 }
 
 spec fn invariants_phase_III(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
@@ -185,8 +208,7 @@ proof fn invariants_phase_II_is_stable(rabbitmq: RabbitmqClusterView)
 {
     stable_and_always_n!(
         lift_state(RMQCluster::crash_disabled()),
-        lift_state(RMQCluster::busy_disabled()),
-        lift_state(RMQCluster::desired_state_is(rabbitmq))
+        lift_state(RMQCluster::busy_disabled())
     );
 }
 
@@ -264,6 +286,7 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
     lemma_true_leads_to_always_current_state_matches_rabbitmq_under_eventual_invariants(rabbitmq);
 
     next_with_wf_is_stable();
+    next_with_wf_and_assumption_is_stable(rabbitmq);
     invariants_is_stable(rabbitmq);
     invariants_phase_II_is_stable(rabbitmq);
     invariants_phase_III_is_stable(rabbitmq);
@@ -271,13 +294,13 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
     invariants_phase_V_is_stable(rabbitmq);
     // Eliminate all the invariants by phase.
     assert_by(
-        next_with_wf().and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq)).and(invariants_phase_III(rabbitmq)).and(invariants_phase_IV(rabbitmq)).and(invariants_phase_V(rabbitmq)).entails(
+        next_with_wf_and_assumption(rabbitmq).and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq)).and(invariants_phase_III(rabbitmq)).and(invariants_phase_IV(rabbitmq)).and(invariants_phase_V(rabbitmq)).entails(
             true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))
         ),
         {
-            let spec = next_with_wf().and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq)).and(invariants_phase_III(rabbitmq)).and(invariants_phase_IV(rabbitmq)).and(invariants_phase_V(rabbitmq));
+            let spec = next_with_wf_and_assumption(rabbitmq).and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq)).and(invariants_phase_III(rabbitmq)).and(invariants_phase_IV(rabbitmq)).and(invariants_phase_V(rabbitmq));
             stable_and_n!(
-                next_with_wf(),
+                next_with_wf_and_assumption(rabbitmq),
                 invariants_phase_I(rabbitmq),
                 invariants_phase_II(rabbitmq),
                 invariants_phase_III(rabbitmq),
@@ -292,13 +315,13 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
         }
     );
     assert_by(
-        next_with_wf().and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq)).and(invariants_phase_III(rabbitmq)).and(invariants_phase_IV(rabbitmq)).entails(
+        next_with_wf_and_assumption(rabbitmq).and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq)).and(invariants_phase_III(rabbitmq)).and(invariants_phase_IV(rabbitmq)).entails(
             true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))
         ),
         {
-            let spec = next_with_wf().and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq)).and(invariants_phase_III(rabbitmq)).and(invariants_phase_IV(rabbitmq));
+            let spec = next_with_wf_and_assumption(rabbitmq).and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq)).and(invariants_phase_III(rabbitmq)).and(invariants_phase_IV(rabbitmq));
             stable_and_n!(
-                next_with_wf(),
+                next_with_wf_and_assumption(rabbitmq),
                 invariants_phase_I(rabbitmq),
                 invariants_phase_II(rabbitmq),
                 invariants_phase_III(rabbitmq),
@@ -311,13 +334,13 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
         }
     );
     assert_by(
-        next_with_wf().and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq)).and(invariants_phase_III(rabbitmq)).entails(
+        next_with_wf_and_assumption(rabbitmq).and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq)).and(invariants_phase_III(rabbitmq)).entails(
             true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))
         ),
         {
-            let spec = next_with_wf().and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq)).and(invariants_phase_III(rabbitmq));
+            let spec = next_with_wf_and_assumption(rabbitmq).and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq)).and(invariants_phase_III(rabbitmq));
             stable_and_n!(
-                next_with_wf(),
+                next_with_wf_and_assumption(rabbitmq),
                 invariants_phase_I(rabbitmq),
                 invariants_phase_II(rabbitmq),
                 invariants_phase_III(rabbitmq)
@@ -367,13 +390,13 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
         }
     );
     assert_by(
-        next_with_wf().and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq)).entails(
+        next_with_wf_and_assumption(rabbitmq).and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq)).entails(
             true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))
         ),
         {
-            let spec = next_with_wf().and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq));
+            let spec = next_with_wf_and_assumption(rabbitmq).and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq));
             stable_and_n!(
-                next_with_wf(),
+                next_with_wf_and_assumption(rabbitmq),
                 invariants_phase_I(rabbitmq),
                 invariants_phase_II(rabbitmq)
             );
@@ -401,35 +424,18 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
 
     // Now we eliminate the assumption []RMQCluster::crash_disabled() /\ []busy_disabled.
     assert_by(
-        next_with_wf().and(invariants_phase_I(rabbitmq)).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
+        next_with_wf_and_assumption(rabbitmq).and(invariants_phase_I(rabbitmq))
         .entails(
             true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))
         ),
         {
-            let spec = next_with_wf().and(invariants_phase_I(rabbitmq)).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))));
-            assert_by(
-                valid(stable(spec)),
-                {
-                    next_with_wf_is_stable();
-                    invariants_is_stable(rabbitmq);
-                    always_p_is_stable(lift_state(RMQCluster::desired_state_is(rabbitmq)));
-
-                    stable_and_n!(
-                        next_with_wf(),
-                        invariants_phase_I(rabbitmq),
-                        always(lift_state(RMQCluster::desired_state_is(rabbitmq)))
-                    );
-                }
+            let spec = next_with_wf_and_assumption(rabbitmq).and(invariants_phase_I(rabbitmq));
+            stable_and_n!(
+                next_with_wf_and_assumption(rabbitmq),
+                invariants_phase_I(rabbitmq)
             );
-            temp_pred_equality(
-                spec.and(always(lift_state(RMQCluster::crash_disabled())).and(always(lift_state(RMQCluster::busy_disabled())))),
-                next_with_wf().and(invariants_phase_I(rabbitmq)).and(invariants_phase_II(rabbitmq))
-            );
-            unpack_conditions_from_spec(spec, always(lift_state(RMQCluster::crash_disabled())).and(always(lift_state(RMQCluster::busy_disabled()))), true_pred(), always(lift_state(current_state_matches(rabbitmq))));
-            temp_pred_equality(
-                true_pred().and(always(lift_state(RMQCluster::crash_disabled())).and(always(lift_state(RMQCluster::busy_disabled())))),
-                always(lift_state(RMQCluster::crash_disabled())).and(always(lift_state(RMQCluster::busy_disabled())))
-            );
+            unpack_conditions_from_spec(spec, invariants_phase_II(rabbitmq), true_pred(), always(lift_state(current_state_matches(rabbitmq))));
+            temp_pred_equality(true_pred().and(invariants_phase_II(rabbitmq)), invariants_phase_II(rabbitmq));
 
             RMQCluster::lemma_true_leads_to_crash_always_disabled(spec);
             RMQCluster::lemma_true_leads_to_busy_always_disabled(spec);
@@ -443,7 +449,7 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
                 lift_state(RMQCluster::crash_disabled()),
                 lift_state(RMQCluster::busy_disabled())
             );
-            leads_to_trans_temp(spec, true_pred(), always(lift_state(RMQCluster::crash_disabled())).and(always(lift_state(RMQCluster::busy_disabled()))), always(lift_state(current_state_matches(rabbitmq))));
+            leads_to_trans_temp(spec, true_pred(), invariants_phase_II(rabbitmq), always(lift_state(current_state_matches(rabbitmq))));
         }
     );
 
@@ -456,15 +462,8 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
         {
             let spec = next_with_wf().and(invariants_phase_I(rabbitmq));
             let assumption = always(lift_state(RMQCluster::desired_state_is(rabbitmq)));
-            assert_by(
-                valid(stable(spec)),
-                {
-                    next_with_wf_is_stable();
-                    invariants_is_stable(rabbitmq);
-
-                    stable_and_n!(next_with_wf(), invariants_phase_I(rabbitmq));
-                }
-            );
+            stable_and_n!(next_with_wf(), invariants_phase_I(rabbitmq));
+            temp_pred_equality(spec.and(assumption), next_with_wf_and_assumption(rabbitmq).and(invariants_phase_I(rabbitmq)));
             unpack_conditions_from_spec(spec, assumption, true_pred(), always(lift_state(current_state_matches(rabbitmq))));
             temp_pred_equality(true_pred().and(assumption), assumption);
         }
