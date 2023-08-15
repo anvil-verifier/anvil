@@ -171,39 +171,6 @@ pub proof fn lemma_true_leads_to_always_at_most_one_create_cm_req_is_in_flight(s
             true_pred().leads_to(always(lift_state(at_most_one_create_cm_req_is_in_flight(key))))
         ),
 {
-    // entails_and_n!(
-    //     spec,
-    //     lift_state(RMQCluster::rest_id_counter_is(rest_id)),
-    //     lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()),
-    //     lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key))
-    // );
-    // temp_pred_equality(
-    //     lift_state(init),
-    //     lift_state(RMQCluster::rest_id_counter_is(rest_id))
-    //     .and(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))
-    //     .and(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))
-    // );
-
-    // entails_always_and_n!(
-    //     spec,
-    //     lift_action(RMQCluster::next()),
-    //     lift_state(RMQCluster::crash_disabled()),
-    //     lift_state(RMQCluster::busy_disabled()),
-    //     lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)),
-    //     lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
-    //     lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)),
-    //     lift_state(RMQCluster::every_in_flight_msg_has_unique_id())
-    // );
-    // temp_pred_equality(
-    //     lift_action(stronger_next),
-    //     lift_action(RMQCluster::next())
-    //     .and(lift_state(RMQCluster::crash_disabled()))
-    //     .and(lift_state(RMQCluster::busy_disabled()))
-    //     .and(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))
-    //     .and(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()))
-    //     .and(lift_state(RMQCluster::rest_id_counter_is_no_smaller_than(rest_id)))
-    //     .and(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))
-    // );
     // assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
     //     let pending_msg = s_prime.pending_req_of(key);
     //     assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && cm_create_request_msg_since(key, rest_id)(msg)

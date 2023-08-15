@@ -150,6 +150,8 @@ pub open spec fn is_correct_pending_request_at_rabbitmq_step(
         RabbitmqReconcileStep::AfterCreateRoleBinding => is_create_role_binding_request(request, rabbitmq),
         RabbitmqReconcileStep::AfterGetStatefulSet => is_get_stateful_set_request(request, rabbitmq),
         RabbitmqReconcileStep::AfterCreateStatefulSet => is_create_stateful_set_request(request, rabbitmq),
+        RabbitmqReconcileStep::AfterUpdateServerConfigMap => true,
+        RabbitmqReconcileStep::AfterUpdateStatefulSet => true,
         _ => false
     }
 }
