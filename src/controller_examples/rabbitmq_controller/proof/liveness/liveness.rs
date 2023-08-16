@@ -335,7 +335,7 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
             unpack_conditions_from_spec(spec, invariants_phase_VI(rabbitmq), true_pred(), always(current_state_matches(rabbitmq)));
             temp_pred_equality(true_pred().and(invariants_phase_VI(rabbitmq)), invariants_phase_VI(rabbitmq));
             eliminate_always(spec, lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()));
-            helper_invariants::lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec, rabbitmq.object_ref());
+            helper_invariants::lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec, rabbitmq);
             helper_invariants::lemma_true_leads_to_always_no_delete_cm_req_is_in_flight(spec, rabbitmq.object_ref());
             leads_to_always_combine_temp(
                 spec, true_pred(),

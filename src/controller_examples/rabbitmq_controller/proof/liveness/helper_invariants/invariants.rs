@@ -661,10 +661,10 @@ pub open spec fn pending_msg_at_after_create_stateful_set_step_is_create_sts_req
 {
     |s: RMQCluster| {
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s)
-            ==> {
-                &&& RMQCluster::pending_k8s_api_req_msg(s, key)
-                &&& sts_create_request_msg(key)(s.pending_req_of(key))
-            }
+        ==> {
+            &&& RMQCluster::pending_k8s_api_req_msg(s, key)
+            &&& sts_create_request_msg(key)(s.pending_req_of(key))
+        }
     }
 }
 
@@ -689,10 +689,10 @@ pub open spec fn pending_msg_at_after_update_stateful_set_step_is_update_sts_req
 {
     |s: RMQCluster| {
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s)
-            ==> {
-                &&& RMQCluster::pending_k8s_api_req_msg(s, key)
-                &&& sts_update_request_msg(key)(s.pending_req_of(key))
-            }
+        ==> {
+            &&& RMQCluster::pending_k8s_api_req_msg(s, key)
+            &&& sts_update_request_msg(key)(s.pending_req_of(key))
+        }
     }
 }
 
@@ -796,22 +796,50 @@ pub open spec fn no_delete_sts_req_is_in_flight(key: ObjectRef) -> StatePred<RMQ
     }
 }
 
-// TODO: fix this lemma.
-// If the configmap has no owner_reference, fixing the lemma is simple:
-// we just need to show that the configmap in the cluster state never has any owner reference.
-//
-// However, later we are going to set the owner_reference of the configmap to the CR object,
-// so we will need the assumption that "CR always exists" to prove this invariant.
-#[verifier(external_body)]
-pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: TempPred<RMQCluster>, key: ObjectRef)
+pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
-        spec.entails(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())),
+        valid(stable(spec)),
+        spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+        spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_action(RMQCluster::next()))),
-        key.kind.is_CustomResourceKind(),
+        spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
+        spec.entails(always(lift_state(stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq))))
     ensures
         spec.entails(
-            true_pred().leads_to(always(lift_state(no_delete_sts_req_is_in_flight(key))))
+            true_pred().leads_to(always(lift_state(no_delete_sts_req_is_in_flight(rabbitmq.object_ref()))))
         ),
-{}
+{
+    let key = rabbitmq.object_ref();
+    let requirements = |msg: Message| !sts_delete_request_msg(key)(msg);
+    eliminate_always(spec, lift_action(RMQCluster::next()));
+    eliminate_always(spec, lift_state(RMQCluster::desired_state_is(rabbitmq)));
+    eliminate_always(spec, lift_state(stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)));
+    eliminate_always(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_action(RMQCluster::every_new_in_flight_req_msg_is_expected(requirements)).satisfied_by(ex) by {
+        let s = ex.head();
+        let s_prime = ex.head_next();
+        entails_apply(ex, spec, lift_action(RMQCluster::next()));
+        entails_apply(ex, spec, lift_state(RMQCluster::desired_state_is(rabbitmq)));
+        entails_apply(ex, spec, lift_state(stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)));
+        entails_apply(ex, spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
+        assert(lift_action(RMQCluster::next()).satisfied_by(ex));
+        assert(RMQCluster::next()(s, s_prime));
+        assert forall |msg: Message| !s.message_in_flight(msg) && #[trigger] s_prime.message_in_flight(msg)
+        implies requirements(msg) by {
+            if s.resource_key_exists(make_stateful_set_key(key)) {
+                let owner_refs = s.resource_obj_of(make_stateful_set_key(key)).metadata.owner_references;
+                assert(owner_refs == Some(seq![rabbitmq.controller_owner_ref()]));
+                assert(owner_reference_to_object_reference(owner_refs.get_Some_0()[0], key.namespace) == key);
+            }
+        }
+    }
+    RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_is_expected(spec, requirements);
+    temp_pred_equality(
+        lift_state(RMQCluster::every_in_flight_req_msg_is_expected(requirements)),
+        lift_state(no_delete_sts_req_is_in_flight(key))
+    );
+}
 
 }
