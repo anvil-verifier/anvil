@@ -211,11 +211,11 @@ proof fn invariants_is_stable(rabbitmq: RabbitmqClusterView)
 spec fn invariants_phase_II(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(lift_state(RMQCluster::crash_disabled()))
     .and(always(lift_state(RMQCluster::busy_disabled())))
+    .and(always(lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq))))
 }
 
 spec fn invariants_phase_III(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
-    always(lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)))
-    .and(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))))
+    always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))
 }
 
 // TODO: move desired_state_is(rabbitmq) from phase II
@@ -225,7 +225,8 @@ proof fn invariants_phase_II_is_stable(rabbitmq: RabbitmqClusterView)
 {
     stable_and_always_n!(
         lift_state(RMQCluster::crash_disabled()),
-        lift_state(RMQCluster::busy_disabled())
+        lift_state(RMQCluster::busy_disabled()),
+        lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq))
     );
 }
 
@@ -233,10 +234,7 @@ proof fn invariants_phase_III_is_stable(rabbitmq: RabbitmqClusterView)
     ensures
         valid(stable(invariants_phase_III(rabbitmq))),
 {
-    stable_and_always_n!(
-        lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)),
-        lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
-    );
+    always_p_is_stable(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)));
 }
 
 // Some other invariants requires to prove liveness.
@@ -449,20 +447,7 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
             temp_pred_equality(true_pred().and(invariants_phase_III(rabbitmq)), invariants_phase_III(rabbitmq));
 
             terminate::reconcile_eventually_terminates(spec, rabbitmq);
-            RMQCluster::lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, rabbitmq);
             RMQCluster::lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, rabbitmq);
-
-            leads_to_always_combine_n!(
-                spec, true_pred(),
-                lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)),
-                lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
-            );
-
-            always_and_equality_n!(
-                lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)),
-                lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
-            );
-
             leads_to_trans_temp(spec, true_pred(), invariants_phase_III(rabbitmq), always(current_state_matches(rabbitmq)));
         }
     );
@@ -484,15 +469,18 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
 
             RMQCluster::lemma_true_leads_to_crash_always_disabled(spec);
             RMQCluster::lemma_true_leads_to_busy_always_disabled(spec);
-            leads_to_always_combine_temp(
+            RMQCluster::lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, rabbitmq);
+            leads_to_always_combine_n!(
                 spec,
                 true_pred(),
                 lift_state(RMQCluster::crash_disabled()),
-                lift_state(RMQCluster::busy_disabled())
+                lift_state(RMQCluster::busy_disabled()),
+                lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq))
             );
-            always_and_equality(
+            always_and_equality_n!(
                 lift_state(RMQCluster::crash_disabled()),
-                lift_state(RMQCluster::busy_disabled())
+                lift_state(RMQCluster::busy_disabled()),
+                lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq))
             );
             leads_to_trans_temp(spec, true_pred(), invariants_phase_II(rabbitmq), always(current_state_matches(rabbitmq)));
         }
