@@ -27,18 +27,13 @@ verus! {
 spec fn sts_key_not_exists_or_delete_msg_in_flight_or_sts_has_current_ref(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     let sts_key = make_stateful_set_key(rabbitmq.object_ref());
     |s: RMQCluster| {
-        ||| {
-            &&& s.resource_key_exists(sts_key)
-            &&& (
-                    (exists |msg: Message| {
-                        #[trigger] s.message_in_flight(msg)
-                        && msg.dst.is_KubernetesAPI()
-                        && msg.content.is_delete_request_with_key(sts_key)
-                    })
-                    || s.resource_obj_of(sts_key).metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
-            )
+        s.resource_key_exists(sts_key)
+        && s.resource_obj_of(sts_key).metadata.owner_references != Some(seq![rabbitmq.controller_owner_ref()])
+        ==> exists |msg: Message| {
+            #[trigger] s.message_in_flight(msg)
+            && msg.dst.is_KubernetesAPI()
+            && msg.content.is_delete_request_with_key(sts_key)
         }
-        ||| !s.resource_key_exists(sts_key)
     }
 }
 
