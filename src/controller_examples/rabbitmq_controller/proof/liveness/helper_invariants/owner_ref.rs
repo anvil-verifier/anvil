@@ -53,6 +53,26 @@ pub proof fn lemma_eventually_only_valid_server_config_map_exists(spec: TempPred
         spec.entails(true_pred().leads_to(always(lift_state(server_config_map_has_owner_reference_pointing_to_current_cr(rabbitmq))))),
 {}
 
+/// The proof of spec |= true ~> all_objects_have_expected_owner_references consists of two parts:
+///     1. spec |= true ~> (object_has_invalid_owner_reference ==> delete message in flight).
+///     2. spec |= (object_has_invalid_owner_reference ==> delete message in flight) ~> all_objects_have_expected_owner_references.
+/// The first is primarily obtained by the weak fairness of the builtin controllers action (specifially, the garbage collector);
+/// and the second holds due to the weak fairness of kubernetes api.
+/// 
+/// To prove 1, we split `true` into three cases:
+///     a. The object has invalid owner references.
+///     b. The object has valid owner references.
+///     c. The object doesn't exist.
+/// For the last two cases, the post state ((object_has_invalid_owner_reference ==> delete message in flight)) is already reached. 
+/// We only need to show spec |= case a ~> post. This is straightforward via the weak fairness of builtin controllers.
+/// 
+/// The proof of 2 is nothing new to previous proof about kubernetes api actions. 
+/// 
+/// Several preconditions must be satisfied:
+///     1. spec |= [](in_flight(update_msg_with(msg, key)) ==> expected(msg.obj.metadata.owner_references)).
+///     2. spec |= [](in_flight(create_msg_with(msg, key)) ==> expected(msg.obj.metadata.owner_references)).
+///     3. spec |= [](key_exists ==> resource_obj_of(key) has no finalizers or timestamp).
+///     3. spec |= [](invalid owner references must have deleted object or uid).
 pub proof fn lemma_eventually_only_valid_stateful_set_exists(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         rabbitmq.well_formed(),
@@ -67,11 +87,14 @@ pub proof fn lemma_eventually_only_valid_stateful_set_exists(spec: TempPred<RMQC
     ensures
         spec.entails(true_pred().leads_to(always(lift_state(stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq))))),
 {
+    // TODO: make this lemma general without talking about stateful set or controller reference (only talking about what the owner
+    // references are like, whether they satisfy the precondition of gc action).
     let sts_key = make_stateful_set_key(rabbitmq.object_ref());
+
     let key_exists_and_old_ref = |s: RMQCluster| {
         s.resource_key_exists(sts_key)
         && exists |uid: nat| #![auto]
-        uid != rabbitmq.metadata.uid.get_Some_0() && s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.owner_references == Some(seq![OwnerReferenceView {
+        uid != rabbitmq.metadata.uid.get_Some_0() && s.resource_obj_of(sts_key).metadata.owner_references == Some(seq![OwnerReferenceView {
             block_owner_deletion: None,
             controller: Some(true),
             kind: RabbitmqClusterView::kind(),
@@ -99,7 +122,7 @@ pub proof fn lemma_eventually_only_valid_stateful_set_exists(spec: TempPred<RMQC
     );
 
     assert forall |s, s_prime: RMQCluster| key_exists_and_old_ref(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::builtin_controllers_next().forward(input)(s, s_prime) implies delete_msg_in_flight(s_prime) by {
-        let owner_references = s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.owner_references.get_Some_0();
+        let owner_references = s.resource_obj_of(sts_key).metadata.owner_references.get_Some_0();
         assert(owner_references.len() == 1);
         let new_delete_msg = built_in_controller_req_msg(delete_req_msg_content(
             sts_key, s.rest_id_allocator.allocate().1
