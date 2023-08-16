@@ -246,6 +246,7 @@ pub open spec fn no_req_before_rest_id_is_in_flight(rest_id: RestId) -> StatePre
     }
 }
 
+/// Newly created message means it doesn't exist in in_flight in last state but exists in the current state.
 pub open spec fn every_new_in_flight_req_msg_is_expected(expected_messages: FnSpec(Message) -> bool) -> ActionPred<Self> {
     |s: Self, s_prime: Self| {
         forall |msg: Message| 
@@ -269,9 +270,10 @@ pub open spec fn every_in_flight_req_msg_is_expected(expected_messages: FnSpec(M
 
 /// This lemma shows that if spec ensures every newly created Kubernetes api request message satisfies some requirements,
 /// the system will eventually reaches a state where all Kubernetes api request messages satisfy those requirements.
-/// To require "every newly create Kubernetes api request message satisfies some requirements", we use a FnSpec as parameter
-/// which can be defined by callers and want spec |= [](every_new_in_flight_req_msg_is_expected(expected_messages)).
-/// Note that in the precondition, we don't require always for this predicate, because the spec need to be stable and the always
+/// 
+/// To require "every newly create Kubernetes api request message satisfies some requirements", we use a FnSpec (i.e., a closure) 
+/// as parameter which can be defined by callers and require spec |= [](every_new_in_flight_req_msg_is_expected(expected_messages)).
+/// Note that in the precondition, we don't actually require always for this predicate, because the spec need to be stable and the always
 /// one can be derived. This also alleviate the preliminary work for the callers to use this lemma.
 pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_is_expected(
     spec: TempPred<Self>, expected_messages: FnSpec(Message) -> bool
@@ -324,8 +326,11 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_is_expec
             lift_state(Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))
         ),
 {
+    // If the spec is stable, we can get []p. This is why we don't require every_new_in_flight_req_msg_is_expected to be
+    // always satisfied in the precondition.
     stable_spec_entails_always_p(spec, lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages)));
     eliminate_always(spec, lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()));
+    
     let spec_with_rest_id = spec.and(lift_state(Self::rest_id_counter_is(rest_id)));
     entails_trans(spec_with_rest_id, spec, lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()));
     entails_trans(spec_with_rest_id, spec, always(lift_state(Self::busy_disabled())));
@@ -333,10 +338,10 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_is_expec
     entails_trans(spec_with_rest_id, spec, tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i)));
     entails_trans(spec_with_rest_id, spec, always(lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages))));
 
-    // With rest_id known, we first prove that spec /\ rest_id |= true ~> every_in_flight_msg_is_expected
+    // With rest_id known, we first prove that spec /\ rest_id |= true ~> []every_in_flight_msg_is_expected
     // We divide the proof into three steps:
     // (1) Prove an invariant that forall message with a no smaller rest_id than rest_id, it satisfies the given predicate.
-    // (2) Prove that spec |= true ~> msg_has_lower_rest_id_all_gone.
+    // (2) Prove that spec |= true ~> []msg_has_lower_rest_id_all_gone.
     // (3) With the first invariant, prove that msg_has_lower_rest_id_all_gone implies all messages in flight are expected.
     assert_by(
         spec_with_rest_id.entails(true_pred().leads_to(always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))),

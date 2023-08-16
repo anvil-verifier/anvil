@@ -796,6 +796,24 @@ pub open spec fn no_delete_sts_req_is_in_flight(key: ObjectRef) -> StatePred<RMQ
     }
 }
 
+/// This lemma demonstrates how to use kubernetes_cluster::proof::kubernetes_api_liveness::lemma_true_leads_to_always_every_in_flight_req_msg_is_expected
+/// (referred to as lemma_X) to prove that the system will eventually enter a state where delete stateful set request messages 
+/// will never appear in flight.
+/// 
+/// As an example, we can look at how this lemma is proved.
+/// - Precondition: The preconditions should include all precondtions used by lemma_X and other predicates which show that
+///     the newly generated messages are as expected. ("expected" means not delete stateful set request messages in this lemma. Therefore,
+///     we provide an invariant lemma_true_leads_to_always_every_in_flight_req_msg_is_expected so that the grabage collector won't try
+///     to send a delete request to delete the messsage.)
+/// - Postcondition: spec |= true ~> [](forall |msg| as_expected(msg))
+/// - Proof body: The proof consists of three parts.
+///   + Come up with "requirements" for those newly created api request messages. Usually, just move the forall |msg| and 
+///     s.message_in_flight(msg) in the statepred of final state (no_delete_sts_req_is_in_flight in this lemma, so we can
+///     get the requirements in this lemma).
+///   + Show that spec |= every_new_in_flight_req_msg_is_expected. Basically, use two assert forall to show that forall executions
+///     and forall messages, if the messages are newly generated, they must satisfy the "requirements".
+///   + Call lemma_X. If a correct "requirements" are provided, we can easily prove the equivalence of every_in_flight_req_msg_is_expected(requirements)
+///     and the original statepred.
 pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         valid(stable(spec)),
