@@ -24,7 +24,7 @@ use vstd::prelude::*;
 
 verus! {
 
-spec fn sts_key_not_exists_or_delete_msg_in_flight_or_sts_has_current_ref(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+spec fn sts_with_invalid_owner_ref_exists_implies_delete_msg_in_flight(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     let sts_key = make_stateful_set_key(rabbitmq.object_ref());
     |s: RMQCluster| {
         s.resource_key_exists(sts_key)
@@ -84,7 +84,7 @@ pub proof fn lemma_eventually_only_valid_stateful_set_exists(spec: TempPred<RMQC
             uid: uid,
         }])
     };
-    let delete_msg_in_flight = sts_key_not_exists_or_delete_msg_in_flight_or_sts_has_current_ref(rabbitmq);
+    let delete_msg_in_flight = sts_with_invalid_owner_ref_exists_implies_delete_msg_in_flight(rabbitmq);
     implies_to_leads_to(spec, lift_state(key_not_exists), lift_state(delete_msg_in_flight));
     implies_to_leads_to(spec, lift_state(key_exists_and_current_ref), lift_state(delete_msg_in_flight));
     let post = stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq);
@@ -198,9 +198,9 @@ proof fn lemma_delete_msg_in_flight_leads_to_only_valid_sts_exists(
         spec.entails(always(lift_state(every_update_sts_req_does_the_same(rabbitmq)))),
         spec.entails(always(lift_state(every_create_sts_req_does_the_same(rabbitmq)))),
     ensures
-        spec.entails(lift_state(sts_key_not_exists_or_delete_msg_in_flight_or_sts_has_current_ref(rabbitmq)).leads_to(lift_state(stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)))),
+        spec.entails(lift_state(sts_with_invalid_owner_ref_exists_implies_delete_msg_in_flight(rabbitmq)).leads_to(lift_state(stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)))),
 {
-    let pre = sts_key_not_exists_or_delete_msg_in_flight_or_sts_has_current_ref(rabbitmq);
+    let pre = sts_with_invalid_owner_ref_exists_implies_delete_msg_in_flight(rabbitmq);
     let post = stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq);
     let sts_key = make_stateful_set_key(rabbitmq.object_ref());
     let key_exists_and_delete_msg_exists = |s: RMQCluster| {
