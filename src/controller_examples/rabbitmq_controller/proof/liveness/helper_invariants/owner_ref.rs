@@ -68,11 +68,6 @@ pub proof fn lemma_eventually_only_valid_stateful_set_exists(spec: TempPred<RMQC
         spec.entails(true_pred().leads_to(always(lift_state(stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq))))),
 {
     let sts_key = make_stateful_set_key(rabbitmq.object_ref());
-    let key_not_exists = |s: RMQCluster| !s.resource_key_exists(sts_key);
-    let key_exists_and_current_ref = |s: RMQCluster| {
-        s.resource_key_exists(sts_key)
-        && s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())).metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
-    };
     let key_exists_and_old_ref = |s: RMQCluster| {
         s.resource_key_exists(sts_key)
         && exists |uid: nat| #![auto]
@@ -85,8 +80,6 @@ pub proof fn lemma_eventually_only_valid_stateful_set_exists(spec: TempPred<RMQC
         }])
     };
     let delete_msg_in_flight = sts_with_invalid_owner_ref_exists_implies_delete_msg_in_flight(rabbitmq);
-    implies_to_leads_to(spec, lift_state(key_not_exists), lift_state(delete_msg_in_flight));
-    implies_to_leads_to(spec, lift_state(key_exists_and_current_ref), lift_state(delete_msg_in_flight));
     let post = stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq);
     let input = (BuiltinControllerChoice::GarbageCollector, sts_key);
     let stronger_next = |s, s_prime: RMQCluster| {
@@ -96,21 +89,13 @@ pub proof fn lemma_eventually_only_valid_stateful_set_exists(spec: TempPred<RMQC
         &&& every_update_sts_req_does_the_same(rabbitmq)(s)
         &&& every_create_sts_req_does_the_same(rabbitmq)(s)
     };
-    entails_always_and_n!(
-        spec,
+    strengthen_next_n!(
+        stronger_next, spec,
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::desired_state_is(rabbitmq)),
         lift_state(stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)),
         lift_state(every_update_sts_req_does_the_same(rabbitmq)),
         lift_state(every_create_sts_req_does_the_same(rabbitmq))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::desired_state_is(rabbitmq)))
-        .and(lift_state(stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)))
-        .and(lift_state(every_update_sts_req_does_the_same(rabbitmq)))
-        .and(lift_state(every_create_sts_req_does_the_same(rabbitmq)))
     );
 
     assert forall |s, s_prime: RMQCluster| key_exists_and_old_ref(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::builtin_controllers_next().forward(input)(s, s_prime) implies delete_msg_in_flight(s_prime) by {
@@ -159,16 +144,11 @@ pub proof fn lemma_eventually_only_valid_stateful_set_exists(spec: TempPred<RMQC
     RMQCluster::lemma_pre_leads_to_post_by_builtin_controllers(
         spec, input, stronger_next, RMQCluster::run_garbage_collector(), key_exists_and_old_ref, delete_msg_in_flight
     );
-    or_leads_to_combine_n!(
-        spec,
-        lift_state(key_not_exists), lift_state(key_exists_and_current_ref), lift_state(key_exists_and_old_ref);
-        lift_state(delete_msg_in_flight)
-    );
-    implies_with_spec_to_leads_to(
+    partial_implies_and_partial_leads_to_to_leads_to(
         spec,
         lift_state(stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)),
         true_pred(),
-        lift_state(key_not_exists).or(lift_state(key_exists_and_current_ref)).or(lift_state(key_exists_and_old_ref)),
+        lift_state(key_exists_and_old_ref),
         lift_state(delete_msg_in_flight)
     );
     lemma_delete_msg_in_flight_leads_to_only_valid_sts_exists(spec, rabbitmq);
@@ -203,13 +183,6 @@ proof fn lemma_delete_msg_in_flight_leads_to_only_valid_sts_exists(
             && msg.content.is_delete_request_with_key(sts_key)
         }
     };
-    let key_exists_and_current_ref = |s: RMQCluster| {
-        &&& s.resource_key_exists(sts_key)
-        &&& s.resource_obj_of(sts_key).metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
-    };
-    let key_not_exists = |s: RMQCluster| !s.resource_key_exists(sts_key);
-    valid_implies_implies_leads_to(spec, lift_state(key_exists_and_current_ref), lift_state(post));
-    valid_implies_implies_leads_to(spec, lift_state(key_not_exists), lift_state(post));
 
     assert_by(
         spec.entails(lift_state(key_exists_and_delete_msg_exists).leads_to(lift_state(post))),
@@ -236,19 +209,12 @@ proof fn lemma_delete_msg_in_flight_leads_to_only_valid_sts_exists(
                     &&& stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)(s)
                     &&& every_update_sts_req_does_the_same(rabbitmq)(s)
                 };
-                entails_always_and_n!(
-                    spec,
+                strengthen_next_n!(
+                    stronger_next, spec,
                     lift_action(RMQCluster::next()),
                     lift_state(RMQCluster::busy_disabled()),
                     lift_state(stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)),
                     lift_state(every_update_sts_req_does_the_same(rabbitmq))
-                );
-                temp_pred_equality(
-                    lift_action(stronger_next),
-                    lift_action(RMQCluster::next())
-                    .and(lift_state(RMQCluster::busy_disabled()))
-                    .and(lift_state(stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)))
-                    .and(lift_state(every_update_sts_req_does_the_same(rabbitmq)))
                 );
                 RMQCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, RMQCluster::handle_request(), msg_to_p_state, post);
             }
@@ -270,13 +236,11 @@ proof fn lemma_delete_msg_in_flight_leads_to_only_valid_sts_exists(
             )
         }
     );
-    temp_pred_equality(
-        lift_state(key_exists_and_delete_msg_exists).or(lift_state(key_exists_and_current_ref)).or(lift_state(key_not_exists)),
-        lift_state(pre)
-    );
-    or_leads_to_combine_n!(
+    partial_implies_and_partial_leads_to_to_leads_to(
         spec,
-        lift_state(key_exists_and_delete_msg_exists), lift_state(key_exists_and_current_ref), lift_state(key_not_exists);
+        true_pred(),
+        lift_state(pre),
+        lift_state(key_exists_and_delete_msg_exists), 
         lift_state(post)
     );
 }
