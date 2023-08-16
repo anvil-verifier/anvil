@@ -490,11 +490,6 @@ pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: 
         &&& RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
         &&& RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)(s)
     };
-    strengthen_next_n!(
-        stronger_next, spec,
-        lift_action(RMQCluster::next()), lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
-        lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
-    );
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_in_flight_req_msg_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: Message| !s.message_in_flight(msg) && #[trigger] s_prime.message_in_flight(msg)
         && msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest() implies requirements(msg) by {
@@ -513,9 +508,11 @@ pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: 
             }
         }
     }
-
-    implies_preserved_by_always_temp(lift_action(stronger_next), lift_action(RMQCluster::every_new_in_flight_req_msg_satisfies(requirements)));
-    entails_trans(spec, always(lift_action(stronger_next)), always(lift_action(RMQCluster::every_new_in_flight_req_msg_satisfies(requirements))));
+    invariant_action_n!(
+        spec, stronger_next, RMQCluster::every_new_in_flight_req_msg_satisfies(requirements),
+        lift_action(RMQCluster::next()), lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
+        lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
+    );
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements, every_update_cm_req_does_the_same(rabbitmq));
 }
 
@@ -835,12 +832,6 @@ pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: Tem
         &&& stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)(s)
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
     };
-    strengthen_next_n!(
-        stronger_next, spec,
-        lift_action(RMQCluster::next()), lift_state(RMQCluster::desired_state_is(rabbitmq)),
-        lift_state(stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)),
-        lift_state(RMQCluster::each_object_in_etcd_is_well_formed())
-    );
     assert forall |s: RMQCluster, s_prime: RMQCluster| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_in_flight_req_msg_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: Message| !s.message_in_flight(msg) && #[trigger] s_prime.message_in_flight(msg)
         implies requirements(msg) by {
@@ -851,8 +842,12 @@ pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: Tem
             }
         }
     }
-    implies_preserved_by_always_temp(lift_action(stronger_next), lift_action(RMQCluster::every_new_in_flight_req_msg_satisfies(requirements)));
-    entails_trans(spec, always(lift_action(stronger_next)), always(lift_action(RMQCluster::every_new_in_flight_req_msg_satisfies(requirements))));
+    invariant_action_n!(
+        spec, stronger_next, RMQCluster::every_new_in_flight_req_msg_satisfies(requirements),
+        lift_action(RMQCluster::next()), lift_state(RMQCluster::desired_state_is(rabbitmq)),
+        lift_state(stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)),
+        lift_state(RMQCluster::each_object_in_etcd_is_well_formed())
+    );
 
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements, no_delete_sts_req_is_in_flight(key));
 }

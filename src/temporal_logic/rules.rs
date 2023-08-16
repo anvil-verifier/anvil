@@ -1147,6 +1147,25 @@ macro_rules! strengthen_next_n_internal {
 pub use strengthen_next_n;
 pub use strengthen_next_n_internal;
 
+#[macro_export]
+macro_rules! invariant_action_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::invariant_action_n_internal!($($tail)*))
+    }
+}
+
+#[macro_export]
+macro_rules! invariant_action_n_internal {
+    ($spec:expr, $stronger_next:expr, $inv:expr, $($tail:tt)*) => {
+        strengthen_next_n!($stronger_next, $spec, $($tail)*);
+        implies_preserved_by_always_temp(lift_action($stronger_next), lift_action($inv));
+        entails_trans($spec, always(lift_action($stronger_next)), always(lift_action($inv)));
+    };
+}
+
+pub use invariant_action_n;
+pub use invariant_action_n_internal;
+
 /// Combining two specs together entails p and q if each of them entails p, q respectively.
 /// pre:
 ///     spec1 |= p
