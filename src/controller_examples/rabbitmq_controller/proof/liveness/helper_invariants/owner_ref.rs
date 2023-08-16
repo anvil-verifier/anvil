@@ -164,23 +164,15 @@ pub proof fn lemma_eventually_only_valid_stateful_set_exists(spec: TempPred<RMQC
         lift_state(key_not_exists), lift_state(key_exists_and_current_ref), lift_state(key_exists_and_old_ref);
         lift_state(delete_msg_in_flight)
     );
-    implies_preserved_by_always_temp(
+    implies_with_spec_to_leads_to(
+        spec,
         lift_state(stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)),
-        true_pred().implies(lift_state(key_not_exists).or(lift_state(key_exists_and_current_ref)).or(lift_state(key_exists_and_old_ref)))
+        true_pred(),
+        lift_state(key_not_exists).or(lift_state(key_exists_and_current_ref)).or(lift_state(key_exists_and_old_ref)),
+        lift_state(delete_msg_in_flight)
     );
-    entails_trans(
-        spec,
-        always(lift_state(stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))),
-        always(true_pred().implies(lift_state(key_not_exists).or(lift_state(key_exists_and_current_ref)).or(lift_state(key_exists_and_old_ref))))
-    );
-    implies_to_leads_to(spec, true_pred(), lift_state(key_not_exists).or(lift_state(key_exists_and_current_ref)).or(lift_state(key_exists_and_old_ref)));
     lemma_delete_msg_in_flight_leads_to_only_valid_sts_exists(spec, rabbitmq);
-    leads_to_trans_n!(
-        spec,
-        true_pred(), lift_state(key_not_exists).or(lift_state(key_exists_and_current_ref)).or(lift_state(key_exists_and_old_ref)),
-        lift_state(delete_msg_in_flight),
-        lift_state(post)
-    );
+    leads_to_trans_n!(spec, true_pred(), lift_state(delete_msg_in_flight), lift_state(post));
     leads_to_stable(spec, stronger_next, |s: RMQCluster| true, post);
 }
 

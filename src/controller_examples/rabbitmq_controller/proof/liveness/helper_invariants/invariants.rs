@@ -470,7 +470,6 @@ pub proof fn lemma_always_stateful_set_has_no_finalizers_or_timestamp_and_only_h
 
 pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
-        valid(stable(spec)),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
@@ -486,17 +485,17 @@ pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: 
         cm_update_request_msg(rabbitmq.object_ref())(msg)
         ==> msg.content.get_update_request().obj.spec == ConfigMapView::marshal_spec((make_server_config_map(rabbitmq).data, ()))
     };
-    eliminate_always(spec, lift_action(RMQCluster::next()));
-    eliminate_always(spec, lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()));
-    eliminate_always(spec, lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)));
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_action(RMQCluster::every_new_in_flight_req_msg_satisfies(requirements)).satisfied_by(ex) by {
-        let s = ex.head();
-        let s_prime = ex.head_next();
-        entails_apply(ex, spec, lift_action(RMQCluster::next()));
-        entails_apply(ex, spec, lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()));
-        entails_apply(ex, spec, lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)));
-        assert(lift_action(RMQCluster::next()).satisfied_by(ex));
-        assert(RMQCluster::next()(s, s_prime));
+    let stronger_next = |s, s_prime| {
+        &&& RMQCluster::next()(s, s_prime)
+        &&& RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()(s)
+        &&& RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)(s)
+    };
+    strengthen_next_n!(
+        stronger_next, spec,
+        lift_action(RMQCluster::next()), lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
+        lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
+    );
+    assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_in_flight_req_msg_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: Message| !s.message_in_flight(msg) && #[trigger] s_prime.message_in_flight(msg)
         && msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest() implies requirements(msg) by {
             if cm_update_request_msg(rabbitmq.object_ref())(msg) {
@@ -514,6 +513,9 @@ pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: 
             }
         }
     }
+
+    implies_preserved_by_always_temp(lift_action(stronger_next), lift_action(RMQCluster::every_new_in_flight_req_msg_satisfies(requirements)));
+    entails_trans(spec, always(lift_action(stronger_next)), always(lift_action(RMQCluster::every_new_in_flight_req_msg_satisfies(requirements))));
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements, every_update_cm_req_does_the_same(rabbitmq));
 }
 
@@ -799,20 +801,19 @@ pub open spec fn no_delete_sts_req_is_in_flight(key: ObjectRef) -> StatePred<RMQ
 /// As an example, we can look at how this lemma is proved.
 /// - Precondition: The preconditions should include all precondtions used by lemma_X and other predicates which show that
 ///     the newly generated messages are as expected. ("expected" means not delete stateful set request messages in this lemma. Therefore,
-///     we provide an invariant lemma_true_leads_to_always_every_in_flight_req_msg_satisfies so that the grabage collector won't try
+///     we provide an invariant stateful_set_has_owner_reference_pointing_to_current_cr so that the grabage collector won't try
 ///     to send a delete request to delete the messsage.)
 /// - Postcondition: spec |= true ~> [](forall |msg| as_expected(msg))
 /// - Proof body: The proof consists of three parts.
 ///   + Come up with "requirements" for those newly created api request messages. Usually, just move the forall |msg| and
 ///     s.message_in_flight(msg) in the statepred of final state (no_delete_sts_req_is_in_flight in this lemma, so we can
 ///     get the requirements in this lemma).
-///   + Show that spec |= every_new_in_flight_req_msg_satisfies. Basically, use two assert forall to show that forall executions
-///     and forall messages, if the messages are newly generated, they must satisfy the "requirements".
+///   + Show that spec |= every_new_in_flight_req_msg_satisfies. Basically, use two assert forall to show that forall state and
+///     its next state and forall messages, if the messages are newly generated, they must satisfy the "requirements".
 ///   + Call lemma_X. If a correct "requirements" are provided, we can easily prove the equivalence of every_in_flight_req_msg_satisfies(requirements)
 ///     and the original statepred.
 pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
-        valid(stable(spec)),
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
@@ -827,19 +828,20 @@ pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: Tem
 {
     let key = rabbitmq.object_ref();
     let requirements = |msg: Message| !sts_delete_request_msg(key)(msg);
-    eliminate_always(spec, lift_action(RMQCluster::next()));
-    eliminate_always(spec, lift_state(RMQCluster::desired_state_is(rabbitmq)));
-    eliminate_always(spec, lift_state(stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)));
-    eliminate_always(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
-    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_action(RMQCluster::every_new_in_flight_req_msg_satisfies(requirements)).satisfied_by(ex) by {
-        let s = ex.head();
-        let s_prime = ex.head_next();
-        entails_apply(ex, spec, lift_action(RMQCluster::next()));
-        entails_apply(ex, spec, lift_state(RMQCluster::desired_state_is(rabbitmq)));
-        entails_apply(ex, spec, lift_state(stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)));
-        entails_apply(ex, spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
-        assert(lift_action(RMQCluster::next()).satisfied_by(ex));
-        assert(RMQCluster::next()(s, s_prime));
+
+    let stronger_next = |s: RMQCluster, s_prime: RMQCluster| {
+        &&& RMQCluster::next()(s, s_prime)
+        &&& RMQCluster::desired_state_is(rabbitmq)(s)
+        &&& stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)(s)
+        &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
+    };
+    strengthen_next_n!(
+        stronger_next, spec,
+        lift_action(RMQCluster::next()), lift_state(RMQCluster::desired_state_is(rabbitmq)),
+        lift_state(stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)),
+        lift_state(RMQCluster::each_object_in_etcd_is_well_formed())
+    );
+    assert forall |s: RMQCluster, s_prime: RMQCluster| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_in_flight_req_msg_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: Message| !s.message_in_flight(msg) && #[trigger] s_prime.message_in_flight(msg)
         implies requirements(msg) by {
             if s.resource_key_exists(make_stateful_set_key(key)) {
@@ -849,6 +851,9 @@ pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: Tem
             }
         }
     }
+    implies_preserved_by_always_temp(lift_action(stronger_next), lift_action(RMQCluster::every_new_in_flight_req_msg_satisfies(requirements)));
+    entails_trans(spec, always(lift_action(stronger_next)), always(lift_action(RMQCluster::every_new_in_flight_req_msg_satisfies(requirements))));
+
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements, no_delete_sts_req_is_in_flight(key));
 }
 
