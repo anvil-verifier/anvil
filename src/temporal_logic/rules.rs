@@ -1044,6 +1044,88 @@ macro_rules! entails_always_and_n_internal {
 pub use entails_always_and_n;
 pub use entails_always_and_n_internal;
 
+/// Merge the next and other state predicates together into one action predicate.
+/// Usage:
+/// Given next, p1, p2, p3, ...,
+/// returns |s, s_prime| next(s, s_prime) && p1(s) && p2(s) && p3(s) && ...
+///
+/// Note: Verus reports strange errors saying the returned closure is not a FnSpec
+#[macro_export]
+macro_rules! merge_into_next {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::merge_into_next_internal!($($tail)*))
+    }
+}
+
+#[macro_export]
+macro_rules! merge_into_next_internal {
+    ($next:expr, $($expr:expr),* $(,)?) => {
+        |s, s_prime| {
+            $next(s, s_prime) &&
+            $(
+                $expr(s) &&
+            )*
+            true
+        }
+    };
+}
+
+pub use merge_into_next;
+pub use merge_into_next_internal;
+
+/// Combine the temporal predicates together using and.
+/// Usage:
+/// Given next, p1, p2, p3, ...,
+/// returns next.and(p1).and(p2).and(p3)...
+#[macro_export]
+macro_rules! combine_with_next {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::combine_with_next_internal!($($tail)*))
+    }
+}
+
+#[macro_export]
+macro_rules! combine_with_next_internal {
+    ($next:expr, $($expr:expr),* $(,)?) => {
+        $next $(
+            .and($expr)
+        )*
+    };
+}
+
+pub use combine_with_next;
+pub use combine_with_next_internal;
+
+/// Strengthen next with arbitrary number of predicates.
+/// pre:
+///     spec |= []next
+///     spec |= []p1
+///     spec |= []p2
+///        ...
+///     spec |= []pn
+///     stronger_next == next /\ p1 /\ p2 /\ ... /\ pn
+/// post:
+///     spec |= []stronger_next
+///
+/// Usage: strengthen_next_n!(stronger_next, spec, p1, p2, p3, p4)
+#[macro_export]
+macro_rules! strengthen_next_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::strengthen_next_n_internal!($($tail)*))
+    }
+}
+
+#[macro_export]
+macro_rules! strengthen_next_n_internal {
+    ($stronger_next:expr, $spec:expr, $($tail:tt)*) => {
+        entails_always_and_n!($spec, $($tail)*);
+        temp_pred_equality(lift_action($stronger_next), combine_with_next!($($tail)*));
+    };
+}
+
+pub use strengthen_next_n;
+pub use strengthen_next_n_internal;
+
 /// Combining two specs together entails p and q if each of them entails p, q respectively.
 /// pre:
 ///     spec1 |= p

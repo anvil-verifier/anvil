@@ -138,17 +138,11 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id()
     };
     Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator();
     Self::lemma_always_every_in_flight_req_is_unique();
-    entails_always_and_n!(
-        Self::sm_spec(),
+    strengthen_next_n!(
+        stronger_next, Self::sm_spec(),
         lift_action(Self::next()),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Self::every_in_flight_req_is_unique())
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(Self::next())
-            .and(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))
-            .and(lift_state(Self::every_in_flight_req_is_unique()))
     );
     assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime) implies
     invariant(s_prime) by {

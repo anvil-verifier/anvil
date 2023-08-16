@@ -449,17 +449,11 @@ proof fn pending_requests_num_decreases(
         &&& s.has_rest_id_counter_no_smaller_than(rest_id)
         &&& !s.busy_enabled
     };
-    entails_always_and_n!(
-        spec,
+    strengthen_next_n!(
+        stronger_next, spec,
         lift_action(Self::next()),
         lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(Self::busy_disabled())
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(Self::next())
-        .and(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))
-        .and(lift_state(Self::busy_disabled()))
     );
 
     assert forall |s, s_prime: Self| pre(s) && #[trigger] stronger_next(s, s_prime)
