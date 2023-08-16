@@ -1128,7 +1128,7 @@ pub use combine_with_next_internal;
 /// post:
 ///     spec |= []stronger_next
 ///
-/// Usage: strengthen_next_n!(stronger_next, spec, p1, p2, p3, p4)
+/// Usage: strengthen_next_n!(stronger_next, spec, next, p1, p2, p3, p4)
 #[macro_export]
 macro_rules! strengthen_next_n {
     [$($tail:tt)*] => {
@@ -1147,6 +1147,19 @@ macro_rules! strengthen_next_n_internal {
 pub use strengthen_next_n;
 pub use strengthen_next_n_internal;
 
+/// Show that an spec entails the invariant by a group of action/state predicates which are also invariants entailed by spec.
+/// pre:
+///     spec |= []next
+///     forall |s, s_prime| next(s, s_prime) ==> inv(s, s_prime)
+///     spec |= []p1
+///     spec |= []p2
+///         ...
+///     spec |= []pn
+///     next == p1 /\ p2 /\ ... /\ pn
+/// post:
+///     spec |= []inv
+/// 
+/// Usage: invariant_action_n!(spec, next, inv, p1, p2, ..., pn)
 #[macro_export]
 macro_rules! invariant_action_n {
     [$($tail:tt)*] => {
@@ -1156,10 +1169,10 @@ macro_rules! invariant_action_n {
 
 #[macro_export]
 macro_rules! invariant_action_n_internal {
-    ($spec:expr, $stronger_next:expr, $inv:expr, $($tail:tt)*) => {
-        strengthen_next_n!($stronger_next, $spec, $($tail)*);
-        implies_preserved_by_always_temp(lift_action($stronger_next), lift_action($inv));
-        entails_trans($spec, always(lift_action($stronger_next)), always(lift_action($inv)));
+    ($spec:expr, $next:expr, $inv:expr, $($tail:tt)*) => {
+        strengthen_next_n!($next, $spec, $($tail)*);
+        implies_preserved_by_always_temp(lift_action($next), lift_action($inv));
+        entails_trans($spec, always(lift_action($next)), always(lift_action($inv)));
     };
 }
 
