@@ -514,11 +514,7 @@ pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: 
             }
         }
     }
-    RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_is_expected(spec, requirements);
-    temp_pred_equality(
-        lift_state(RMQCluster::every_in_flight_req_msg_is_expected(requirements)),
-        lift_state(every_update_cm_req_does_the_same(rabbitmq))
-    );
+    RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_is_expected(spec, requirements, every_update_cm_req_does_the_same(rabbitmq));
 }
 
 pub open spec fn cm_delete_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
@@ -853,11 +849,7 @@ pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: Tem
             }
         }
     }
-    RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_is_expected(spec, requirements);
-    temp_pred_equality(
-        lift_state(RMQCluster::every_in_flight_req_msg_is_expected(requirements)),
-        lift_state(no_delete_sts_req_is_in_flight(key))
-    );
+    RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_is_expected(spec, requirements, no_delete_sts_req_is_in_flight(key));
 }
 
 }

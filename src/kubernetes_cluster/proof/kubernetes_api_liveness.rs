@@ -276,7 +276,7 @@ pub open spec fn every_in_flight_req_msg_is_expected(expected_messages: FnSpec(M
 /// Note that in the precondition, we don't actually require always for this predicate, because the spec need to be stable and the always
 /// one can be derived. This also alleviate the preliminary work for the callers to use this lemma.
 pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_is_expected(
-    spec: TempPred<Self>, expected_messages: FnSpec(Message) -> bool
+    spec: TempPred<Self>, expected_messages: FnSpec(Message) -> bool, msg_state_pred: StatePred<Self>
 )
     requires
         valid(stable(spec)),
@@ -285,9 +285,10 @@ pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_is_expected(
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        valid(lift_state(msg_state_pred).equals(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))
     ensures
         spec.entails(
-            true_pred().leads_to(always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))
+            true_pred().leads_to(always(lift_state(msg_state_pred)))
         ),
 {
     assert forall |rest_id| spec.entails(
@@ -308,6 +309,9 @@ pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_is_expected(
             temp_pred_equality(tla_exists(has_rest_id), true_pred::<Self>());
         }
     );
+    temp_pred_equality(
+        lift_state(msg_state_pred), lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))
+    )
 }
 
 /// This lemma is an assistant one for the previous one without rest_id.
