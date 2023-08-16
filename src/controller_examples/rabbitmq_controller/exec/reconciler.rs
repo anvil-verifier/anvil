@@ -869,6 +869,12 @@ fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: State
         );
     }
     let mut metadata = found_stateful_set.metadata();
+
+    // Since we requirement the owner_reference only contains current cr, this set operation won't change anything.
+    // Similarly, we never set finalizers for any stateful set, resetting finalizers won't change anything.
+    // The reason why we add these two operations is that it makes the proof easier.
+    // In this way, we can easily show that what the owner references and finalizers of the object in every update request 
+    // for stateful set are.
     metadata.set_owner_references(owner_references);
     metadata.reset_finalizers();
     found_stateful_set.set_spec(make_stateful_set(rabbitmq).spec().unwrap());

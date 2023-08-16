@@ -247,57 +247,59 @@ pub open spec fn no_req_before_rest_id_is_in_flight(rest_id: RestId) -> StatePre
 }
 
 /// Newly created message means it doesn't exist in in_flight in last state but exists in the current state.
-pub open spec fn every_new_in_flight_req_msg_is_expected(expected_messages: FnSpec(Message) -> bool) -> ActionPred<Self> {
+pub open spec fn every_new_in_flight_req_msg_satisfies(requirements: FnSpec(Message) -> bool) -> ActionPred<Self> {
     |s: Self, s_prime: Self| {
-        forall |msg: Message| 
-            !s.message_in_flight(msg) 
-            && #[trigger] s_prime.message_in_flight(msg) 
+        forall |msg: Message|
+            !s.message_in_flight(msg)
+            && #[trigger] s_prime.message_in_flight(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_APIRequest()
-            ==> expected_messages(msg)
+            ==> requirements(msg)
     }
 }
 
-pub open spec fn every_in_flight_req_msg_is_expected(expected_messages: FnSpec(Message) -> bool) -> StatePred<Self> {
+pub open spec fn every_in_flight_req_msg_satisfies(requirements: FnSpec(Message) -> bool) -> StatePred<Self> {
     |s: Self| {
-        forall |msg: Message| 
+        forall |msg: Message|
             #[trigger] s.message_in_flight(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_APIRequest()
-            ==> expected_messages(msg)
+            ==> requirements(msg)
     }
 }
 
 /// This lemma shows that if spec ensures every newly created Kubernetes api request message satisfies some requirements,
 /// the system will eventually reaches a state where all Kubernetes api request messages satisfy those requirements.
-/// 
-/// To require "every newly create Kubernetes api request message satisfies some requirements", we use a FnSpec (i.e., a closure) 
-/// as parameter which can be defined by callers and require spec |= [](every_new_in_flight_req_msg_is_expected(expected_messages)).
+///
+/// To require "every newly create Kubernetes api request message satisfies some requirements", we use a FnSpec (i.e., a closure)
+/// as parameter which can be defined by callers and require spec |= [](every_new_in_flight_req_msg_satisfies(requirements)).
 /// Note that in the precondition, we don't actually require always for this predicate, because the spec need to be stable and the always
 /// one can be derived. This also alleviate the preliminary work for the callers to use this lemma.
-pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_is_expected(
-    spec: TempPred<Self>, expected_messages: FnSpec(Message) -> bool, msg_state_pred: StatePred<Self>
+///
+/// The last parameter must be equivalent to every_in_flight_req_msg_satisfies(requirements)
+pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(
+    spec: TempPred<Self>, requirements: FnSpec(Message) -> bool, msg_state_pred: StatePred<Self>
 )
     requires
         valid(stable(spec)),
-        spec.entails(lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages))),
+        spec.entails(lift_action(Self::every_new_in_flight_req_msg_satisfies(requirements))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
-        valid(lift_state(msg_state_pred).equals(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))
+        valid(lift_state(msg_state_pred).equals(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))
     ensures
         spec.entails(
             true_pred().leads_to(always(lift_state(msg_state_pred)))
         ),
 {
     assert forall |rest_id| spec.entails(
-        lift_state(#[trigger] Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))
+        lift_state(#[trigger] Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))
     ) by {
-        Self::lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_is_expected_with_rest_id(spec, expected_messages, rest_id);
+        Self::lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfies_with_rest_id(spec, requirements, rest_id);
     }
     let has_rest_id = |rest_id| lift_state(Self::rest_id_counter_is(rest_id));
-    leads_to_exists_intro(spec, has_rest_id, always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))));
+    leads_to_exists_intro(spec, has_rest_id, always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))));
     assert_by(
         tla_exists(has_rest_id) == true_pred::<Self>(),
         {
@@ -310,37 +312,37 @@ pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_is_expected(
         }
     );
     temp_pred_equality(
-        lift_state(msg_state_pred), lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))
+        lift_state(msg_state_pred), lift_state(Self::every_in_flight_req_msg_satisfies(requirements))
     )
 }
 
 /// This lemma is an assistant one for the previous one without rest_id.
-pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_is_expected_with_rest_id(
-    spec: TempPred<Self>, expected_messages: FnSpec(Message) -> bool, rest_id: nat
+pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfies_with_rest_id(
+    spec: TempPred<Self>, requirements: FnSpec(Message) -> bool, rest_id: nat
 )
     requires
         valid(stable(spec)),
-        spec.entails(lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages))),
+        spec.entails(lift_action(Self::every_new_in_flight_req_msg_satisfies(requirements))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
     ensures
         spec.entails(
-            lift_state(Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))
+            lift_state(Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))
         ),
 {
-    // If the spec is stable, we can get []p. This is why we don't require every_new_in_flight_req_msg_is_expected to be
+    // If the spec is stable, we can get []p. This is why we don't require every_new_in_flight_req_msg_satisfies to be
     // always satisfied in the precondition.
-    stable_spec_entails_always_p(spec, lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages)));
+    stable_spec_entails_always_p(spec, lift_action(Self::every_new_in_flight_req_msg_satisfies(requirements)));
     eliminate_always(spec, lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()));
-    
+
     let spec_with_rest_id = spec.and(lift_state(Self::rest_id_counter_is(rest_id)));
     entails_trans(spec_with_rest_id, spec, lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()));
     entails_trans(spec_with_rest_id, spec, always(lift_state(Self::busy_disabled())));
     entails_trans(spec_with_rest_id, spec, always(lift_action(Self::next())));
     entails_trans(spec_with_rest_id, spec, tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i)));
-    entails_trans(spec_with_rest_id, spec, always(lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages))));
+    entails_trans(spec_with_rest_id, spec, always(lift_action(Self::every_new_in_flight_req_msg_satisfies(requirements))));
 
     // With rest_id known, we first prove that spec /\ rest_id |= true ~> []every_in_flight_msg_is_expected
     // We divide the proof into three steps:
@@ -348,16 +350,16 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_is_expec
     // (2) Prove that spec |= true ~> []msg_has_lower_rest_id_all_gone.
     // (3) With the first invariant, prove that msg_has_lower_rest_id_all_gone implies all messages in flight are expected.
     assert_by(
-        spec_with_rest_id.entails(true_pred().leads_to(always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))),
+        spec_with_rest_id.entails(true_pred().leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))),
         {
             Self::lemma_always_has_rest_id_counter_no_smaller_than(spec_with_rest_id, rest_id);
             let invariant = |s: Self| {
-                forall |msg: Message| #[trigger] 
-                    s.message_in_flight(msg) 
+                forall |msg: Message| #[trigger]
+                    s.message_in_flight(msg)
                     && msg.content.get_rest_id() >= rest_id
                     && msg.dst.is_KubernetesAPI()
                     && msg.content.is_APIRequest()
-                    ==> expected_messages(msg)
+                    ==> requirements(msg)
             };
             assert_by(
                 spec_with_rest_id.entails(always(lift_state(invariant))),
@@ -373,39 +375,39 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_is_expec
                     let stronger_next = |s, s_prime| {
                         Self::next()(s, s_prime)
                         && Self::rest_id_counter_is_no_smaller_than(rest_id)(s)
-                        && Self::every_new_in_flight_req_msg_is_expected(expected_messages)(s, s_prime)
+                        && Self::every_new_in_flight_req_msg_satisfies(requirements)(s, s_prime)
                     };
                     entails_always_and_n!(
                         spec_with_rest_id,
                         lift_action(Self::next()),
                         lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)),
-                        lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages))
+                        lift_action(Self::every_new_in_flight_req_msg_satisfies(requirements))
                     );
                     temp_pred_equality(
                         lift_action(stronger_next),
                         lift_action(Self::next()).and(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))
-                        .and(lift_action(Self::every_new_in_flight_req_msg_is_expected(expected_messages)))
+                        .and(lift_action(Self::every_new_in_flight_req_msg_satisfies(requirements)))
                     );
                     init_invariant(spec_with_rest_id, init, stronger_next, invariant);
                 }
             );
-            
+
             Self::lemma_true_leads_to_always_no_req_before_rest_id_is_in_flight(spec_with_rest_id, rest_id);
 
             implies_preserved_by_always_temp(
-                lift_state(invariant), 
+                lift_state(invariant),
                 lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id))
-                .implies(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages)))
+                .implies(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))
             );
             entails_trans(
                 spec_with_rest_id, always(lift_state(invariant)),
-                always(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)).implies(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages))))
+                always(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)).implies(lift_state(Self::every_in_flight_req_msg_satisfies(requirements))))
             );
-            always_implies_preserved_by_always_temp(spec_with_rest_id, lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)), lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages)));
+            always_implies_preserved_by_always_temp(spec_with_rest_id, lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id)), lift_state(Self::every_in_flight_req_msg_satisfies(requirements)));
             leads_to_weaken_temp(
-                spec_with_rest_id, 
+                spec_with_rest_id,
                 true_pred(), always(lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id))),
-                true_pred(), always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages)))
+                true_pred(), always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))
             );
         }
     );
@@ -413,7 +415,7 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_is_expec
     // Then unpack the condition from spec.
     unpack_conditions_from_spec(
         spec, lift_state(Self::rest_id_counter_is(rest_id)), true_pred(),
-        always(lift_state(Self::every_in_flight_req_msg_is_expected(expected_messages)))
+        always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))
     );
     temp_pred_equality(
         true_pred().and(lift_state(Self::rest_id_counter_is(rest_id))),
