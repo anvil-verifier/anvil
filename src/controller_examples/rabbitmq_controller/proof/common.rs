@@ -268,9 +268,9 @@ pub open spec fn is_update_server_config_map_request(request: APIRequest, rabbit
 {
     &&& request.is_UpdateRequest()
     &&& request.get_UpdateRequest_0().key == make_server_config_map_key(rabbitmq.object_ref())
-    &&& request.get_UpdateRequest_0().obj == ConfigMapView::from_dynamic_object(object).get_Ok_0()
-                                            .set_data(make_server_config_map(rabbitmq).data.get_Some_0())
-                                            .to_dynamic_object()
+    &&& request.get_UpdateRequest_0().obj == update_server_config_map(
+        rabbitmq, ConfigMapView::from_dynamic_object(object).get_Ok_0()
+    ).to_dynamic_object()
 }
 
 pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_ok_resp_in_flight(
