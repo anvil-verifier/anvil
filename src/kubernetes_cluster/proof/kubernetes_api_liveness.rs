@@ -327,7 +327,7 @@ pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(
     );
     temp_pred_equality(
         lift_state(msg_state_pred), lift_state(Self::every_in_flight_req_msg_satisfies(requirements))
-    )
+    );
 }
 
 /// This lemma is an assistant one for the previous one without rest_id.
@@ -449,6 +449,7 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
     temp_pred_equality(true_pred().and(lift_state(Self::rest_id_counter_is(rest_id))), lift_state(Self::rest_id_counter_is(rest_id)));
     entails_trans(spec, stable_spec, lift_state(Self::rest_id_counter_is(rest_id)).leads_to(always(lift_state(Self::every_in_flight_req_msg_satisfies(requirements)))));
 }
+
 // All the APIRequest messages with a smaller id than rest_id will eventually leave the network.
 // The intuition is that (1) The number of such APIRequest messages are bounded by rest_id,
 // and (2) weak fairness assumption ensures each message will eventually be handled by Kubernetes.
