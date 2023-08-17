@@ -198,12 +198,12 @@ pub fn reconcile_core(
                             sts_from_get: Some(get_sts_result.unwrap()),
                             ..state
                         };
-                        let path = cluster_size_zk_node_path(zk);
                         let uri = zk_service_uri(zk);
+                        let zk_name = zk.metadata().name().unwrap();
                         let replicas = i32_to_string(zk.spec().replicas());
-                        let ext_req = ZKAPIInput::ReconcileZKNode(path, uri, replicas);
+                        let ext_req = ZKAPIInput::ReconcileZKNode(zk_name, uri, replicas);
                         proof {
-                            zk_support_input_to_view_match(path, uri, replicas);
+                            zk_support_input_to_view_match(zk_name, uri, replicas);
                         }
                         // Call external APIs to update the content in ZKNode
                         return (state_prime, Some(Request::ExternalRequest(ext_req)));

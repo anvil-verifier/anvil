@@ -14,7 +14,7 @@ verus! {
 
 #[is_variant]
 pub enum ZKAPIInput {
-    ReconcileZKNode(String,String,String),
+    ReconcileZKNode(String, String, String),
 }
 
 #[is_variant]
@@ -26,30 +26,30 @@ impl ToView for ZKAPIInput {
     type V = ZKAPIInputView;
     spec fn to_view(&self) -> ZKAPIInputView {
         match self {
-            ZKAPIInput::ReconcileZKNode(path, uri, replicas)
-                => ZKAPIInputView::ReconcileZKNode(path@, uri@, replicas@),
+            ZKAPIInput::ReconcileZKNode(zk_name, uri, replicas)
+                => ZKAPIInputView::ReconcileZKNode(zk_name@, uri@, replicas@),
         }
     }
 }
 
-pub proof fn zk_support_input_to_view_match(path: String, uri: String, replicas: String)
+pub proof fn zk_support_input_to_view_match(zk_name: String, uri: String, replicas: String)
     ensures
-        ZKAPIInput::ReconcileZKNode(path, uri, replicas).to_view()
-            == ZKAPIInputView::ReconcileZKNode(path@, uri@, replicas@) {}
+        ZKAPIInput::ReconcileZKNode(zk_name, uri, replicas).to_view()
+            == ZKAPIInputView::ReconcileZKNode(zk_name@, uri@, replicas@) {}
 
 
 impl ToView for ZKAPIOutput {
     type V = ZKAPIOutputView;
     spec fn to_view(&self) -> ZKAPIOutputView {
         match self {
-            ZKAPIOutput::ReconcileZKNode(result) => ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{res: result.res}),
+            ZKAPIOutput::ReconcileZKNode(result) => ZKAPIOutputView::ReconcileZKNode(result.to_view()),
         }
     }
 }
 
 pub proof fn zk_support_output_to_view_match(result: ZKNodeResult)
     ensures
-        ZKAPIOutput::ReconcileZKNode(result).to_view() == ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{res: result.res}) {}
+        ZKAPIOutput::ReconcileZKNode(result).to_view() == ZKAPIOutputView::ReconcileZKNode(result.to_view()) {}
 
 impl ZKAPIOutput {
     pub fn is_reconcile_zk_node(&self) -> (res: bool)
@@ -65,7 +65,7 @@ impl ZKAPIOutput {
             self.is_ReconcileZKNode(),
         ensures
             result == self.get_ReconcileZKNode_0(),
-            result.res.is_Ok() <==> self.get_ReconcileZKNode_0().res.is_Ok(),
+            result.is_Ok() <==> self.get_ReconcileZKNode_0().is_Ok(),
     {
         match self {
             ZKAPIOutput::ReconcileZKNode(result) => result,
@@ -79,8 +79,8 @@ impl ExternalAPI<ZKAPIInput, ZKAPIOutput> for ZKAPI {
     #[verifier(external)]
     fn transition(input: ZKAPIInput) -> Option<ZKAPIOutput> {
         match input {
-            ZKAPIInput::ReconcileZKNode(path, uri, replicas)
-                => Some(ZKAPIOutput::ReconcileZKNode(reconcile_zk_node(path, uri, replicas))),
+            ZKAPIInput::ReconcileZKNode(zk_name, uri, replicas)
+                => Some(ZKAPIOutput::ReconcileZKNode(reconcile_zk_node(zk_name, uri, replicas))),
         }
     }
 }

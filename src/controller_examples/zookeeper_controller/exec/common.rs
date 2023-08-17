@@ -30,15 +30,4 @@ pub fn zk_service_uri(zk: &ZookeeperCluster) -> (uri: String)
     .concat(new_strlit(".svc.cluster.local:2181"))
 }
 
-pub fn cluster_size_zk_node_path(zk: &ZookeeperCluster) -> (path: String)
-    requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
-    ensures
-        path@ == zk_spec::cluster_size_zk_node_path(zk@),
-{
-    new_strlit("/zookeeper-operator/").to_string()
-    .concat(zk.metadata().name().unwrap().as_str())
-}
-
 }

@@ -9,7 +9,7 @@ verus! {
 
 #[is_variant]
 pub enum ZKAPIInputView {
-    ReconcileZKNode(StringView,StringView,StringView),
+    ReconcileZKNode(StringView, StringView, StringView),
 }
 
 #[is_variant]
@@ -17,9 +17,7 @@ pub enum ZKAPIOutputView {
     ReconcileZKNode(ZKNodeResultView),
 }
 
-pub struct ZKNodeResultView {
-    pub res: Result<(), Error>,
-}
+pub type ZKNodeResultView = Result<(), Error>;
 
 pub struct ZooKeeperState {
     pub data: Map<StringView, StringView>,
@@ -43,7 +41,7 @@ impl ExternalAPI for ZKAPI {
 
     open spec fn transition(input: ZKAPIInputView, state: ZooKeeperState) -> (Option<ZKAPIOutputView>, ZooKeeperState) {
         match input {
-            ZKAPIInputView::ReconcileZKNode(path,uri,replicas) => reconcile_zk_node(path, uri, replicas, state),
+            ZKAPIInputView::ReconcileZKNode(zk_name, uri, replicas) => reconcile_zk_node(zk_name, uri, replicas, state),
         }
     }
 
@@ -53,23 +51,22 @@ impl ExternalAPI for ZKAPI {
 }
 
 pub open spec fn reconcile_zk_node(
-    path: StringView, uri: StringView, replicas: StringView, state: ZooKeeperState
+    zk_name: StringView, uri: StringView, replicas: StringView, state: ZooKeeperState
 ) -> (Option<ZKAPIOutputView>, ZooKeeperState) {
-    if state.data.contains_key(uri + path) {
+    if state.data.contains_key(uri + zk_name) {
         let state_prime = ZooKeeperState {
-            data: state.data.insert(uri + path, new_strlit("CLUSTER_SIZE=")@ + replicas),
+            data: state.data.insert(uri + zk_name, new_strlit("CLUSTER_SIZE=")@ + replicas),
             ..state
         };
-        (Some(ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{ res: Ok(()) })), state_prime)
+        (Some(ZKAPIOutputView::ReconcileZKNode(Ok(()))), state_prime)
     } else {
         let new_data = state.data
-                    .insert(uri + new_strlit("/zookeeper-operator")@, new_strlit("")@)
-                    .insert(uri + path, new_strlit("CLUSTER_SIZE=")@ + replicas);
+                    .insert(uri + zk_name, new_strlit("CLUSTER_SIZE=")@ + replicas);
         let state_prime = ZooKeeperState {
             data: new_data,
             ..state
         };
-        (Some(ZKAPIOutputView::ReconcileZKNode(ZKNodeResultView{ res: Ok(()) })), state_prime)
+        (Some(ZKAPIOutputView::ReconcileZKNode(Ok(()))), state_prime)
     }
 }
 
