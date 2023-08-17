@@ -158,7 +158,7 @@ pub open spec fn reconcile_core(
                         let found_config_map = ConfigMapView::from_dynamic_object(get_config_resp.get_Ok_0()).get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
                             key: make_server_config_map_key(rabbitmq.object_ref()),
-                            obj: found_config_map.set_data(config_map.data.get_Some_0()).to_dynamic_object(),
+                            obj: update_server_config_map(rabbitmq, found_config_map).to_dynamic_object(),
                         });
                         let state_prime = RabbitmqReconcileState {
                             reconcile_step: RabbitmqReconcileStep::AfterUpdateServerConfigMap,
@@ -462,6 +462,11 @@ pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> Confi
         .set_data(Map::empty()
             .insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_management].")@)
         )
+}
+
+pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_config_map: ConfigMapView) -> ConfigMapView {
+    let metadata = found_config_map.metadata.set_owner_references(seq![rabbitmq.controller_owner_ref()]).reset_finalizers();
+    found_config_map.set_data(make_server_config_map(rabbitmq).data.get_Some_0()).set_metadata(metadata)
 }
 
 pub open spec fn make_server_config_map_name(rabbitmq_name: StringView) -> StringView {
