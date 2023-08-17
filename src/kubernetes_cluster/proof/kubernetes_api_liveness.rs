@@ -246,25 +246,42 @@ pub open spec fn no_req_before_rest_id_is_in_flight(rest_id: RestId) -> StatePre
     }
 }
 
-/// Newly created message means it doesn't exist in in_flight in last state but exists in the current state.
-pub open spec fn every_new_in_flight_req_msg_satisfies(requirements: FnSpec(Message) -> bool) -> ActionPred<Self> {
+/// To ensure that spec |= true ~> []every_in_fligh_message_satisfies(requirements), we only have to reason about the messages
+/// created after some points. Here, "requirements" takes two parameters, the new message and the prime state. In many cases,
+/// It's only related to the message.
+/// 
+/// In detail, we have to show two things:
+///     a. Newly created api request message satisfies requirements: s.in_flight(msg) /\ s_prime.in_flight(msg) ==> requirements(msg, s_prime).
+///     b. The requirements, once satisfied, won't be violated as long as the message is still in flight:
+///         s.in_flight(msg) /\ requirements(msg, s) /\ s_prime.in_flight(msg) ==> requirements(msg, s_prime).
+/// 
+/// Previously, when "requirements" was irrelavant to the state, b will be sure to hold. Later, we find that "requirements" in some 
+/// case does need some information in the state. So we add state as another parameter and requires the caller of the lemma
+/// lemma_true_leads_to_always_every_in_flight_req_msg_satisfies to prove b. is always satisfied. In order not to make those cases
+/// where "requirements" has nothing to do with state more difficult, we combine a. and b. together.
+/// 
+/// Therefore, we have the following predicate. As is easy to see, this is similar as:
+///     (s.in_flight(msg) ==> requirements(msg, s)) ==> (s_prime.in_flight(msg) ==> requirements(msg, s_prime))
+/// If we think of s.in_flight(msg) ==> requirements(msg, s) as an invariant, it is the same as the proof of invariants in previous
+/// proof strategy.
+pub open spec fn every_new_req_msg_if_in_flight_then_always_satisfies(requirements: FnSpec(Message, Self) -> bool) -> ActionPred<Self> {
     |s: Self, s_prime: Self| {
         forall |msg: Message|
-            !s.message_in_flight(msg)
+            (!s.message_in_flight(msg) || requirements(msg, s))
             && #[trigger] s_prime.message_in_flight(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_APIRequest()
-            ==> requirements(msg)
+            ==> requirements(msg, s_prime)
     }
 }
 
-pub open spec fn every_in_flight_req_msg_satisfies(requirements: FnSpec(Message) -> bool) -> StatePred<Self> {
+pub open spec fn every_in_flight_req_msg_satisfies(requirements: FnSpec(Message, Self) -> bool) -> StatePred<Self> {
     |s: Self| {
         forall |msg: Message|
             #[trigger] s.message_in_flight(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_APIRequest()
-            ==> requirements(msg)
+            ==> requirements(msg, s)
     }
 }
 
@@ -272,14 +289,14 @@ pub open spec fn every_in_flight_req_msg_satisfies(requirements: FnSpec(Message)
 /// the system will eventually reaches a state where all Kubernetes api request messages satisfy those requirements.
 ///
 /// To require "every newly create Kubernetes api request message satisfies some requirements", we use a FnSpec (i.e., a closure)
-/// as parameter which can be defined by callers and require spec |= [](every_new_in_flight_req_msg_satisfies(requirements)).
+/// as parameter which can be defined by callers and require spec |= [](every_new_req_msg_if_in_flight_then_always_satisfies(requirements)).
 ///
 /// The last parameter must be equivalent to every_in_flight_req_msg_satisfies(requirements)
 pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(
-    spec: TempPred<Self>, requirements: FnSpec(Message) -> bool, msg_state_pred: StatePred<Self>
+    spec: TempPred<Self>, requirements: FnSpec(Message, Self) -> bool, msg_state_pred: StatePred<Self>
 )
     requires
-        spec.entails(always(lift_action(Self::every_new_in_flight_req_msg_satisfies(requirements)))),
+        spec.entails(always(lift_action(Self::every_new_req_msg_if_in_flight_then_always_satisfies(requirements)))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
@@ -315,10 +332,10 @@ pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(
 
 /// This lemma is an assistant one for the previous one without rest_id.
 pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfies_with_rest_id(
-    spec: TempPred<Self>, requirements: FnSpec(Message) -> bool, rest_id: nat
+    spec: TempPred<Self>, requirements: FnSpec(Message, Self) -> bool, rest_id: nat
 )
     requires
-        spec.entails(always(lift_action(Self::every_new_in_flight_req_msg_satisfies(requirements)))),
+        spec.entails(always(lift_action(Self::every_new_req_msg_if_in_flight_then_always_satisfies(requirements)))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
@@ -329,13 +346,13 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
         ),
 {
     // Use the stable part of spec, show the stability of stable_spec and also spec |= stable_spec
-    let always_spec = always(lift_action(Self::every_new_in_flight_req_msg_satisfies(requirements)))
+    let always_spec = always(lift_action(Self::every_new_req_msg_if_in_flight_then_always_satisfies(requirements)))
                     .and(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator())))
                     .and(always(lift_state(Self::busy_disabled())))
                     .and(always(lift_action(Self::next())));
     let stable_spec = always_spec.and(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i)));
     stable_and_always_n!(
-        lift_action(Self::every_new_in_flight_req_msg_satisfies(requirements)),
+        lift_action(Self::every_new_req_msg_if_in_flight_then_always_satisfies(requirements)),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Self::busy_disabled()),
         lift_action(Self::next())
@@ -344,7 +361,7 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
     stable_and_temp(always_spec, tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i)));
     entails_and_n!(
         spec,
-        always(lift_action(Self::every_new_in_flight_req_msg_satisfies(requirements))),
+        always(lift_action(Self::every_new_req_msg_if_in_flight_then_always_satisfies(requirements))),
         always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator())),
         always(lift_state(Self::busy_disabled())),
         always(lift_action(Self::next())),
@@ -371,7 +388,7 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
                     && msg.content.get_rest_id() >= rest_id
                     && msg.dst.is_KubernetesAPI()
                     && msg.content.is_APIRequest()
-                    ==> requirements(msg)
+                    ==> requirements(msg, s)
             };
             assert_by(
                 spec_with_rest_id.entails(always(lift_state(invariant))),
@@ -387,18 +404,18 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
                     let stronger_next = |s, s_prime| {
                         Self::next()(s, s_prime)
                         && Self::rest_id_counter_is_no_smaller_than(rest_id)(s)
-                        && Self::every_new_in_flight_req_msg_satisfies(requirements)(s, s_prime)
+                        && Self::every_new_req_msg_if_in_flight_then_always_satisfies(requirements)(s, s_prime)
                     };
                     entails_always_and_n!(
                         spec_with_rest_id,
                         lift_action(Self::next()),
                         lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)),
-                        lift_action(Self::every_new_in_flight_req_msg_satisfies(requirements))
+                        lift_action(Self::every_new_req_msg_if_in_flight_then_always_satisfies(requirements))
                     );
                     temp_pred_equality(
                         lift_action(stronger_next),
                         lift_action(Self::next()).and(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))
-                        .and(lift_action(Self::every_new_in_flight_req_msg_satisfies(requirements)))
+                        .and(lift_action(Self::every_new_req_msg_if_in_flight_then_always_satisfies(requirements)))
                     );
                     init_invariant(spec_with_rest_id, init, stronger_next, invariant);
                 }

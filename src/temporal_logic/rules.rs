@@ -142,7 +142,7 @@ proof fn implies_apply_with_always<T>(ex: Execution<T>, p: TempPred<T>, q: TempP
     always_unfold::<T>(ex, p);
 }
 
-pub proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
+proof fn entails_apply<T>(ex: Execution<T>, p: TempPred<T>, q: TempPred<T>)
     requires
         p.entails(q),
         p.satisfied_by(ex),
