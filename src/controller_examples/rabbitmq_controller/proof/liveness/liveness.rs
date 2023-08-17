@@ -117,8 +117,8 @@ spec fn derived_invariants_since_beginning(rabbitmq: RabbitmqClusterView) -> Tem
     .and(always(lift_state(RMQCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref()))))
     .and(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())))
     .and(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed())))
-    .and(always(lift_state(RMQCluster::each_scheduled_key_is_consistent_with_its_object())))
-    .and(always(lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object())))
+    .and(always(lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata())))
+    .and(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())))
     .and(always(lift_state(helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))))
     .and(always(lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))))
     .and(always(lift_state(helper_invariants::pending_msg_at_after_create_server_config_map_step_is_create_cm_req(rabbitmq.object_ref()))))
@@ -152,8 +152,8 @@ proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClusterV
         lift_state(RMQCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())),
         lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
-        lift_state(RMQCluster::each_scheduled_key_is_consistent_with_its_object()),
-        lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
+        lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
+        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)),
         lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)),
         lift_state(helper_invariants::pending_msg_at_after_create_server_config_map_step_is_create_cm_req(rabbitmq.object_ref())),
@@ -180,7 +180,7 @@ proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClusterV
 
 /// This predicate combines all the possible actions (next), weak fairness and invariants that hold throughout the execution.
 /// We name it invariants here because these predicates are never violated, thus they can all be seen as some kind of invariants.
-/// 
+///
 /// The final goal of our proof is to show init /\ invariants |= []desired_state_is(cr) ~> []current_state_matches(cr).
 /// init /\ invariants is equivalent to init /\ next /\ weak_fairness, so we get cluster_spec() |= []desired_state_is(cr) ~> []current_state_matches(cr).
 spec fn invariants(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
@@ -202,7 +202,7 @@ proof fn invariants_is_stable(rabbitmq: RabbitmqClusterView)
 
 /// The first notable phase comes when crash and k8s busy are always disabled and the object in schedule always has the same
 /// spec and uid as the cr we provide.
-/// 
+///
 /// Note that don't try to find any connections between those invariants -- they are put together because they don't have to
 /// wait for another of them to first be satisfied.
 spec fn invariants_since_phase_I(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
@@ -223,7 +223,7 @@ proof fn invariants_since_phase_I_is_stable(rabbitmq: RabbitmqClusterView)
 }
 
 /// For now, phase II only contains one invariant, which is the object in reconcile has the same spec and uid as rabbitmq.
-/// 
+///
 /// It is alone because it relies on the invariant the_object_in_schedule_has_spec_and_uid_as (in phase I) and every invariant
 /// in phase III relies on it.
 spec fn invariants_since_phase_II(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
@@ -522,8 +522,8 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
     RMQCluster::lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref());
     RMQCluster::lemma_always_every_in_flight_msg_has_lower_id_than_allocator();
     RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
-    RMQCluster::lemma_always_each_scheduled_key_is_consistent_with_its_object(spec);
-    RMQCluster::lemma_always_each_key_in_reconcile_is_consistent_with_its_object(spec);
+    RMQCluster::lemma_always_each_scheduled_object_has_consistent_key_and_valid_metadata(spec);
+    RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     helper_invariants::lemma_always_stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(spec, rabbitmq);
     helper_invariants::lemma_always_server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(spec, rabbitmq);
     helper_invariants::lemma_always_pending_msg_at_after_create_server_config_map_step_is_create_cm_req(spec, rabbitmq.object_ref());
@@ -580,8 +580,8 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         lift_state(RMQCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())),
         lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
-        lift_state(RMQCluster::each_scheduled_key_is_consistent_with_its_object()),
-        lift_state(RMQCluster::each_key_in_reconcile_is_consistent_with_its_object()),
+        lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
+        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)),
         lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)),
         lift_state(helper_invariants::pending_msg_at_after_create_server_config_map_step_is_create_cm_req(rabbitmq.object_ref())),
@@ -729,7 +729,7 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<RMQCluster>, rabbitmq:
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
-        spec.entails(always(lift_state(RMQCluster::each_scheduled_key_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)))),
         rabbitmq.well_formed(),
     ensures
@@ -750,21 +750,21 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<RMQCluster>, rabbitmq:
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
-        &&& RMQCluster::each_scheduled_key_is_consistent_with_its_object()(s)
+        &&& RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()(s)
         &&& RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)(s)
     };
     entails_always_and_n!(
         spec,
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
-        lift_state(RMQCluster::each_scheduled_key_is_consistent_with_its_object()),
+        lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq))
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(RMQCluster::next())
         .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::each_scheduled_key_is_consistent_with_its_object()))
+        .and(lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()))
         .and(lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)))
     );
 

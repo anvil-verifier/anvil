@@ -110,8 +110,8 @@ spec fn invariants(zk: ZookeeperClusterView) -> TempPred<ZKCluster> {
     .and(always(lift_state(ZKCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref()))))
     .and(always(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator())))
     .and(always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed())))
-    .and(always(lift_state(ZKCluster::each_scheduled_key_is_consistent_with_its_object())))
-    .and(always(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object())))
+    .and(always(lift_state(ZKCluster::each_scheduled_object_has_consistent_key_and_valid_metadata())))
+    .and(always(lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())))
     .and(always(lift_state(helper_invariants::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref()))))
     .and(always(lift_state(helper_invariants::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref()))))
     .and(always(lift_state(ZKCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::Init)))))
@@ -136,8 +136,8 @@ proof fn invariants_is_stable(zk: ZookeeperClusterView)
         lift_state(ZKCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref())),
         lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(ZKCluster::each_object_in_etcd_is_well_formed()),
-        lift_state(ZKCluster::each_scheduled_key_is_consistent_with_its_object()),
-        lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object()),
+        lift_state(ZKCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
+        lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(helper_invariants::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref())),
         lift_state(helper_invariants::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref())),
         lift_state(ZKCluster::no_pending_req_msg_or_external_api_input_at_reconcile_init_state(zk.object_ref())),
@@ -403,8 +403,8 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
             ZKCluster::lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref());
             ZKCluster::lemma_always_every_in_flight_msg_has_lower_id_than_allocator();
             ZKCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
-            ZKCluster::lemma_always_each_scheduled_key_is_consistent_with_its_object(spec);
-            ZKCluster::lemma_always_each_key_in_reconcile_is_consistent_with_its_object(spec);
+            ZKCluster::lemma_always_each_scheduled_object_has_consistent_key_and_valid_metadata(spec);
+            ZKCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
             helper_invariants::lemma_always_pending_msg_at_after_create_stateful_set_step_is_create_sts_req(spec, zk.object_ref());
             helper_invariants::lemma_always_pending_msg_at_after_update_stateful_set_step_is_update_sts_req(spec, zk.object_ref());
             ZKCluster::lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_state(spec, zk.object_ref(), zookeeper_reconcile_state(ZookeeperReconcileStep::Init));
@@ -424,8 +424,8 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
                 always(lift_state(ZKCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(zk.object_ref()))),
                 always(lift_state(ZKCluster::every_in_flight_msg_has_lower_id_than_allocator())),
                 always(lift_state(ZKCluster::each_object_in_etcd_is_well_formed())),
-                always(lift_state(ZKCluster::each_scheduled_key_is_consistent_with_its_object())),
-                always(lift_state(ZKCluster::each_key_in_reconcile_is_consistent_with_its_object())),
+                always(lift_state(ZKCluster::each_scheduled_object_has_consistent_key_and_valid_metadata())),
+                always(lift_state(ZKCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())),
                 always(lift_state(helper_invariants::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(zk.object_ref()))),
                 always(lift_state(helper_invariants::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(zk.object_ref()))),
                 always(lift_state(ZKCluster::no_pending_req_msg_or_external_api_input_at_reconcile_init_state(zk.object_ref()))),
@@ -1075,7 +1075,7 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ZKCluster>, zk: Zookee
         spec.entails(always(lift_action(ZKCluster::next()))),
         spec.entails(tla_forall(|i| ZKCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(ZKCluster::crash_disabled()))),
-        spec.entails(always(lift_state(ZKCluster::each_scheduled_key_is_consistent_with_its_object()))),
+        spec.entails(always(lift_state(ZKCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(ZKCluster::the_object_in_schedule_has_spec_and_uid_as(zk)))),
         zk.well_formed(),
     ensures
@@ -1096,21 +1096,21 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ZKCluster>, zk: Zookee
     let stronger_next = |s, s_prime: ZKCluster| {
         &&& ZKCluster::next()(s, s_prime)
         &&& ZKCluster::crash_disabled()(s)
-        &&& ZKCluster::each_scheduled_key_is_consistent_with_its_object()(s)
+        &&& ZKCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()(s)
         &&& ZKCluster::the_object_in_schedule_has_spec_and_uid_as(zk)(s)
     };
     entails_always_and_n!(
         spec,
         lift_action(ZKCluster::next()),
         lift_state(ZKCluster::crash_disabled()),
-        lift_state(ZKCluster::each_scheduled_key_is_consistent_with_its_object()),
+        lift_state(ZKCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
         lift_state(ZKCluster::the_object_in_schedule_has_spec_and_uid_as(zk))
     );
     temp_pred_equality(
         lift_action(stronger_next),
         lift_action(ZKCluster::next())
         .and(lift_state(ZKCluster::crash_disabled()))
-        .and(lift_state(ZKCluster::each_scheduled_key_is_consistent_with_its_object()))
+        .and(lift_state(ZKCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()))
         .and(lift_state(ZKCluster::the_object_in_schedule_has_spec_and_uid_as(zk)))
     );
 
