@@ -150,6 +150,8 @@ pub open spec fn is_correct_pending_request_at_rabbitmq_step(
         RabbitmqReconcileStep::AfterCreateRoleBinding => is_create_role_binding_request(request, rabbitmq),
         RabbitmqReconcileStep::AfterGetStatefulSet => is_get_stateful_set_request(request, rabbitmq),
         RabbitmqReconcileStep::AfterCreateStatefulSet => is_create_stateful_set_request(request, rabbitmq),
+        RabbitmqReconcileStep::AfterUpdateServerConfigMap => true,
+        RabbitmqReconcileStep::AfterUpdateStatefulSet => true,
         _ => false
     }
 }
@@ -266,9 +268,9 @@ pub open spec fn is_update_server_config_map_request(request: APIRequest, rabbit
 {
     &&& request.is_UpdateRequest()
     &&& request.get_UpdateRequest_0().key == make_server_config_map_key(rabbitmq.object_ref())
-    &&& request.get_UpdateRequest_0().obj == ConfigMapView::from_dynamic_object(object).get_Ok_0()
-                                            .set_data(make_server_config_map(rabbitmq).data.get_Some_0())
-                                            .to_dynamic_object()
+    &&& request.get_UpdateRequest_0().obj == update_server_config_map(
+        rabbitmq, ConfigMapView::from_dynamic_object(object).get_Ok_0()
+    ).to_dynamic_object()
 }
 
 pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_ok_resp_in_flight(
@@ -279,6 +281,24 @@ pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_ok
         &&& RMQCluster::pending_k8s_api_req_msg(s, rabbitmq.object_ref())
         &&& is_correct_pending_request_msg_at_rabbitmq_step(
             RabbitmqReconcileStep::AfterGetServerConfigMap, s.pending_req_of(rabbitmq.object_ref()), rabbitmq
+        )
+        &&& exists |resp_msg| {
+            &&& #[trigger] s.message_in_flight(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
+            &&& resp_msg.content.get_get_response().res.is_Ok()
+            &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
+        }
+    }
+}
+
+pub open spec fn at_after_get_stateful_set_step_with_rabbitmq_and_exists_ok_resp_in_flight(
+    rabbitmq: RabbitmqClusterView, object: DynamicObjectView
+) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::AfterGetStatefulSet)(s)
+        &&& RMQCluster::pending_k8s_api_req_msg(s, rabbitmq.object_ref())
+        &&& is_correct_pending_request_msg_at_rabbitmq_step(
+            RabbitmqReconcileStep::AfterGetStatefulSet, s.pending_req_of(rabbitmq.object_ref()), rabbitmq
         )
         &&& exists |resp_msg| {
             &&& #[trigger] s.message_in_flight(resp_msg)
@@ -307,6 +327,24 @@ pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_no
     }
 }
 
+pub open spec fn at_after_get_stateful_set_step_with_rabbitmq_and_exists_not_found_resp_in_flight(
+    rabbitmq: RabbitmqClusterView
+) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::AfterGetStatefulSet)(s)
+        &&& RMQCluster::pending_k8s_api_req_msg(s, rabbitmq.object_ref())
+        &&& is_correct_pending_request_msg_at_rabbitmq_step(
+            RabbitmqReconcileStep::AfterGetStatefulSet, s.pending_req_of(rabbitmq.object_ref()), rabbitmq
+        )
+        &&& exists |resp_msg| {
+            &&& #[trigger] s.message_in_flight(resp_msg)
+            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
+            &&& resp_msg.content.get_get_response().res.is_Err()
+            &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
+        }
+    }
+}
+
 pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_not_found_err_resp_in_flight(
     rabbitmq: RabbitmqClusterView
 ) -> StatePred<RMQCluster> {
@@ -324,7 +362,5 @@ pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_no
         }
     }
 }
-
-// pub open spec fn stateful_set_has_owner_reference_pointing_to_current_cr()
 
 }

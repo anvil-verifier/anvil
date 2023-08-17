@@ -185,13 +185,11 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                     // update
                     let found_config_map = ConfigMap::from_dynamic_object(get_config_resp.unwrap());
                     if found_config_map.is_ok(){
-                        let mut new_config_map = found_config_map.unwrap();
-                        new_config_map.set_data(config_map.data().unwrap());
                         let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                             api_resource: ConfigMap::api_resource(),
                             name: config_map.metadata().name().unwrap(),
                             namespace: rabbitmq.namespace().unwrap(),
-                            obj: new_config_map.to_dynamic_object(),
+                            obj: update_server_config_map(rabbitmq, found_config_map.unwrap()).to_dynamic_object(),
                         });
                         let state_prime = RabbitmqReconcileState {
                             reconcile_step: RabbitmqReconcileStep::AfterUpdateServerConfigMap,
@@ -298,19 +296,18 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                     if get_sts_result.is_ok(){
                         let mut found_stateful_set = get_sts_result.unwrap();
                         // We check the owner reference of the found stateful set here to ensure that it is not created from
-                        // previously existing (and now deleted) cr. Otherwise, if the replicas of the current cr is smaller 
+                        // previously existing (and now deleted) cr. Otherwise, if the replicas of the current cr is smaller
                         // than the previous one, scaling down, which should be prohibited, will happen.
-                        // If the found stateful set doesn't contain the controller owner reference of the current cr, we will 
-                        // just let the reconciler enter the error state and wait for the garbage collector to delete it. So 
-                        // after that, when a new round of reconcile starts, there is no stateful set in etcd, the reconciler 
+                        // If the found stateful set doesn't contain the controller owner reference of the current cr, we will
+                        // just let the reconciler enter the error state and wait for the garbage collector to delete it. So
+                        // after that, when a new round of reconcile starts, there is no stateful set in etcd, the reconciler
                         // will go to create a new one.
-                        if found_stateful_set.metadata().owner_references_contains(rabbitmq.controller_owner_ref()) {
-                            found_stateful_set.set_spec(stateful_set.spec().unwrap());
+                        if found_stateful_set.metadata().owner_references_only_contains(rabbitmq.controller_owner_ref()) {
                             let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                                 api_resource: StatefulSet::api_resource(),
                                 name: stateful_set.metadata().name().unwrap(),
                                 namespace: rabbitmq.namespace().unwrap(),
-                                obj: found_stateful_set.to_dynamic_object(),
+                                obj: update_stateful_set(rabbitmq, found_stateful_set).to_dynamic_object(),
                             });
                             let state_prime = RabbitmqReconcileState {
                                 reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
@@ -574,6 +571,35 @@ fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap
                 new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_management].").to_string());
     config_map.set_data(data);
     config_map
+}
+
+fn update_server_config_map(rabbitmq: &RabbitmqCluster, mut found_config_map: ConfigMap) -> (config_map: ConfigMap)
+requires
+    rabbitmq@.metadata.name.is_Some(),
+    rabbitmq@.metadata.namespace.is_Some(),
+ensures
+    config_map@ == rabbitmq_spec::update_server_config_map(rabbitmq@, found_config_map@),
+{
+    let mut owner_references = Vec::new();
+    owner_references.push(rabbitmq.controller_owner_ref());
+    proof {
+        assert_seqs_equal!(
+            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+            rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+        );
+    }
+    let mut metadata = found_config_map.metadata();
+
+    // Since we requirement the owner_reference only contains current cr, this set operation won't change anything.
+    // Similarly, we never set finalizers for any stateful set, resetting finalizers won't change anything.
+    // The reason why we add these two operations is that it makes the proof easier.
+    // In this way, we can easily show that what the owner references and finalizers of the object in every update request
+    // for stateful set are.
+    metadata.set_owner_references(owner_references);
+    metadata.unset_finalizers();
+    found_config_map.set_data(make_server_config_map(rabbitmq).data().unwrap());
+    found_config_map.set_metadata(metadata);
+    found_config_map
 }
 
 fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
@@ -852,6 +878,35 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
         subjects
     });
     role_binding
+}
+
+fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: StatefulSet) -> (stateful_set: StatefulSet)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        stateful_set@ == rabbitmq_spec::update_stateful_set(rabbitmq@, found_stateful_set@),
+{
+    let mut owner_references = Vec::new();
+    owner_references.push(rabbitmq.controller_owner_ref());
+    proof {
+        assert_seqs_equal!(
+            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+            rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+        );
+    }
+    let mut metadata = found_stateful_set.metadata();
+
+    // Since we requirement the owner_reference only contains current cr, this set operation won't change anything.
+    // Similarly, we never set finalizers for any stateful set, resetting finalizers won't change anything.
+    // The reason why we add these two operations is that it makes the proof easier.
+    // In this way, we can easily show that what the owner references and finalizers of the object in every update request
+    // for stateful set are.
+    metadata.set_owner_references(owner_references);
+    metadata.unset_finalizers();
+    found_stateful_set.set_spec(make_stateful_set(rabbitmq).spec().unwrap());
+    found_stateful_set.set_metadata(metadata);
+    found_stateful_set
 }
 
 fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)

@@ -18,6 +18,7 @@ impl RabbitmqClusterView {
     pub open spec fn well_formed(self) -> bool {
         &&& self.metadata.name.is_Some()
         &&& self.metadata.namespace.is_Some()
+        &&& self.metadata.uid.is_Some()
     }
 
     pub open spec fn name(self) -> Option<StringView> {

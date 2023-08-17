@@ -13,7 +13,7 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::rabbitmq_controller::{
     common::*,
-    proof::{common::*, helper_invariants, terminate},
+    proof::common::*,
     spec::{rabbitmqcluster::*, reconciler::*},
 };
 use crate::temporal_logic::{defs::*, rules::*};
