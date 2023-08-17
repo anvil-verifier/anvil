@@ -155,9 +155,9 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
-    pub fn reset_finalizers(&mut self)
+    pub fn unset_finalizers(&mut self)
         ensures
-            self@ == old(self)@.reset_finalizers(),
+            self@ == old(self)@.unset_finalizers(),
     {
         self.inner.finalizers = None;
     }
@@ -270,7 +270,7 @@ impl ObjectMetaView {
         }
     }
 
-    pub open spec fn reset_finalizers(self) -> ObjectMetaView {
+    pub open spec fn unset_finalizers(self) -> ObjectMetaView {
         ObjectMetaView {
             finalizers: None,
             ..self

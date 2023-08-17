@@ -465,7 +465,7 @@ pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> Confi
 }
 
 pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_config_map: ConfigMapView) -> ConfigMapView {
-    let metadata = found_config_map.metadata.set_owner_references(seq![rabbitmq.controller_owner_ref()]).reset_finalizers();
+    let metadata = found_config_map.metadata.set_owner_references(seq![rabbitmq.controller_owner_ref()]).unset_finalizers();
     found_config_map.set_data(make_server_config_map(rabbitmq).data.get_Some_0()).set_metadata(metadata)
 }
 
@@ -604,7 +604,7 @@ pub open spec fn update_stateful_set(rabbitmq: RabbitmqClusterView, found_statef
         rabbitmq.metadata.name.is_Some(),
         rabbitmq.metadata.namespace.is_Some(),
 {
-    let metadata = found_stateful_set.metadata.set_owner_references(seq![rabbitmq.controller_owner_ref()]).reset_finalizers();
+    let metadata = found_stateful_set.metadata.set_owner_references(seq![rabbitmq.controller_owner_ref()]).unset_finalizers();
     found_stateful_set.set_spec(make_stateful_set(rabbitmq).spec.get_Some_0()).set_metadata(metadata)
 }
 

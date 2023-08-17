@@ -542,12 +542,6 @@ pub open spec fn no_delete_cm_req_is_in_flight(key: ObjectRef) -> StatePred<RMQC
     }
 }
 
-// TODO: fix this lemma.
-// If the configmap has no owner_reference, fixing the lemma is simple:
-// we just need to show that the configmap in the cluster state never has any owner reference.
-//
-// However, later we are going to set the owner_reference of the configmap to the CR object,
-// so we will need the assumption that "CR always exists" to prove this invariant.
 pub proof fn lemma_true_leads_to_always_no_delete_cm_req_is_in_flight(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
