@@ -1,13 +1,13 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::pervasive_ext::string_view::*;
+use crate::external_api::exec::*;
 use crate::pervasive_ext::to_view::*;
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::exec::{common::*, zookeeper_api::*, zookeepercluster::*};
+use crate::zookeeper_controller::exec::zookeepercluster::*;
 use crate::zookeeper_controller::spec::zookeeper_api::{
     ZKAPIInputView, ZKAPIOutputView, ZKNodeResultView,
 };
-use deps_hack::tokio::time::Duration;
+use core::time::Duration;
 use deps_hack::zookeeper::{Acl, CreateMode, WatchedEvent, Watcher, ZkError, ZooKeeper};
 use vstd::{prelude::*, string::*};
 
@@ -21,6 +21,79 @@ impl ToView for ZKNodeResult {
         match self {
             Ok(_) => Ok(()),
             Err(_) => Err(Error::ClusterSizeZKNodeCreationFailed),
+        }
+    }
+}
+
+#[is_variant]
+pub enum ZKAPIInput {
+    ReconcileZKNode(String, String, String),
+}
+
+#[is_variant]
+pub enum ZKAPIOutput {
+    ReconcileZKNode(ZKNodeResult),
+}
+
+impl ToView for ZKAPIInput {
+    type V = ZKAPIInputView;
+    spec fn to_view(&self) -> ZKAPIInputView {
+        match self {
+            ZKAPIInput::ReconcileZKNode(zk_name, uri, replicas)
+                => ZKAPIInputView::ReconcileZKNode(zk_name@, uri@, replicas@),
+        }
+    }
+}
+
+pub proof fn zk_support_input_to_view_match(zk_name: String, uri: String, replicas: String)
+    ensures
+        ZKAPIInput::ReconcileZKNode(zk_name, uri, replicas).to_view()
+            == ZKAPIInputView::ReconcileZKNode(zk_name@, uri@, replicas@) {}
+
+
+impl ToView for ZKAPIOutput {
+    type V = ZKAPIOutputView;
+    spec fn to_view(&self) -> ZKAPIOutputView {
+        match self {
+            ZKAPIOutput::ReconcileZKNode(result) => ZKAPIOutputView::ReconcileZKNode(result.to_view()),
+        }
+    }
+}
+
+pub proof fn zk_support_output_to_view_match(result: ZKNodeResult)
+    ensures
+        ZKAPIOutput::ReconcileZKNode(result).to_view() == ZKAPIOutputView::ReconcileZKNode(result.to_view()) {}
+
+impl ZKAPIOutput {
+    pub fn is_reconcile_zk_node(&self) -> (res: bool)
+        ensures res <==> self.is_ReconcileZKNode(),
+    {
+        match self {
+            ZKAPIOutput::ReconcileZKNode(_) => true,
+        }
+    }
+
+    pub fn into_reconcile_zk_node(self) -> (result: ZKNodeResult)
+        requires
+            self.is_ReconcileZKNode(),
+        ensures
+            result == self.get_ReconcileZKNode_0(),
+            result.is_Ok() <==> self.get_ReconcileZKNode_0().is_Ok(),
+    {
+        match self {
+            ZKAPIOutput::ReconcileZKNode(result) => result,
+        }
+    }
+}
+
+pub struct ZKAPI {}
+
+impl ExternalAPI<ZKAPIInput, ZKAPIOutput> for ZKAPI {
+    #[verifier(external)]
+    fn transition(input: ZKAPIInput) -> Option<ZKAPIOutput> {
+        match input {
+            ZKAPIInput::ReconcileZKNode(zk_name, uri, replicas)
+                => Some(ZKAPIOutput::ReconcileZKNode(reconcile_zk_node(zk_name, uri, replicas))),
         }
     }
 }
@@ -47,7 +120,6 @@ pub fn reconcile_zk_node(zk_name: String, uri: String, replicas: String) -> ZKNo
 
     let node_path = &format!("{}/{}", parent_node_path, zk_name.as_rust_string_ref());
     let data = format!("CLUSTER_SIZE={}", replicas.as_rust_string_ref()).as_bytes().to_vec();
-    // let data = new_strlit("CLUSTER_SIZE=").to_string().concat(replicas.as_str()).as_str().into_rust_str().as_bytes().to_vec();
 
     match zk_client.exists(node_path, false) {
         Err(_) => Err(Error::ClusterSizeZKNodeCreationFailed),
@@ -70,7 +142,6 @@ pub fn reconcile_zk_node(zk_name: String, uri: String, replicas: String) -> ZKNo
 
 #[verifier(external)]
 pub fn ensure_parent_node_exists(parent_node_path: &str, zk_client: &ZooKeeper) -> ZKNodeResult {
-    // let data = "".as_bytes().to_vec();
     let data = Vec::new();
     match zk_client.exists(parent_node_path, false) {
         Err(_) => Err(Error::ClusterSizeZKNodeCreationFailed),
