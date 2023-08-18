@@ -2400,27 +2400,6 @@ pub proof fn leads_to_trans_relaxed_auto<T>(spec: TempPred<T>)
     };
 }
 
-/// This rule can be used to prove leads_to when we have part (q) in this lemma of pre leads to post and
-/// the rest of pre directly implies post, which means pre ==> q \/ r.
-/// Sometimes pre ==> q \/ r is subject to some assumption. If that assumption is always satisfied, we can get
-/// spec |= always(assumption) |= always(pre ==> q \/ r) |= pre ~> q \/ r ~> r.
-///
-/// If there doesn't have to be an assumtpion, i.e., |= pre ==> q \/ r, just pass true as the assumption.
-pub proof fn partial_implies_and_partial_leads_to_to_leads_to<T>(spec: TempPred<T>, assumption: TempPred<T>, pre: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
-    requires
-        spec.entails(always(assumption)),
-        assumption.entails(pre.implies(q.or(r))),
-        spec.entails(q.leads_to(r)),
-    ensures
-        spec.entails(pre.leads_to(r)),
-{
-    implies_preserved_by_always_temp(assumption, pre.implies(q.or(r)));
-    entails_trans(spec, always(assumption), always(pre.implies(q.or(r))));
-    leads_to_self_temp(r);
-    or_leads_to_combine_temp(spec, q, r, r);
-    leads_to_weaken_temp(spec, q.or(r), r, pre, r);
-}
-
 /// Weaken leads_to by implies.
 /// pre:
 ///     spec |= [](p2 => p1)
