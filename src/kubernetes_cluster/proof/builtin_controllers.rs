@@ -77,26 +77,34 @@ spec fn exists_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePre
         }
     }
 }
-
-/// This lemma requires the following preconditions:
-///     1. spec |= [](in_flight(update_msg_with(msg, key)) ==> satisfies(msg.obj.metadata.owner_references, eventual_owner_ref)).
-///     2. spec |= [](in_flight(create_msg_with(msg, key)) ==> satisfies(msg.obj.metadata.owner_references, eventual_owner_ref)).
-///     3. spec |= [](key_exists(key) ==> resource_obj_of(key) has no finalizers or deletion_timestamp).
-///     4. spec |= [](!expected(owner_references) => deleted).
-/// In 3, no finalizers ensures the stability: once the desired state reaches, every update request
-///
 /// The proof of spec |= true ~> objects_owner_references_satisfies(eventual_owner_ref) consists of two parts:
 ///     1. spec |= true ~> (object_has_invalid_owner_reference ==> delete message in flight).
 ///     2. spec |= (object_has_invalid_owner_reference ==> delete message in flight) ~> all_objects_have_expected_owner_references.
 /// The first is primarily obtained by the weak fairness of the builtin controllers action (specifially, the garbage collector);
 /// and the second holds due to the weak fairness of kubernetes api.
-///
-/// To prove 1, we split `true` into three cases:
-///     a. The object's.
-///     b. The object has valid owner references.
-///     c. The object doesn't exist.
-/// For the last two cases, the post state ((object_has_invalid_owner_reference ==> delete message in flight)) is already reached.
-/// We only need to show spec |= case a ~> post. This is straightforward via the weak fairness of builtin controllers.
+/// 
+/// This lemma requires the following preconditions:
+///     1. spec |= [](in_flight(update_msg_with(msg, key)) ==> satisfies(msg.obj.metadata.owner_references, eventual_owner_ref)).
+///     2. spec |= [](in_flight(create_msg_with(msg, key)) ==> satisfies(msg.obj.metadata.owner_references, eventual_owner_ref)).
+///     3. spec |= [](key_exists(key) ==> resource_obj_of(key) has no finalizers).
+///     4. spec |= [](!satisfies(eventual_owner_ref, key) => garbage_collector_deletion_enabled).
+/// 1 is used to prove the stability; otherwise, even if the invalid object is deleted, the current system may also create an invalid
+/// object or update the obejct into an invalid status. 
+/// In 3, no finalizers ensures the deletion will be done as long as the deleted request is received, used by
+/// lemma_delete_msg_in_flight_leads_to_owner_references_satisfies.
+/// 4 is quite intuitive. To reach the expected owner references state, we must ensure that if it's not expected, it satifies
+/// the precondition of gc deleting it. Suppose eventual_owner_ref is owner_ref == Some(seq![o]), then the object of the given key
+/// if with any other owner references, should be deleted. 4 basically limits the domain of "any other owner references". For example,
+/// in rabbitmq controller, the universal set should be the set of any cr's controller owner ref that has once been in reconcile.
+/// If we don't have this, suppose owner_ref == None, then the object won't be deleted.
+/// 
+/// We split `true` into two cases:
+///     a. The object's owner references violates eventual_owner_ref.
+///     b. The object's owner references satisfies eventual_owner_ref.
+/// b. is already the post state. We only need to show spec |= case a ~> post. This is straightforward via the weak fairness of builtin 
+/// controllers. Note that from precondition 4, we can replace a. with the "pre" (the variable in the lemma body).
+/// 
+/// This lemma is enough for cuurent proof, if later we introduce more complex case, we can try to strengthen it.
 pub proof fn lemma_eventually_objects_owner_references_satisfies(
     spec: TempPred<Self>, key: ObjectRef, eventual_owner_ref: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool
 )
