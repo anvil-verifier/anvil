@@ -753,19 +753,12 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<RMQCluster>, rabbitmq:
         &&& RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()(s)
         &&& RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)(s)
     };
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()))
-        .and(lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq)))
     );
 
     RMQCluster::lemma_pre_leads_to_post_by_controller(
@@ -795,15 +788,10 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
     };
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled())
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -965,19 +953,12 @@ proof fn lemma_receives_some_resp_at_rabbitmq_step_with_rabbitmq(
         &&& RMQCluster::busy_disabled()(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
     };
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id())
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::busy_disabled()))
-        .and(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::kubernetes_api_next().forward(input)(s, s_prime)
@@ -1044,19 +1025,12 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
         &&& RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())(s)
     };
 
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref()))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::busy_disabled()))
-        .and(lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1466,23 +1440,14 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_rabbitmq(
         &&& helper_invariants::at_most_one_update_sts_req_is_in_flight(rabbitmq.object_ref())(s)
         &&& helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())(s)
     };
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::at_most_one_update_sts_req_is_in_flight(rabbitmq.object_ref())),
         lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref()))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::busy_disabled()))
-        .and(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))
-        .and(lift_state(helper_invariants::at_most_one_update_sts_req_is_in_flight(rabbitmq.object_ref())))
-        .and(lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1577,8 +1542,8 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         &&& helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())(s)
     };
 
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
@@ -1587,17 +1552,6 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         lift_state(helper_invariants::at_most_one_update_sts_req_is_in_flight(rabbitmq.object_ref())),
         lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref()))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::busy_disabled()))
-        .and(lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))
-        .and(lift_state(RMQCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())))
-        .and(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))
-        .and(lift_state(helper_invariants::at_most_one_update_sts_req_is_in_flight(rabbitmq.object_ref())))
-        .and(lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())))
     );
 
     RMQCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, RMQCluster::continue_reconcile(), pre, post);
@@ -1656,8 +1610,8 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_rabbitmq(
         &&& helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())(s)
         &&& helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)(s)
     };
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
@@ -1666,17 +1620,6 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_rabbitmq(
         lift_state(helper_invariants::at_most_one_update_sts_req_is_in_flight(rabbitmq.object_ref())),
         lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())),
         lift_state(helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::busy_disabled()))
-        .and(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))
-        .and(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))
-        .and(lift_state(helper_invariants::at_most_one_update_sts_req_is_in_flight(rabbitmq.object_ref())))
-        .and(lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())))
-        .and(lift_state(helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1862,21 +1805,13 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::at_most_one_create_cm_req_is_in_flight(rabbitmq.object_ref())(s)
     };
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::at_most_one_create_cm_req_is_in_flight(rabbitmq.object_ref()))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::busy_disabled()))
-        .and(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))
-        .and(lift_state(helper_invariants::at_most_one_create_cm_req_is_in_flight(rabbitmq.object_ref())))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1957,21 +1892,13 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_create_server_conf
         &&& helper_invariants::at_most_one_create_cm_req_is_in_flight(rabbitmq.object_ref())(s)
     };
 
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())),
         lift_state(RMQCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())),
         lift_state(helper_invariants::at_most_one_create_cm_req_is_in_flight(rabbitmq.object_ref()))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))
-        .and(lift_state(RMQCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())))
-        .and(lift_state(helper_invariants::at_most_one_create_cm_req_is_in_flight(rabbitmq.object_ref())))
     );
 
     RMQCluster::lemma_pre_leads_to_post_by_controller(
@@ -2025,21 +1952,13 @@ proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitm
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::at_most_one_create_cm_req_is_in_flight(rabbitmq.object_ref())(s)
     };
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::at_most_one_create_cm_req_is_in_flight(rabbitmq.object_ref()))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::busy_disabled()))
-        .and(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))
-        .and(lift_state(helper_invariants::at_most_one_create_cm_req_is_in_flight(rabbitmq.object_ref())))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -2105,21 +2024,13 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_rabbi
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::at_most_one_create_sts_req_is_in_flight(rabbitmq.object_ref())(s)
     };
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::at_most_one_create_sts_req_is_in_flight(rabbitmq.object_ref()))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::busy_disabled()))
-        .and(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))
-        .and(lift_state(helper_invariants::at_most_one_create_sts_req_is_in_flight(rabbitmq.object_ref())))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -2200,21 +2111,13 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_create_stateful_set_ste
         &&& helper_invariants::at_most_one_create_sts_req_is_in_flight(rabbitmq.object_ref())(s)
     };
 
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())),
         lift_state(RMQCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())),
         lift_state(helper_invariants::at_most_one_create_sts_req_is_in_flight(rabbitmq.object_ref()))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))
-        .and(lift_state(RMQCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())))
-        .and(lift_state(helper_invariants::at_most_one_create_sts_req_is_in_flight(rabbitmq.object_ref())))
     );
 
     RMQCluster::lemma_pre_leads_to_post_by_controller(
@@ -2268,21 +2171,13 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_rabbitmq(
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::at_most_one_create_sts_req_is_in_flight(rabbitmq.object_ref())(s)
     };
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::at_most_one_create_sts_req_is_in_flight(rabbitmq.object_ref()))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::busy_disabled()))
-        .and(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))
-        .and(lift_state(helper_invariants::at_most_one_create_sts_req_is_in_flight(rabbitmq.object_ref())))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -2531,23 +2426,14 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
         &&& helper_invariants::at_most_one_update_cm_req_is_in_flight(rabbitmq.object_ref())(s)
         &&& helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())(s)
     };
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::at_most_one_update_cm_req_is_in_flight(rabbitmq.object_ref())),
         lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref()))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::busy_disabled()))
-        .and(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))
-        .and(lift_state(helper_invariants::at_most_one_update_cm_req_is_in_flight(rabbitmq.object_ref())))
-        .and(lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -2637,8 +2523,8 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
         &&& helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())(s)
         &&& helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)(s)
     };
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
@@ -2647,17 +2533,6 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
         lift_state(helper_invariants::at_most_one_update_cm_req_is_in_flight(rabbitmq.object_ref())),
         lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())),
         lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::busy_disabled()))
-        .and(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))
-        .and(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))
-        .and(lift_state(helper_invariants::at_most_one_update_cm_req_is_in_flight(rabbitmq.object_ref())))
-        .and(lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())))
-        .and(lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -2734,8 +2609,8 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_conf
         &&& helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())(s)
     };
 
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
@@ -2744,17 +2619,6 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_conf
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         lift_state(helper_invariants::at_most_one_update_cm_req_is_in_flight(rabbitmq.object_ref())),
         lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref()))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::crash_disabled()))
-        .and(lift_state(RMQCluster::busy_disabled()))
-        .and(lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())))
-        .and(lift_state(RMQCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())))
-        .and(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))
-        .and(lift_state(helper_invariants::at_most_one_update_cm_req_is_in_flight(rabbitmq.object_ref())))
-        .and(lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())))
     );
 
     RMQCluster::lemma_pre_leads_to_post_by_controller(
@@ -2783,19 +2647,12 @@ proof fn lemma_server_config_map_is_stable(
         &&& helper_invariants::every_update_cm_req_does_the_same(rabbitmq)(s)
         &&& helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)(s)
     };
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())),
         lift_state(helper_invariants::every_update_cm_req_does_the_same(rabbitmq)),
         lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())))
-        .and(lift_state(helper_invariants::every_update_cm_req_does_the_same(rabbitmq)))
-        .and(lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)))
     );
 
     assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
@@ -2824,19 +2681,12 @@ proof fn lemma_stateful_set_is_stable(
         &&& helper_invariants::every_update_sts_req_does_the_same(rabbitmq)(s)
         &&& helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)(s)
     };
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())),
         lift_state(helper_invariants::every_update_sts_req_does_the_same(rabbitmq)),
         lift_state(helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())))
-        .and(lift_state(helper_invariants::every_update_sts_req_does_the_same(rabbitmq)))
-        .and(lift_state(helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)))
     );
 
     assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {

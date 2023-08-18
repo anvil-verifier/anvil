@@ -48,8 +48,8 @@ pub proof fn lemma_eventually_only_valid_server_config_map_exists(spec: TempPred
         RMQCluster::desired_state_is(rabbitmq)(s)
         && server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)(s)
     };
-    invariant_state_n!(
-        spec, state, lift_state(RMQCluster::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(RMQCluster::garbage_collector_deletion_enabled(key))),
+    invariant_n!(
+        spec, lift_state(state), lift_state(RMQCluster::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(RMQCluster::garbage_collector_deletion_enabled(key))),
         lift_state(RMQCluster::desired_state_is(rabbitmq)),
         lift_state(server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))
     );
@@ -84,8 +84,8 @@ pub proof fn lemma_eventually_only_valid_stateful_set_exists(spec: TempPred<RMQC
         RMQCluster::desired_state_is(rabbitmq)(s)
         && stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)(s)
     };
-    invariant_state_n!(
-        spec, state, lift_state(RMQCluster::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(RMQCluster::garbage_collector_deletion_enabled(key))),
+    invariant_n!(
+        spec, lift_state(state), lift_state(RMQCluster::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(RMQCluster::garbage_collector_deletion_enabled(key))),
         lift_state(RMQCluster::desired_state_is(rabbitmq)),
         lift_state(stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))
     );

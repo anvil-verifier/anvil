@@ -520,13 +520,9 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_after_get_cr_pc_and_exists_pe
         &&& !s.crash_enabled
         &&& every_in_flight_msg_has_lower_id_than_allocator::<SimpleReconcileState>()(s)
     };
-    entails_always_and_n!(partial_spec_with_invariants_and_assumptions(cr),
+    combine_spec_entails_always_n!(partial_spec_with_invariants_and_assumptions(cr), lift_action(stronger_next)
         lift_action(next(simple_reconciler())), lift_state(crash_disabled::<SimpleReconcileState>()),
         lift_state(every_in_flight_msg_has_lower_id_than_allocator::<SimpleReconcileState>()));
-    temp_pred_equality(lift_action(stronger_next),
-        lift_action(next(simple_reconciler()))
-        .and(lift_state(crash_disabled::<SimpleReconcileState>()))
-        .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator::<SimpleReconcileState>())));
     assert forall |s, s_prime| reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())(s) && #[trigger] stronger_next(s, s_prime) implies
     reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())(s_prime)
     || reconciler_at_after_get_cr_pc_and_exists_pending_req_and_req_in_flight_and_no_resp_in_flight(cr)(s_prime) by {

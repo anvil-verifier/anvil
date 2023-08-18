@@ -78,8 +78,8 @@ proof fn lemma_always_cm_create_request_msg_is_valid(spec: TempPred<RMQCluster>,
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
     };
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
-    strengthen_next_n!(
-        stronger_next, spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
     );
@@ -145,8 +145,8 @@ proof fn lemma_always_cm_update_request_msg_is_valid(spec: TempPred<RMQCluster>,
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
     };
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
-    strengthen_next_n!(
-        stronger_next, spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
     );
@@ -199,8 +199,8 @@ proof fn lemma_always_sts_update_request_msg_is_valid(spec: TempPred<RMQCluster>
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
     };
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
-    strengthen_next_n!(
-        stronger_next, spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
     );
@@ -253,8 +253,8 @@ proof fn lemma_always_sts_create_request_msg_is_valid(spec: TempPred<RMQCluster>
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
     };
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
-    strengthen_next_n!(
-        stronger_next, spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
     );
@@ -316,15 +316,10 @@ pub proof fn lemma_always_pending_msg_at_after_create_server_config_map_step_is_
 
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
 
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))
     );
 
     init_invariant(spec, init, stronger_next, invariant);
@@ -365,15 +360,10 @@ pub proof fn lemma_always_pending_msg_at_after_update_server_config_map_step_is_
 
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
 
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))
     );
 
     init_invariant(spec, init, stronger_next, invariant);
@@ -503,8 +493,8 @@ pub proof fn lemma_true_leads_to_always_at_most_one_create_cm_req_is_in_flight(s
             }
         }
     }
-    invariant_action_n!(
-        spec, stronger_next, RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements),
+    invariant_n!(
+        spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()), lift_state(RMQCluster::crash_disabled()), lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
@@ -615,8 +605,8 @@ pub proof fn lemma_true_leads_to_always_at_most_one_update_cm_req_is_in_flight(s
         }
     }
 
-    invariant_action_n!(
-        spec, stronger_next, RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements),
+    invariant_n!(
+        spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
@@ -687,8 +677,8 @@ pub proof fn lemma_always_server_config_map_has_no_finalizers_or_timestamp_and_o
         &&& cm_update_request_msg_is_valid(rabbitmq.object_ref())(s)
         &&& cm_create_request_msg_is_valid(rabbitmq.object_ref())(s)
     };
-    strengthen_next_n!(
-        stronger_next, spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(cm_update_request_msg_is_valid(rabbitmq.object_ref())),
         lift_state(cm_create_request_msg_is_valid(rabbitmq.object_ref()))
@@ -727,8 +717,8 @@ pub proof fn lemma_always_stateful_set_has_no_finalizers_or_timestamp_and_only_h
         &&& sts_update_request_msg_is_valid(rabbitmq.object_ref())(s)
         &&& sts_create_request_msg_is_valid(rabbitmq.object_ref())(s)
     };
-    strengthen_next_n!(
-        stronger_next, spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(sts_update_request_msg_is_valid(rabbitmq.object_ref())),
         lift_state(sts_create_request_msg_is_valid(rabbitmq.object_ref()))
@@ -777,8 +767,8 @@ pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: 
             }
         }
     }
-    invariant_action_n!(
-        spec, stronger_next, RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements),
+    invariant_n!(
+        spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()), lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
     );
@@ -838,8 +828,8 @@ pub proof fn lemma_true_leads_to_always_no_delete_cm_req_is_in_flight(spec: Temp
             }
         }
     }
-    invariant_action_n!(
-        spec, stronger_next, RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements),
+    invariant_n!(
+        spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()), lift_state(RMQCluster::desired_state_is(rabbitmq)),
         lift_state(server_config_map_has_owner_reference_pointing_to_current_cr(rabbitmq)),
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed())
@@ -919,8 +909,8 @@ pub proof fn lemma_true_leads_to_always_every_update_sts_req_does_the_same(spec:
             }
         }
     }
-    invariant_action_n!(
-        spec, stronger_next, RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements),
+    invariant_n!(
+        spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()), lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
     );
@@ -982,8 +972,8 @@ pub proof fn lemma_true_leads_to_always_every_create_sts_req_does_the_same(spec:
             }
         }
     }
-    invariant_action_n!(
-        spec, stronger_next, RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements),
+    invariant_n!(
+        spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()), lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
     );
@@ -1060,8 +1050,8 @@ pub proof fn lemma_true_leads_to_always_every_create_cm_req_does_the_same(spec: 
             }
         }
     }
-    invariant_action_n!(
-        spec, stronger_next, RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements),
+    invariant_n!(
+        spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()), lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
     );
@@ -1104,15 +1094,9 @@ pub proof fn lemma_always_pending_msg_at_after_create_stateful_set_step_is_creat
 
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
 
-    entails_always_and_n!(
-        spec,
-        lift_action(RMQCluster::next()),
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next), lift_action(RMQCluster::next()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))
     );
 
     init_invariant(spec, init, stronger_next, invariant);
@@ -1153,15 +1137,10 @@ pub proof fn lemma_always_pending_msg_at_after_update_stateful_set_step_is_updat
 
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
 
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(RMQCluster::next())
-        .and(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))
     );
 
     init_invariant(spec, init, stronger_next, invariant);
@@ -1265,8 +1244,8 @@ pub proof fn lemma_true_leads_to_always_at_most_one_create_sts_req_is_in_flight(
             }
         }
     }
-    invariant_action_n!(
-        spec, stronger_next, RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements),
+    invariant_n!(
+        spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()), lift_state(RMQCluster::crash_disabled()), lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
@@ -1375,8 +1354,8 @@ pub proof fn lemma_true_leads_to_always_at_most_one_update_sts_req_is_in_flight(
             }
         }
     }
-    invariant_action_n!(
-        spec, stronger_next, RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements),
+    invariant_n!(
+        spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()), lift_state(RMQCluster::crash_disabled()), lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
@@ -1458,8 +1437,8 @@ pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: Tem
             }
         }
     }
-    invariant_action_n!(
-        spec, stronger_next, RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements),
+    invariant_n!(
+        spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()), lift_state(RMQCluster::desired_state_is(rabbitmq)),
         lift_state(stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)),
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed())

@@ -79,19 +79,19 @@ spec fn exists_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePre
 }
 
 
-/// This lemma is used to show that under some assumptions, the owner references of given object will eventually satisfy the 
+/// This lemma is used to show that under some assumptions, the owner references of given object will eventually satisfy the
 /// provided requirements (e.g., only points to the current cr's reference). We introduce this lemma because during reconciler
 /// process, the reconciler only considers the object created from current cr and if so, it continues; otherwises, it returns.
 /// With this lemma, we can prove that the reconciler will eventually continue the reconcile process. To use this lemma, please
 /// read the explanations of all the preconditions and what each of them is for.
-/// 
+///
 /// This lemma requires the following preconditions:
 ///     1. spec |= [](in_flight(update_msg_with(msg, key)) ==> satisfies(msg.obj.metadata.owner_references, eventual_owner_ref)).
 ///     2. spec |= [](in_flight(create_msg_with(msg, key)) ==> satisfies(msg.obj.metadata.owner_references, eventual_owner_ref)).
 ///     3. spec |= [](key_exists(key) ==> resource_obj_of(key) has no finalizers).
 ///     4. spec |= [](!satisfies(eventual_owner_ref, key) => garbage_collector_deletion_enabled).
 /// 1 is used to prove the stability; otherwise, even if the invalid object is deleted, the current system may also create an invalid
-/// object or update the obejct into an invalid status. 
+/// object or update the obejct into an invalid status.
 /// In 3, no finalizers ensures the deletion will be done as long as the deleted request is received, used by
 /// lemma_delete_msg_in_flight_leads_to_owner_references_satisfies.
 /// 4 is quite intuitive. To reach the expected owner references state, we must ensure that if it's not expected, it satifies
@@ -99,13 +99,13 @@ spec fn exists_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePre
 /// if with any other owner references, should be deleted. 4 basically limits the domain of "any other owner references". For example,
 /// in rabbitmq controller, the universal set should be the set of any cr's controller owner ref that has once been in reconcile.
 /// If we don't have this, suppose owner_ref == None, then the object won't be deleted.
-/// 
+///
 /// The proof of spec |= true ~> objects_owner_references_satisfies(eventual_owner_ref) consists of two parts:
 ///     1. spec |= true ~> (object_has_invalid_owner_reference ==> delete message in flight).
 ///     2. spec |= (object_has_invalid_owner_reference ==> delete message in flight) ~> all_objects_have_expected_owner_references.
 /// The first is primarily obtained by the weak fairness of the builtin controllers action (specifially, the garbage collector);
 /// and the second holds due to the weak fairness of kubernetes api.
-/// 
+///
 /// This lemma is enough for current proof, if later we introduce more complex case, we can try to strengthen it.
 pub proof fn lemma_eventually_objects_owner_references_satisfies(
     spec: TempPred<Self>, key: ObjectRef, eventual_owner_ref: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool
@@ -126,7 +126,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
     // We split `true` into two cases:
     //     a. The object's owner references violates eventual_owner_ref.
     //     b. The object's owner references satisfies eventual_owner_ref.
-    // b. is already the post state. We only need to show spec |= case a ~> post. This is straightforward via the weak fairness of builtin 
+    // b. is already the post state. We only need to show spec |= case a ~> post. This is straightforward via the weak fairness of builtin
     // controllers. Note that from precondition 4, we can replace a. with the "pre" (the variable in the lemma body).
 
     let pre = |s: Self| {
@@ -148,8 +148,8 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         &&& Self::objects_owner_references_violates(key, eventual_owner_ref)(s_prime) ==> Self::garbage_collector_deletion_enabled(key)(s_prime)
     };
     always_to_always_later(spec, lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))));
-    strengthen_next_n!(
-        stronger_next, spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next), 
         lift_action(Self::next()),
         lift_state(Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)),
         lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)),
@@ -249,8 +249,8 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
                     &&& Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)(s)
                     &&& Self::object_has_no_finalizers(key)(s)
                 };
-                strengthen_next_n!(
-                    stronger_next, spec,
+                combine_spec_entails_always_n!(
+                    spec, lift_action(stronger_next), 
                     lift_action(Self::next()),
                     lift_state(Self::busy_disabled()),
                     lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)),

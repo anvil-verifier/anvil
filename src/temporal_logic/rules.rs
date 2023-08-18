@@ -1134,85 +1134,64 @@ pub use combine_with_next_internal;
 
 /// Strengthen next with arbitrary number of predicates.
 /// pre:
-///     spec |= []next
 ///     spec |= []p1
 ///     spec |= []p2
 ///        ...
 ///     spec |= []pn
-///     stronger_next == next /\ p1 /\ p2 /\ ... /\ pn
+///     all == p1 /\ p2 /\ ... /\ pn
 /// post:
-///     spec |= []stronger_next
+///     spec |= []all
 ///
-/// Usage: strengthen_next_n!(stronger_next, spec, next, p1, p2, p3, p4)
+/// Usage: combine_spec_entails_always_n!(spec, all, p1, p2, p3, p4)
 #[macro_export]
-macro_rules! strengthen_next_n {
+macro_rules! combine_spec_entails_always_n {
     [$($tail:tt)*] => {
-        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::strengthen_next_n_internal!($($tail)*))
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::combine_spec_entails_always_n_internal!($($tail)*))
     }
 }
 
 #[macro_export]
-macro_rules! strengthen_next_n_internal {
-    ($stronger_next:expr, $spec:expr, $($tail:tt)*) => {
+macro_rules! combine_spec_entails_always_n_internal {
+    ($spec:expr, $all:expr, $($tail:tt)*) => {
         entails_always_and_n!($spec, $($tail)*);
-        temp_pred_equality(lift_action($stronger_next), combine_with_next!($($tail)*));
+        temp_pred_equality($all, combine_with_next!($($tail)*));
     };
 }
 
-pub use strengthen_next_n;
-pub use strengthen_next_n_internal;
+pub use combine_spec_entails_always_n;
+pub use combine_spec_entails_always_n_internal;
 
 /// Show that an spec entails the invariant by a group of action/state predicates which are also invariants entailed by spec.
 /// pre:
-///     spec |= []next
-///     forall |s, s_prime| next(s, s_prime) ==> inv(s, s_prime)
+///     spec |= []partial_spec
+///     partial_spec |= inv
 ///     spec |= []p1
 ///     spec |= []p2
 ///         ...
 ///     spec |= []pn
-///     next == p1 /\ p2 /\ ... /\ pn
+///     partial_spec == p1 /\ p2 /\ ... /\ pn
 /// post:
 ///     spec |= []inv
-/// 
-/// Usage: invariant_action_n!(spec, next, inv, p1, p2, ..., pn)
+///
+/// Usage: invariant_n!(spec, partial_spec, inv, p1, p2, ..., pn)
 #[macro_export]
-macro_rules! invariant_action_n {
+macro_rules! invariant_n {
     [$($tail:tt)*] => {
-        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::invariant_action_n_internal!($($tail)*))
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::invariant_n_internal!($($tail)*))
     }
 }
 
 #[macro_export]
-macro_rules! invariant_action_n_internal {
-    ($spec:expr, $next:expr, $inv:expr, $($tail:tt)*) => {
-        strengthen_next_n!($next, $spec, $($tail)*);
-        implies_preserved_by_always_temp(lift_action($next), lift_action($inv));
-        entails_trans($spec, always(lift_action($next)), always(lift_action($inv)));
+macro_rules! invariant_n_internal {
+    ($spec:expr, $partial_spec:expr, $inv:expr, $($tail:tt)*) => {
+        combine_spec_entails_always_n!($spec, $partial_spec, $($tail)*);
+        implies_preserved_by_always_temp($partial_spec, $inv);
+        entails_trans($spec, always($partial_spec), always($inv));
     };
 }
 
-pub use invariant_action_n;
-pub use invariant_action_n_internal;
-
-#[macro_export]
-macro_rules! invariant_state_n {
-    [$($tail:tt)*] => {
-        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::invariant_state_n_internal!($($tail)*))
-    }
-}
-
-#[macro_export]
-macro_rules! invariant_state_n_internal {
-    ($spec:expr, $state:expr, $inv:expr, $($tail:tt)*) => {
-        entails_always_and_n!($spec, $($tail)*);
-        temp_pred_equality(lift_state($state), combine_with_next!($($tail)*));
-        implies_preserved_by_always_temp(lift_state($state), $inv);
-        entails_trans($spec, always(lift_state($state)), always($inv));
-    };
-}
-
-pub use invariant_state_n;
-pub use invariant_state_n_internal;
+pub use invariant_n;
+pub use invariant_n_internal;
 
 /// Combining two specs together entails p and q if each of them entails p, q respectively.
 /// pre:
@@ -2421,11 +2400,11 @@ pub proof fn leads_to_trans_relaxed_auto<T>(spec: TempPred<T>)
     };
 }
 
-/// This rule can be used to prove leads_to when we have part (q) in this lemma of pre leads to post and 
+/// This rule can be used to prove leads_to when we have part (q) in this lemma of pre leads to post and
 /// the rest of pre directly implies post, which means pre ==> q \/ r.
 /// Sometimes pre ==> q \/ r is subject to some assumption. If that assumption is always satisfied, we can get
 /// spec |= always(assumption) |= always(pre ==> q \/ r) |= pre ~> q \/ r ~> r.
-/// 
+///
 /// If there doesn't have to be an assumtpion, i.e., |= pre ==> q \/ r, just pass true as the assumption.
 pub proof fn partial_implies_and_partial_leads_to_to_leads_to<T>(spec: TempPred<T>, assumption: TempPred<T>, pre: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
     requires

@@ -44,19 +44,9 @@ pub proof fn lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_
         &&& Self::next()(s, s_prime)
         &&& Self::desired_state_is(cr)(s)
     };
-    entails_always_and_n!(
-        spec,
-        lift_action(Self::next()),
-        lift_state(Self::desired_state_is(cr))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(Self::next())
-        .and(lift_state(Self::desired_state_is(cr)))
-    );
+    combine_spec_entails_always_n!(spec, lift_action(stronger_next), lift_action(Self::next()), lift_state(Self::desired_state_is(cr)));
 
     K::object_ref_is_well_formed();
-
     Self::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(
         spec, input, stronger_next, Self::desired_state_is(cr), pre, post
     );
@@ -94,11 +84,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid
                 &&& Self::next()(s, s_prime)
                 &&& Self::the_object_in_schedule_has_spec_and_uid_as(cr)(s)
             };
-            entails_always_and_n!(spec, lift_action(Self::next()), lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr)));
-            temp_pred_equality(
-                lift_action(stronger_next),
-                lift_action(Self::next()).and(lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr)))
-            );
+            combine_spec_entails_always_n!(spec, lift_action(stronger_next), lift_action(Self::next()), lift_state(Self::the_object_in_schedule_has_spec_and_uid_as(cr)));
 
             // Here we split the cases by whether s.reconcile_scheduled_for(cr.object_ref()) is true
             assert_by(
