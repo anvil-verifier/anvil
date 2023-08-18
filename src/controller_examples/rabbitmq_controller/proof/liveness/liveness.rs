@@ -317,6 +317,14 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
     invariants_since_phase_II_is_stable(rabbitmq);
     invariants_since_phase_III_is_stable(rabbitmq);
     invariants_since_phase_IV_is_stable(rabbitmq);
+    stable_and_n!(
+        invariants(rabbitmq),
+        always(lift_state(RMQCluster::desired_state_is(rabbitmq))),
+        invariants_since_phase_I(rabbitmq),
+        invariants_since_phase_II(rabbitmq),
+        invariants_since_phase_III(rabbitmq),
+        invariants_since_phase_IV(rabbitmq)
+    );
     // Eliminate all the invariants by phase.
     assert_by(
         invariants(rabbitmq).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))).and(invariants_since_phase_I(rabbitmq)).and(invariants_since_phase_II(rabbitmq)).and(invariants_since_phase_III(rabbitmq)).and(invariants_since_phase_IV(rabbitmq))
@@ -325,14 +333,6 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
         ),
         {
             let spec = invariants(rabbitmq).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))).and(invariants_since_phase_I(rabbitmq)).and(invariants_since_phase_II(rabbitmq)).and(invariants_since_phase_III(rabbitmq)).and(invariants_since_phase_IV(rabbitmq));
-            stable_and_n!(
-                invariants(rabbitmq),
-                always(lift_state(RMQCluster::desired_state_is(rabbitmq))),
-                invariants_since_phase_I(rabbitmq),
-                invariants_since_phase_II(rabbitmq),
-                invariants_since_phase_III(rabbitmq),
-                invariants_since_phase_IV(rabbitmq)
-            );
             unpack_conditions_from_spec(spec, invariants_since_phase_V(rabbitmq), true_pred(), always(current_state_matches(rabbitmq)));
             temp_pred_equality(true_pred().and(invariants_since_phase_V(rabbitmq)), invariants_since_phase_V(rabbitmq));
             eliminate_always(spec, lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()));
@@ -353,13 +353,6 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
         ),
         {
             let spec = invariants(rabbitmq).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))).and(invariants_since_phase_I(rabbitmq)).and(invariants_since_phase_II(rabbitmq)).and(invariants_since_phase_III(rabbitmq));
-            stable_and_n!(
-                invariants(rabbitmq),
-                always(lift_state(RMQCluster::desired_state_is(rabbitmq))),
-                invariants_since_phase_I(rabbitmq),
-                invariants_since_phase_II(rabbitmq),
-                invariants_since_phase_III(rabbitmq)
-            );
             unpack_conditions_from_spec(spec, invariants_since_phase_IV(rabbitmq), true_pred(), always(current_state_matches(rabbitmq)));
             temp_pred_equality(true_pred().and(invariants_since_phase_IV(rabbitmq)), invariants_since_phase_IV(rabbitmq));
             helper_invariants::lemma_eventually_only_valid_stateful_set_exists(spec, rabbitmq);
@@ -378,20 +371,8 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
         ),
         {
             let spec = invariants(rabbitmq).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))).and(invariants_since_phase_I(rabbitmq)).and(invariants_since_phase_II(rabbitmq));
-            stable_and_n!(
-                invariants(rabbitmq),
-                always(lift_state(RMQCluster::desired_state_is(rabbitmq))),
-                invariants_since_phase_I(rabbitmq),
-                invariants_since_phase_II(rabbitmq)
-            );
             unpack_conditions_from_spec(spec, invariants_since_phase_III(rabbitmq), true_pred(), always(current_state_matches(rabbitmq)));
             temp_pred_equality(true_pred().and(invariants_since_phase_III(rabbitmq)), invariants_since_phase_III(rabbitmq));
-
-            eliminate_always(spec, lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()));
-            eliminate_always(spec, lift_state(helper_invariants::pending_msg_at_after_create_server_config_map_step_is_create_cm_req(rabbitmq.object_ref())));
-            eliminate_always(spec, lift_state(helper_invariants::pending_msg_at_after_update_server_config_map_step_is_update_cm_req(rabbitmq.object_ref())));
-            eliminate_always(spec, lift_state(helper_invariants::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(rabbitmq.object_ref())));
-            eliminate_always(spec, lift_state(helper_invariants::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(rabbitmq.object_ref())));
 
             helper_invariants::lemma_true_leads_to_always_at_most_one_create_cm_req_is_in_flight(spec, rabbitmq.object_ref());
             helper_invariants::lemma_true_leads_to_always_at_most_one_update_cm_req_is_in_flight(spec, rabbitmq.object_ref());
@@ -423,11 +404,6 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
         ),
         {
             let spec = invariants(rabbitmq).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))).and(invariants_since_phase_I(rabbitmq));
-            stable_and_n!(
-                invariants(rabbitmq),
-                always(lift_state(RMQCluster::desired_state_is(rabbitmq))),
-                invariants_since_phase_I(rabbitmq)
-            );
             unpack_conditions_from_spec(spec, invariants_since_phase_II(rabbitmq), true_pred(), always(current_state_matches(rabbitmq)));
             temp_pred_equality(true_pred().and(invariants_since_phase_II(rabbitmq)), invariants_since_phase_II(rabbitmq));
 
@@ -445,10 +421,6 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
         ),
         {
             let spec = invariants(rabbitmq).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))));
-            stable_and_n!(
-                invariants(rabbitmq),
-                always(lift_state(RMQCluster::desired_state_is(rabbitmq)))
-            );
             unpack_conditions_from_spec(spec, invariants_since_phase_I(rabbitmq), true_pred(), always(current_state_matches(rabbitmq)));
             temp_pred_equality(true_pred().and(invariants_since_phase_I(rabbitmq)), invariants_since_phase_I(rabbitmq));
 
