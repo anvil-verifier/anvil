@@ -149,7 +149,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
     };
     always_to_always_later(spec, lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))));
     combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next), 
+        spec, lift_action(stronger_next),
         lift_action(Self::next()),
         lift_state(Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)),
         lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)),
@@ -194,8 +194,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         spec.entails(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).leads_to(lift_state(post))),
         {
             Self::lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(spec, key, eventual_owner_ref);
-            or_leads_to_combine_temp(spec, lift_state(post), lift_state(Self::exists_delete_request_msg_in_flight_with_key(key)), lift_state(post));
-            temp_pred_equality(lift_state(delete_msg_in_flight), lift_state(post).or(lift_state(Self::exists_delete_request_msg_in_flight_with_key(key))));
+            or_leads_to_combine_and_equality!(spec, lift_state(delete_msg_in_flight), lift_state(post), lift_state(Self::exists_delete_request_msg_in_flight_with_key(key)); lift_state(post));
             leads_to_trans_n!(spec, lift_state(pre), lift_state(delete_msg_in_flight), lift_state(post));
 
             temp_pred_equality(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))), lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(pre)));
@@ -203,8 +202,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         }
     );
 
-    or_leads_to_combine_temp(spec, lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)), lift_state(post), lift_state(post));
-    temp_pred_equality(true_pred(), lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).or(lift_state(post)));
+    or_leads_to_combine_and_equality!(spec, true_pred(), lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)), lift_state(post); lift_state(post));
 
     leads_to_stable(spec, stronger_next, |s: Self| true, post);
 }
@@ -250,7 +248,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
                     &&& Self::object_has_no_finalizers(key)(s)
                 };
                 combine_spec_entails_always_n!(
-                    spec, lift_action(stronger_next), 
+                    spec, lift_action(stronger_next),
                     lift_action(Self::next()),
                     lift_state(Self::busy_disabled()),
                     lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)),

@@ -591,15 +591,11 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                 scheduled_and_not_in_reconcile,
                 lift_state(no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init))
             );
-            or_leads_to_combine_temp(
-                spec,
+            or_leads_to_combine_and_equality!(
+                spec, lift_state(|s: ZKCluster| !s.reconcile_state_contains(zk.object_ref())),
                 unscheduled_and_not_in_reconcile,
-                scheduled_and_not_in_reconcile,
+                scheduled_and_not_in_reconcile;
                 lift_state(no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init))
-            );
-            temp_pred_equality(
-                lift_state(|s: ZKCluster| !s.reconcile_state_contains(zk.object_ref())),
-                unscheduled_and_not_in_reconcile.or(scheduled_and_not_in_reconcile)
             );
         }
     );
@@ -892,8 +888,10 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                 &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
                 &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
             });
-            or_leads_to_combine_temp(spec, p1, p2, lift_state(current_state_matches(zk)));
-            temp_pred_equality(p1.or(p2), lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())));
+            or_leads_to_combine_and_equality!(
+                spec, lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())),
+                p1, p2; lift_state(current_state_matches(zk))
+            );
         }
     );
 

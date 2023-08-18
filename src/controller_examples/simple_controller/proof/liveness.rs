@@ -269,17 +269,12 @@ proof fn lemma_reconcile_ongoing_leads_to_cm_exists(cr: SimpleCRView)
             .leads_to(lift_state(cm_exists(cr)))
         ),
 {
-    temp_pred_equality::<State<SimpleReconcileState>>(
-        lift_state(|s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.object_ref())),
-        lift_state(reconciler_reconcile_error(cr))
-            .or(lift_state(reconciler_at_init_pc(cr)))
-            .or(lift_state(reconciler_at_after_get_cr_pc(cr)))
-            .or(lift_state(reconciler_at_after_create_cm_pc(cr))));
     lemma_error_pc_leads_to_cm_exists(cr);
     lemma_init_pc_leads_to_cm_exists(cr);
     lemma_after_get_cr_pc_leads_to_cm_exists(cr);
     lemma_after_create_cm_pc_leads_to_cm_exists(cr);
-    or_leads_to_combine_n!(partial_spec_with_invariants_and_assumptions(cr),
+    or_leads_to_combine_and_equality!(
+        partial_spec_with_invariants_and_assumptions(cr), lift_state(|s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.object_ref())),
         lift_state(reconciler_reconcile_error(cr)),
         lift_state(reconciler_at_init_pc(cr)),
         lift_state(reconciler_at_after_get_cr_pc(cr)),
