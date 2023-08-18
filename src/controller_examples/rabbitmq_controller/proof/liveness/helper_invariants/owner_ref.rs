@@ -37,7 +37,6 @@ spec fn sts_with_invalid_owner_ref_exists_implies_delete_msg_in_flight(rabbitmq:
     }
 }
 
-#[verifier(external_body)]
 pub proof fn lemma_eventually_only_valid_server_config_map_exists(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         rabbitmq.well_formed(),
@@ -53,22 +52,26 @@ pub proof fn lemma_eventually_only_valid_server_config_map_exists(spec: TempPred
         spec.entails(true_pred().leads_to(always(lift_state(server_config_map_has_owner_reference_pointing_to_current_cr(rabbitmq))))),
 {
     let key = make_server_config_map_key(rabbitmq.object_ref());
-    let always_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {
-        exists |uid: nat| #![auto]
-            owner_ref == Some(seq![OwnerReferenceView {
-                block_owner_deletion: None,
-                controller: Some(true),
-                kind: RabbitmqClusterView::kind(),
-                name: rabbitmq.metadata.name.get_Some_0(),
-                uid: uid,
-            }])
+    let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![rabbitmq.controller_owner_ref()])};
+    always_weaken(spec, every_update_cm_req_does_the_same(rabbitmq), every_update_msg_sets_owner_references_as(key, eventual_owner_ref));
+    always_weaken(spec, every_create_cm_req_does_the_same(rabbitmq), every_create_msg_sets_owner_references_as(key, eventual_owner_ref));
+    always_weaken(spec, server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq), object_has_no_finalizers_or_deletion_timestamp(key));
+
+    let state = |s: RMQCluster| {
+        RMQCluster::desired_state_is(rabbitmq)(s)
+        && server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)(s)
     };
-    let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {
-        owner_ref == Some(seq![rabbitmq.controller_owner_ref()])
-    };
-    // lemma_eventually_objects_owner_references_satisfies(
-    //     spec, key,
-    // );
+    assert forall |s: RMQCluster| #[trigger] state(s) implies (objects_owner_references_violates(key, eventual_owner_ref)(s) ==> RMQCluster::garbage_collector_deletion_enabled(key)(s)) by {}
+    invariant_state_n!(
+        spec, state, lift_state(objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(RMQCluster::garbage_collector_deletion_enabled(key))),
+        lift_state(RMQCluster::desired_state_is(rabbitmq)),
+        lift_state(server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))
+    );
+    lemma_eventually_objects_owner_references_satisfies(spec, key, eventual_owner_ref);
+    temp_pred_equality(
+        lift_state(server_config_map_has_owner_reference_pointing_to_current_cr(rabbitmq)),
+        lift_state(objects_owner_references_satisfies(key, eventual_owner_ref))
+    );
 }
 
 /// The proof of spec |= true ~> all_objects_have_expected_owner_references consists of two parts:
