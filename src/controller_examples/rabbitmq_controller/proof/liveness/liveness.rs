@@ -1370,7 +1370,7 @@ proof fn lemma_from_after_get_stateful_set_and_key_exists_to_rabbitmq_matches(ra
     }
     leads_to_exists_intro(spec, pre_with_object, lift_state(current_stateful_set_matches(rabbitmq)));
     assert_by(
-        lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)).entails(pre.implies(tla_exists(pre_with_object))),
+        pre.and(lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq))).entails(tla_exists(pre_with_object)),
         {
             assert forall |ex| #[trigger] lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)).satisfied_by(ex) implies pre.implies(tla_exists(pre_with_object)).satisfied_by(ex) by {
                 if pre.satisfied_by(ex) {
@@ -1381,10 +1381,14 @@ proof fn lemma_from_after_get_stateful_set_and_key_exists_to_rabbitmq_matches(ra
             }
         }
     );
-    implies_with_spec_to_leads_to(
-        spec, lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)),
-        pre, tla_exists(pre_with_object), lift_state(current_stateful_set_matches(rabbitmq))
+    valid_implies_implies_leads_to(
+        spec, pre.and(lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq))), tla_exists(pre_with_object)
     );
+    borrow_conditions_from_spec(
+        spec, lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)), 
+        pre, tla_exists(pre_with_object)
+    );
+    leads_to_trans_temp(spec, pre, tla_exists(pre_with_object), lift_state(current_stateful_set_matches(rabbitmq)));
 }
 
 proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_rabbitmq(
