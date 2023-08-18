@@ -143,18 +143,27 @@ pub open spec fn reconcile_core(
             && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
                 let get_sts_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
                 if get_sts_resp.is_Ok() {
-                    // update
                     if StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).is_Ok() {
                         let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).get_Ok_0();
-                        let state_prime = ZookeeperReconcileState {
-                            reconcile_step: ZookeeperReconcileStep::AfterSetZKNode,
-                            sts_from_get: Some(found_stateful_set),
-                            ..state
-                        };
-                        let ext_req = ZKAPIInputView::SetZKNode(
-                            zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), int_to_string_view(zk.spec.replicas)
-                        );
-                        (state_prime, Some(RequestView::ExternalRequest(ext_req)))
+                        if stateful_set_is_as_desired(zk, found_stateful_set) {
+                            // noop
+                            let state_prime = ZookeeperReconcileState {
+                                reconcile_step: ZookeeperReconcileStep::Done,
+                                ..state
+                            };
+                            (state_prime, None)
+                        } else {
+                            // update
+                            let state_prime = ZookeeperReconcileState {
+                                reconcile_step: ZookeeperReconcileStep::AfterSetZKNode,
+                                sts_from_get: Some(found_stateful_set),
+                                ..state
+                            };
+                            let ext_req = ZKAPIInputView::SetZKNode(
+                                zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), int_to_string_view(zk.spec.replicas)
+                            );
+                            (state_prime, Some(RequestView::ExternalRequest(ext_req)))
+                        }
                     } else {
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::Error,
@@ -191,7 +200,10 @@ pub open spec fn reconcile_core(
         ZookeeperReconcileStep::AfterSetZKNode => {
             if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
             && resp_o.get_Some_0().get_ExternalResponse_0().is_SetZKNode()
-            && state.sts_from_get.is_Some(){
+            && resp_o.get_Some_0().get_ExternalResponse_0().get_SetZKNode_0().res.is_Ok()
+            && state.sts_from_get.is_Some() {
+                // Only proceed to update the stateful set when zk node is set successfully,
+                // otherwise it might cause unsafe downscale.
                 let found_stateful_set = state.sts_from_get.get_Some_0();
                 let req_o = APIRequest::UpdateRequest(UpdateRequest {
                     key: make_stateful_set_key(zk.object_ref()),
@@ -201,7 +213,7 @@ pub open spec fn reconcile_core(
                     reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
                     sts_from_get: None,
                 };
-                (state_prime,  Some(RequestView::KRequest(req_o)))
+                (state_prime, Some(RequestView::KRequest(req_o)))
             } else {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Error,
@@ -410,11 +422,20 @@ pub open spec fn make_stateful_set_name(zk_name: StringView) -> StringView {
     zk_name
 }
 
+pub open spec fn stateful_set_is_as_desired(zk: ZookeeperClusterView, found_stateful_set: StatefulSetView) -> bool {
+    update_stateful_set(zk, found_stateful_set) == found_stateful_set
+}
+
 pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_set: StatefulSetView) -> StatefulSetView
     recommends
         zk.well_formed(),
 {
-    found_stateful_set.set_spec(make_stateful_set(zk).spec.get_Some_0())
+    found_stateful_set
+        .set_metadata(
+            found_stateful_set.metadata
+                .set_labels(make_stateful_set(zk).metadata.labels.get_Some_0())
+        )
+        .set_spec(make_stateful_set(zk).spec.get_Some_0())
 }
 
 pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView

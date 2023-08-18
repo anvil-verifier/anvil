@@ -12,16 +12,8 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-pub type ZKAPIResult = Result<(), Error>;
-
-impl ToView for ZKAPIResult {
-    type V = ZKAPIResultView;
-    spec fn to_view(&self) -> ZKAPIResultView {
-        match self {
-            Ok(_) => Ok(()),
-            Err(_) => Err(Error::ClusterSizeZKNodeSetFailed),
-        }
-    }
+pub struct ZKAPIResult {
+    pub res: Result<(), Error>,
 }
 
 #[is_variant]
@@ -36,7 +28,7 @@ pub enum ZKAPIOutput {
 
 impl ToView for ZKAPIInput {
     type V = ZKAPIInputView;
-    spec fn to_view(&self) -> ZKAPIInputView {
+    open spec fn to_view(&self) -> ZKAPIInputView {
         match self {
             ZKAPIInput::SetZKNode(zk_name, zk_namespace, replicas)
                 => ZKAPIInputView::SetZKNode(zk_name@, zk_namespace@, replicas@),
@@ -44,39 +36,30 @@ impl ToView for ZKAPIInput {
     }
 }
 
-pub proof fn zk_api_input_to_view_match(zk_name: String, zk_namespace: String, replicas: String)
-    ensures
-        ZKAPIInput::SetZKNode(zk_name, zk_namespace, replicas).to_view()
-            == ZKAPIInputView::SetZKNode(zk_name@, zk_namespace@, replicas@) {}
-
 impl ToView for ZKAPIOutput {
     type V = ZKAPIOutputView;
-    spec fn to_view(&self) -> ZKAPIOutputView {
+    open spec fn to_view(&self) -> ZKAPIOutputView {
         match self {
-            ZKAPIOutput::SetZKNode(result) => ZKAPIOutputView::SetZKNode(result.to_view()),
+            ZKAPIOutput::SetZKNode(result) => ZKAPIOutputView::SetZKNode(ZKAPIResultView {res: result.res}),
         }
     }
 }
 
-pub proof fn zk_api_output_to_view_match(result: ZKAPIResult)
-    ensures
-        ZKAPIOutput::SetZKNode(result).to_view() == ZKAPIOutputView::SetZKNode(result.to_view()) {}
-
 impl ZKAPIOutput {
-    pub fn is_reconcile_zk_node(&self) -> (res: bool)
-        ensures res <==> self.is_SetZKNode(),
+    pub fn is_set_zk_node_response(&self) -> (res: bool)
+        ensures
+            res == self.is_SetZKNode(),
     {
         match self {
             ZKAPIOutput::SetZKNode(_) => true,
         }
     }
 
-    pub fn into_zk_api_result(self) -> (result: ZKAPIResult)
+    pub fn into_set_zk_node_response(self) -> (result: ZKAPIResult)
         requires
             self.is_SetZKNode(),
         ensures
             result == self.get_SetZKNode_0(),
-            result.is_Ok() <==> self.get_SetZKNode_0().is_Ok(),
     {
         match self {
             ZKAPIOutput::SetZKNode(result) => result,
@@ -104,6 +87,11 @@ impl Watcher for LoggingWatcher {
 
 #[verifier(external)]
 pub fn reconcile_zk_node(zk_name: String, zk_namespace: String, replicas: String) -> ZKAPIResult {
+    ZKAPIResult {res: reconcile_zk_node_internal(zk_name, zk_namespace, replicas)}
+}
+
+#[verifier(external)]
+pub fn reconcile_zk_node_internal(zk_name: String, zk_namespace: String, replicas: String) -> Result<(), Error> {
     let uri = &format!(
         "{}-client.{}.svc.cluster.local:2181",
         zk_name.as_rust_string_ref(),
@@ -138,7 +126,7 @@ pub fn reconcile_zk_node(zk_name: String, zk_namespace: String, replicas: String
 }
 
 #[verifier(external)]
-pub fn ensure_parent_node_exists(parent_node_path: &str, zk_client: &ZooKeeper) -> ZKAPIResult {
+pub fn ensure_parent_node_exists(parent_node_path: &str, zk_client: &ZooKeeper) -> Result<(), Error> {
     let data = Vec::new();
     let acl = Acl::open_unsafe().to_vec();
     match zk_client.exists(parent_node_path, false) {

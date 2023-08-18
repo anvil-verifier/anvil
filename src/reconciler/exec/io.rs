@@ -42,7 +42,8 @@ impl <T: ToView> Response<T> {
     }
 
     pub fn is_external_response(&self) -> (res: bool)
-        ensures res <==> self.is_ExternalResponse(),
+        ensures
+            res == self.is_ExternalResponse(),
     {
         match self {
             Response::ExternalResponse(_) => true,
@@ -75,7 +76,8 @@ impl <T: ToView> Response<T> {
     }
 
     pub fn is_k_response(&self) -> (res: bool)
-        ensures res <==> self.is_KResponse(),
+        ensures
+            res == self.is_KResponse(),
     {
         match self {
             Response::KResponse(_) => true,
@@ -94,7 +96,6 @@ impl <T: ToView> Response<T> {
             _ => unreached(),
         }
     }
-
 
     pub fn into_k_response(self) -> (resp: KubeAPIResponse)
         requires

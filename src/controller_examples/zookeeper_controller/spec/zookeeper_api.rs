@@ -8,6 +8,10 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
+pub struct ZKAPIResultView {
+    pub res: Result<(), Error>,
+}
+
 #[is_variant]
 pub enum ZKAPIInputView {
     SetZKNode(StringView, StringView, StringView),
@@ -17,8 +21,6 @@ pub enum ZKAPIInputView {
 pub enum ZKAPIOutputView {
     SetZKNode(ZKAPIResultView),
 }
-
-pub type ZKAPIResultView = Result<(), Error>;
 
 pub struct ZooKeeperState {
     pub data: Map<ObjectRef, StringView>,
@@ -73,7 +75,7 @@ pub open spec fn reconcile_zk_node(
         data: new_data,
         ..state
     };
-    (Some(ZKAPIOutputView::SetZKNode(Ok(()))), state_prime)
+    (Some(ZKAPIOutputView::SetZKNode(ZKAPIResultView{res: Ok(())})), state_prime)
 }
 
 }
