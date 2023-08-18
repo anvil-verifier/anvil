@@ -581,6 +581,21 @@ pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
     fun_ext::<Execution<T>, bool>(p.pred, q.pred);
 }
 
+pub proof fn always_to_always_later<T>(spec: TempPred<T>, p: TempPred<T>)
+    requires
+        spec.entails(always(p)),
+    ensures
+        spec.entails(always(later(p))),
+{
+    assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies always(later(p)).satisfied_by(ex) by {
+        always_propagate_forwards(ex, p, 1);
+        assert forall |i| #[trigger] later(p).satisfied_by(ex.suffix(i)) by {
+            execution_equality(ex.suffix(i).suffix(1), ex.suffix(1).suffix(i));
+        }
+    }
+    entails_trans(spec, always(p), always(later(p)));
+}
+
 pub proof fn always_double_equality<T>(p: TempPred<T>)
     ensures
         always(always(p)) == always(p),

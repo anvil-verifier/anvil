@@ -23,6 +23,20 @@ verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
+pub open spec fn garbage_collector_deletion_enabled(key: ObjectRef) -> StatePred<Self> {
+    |s: Self| {
+        let owner_references = s.resource_obj_of(key).metadata.owner_references.get_Some_0();
+
+        &&& s.resource_key_exists(key)
+        &&& s.resource_obj_of(key).metadata.owner_references.is_Some()
+        &&& s.resource_obj_of(key).metadata.owner_references.get_Some_0().len() > 0
+        &&& forall |i| #![trigger owner_references[i]] 0 <= i < owner_references.len() ==> {
+            ||| !s.resource_key_exists(owner_reference_to_object_reference(owner_references[i], key.namespace))
+            ||| s.resource_obj_of(owner_reference_to_object_reference(owner_references[i], key.namespace)).metadata.uid != Some(owner_references[i].uid)
+        }
+    }
+}
+
 pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
     Action {
         precondition: |input: BuiltinControllersActionInput, s: BuiltinControllersState| {
