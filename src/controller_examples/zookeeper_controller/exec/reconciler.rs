@@ -104,8 +104,7 @@ pub fn reconcile_core(
     zk: &ZookeeperCluster, resp_o: Option<Response<ZKAPIOutput>>, state: ZookeeperReconcileState
 ) -> (res: (ZookeeperReconcileState, Option<Request<ZKAPIInput>>))
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         (res.0.to_view(), opt_request_to_view(&res.1)) == zk_spec::reconcile_core(zk@, opt_response_to_view(&resp_o), state.to_view()),
 {
@@ -285,8 +284,7 @@ pub fn reconcile_core(
 /// Headless Service is used to assign DNS entry to each zookeeper server Pod
 fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         service@ == zk_spec::make_headless_service(zk@),
 {
@@ -311,8 +309,7 @@ fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
 /// Client Service is used for any client to connect to the zookeeper server
 fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         service@ == zk_spec::make_client_service(zk@),
 {
@@ -333,8 +330,7 @@ fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
 /// Admin-server Service is used for client to connect to admin server
 fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         service@ == zk_spec::make_admin_server_service(zk@),
 {
@@ -355,8 +351,7 @@ fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
 /// make_service constructs the Service object given the name, ports and cluster_ip
 fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cluster_ip: bool) -> (service: Service)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         service@ == zk_spec::make_service(zk@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip),
 {
@@ -391,8 +386,7 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
 /// The ConfigMap stores the configuration data of zookeeper servers
 fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         config_map@ == zk_spec::make_config_map(zk@),
 {
@@ -483,8 +477,7 @@ fn make_log4j_quiet_config() -> (s: String)
 
 fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         s@ == zk_spec::make_env_config(zk@),
 {
@@ -507,7 +500,7 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
 
 fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
     requires
-        zk@.metadata.name.is_Some(),
+        zk@.well_formed(),
     ensures
         name@ == zk_spec::make_stateful_set_name(zk@.metadata.name.get_Some_0()),
 {
@@ -518,8 +511,7 @@ fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
 /// and the volumes attached to each server (as PersistentVolumeClaims)
 fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         stateful_set@ == zk_spec::make_stateful_set(zk@),
 {
@@ -627,8 +619,7 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
 
 fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         pod_spec@ == zk_spec::make_zk_pod_spec(zk@),
 {

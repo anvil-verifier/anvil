@@ -72,8 +72,7 @@ pub open spec fn reconcile_core(
     zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKAPIOutputView>>, state: ZookeeperReconcileState
 ) -> (ZookeeperReconcileState, Option<RequestView<ZKAPIInputView>>)
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     let step = state.reconcile_step;
     match step {
@@ -245,8 +244,7 @@ pub open spec fn reconcile_error_result(state: ZookeeperReconcileState) -> (Zook
 
 pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     let ports = seq![
         ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(2181),
@@ -261,8 +259,7 @@ pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView
 
 pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(2181)];
 
@@ -271,16 +268,14 @@ pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView
 
 pub open spec fn make_client_service_name(zk: ZookeeperClusterView) -> StringView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     zk.metadata.name.get_Some_0() + new_strlit("-client")@
 }
 
 pub open spec fn make_admin_server_service(zk: ZookeeperClusterView) -> ServiceView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-admin-server")@).set_port(8080)];
 
@@ -291,8 +286,7 @@ pub open spec fn make_service(
     zk: ZookeeperClusterView, name: StringView, ports: Seq<ServicePortView>, cluster_ip: bool
 ) -> ServiceView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     ServiceView::default()
         .set_metadata(ObjectMetaView::default()
@@ -314,8 +308,7 @@ pub open spec fn make_service(
 
 pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     ConfigMapView::default()
         .set_metadata(ObjectMetaView::default()
@@ -384,8 +377,7 @@ pub open spec fn make_log4j_quiet_config() -> StringView {
 
 pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     let name = zk.metadata.name.get_Some_0();
     let namespace = zk.metadata.namespace.get_Some_0();
@@ -420,16 +412,14 @@ pub open spec fn make_stateful_set_name(zk_name: StringView) -> StringView {
 
 pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_set: StatefulSetView) -> StatefulSetView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     found_stateful_set.set_spec(make_stateful_set(zk).spec.get_Some_0())
 }
 
 pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     let name = make_stateful_set_name(zk.metadata.name.get_Some_0());
     let namespace = zk.metadata.namespace.get_Some_0();
@@ -474,8 +464,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView
 
 pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     PodSpecView::default()
         .set_containers(seq![
