@@ -10,15 +10,15 @@ verus! {
 
 #[is_variant]
 pub enum ZKAPIInputView {
-    ReconcileZKNode(StringView, StringView, StringView),
+    SetZKNode(StringView, StringView, StringView),
 }
 
 #[is_variant]
 pub enum ZKAPIOutputView {
-    ReconcileZKNode(ZKNodeResultView),
+    SetZKNode(ZKAPIResultView),
 }
 
-pub type ZKNodeResultView = Result<(), Error>;
+pub type ZKAPIResultView = Result<(), Error>;
 
 pub struct ZooKeeperState {
     pub data: Map<ObjectRef, StringView>,
@@ -42,7 +42,7 @@ impl ExternalAPI for ZKAPI {
 
     open spec fn transition(input: ZKAPIInputView, state: ZooKeeperState) -> (Option<ZKAPIOutputView>, ZooKeeperState) {
         match input {
-            ZKAPIInputView::ReconcileZKNode(zk_name, zk_namespace, replicas) => reconcile_zk_node(zk_name, zk_namespace, replicas, state),
+            ZKAPIInputView::SetZKNode(zk_name, zk_namespace, replicas) => reconcile_zk_node(zk_name, zk_namespace, replicas, state),
         }
     }
 
@@ -73,7 +73,7 @@ pub open spec fn reconcile_zk_node(
         data: new_data,
         ..state
     };
-    (Some(ZKAPIOutputView::ReconcileZKNode(Ok(()))), state_prime)
+    (Some(ZKAPIOutputView::SetZKNode(Ok(()))), state_prime)
 }
 
 }

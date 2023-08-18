@@ -98,8 +98,6 @@ pub fn reconcile_error(state: &ZookeeperReconcileState) -> (res: bool)
     }
 }
 
-// TODO: make the shim layer pass zk, instead of zk_ref, to reconcile_core
-
 pub fn reconcile_core(
     zk: &ZookeeperCluster, resp_o: Option<Response<ZKAPIOutput>>, state: ZookeeperReconcileState
 ) -> (res: (ZookeeperReconcileState, Option<Request<ZKAPIInput>>))
@@ -200,9 +198,9 @@ pub fn reconcile_core(
                         let zk_name = zk.metadata().name().unwrap();
                         let zk_namespace = zk.metadata().namespace().unwrap();
                         let replicas = i32_to_string(zk.spec().replicas());
-                        let ext_req = ZKAPIInput::ReconcileZKNode(zk_name, zk_namespace, replicas);
+                        let ext_req = ZKAPIInput::SetZKNode(zk_name, zk_namespace, replicas);
                         proof {
-                            zk_support_input_to_view_match(zk_name, zk_namespace, replicas);
+                            zk_api_input_to_view_match(zk_name, zk_namespace, replicas);
                         }
                         // Call external APIs to update the content in ZKNode
                         return (state_prime, Some(Request::ExternalRequest(ext_req)));

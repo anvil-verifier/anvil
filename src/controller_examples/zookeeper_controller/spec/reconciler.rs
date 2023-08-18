@@ -151,7 +151,7 @@ pub open spec fn reconcile_core(
                             sts_from_get: Some(found_stateful_set),
                             ..state
                         };
-                        let ext_req = ZKAPIInputView::ReconcileZKNode(
+                        let ext_req = ZKAPIInputView::SetZKNode(
                             zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), int_to_string_view(zk.spec.replicas)
                         );
                         (state_prime, Some(RequestView::ExternalRequest(ext_req)))
@@ -190,7 +190,7 @@ pub open spec fn reconcile_core(
         },
         ZookeeperReconcileStep::AfterSetZKNode => {
             if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
-            && resp_o.get_Some_0().get_ExternalResponse_0().is_ReconcileZKNode()
+            && resp_o.get_Some_0().get_ExternalResponse_0().is_SetZKNode()
             && state.sts_from_get.is_Some(){
                 let found_stateful_set = state.sts_from_get.get_Some_0();
                 let req_o = APIRequest::UpdateRequest(UpdateRequest {

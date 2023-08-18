@@ -21,7 +21,7 @@ pub enum ZookeeperReconcileStep {
 }
 
 pub enum Error {
-    ClusterSizeZKNodeCreationFailed,
+    ClusterSizeZKNodeSetFailed,
 }
 
 }
