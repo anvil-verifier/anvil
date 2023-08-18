@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+pub mod builtin_controllers;
 pub mod cluster;
 pub mod cluster_safety;
 pub mod controller_runtime;
