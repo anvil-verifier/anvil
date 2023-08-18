@@ -42,7 +42,7 @@ pub proof fn lemma_eventually_only_valid_server_config_map_exists(spec: TempPred
     let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![rabbitmq.controller_owner_ref()])};
     always_weaken(spec, every_update_cm_req_does_the_same(rabbitmq), RMQCluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref));
     always_weaken(spec, every_create_cm_req_does_the_same(rabbitmq), RMQCluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref));
-    always_weaken(spec, server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq), RMQCluster::object_has_no_finalizers_or_deletion_timestamp(key));
+    always_weaken(spec, server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq), RMQCluster::object_has_no_finalizers(key));
 
     let state = |s: RMQCluster| {
         RMQCluster::desired_state_is(rabbitmq)(s)
@@ -78,7 +78,7 @@ pub proof fn lemma_eventually_only_valid_stateful_set_exists(spec: TempPred<RMQC
     let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![rabbitmq.controller_owner_ref()])};
     always_weaken(spec, every_update_sts_req_does_the_same(rabbitmq), RMQCluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref));
     always_weaken(spec, every_create_sts_req_does_the_same(rabbitmq), RMQCluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref));
-    always_weaken(spec, stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq), RMQCluster::object_has_no_finalizers_or_deletion_timestamp(key));
+    always_weaken(spec, stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq), RMQCluster::object_has_no_finalizers(key));
 
     let state = |s: RMQCluster| {
         RMQCluster::desired_state_is(rabbitmq)(s)

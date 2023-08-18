@@ -61,11 +61,10 @@ pub open spec fn objects_owner_references_violates(key: ObjectRef, requirements:
     }
 }
 
-pub open spec fn object_has_no_finalizers_or_deletion_timestamp(key: ObjectRef) -> StatePred<Self> {
+pub open spec fn object_has_no_finalizers(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
         s.resource_key_exists(key)
-        ==> s.resource_obj_of(key).metadata.deletion_timestamp.is_None()
-            && s.resource_obj_of(key).metadata.finalizers.is_None()
+        ==> s.resource_obj_of(key).metadata.finalizers.is_None()
     }
 }
 
@@ -85,18 +84,18 @@ spec fn exists_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePre
 ///     3. spec |= [](key_exists(key) ==> resource_obj_of(key) has no finalizers or deletion_timestamp).
 ///     4. spec |= [](!expected(owner_references) => deleted).
 /// In 3, no finalizers ensures the stability: once the desired state reaches, every update request
-/// 
+///
 /// The proof of spec |= true ~> objects_owner_references_satisfies(eventual_owner_ref) consists of two parts:
 ///     1. spec |= true ~> (object_has_invalid_owner_reference ==> delete message in flight).
 ///     2. spec |= (object_has_invalid_owner_reference ==> delete message in flight) ~> all_objects_have_expected_owner_references.
 /// The first is primarily obtained by the weak fairness of the builtin controllers action (specifially, the garbage collector);
 /// and the second holds due to the weak fairness of kubernetes api.
-/// 
+///
 /// To prove 1, we split `true` into three cases:
 ///     a. The object's.
 ///     b. The object has valid owner references.
 ///     c. The object doesn't exist.
-/// For the last two cases, the post state ((object_has_invalid_owner_reference ==> delete message in flight)) is already reached. 
+/// For the last two cases, the post state ((object_has_invalid_owner_reference ==> delete message in flight)) is already reached.
 /// We only need to show spec |= case a ~> post. This is straightforward via the weak fairness of builtin controllers.
 pub proof fn lemma_eventually_objects_owner_references_satisfies(
     spec: TempPred<Self>, key: ObjectRef, eventual_owner_ref: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool
@@ -108,7 +107,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         spec.entails(tla_forall(|i| Self::builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)))),
         spec.entails(always(lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)))),
-        spec.entails(always(lift_state(Self::object_has_no_finalizers_or_deletion_timestamp(key)))),
+        spec.entails(always(lift_state(Self::object_has_no_finalizers(key)))),
         // If the current owner_references does not satisfy the eventual requirement, the gc action is enabled.
         spec.entails(always(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))))),
     ensures
@@ -129,7 +128,6 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         &&& Self::next()(s, s_prime)
         &&& Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)(s)
         &&& Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)(s)
-        &&& Self::object_has_no_finalizers_or_deletion_timestamp(key)(s)
         &&& Self::objects_owner_references_violates(key, eventual_owner_ref)(s) ==> Self::garbage_collector_deletion_enabled(key)(s)
         &&& Self::objects_owner_references_violates(key, eventual_owner_ref)(s_prime) ==> Self::garbage_collector_deletion_enabled(key)(s_prime)
     };
@@ -139,19 +137,13 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
         lift_action(Self::next()),
         lift_state(Self::every_create_msg_sets_owner_references_as(key, eventual_owner_ref)),
         lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)),
-        lift_state(Self::object_has_no_finalizers_or_deletion_timestamp(key)),
         lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))),
         later(lift_state(Self::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(Self::garbage_collector_deletion_enabled(key))))
     );
 
     assert forall |s, s_prime: Self| pre(s) && #[trigger] stronger_next(s, s_prime) && Self::builtin_controllers_next().forward(input)(s, s_prime) implies delete_msg_in_flight(s_prime) by {
-        assert(Self::garbage_collector_deletion_enabled(key)(s));
-        let delete_req_msg = built_in_controller_req_msg(delete_req_msg_content(
-            key, s.rest_id_allocator.allocate().1
-        ));
+        let delete_req_msg = built_in_controller_req_msg(delete_req_msg_content(key, s.rest_id_allocator.allocate().1));
         assert(s_prime.message_in_flight(delete_req_msg));
-        assert(Self::exists_delete_request_msg_in_flight_with_key(key)(s_prime));
-        assert(delete_msg_in_flight(s_prime));
     }
 
     assert forall |s, s_prime: Self| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || delete_msg_in_flight(s_prime) by {
@@ -166,21 +158,6 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
                     assert(s_prime.message_in_flight(delete_req_msg));
                     assert(Self::exists_delete_request_msg_in_flight_with_key(key)(s_prime));
                     assert(delete_msg_in_flight(s_prime));
-                } else {
-                    assert(pre(s_prime));
-                }
-            },
-            Step::KubernetesAPIStep(i) => {
-                if i.get_Some_0().content.is_update_request_with_key(key) {
-                    if Self::validate_update_request(i.get_Some_0().content.get_update_request(), s.kubernetes_api_state).is_Some()
-                    || Self::update_is_noop(i.get_Some_0().content.get_update_request().obj, s.resource_obj_of(key)) {
-                        assert(pre(s_prime));
-                    } else {
-                        assert(Self::objects_owner_references_satisfies(key, eventual_owner_ref)(s_prime));
-                    }
-                } else if i.get_Some_0().content.is_delete_request_with_key(key) {
-                    assert(s.resource_obj_of(key).metadata.finalizers.is_None());
-                    assert(!s_prime.resource_key_exists(key));
                 } else {
                     assert(pre(s_prime));
                 }
@@ -224,7 +201,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(always(lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)))),
-        spec.entails(always(lift_state(Self::object_has_no_finalizers_or_deletion_timestamp(key)))),
+        spec.entails(always(lift_state(Self::object_has_no_finalizers(key)))),
     ensures
         spec.entails(
             lift_state(Self::exists_delete_request_msg_in_flight_with_key(key))
@@ -254,14 +231,14 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
                     &&& Self::next()(s, s_prime)
                     &&& Self::busy_disabled()(s)
                     &&& Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)(s)
-                    &&& Self::object_has_no_finalizers_or_deletion_timestamp(key)(s)
+                    &&& Self::object_has_no_finalizers(key)(s)
                 };
                 strengthen_next_n!(
                     stronger_next, spec,
                     lift_action(Self::next()),
                     lift_state(Self::busy_disabled()),
                     lift_state(Self::every_update_msg_sets_owner_references_as(key, eventual_owner_ref)),
-                    lift_state(Self::object_has_no_finalizers_or_deletion_timestamp(key))
+                    lift_state(Self::object_has_no_finalizers(key))
                 );
                 Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, Self::handle_request(), msg_to_p_state, post);
             }
