@@ -123,7 +123,6 @@ spec fn derived_invariants_since_beginning(rabbitmq: RabbitmqClusterView) -> Tem
     .and(always(lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))))
     .and(always(lift_state(helper_invariants::pending_msg_at_after_create_server_config_map_step_is_create_cm_req(rabbitmq.object_ref()))))
     .and(always(lift_state(helper_invariants::pending_msg_at_after_update_server_config_map_step_is_update_cm_req(rabbitmq.object_ref()))))
-    .and(always(lift_state(helper_invariants::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(rabbitmq.object_ref()))))
     .and(always(lift_state(helper_invariants::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(rabbitmq.object_ref()))))
     .and(always(lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init)))))
     .and(always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateHeadlessService)))))
@@ -158,7 +157,6 @@ proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClusterV
         lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)),
         lift_state(helper_invariants::pending_msg_at_after_create_server_config_map_step_is_create_cm_req(rabbitmq.object_ref())),
         lift_state(helper_invariants::pending_msg_at_after_update_server_config_map_step_is_update_cm_req(rabbitmq.object_ref())),
-        lift_state(helper_invariants::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(rabbitmq.object_ref())),
         lift_state(helper_invariants::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(rabbitmq.object_ref())),
         lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
         lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateHeadlessService))),
@@ -476,7 +474,6 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
     helper_invariants::lemma_always_server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(spec, rabbitmq);
     helper_invariants::lemma_always_pending_msg_at_after_create_server_config_map_step_is_create_cm_req(spec, rabbitmq.object_ref());
     helper_invariants::lemma_always_pending_msg_at_after_update_server_config_map_step_is_update_cm_req(spec, rabbitmq.object_ref());
-    helper_invariants::lemma_always_pending_msg_at_after_create_stateful_set_step_is_create_sts_req(spec, rabbitmq.object_ref());
     helper_invariants::lemma_always_pending_msg_at_after_update_stateful_set_step_is_update_sts_req(spec, rabbitmq.object_ref());
     RMQCluster::lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_state(spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init));
     RMQCluster::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
@@ -534,7 +531,6 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)),
         lift_state(helper_invariants::pending_msg_at_after_create_server_config_map_step_is_create_cm_req(rabbitmq.object_ref())),
         lift_state(helper_invariants::pending_msg_at_after_update_server_config_map_step_is_update_cm_req(rabbitmq.object_ref())),
-        lift_state(helper_invariants::pending_msg_at_after_create_stateful_set_step_is_create_sts_req(rabbitmq.object_ref())),
         lift_state(helper_invariants::pending_msg_at_after_update_stateful_set_step_is_update_sts_req(rabbitmq.object_ref())),
         lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
         lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateHeadlessService))),
