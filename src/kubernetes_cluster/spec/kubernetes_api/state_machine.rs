@@ -174,10 +174,14 @@ pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (
     }
 }
 
-pub open spec fn update_is_noop(o1: DynamicObjectView, o2: DynamicObjectView) -> bool {
-    &&& o1.metadata.generate_name == o2.metadata.generate_name
-    &&& o1.metadata.labels == o2.metadata.labels
-    &&& o1.spec == o2.spec
+// Unconditional update means one can update the object without providing a resource version.
+// For all the supported kinds, unconditional update is disallowed for CustomResource only.
+// Note that if the resource version is provided, it has to be the correct one.
+pub open spec fn allow_unconditional_update(kind: Kind) -> bool {
+    match kind {
+        Kind::CustomResourceKind => false,
+        _ => true,
+    }
 }
 
 pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPIState) -> Option<APIError> {
@@ -206,6 +210,10 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         // Update fails because the object does not exist
         // TODO: check AllowCreateOnUpdate() to see whether to support create-on-update
         Some(APIError::ObjectNotFound)
+    } else if req.obj.metadata.resource_version.is_None()
+        && !Self::allow_unconditional_update(req.key.kind) {
+        // Update fails because the object does not provide a rv and unconditional update is not supported
+        Some(APIError::Invalid)
     } else if req.obj.metadata.resource_version.is_Some()
         && req.obj.metadata.resource_version != s.resources[req.key].metadata.resource_version {
         // Update fails because the object has a wrong rv
@@ -225,6 +233,20 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
     }
 }
 
+pub open spec fn updated_object(req: UpdateRequest, s: KubernetesAPIState) -> DynamicObjectView {
+    let old_obj = s.resources[req.key];
+    let updated_obj = req.obj.set_namespace(req.key.namespace)
+                        // Update cannot change the rv; if rv is provided and inconsistent, validation fails.
+                        .set_resource_version(old_obj.metadata.resource_version.get_Some_0())
+                        // Update cannot change the uid; if uid is provided and inconsistent, validation fails.
+                        .set_uid(old_obj.metadata.uid.get_Some_0())
+                        // Update cannot change the deletion timestamp.
+                        .overwrite_deletion_timestamp(old_obj.metadata.deletion_timestamp);
+    // TODO: enforce that finalizer cannot be added if deletion timestamp is set.
+    // TODO: status should also be ignored here, after we support it.
+    updated_obj
+}
+
 pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (KubernetesAPIState, Message)
     recommends
         msg.content.is_update_request(),
@@ -235,56 +257,52 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
         let result = Err(Self::validate_update_request(req, s).get_Some_0());
         let resp = form_update_resp_msg(msg, result);
         (s, resp)
-    } else if Self::update_is_noop(req.obj, s.resources[req.key]) {
-        // Update is a noop because there is nothing to update
-        // so the resource version counter does not increase here.
-        let result = Ok(s.resources[req.key]);
-        let resp = form_update_resp_msg(msg, result);
-        (s, resp)
     } else {
         // Update succeeds.
-        // Updates the resource version of the object.
-        let old_obj = s.resources[req.key];
-        let updated_obj = req.obj.set_namespace(req.key.namespace)
-                            // Update cannot change the rv; if rv is provided and inconsistent, validation fails.
-                            // TODO: should check AllowUnconditionalUpdate() for each kind
-                            // to decide whether to allow empty rv.
-                            .set_resource_version(s.resource_version_counter)
-                            // Update cannot change the uid; if uid is provided and inconsistent, validation fails.
-                            .set_uid(old_obj.metadata.uid.get_Some_0())
-                            // Update cannot change the deletion timestamp.
-                            .overwrite_deletion_timestamp(old_obj.metadata.deletion_timestamp);
-
-        let result = Ok(updated_obj);
-        let resp = form_update_resp_msg(msg, result);
-        // NOTE: in the actual implementation, when handling an update request,
-        // the API server first applies the update to the object in the key-value store,
-        // then checks whether object can be deleted.
-        // If so, it continues to delete the object from the key-value store before replying
-        // to the update request.
-        // This means that there is a super short window where the object has been updated in the store
-        // (with a deletion timestamp and without any finalizer), but has not been deleted yet.
-        // We choose not to model this short window and instead merge the update and delete into one atomic action
-        // because the controller that issues the update request in an non-async manner will not observe
-        // this intermediate state within the short window.
-        // When the update request returns, the object has been deleted anyway.
-        if updated_obj.metadata.deletion_timestamp.is_None()
-            || (updated_obj.metadata.finalizers.is_Some() && updated_obj.metadata.finalizers.get_Some_0().len() > 0) {
-            // The regular update case, where the object has no deletion timestamp set
-            // or has at least one finalizer.
-            (KubernetesAPIState {
-                resources: s.resources.insert(updated_obj.object_ref(), updated_obj),
-                resource_version_counter: s.resource_version_counter + 1,
-                ..s
-            }, resp)
+        let updated_obj = Self::updated_object(req, s);
+        if updated_obj == s.resources[req.key] {
+            // Update is a noop because there is nothing to update
+            // so the resource version counter does not increase here,
+            // and the resource version of this object remains the same.
+            let result = Ok(s.resources[req.key]);
+            let resp = form_update_resp_msg(msg, result);
+            (s, resp)
         } else {
-            // The delete-during-update case, where the update removes the finalizer from
-            // the object that has a deletion timestamp, so the object needs to be deleted now.
-            (KubernetesAPIState {
-                resources: s.resources.remove(updated_obj.object_ref()),
-                resource_version_counter: s.resource_version_counter + 1,
-                ..s
-            }, resp)
+            // Update changes something in the object (either in spec or metadata), so we set it a newer resource version,
+            // which is the current rv counter.
+            let updated_obj_with_new_rv = updated_obj.set_resource_version(s.resource_version_counter);
+            let result = Ok(updated_obj_with_new_rv);
+            let resp = form_update_resp_msg(msg, result);
+            if updated_obj_with_new_rv.metadata.deletion_timestamp.is_None()
+                || (updated_obj_with_new_rv.metadata.finalizers.is_Some()
+                    && updated_obj_with_new_rv.metadata.finalizers.get_Some_0().len() > 0) {
+                // The regular update case, where the object has no deletion timestamp set
+                // or has at least one finalizer.
+                (KubernetesAPIState {
+                    resources: s.resources.insert(updated_obj_with_new_rv.object_ref(), updated_obj_with_new_rv),
+                    resource_version_counter: s.resource_version_counter + 1, // Advance the rv counter
+                    ..s
+                }, resp)
+            } else {
+                // The delete-during-update case, where the update removes the finalizer from
+                // the object that has a deletion timestamp, so the object needs to be deleted now.
+                // NOTE: in the actual implementation, when handling an update request,
+                // the API server first applies the update to the object in the key-value store,
+                // then checks whether object can be deleted.
+                // If so, it continues to delete the object from the key-value store before replying
+                // to the update request.
+                // This means that there is a super short window where the object has been updated in the store
+                // (with a deletion timestamp and without any finalizer), but has not been deleted yet.
+                // We choose not to model this short window and instead merge the update and delete into one atomic action
+                // because the controller that issues the update request in an non-async manner will not observe
+                // this intermediate state within the short window.
+                // When the update request returns, the object has been deleted anyway.
+                (KubernetesAPIState {
+                    resources: s.resources.remove(updated_obj_with_new_rv.object_ref()),
+                    resource_version_counter: s.resource_version_counter + 1, // Advance the rv counter
+                    ..s
+                }, resp)
+            }
         }
     }
 }
