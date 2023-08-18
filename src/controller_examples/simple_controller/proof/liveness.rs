@@ -87,7 +87,6 @@ proof fn liveness_proof(cr: SimpleCRView)
     leads_to_self_temp::<State<SimpleReconcileState>>(always(cr_exists(cr)));
     leads_to_always_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(cr_exists(cr)),
         cr_exists(cr), lift_state(crash_disabled::<SimpleReconcileState>()));
-    always_and_equality::<State<SimpleReconcileState>>(cr_exists(cr), lift_state(crash_disabled::<SimpleReconcileState>()));
     lemma_sm_spec_entails_cr_always_exists_and_crash_always_disabled_leads_to_cm_always_exists(cr);
     // Step (7)
     leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(cr_exists(cr)),

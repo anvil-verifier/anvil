@@ -347,7 +347,7 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
 
             ZKCluster::lemma_true_leads_to_crash_always_disabled(spec);
             ZKCluster::lemma_true_leads_to_busy_always_disabled(spec);
-            leads_to_always_combine_temp(
+            _temp(
                 spec,
                 true_pred(),
                 lift_state(ZKCluster::crash_disabled()),

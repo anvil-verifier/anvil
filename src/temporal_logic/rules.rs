@@ -2642,6 +2642,7 @@ macro_rules! leads_to_always_combine_n_internal {
     };
     ($spec:expr, $p:expr, $q1:expr, $q2:expr, $($tail:tt)*) => {
         leads_to_always_combine_temp($spec, $p, $q1, $q2);
+        always_and_equality($q1, $q2);
         leads_to_always_combine_n_internal!($spec, $p, $q1.and($q2), $($tail)*);
     };
 }
@@ -2661,6 +2662,7 @@ pub proof fn leads_to_always_combine_temp<T>(spec: TempPred<T>, p: TempPred<T>, 
         spec.entails(p.leads_to(always(r))),
     ensures
         spec.entails(p.leads_to(always(q.and(r)))),
+        spec.entails(p.leads_to(always(q).and(always(r)))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(always(q.and(r))).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(always(q.and(r))).satisfied_by(ex.suffix(i)) by {
@@ -2684,6 +2686,7 @@ pub proof fn leads_to_always_combine_temp<T>(spec: TempPred<T>, p: TempPred<T>, 
             }
         };
     };
+    always_and_equality(q, r);
 }
 
 /// StatePred version of leads_to_always_combine_temp.
@@ -2693,6 +2696,7 @@ pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: S
         spec.entails(lift_state(p).leads_to(always(lift_state(r)))),
     ensures
         spec.entails(lift_state(p).leads_to(always(lift_state(q).and(lift_state(r))))),
+        spec.entails(lift_state(p).leads_to(always(lift_state(q)).and(always(lift_state(r))))),
 {
     leads_to_always_combine_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }

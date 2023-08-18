@@ -343,10 +343,6 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
                 lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())),
                 lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref()))
             );
-            always_and_equality(
-                lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())),
-                lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref()))
-            );
             leads_to_trans_temp(spec, true_pred(), invariants_since_phase_V(rabbitmq), always(current_state_matches(rabbitmq)));
         }
     );
@@ -370,10 +366,6 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
             helper_invariants::lemma_eventually_only_valid_server_config_map_exists(spec, rabbitmq);
             leads_to_always_combine_temp(
                 spec, true_pred(),
-                lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)),
-                lift_state(helper_invariants::server_config_map_has_owner_reference_pointing_to_current_cr(rabbitmq))
-            );
-            always_and_equality(
                 lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)),
                 lift_state(helper_invariants::server_config_map_has_owner_reference_pointing_to_current_cr(rabbitmq))
             );
@@ -412,17 +404,6 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
 
             leads_to_always_combine_n!(
                 spec, true_pred(),
-                lift_state(helper_invariants::at_most_one_create_cm_req_is_in_flight(rabbitmq.object_ref())),
-                lift_state(helper_invariants::at_most_one_update_cm_req_is_in_flight(rabbitmq.object_ref())),
-                lift_state(helper_invariants::every_update_cm_req_does_the_same(rabbitmq)),
-                lift_state(helper_invariants::every_create_cm_req_does_the_same(rabbitmq)),
-                lift_state(helper_invariants::at_most_one_create_sts_req_is_in_flight(rabbitmq.object_ref())),
-                lift_state(helper_invariants::at_most_one_update_sts_req_is_in_flight(rabbitmq.object_ref())),
-                lift_state(helper_invariants::every_update_sts_req_does_the_same(rabbitmq)),
-                lift_state(helper_invariants::every_create_sts_req_does_the_same(rabbitmq))
-            );
-
-            always_and_equality_n!(
                 lift_state(helper_invariants::at_most_one_create_cm_req_is_in_flight(rabbitmq.object_ref())),
                 lift_state(helper_invariants::at_most_one_update_cm_req_is_in_flight(rabbitmq.object_ref())),
                 lift_state(helper_invariants::every_update_cm_req_does_the_same(rabbitmq)),
@@ -477,11 +458,6 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
             leads_to_always_combine_n!(
                 spec,
                 true_pred(),
-                lift_state(RMQCluster::crash_disabled()),
-                lift_state(RMQCluster::busy_disabled()),
-                lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq))
-            );
-            always_and_equality_n!(
                 lift_state(RMQCluster::crash_disabled()),
                 lift_state(RMQCluster::busy_disabled()),
                 lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq))
