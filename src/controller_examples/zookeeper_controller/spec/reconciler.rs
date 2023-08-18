@@ -153,7 +153,7 @@ pub open spec fn reconcile_core(
                             ..state
                         };
                         let ext_req = ZKAPIInputView::ReconcileZKNode(
-                            zk.metadata.name.get_Some_0(), zk_service_uri(zk), int_to_string_view(zk.spec.replicas)
+                            zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), int_to_string_view(zk.spec.replicas)
                         );
                         (state_prime, Some(RequestView::ExternalRequest(ext_req)))
                     } else {
@@ -508,24 +508,6 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
                 ConfigMapVolumeSourceView::default().set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
             )
         ])
-}
-
-pub open spec fn client_service_name(zk: ZookeeperClusterView) -> StringView
-    recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
-{
-    zk.metadata.name.get_Some_0() + new_strlit("-client")@
-}
-
-pub open spec fn zk_service_uri(zk: ZookeeperClusterView) -> StringView
-    recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
-{
-    client_service_name(zk) + new_strlit(".")@
-    + zk.metadata.namespace.get_Some_0()
-    + new_strlit(".svc.cluster.local:2181")@
 }
 
 }

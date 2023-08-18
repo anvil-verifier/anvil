@@ -11,7 +11,7 @@ use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::{string_view::*, to_view::*};
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::exec::{common::*, zookeeper_api::*, zookeepercluster::*};
+use crate::zookeeper_controller::exec::{zookeeper_api::*, zookeepercluster::*};
 use crate::zookeeper_controller::spec::reconciler as zk_spec;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -198,12 +198,12 @@ pub fn reconcile_core(
                             sts_from_get: Some(get_sts_result.unwrap()),
                             ..state
                         };
-                        let uri = zk_service_uri(zk);
                         let zk_name = zk.metadata().name().unwrap();
+                        let zk_namespace = zk.metadata().namespace().unwrap();
                         let replicas = i32_to_string(zk.spec().replicas());
-                        let ext_req = ZKAPIInput::ReconcileZKNode(zk_name, uri, replicas);
+                        let ext_req = ZKAPIInput::ReconcileZKNode(zk_name, zk_namespace, replicas);
                         proof {
-                            zk_support_input_to_view_match(zk_name, uri, replicas);
+                            zk_support_input_to_view_match(zk_name, zk_namespace, replicas);
                         }
                         // Call external APIs to update the content in ZKNode
                         return (state_prime, Some(Request::ExternalRequest(ext_req)));
@@ -327,7 +327,7 @@ fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
         );
     }
 
-    make_service(zk, client_service_name(zk), ports, true)
+    make_service(zk, zk.metadata().name().unwrap().concat(new_strlit("-client")), ports, true)
 }
 
 /// Admin-server Service is used for client to connect to admin server
