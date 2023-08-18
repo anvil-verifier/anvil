@@ -369,7 +369,7 @@ pub proof fn lemma_always_pending_msg_at_after_update_server_config_map_step_is_
     init_invariant(spec, init, stronger_next, invariant);
 }
 
-pub open spec fn at_most_one_create_cm_req_is_in_flight(key: ObjectRef) -> StatePred<RMQCluster>
+pub open spec fn create_cm_req_msg_in_flight_implies_at_after_create_cm_step(key: ObjectRef) -> StatePred<RMQCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
@@ -380,12 +380,11 @@ pub open spec fn at_most_one_create_cm_req_is_in_flight(key: ObjectRef) -> State
         } ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s)
             &&& msg == s.pending_req_of(key)
-            &&& s.network_state.in_flight.count(msg) == 1
         }
     }
 }
 
-pub proof fn lemma_true_leads_to_always_at_most_one_create_cm_req_is_in_flight(spec: TempPred<RMQCluster>, key: ObjectRef)
+pub proof fn lemma_true_leads_to_always_create_cm_req_msg_in_flight_implies_at_after_create_cm_step(spec: TempPred<RMQCluster>, key: ObjectRef)
     requires
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -398,7 +397,7 @@ pub proof fn lemma_true_leads_to_always_at_most_one_create_cm_req_is_in_flight(s
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
-            true_pred().leads_to(always(lift_state(at_most_one_create_cm_req_is_in_flight(key))))
+            true_pred().leads_to(always(lift_state(create_cm_req_msg_in_flight_implies_at_after_create_cm_step(key))))
         ),
 {
     let requirements = |msg: Message, s: RMQCluster| {
@@ -406,7 +405,6 @@ pub proof fn lemma_true_leads_to_always_at_most_one_create_cm_req_is_in_flight(s
         ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s)
             &&& msg == s.pending_req_of(key)
-            &&& s.network_state.in_flight.count(msg) == 1
         }
     };
     let stronger_next = |s: RMQCluster, s_prime: RMQCluster| {
@@ -425,21 +423,6 @@ pub proof fn lemma_true_leads_to_always_at_most_one_create_cm_req_is_in_flight(s
                 let pending_req = s_prime.pending_req_of(key);
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 match step {
-                    Step::KubernetesAPIStep(input) => {
-                        assert(s.controller_state == s_prime.controller_state);
-                        assert(s.message_in_flight(msg));
-                        assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime));
-                        assert(s.network_state.in_flight.count(msg) == 1);
-                        assert(msg.dst.is_KubernetesAPI());
-                        assert(s_prime.network_state.in_flight.count(msg) == 1);
-                    },
-                    Step::BuiltinControllersStep(input) => {
-                        assert(s.message_in_flight(msg));
-                        assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime));
-                        assert(s_prime.network_state.in_flight.count(msg) == 1);
-                    },
                     Step::ControllerStep(input) => {
                         let cr_key = input.2.get_Some_0();
                         if cr_key != key {
@@ -459,10 +442,8 @@ pub proof fn lemma_true_leads_to_always_at_most_one_create_cm_req_is_in_flight(s
                                     }
                                 );
                             }
-                            assert(s.message_in_flight(msg));
+                            assert(requirements(msg, s));
                             assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                            assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime));
-                            assert(s_prime.network_state.in_flight.count(msg) == 1);
                         } else {
                             assert_by(
                                 new_strlit("-server-conf")@ != new_strlit("-plugins-conf")@,
@@ -473,22 +454,14 @@ pub proof fn lemma_true_leads_to_always_at_most_one_create_cm_req_is_in_flight(s
                                 }
                             );
                             seq_lemmas::seq_equal_preserved_by_add_prefix(key.name, new_strlit("-server-conf")@, new_strlit("-plugins-conf")@);
-                            if s.message_in_flight(msg) {
-                                assert(input.0.is_Some());
-                                assert(resp_msg_matches_req_msg(input.0.get_Some_0(), s.pending_req_of(key)));
-                                assert(false);
-                            } else {
-                                assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime));
-                            }
+                            assert(!s.message_in_flight(msg));
+                            assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime));
                         }
                     },
-                    Step::ClientStep(input) => {
-                        assert(s.message_in_flight(msg));
+                    _ => {
+                        assert(requirements(msg, s));
                         assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime));
-                        assert(s_prime.network_state.in_flight.count(msg) == 1);
-                    },
-                    _ => {}
+                    }
                 }
             }
         }
@@ -503,10 +476,10 @@ pub proof fn lemma_true_leads_to_always_at_most_one_create_cm_req_is_in_flight(s
 
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
 
-    temp_pred_equality(lift_state(at_most_one_create_cm_req_is_in_flight(key)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
+    temp_pred_equality(lift_state(create_cm_req_msg_in_flight_implies_at_after_create_cm_step(key)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
-pub open spec fn at_most_one_update_cm_req_is_in_flight(key: ObjectRef) -> StatePred<RMQCluster>
+pub open spec fn update_cm_req_msg_in_flight_implies_at_after_update_cm_step(key: ObjectRef) -> StatePred<RMQCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
@@ -517,12 +490,11 @@ pub open spec fn at_most_one_update_cm_req_is_in_flight(key: ObjectRef) -> State
         } ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s)
             &&& msg == s.pending_req_of(key)
-            &&& s.network_state.in_flight.count(msg) == 1
         }
     }
 }
 
-pub proof fn lemma_true_leads_to_always_at_most_one_update_cm_req_is_in_flight(spec: TempPred<RMQCluster>, key: ObjectRef)
+pub proof fn lemma_true_leads_to_always_update_cm_req_msg_in_flight_implies_at_after_update_cm_step(spec: TempPred<RMQCluster>, key: ObjectRef)
     requires
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -535,7 +507,7 @@ pub proof fn lemma_true_leads_to_always_at_most_one_update_cm_req_is_in_flight(s
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
-            true_pred().leads_to(always(lift_state(at_most_one_update_cm_req_is_in_flight(key))))
+            true_pred().leads_to(always(lift_state(update_cm_req_msg_in_flight_implies_at_after_update_cm_step(key))))
         ),
 {
     let requirements = |msg: Message, s: RMQCluster| {
@@ -543,7 +515,6 @@ pub proof fn lemma_true_leads_to_always_at_most_one_update_cm_req_is_in_flight(s
         ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s)
             &&& msg == s.pending_req_of(key)
-            &&& s.network_state.in_flight.count(msg) == 1
         }
     };
     let stronger_next = |s, s_prime: RMQCluster| {
@@ -560,45 +531,23 @@ pub proof fn lemma_true_leads_to_always_at_most_one_update_cm_req_is_in_flight(s
             if cm_update_request_msg(key)(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 match step {
-                    Step::KubernetesAPIStep(input) => {
-                        assert(s.message_in_flight(msg));
-                        assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime));
-                        assert(s_prime.network_state.in_flight.count(msg) == 1);
-                    },
-                    Step::BuiltinControllersStep(input) => {
-                        assert(s.message_in_flight(msg));
-                        assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime));
-                        assert(s_prime.network_state.in_flight.count(msg) == 1);
-                    },
                     Step::ControllerStep(input) => {
                         let cr_key = input.2.get_Some_0();
                         if cr_key != key {
                             if cr_key.name != key.name {
                                 seq_lemmas::seq_unequal_preserved_by_add(cr_key.name, key.name, new_strlit("-server-conf")@);
                             }
-                            assert(s.message_in_flight(msg));
+                            assert(requirements(msg, s));
                             assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                            assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime));
-                            assert(s_prime.network_state.in_flight.count(msg) == 1);
                         } else {
-                            if s.message_in_flight(msg) {
-                                assert(input.0.is_Some());
-                                assert(resp_msg_matches_req_msg(input.0.get_Some_0(), s.pending_req_of(key)));
-                                assert(false);
-                            } else {
-                                assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime));
-                            }
+                            assert(!s.message_in_flight(msg));
+                            assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime));
                         }
                     },
-                    Step::ClientStep(input) => {
-                        assert(s.message_in_flight(msg));
+                    _ => {
+                        assert(requirements(msg, s));
                         assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime));
-                        assert(s_prime.network_state.in_flight.count(msg) == 1);
-                    },
-                    _ => {}
+                    }
                 }
             }
 
@@ -615,7 +564,7 @@ pub proof fn lemma_true_leads_to_always_at_most_one_update_cm_req_is_in_flight(s
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id())
     );
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
-    temp_pred_equality(lift_state(at_most_one_update_cm_req_is_in_flight(key)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
+    temp_pred_equality(lift_state(update_cm_req_msg_in_flight_implies_at_after_update_cm_step(key)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
 
@@ -1146,7 +1095,7 @@ pub proof fn lemma_always_pending_msg_at_after_update_stateful_set_step_is_updat
     init_invariant(spec, init, stronger_next, invariant);
 }
 
-pub open spec fn at_most_one_create_sts_req_is_in_flight(key: ObjectRef) -> StatePred<RMQCluster>
+pub open spec fn create_sts_req_msg_in_flight_implies_at_after_create_sts_step(key: ObjectRef) -> StatePred<RMQCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
@@ -1157,12 +1106,11 @@ pub open spec fn at_most_one_create_sts_req_is_in_flight(key: ObjectRef) -> Stat
         } ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s)
             &&& msg == s.pending_req_of(key)
-            &&& s.network_state.in_flight.count(msg) == 1
         }
     }
 }
 
-pub proof fn lemma_true_leads_to_always_at_most_one_create_sts_req_is_in_flight(spec: TempPred<RMQCluster>, key: ObjectRef)
+pub proof fn lemma_true_leads_to_always_create_sts_req_msg_in_flight_implies_at_after_create_sts_step(spec: TempPred<RMQCluster>, key: ObjectRef)
     requires
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -1175,7 +1123,7 @@ pub proof fn lemma_true_leads_to_always_at_most_one_create_sts_req_is_in_flight(
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
-            true_pred().leads_to(always(lift_state(at_most_one_create_sts_req_is_in_flight(key))))
+            true_pred().leads_to(always(lift_state(create_sts_req_msg_in_flight_implies_at_after_create_sts_step(key))))
         ),
 {
     let requirements = |msg: Message, s: RMQCluster| {
@@ -1183,7 +1131,6 @@ pub proof fn lemma_true_leads_to_always_at_most_one_create_sts_req_is_in_flight(
         ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s)
             &&& msg == s.pending_req_of(key)
-            &&& s.network_state.in_flight.count(msg) == 1
         }
     };
     let stronger_next = |s: RMQCluster, s_prime: RMQCluster| {
@@ -1201,45 +1148,23 @@ pub proof fn lemma_true_leads_to_always_at_most_one_create_sts_req_is_in_flight(
             if sts_create_request_msg(key)(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 match step {
-                    Step::KubernetesAPIStep(input) => {
-                        assert(s.message_in_flight(msg));
-                        assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s_prime));
-                        assert(s_prime.network_state.in_flight.count(msg) == 1);
-                    },
-                    Step::BuiltinControllersStep(input) => {
-                        assert(s.message_in_flight(msg));
-                        assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s_prime));
-                        assert(s_prime.network_state.in_flight.count(msg) == 1);
-                    },
                     Step::ControllerStep(input) => {
                         let cr_key = input.2.get_Some_0();
                         if cr_key != key {
                             if cr_key.name != key.name {
                                 seq_lemmas::seq_unequal_preserved_by_add(cr_key.name, key.name, new_strlit("-server")@);
                             }
-                            assert(s.message_in_flight(msg));
+                            assert(requirements(msg, s));
                             assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                            assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s_prime));
-                            assert(s_prime.network_state.in_flight.count(msg) == 1);
                         } else {
-                            if s.message_in_flight(msg) {
-                                assert(input.0.is_Some());
-                                assert(resp_msg_matches_req_msg(input.0.get_Some_0(), s.pending_req_of(key)));
-                                assert(false);
-                            } else {
-                                assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s_prime));
-                            }
+                            assert(!s.message_in_flight(msg));
+                            assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s_prime));
                         }
                     },
-                    Step::ClientStep(input) => {
-                        assert(s.message_in_flight(msg));
+                    _ => {
+                        assert(requirements(msg, s));
                         assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s_prime));
-                        assert(s_prime.network_state.in_flight.count(msg) == 1);
-                    },
-                    _ => {}
+                    }
                 }
             }
         }
@@ -1253,10 +1178,10 @@ pub proof fn lemma_true_leads_to_always_at_most_one_create_sts_req_is_in_flight(
     );
 
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
-    temp_pred_equality(lift_state(at_most_one_create_sts_req_is_in_flight(key)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
+    temp_pred_equality(lift_state(create_sts_req_msg_in_flight_implies_at_after_create_sts_step(key)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
-pub open spec fn at_most_one_update_sts_req_is_in_flight(key: ObjectRef) -> StatePred<RMQCluster>
+pub open spec fn update_sts_req_msg_in_flight_implies_at_after_update_sts_step(key: ObjectRef) -> StatePred<RMQCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
@@ -1267,12 +1192,11 @@ pub open spec fn at_most_one_update_sts_req_is_in_flight(key: ObjectRef) -> Stat
         } ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s)
             &&& msg == s.pending_req_of(key)
-            &&& s.network_state.in_flight.count(msg) == 1
         }
     }
 }
 
-pub proof fn lemma_true_leads_to_always_at_most_one_update_sts_req_is_in_flight(spec: TempPred<RMQCluster>, key: ObjectRef)
+pub proof fn lemma_true_leads_to_always_update_sts_req_msg_in_flight_implies_at_after_update_sts_step(spec: TempPred<RMQCluster>, key: ObjectRef)
     requires
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -1285,7 +1209,7 @@ pub proof fn lemma_true_leads_to_always_at_most_one_update_sts_req_is_in_flight(
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
-            true_pred().leads_to(always(lift_state(at_most_one_update_sts_req_is_in_flight(key))))
+            true_pred().leads_to(always(lift_state(update_sts_req_msg_in_flight_implies_at_after_update_sts_step(key))))
         ),
 {
     let requirements = |msg: Message, s: RMQCluster| {
@@ -1293,7 +1217,6 @@ pub proof fn lemma_true_leads_to_always_at_most_one_update_sts_req_is_in_flight(
         ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s)
             &&& msg == s.pending_req_of(key)
-            &&& s.network_state.in_flight.count(msg) == 1
         }
     };
     let stronger_next = |s: RMQCluster, s_prime: RMQCluster| {
@@ -1311,18 +1234,6 @@ pub proof fn lemma_true_leads_to_always_at_most_one_update_sts_req_is_in_flight(
             if sts_update_request_msg(key)(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 match step {
-                    Step::KubernetesAPIStep(input) => {
-                        assert(s.message_in_flight(msg));
-                        assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s_prime));
-                        assert(s_prime.network_state.in_flight.count(msg) == 1);
-                    },
-                    Step::BuiltinControllersStep(input) => {
-                        assert(s.message_in_flight(msg));
-                        assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s_prime));
-                        assert(s_prime.network_state.in_flight.count(msg) == 1);
-                    },
                     Step::ControllerStep(input) => {
                         let cr_key = input.2.get_Some_0();
                         if cr_key != key {
@@ -1331,25 +1242,15 @@ pub proof fn lemma_true_leads_to_always_at_most_one_update_sts_req_is_in_flight(
                             }
                             assert(s.message_in_flight(msg));
                             assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                            assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s_prime));
-                            assert(s_prime.network_state.in_flight.count(msg) == 1);
                         } else {
-                            if s.message_in_flight(msg) {
-                                assert(input.0.is_Some());
-                                assert(resp_msg_matches_req_msg(input.0.get_Some_0(), s.pending_req_of(key)));
-                                assert(false);
-                            } else {
-                                assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s_prime));
-                            }
+                            assert(!s.message_in_flight(msg));
+                            assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s_prime));
                         }
                     },
-                    Step::ClientStep(input) => {
-                        assert(s.message_in_flight(msg));
+                    _ => {
+                        assert(requirements(msg, s));
                         assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s_prime));
-                        assert(s_prime.network_state.in_flight.count(msg) == 1);
-                    },
-                    _ => {}
+                    }
                 }
             }
         }
@@ -1363,7 +1264,7 @@ pub proof fn lemma_true_leads_to_always_at_most_one_update_sts_req_is_in_flight(
     );
 
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
-    temp_pred_equality(lift_state(at_most_one_update_sts_req_is_in_flight(key)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
+    temp_pred_equality(lift_state(update_sts_req_msg_in_flight_implies_at_after_update_sts_step(key)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
 pub open spec fn sts_delete_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {

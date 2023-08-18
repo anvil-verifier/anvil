@@ -89,35 +89,27 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid
     };
     // Here we split the cases by whether s.reconcile_scheduled_for(cr.object_ref()) is true
     assert_by(
-        spec.entails(
-            lift_state(scheduled_and_not_reconcile).leads_to(lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr)))
-        ),
+        spec.entails(lift_state(not_scheduled_or_reconcile).leads_to(lift_state(scheduled_and_not_reconcile))),
+        {
+            let input = cr.object_ref();
+            K::object_ref_is_well_formed();
+            Self::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(
+                spec, input, stronger_next, Self::desired_state_is(cr), not_scheduled_or_reconcile, scheduled_and_not_reconcile
+            );
+        }
+    );
+    assert_by(
+        spec.entails(lift_state(scheduled_and_not_reconcile).leads_to(lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr)))),
         {
             let post = Self::the_object_in_reconcile_has_spec_and_uid_as(cr);
             let input = (None, None, Some(cr.object_ref()));
-
             K::object_ref_is_well_formed();
             Self::lemma_pre_leads_to_post_by_controller(
                 spec, input, stronger_next, Self::run_scheduled_reconcile(), scheduled_and_not_reconcile, post
             );
         }
     );
-
-    assert_by(
-        spec.entails(
-            lift_state(not_scheduled_or_reconcile).leads_to(lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr)))
-        ),
-        {
-            let input = cr.object_ref();
-
-            K::object_ref_is_well_formed();
-            Self::lemma_pre_leads_to_post_by_schedule_controller_reconcile_borrow_from_spec(
-                spec, input, stronger_next, Self::desired_state_is(cr), not_scheduled_or_reconcile, scheduled_and_not_reconcile
-            );
-            leads_to_trans_temp(spec, lift_state(not_scheduled_or_reconcile), lift_state(scheduled_and_not_reconcile), lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr)));
-        }
-    );
-
+    leads_to_trans_temp(spec, lift_state(not_scheduled_or_reconcile), lift_state(scheduled_and_not_reconcile), lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr)));
     let not_reconcile = |s: Self| !s.reconcile_state_contains(cr.object_ref());
 
     or_leads_to_combine_and_equality!(
@@ -126,8 +118,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid
     );
 
     leads_to_trans_temp(
-        spec, true_pred(),
-        lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref())),
+        spec, true_pred(), lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref())),
         lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr))
     );
     leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr)));
