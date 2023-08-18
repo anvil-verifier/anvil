@@ -233,32 +233,24 @@ pub fn reconcile_core(
             return (state_prime, None);
         },
         ZookeeperReconcileStep::AfterSetZKNode => {
-            // update sts
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
             && resp_o.as_ref().unwrap().as_external_response_ref().is_set_zk_node_response()
+            && resp_o.unwrap().into_external_response().into_set_zk_node_response().res.is_ok()
             && state.sts_from_get.is_some() {
-                let set_zk_node_resp = resp_o.unwrap().into_external_response().into_set_zk_node_response().res;
-                if set_zk_node_resp.is_ok() {
-                    let found_stateful_set = state.sts_from_get.unwrap();
-                    let new_stateful_set = update_stateful_set(zk, &found_stateful_set);
-                    let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
-                        api_resource: StatefulSet::api_resource(),
-                        name: make_stateful_set_name(zk),
-                        namespace: zk.metadata().namespace().unwrap(),
-                        obj: new_stateful_set.to_dynamic_object(),
-                    });
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
-                        sts_from_get: None
-                    };
-                    return (state_prime, Some(Request::KRequest(req_o)));
-                } else {
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Error,
-                        ..state
-                    };
-                    return (state_prime, None);
-                }
+                // update sts
+                let found_stateful_set = state.sts_from_get.unwrap();
+                let new_stateful_set = update_stateful_set(zk, &found_stateful_set);
+                let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                    api_resource: StatefulSet::api_resource(),
+                    name: make_stateful_set_name(zk),
+                    namespace: zk.metadata().namespace().unwrap(),
+                    obj: new_stateful_set.to_dynamic_object(),
+                });
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
+                    sts_from_get: None
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
             } else {
                 // return error state
                 let state_prime = ZookeeperReconcileState {
