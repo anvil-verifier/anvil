@@ -233,6 +233,20 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
     }
 }
 
+pub open spec fn updated_object(req: UpdateRequest, s: KubernetesAPIState) -> DynamicObjectView {
+    let old_obj = s.resources[req.key];
+    let updated_obj = req.obj.set_namespace(req.key.namespace)
+                        // Update cannot change the rv; if rv is provided and inconsistent, validation fails.
+                        .set_resource_version(old_obj.metadata.resource_version.get_Some_0())
+                        // Update cannot change the uid; if uid is provided and inconsistent, validation fails.
+                        .set_uid(old_obj.metadata.uid.get_Some_0())
+                        // Update cannot change the deletion timestamp.
+                        .overwrite_deletion_timestamp(old_obj.metadata.deletion_timestamp);
+    // TODO: enforce that finalizer cannot be added if deletion timestamp is set.
+    // TODO: status should also be ignored here, after we support it.
+    updated_obj
+}
+
 pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (KubernetesAPIState, Message)
     recommends
         msg.content.is_update_request(),
@@ -245,19 +259,8 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
         (s, resp)
     } else {
         // Update succeeds.
-        // Updates the resource version of the object.
-        let old_obj = s.resources[req.key];
-        let updated_obj = req.obj.set_namespace(req.key.namespace)
-                            // Update cannot change the rv; if rv is provided and inconsistent, validation fails.
-                            .set_resource_version(old_obj.metadata.resource_version.get_Some_0())
-                            // Update cannot change the uid; if uid is provided and inconsistent, validation fails.
-                            .set_uid(old_obj.metadata.uid.get_Some_0())
-                            // Update cannot change the deletion timestamp.
-                            .overwrite_deletion_timestamp(old_obj.metadata.deletion_timestamp);
-        // TODO: enforce that finalizer cannot be added if deletion timestamp is set.
-        // TODO: status should also be ignored here, after we support it.
-
-        if updated_obj == old_obj {
+        let updated_obj = Self::updated_object(req, s);
+        if updated_obj == s.resources[req.key] {
             // Update is a noop because there is nothing to update
             // so the resource version counter does not increase here,
             // and the resource version of this object remains the same.

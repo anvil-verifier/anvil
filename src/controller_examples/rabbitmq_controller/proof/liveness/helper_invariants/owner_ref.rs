@@ -58,16 +58,16 @@ pub proof fn lemma_eventually_only_valid_server_config_map_exists(spec: TempPred
 ///     2. spec |= (object_has_invalid_owner_reference ==> delete message in flight) ~> all_objects_have_expected_owner_references.
 /// The first is primarily obtained by the weak fairness of the builtin controllers action (specifially, the garbage collector);
 /// and the second holds due to the weak fairness of kubernetes api.
-/// 
+///
 /// To prove 1, we split `true` into three cases:
 ///     a. The object has invalid owner references.
 ///     b. The object has valid owner references.
 ///     c. The object doesn't exist.
-/// For the last two cases, the post state ((object_has_invalid_owner_reference ==> delete message in flight)) is already reached. 
+/// For the last two cases, the post state ((object_has_invalid_owner_reference ==> delete message in flight)) is already reached.
 /// We only need to show spec |= case a ~> post. This is straightforward via the weak fairness of builtin controllers.
-/// 
-/// The proof of 2 is nothing new to previous proof about kubernetes api actions. 
-/// 
+///
+/// The proof of 2 is nothing new to previous proof about kubernetes api actions.
+///
 /// Several preconditions must be satisfied:
 ///     1. spec |= [](in_flight(update_msg_with(msg, key)) ==> expected(msg.obj.metadata.owner_references)).
 ///     2. spec |= [](in_flight(create_msg_with(msg, key)) ==> expected(msg.obj.metadata.owner_references)).
@@ -144,7 +144,7 @@ pub proof fn lemma_eventually_only_valid_stateful_set_exists(spec: TempPred<RMQC
             Step::KubernetesAPIStep(i) => {
                 if i.get_Some_0().content.is_update_request_with_key(sts_key) {
                     if RMQCluster::validate_update_request(i.get_Some_0().content.get_update_request(), s.kubernetes_api_state).is_Some()
-                    || RMQCluster::update_is_noop(i.get_Some_0().content.get_update_request().obj, s.resource_obj_of(sts_key)) {
+                    || RMQCluster::updated_object(i.get_Some_0().content.get_update_request(), s.kubernetes_api_state) == s.resource_obj_of(sts_key) {
                         assert(key_exists_and_old_ref(s_prime));
                     } else {
                         assert(i.get_Some_0().content.get_update_request().obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()]));
@@ -263,7 +263,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_only_valid_sts_exists(
         spec,
         true_pred(),
         lift_state(pre),
-        lift_state(key_exists_and_delete_msg_exists), 
+        lift_state(key_exists_and_delete_msg_exists),
         lift_state(post)
     );
 }
