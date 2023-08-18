@@ -295,6 +295,13 @@ impl ObjectMetaView {
             ..self
         }
     }
+
+    pub open spec fn well_formed(self) -> bool {
+        &&& self.name.is_Some()
+        &&& self.namespace.is_Some()
+        &&& self.resource_version.is_Some()
+        &&& self.uid.is_Some()
+    }
 }
 
 impl Marshalable for ObjectMetaView {

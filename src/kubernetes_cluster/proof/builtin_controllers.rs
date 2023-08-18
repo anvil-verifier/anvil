@@ -77,11 +77,13 @@ spec fn exists_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePre
         }
     }
 }
-/// The proof of spec |= true ~> objects_owner_references_satisfies(eventual_owner_ref) consists of two parts:
-///     1. spec |= true ~> (object_has_invalid_owner_reference ==> delete message in flight).
-///     2. spec |= (object_has_invalid_owner_reference ==> delete message in flight) ~> all_objects_have_expected_owner_references.
-/// The first is primarily obtained by the weak fairness of the builtin controllers action (specifially, the garbage collector);
-/// and the second holds due to the weak fairness of kubernetes api.
+
+
+/// This lemma is used to show that under some assumptions, the owner references of given object will eventually satisfy the 
+/// provided requirements (e.g., only points to the current cr's reference). We introduce this lemma because during reconciler
+/// process, the reconciler only considers the object created from current cr and if so, it continues; otherwises, it returns.
+/// With this lemma, we can prove that the reconciler will eventually continue the reconcile process. To use this lemma, please
+/// read the explanations of all the preconditions and what each of them is for.
 /// 
 /// This lemma requires the following preconditions:
 ///     1. spec |= [](in_flight(update_msg_with(msg, key)) ==> satisfies(msg.obj.metadata.owner_references, eventual_owner_ref)).
@@ -98,13 +100,13 @@ spec fn exists_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePre
 /// in rabbitmq controller, the universal set should be the set of any cr's controller owner ref that has once been in reconcile.
 /// If we don't have this, suppose owner_ref == None, then the object won't be deleted.
 /// 
-/// We split `true` into two cases:
-///     a. The object's owner references violates eventual_owner_ref.
-///     b. The object's owner references satisfies eventual_owner_ref.
-/// b. is already the post state. We only need to show spec |= case a ~> post. This is straightforward via the weak fairness of builtin 
-/// controllers. Note that from precondition 4, we can replace a. with the "pre" (the variable in the lemma body).
+/// The proof of spec |= true ~> objects_owner_references_satisfies(eventual_owner_ref) consists of two parts:
+///     1. spec |= true ~> (object_has_invalid_owner_reference ==> delete message in flight).
+///     2. spec |= (object_has_invalid_owner_reference ==> delete message in flight) ~> all_objects_have_expected_owner_references.
+/// The first is primarily obtained by the weak fairness of the builtin controllers action (specifially, the garbage collector);
+/// and the second holds due to the weak fairness of kubernetes api.
 /// 
-/// This lemma is enough for cuurent proof, if later we introduce more complex case, we can try to strengthen it.
+/// This lemma is enough for current proof, if later we introduce more complex case, we can try to strengthen it.
 pub proof fn lemma_eventually_objects_owner_references_satisfies(
     spec: TempPred<Self>, key: ObjectRef, eventual_owner_ref: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool
 )
@@ -121,6 +123,12 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
     ensures
         spec.entails(true_pred().leads_to(always(lift_state(Self::objects_owner_references_satisfies(key, eventual_owner_ref))))),
 {
+    // We split `true` into two cases:
+    //     a. The object's owner references violates eventual_owner_ref.
+    //     b. The object's owner references satisfies eventual_owner_ref.
+    // b. is already the post state. We only need to show spec |= case a ~> post. This is straightforward via the weak fairness of builtin 
+    // controllers. Note that from precondition 4, we can replace a. with the "pre" (the variable in the lemma body).
+
     let pre = |s: Self| {
         &&& Self::objects_owner_references_violates(key, eventual_owner_ref)(s)
         &&& Self::garbage_collector_deletion_enabled(key)(s)

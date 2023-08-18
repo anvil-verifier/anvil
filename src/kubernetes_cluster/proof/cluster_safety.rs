@@ -29,17 +29,10 @@ pub proof fn lemma_always_has_rest_id_counter_no_smaller_than(
     init_invariant::<Self>(spec, Self::rest_id_counter_is(rest_id), Self::next(), invariant);
 }
 
-pub open spec fn metadata_is_well_formed(metadata: ObjectMetaView) -> bool {
-    &&& metadata.name.is_Some()
-    &&& metadata.namespace.is_Some()
-    &&& metadata.resource_version.is_Some()
-    &&& metadata.uid.is_Some()
-}
-
 pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
         &&& s.resource_obj_of(key).object_ref() == key
-        &&& Self::metadata_is_well_formed(s.resource_obj_of(key).metadata)
+        &&& s.resource_obj_of(key).metadata.well_formed()
         &&& {
             &&& key.kind == ConfigMapView::kind() ==> ConfigMapView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
             &&& key.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
@@ -86,7 +79,7 @@ pub open spec fn each_scheduled_object_has_consistent_key_and_valid_metadata() -
         forall |key: ObjectRef|
             #[trigger] s.reconcile_scheduled_for(key)
                 ==> s.reconcile_scheduled_obj_of(key).object_ref() == key
-                    && Self::metadata_is_well_formed(s.reconcile_scheduled_obj_of(key).metadata())
+                    && s.reconcile_scheduled_obj_of(key).metadata().well_formed()
     }
 }
 
@@ -114,7 +107,7 @@ pub proof fn lemma_always_each_scheduled_object_has_consistent_key_and_valid_met
     implies invariant(s_prime) by {
         assert forall |key: ObjectRef| #[trigger] s_prime.reconcile_scheduled_for(key)
         implies s_prime.reconcile_scheduled_obj_of(key).object_ref() == key
-        && Self::metadata_is_well_formed(s_prime.reconcile_scheduled_obj_of(key).metadata()) by {
+        && s_prime.reconcile_scheduled_obj_of(key).metadata().well_formed() by {
             let step = choose |step| Self::next_step(s, s_prime, step);
             match step {
                 Step::ScheduleControllerReconcileStep(input) => {
@@ -142,7 +135,7 @@ pub open spec fn each_object_in_reconcile_has_consistent_key_and_valid_metadata(
         forall |key: ObjectRef|
             #[trigger] s.reconcile_state_contains(key)
                 ==> s.triggering_cr_of(key).object_ref() == key
-                    && Self::metadata_is_well_formed(s.triggering_cr_of(key).metadata())
+                    && s.triggering_cr_of(key).metadata().well_formed()
     }
 }
 
@@ -170,7 +163,7 @@ pub proof fn lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_
     implies invariant(s_prime) by {
         assert forall |key: ObjectRef| #[trigger] s_prime.reconcile_state_contains(key)
         implies s_prime.triggering_cr_of(key).object_ref() == key
-        && Self::metadata_is_well_formed(s_prime.triggering_cr_of(key).metadata()) by {
+        && s_prime.triggering_cr_of(key).metadata().well_formed() by {
             if s.reconcile_state_contains(key) {
             } else {
                 assert(s.reconcile_scheduled_for(key));
