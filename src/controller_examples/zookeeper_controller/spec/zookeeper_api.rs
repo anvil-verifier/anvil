@@ -14,12 +14,12 @@ pub struct ZKAPIResultView {
 
 #[is_variant]
 pub enum ZKAPIInputView {
-    SetZKNode(StringView, StringView, StringView),
+    SetZKNodeRequest(StringView, StringView, StringView),
 }
 
 #[is_variant]
 pub enum ZKAPIOutputView {
-    SetZKNode(ZKAPIResultView),
+    SetZKNodeResponse(ZKAPIResultView),
 }
 
 pub struct ZooKeeperState {
@@ -44,7 +44,7 @@ impl ExternalAPI for ZKAPI {
 
     open spec fn transition(input: ZKAPIInputView, state: ZooKeeperState) -> (Option<ZKAPIOutputView>, ZooKeeperState) {
         match input {
-            ZKAPIInputView::SetZKNode(zk_name, zk_namespace, replicas) => reconcile_zk_node(zk_name, zk_namespace, replicas, state),
+            ZKAPIInputView::SetZKNodeRequest(zk_name, zk_namespace, replicas) => set_zk_node(zk_name, zk_namespace, replicas, state),
         }
     }
 
@@ -53,7 +53,7 @@ impl ExternalAPI for ZKAPI {
     }
 }
 
-pub open spec fn reconcile_zk_node(
+pub open spec fn set_zk_node(
     zk_name: StringView, zk_namespace: StringView, replicas: StringView, state: ZooKeeperState
 ) -> (Option<ZKAPIOutputView>, ZooKeeperState) {
     // Here we assume the parent node ("/zookeeper-operator") already exists so we don't model it.
@@ -75,7 +75,7 @@ pub open spec fn reconcile_zk_node(
         data: new_data,
         ..state
     };
-    (Some(ZKAPIOutputView::SetZKNode(ZKAPIResultView{res: Ok(())})), state_prime)
+    (Some(ZKAPIOutputView::SetZKNodeResponse(ZKAPIResultView{res: Ok(())})), state_prime)
 }
 
 }

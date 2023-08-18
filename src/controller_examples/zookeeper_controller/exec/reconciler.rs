@@ -25,14 +25,14 @@ pub struct ZookeeperReconcileState {
     // reconcile_step, like a program counter, is used to track the progress of reconcile_core
     // since reconcile_core is frequently "trapped" into the controller_runtime spec.
     pub reconcile_step: ZookeeperReconcileStep,
-    pub sts_from_get: Option<StatefulSet>,
+    pub found_stateful_set_opt: Option<StatefulSet>,
 }
 
 impl ZookeeperReconcileState {
     pub open spec fn to_view(&self) -> zk_spec::ZookeeperReconcileState {
         zk_spec::ZookeeperReconcileState {
             reconcile_step: self.reconcile_step,
-            sts_from_get: match &self.sts_from_get {
+            found_stateful_set_opt: match &self.found_stateful_set_opt {
                 Some(sts) => Some(sts@),
                 None => None,
             },
@@ -74,7 +74,7 @@ pub fn reconcile_init_state() -> (state: ZookeeperReconcileState)
 {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
-        sts_from_get: None,
+        found_stateful_set_opt: None,
     }
 }
 
@@ -200,13 +200,13 @@ pub fn reconcile_core(
                                 // Save the sts from get request.
                                 // Then, later when we want to update sts, we can use the old sts as the base
                                 // and we do not need to call GetRequest again.
-                                sts_from_get: Some(found_stateful_set),
+                                found_stateful_set_opt: Some(found_stateful_set),
                                 ..state
                             };
                             let zk_name = zk.metadata().name().unwrap();
                             let zk_namespace = zk.metadata().namespace().unwrap();
                             let replicas = i32_to_string(zk.spec().replicas());
-                            let ext_req = ZKAPIInput::SetZKNode(zk_name, zk_namespace, replicas);
+                            let ext_req = ZKAPIInput::SetZKNodeRequest(zk_name, zk_namespace, replicas);
                             // Call external APIs to update the content in ZKNode
                             return (state_prime, Some(Request::ExternalRequest(ext_req)));
                         }
@@ -236,9 +236,9 @@ pub fn reconcile_core(
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
             && resp_o.as_ref().unwrap().as_external_response_ref().is_set_zk_node_response()
             && resp_o.unwrap().into_external_response().into_set_zk_node_response().res.is_ok()
-            && state.sts_from_get.is_some() {
+            && state.found_stateful_set_opt.is_some() {
                 // update sts
-                let found_stateful_set = state.sts_from_get.unwrap();
+                let found_stateful_set = state.found_stateful_set_opt.unwrap();
                 let new_stateful_set = update_stateful_set(zk, &found_stateful_set);
                 let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                     api_resource: StatefulSet::api_resource(),
@@ -248,7 +248,7 @@ pub fn reconcile_core(
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
-                    sts_from_get: None
+                    found_stateful_set_opt: None
                 };
                 return (state_prime, Some(Request::KRequest(req_o)));
             } else {

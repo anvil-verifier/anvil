@@ -18,20 +18,20 @@ pub struct ZKAPIResult {
 
 #[is_variant]
 pub enum ZKAPIInput {
-    SetZKNode(String, String, String),
+    SetZKNodeRequest(String, String, String),
 }
 
 #[is_variant]
 pub enum ZKAPIOutput {
-    SetZKNode(ZKAPIResult),
+    SetZKNodeResponse(ZKAPIResult),
 }
 
 impl ToView for ZKAPIInput {
     type V = ZKAPIInputView;
     open spec fn to_view(&self) -> ZKAPIInputView {
         match self {
-            ZKAPIInput::SetZKNode(zk_name, zk_namespace, replicas)
-                => ZKAPIInputView::SetZKNode(zk_name@, zk_namespace@, replicas@),
+            ZKAPIInput::SetZKNodeRequest(zk_name, zk_namespace, replicas)
+                => ZKAPIInputView::SetZKNodeRequest(zk_name@, zk_namespace@, replicas@),
         }
     }
 }
@@ -40,7 +40,7 @@ impl ToView for ZKAPIOutput {
     type V = ZKAPIOutputView;
     open spec fn to_view(&self) -> ZKAPIOutputView {
         match self {
-            ZKAPIOutput::SetZKNode(result) => ZKAPIOutputView::SetZKNode(ZKAPIResultView {res: result.res}),
+            ZKAPIOutput::SetZKNodeResponse(result) => ZKAPIOutputView::SetZKNodeResponse(ZKAPIResultView {res: result.res}),
         }
     }
 }
@@ -48,21 +48,21 @@ impl ToView for ZKAPIOutput {
 impl ZKAPIOutput {
     pub fn is_set_zk_node_response(&self) -> (res: bool)
         ensures
-            res == self.is_SetZKNode(),
+            res == self.is_SetZKNodeResponse(),
     {
         match self {
-            ZKAPIOutput::SetZKNode(_) => true,
+            ZKAPIOutput::SetZKNodeResponse(_) => true,
         }
     }
 
     pub fn into_set_zk_node_response(self) -> (result: ZKAPIResult)
         requires
-            self.is_SetZKNode(),
+            self.is_SetZKNodeResponse(),
         ensures
-            result == self.get_SetZKNode_0(),
+            result == self.get_SetZKNodeResponse_0(),
     {
         match self {
-            ZKAPIOutput::SetZKNode(result) => result,
+            ZKAPIOutput::SetZKNodeResponse(result) => result,
         }
     }
 }
@@ -73,8 +73,8 @@ impl ExternalAPI<ZKAPIInput, ZKAPIOutput> for ZKAPI {
     #[verifier(external)]
     fn transition(input: ZKAPIInput) -> Option<ZKAPIOutput> {
         match input {
-            ZKAPIInput::SetZKNode(zk_name, zk_namespace, replicas)
-                => Some(ZKAPIOutput::SetZKNode(reconcile_zk_node(zk_name, zk_namespace, replicas))),
+            ZKAPIInput::SetZKNodeRequest(zk_name, zk_namespace, replicas)
+                => Some(ZKAPIOutput::SetZKNodeResponse(set_zk_node(zk_name, zk_namespace, replicas))),
         }
     }
 }
@@ -86,12 +86,12 @@ impl Watcher for LoggingWatcher {
 }
 
 #[verifier(external)]
-pub fn reconcile_zk_node(zk_name: String, zk_namespace: String, replicas: String) -> ZKAPIResult {
-    ZKAPIResult {res: reconcile_zk_node_internal(zk_name, zk_namespace, replicas)}
+pub fn set_zk_node(zk_name: String, zk_namespace: String, replicas: String) -> ZKAPIResult {
+    ZKAPIResult {res: set_zk_node_internal(zk_name, zk_namespace, replicas)}
 }
 
 #[verifier(external)]
-pub fn reconcile_zk_node_internal(zk_name: String, zk_namespace: String, replicas: String) -> Result<(), Error> {
+pub fn set_zk_node_internal(zk_name: String, zk_namespace: String, replicas: String) -> Result<(), Error> {
     let uri = &format!(
         "{}-client.{}.svc.cluster.local:2181",
         zk_name.as_rust_string_ref(),

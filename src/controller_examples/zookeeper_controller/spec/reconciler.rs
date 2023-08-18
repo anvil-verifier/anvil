@@ -20,7 +20,7 @@ verus! {
 
 pub struct ZookeeperReconcileState {
     pub reconcile_step: ZookeeperReconcileStep,
-    pub sts_from_get: Option<StatefulSetView>,
+    pub found_stateful_set_opt: Option<StatefulSetView>,
 }
 
 pub struct ZookeeperReconciler {}
@@ -50,7 +50,7 @@ impl Reconciler<ZookeeperClusterView, ZKAPI> for ZookeeperReconciler {
 pub open spec fn reconcile_init_state() -> ZookeeperReconcileState {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
-        sts_from_get: None,
+        found_stateful_set_opt: None,
     }
 }
 
@@ -156,10 +156,10 @@ pub open spec fn reconcile_core(
                             // update
                             let state_prime = ZookeeperReconcileState {
                                 reconcile_step: ZookeeperReconcileStep::AfterSetZKNode,
-                                sts_from_get: Some(found_stateful_set),
+                                found_stateful_set_opt: Some(found_stateful_set),
                                 ..state
                             };
-                            let ext_req = ZKAPIInputView::SetZKNode(
+                            let ext_req = ZKAPIInputView::SetZKNodeRequest(
                                 zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), int_to_string_view(zk.spec.replicas)
                             );
                             (state_prime, Some(RequestView::ExternalRequest(ext_req)))
@@ -199,19 +199,19 @@ pub open spec fn reconcile_core(
         },
         ZookeeperReconcileStep::AfterSetZKNode => {
             if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
-            && resp_o.get_Some_0().get_ExternalResponse_0().is_SetZKNode()
-            && resp_o.get_Some_0().get_ExternalResponse_0().get_SetZKNode_0().res.is_Ok()
-            && state.sts_from_get.is_Some() {
+            && resp_o.get_Some_0().get_ExternalResponse_0().is_SetZKNodeResponse()
+            && resp_o.get_Some_0().get_ExternalResponse_0().get_SetZKNodeResponse_0().res.is_Ok()
+            && state.found_stateful_set_opt.is_Some() {
                 // Only proceed to update the stateful set when zk node is set successfully,
                 // otherwise it might cause unsafe downscale.
-                let found_stateful_set = state.sts_from_get.get_Some_0();
+                let found_stateful_set = state.found_stateful_set_opt.get_Some_0();
                 let req_o = APIRequest::UpdateRequest(UpdateRequest {
                     key: make_stateful_set_key(zk.object_ref()),
                     obj: update_stateful_set(zk, found_stateful_set).to_dynamic_object(),
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
-                    sts_from_get: None,
+                    found_stateful_set_opt: None,
                 };
                 (state_prime, Some(RequestView::KRequest(req_o)))
             } else {
