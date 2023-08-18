@@ -281,94 +281,6 @@ proof fn lemma_always_sts_create_request_msg_is_valid(spec: TempPred<RMQCluster>
     init_invariant(spec, RMQCluster::init(), stronger_next,sts_create_request_msg_is_valid(key));
 }
 
-pub open spec fn pending_msg_at_after_create_server_config_map_step_is_create_cm_req(
-    key: ObjectRef
-) -> StatePred<RMQCluster>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: RMQCluster| {
-        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s)
-            ==> {
-                &&& RMQCluster::pending_k8s_api_req_msg(s, key)
-                &&& cm_create_request_msg(key)(s.pending_req_of(key))
-            }
-    }
-}
-
-pub proof fn lemma_always_pending_msg_at_after_create_server_config_map_step_is_create_cm_req(
-    spec: TempPred<RMQCluster>, key: ObjectRef
-)
-    requires
-        spec.entails(lift_state(RMQCluster::init())),
-        spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(
-            always(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))
-        ),
-{
-    let invariant = pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key);
-    let init = RMQCluster::init();
-    let stronger_next = |s, s_prime| {
-        &&& RMQCluster::next()(s, s_prime)
-        &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
-    };
-
-    RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
-
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(RMQCluster::next()),
-        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
-    );
-
-    init_invariant(spec, init, stronger_next, invariant);
-}
-
-pub open spec fn pending_msg_at_after_update_server_config_map_step_is_update_cm_req(
-    key: ObjectRef
-) -> StatePred<RMQCluster>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: RMQCluster| {
-        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s)
-            ==> {
-                &&& RMQCluster::pending_k8s_api_req_msg(s, key)
-                &&& cm_update_request_msg(key)(s.pending_req_of(key))
-            }
-    }
-}
-
-pub proof fn lemma_always_pending_msg_at_after_update_server_config_map_step_is_update_cm_req(
-    spec: TempPred<RMQCluster>, key: ObjectRef
-)
-    requires
-        spec.entails(lift_state(RMQCluster::init())),
-        spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(
-            always(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))
-        ),
-{
-    let invariant = pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key);
-    let init = RMQCluster::init();
-    let stronger_next = |s, s_prime| {
-        &&& RMQCluster::next()(s, s_prime)
-        &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
-    };
-
-    RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
-
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(RMQCluster::next()),
-        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
-    );
-
-    init_invariant(spec, init, stronger_next, invariant);
-}
-
 pub open spec fn create_cm_req_msg_in_flight_implies_at_after_create_cm_step(key: ObjectRef) -> StatePred<RMQCluster>
     recommends
         key.kind.is_CustomResourceKind(),
@@ -379,6 +291,7 @@ pub open spec fn create_cm_req_msg_in_flight_implies_at_after_create_cm_step(key
             &&& cm_create_request_msg(key)(msg)
         } ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s)
+            &&& RMQCluster::pending_k8s_api_req_msg(s, key)
             &&& msg == s.pending_req_of(key)
         }
     }
@@ -393,7 +306,6 @@ pub proof fn lemma_true_leads_to_always_create_cm_req_msg_in_flight_implies_at_a
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
@@ -404,6 +316,7 @@ pub proof fn lemma_true_leads_to_always_create_cm_req_msg_in_flight_implies_at_a
         cm_create_request_msg(key)(msg)
         ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s)
+            &&& RMQCluster::pending_k8s_api_req_msg(s, key)
             &&& msg == s.pending_req_of(key)
         }
     };
@@ -413,7 +326,6 @@ pub proof fn lemma_true_leads_to_always_create_cm_req_msg_in_flight_implies_at_a
         &&& RMQCluster::busy_disabled()(s)
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
-        &&& pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key)(s)
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime)
     implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
@@ -470,8 +382,7 @@ pub proof fn lemma_true_leads_to_always_create_cm_req_msg_in_flight_implies_at_a
         spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()), lift_state(RMQCluster::crash_disabled()), lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
-        lift_state(pending_msg_at_after_create_server_config_map_step_is_create_cm_req(key))
+        lift_state(RMQCluster::every_in_flight_msg_has_unique_id())
     );
 
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
@@ -489,6 +400,7 @@ pub open spec fn update_cm_req_msg_in_flight_implies_at_after_update_cm_step(key
             &&& cm_update_request_msg(key)(msg)
         } ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s)
+            &&& RMQCluster::pending_k8s_api_req_msg(s, key)
             &&& msg == s.pending_req_of(key)
         }
     }
@@ -501,7 +413,6 @@ pub proof fn lemma_true_leads_to_always_update_cm_req_msg_in_flight_implies_at_a
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
-        spec.entails(always(lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         key.kind.is_CustomResourceKind(),
@@ -514,6 +425,7 @@ pub proof fn lemma_true_leads_to_always_update_cm_req_msg_in_flight_implies_at_a
         cm_update_request_msg(key)(msg)
         ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s)
+            &&& RMQCluster::pending_k8s_api_req_msg(s, key)
             &&& msg == s.pending_req_of(key)
         }
     };
@@ -521,7 +433,6 @@ pub proof fn lemma_true_leads_to_always_update_cm_req_msg_in_flight_implies_at_a
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
         &&& RMQCluster::busy_disabled()(s)
-        &&& pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)(s)
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
     };
@@ -559,7 +470,6 @@ pub proof fn lemma_true_leads_to_always_update_cm_req_msg_in_flight_implies_at_a
         lift_action(RMQCluster::next()),
         lift_state(RMQCluster::crash_disabled()),
         lift_state(RMQCluster::busy_disabled()),
-        lift_state(pending_msg_at_after_update_server_config_map_step_is_update_cm_req(key)),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id())
     );
@@ -1008,50 +918,6 @@ pub proof fn lemma_true_leads_to_always_every_create_cm_req_does_the_same(spec: 
     temp_pred_equality(lift_state(every_create_cm_req_does_the_same(rabbitmq)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
-pub open spec fn pending_msg_at_after_update_stateful_set_step_is_update_sts_req(
-    key: ObjectRef
-) -> StatePred<RMQCluster>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: RMQCluster| {
-        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s)
-        ==> {
-            &&& RMQCluster::pending_k8s_api_req_msg(s, key)
-            &&& sts_update_request_msg(key)(s.pending_req_of(key))
-        }
-    }
-}
-
-pub proof fn lemma_always_pending_msg_at_after_update_stateful_set_step_is_update_sts_req(
-    spec: TempPred<RMQCluster>, key: ObjectRef
-)
-    requires
-        spec.entails(lift_state(RMQCluster::init())),
-        spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(
-            always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))
-        ),
-{
-    let invariant = pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key);
-    let init = RMQCluster::init();
-    let stronger_next = |s, s_prime| {
-        &&& RMQCluster::next()(s, s_prime)
-        &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
-    };
-
-    RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
-
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(RMQCluster::next()),
-        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
-    );
-
-    init_invariant(spec, init, stronger_next, invariant);
-}
-
 pub open spec fn create_sts_req_msg_in_flight_implies_at_after_create_sts_step(key: ObjectRef) -> StatePred<RMQCluster>
     recommends
         key.kind.is_CustomResourceKind(),
@@ -1147,6 +1013,7 @@ pub open spec fn update_sts_req_msg_in_flight_implies_at_after_update_sts_step(k
             &&& sts_update_request_msg(key)(msg)
         } ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s)
+            &&& RMQCluster::pending_k8s_api_req_msg(s, key)
             &&& msg == s.pending_req_of(key)
         }
     }
@@ -1161,7 +1028,6 @@ pub proof fn lemma_true_leads_to_always_update_sts_req_msg_in_flight_implies_at_
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
-        spec.entails(always(lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)))),
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
@@ -1172,6 +1038,7 @@ pub proof fn lemma_true_leads_to_always_update_sts_req_msg_in_flight_implies_at_
         sts_update_request_msg(key)(msg)
         ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s)
+            &&& RMQCluster::pending_k8s_api_req_msg(s, key)
             &&& msg == s.pending_req_of(key)
         }
     };
@@ -1181,7 +1048,6 @@ pub proof fn lemma_true_leads_to_always_update_sts_req_msg_in_flight_implies_at_
         &&& RMQCluster::busy_disabled()(s)
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
-        &&& pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key)(s)
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime)
     implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
@@ -1215,8 +1081,7 @@ pub proof fn lemma_true_leads_to_always_update_sts_req_msg_in_flight_implies_at_
         spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()), lift_state(RMQCluster::crash_disabled()), lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
-        lift_state(pending_msg_at_after_update_stateful_set_step_is_update_sts_req(key))
+        lift_state(RMQCluster::every_in_flight_msg_has_unique_id())
     );
 
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
