@@ -3,7 +3,7 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::pervasive_ext::string_view::*;
-use crate::zookeeper_controller::{common::*, spec::zookeepercluster::*};
+use crate::zookeeper_controller::common::*;
 use vstd::{prelude::*, string::*};
 
 verus! {
