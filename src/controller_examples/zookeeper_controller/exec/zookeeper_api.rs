@@ -87,7 +87,12 @@ impl Watcher for LoggingWatcher {
 
 #[verifier(external)]
 pub fn set_zk_node(zk_name: String, zk_namespace: String, replicas: String) -> ZKAPIResult {
-    ZKAPIResult {res: set_zk_node_internal(zk_name, zk_namespace, replicas)}
+    let result = ZKAPIResult {res: set_zk_node_internal(zk_name, zk_namespace, replicas)};
+    match result.res {
+        Err(_) => println!("Set zk node failed"),
+        Ok(_) => println!("Set zk node successfully"),
+    }
+    result
 }
 
 #[verifier(external)]
@@ -97,26 +102,30 @@ pub fn set_zk_node_internal(zk_name: String, zk_namespace: String, replicas: Str
         zk_name.as_rust_string_ref(),
         zk_namespace.as_rust_string_ref()
     );
+    println!("Connecting to zk uri {} ...", uri);
     let zk_client = ZooKeeper::connect(uri, Duration::from_secs(10), LoggingWatcher)
         .map_err(|e| Error::ClusterSizeZKNodeSetFailed)?;
 
     let parent_node_path = "/zookeeper-operator";
+    println!("Ensuring {} ...", parent_node_path);
     ensure_parent_node_exists(parent_node_path, &zk_client)?;
 
     let node_path = &format!("{}/{}", parent_node_path, zk_name.as_rust_string_ref());
-    let data = format!("CLUSTER_SIZE={}", replicas.as_rust_string_ref()).as_bytes().to_vec();
+    let data = format!("CLUSTER_SIZE={}", replicas.as_rust_string_ref());
     let acl = Acl::open_unsafe().to_vec();
+    println!("Setting {} {} ...", node_path, data);
     match zk_client.exists(node_path, false) {
         Err(_) => Err(Error::ClusterSizeZKNodeSetFailed),
         Ok(stat_opt) => match stat_opt {
             Some(stat) => {
-                match zk_client.set_data(node_path, data, Some(stat.version)) {
+                println!("Current version is {}", stat.version);
+                match zk_client.set_data(node_path, data.as_bytes().to_vec(), Some(stat.version)) {
                     Err(_) => Err(Error::ClusterSizeZKNodeSetFailed),
                     Ok(_) => Ok(()),
                 }
             }
             None => {
-                match zk_client.create(node_path, data, acl, CreateMode::Persistent) {
+                match zk_client.create(node_path, data.as_bytes().to_vec(), acl, CreateMode::Persistent) {
                     Err(_) => Err(Error::ClusterSizeZKNodeSetFailed),
                     Ok(_) => Ok(()),
                 }
@@ -127,14 +136,13 @@ pub fn set_zk_node_internal(zk_name: String, zk_namespace: String, replicas: Str
 
 #[verifier(external)]
 pub fn ensure_parent_node_exists(parent_node_path: &str, zk_client: &ZooKeeper) -> Result<(), Error> {
-    let data = Vec::new();
     let acl = Acl::open_unsafe().to_vec();
     match zk_client.exists(parent_node_path, false) {
         Err(_) => Err(Error::ClusterSizeZKNodeSetFailed),
         Ok(stat_opt) => match stat_opt {
             Some(_) => Ok(()),
             None => {
-                match zk_client.create(parent_node_path, data, acl, CreateMode::Persistent) {
+                match zk_client.create(parent_node_path, Vec::new(), acl, CreateMode::Persistent) {
                     Err(_) => Err(Error::ClusterSizeZKNodeSetFailed),
                     Ok(_) => Ok(()),
                 }

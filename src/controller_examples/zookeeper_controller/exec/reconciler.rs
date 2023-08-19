@@ -181,38 +181,31 @@ pub fn reconcile_core(
                     let get_sts_result = StatefulSet::from_dynamic_object(get_sts_resp.unwrap());
                     if get_sts_result.is_ok() {
                         let found_stateful_set = get_sts_result.unwrap();
-                        if stateful_set_is_as_desired(zk, &found_stateful_set) {
-                            let state_prime = ZookeeperReconcileState {
-                                reconcile_step: ZookeeperReconcileStep::Done,
-                                ..state
-                            };
-                            return (state_prime, None);
-                        } else {
-                            // Updating the stateful set can lead to downscale,
-                            // which also requires to remove the zookeeper replica from the membership list explicitly.
-                            // If the zookeeper replica is deleted without being removed from the membership,
-                            // the zookeeper cluster might be unavailable because of losing the quorum.
-                            // So the controller needs to correctly prompt membership change before reducing the replica
-                            // size of the stateful set, by writing the new replica size into the zookeeper API.
-                            // Details can be found in https://github.com/vmware-research/verifiable-controllers/issues/174.
-                            let state_prime = ZookeeperReconcileState {
-                                reconcile_step: ZookeeperReconcileStep::AfterSetZKNode,
-                                // Save the sts from get request.
-                                // Then, later when we want to update sts, we can use the old sts as the base
-                                // and we do not need to call GetRequest again.
-                                found_stateful_set_opt: Some(found_stateful_set),
-                                ..state
-                            };
-                            let zk_name = zk.metadata().name().unwrap();
-                            let zk_namespace = zk.metadata().namespace().unwrap();
-                            let replicas = i32_to_string(zk.spec().replicas());
-                            let ext_req = ZKAPIInput::SetZKNodeRequest(zk_name, zk_namespace, replicas);
-                            // Call external APIs to update the content in ZKNode
-                            return (state_prime, Some(Request::ExternalRequest(ext_req)));
-                        }
+                        // Updating the stateful set can lead to downscale,
+                        // which also requires to remove the zookeeper replica from the membership list explicitly.
+                        // If the zookeeper replica is deleted without being removed from the membership,
+                        // the zookeeper cluster might be unavailable because of losing the quorum.
+                        // So the controller needs to correctly prompt membership change before reducing the replica
+                        // size of the stateful set, by writing the new replica size into the zookeeper API.
+                        // Details can be found in https://github.com/vmware-research/verifiable-controllers/issues/174.
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterSetZKNode,
+                            // Save the stateful set found by the get request.
+                            // Later when we want to update sts, we can use the old sts as the base
+                            // and we do not need to call GetRequest again.
+                            found_stateful_set_opt: Some(found_stateful_set),
+                            ..state
+                        };
+                        let zk_name = zk.metadata().name().unwrap();
+                        let zk_namespace = zk.metadata().namespace().unwrap();
+                        let replicas = i32_to_string(zk.spec().replicas());
+                        let ext_req = ZKAPIInput::SetZKNodeRequest(zk_name, zk_namespace, replicas);
+                        // Call external APIs to set the ZK node
+                        // which is used to prompt membership change.
+                        return (state_prime, Some(Request::ExternalRequest(ext_req)));
                     }
                 } else if get_sts_resp.unwrap_err().is_object_not_found() {
-                    // create
+                    // Create the stateful set since it doesn't exist yet.
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: StatefulSet::api_resource(),
                         namespace: zk.metadata().namespace().unwrap(),
@@ -225,7 +218,6 @@ pub fn reconcile_core(
                     return (state_prime, Some(Request::KRequest(req_o)));
                 }
             }
-            // return error state
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: ZookeeperReconcileStep::Error,
                 ..state
@@ -237,7 +229,8 @@ pub fn reconcile_core(
             && resp_o.as_ref().unwrap().as_external_response_ref().is_set_zk_node_response()
             && resp_o.unwrap().into_external_response().into_set_zk_node_response().res.is_ok()
             && state.found_stateful_set_opt.is_some() {
-                // update sts
+                // Update the stateful set only after we ensure
+                // that the ZK node has been set correctly.
                 let found_stateful_set = state.found_stateful_set_opt.unwrap();
                 let new_stateful_set = update_stateful_set(zk, &found_stateful_set);
                 let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
@@ -252,7 +245,6 @@ pub fn reconcile_core(
                 };
                 return (state_prime, Some(Request::KRequest(req_o)));
             } else {
-                // return error state
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Error,
                     ..state
@@ -508,15 +500,6 @@ fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
         name@ == zk_spec::make_stateful_set_name(zk@.metadata.name.get_Some_0()),
 {
     zk.metadata().name().unwrap()
-}
-
-fn stateful_set_is_as_desired(zk: &ZookeeperCluster, found_stateful_set: &StatefulSet) -> (res: bool)
-    requires
-        zk@.well_formed(),
-    ensures
-        res == zk_spec::stateful_set_is_as_desired(zk@, found_stateful_set@),
-{
-    update_stateful_set(zk, found_stateful_set).eq(found_stateful_set)
 }
 
 fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulSet) -> (stateful_set: StatefulSet)

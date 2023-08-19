@@ -145,25 +145,16 @@ pub open spec fn reconcile_core(
                 if get_sts_resp.is_Ok() {
                     if StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).is_Ok() {
                         let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).get_Ok_0();
-                        if stateful_set_is_as_desired(zk, found_stateful_set) {
-                            // noop
-                            let state_prime = ZookeeperReconcileState {
-                                reconcile_step: ZookeeperReconcileStep::Done,
-                                ..state
-                            };
-                            (state_prime, None)
-                        } else {
-                            // update
-                            let state_prime = ZookeeperReconcileState {
-                                reconcile_step: ZookeeperReconcileStep::AfterSetZKNode,
-                                found_stateful_set_opt: Some(found_stateful_set),
-                                ..state
-                            };
-                            let ext_req = ZKAPIInputView::SetZKNodeRequest(
-                                zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), int_to_string_view(zk.spec.replicas)
-                            );
-                            (state_prime, Some(RequestView::ExternalRequest(ext_req)))
-                        }
+                        // update
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterSetZKNode,
+                            found_stateful_set_opt: Some(found_stateful_set),
+                            ..state
+                        };
+                        let ext_req = ZKAPIInputView::SetZKNodeRequest(
+                            zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), int_to_string_view(zk.spec.replicas)
+                        );
+                        (state_prime, Some(RequestView::ExternalRequest(ext_req)))
                     } else {
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::Error,
@@ -420,10 +411,6 @@ pub open spec fn make_stateful_set_key(key: ObjectRef) -> ObjectRef
 
 pub open spec fn make_stateful_set_name(zk_name: StringView) -> StringView {
     zk_name
-}
-
-pub open spec fn stateful_set_is_as_desired(zk: ZookeeperClusterView, found_stateful_set: StatefulSetView) -> bool {
-    update_stateful_set(zk, found_stateful_set) == found_stateful_set
 }
 
 pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_set: StatefulSetView) -> StatefulSetView
