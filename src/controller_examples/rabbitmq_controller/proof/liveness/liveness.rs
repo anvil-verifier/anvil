@@ -119,8 +119,8 @@ spec fn derived_invariants_since_beginning(rabbitmq: RabbitmqClusterView) -> Tem
     .and(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed())))
     .and(always(lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata())))
     .and(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())))
-    .and(always(lift_state(helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))))
-    .and(always(lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))))
+    .and(always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq))))
+    .and(always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq))))
     .and(always(lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init)))))
     .and(always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateHeadlessService)))))
     .and(always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateService)))))
@@ -150,8 +150,8 @@ proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClusterV
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        lift_state(helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)),
-        lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)),
+        lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)),
+        lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)),
         lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
         lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateHeadlessService))),
         lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateService))),
@@ -263,8 +263,8 @@ proof fn invariants_since_phase_III_is_stable(rabbitmq: RabbitmqClusterView)
 /// To have these invariants, we first need the invariant that evert create/update request make/change the object in the
 /// expected way.
 spec fn invariants_since_phase_IV(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
-    always(lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)))
-    .and(always(lift_state(helper_invariants::server_config_map_has_owner_reference_pointing_to_current_cr(rabbitmq))))
+    always(lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)))
+    .and(always(lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq))))
 }
 
 proof fn invariants_since_phase_IV_is_stable(rabbitmq: RabbitmqClusterView)
@@ -272,8 +272,8 @@ proof fn invariants_since_phase_IV_is_stable(rabbitmq: RabbitmqClusterView)
         valid(stable(invariants_since_phase_IV(rabbitmq))),
 {
     stable_and_always_n!(
-        lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)),
-        lift_state(helper_invariants::server_config_map_has_owner_reference_pointing_to_current_cr(rabbitmq))
+        lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)),
+        lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq))
     );
 }
 
@@ -281,8 +281,8 @@ proof fn invariants_since_phase_IV_is_stable(rabbitmq: RabbitmqClusterView)
 /// pointing to current cr, it will never be recycled by the garbage collector. Plus, the reconciler itself never tries to
 /// delete this object, so we can have the invariants saying that no delete request messages will be in flight.
 spec fn invariants_since_phase_V(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
-    always(lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())))
-    .and(always(lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref()))))
+    always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref()))))
+    .and(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref())))))
 }
 
 proof fn invariants_since_phase_V_is_stable(rabbitmq: RabbitmqClusterView)
@@ -290,8 +290,8 @@ proof fn invariants_since_phase_V_is_stable(rabbitmq: RabbitmqClusterView)
         valid(stable(invariants_since_phase_V(rabbitmq))),
 {
     stable_and_always_n!(
-        lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())),
-        lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref()))
+        lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref()))),
+        lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref())))
     );
 }
 
@@ -332,8 +332,8 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
             helper_invariants::lemma_true_leads_to_always_no_delete_cm_req_is_in_flight(spec, rabbitmq);
             leads_to_always_combine_temp(
                 spec, true_pred(),
-                lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())),
-                lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref()))
+                lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref()))),
+                lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref())))
             );
             leads_to_trans_temp(spec, true_pred(), invariants_since_phase_V(rabbitmq), always(current_state_matches(rabbitmq)));
         }
@@ -351,8 +351,8 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
             helper_invariants::lemma_eventually_only_valid_server_config_map_exists(spec, rabbitmq);
             leads_to_always_combine_temp(
                 spec, true_pred(),
-                lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)),
-                lift_state(helper_invariants::server_config_map_has_owner_reference_pointing_to_current_cr(rabbitmq))
+                lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)),
+                lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq))
             );
             leads_to_trans_temp(spec, true_pred(), invariants_since_phase_IV(rabbitmq), always(current_state_matches(rabbitmq)));
         }
@@ -518,8 +518,8 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        lift_state(helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)),
-        lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)),
+        lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)),
+        lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)),
         lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
         lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateHeadlessService))),
         lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateService))),
@@ -1302,9 +1302,9 @@ proof fn lemma_from_after_get_stateful_set_and_key_exists_to_rabbitmq_matches(ra
     }
     leads_to_exists_intro(spec, pre_with_object, lift_state(current_stateful_set_matches(rabbitmq)));
     assert_by(
-        pre.and(lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq))).entails(tla_exists(pre_with_object)),
+        pre.and(lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq))).entails(tla_exists(pre_with_object)),
         {
-            assert forall |ex| #[trigger] lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)).satisfied_by(ex) implies pre.implies(tla_exists(pre_with_object)).satisfied_by(ex) by {
+            assert forall |ex| #[trigger] lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)).satisfied_by(ex) implies pre.implies(tla_exists(pre_with_object)).satisfied_by(ex) by {
                 if pre.satisfied_by(ex) {
                     let object = ex.head().resource_obj_of(make_stateful_set_key(rabbitmq.object_ref()));
                     assert(pre_with_object(object).satisfied_by(ex));
@@ -1314,10 +1314,10 @@ proof fn lemma_from_after_get_stateful_set_and_key_exists_to_rabbitmq_matches(ra
         }
     );
     valid_implies_implies_leads_to(
-        spec, pre.and(lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq))), tla_exists(pre_with_object)
+        spec, pre.and(lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq))), tla_exists(pre_with_object)
     );
     borrow_conditions_from_spec(
-        spec, lift_state(helper_invariants::stateful_set_has_owner_reference_pointing_to_current_cr(rabbitmq)),
+        spec, lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)),
         pre, tla_exists(pre_with_object)
     );
     leads_to_trans_temp(spec, pre, tla_exists(pre_with_object), lift_state(current_stateful_set_matches(rabbitmq)));
@@ -1333,7 +1333,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_rabbitmq(
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::update_sts_req_msg_in_flight_implies_at_after_update_sts_step(rabbitmq.object_ref())))),
-        spec.entails(always(lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref()))))),
         rabbitmq.well_formed(),
     ensures
         spec.entails(
@@ -1374,7 +1374,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_rabbitmq(
         &&& RMQCluster::busy_disabled()(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::update_sts_req_msg_in_flight_implies_at_after_update_sts_step(rabbitmq.object_ref())(s)
-        &&& helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())(s)
+        &&& helper_invariants::no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref()))(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -1383,7 +1383,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_rabbitmq(
         lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::update_sts_req_msg_in_flight_implies_at_after_update_sts_step(rabbitmq.object_ref())),
-        lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref()))
+        lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref())))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -1435,7 +1435,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::update_sts_req_msg_in_flight_implies_at_after_update_sts_step(rabbitmq.object_ref())))),
-        spec.entails(always(lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref()))))),
         rabbitmq.well_formed(),
     ensures
         spec.entails(
@@ -1477,7 +1477,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::update_sts_req_msg_in_flight_implies_at_after_update_sts_step(rabbitmq.object_ref())(s)
-        &&& helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())(s)
+        &&& helper_invariants::no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref()))(s)
     };
 
     combine_spec_entails_always_n!(
@@ -1490,7 +1490,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::update_sts_req_msg_in_flight_implies_at_after_update_sts_step(rabbitmq.object_ref())),
-        lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref()))
+        lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref())))
     );
 
     RMQCluster::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, RMQCluster::continue_reconcile(), pre, post);
@@ -1508,8 +1508,8 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_rabbitmq(
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::update_sts_req_msg_in_flight_implies_at_after_update_sts_step(rabbitmq.object_ref())))),
-        spec.entails(always(lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())))),
-        spec.entails(always(lift_state(helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref()))))),
+        spec.entails(always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)))),
         rabbitmq.well_formed(),
     ensures
         spec.entails(
@@ -1548,8 +1548,8 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_rabbitmq(
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::update_sts_req_msg_in_flight_implies_at_after_update_sts_step(rabbitmq.object_ref())(s)
-        &&& helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())(s)
-        &&& helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)(s)
+        &&& helper_invariants::no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref()))(s)
+        &&& helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -1560,8 +1560,8 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_rabbitmq(
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::update_sts_req_msg_in_flight_implies_at_after_update_sts_step(rabbitmq.object_ref())),
-        lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())),
-        lift_state(helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))
+        lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref()))),
+        lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -2335,7 +2335,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::update_cm_req_msg_in_flight_implies_at_after_update_cm_step(rabbitmq.object_ref())))),
-        spec.entails(always(lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref()))))),
         rabbitmq.well_formed(),
     ensures
         spec.entails(
@@ -2372,7 +2372,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
         &&& RMQCluster::busy_disabled()(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::update_cm_req_msg_in_flight_implies_at_after_update_cm_step(rabbitmq.object_ref())(s)
-        &&& helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())(s)
+        &&& helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref()))(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -2381,7 +2381,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
         lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::update_cm_req_msg_in_flight_implies_at_after_update_cm_step(rabbitmq.object_ref())),
-        lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref()))
+        lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref())))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -2430,8 +2430,8 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::update_cm_req_msg_in_flight_implies_at_after_update_cm_step(rabbitmq.object_ref())))),
-        spec.entails(always(lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())))),
-        spec.entails(always(lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref()))))),
+        spec.entails(always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)))),
         rabbitmq.well_formed(),
     ensures
         spec.entails(
@@ -2470,8 +2470,8 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::update_cm_req_msg_in_flight_implies_at_after_update_cm_step(rabbitmq.object_ref())(s)
-        &&& helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())(s)
-        &&& helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)(s)
+        &&& helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref()))(s)
+        &&& helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -2482,8 +2482,8 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::update_cm_req_msg_in_flight_implies_at_after_update_cm_step(rabbitmq.object_ref())),
-        lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())),
-        lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))
+        lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref()))),
+        lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq))
     );
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || post(s_prime) by {
@@ -2519,7 +2519,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_conf
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::update_cm_req_msg_in_flight_implies_at_after_update_cm_step(rabbitmq.object_ref())))),
-        spec.entails(always(lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref()))))),
         rabbitmq.well_formed(),
     ensures
         spec.entails(
@@ -2559,7 +2559,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_conf
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::update_cm_req_msg_in_flight_implies_at_after_update_cm_step(rabbitmq.object_ref())(s)
-        &&& helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())(s)
+        &&& helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref()))(s)
     };
 
     combine_spec_entails_always_n!(
@@ -2572,7 +2572,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_conf
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::update_cm_req_msg_in_flight_implies_at_after_update_cm_step(rabbitmq.object_ref())),
-        lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref()))
+        lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref())))
     );
 
     RMQCluster::lemma_pre_leads_to_post_by_controller(
@@ -2588,25 +2588,25 @@ proof fn lemma_server_config_map_is_stable(
     requires
         spec.entails(p.leads_to(lift_state(current_config_map_matches(rabbitmq)))),
         spec.entails(always(lift_action(RMQCluster::next()))),
-        spec.entails(always(lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref()))))),
         spec.entails(always(lift_state(helper_invariants::every_update_cm_req_does_the_same(rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)))),
     ensures
         spec.entails(p.leads_to(always(lift_state(current_config_map_matches(rabbitmq))))),
 {
     let post = current_config_map_matches(rabbitmq);
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
-        &&& helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())(s)
+        &&& helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref()))(s)
         &&& helper_invariants::every_update_cm_req_does_the_same(rabbitmq)(s)
-        &&& helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)(s)
+        &&& helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
-        lift_state(helper_invariants::no_delete_cm_req_is_in_flight(rabbitmq.object_ref())),
+        lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref()))),
         lift_state(helper_invariants::every_update_cm_req_does_the_same(rabbitmq)),
-        lift_state(helper_invariants::server_config_map_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))
+        lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq))
     );
 
     assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
@@ -2622,25 +2622,25 @@ proof fn lemma_stateful_set_is_stable(
     requires
         spec.entails(p.leads_to(lift_state(current_stateful_set_matches(rabbitmq)))),
         spec.entails(always(lift_action(RMQCluster::next()))),
-        spec.entails(always(lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref()))))),
         spec.entails(always(lift_state(helper_invariants::every_update_sts_req_does_the_same(rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)))),
     ensures
         spec.entails(p.leads_to(always(lift_state(current_stateful_set_matches(rabbitmq))))),
 {
     let post = current_stateful_set_matches(rabbitmq);
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
-        &&& helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())(s)
+        &&& helper_invariants::no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref()))(s)
         &&& helper_invariants::every_update_sts_req_does_the_same(rabbitmq)(s)
-        &&& helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq)(s)
+        &&& helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
-        lift_state(helper_invariants::no_delete_sts_req_is_in_flight(rabbitmq.object_ref())),
+        lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref()))),
         lift_state(helper_invariants::every_update_sts_req_does_the_same(rabbitmq)),
-        lift_state(helper_invariants::stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(rabbitmq))
+        lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq))
     );
 
     assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
