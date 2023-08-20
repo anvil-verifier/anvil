@@ -67,14 +67,16 @@ impl ExternalAPI for ZKAPI {
 // by the exec version so we don't model it in the spec version.
 // We also omit the "CLUSTER_SIZE=" prefix since it is always written with the replicas.
 //
-// TODO: the address should probably also include the uid of the stateful set.
-// If the stateful set (with the same name) gets deleted and recrated,
-// the controller, when connecting to the same uri, essentially talks to a different zookeeper cluster.
-// Using uid in the address can help to distinguish different zookeeper clusters (with the same name).
-//
 // TODO: the result of this zk api should also depend on the cluster state, for example
 // whether the client service object and the zookeeper stateful set object exist.
 // Specifying such dependency would require us to pass the cluster state into this function.
+//
+// TODO: we should also consider the uid of the stateful set (that hosts the zookeeper cluster) inside this function.
+// If the stateful set (with the same name) gets deleted and recrated,
+// the controller, when connecting to the same uri, will talk to a different zookeeper cluster,
+// which does not remember all the data written before.
+// A potential solution is to associate the written zookeeper node with the current uid of the stateful set
+// by querying the cluster state.
 //
 // TODO: specify version number of zookeeper node to reason about potential race between the current API call and
 // the old API call from the previously crashed controller.
