@@ -17,8 +17,8 @@ use builtin::*;
 use builtin_macros::*;
 
 use crate::zookeeper_controller::exec::reconciler::{ZookeeperReconcileState, ZookeeperReconciler};
-use crate::zookeeper_controller::exec::zookeeper_api::api::*;
-use crate::zookeeper_controller::exec::zookeepercluster::ZookeeperCluster;
+use crate::zookeeper_controller::exec::types::ZookeeperCluster;
+use crate::zookeeper_controller::exec::zookeeper_api::*;
 use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;

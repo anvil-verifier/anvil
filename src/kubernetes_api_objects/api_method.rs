@@ -222,6 +222,7 @@ pub enum KubeAPIResponse {
 
 /// KubeGetResponse has the object returned by KubeGetRequest.
 
+// TODO: We probably should just type define it as a Result, instead of having a struct wrapper.
 pub struct KubeGetResponse {
     pub res: Result<DynamicObject, APIError>,
 }
@@ -294,7 +295,7 @@ impl KubeAPIResponse {
 
     pub fn is_get_response(&self) -> (res: bool)
         ensures
-            res <==> self.is_GetResponse(),
+            res == self.is_GetResponse(),
     {
         match self {
             KubeAPIResponse::GetResponse(resp) => true,

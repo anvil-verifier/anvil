@@ -64,6 +64,18 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn labels(&self) -> (labels: Option<StringMap>)
+        ensures
+            self@.labels.is_Some() == labels.is_Some(),
+            labels.is_Some() ==> labels.get_Some_0()@ == self@.labels.get_Some_0(),
+    {
+        match &self.inner.labels {
+            Some(l) => Some(StringMap::from_rust_map(l.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn owner_references_only_contains(&self, owner_ref: OwnerReference) -> (res: bool)
         ensures
             res == self@.owner_references_only_contains(owner_ref@),

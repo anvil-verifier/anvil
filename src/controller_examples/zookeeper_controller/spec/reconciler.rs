@@ -12,7 +12,7 @@ use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::spec::{zookeeper_api::*, zookeepercluster::*};
+use crate::zookeeper_controller::spec::{types::*, zookeeper_api::*};
 use vstd::prelude::*;
 use vstd::string::*;
 
@@ -20,7 +20,7 @@ verus! {
 
 pub struct ZookeeperReconcileState {
     pub reconcile_step: ZookeeperReconcileStep,
-    pub sts_from_get: Option<StatefulSetView>,
+    pub found_stateful_set_opt: Option<StatefulSetView>,
 }
 
 pub struct ZookeeperReconciler {}
@@ -50,7 +50,7 @@ impl Reconciler<ZookeeperClusterView, ZKAPI> for ZookeeperReconciler {
 pub open spec fn reconcile_init_state() -> ZookeeperReconcileState {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
-        sts_from_get: None,
+        found_stateful_set_opt: None,
     }
 }
 
@@ -72,8 +72,7 @@ pub open spec fn reconcile_core(
     zk: ZookeeperClusterView, resp_o: Option<ResponseView<ZKAPIOutputView>>, state: ZookeeperReconcileState
 ) -> (ZookeeperReconcileState, Option<RequestView<ZKAPIInputView>>)
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     let step = state.reconcile_step;
     match step {
@@ -144,16 +143,16 @@ pub open spec fn reconcile_core(
             && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
                 let get_sts_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
                 if get_sts_resp.is_Ok() {
-                    // update
                     if StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).is_Ok() {
                         let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).get_Ok_0();
+                        // update
                         let state_prime = ZookeeperReconcileState {
-                            reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
-                            sts_from_get: Some(found_stateful_set),
+                            reconcile_step: ZookeeperReconcileStep::AfterSetZKNode,
+                            found_stateful_set_opt: Some(found_stateful_set),
                             ..state
                         };
-                        let ext_req = ZKAPIInputView::ReconcileZKNode(
-                            cluster_size_zk_node_path(zk), zk_service_uri(zk), int_to_string_view(zk.spec.replicas)
+                        let ext_req = ZKAPIInputView::SetZKNodeRequest(
+                            zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), int_to_string_view(zk.spec.replicas)
                         );
                         (state_prime, Some(RequestView::ExternalRequest(ext_req)))
                     } else {
@@ -189,40 +188,23 @@ pub open spec fn reconcile_core(
                 (state_prime, None)
             }
         },
-        ZookeeperReconcileStep::AfterCreateStatefulSet => {
-            let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
-                ..state
-            };
-            let ext_req = ZKAPIInputView::ReconcileZKNode(
-                cluster_size_zk_node_path(zk), zk_service_uri(zk), int_to_string_view(zk.spec.replicas)
-            );
-            (state_prime, Some(RequestView::ExternalRequest(ext_req)))
-        },
-        ZookeeperReconcileStep::AfterUpdateStatefulSet => {
-            let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
-                ..state
-            };
-            let ext_req = ZKAPIInputView::ReconcileZKNode(
-                cluster_size_zk_node_path(zk), zk_service_uri(zk), int_to_string_view(zk.spec.replicas)
-            );
-            (state_prime, Some(RequestView::ExternalRequest(ext_req)))
-        },
-        ZookeeperReconcileStep::AfterUpdateZKNode => {
+        ZookeeperReconcileStep::AfterSetZKNode => {
             if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
-            && resp_o.get_Some_0().get_ExternalResponse_0().is_ReconcileZKNode()
-            && state.sts_from_get.is_Some(){
-                let found_stateful_set = state.sts_from_get.get_Some_0();
+            && resp_o.get_Some_0().get_ExternalResponse_0().is_SetZKNodeResponse()
+            && resp_o.get_Some_0().get_ExternalResponse_0().get_SetZKNodeResponse_0().res.is_Ok()
+            && state.found_stateful_set_opt.is_Some() {
+                // Only proceed to update the stateful set when zk node is set successfully,
+                // otherwise it might cause unsafe downscale.
+                let found_stateful_set = state.found_stateful_set_opt.get_Some_0();
                 let req_o = APIRequest::UpdateRequest(UpdateRequest {
                     key: make_stateful_set_key(zk.object_ref()),
                     obj: update_stateful_set(zk, found_stateful_set).to_dynamic_object(),
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
-                    sts_from_get: None,
+                    found_stateful_set_opt: None,
                 };
-                (state_prime,  Some(RequestView::KRequest(req_o)))
+                (state_prime, Some(RequestView::KRequest(req_o)))
             } else {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Error,
@@ -231,30 +213,19 @@ pub open spec fn reconcile_core(
                 (state_prime, None)
             }
         },
-        ZookeeperReconcileStep::AfterCreateZKNode => {
-            if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
-            && resp_o.get_Some_0().get_ExternalResponse_0().is_ReconcileZKNode() {
-                let ext_resp = resp_o.get_Some_0().get_ExternalResponse_0().get_ReconcileZKNode_0();
-                if ext_resp.res.is_Ok() {
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Done,
-                        ..state
-                    };
-                    (state_prime, None)
-                } else {
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Error,
-                        ..state
-                    };
-                    (state_prime, None)
-                }
-            } else {
-                let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::Error,
-                    ..state
-                };
-                (state_prime, None)
-            }
+        ZookeeperReconcileStep::AfterCreateStatefulSet => {
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Done,
+                ..state
+            };
+            (state_prime, None)
+        },
+        ZookeeperReconcileStep::AfterUpdateStatefulSet => {
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Done,
+                ..state
+            };
+            (state_prime, None)
         },
         _ => {
             let state_prime = ZookeeperReconcileState {
@@ -276,8 +247,7 @@ pub open spec fn reconcile_error_result(state: ZookeeperReconcileState) -> (Zook
 
 pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     let ports = seq![
         ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(2181),
@@ -292,8 +262,7 @@ pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView
 
 pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(2181)];
 
@@ -302,16 +271,14 @@ pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView
 
 pub open spec fn make_client_service_name(zk: ZookeeperClusterView) -> StringView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     zk.metadata.name.get_Some_0() + new_strlit("-client")@
 }
 
 pub open spec fn make_admin_server_service(zk: ZookeeperClusterView) -> ServiceView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-admin-server")@).set_port(8080)];
 
@@ -322,8 +289,7 @@ pub open spec fn make_service(
     zk: ZookeeperClusterView, name: StringView, ports: Seq<ServicePortView>, cluster_ip: bool
 ) -> ServiceView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     ServiceView::default()
         .set_metadata(ObjectMetaView::default()
@@ -345,8 +311,7 @@ pub open spec fn make_service(
 
 pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     ConfigMapView::default()
         .set_metadata(ObjectMetaView::default()
@@ -415,8 +380,7 @@ pub open spec fn make_log4j_quiet_config() -> StringView {
 
 pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     let name = zk.metadata.name.get_Some_0();
     let namespace = zk.metadata.namespace.get_Some_0();
@@ -451,16 +415,19 @@ pub open spec fn make_stateful_set_name(zk_name: StringView) -> StringView {
 
 pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_set: StatefulSetView) -> StatefulSetView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
-    found_stateful_set.set_spec(make_stateful_set(zk).spec.get_Some_0())
+    found_stateful_set
+        .set_metadata(
+            found_stateful_set.metadata
+                .set_labels(make_stateful_set(zk).metadata.labels.get_Some_0())
+        )
+        .set_spec(make_stateful_set(zk).spec.get_Some_0())
 }
 
 pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     let name = make_stateful_set_name(zk.metadata.name.get_Some_0());
     let namespace = zk.metadata.namespace.get_Some_0();
@@ -505,8 +472,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView
 
 pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
     recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
+        zk.well_formed(),
 {
     PodSpecView::default()
         .set_containers(seq![
@@ -539,33 +505,6 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
                 ConfigMapVolumeSourceView::default().set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
             )
         ])
-}
-
-pub open spec fn client_service_name(zk: ZookeeperClusterView) -> StringView
-    recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
-{
-    zk.metadata.name.get_Some_0() + new_strlit("-client")@
-}
-
-pub open spec fn zk_service_uri(zk: ZookeeperClusterView) -> StringView
-    recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
-{
-    client_service_name(zk) + new_strlit(".")@
-    + zk.metadata.namespace.get_Some_0()
-    + new_strlit(".svc.cluster.local:2181")@
-}
-
-pub open spec fn cluster_size_zk_node_path(zk: ZookeeperClusterView) -> StringView
-    recommends
-        zk.metadata.name.is_Some(),
-        zk.metadata.namespace.is_Some(),
-{
-    new_strlit("/zookeeper-operator/")@
-    + zk.metadata.name.get_Some_0()
 }
 
 }

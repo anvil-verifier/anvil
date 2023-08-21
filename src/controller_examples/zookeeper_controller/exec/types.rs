@@ -5,7 +5,7 @@ use crate::kubernetes_api_objects::{
     object_meta::*, resource::*,
 };
 use crate::pervasive_ext::string_view::*;
-use crate::zookeeper_controller::spec::zookeepercluster::*;
+use crate::zookeeper_controller::spec::types::*;
 use vstd::prelude::*;
 
 verus! {
