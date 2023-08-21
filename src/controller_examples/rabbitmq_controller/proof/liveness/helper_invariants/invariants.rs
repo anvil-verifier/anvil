@@ -491,7 +491,7 @@ pub open spec fn every_update_cm_req_does_the_same(rabbitmq: RabbitmqClusterView
             &&& #[trigger] s.network_state.in_flight.contains(msg)
             &&& cm_update_request_msg(rabbitmq.object_ref())(msg)
         } ==> msg.content.get_update_request().obj.spec == ConfigMapView::marshal_spec((make_server_config_map(rabbitmq).data, ()))
-        && && msg.content.get_update_request().obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
+            && msg.content.get_update_request().obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
     }
 }
 
