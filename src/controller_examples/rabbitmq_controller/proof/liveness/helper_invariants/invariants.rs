@@ -90,7 +90,7 @@ proof fn lemma_server_config_map_create_request_msg_implies_key_in_reconcile_equ
     let cr_key = step.get_ControllerStep_0().2.get_Some_0();
     // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
 
-    // server_config_map_create_request_msg(key)(msg) requires the msg has a key with name key.name "-server-conf". So we 
+    // server_config_map_create_request_msg(key)(msg) requires the msg has a key with name key.name "-server-conf". So we
     // first show that in this action, cr_key is only possible to add "-server-conf" rather than "-plugins-conf" to reach
     // such a post state.
     assert_by(
@@ -311,7 +311,7 @@ proof fn lemma_always_sts_create_request_msg_is_valid(spec: TempPred<RMQCluster>
     init_invariant(spec, RMQCluster::init(), stronger_next,sts_create_request_msg_is_valid(key));
 }
 
-pub open spec fn create_cm_req_msg_in_flight_implies_at_after_create_cm_step(key: ObjectRef) -> StatePred<RMQCluster>
+pub open spec fn create_server_cm_req_msg_in_flight_implies_at_after_create_server_cm_step(key: ObjectRef) -> StatePred<RMQCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
@@ -327,7 +327,7 @@ pub open spec fn create_cm_req_msg_in_flight_implies_at_after_create_cm_step(key
     }
 }
 
-pub proof fn lemma_true_leads_to_always_create_cm_req_msg_in_flight_implies_at_after_create_cm_step(spec: TempPred<RMQCluster>, key: ObjectRef)
+pub proof fn lemma_true_leads_to_always_create_server_cm_req_msg_in_flight_implies_at_after_create_server_cm_step(spec: TempPred<RMQCluster>, key: ObjectRef)
     requires
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -339,7 +339,7 @@ pub proof fn lemma_true_leads_to_always_create_cm_req_msg_in_flight_implies_at_a
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
-            true_pred().leads_to(always(lift_state(create_cm_req_msg_in_flight_implies_at_after_create_cm_step(key))))
+            true_pred().leads_to(always(lift_state(create_server_cm_req_msg_in_flight_implies_at_after_create_server_cm_step(key))))
         ),
 {
     let requirements = |msg: Message, s: RMQCluster| {
@@ -382,10 +382,10 @@ pub proof fn lemma_true_leads_to_always_create_cm_req_msg_in_flight_implies_at_a
 
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
 
-    temp_pred_equality(lift_state(create_cm_req_msg_in_flight_implies_at_after_create_cm_step(key)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
+    temp_pred_equality(lift_state(create_server_cm_req_msg_in_flight_implies_at_after_create_server_cm_step(key)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
-pub open spec fn update_cm_req_msg_in_flight_implies_at_after_update_cm_step(key: ObjectRef) -> StatePred<RMQCluster>
+pub open spec fn update_server_cm_req_msg_in_flight_implies_at_after_update_server_cm_step(key: ObjectRef) -> StatePred<RMQCluster>
     recommends
         key.kind.is_CustomResourceKind(),
 {
@@ -401,7 +401,7 @@ pub open spec fn update_cm_req_msg_in_flight_implies_at_after_update_cm_step(key
     }
 }
 
-pub proof fn lemma_true_leads_to_always_update_cm_req_msg_in_flight_implies_at_after_update_cm_step(spec: TempPred<RMQCluster>, key: ObjectRef)
+pub proof fn lemma_true_leads_to_always_update_server_cm_req_msg_in_flight_implies_at_after_update_server_cm_step(spec: TempPred<RMQCluster>, key: ObjectRef)
     requires
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -413,7 +413,7 @@ pub proof fn lemma_true_leads_to_always_update_cm_req_msg_in_flight_implies_at_a
         key.kind.is_CustomResourceKind(),
     ensures
         spec.entails(
-            true_pred().leads_to(always(lift_state(update_cm_req_msg_in_flight_implies_at_after_update_cm_step(key))))
+            true_pred().leads_to(always(lift_state(update_server_cm_req_msg_in_flight_implies_at_after_update_server_cm_step(key))))
         ),
 {
     let requirements = |msg: Message, s: RMQCluster| {
@@ -469,11 +469,11 @@ pub proof fn lemma_true_leads_to_always_update_cm_req_msg_in_flight_implies_at_a
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id())
     );
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
-    temp_pred_equality(lift_state(update_cm_req_msg_in_flight_implies_at_after_update_cm_step(key)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
+    temp_pred_equality(lift_state(update_server_cm_req_msg_in_flight_implies_at_after_update_server_cm_step(key)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
 
-pub open spec fn every_update_cm_req_does_the_same(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
+pub open spec fn every_update_server_cm_req_does_the_same(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
     recommends
         rabbitmq.well_formed(),
 {
@@ -550,7 +550,7 @@ pub proof fn lemma_always_stateful_set_has_no_finalizers_or_timestamp_and_only_h
     init_invariant(spec, RMQCluster::init(), stronger_next, inv);
 }
 
-pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_true_leads_to_always_every_update_server_cm_req_does_the_same(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -560,7 +560,7 @@ pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: 
         spec.entails(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))),
     ensures
         spec.entails(
-            true_pred().leads_to(always(lift_state(every_update_cm_req_does_the_same(rabbitmq))))
+            true_pred().leads_to(always(lift_state(every_update_server_cm_req_does_the_same(rabbitmq))))
         ),
 {
     let requirements = |msg: Message, s: RMQCluster| {
@@ -597,7 +597,7 @@ pub proof fn lemma_true_leads_to_always_every_update_cm_req_does_the_same(spec: 
         lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
     );
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
-    temp_pred_equality(lift_state(every_update_cm_req_does_the_same(rabbitmq)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
+    temp_pred_equality(lift_state(every_update_server_cm_req_does_the_same(rabbitmq)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
 pub proof fn lemma_true_leads_to_always_no_delete_cm_req_is_in_flight(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
@@ -793,7 +793,7 @@ pub proof fn lemma_true_leads_to_always_every_create_sts_req_does_the_same(spec:
     temp_pred_equality(lift_state(every_create_sts_req_does_the_same(rabbitmq)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
-pub open spec fn every_create_cm_req_does_the_same(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
+pub open spec fn every_create_server_cm_req_does_the_same(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
     recommends
         rabbitmq.well_formed(),
 {
@@ -806,7 +806,7 @@ pub open spec fn every_create_cm_req_does_the_same(rabbitmq: RabbitmqClusterView
     }
 }
 
-pub proof fn lemma_true_leads_to_always_every_create_cm_req_does_the_same(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_true_leads_to_always_every_create_server_cm_req_does_the_same(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         rabbitmq.well_formed(),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
@@ -817,7 +817,7 @@ pub proof fn lemma_true_leads_to_always_every_create_cm_req_does_the_same(spec: 
         spec.entails(always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))),
     ensures
         spec.entails(
-            true_pred().leads_to(always(lift_state(every_create_cm_req_does_the_same(rabbitmq))))
+            true_pred().leads_to(always(lift_state(every_create_server_cm_req_does_the_same(rabbitmq))))
         ),
 {
     let requirements = |msg: Message, s: RMQCluster| {
@@ -848,7 +848,7 @@ pub proof fn lemma_true_leads_to_always_every_create_cm_req_does_the_same(spec: 
         lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq))
     );
     RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
-    temp_pred_equality(lift_state(every_create_cm_req_does_the_same(rabbitmq)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
+    temp_pred_equality(lift_state(every_create_server_cm_req_does_the_same(rabbitmq)), lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
 pub open spec fn create_sts_req_msg_in_flight_implies_at_after_create_sts_step(key: ObjectRef) -> StatePred<RMQCluster>

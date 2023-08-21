@@ -33,15 +33,15 @@ pub proof fn lemma_eventually_only_valid_server_config_map_exists(spec: TempPred
         spec.entails(tla_forall(|i| RMQCluster::builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
         spec.entails(always(lift_state(object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)))),
-        spec.entails(always(lift_state(every_update_cm_req_does_the_same(rabbitmq)))),
-        spec.entails(always(lift_state(every_create_cm_req_does_the_same(rabbitmq)))),
+        spec.entails(always(lift_state(every_update_server_cm_req_does_the_same(rabbitmq)))),
+        spec.entails(always(lift_state(every_create_server_cm_req_does_the_same(rabbitmq)))),
     ensures
         spec.entails(true_pred().leads_to(always(lift_state(object_of_key_only_has_owner_reference_pointing_to_current_cr(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq))))),
 {
     let key = make_server_config_map_key(rabbitmq.object_ref());
     let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![rabbitmq.controller_owner_ref()])};
-    always_weaken(spec, every_update_cm_req_does_the_same(rabbitmq), RMQCluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref));
-    always_weaken(spec, every_create_cm_req_does_the_same(rabbitmq), RMQCluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref));
+    always_weaken(spec, every_update_server_cm_req_does_the_same(rabbitmq), RMQCluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref));
+    always_weaken(spec, every_create_server_cm_req_does_the_same(rabbitmq), RMQCluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref));
     always_weaken(spec, object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq), RMQCluster::object_has_no_finalizers(key));
 
     let state = |s: RMQCluster| {
