@@ -1138,11 +1138,11 @@ pub use combine_with_next_internal;
 ///     spec |= []p2
 ///        ...
 ///     spec |= []pn
-///     all == p1 /\ p2 /\ ... /\ pn
+///     partial_spec <==> p1 /\ p2 /\ ... /\ pn
 /// post:
 ///     spec |= []all
 ///
-/// Usage: combine_spec_entails_always_n!(spec, all, p1, p2, p3, p4)
+/// Usage: combine_spec_entails_always_n!(spec, partial_spec, p1, p2, p3, p4)
 #[macro_export]
 macro_rules! combine_spec_entails_always_n {
     [$($tail:tt)*] => {
@@ -1152,9 +1152,9 @@ macro_rules! combine_spec_entails_always_n {
 
 #[macro_export]
 macro_rules! combine_spec_entails_always_n_internal {
-    ($spec:expr, $all:expr, $($tail:tt)*) => {
+    ($spec:expr, $partial_spec:expr, $($tail:tt)*) => {
         entails_always_and_n!($spec, $($tail)*);
-        temp_pred_equality($all, combine_with_next!($($tail)*));
+        temp_pred_equality($partial_spec, combine_with_next!($($tail)*));
     };
 }
 
@@ -1163,13 +1163,12 @@ pub use combine_spec_entails_always_n_internal;
 
 /// Show that an spec entails the invariant by a group of action/state predicates which are also invariants entailed by spec.
 /// pre:
-///     spec |= []partial_spec
 ///     partial_spec |= inv
 ///     spec |= []p1
 ///     spec |= []p2
 ///         ...
 ///     spec |= []pn
-///     partial_spec == p1 /\ p2 /\ ... /\ pn
+///     partial_spec <==> p1 /\ p2 /\ ... /\ pn
 /// post:
 ///     spec |= []inv
 ///
