@@ -24,28 +24,30 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+      # For zookeeper
       - name: Build zookeeper controller image
         run: |
           cp docker/zookeeper-controller/Dockerfile .
-          docker build -t localhost:5001/zookeeper-controller:v0.1.0 .
-      - name: Push zookeeper controller image to local registry
-        run: docker push localhost:5001/zookeeper-controller:v0.1.0
-      - name: Build rabbitmq controller image
-        run: |
-          cp docker/rabbitmq-controller/Dockerfile .
-          docker build -t localhost:5001/rabbitmq-controller:v0.1.0 .
-      - name: Push rabbitmq controller image to local registry
-        run: docker push localhost:5001/rabbitmq-controller:v0.1.0
-      - name: Create kind cluster with local registry
-        run: ./e2e/deploy/kind-with-registry.sh
+          docker build -t zookeeper-controller:v0.1.0 .
+      - name: Create kind cluster
+        run: kind create --config ./e2e/deploy/kind_config.yaml
+      - name: Load image into kind nodes
+        run: kind load docker-image zookeeper-controller:v0.1.0 --name kind
       - name: Deploy zookeeper controller
         run: ./e2e/deploy.sh zookeeper
       - name: Run zookeeper e2e tests
         run: cd e2e && cargo run -- zookeeper
       - name: Tear down kind cluster
         run: kind delete clusters kind
-      - name: Create kind cluster with local registry
-        run: ./e2e/deploy/kind-with-registry.sh
+      # For rabbitmq
+      - name: Build rabbitmq controller image
+        run: |
+          cp docker/rabbitmq-controller/Dockerfile .
+          docker build -t rabbitmq-controller:v0.1.0 .
+      - name: Create kind cluster
+        run: kind create --config ./e2e/deploy/kind_config.yaml
+      - name: Load image into kind nodes
+        run: kind load docker-image rabbitmq-controller:v0.1.0 --name kind
       - name: Deploy rabbitmq controller
         run: ./e2e/deploy.sh rabbitmq
       - name: Run rabbitmq e2e tests

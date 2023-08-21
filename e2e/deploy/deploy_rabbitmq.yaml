@@ -95,7 +95,7 @@ spec:
         app.kubernetes.io/name: rabbitmq-controller
     spec:
       containers:
-        - image: localhost:5001/rabbitmq-controller:v0.1.0
+        - image: rabbitmq-controller:v0.1.0
           name: controller
           command:
             - rabbitmq-controller

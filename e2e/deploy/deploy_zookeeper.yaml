@@ -86,7 +86,7 @@ spec:
         app.kubernetes.io/name: zookeeper-controller
     spec:
       containers:
-        - image: localhost:5001/zookeeper-controller:v0.1.0
+        - image: zookeeper-controller:v0.1.0
           name: controller
           command:
             - zookeeper-controller
