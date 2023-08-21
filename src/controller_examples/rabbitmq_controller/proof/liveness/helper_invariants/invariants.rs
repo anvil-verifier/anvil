@@ -68,8 +68,10 @@ spec fn server_config_map_create_request_msg_is_valid(key: ObjectRef) -> StatePr
     }
 }
 
-// TODO: write a lemma to show that pending_req == cm_create_request ==> key == cr.object_ref()
-
+/// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a server config map
+/// create request message (with key as key), it must be a controller action, and the triggering cr is s.triggering_cr_of(key).
+/// 
+/// After the action, the controller stays at AfterCreateServerConfigMap step.
 proof fn lemma_server_config_map_create_request_msg_implies_key_in_reconcile_equals(
     key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: Message, step: RMQStep
 )
@@ -108,6 +110,72 @@ proof fn lemma_server_config_map_create_request_msg_implies_key_in_reconcile_equ
     );
     // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
     seq_lemmas::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server-conf")@);
+}
+
+/// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a server config map
+/// update request message (with key as key), it must be a controller action, and the triggering cr is s.triggering_cr_of(key).
+/// 
+/// After the action, the controller stays at AfterUpdateServerConfigMap step.
+proof fn lemma_server_config_map_update_request_msg_implies_key_in_reconcile_equals(
+    key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: Message, step: RMQStep
+)
+    requires
+        key.kind.is_CustomResourceKind(),
+        server_config_map_update_request_msg(key)(msg),
+        !s.message_in_flight(msg), s_prime.message_in_flight(msg),
+        RMQCluster::next_step(s, s_prime, step),
+        RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
+    ensures
+        step.is_ControllerStep(),
+        step.get_ControllerStep_0().2.get_Some_0() == key,
+        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime),
+{
+    let cr_key = step.get_ControllerStep_0().2.get_Some_0();
+    seq_lemmas::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server-conf")@);
+}
+
+/// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a stateful set
+/// create request message (with key as key), it must be a controller action, and the triggering cr is s.triggering_cr_of(key).
+/// 
+/// After the action, the controller stays at AfterCreateStatefulSet step.
+proof fn lemma_stateful_set_create_request_msg_implies_key_in_reconcile_equals(
+    key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: Message, step: RMQStep
+)
+    requires
+        key.kind.is_CustomResourceKind(),
+        sts_create_request_msg(key)(msg),
+        !s.message_in_flight(msg), s_prime.message_in_flight(msg),
+        RMQCluster::next_step(s, s_prime, step),
+        RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
+    ensures
+        step.is_ControllerStep(),
+        step.get_ControllerStep_0().2.get_Some_0() == key,
+        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s_prime),
+{
+    let cr_key = step.get_ControllerStep_0().2.get_Some_0();
+    seq_lemmas::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
+}
+
+/// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a stateful set
+/// update request message (with key as key), it must be a controller action, and the triggering cr is s.triggering_cr_of(key).
+/// 
+/// After the action, the controller stays at AfterUpdateStatefulSet step.
+proof fn lemma_stateful_set_update_request_msg_implies_key_in_reconcile_equals(
+    key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: Message, step: RMQStep
+)
+    requires
+        key.kind.is_CustomResourceKind(),
+        sts_update_request_msg(key)(msg),
+        !s.message_in_flight(msg), s_prime.message_in_flight(msg),
+        RMQCluster::next_step(s, s_prime, step),
+        RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
+    ensures
+        step.is_ControllerStep(),
+        step.get_ControllerStep_0().2.get_Some_0() == key,
+        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s_prime),
+{
+    let cr_key = step.get_ControllerStep_0().2.get_Some_0();
+    seq_lemmas::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
 }
 
 
@@ -165,6 +233,7 @@ spec fn server_config_map_update_request_msg_is_valid(key: ObjectRef) -> StatePr
 
 proof fn lemma_always_server_config_map_update_request_msg_is_valid(spec: TempPred<RMQCluster>, key: ObjectRef)
     requires
+        key.kind.is_CustomResourceKind(),
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
@@ -188,12 +257,8 @@ proof fn lemma_always_server_config_map_update_request_msg_is_valid(spec: TempPr
             == Some(seq![make_owner_references_with_name_and_uid(key.name, uid)]) by {
             if !s.message_in_flight(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                assert(step.is_ControllerStep());
-                let input = step.get_ControllerStep_0();
-                let other_key = input.2.get_Some_0();
-                seq_lemmas::seq_equal_preserved_by_add(key.name, other_key.name, new_strlit("-server-conf")@);
-                let cr = s.triggering_cr_of(other_key);
-                assert(cr.metadata.uid.is_Some());
+                lemma_server_config_map_update_request_msg_implies_key_in_reconcile_equals(key, s, s_prime, msg, step);
+                let cr = s.triggering_cr_of(key);
                 assert(msg.content.get_update_request().obj.metadata.owner_references == Some(seq![
                     make_owner_references_with_name_and_uid(key.name, cr.metadata.uid.get_Some_0())
                 ]));
@@ -219,6 +284,7 @@ spec fn sts_update_request_msg_is_valid(key: ObjectRef) -> StatePred<RMQCluster>
 
 proof fn lemma_always_sts_update_request_msg_is_valid(spec: TempPred<RMQCluster>, key: ObjectRef)
     requires
+        key.kind.is_CustomResourceKind(),
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
@@ -242,12 +308,8 @@ proof fn lemma_always_sts_update_request_msg_is_valid(spec: TempPred<RMQCluster>
             == Some(seq![make_owner_references_with_name_and_uid(key.name, uid)]) by {
             if !s.message_in_flight(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                assert(step.is_ControllerStep());
-                let input = step.get_ControllerStep_0();
-                let other_key = input.2.get_Some_0();
-                seq_lemmas::seq_equal_preserved_by_add(key.name, other_key.name, new_strlit("-server")@);
-                let cr = s.triggering_cr_of(other_key);
-                assert(cr.metadata.uid.is_Some());
+                lemma_stateful_set_update_request_msg_implies_key_in_reconcile_equals(key, s, s_prime, msg, step);
+                let cr = s.triggering_cr_of(key);
                 assert(msg.content.get_update_request().obj.metadata.owner_references == Some(seq![
                     make_owner_references_with_name_and_uid(key.name, cr.metadata.uid.get_Some_0())
                 ]));
@@ -273,6 +335,7 @@ spec fn sts_create_request_msg_is_valid(key: ObjectRef) -> StatePred<RMQCluster>
 
 proof fn lemma_always_sts_create_request_msg_is_valid(spec: TempPred<RMQCluster>, key: ObjectRef)
     requires
+        key.kind.is_CustomResourceKind(),
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
@@ -296,12 +359,8 @@ proof fn lemma_always_sts_create_request_msg_is_valid(spec: TempPred<RMQCluster>
             == Some(seq![make_owner_references_with_name_and_uid(key.name, uid)]) by {
             if !s.message_in_flight(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                assert(step.is_ControllerStep());
-                let input = step.get_ControllerStep_0();
-                let other_key = input.2.get_Some_0();
-                seq_lemmas::seq_equal_preserved_by_add(key.name, other_key.name, new_strlit("-server")@);
-                let cr = s.triggering_cr_of(other_key);
-                assert(cr.metadata.uid.is_Some());
+                lemma_stateful_set_create_request_msg_implies_key_in_reconcile_equals(key, s, s_prime, msg, step);
+                let cr = s.triggering_cr_of(key);
                 assert(msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
                     make_owner_references_with_name_and_uid(key.name, cr.metadata.uid.get_Some_0())
                 ]));
@@ -436,24 +495,11 @@ pub proof fn lemma_true_leads_to_always_update_server_cm_req_msg_in_flight_impli
         assert forall |msg| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg) implies requirements(msg, s_prime) by {
             if server_config_map_update_request_msg(key)(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                match step {
-                    Step::ControllerStep(input) => {
-                        let cr_key = input.2.get_Some_0();
-                        if cr_key != key {
-                            if cr_key.name != key.name {
-                                seq_lemmas::seq_unequal_preserved_by_add(cr_key.name, key.name, new_strlit("-server-conf")@);
-                            }
-                            assert(requirements(msg, s));
-                            assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        } else {
-                            assert(!s.message_in_flight(msg));
-                            assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime));
-                        }
-                    },
-                    _ => {
-                        assert(requirements(msg, s));
-                        assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                    }
+                if !s.message_in_flight(msg) {
+                    lemma_server_config_map_update_request_msg_implies_key_in_reconcile_equals(key, s, s_prime, msg, step);
+                } else {
+                    assert(requirements(msg, s));
+                    assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
                 }
             }
 
@@ -578,15 +624,10 @@ pub proof fn lemma_true_leads_to_always_every_update_server_cm_req_does_the_same
         && msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest() implies requirements(msg, s_prime) by {
             if !s.message_in_flight(msg) && server_config_map_update_request_msg(rabbitmq.object_ref())(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                assert(step.is_ControllerStep());
-                let other_rmq = s.reconcile_state_of(step.get_ControllerStep_0().2.get_Some_0()).triggering_cr;
-                seq_lemmas::seq_equal_preserved_by_add(
-                    other_rmq.metadata.name.get_Some_0(),
-                    rabbitmq.metadata.name.get_Some_0(),
-                    new_strlit("-server-conf")@
-                );
+                let key = rabbitmq.object_ref();
+                lemma_server_config_map_update_request_msg_implies_key_in_reconcile_equals(key, s, s_prime, msg, step);
+                let other_rmq = s.reconcile_state_of(key).triggering_cr;
                 assert(other_rmq.object_ref() == rabbitmq.object_ref());
-                assert(other_rmq == s.reconcile_state_of(other_rmq.object_ref()).triggering_cr);
                 assert(rabbitmq.spec() == other_rmq.spec());
             }
         }
@@ -708,15 +749,9 @@ pub proof fn lemma_true_leads_to_always_every_update_sts_req_does_the_same(spec:
         && msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest() implies requirements(msg, s_prime) by {
             if !s.message_in_flight(msg) && sts_update_request_msg(rabbitmq.object_ref())(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                assert(step.is_ControllerStep());
-                let other_rmq = s.reconcile_state_of(step.get_ControllerStep_0().2.get_Some_0()).triggering_cr;
-                seq_lemmas::seq_equal_preserved_by_add(
-                    other_rmq.metadata.name.get_Some_0(),
-                    rabbitmq.metadata.name.get_Some_0(),
-                    new_strlit("-server")@
-                );
-                assert(other_rmq.object_ref() == rabbitmq.object_ref());
-                assert(other_rmq == s.reconcile_state_of(other_rmq.object_ref()).triggering_cr);
+                let key = rabbitmq.object_ref();
+                lemma_stateful_set_update_request_msg_implies_key_in_reconcile_equals(key, s, s_prime, msg, step);
+                let other_rmq = s.reconcile_state_of(key).triggering_cr;
                 assert(rabbitmq.spec() == other_rmq.spec());
             }
         }
@@ -771,15 +806,9 @@ pub proof fn lemma_true_leads_to_always_every_create_sts_req_does_the_same(spec:
         && msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest() implies requirements(msg, s_prime) by {
             if !s.message_in_flight(msg) && sts_create_request_msg(rabbitmq.object_ref())(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                assert(step.is_ControllerStep());
-                let other_rmq = s.reconcile_state_of(step.get_ControllerStep_0().2.get_Some_0()).triggering_cr;
-                seq_lemmas::seq_equal_preserved_by_add(
-                    other_rmq.metadata.name.get_Some_0(),
-                    rabbitmq.metadata.name.get_Some_0(),
-                    new_strlit("-server")@
-                );
-                assert(other_rmq.object_ref() == rabbitmq.object_ref());
-                assert(other_rmq == s.reconcile_state_of(other_rmq.object_ref()).triggering_cr);
+                let key = rabbitmq.object_ref();
+                lemma_stateful_set_create_request_msg_implies_key_in_reconcile_equals(key, s, s_prime, msg, step);
+                let other_rmq = s.reconcile_state_of(key).triggering_cr;
                 assert(rabbitmq.spec() == other_rmq.spec());
             }
         }
@@ -902,25 +931,12 @@ pub proof fn lemma_true_leads_to_always_create_sts_req_msg_in_flight_implies_at_
         assert forall |msg: Message| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
         implies requirements(msg, s_prime) by {
             if sts_create_request_msg(key)(msg) {
-                let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                match step {
-                    Step::ControllerStep(input) => {
-                        let cr_key = input.2.get_Some_0();
-                        if cr_key != key {
-                            if cr_key.name != key.name {
-                                seq_lemmas::seq_unequal_preserved_by_add(cr_key.name, key.name, new_strlit("-server")@);
-                            }
-                            assert(requirements(msg, s));
-                            assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        } else {
-                            assert(!s.message_in_flight(msg));
-                            assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s_prime));
-                        }
-                    },
-                    _ => {
-                        assert(requirements(msg, s));
-                        assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                    }
+                if !s.message_in_flight(msg) {
+                    let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+                    lemma_stateful_set_create_request_msg_implies_key_in_reconcile_equals(key, s, s_prime, msg, step);
+                } else {
+                    assert(requirements(msg, s));
+                    assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
                 }
             }
         }
@@ -988,24 +1004,11 @@ pub proof fn lemma_true_leads_to_always_update_sts_req_msg_in_flight_implies_at_
         implies requirements(msg, s_prime) by {
             if sts_update_request_msg(key)(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                match step {
-                    Step::ControllerStep(input) => {
-                        let cr_key = input.2.get_Some_0();
-                        if cr_key != key {
-                            if cr_key.name != key.name {
-                                seq_lemmas::seq_unequal_preserved_by_add(cr_key.name, key.name, new_strlit("-server")@);
-                            }
-                            assert(s.message_in_flight(msg));
-                            assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        } else {
-                            assert(!s.message_in_flight(msg));
-                            assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s_prime));
-                        }
-                    },
-                    _ => {
-                        assert(requirements(msg, s));
-                        assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                    }
+                if !s.message_in_flight(msg) {
+                    lemma_stateful_set_update_request_msg_implies_key_in_reconcile_equals(key, s, s_prime, msg, step);
+                } else {
+                    assert(requirements(msg, s));
+                    assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
                 }
             }
         }
