@@ -254,7 +254,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
                     assert(sts_create_req_multiset =~= sts_create_req_multiset_prime);
                 }
             },
-            Step::ClientStep(input) => {
+            Step::ClientStep() => {
                 assert(sts_create_req_multiset =~= sts_create_req_multiset_prime);
             },
             _ => {
@@ -565,7 +565,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
                     assert(sts_update_req_multiset =~= sts_update_req_multiset_prime);
                 }
             },
-            Step::ClientStep(input) => {
+            Step::ClientStep() => {
                 assert(sts_update_req_multiset =~= sts_update_req_multiset_prime);
             },
             _ => {

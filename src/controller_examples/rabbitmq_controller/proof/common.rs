@@ -19,7 +19,7 @@ use vstd::prelude::*;
 
 verus! {
 
-pub type RMQStep = Step<RabbitmqClusterView, EmptyAPI>;
+pub type RMQStep = Step<EmptyAPI>;
 
 pub type RMQCluster = Cluster<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>;
 
