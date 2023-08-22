@@ -49,17 +49,17 @@ pub struct ZookeeperClusterSpec {
 #[kube(shortname = "rbmq", namespaced)]
 pub struct RabbitmqClusterSpec {
     pub replicas: i32,
-    #[serde(rename = "rabbitmq", skip_serializing_if = "Option::is_none")]
-    pub rabbitmq_config: Option<RabbitmqClusterConfigurationSpec>,
+    #[serde(rename = "rabbitmqConfig")]
+    pub rabbitmq_config: Option<RabbitmqConfig>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
-pub struct RabbitmqClusterConfigurationSpec {
-    #[serde(rename = "additionalConfig", skip_serializing_if = "Option::is_none")]
+pub struct RabbitmqConfig {
+    #[serde(rename = "additionalConfig")]
     pub additional_config: Option<String>,
-    #[serde(rename = "advancedConfig", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "advancedConfig")]
     pub advanced_config: Option<String>,
-    #[serde(rename = "envConfig", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "envConfig")]
     pub env_config: Option<String>,
 }
 

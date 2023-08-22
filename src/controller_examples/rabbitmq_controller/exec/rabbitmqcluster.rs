@@ -138,13 +138,13 @@ impl RabbitmqClusterSpec {
     }
 
     #[verifier(external_body)]
-    pub fn rabbitmq_config(&self) -> (rabbitmq_config: Option<RabbitmqClusterConfigurationSpec>)
+    pub fn rabbitmq_config(&self) -> (rabbitmq_config: Option<RabbitmqConfig>)
         ensures
             self@.rabbitmq_config.is_Some() == rabbitmq_config.is_Some(),
             rabbitmq_config.is_Some() ==> rabbitmq_config.get_Some_0()@ == self@.rabbitmq_config.get_Some_0(),
     {
         match &self.inner.rabbitmq_config {
-            Some(n) => Some(RabbitmqClusterConfigurationSpec { inner: n.clone()}),
+            Some(n) => Some(RabbitmqConfig { inner: n.clone()}),
             None => None,
         }
     }
@@ -152,12 +152,12 @@ impl RabbitmqClusterSpec {
 
 
 #[verifier(external_body)]
-pub struct RabbitmqClusterConfigurationSpec {
-    inner: deps_hack::RabbitmqClusterConfigurationSpec,
+pub struct RabbitmqConfig {
+    inner: deps_hack::RabbitmqConfig,
 }
 
-impl RabbitmqClusterConfigurationSpec {
-    pub spec fn view(&self) -> RabbitmqClusterConfigurationSpecView;
+impl RabbitmqConfig {
+    pub spec fn view(&self) -> RabbitmqConfigView;
 
     #[verifier(external_body)]
     pub fn additional_config(&self) -> (additional_config: Option<String>)
