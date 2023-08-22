@@ -11,7 +11,7 @@ use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::{string_view::*, to_view::*};
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::exec::{common::*, zookeeper_api::api::*, zookeepercluster::*};
+use crate::zookeeper_controller::exec::{types::*, zookeeper_api::*};
 use crate::zookeeper_controller::spec::reconciler as zk_spec;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -25,14 +25,14 @@ pub struct ZookeeperReconcileState {
     // reconcile_step, like a program counter, is used to track the progress of reconcile_core
     // since reconcile_core is frequently "trapped" into the controller_runtime spec.
     pub reconcile_step: ZookeeperReconcileStep,
-    pub sts_from_get: Option<StatefulSet>,
+    pub found_stateful_set_opt: Option<StatefulSet>,
 }
 
 impl ZookeeperReconcileState {
     pub open spec fn to_view(&self) -> zk_spec::ZookeeperReconcileState {
         zk_spec::ZookeeperReconcileState {
             reconcile_step: self.reconcile_step,
-            sts_from_get: match &self.sts_from_get {
+            found_stateful_set_opt: match &self.found_stateful_set_opt {
                 Some(sts) => Some(sts@),
                 None => None,
             },
@@ -74,7 +74,7 @@ pub fn reconcile_init_state() -> (state: ZookeeperReconcileState)
 {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
-        sts_from_get: None,
+        found_stateful_set_opt: None,
     }
 }
 
@@ -98,14 +98,11 @@ pub fn reconcile_error(state: &ZookeeperReconcileState) -> (res: bool)
     }
 }
 
-// TODO: make the shim layer pass zk, instead of zk_ref, to reconcile_core
-
 pub fn reconcile_core(
     zk: &ZookeeperCluster, resp_o: Option<Response<ZKAPIOutput>>, state: ZookeeperReconcileState
 ) -> (res: (ZookeeperReconcileState, Option<Request<ZKAPIInput>>))
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         (res.0.to_view(), opt_request_to_view(&res.1)) == zk_spec::reconcile_core(zk@, opt_response_to_view(&resp_o), state.to_view()),
 {
@@ -181,33 +178,34 @@ pub fn reconcile_core(
                 let stateful_set = make_stateful_set(zk);
                 let get_sts_resp = resp_o.unwrap().into_k_response().into_get_response().res;
                 if get_sts_resp.is_ok() {
-                    let found_stateful_set = StatefulSet::from_dynamic_object(get_sts_resp.unwrap());
-                    // Before update sts itself, firstly update ZKNode
-                    // since zk cluster may be down if majority of the servers are down
-                    // Updating ZKNode firstly can make sure the peer list will change as the sever goes down.
-                    // Details can be found in https://github.com/vmware-research/verifiable-controllers/issues/174
-                    if found_stateful_set.is_ok(){
+                    let get_sts_result = StatefulSet::from_dynamic_object(get_sts_resp.unwrap());
+                    if get_sts_result.is_ok() {
+                        let found_stateful_set = get_sts_result.unwrap();
+                        // Updating the stateful set can lead to downscale,
+                        // which also requires to remove the zookeeper replica from the membership list explicitly.
+                        // If the zookeeper replica is deleted without being removed from the membership,
+                        // the zookeeper cluster might be unavailable because of losing the quorum.
+                        // So the controller needs to correctly prompt membership change before reducing the replica
+                        // size of the stateful set, by writing the new replica size into the zookeeper API.
+                        // Details can be found in https://github.com/vmware-research/verifiable-controllers/issues/174.
                         let state_prime = ZookeeperReconcileState {
-                            reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
-                            // Save the old sts from get request.
-                            // Then, later when we want to update sts, we can use the old sts as the base.
-                            // We do not need to call GetRequest again.
-                            sts_from_get: Some(found_stateful_set.unwrap()),
+                            reconcile_step: ZookeeperReconcileStep::AfterSetZKNode,
+                            // Save the stateful set found by the get request.
+                            // Later when we want to update sts, we can use the old sts as the base
+                            // and we do not need to call GetRequest again.
+                            found_stateful_set_opt: Some(found_stateful_set),
                             ..state
                         };
-                        let path = cluster_size_zk_node_path(zk);
-                        let uri = zk_service_uri(zk);
+                        let zk_name = zk.metadata().name().unwrap();
+                        let zk_namespace = zk.metadata().namespace().unwrap();
                         let replicas = i32_to_string(zk.spec().replicas());
-                        let ext_req = ZKAPIInput::ReconcileZKNode(path, uri, replicas);
-                        proof {
-                            zk_support_input_to_view_match(path, uri, replicas);
-                        }
-                        // Call external APIs to update the content in ZKNode
+                        let ext_req = ZKAPIInput::SetZKNodeRequest(zk_name, zk_namespace, replicas);
+                        // Call external APIs to set the ZK node
+                        // which is used to prompt membership change.
                         return (state_prime, Some(Request::ExternalRequest(ext_req)));
                     }
-
                 } else if get_sts_resp.unwrap_err().is_object_not_found() {
-                    // create
+                    // Create the stateful set since it doesn't exist yet.
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: StatefulSet::api_resource(),
                         namespace: zk.metadata().namespace().unwrap(),
@@ -220,63 +218,33 @@ pub fn reconcile_core(
                     return (state_prime, Some(Request::KRequest(req_o)));
                 }
             }
-            // return error state
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: ZookeeperReconcileStep::Error,
                 ..state
             };
             return (state_prime, None);
         },
-        ZookeeperReconcileStep::AfterCreateStatefulSet => {
-            let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
-                ..state
-            };
-            let path = cluster_size_zk_node_path(zk);
-            let uri = zk_service_uri(zk);
-            let replicas = i32_to_string(zk.spec().replicas());
-            let ext_req = ZKAPIInput::ReconcileZKNode(path, uri, replicas);
-            proof {
-                zk_support_input_to_view_match(path, uri, replicas);
-            }
-            return (state_prime, Some(Request::ExternalRequest(ext_req)));
-        },
-        ZookeeperReconcileStep::AfterUpdateStatefulSet => {
-            let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
-                ..state
-            };
-            let path = cluster_size_zk_node_path(zk);
-            let uri = zk_service_uri(zk);
-            let replicas = i32_to_string(zk.spec().replicas());
-            let ext_req = ZKAPIInput::ReconcileZKNode(path, uri, replicas);
-            proof {
-                zk_support_input_to_view_match(path, uri, replicas);
-            }
-            return (state_prime, Some(Request::ExternalRequest(ext_req)));
-        },
-        ZookeeperReconcileStep::AfterUpdateZKNode => {
-            // update sts
+        ZookeeperReconcileStep::AfterSetZKNode => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
-            && resp_o.as_ref().unwrap().as_external_response_ref().is_reconcile_zk_node()
-            && state.sts_from_get.is_some() {
-                let found_stateful_set = state.sts_from_get;
-                let mut new_stateful_set = found_stateful_set.unwrap();
-                let stateful_set = make_stateful_set(zk);
-                new_stateful_set.set_spec(stateful_set.spec().unwrap());
+            && resp_o.as_ref().unwrap().as_external_response_ref().is_set_zk_node_response()
+            && resp_o.unwrap().into_external_response().into_set_zk_node_response().res.is_ok()
+            && state.found_stateful_set_opt.is_some() {
+                // Update the stateful set only after we ensure
+                // that the ZK node has been set correctly.
+                let found_stateful_set = state.found_stateful_set_opt.unwrap();
+                let new_stateful_set = update_stateful_set(zk, &found_stateful_set);
                 let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                     api_resource: StatefulSet::api_resource(),
-                    name: stateful_set.metadata().name().unwrap(),
+                    name: make_stateful_set_name(zk),
                     namespace: zk.metadata().namespace().unwrap(),
                     obj: new_stateful_set.to_dynamic_object(),
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
-                    sts_from_get: None
+                    found_stateful_set_opt: None
                 };
                 return (state_prime, Some(Request::KRequest(req_o)));
             } else {
-                // return error state
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Error,
                     ..state
@@ -284,33 +252,19 @@ pub fn reconcile_core(
                 return (state_prime, None);
             }
         },
-        ZookeeperReconcileStep::AfterCreateZKNode => {
-            if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
-            && resp_o.as_ref().unwrap().as_external_response_ref().is_reconcile_zk_node() {
-                let ext_resp = resp_o.unwrap().into_external_response().into_reconcile_zk_node();
-                proof {
-                    zk_support_output_to_view_match(ext_resp);
-                }
-                if ext_resp.res.is_ok() {
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Done,
-                        ..state
-                    };
-                    return (state_prime, None);
-                } else {
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Error,
-                        ..state
-                    };
-                    return (state_prime, None);
-                }
-            } else {
-                let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::Error,
-                    ..state
-                };
-                return (state_prime, None);
-            }
+        ZookeeperReconcileStep::AfterCreateStatefulSet => {
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Done,
+                ..state
+            };
+            return (state_prime, None);
+        },
+        ZookeeperReconcileStep::AfterUpdateStatefulSet => {
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Done,
+                ..state
+            };
+            return (state_prime, None);
         },
         _ => {
             let state_prime = ZookeeperReconcileState {
@@ -325,8 +279,7 @@ pub fn reconcile_core(
 /// Headless Service is used to assign DNS entry to each zookeeper server Pod
 fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         service@ == zk_spec::make_headless_service(zk@),
 {
@@ -351,8 +304,7 @@ fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
 /// Client Service is used for any client to connect to the zookeeper server
 fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         service@ == zk_spec::make_client_service(zk@),
 {
@@ -367,14 +319,13 @@ fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
         );
     }
 
-    make_service(zk, client_service_name(zk), ports, true)
+    make_service(zk, zk.metadata().name().unwrap().concat(new_strlit("-client")), ports, true)
 }
 
 /// Admin-server Service is used for client to connect to admin server
 fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         service@ == zk_spec::make_admin_server_service(zk@),
 {
@@ -395,8 +346,7 @@ fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
 /// make_service constructs the Service object given the name, ports and cluster_ip
 fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cluster_ip: bool) -> (service: Service)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         service@ == zk_spec::make_service(zk@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip),
 {
@@ -431,8 +381,7 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
 /// The ConfigMap stores the configuration data of zookeeper servers
 fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         config_map@ == zk_spec::make_config_map(zk@),
 {
@@ -523,8 +472,7 @@ fn make_log4j_quiet_config() -> (s: String)
 
 fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         s@ == zk_spec::make_env_config(zk@),
 {
@@ -547,19 +495,35 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
 
 fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
     requires
-        zk@.metadata.name.is_Some(),
+        zk@.well_formed(),
     ensures
         name@ == zk_spec::make_stateful_set_name(zk@.metadata.name.get_Some_0()),
 {
     zk.metadata().name().unwrap()
 }
 
+fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulSet) -> (stateful_set: StatefulSet)
+    requires
+        zk@.well_formed(),
+    ensures
+        stateful_set@ == zk_spec::update_stateful_set(zk@, found_stateful_set@),
+{
+    let mut stateful_set = found_stateful_set.clone();
+    let made_stateful_set = make_stateful_set(zk);
+    stateful_set.set_metadata({
+        let mut metadata = found_stateful_set.metadata();
+        metadata.set_labels(made_stateful_set.metadata().labels().unwrap());
+        metadata
+    });
+    stateful_set.set_spec(made_stateful_set.spec().unwrap());
+    stateful_set
+}
+
 /// The StatefulSet manages the zookeeper server containers (as Pods)
 /// and the volumes attached to each server (as PersistentVolumeClaims)
 fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         stateful_set@ == zk_spec::make_stateful_set(zk@),
 {
@@ -667,8 +631,7 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
 
 fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
     requires
-        zk@.metadata.name.is_Some(),
-        zk@.metadata.namespace.is_Some(),
+        zk@.well_formed(),
     ensures
         pod_spec@ == zk_spec::make_zk_pod_spec(zk@),
 {

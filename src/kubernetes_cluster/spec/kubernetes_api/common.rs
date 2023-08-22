@@ -10,14 +10,14 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub type EtcdState = Map<ObjectRef, DynamicObjectView>;
+pub type StoredState = Map<ObjectRef, DynamicObjectView>;
 
 pub type Uid = nat;
 
 pub type ResourceVersion = nat;
 
 pub struct KubernetesAPIState {
-    pub resources: EtcdState,
+    pub resources: StoredState,
     pub uid_counter: Uid,
     pub resource_version_counter: ResourceVersion,
 }

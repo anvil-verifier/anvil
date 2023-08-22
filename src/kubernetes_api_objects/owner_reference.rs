@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::resource::*;
@@ -26,64 +27,6 @@ pub struct OwnerReference {
 
 impl OwnerReference {
     pub spec fn view(&self) -> OwnerReferenceView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (object_meta: OwnerReference)
-        ensures
-            object_meta@ == OwnerReferenceView::default(),
-    {
-        OwnerReference {
-            inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn set_api_version(&mut self, api_version: String)
-        ensures
-            self@ == old(self)@.set_api_version(api_version@),
-    {
-        self.inner.api_version = api_version.into_rust_string();
-    }
-
-    #[verifier(external_body)]
-    pub fn set_block_owner_deletion(&mut self, block_owner_deletion: bool)
-        ensures
-            self@ == old(self)@.set_block_owner_deletion(block_owner_deletion),
-    {
-        self.inner.block_owner_deletion = Some(block_owner_deletion);
-    }
-
-    #[verifier(external_body)]
-    pub fn set_controller(&mut self, controller: bool)
-        ensures
-            self@ == old(self)@.set_controller(controller),
-    {
-        self.inner.controller = Some(controller);
-    }
-
-    #[verifier(external_body)]
-    pub fn set_kind(&mut self, kind: String)
-        ensures
-            self@ == old(self)@.set_kind(kind@),
-    {
-        self.inner.kind = kind.into_rust_string();
-    }
-
-    #[verifier(external_body)]
-    pub fn set_name(&mut self, name: String)
-        ensures
-            self@ == old(self)@.set_name(name@),
-    {
-        self.inner.name = name.into_rust_string();
-    }
-
-    #[verifier(external_body)]
-    pub fn set_uid(&mut self, uid: String)
-        ensures
-            self@ == old(self)@.set_uid(uid@),
-    {
-        self.inner.uid = uid.into_rust_string();
-    }
 }
 
 impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference> for OwnerReference {
@@ -102,79 +45,18 @@ impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::
 /// It is supposed to be used in spec and proof code.
 
 pub struct OwnerReferenceView {
-    pub api_version: StringView,
     pub block_owner_deletion: Option<bool>,
     pub controller: Option<bool>,
-    pub kind: StringView,
+    pub kind: Kind,
     pub name: StringView,
-    pub uid: StringView,
+    pub uid: nat,
 }
 
-impl OwnerReferenceView {
-    #[verifier(external_body)]
-    pub open spec fn default() -> OwnerReferenceView {
-        OwnerReferenceView {
-            api_version: new_strlit("")@,
-            block_owner_deletion: None,
-            controller: None,
-            kind: new_strlit("")@,
-            name: new_strlit("")@,
-            uid: new_strlit("")@,
-        }
-    }
-
-    #[verifier(external_body)]
-    pub open spec fn set_api_version(self, api_version: StringView) -> OwnerReferenceView
-    {
-        OwnerReferenceView {
-            api_version: api_version,
-            ..self
-        }
-    }
-
-    #[verifier(external_body)]
-    pub open spec fn set_block_owner_deletion(self, block_owner_deletion: bool) -> OwnerReferenceView
-    {
-        OwnerReferenceView {
-            block_owner_deletion: Some(block_owner_deletion),
-            ..self
-        }
-    }
-
-    #[verifier(external_body)]
-    pub open spec fn set_controller(self, controller: bool) -> OwnerReferenceView
-    {
-        OwnerReferenceView {
-            controller: Some(controller),
-            ..self
-        }
-    }
-
-    #[verifier(external_body)]
-    pub open spec fn set_kind(self, kind: StringView) -> OwnerReferenceView
-    {
-        OwnerReferenceView {
-            kind: kind,
-            ..self
-        }
-    }
-
-    #[verifier(external_body)]
-    pub open spec fn set_name(self, name: StringView) -> OwnerReferenceView
-    {
-        OwnerReferenceView {
-            name: name,
-            ..self
-        }
-    }
-
-    #[verifier(external_body)]
-    pub open spec fn set_uid(self, uid: StringView) -> OwnerReferenceView
-    {
-        OwnerReferenceView {
-            uid: uid,
-            ..self
-        }
+pub open spec fn owner_reference_to_object_reference(owner_reference: OwnerReferenceView, namespace: StringView) -> ObjectRef {
+    ObjectRef {
+        kind: owner_reference.kind,
+        namespace: namespace,
+        name: owner_reference.name,
     }
 }
 

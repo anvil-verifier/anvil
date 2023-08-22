@@ -13,17 +13,15 @@ pub enum ZookeeperReconcileStep {
     AfterCreateAdminServerService,
     AfterCreateConfigMap,
     AfterGetStatefulSet,
+    AfterSetZKNode,
     AfterCreateStatefulSet,
     AfterUpdateStatefulSet,
-    AfterCreateZKNode,
-    AfterUpdateZKNode,
     Done,
     Error,
 }
 
 pub enum Error {
-    ClusterSizeZKNodeCreationFailed,
-    ClusterSizeZKNodeUpdateFailed,
+    ClusterSizeZKNodeSetFailed,
 }
 
 }

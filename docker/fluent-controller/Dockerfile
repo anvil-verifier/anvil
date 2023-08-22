@@ -7,16 +7,16 @@ SHELL ["/bin/bash", "-c"]
 COPY . .
 
 # Build the verified fluent controller
-RUN VERUS_DIR=/verus ./build.sh fluent_controller.rs --time -o fluent-controller
+RUN VERUS_DIR=/verus ./build.sh fluent_controller.rs --no-verify --time -o fluent-controller
 
 # Build the unverified fluent controller
-RUN cd reference-controllers/fluent-controller && cargo build
+# RUN cd reference-controllers/fluent-controller && cargo build
 
 # =============================================================================
 
 FROM debian:bullseye-slim
 
 COPY --from=builder /anvil/src/fluent-controller /usr/local/bin/fluent-controller
-COPY --from=builder /anvil/reference-controllers/fluent-controller/target/debug/fluent-controller /usr/local/bin/fluent-controller-unverified
+# COPY --from=builder /anvil/reference-controllers/fluent-controller/target/debug/fluent-controller /usr/local/bin/fluent-controller-unverified
 
 ENTRYPOINT ["/usr/local/bin/fluent-controller", "run"]

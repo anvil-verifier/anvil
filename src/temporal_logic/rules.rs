@@ -581,6 +581,21 @@ pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
     fun_ext::<Execution<T>, bool>(p.pred, q.pred);
 }
 
+pub proof fn always_to_always_later<T>(spec: TempPred<T>, p: TempPred<T>)
+    requires
+        spec.entails(always(p)),
+    ensures
+        spec.entails(always(later(p))),
+{
+    assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies always(later(p)).satisfied_by(ex) by {
+        always_propagate_forwards(ex, p, 1);
+        assert forall |i| #[trigger] later(p).satisfied_by(ex.suffix(i)) by {
+            execution_equality(ex.suffix(i).suffix(1), ex.suffix(1).suffix(i));
+        }
+    }
+    entails_trans(spec, always(p), always(later(p)));
+}
+
 pub proof fn always_double_equality<T>(p: TempPred<T>)
     ensures
         always(always(p)) == always(p),
@@ -961,6 +976,27 @@ pub proof fn eliminate_always<T>(spec: TempPred<T>, p: TempPred<T>)
     }
 }
 
+pub proof fn stable_spec_entails_always_p<T>(spec: TempPred<T>, p: TempPred<T>)
+    requires
+        valid(stable(spec)),
+        spec.entails(p),
+    ensures
+        spec.entails(always(p)),
+{
+    assert_by(
+        spec.entails(always(spec)),
+        {
+            assert forall |ex| #[trigger] spec.implies(always(spec)).satisfied_by(ex) by {
+                assert(valid(stable(spec)));
+                assert(stable(spec).satisfied_by(ex));
+                stable_unfold::<T>(ex, spec);
+            }
+        }
+    );
+    implies_preserved_by_always_temp(spec, p);
+    entails_trans(spec, always(spec), always(p));
+}
+
 /// Entails p and q if entails each of them.
 /// pre:
 ///     spec |= p
@@ -1043,6 +1079,118 @@ macro_rules! entails_always_and_n_internal {
 
 pub use entails_always_and_n;
 pub use entails_always_and_n_internal;
+
+/// Merge the next and other state predicates together into one action predicate.
+/// Usage:
+/// Given next, p1, p2, p3, ...,
+/// returns |s, s_prime| next(s, s_prime) && p1(s) && p2(s) && p3(s) && ...
+///
+/// Note: Verus reports strange errors saying the returned closure is not a FnSpec
+#[macro_export]
+macro_rules! merge_into_next {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::merge_into_next_internal!($($tail)*))
+    }
+}
+
+#[macro_export]
+macro_rules! merge_into_next_internal {
+    ($next:expr, $($expr:expr),* $(,)?) => {
+        |s, s_prime| {
+            $next(s, s_prime) &&
+            $(
+                $expr(s) &&
+            )*
+            true
+        }
+    };
+}
+
+pub use merge_into_next;
+pub use merge_into_next_internal;
+
+/// Combine the temporal predicates together using and.
+/// Usage:
+/// Given next, p1, p2, p3, ...,
+/// returns next.and(p1).and(p2).and(p3)...
+#[macro_export]
+macro_rules! combine_with_next {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::combine_with_next_internal!($($tail)*))
+    }
+}
+
+#[macro_export]
+macro_rules! combine_with_next_internal {
+    ($next:expr, $($expr:expr),* $(,)?) => {
+        $next $(
+            .and($expr)
+        )*
+    };
+}
+
+pub use combine_with_next;
+pub use combine_with_next_internal;
+
+/// Strengthen next with arbitrary number of predicates.
+/// pre:
+///     spec |= []p1
+///     spec |= []p2
+///        ...
+///     spec |= []pn
+///     partial_spec <==> p1 /\ p2 /\ ... /\ pn
+/// post:
+///     spec |= []all
+///
+/// Usage: combine_spec_entails_always_n!(spec, partial_spec, p1, p2, p3, p4)
+#[macro_export]
+macro_rules! combine_spec_entails_always_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::combine_spec_entails_always_n_internal!($($tail)*))
+    }
+}
+
+#[macro_export]
+macro_rules! combine_spec_entails_always_n_internal {
+    ($spec:expr, $partial_spec:expr, $($tail:tt)*) => {
+        entails_always_and_n!($spec, $($tail)*);
+        temp_pred_equality($partial_spec, combine_with_next!($($tail)*));
+    };
+}
+
+pub use combine_spec_entails_always_n;
+pub use combine_spec_entails_always_n_internal;
+
+/// Show that an spec entails the invariant by a group of action/state predicates which are also invariants entailed by spec.
+/// pre:
+///     partial_spec |= inv
+///     spec |= []p1
+///     spec |= []p2
+///         ...
+///     spec |= []pn
+///     partial_spec <==> p1 /\ p2 /\ ... /\ pn
+/// post:
+///     spec |= []inv
+///
+/// Usage: invariant_n!(spec, partial_spec, inv, p1, p2, ..., pn)
+#[macro_export]
+macro_rules! invariant_n {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::invariant_n_internal!($($tail)*))
+    }
+}
+
+#[macro_export]
+macro_rules! invariant_n_internal {
+    ($spec:expr, $partial_spec:expr, $inv:expr, $($tail:tt)*) => {
+        combine_spec_entails_always_n!($spec, $partial_spec, $($tail)*);
+        implies_preserved_by_always_temp($partial_spec, $inv);
+        entails_trans($spec, always($partial_spec), always($inv));
+    };
+}
+
+pub use invariant_n;
+pub use invariant_n_internal;
 
 /// Combining two specs together entails p and q if each of them entails p, q respectively.
 /// pre:
@@ -2493,6 +2641,7 @@ macro_rules! leads_to_always_combine_n_internal {
     };
     ($spec:expr, $p:expr, $q1:expr, $q2:expr, $($tail:tt)*) => {
         leads_to_always_combine_temp($spec, $p, $q1, $q2);
+        always_and_equality($q1, $q2);
         leads_to_always_combine_n_internal!($spec, $p, $q1.and($q2), $($tail)*);
     };
 }
@@ -2512,6 +2661,7 @@ pub proof fn leads_to_always_combine_temp<T>(spec: TempPred<T>, p: TempPred<T>, 
         spec.entails(p.leads_to(always(r))),
     ensures
         spec.entails(p.leads_to(always(q.and(r)))),
+        spec.entails(p.leads_to(always(q).and(always(r)))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(always(q.and(r))).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(always(q.and(r))).satisfied_by(ex.suffix(i)) by {
@@ -2535,6 +2685,7 @@ pub proof fn leads_to_always_combine_temp<T>(spec: TempPred<T>, p: TempPred<T>, 
             }
         };
     };
+    always_and_equality(q, r);
 }
 
 /// StatePred version of leads_to_always_combine_temp.
@@ -2544,6 +2695,7 @@ pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: S
         spec.entails(lift_state(p).leads_to(always(lift_state(r)))),
     ensures
         spec.entails(lift_state(p).leads_to(always(lift_state(q).and(lift_state(r))))),
+        spec.entails(lift_state(p).leads_to(always(lift_state(q)).and(always(lift_state(r))))),
 {
     leads_to_always_combine_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }
