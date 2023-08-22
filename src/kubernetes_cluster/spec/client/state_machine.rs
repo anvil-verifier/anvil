@@ -22,7 +22,8 @@ impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 pub open spec fn create_custom_resource() -> ClientAction<K> {
     Action {
         precondition: |input: ClientActionInput<K>, s: ClientState| {
-            input.recv.is_None()
+            &&& input.cr.metadata().name.is_Some()
+            &&& input.cr.metadata().namespace.is_Some()
         },
         transition: |input: ClientActionInput<K>, s: ClientState| {
             let create_req_msg = client_req_msg(create_req_msg_content(
@@ -39,7 +40,8 @@ pub open spec fn create_custom_resource() -> ClientAction<K> {
 pub open spec fn delete_custom_resource() -> ClientAction<K> {
     Action {
         precondition: |input: ClientActionInput<K>, s: ClientState| {
-            input.recv.is_None()
+            &&& input.cr.metadata().name.is_Some()
+            &&& input.cr.metadata().namespace.is_Some()
         },
         transition: |input: ClientActionInput<K>, s: ClientState| {
             let delete_req_msg = client_req_msg(delete_req_msg_content(
@@ -54,7 +56,8 @@ pub open spec fn delete_custom_resource() -> ClientAction<K> {
 pub open spec fn update_custom_resource() -> ClientAction<K> {
     Action {
         precondition: |input: ClientActionInput<K>, s: ClientState| {
-            input.recv.is_None()
+            &&& input.cr.metadata().name.is_Some()
+            &&& input.cr.metadata().namespace.is_Some()
         },
         transition: |input: ClientActionInput<K>, s: ClientState| {
             let update_req_msg = client_req_msg(update_req_msg_content(
@@ -72,15 +75,19 @@ pub open spec fn client() -> ClientStateMachine<K> {
             true
         },
         actions: set![Self::create_custom_resource(), Self::delete_custom_resource(), Self::update_custom_resource()],
-        step_to_action: |step: Step| {
+        step_to_action: |step: Step<K>| {
             match step {
-                Step::CreateCustomResource => Self::create_custom_resource(),
-                Step::UpdateCustomResource => Self::update_custom_resource(),
-                Step::DeleteCustomResource => Self::delete_custom_resource(),
+                Step::CreateCustomResource(_) => Self::create_custom_resource(),
+                Step::UpdateCustomResource(_) => Self::update_custom_resource(),
+                Step::DeleteCustomResource(_) => Self::delete_custom_resource(),
             }
         },
-        action_input: |step: Step, input: ClientActionInput<K>| {
-            input
+        action_input: |step: Step<K>, input: RestIdAllocator| {
+            match step {
+                Step::CreateCustomResource(obj) => ClientActionInput{ cr: obj, rest_id_allocator: input },
+                Step::UpdateCustomResource(obj) => ClientActionInput{ cr: obj, rest_id_allocator: input },
+                Step::DeleteCustomResource(obj) => ClientActionInput{ cr: obj, rest_id_allocator: input },
+            }
         }
     }
 }

@@ -697,7 +697,7 @@ proof fn pending_requests_num_decreases(
             Step::ControllerStep(input) => {
                 assert(pending_req_multiset =~= pending_req_multiset_prime);
             },
-            Step::ClientStep(input) => {
+            Step::ClientStep() => {
                 assert(pending_req_multiset =~= pending_req_multiset_prime);
             },
             _ => {}

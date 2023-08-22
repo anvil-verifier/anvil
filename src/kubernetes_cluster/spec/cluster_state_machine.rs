@@ -24,11 +24,11 @@ use vstd::{multiset::*, prelude::*};
 verus! {
 
 #[is_variant]
-pub enum Step<K, E: ExternalAPI> {
+pub enum Step<E: ExternalAPI> {
     KubernetesAPIStep(Option<Message>),
     BuiltinControllersStep((BuiltinControllerChoice, ObjectRef)),
     ControllerStep((Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>)),
-    ClientStep((Option<Message>, K)),
+    ClientStep(),
     ExternalAPIStep(ExternalComm<E::Input, E::Output>),
     ScheduleControllerReconcileStep(ObjectRef),
     RestartController(),
@@ -316,14 +316,14 @@ pub open spec fn disable_busy() -> Action<Self, (), ()> {
     }
 }
 
-pub open spec fn client_next() -> Action<Self, (Option<Message>, K), ()> {
-    let result = |input: (Option<Message>, K), s: Self| {
+pub open spec fn client_next() -> Action<Self, (), ()> {
+    let result = |input: (), s: Self| {
         let host_result = Self::client().next_result(
-            ClientActionInput{recv: input.0, cr: input.1, rest_id_allocator: s.rest_id_allocator},
+            s.rest_id_allocator,
             s.client_state
         );
         let msg_ops = MessageOps {
-            recv: input.0,
+            recv: None,
             send: host_result.get_Enabled_1().0,
         };
         let network_result = Self::network().next_result(msg_ops, s.network_state);
@@ -331,12 +331,11 @@ pub open spec fn client_next() -> Action<Self, (Option<Message>, K), ()> {
         (host_result, network_result)
     };
     Action {
-        precondition: |input: (Option<Message>, K), s: Self| {
-            &&& received_msg_destined_for(input.0, HostId::Client)
+        precondition: |input: (), s: Self| {
             &&& result(input, s).0.is_Enabled()
             &&& result(input, s).1.is_Enabled()
         },
-        transition: |input: (Option<Message>, K), s: Self| {
+        transition: |input: (), s: Self| {
             (Self {
                 client_state: result(input, s).0.get_Enabled_0(),
                 network_state: result(input, s).1.get_Enabled_0(),
@@ -358,12 +357,12 @@ pub open spec fn stutter() -> Action<Self, (), ()> {
     }
 }
 
-pub open spec fn next_step(s: Self, s_prime: Self, step: Step<K, E>) -> bool {
+pub open spec fn next_step(s: Self, s_prime: Self, step: Step<E>) -> bool {
     match step {
         Step::KubernetesAPIStep(input) => Self::kubernetes_api_next().forward(input)(s, s_prime),
         Step::BuiltinControllersStep(input) => Self::builtin_controllers_next().forward(input)(s, s_prime),
         Step::ControllerStep(input) => Self::controller_next().forward(input)(s, s_prime),
-        Step::ClientStep(input) => Self::client_next().forward(input)(s, s_prime),
+        Step::ClientStep() => Self::client_next().forward(())(s, s_prime),
         Step::ExternalAPIStep(input) => Self::external_api_next().forward(input)(s, s_prime),
         Step::ScheduleControllerReconcileStep(input) => Self::schedule_controller_reconcile().forward(input)(s, s_prime),
         Step::RestartController() => Self::restart_controller().forward(())(s, s_prime),
@@ -378,7 +377,7 @@ pub open spec fn next_step(s: Self, s_prime: Self, step: Step<K, E>) -> bool {
 /// * which host to take the next action (`Step`)
 /// * whether to deliver a message and which message to deliver (`Option<Message>` in `Step`)
 pub open spec fn next() -> ActionPred<Self> {
-    |s: Self, s_prime: Self| exists |step: Step<K, E>| Self::next_step(s, s_prime, step)
+    |s: Self, s_prime: Self| exists |step: Step<E>| Self::next_step(s, s_prime, step)
 }
 
 /// We install the reconciler to the Kubernetes cluster state machine spec

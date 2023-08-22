@@ -56,7 +56,7 @@ proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator(
             match msg.content {
                 MessageContent::APIRequest(_, _) => assert(s.rest_id_allocator.rest_id_counter < s_prime.rest_id_allocator.rest_id_counter),
                 MessageContent::APIResponse(_, id) => {
-                    let next_step = choose |step: Step<K, E>| Self::next_step(s, s_prime, step);
+                    let next_step = choose |step: Step<E>| Self::next_step(s, s_prime, step);
                     match next_step {
                         Step::KubernetesAPIStep(input) => {
                             let req_msg = input.get_Some_0();
@@ -139,7 +139,7 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id()
     Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator();
     Self::lemma_always_every_in_flight_req_is_unique();
     combine_spec_entails_always_n!(
-        Self::sm_spec(), lift_action(stronger_next), 
+        Self::sm_spec(), lift_action(stronger_next),
         lift_action(Self::next()),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Self::every_in_flight_req_is_unique())
@@ -198,7 +198,7 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(
         msg_1.content.get_rest_id() != msg_2.content.get_rest_id(),
 {
     if (msg_2.content.is_APIResponse()) {
-        let next_step = choose |step: Step<K, E>| Self::next_step(s, s_prime, step);
+        let next_step = choose |step: Step<E>| Self::next_step(s, s_prime, step);
         match next_step {
             Step::KubernetesAPIStep(input) => {
                 let req_msg = input.get_Some_0();

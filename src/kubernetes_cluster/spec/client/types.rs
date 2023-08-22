@@ -12,21 +12,20 @@ verus! {
 
 pub struct ClientState {}
 
-pub enum Step {
-    CreateCustomResource,
-    UpdateCustomResource,
-    DeleteCustomResource,
+pub enum Step<K> {
+    CreateCustomResource(K),
+    UpdateCustomResource(K),
+    DeleteCustomResource(K),
 }
 
 pub struct ClientActionInput<K> {
-    pub recv: Option<Message>,
     pub cr: K,
     pub rest_id_allocator: RestIdAllocator,
 }
 
 pub type ClientActionOutput = (Multiset<Message>, RestIdAllocator);
 
-pub type ClientStateMachine<K> = StateMachine<ClientState, ClientActionInput<K>, ClientActionInput<K>, ClientActionOutput, Step>;
+pub type ClientStateMachine<K> = StateMachine<ClientState, RestIdAllocator, ClientActionInput<K>, ClientActionOutput, Step<K>>;
 
 pub type ClientAction<K> = Action<ClientState, ClientActionInput<K>, ClientActionOutput>;
 

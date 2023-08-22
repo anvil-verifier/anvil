@@ -20,7 +20,7 @@ impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn scheduled_cr_has_lower_uid_than_uid_counter() -> StatePred<Self> {
     |s: Self| {
-        forall |key: ObjectRef| 
+        forall |key: ObjectRef|
         #[trigger] s.controller_state.scheduled_reconciles.contains_key(key)
         && key.kind.is_CustomResourceKind()
         ==> s.controller_state.scheduled_reconciles[key].metadata().uid.is_Some()
@@ -370,7 +370,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
                         assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
                     }
                 }
-                Step::ClientStep(input) => {
+                Step::ClientStep() => {
                     if s.message_in_flight(s.pending_req_of(key)) {
                         assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
                     } else {
