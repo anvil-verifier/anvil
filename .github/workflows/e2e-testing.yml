@@ -31,8 +31,6 @@ jobs:
           docker build -t local/zookeeper-controller:v0.1.0 .
       - name: Create kind cluster
         run: kind create cluster --config=./e2e/deploy/kind_config.yaml
-      - name: Load zookeeper image into kind cluster
-        run: kind load docker-image local/zookeeper-controller:v0.1.0 --name kind
       - name: Deploy zookeeper controller
         run: ./deploy.sh zookeeper local
       - name: Run zookeeper e2e tests
@@ -46,8 +44,6 @@ jobs:
           docker build -t local/rabbitmq-controller:v0.1.0 .
       - name: Create kind cluster
         run: kind create cluster --config=./e2e/deploy/kind_config.yaml
-      - name: Load rabbitmq image into kind cluster
-        run: kind load docker-image local/rabbitmq-controller:v0.1.0 --name kind
       - name: Deploy rabbitmq controller
         run: ./deploy.sh rabbitmq local
       - name: Run rabbitmq e2e tests
