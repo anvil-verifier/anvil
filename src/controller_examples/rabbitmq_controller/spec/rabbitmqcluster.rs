@@ -113,7 +113,7 @@ impl ResourceView for RabbitmqClusterView {
 
 pub struct RabbitmqClusterSpecView {
     pub replicas: int,
-    pub rabbitmq_config: Option<RabbitmqClusterConfigurationSpecView>,
+    pub rabbitmq_config: Option<RabbitmqConfigView>,
 }
 
 impl RabbitmqClusterSpecView {}
@@ -130,7 +130,7 @@ impl Marshalable for RabbitmqClusterSpecView {
     proof fn marshal_preserves_integrity() {}
 }
 
-pub struct RabbitmqClusterConfigurationSpecView {
+pub struct RabbitmqConfigView {
     pub additional_config: Option<StringView>,
     pub advanced_config: Option<StringView>,
     pub env_config: Option<StringView>,
