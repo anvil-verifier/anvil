@@ -371,19 +371,12 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
         &&& Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())(s)
         &&& Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())(s)
     };
-    entails_always_and_n!(
-        spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
         lift_action(Self::next()),
         lift_state(Self::crash_disabled()),
         lift_state(Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())),
         lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref()))
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(Self::next())
-        .and(lift_state(Self::crash_disabled()))
-        .and(lift_state(Self::each_resp_matches_at_most_one_pending_req(cr.object_ref())))
-        .and(lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr.object_ref())))
     );
     let known_resp_in_flight = |resp| lift_state(
         |s: Self| {
@@ -462,19 +455,12 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
             &&& Self::busy_disabled()(s)
             &&& Self::every_in_flight_msg_has_unique_id()(s)
         };
-        entails_always_and_n!(
-            spec,
+        combine_spec_entails_always_n!(
+            spec, lift_action(stronger_next),
             lift_action(Self::next()),
             lift_state(Self::crash_disabled()),
             lift_state(Self::busy_disabled()),
             lift_state(Self::every_in_flight_msg_has_unique_id())
-        );
-        temp_pred_equality(
-            lift_action(stronger_next),
-            lift_action(Self::next())
-            .and(lift_state(Self::crash_disabled()))
-            .and(lift_state(Self::busy_disabled()))
-            .and(lift_state(Self::every_in_flight_msg_has_unique_id()))
         );
         let input = Some(req_msg);
         assert forall |s, s_prime: Self| pre_1(s) && #[trigger] stronger_next(s, s_prime)
@@ -549,16 +535,7 @@ pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile
         &&& Self::next()(s, s_prime)
         &&& Self::crash_disabled()(s)
     };
-    entails_always_and_n!(
-        spec,
-        lift_action(Self::next()),
-        lift_state(Self::crash_disabled())
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(Self::next())
-        .and(lift_state(Self::crash_disabled()))
-    );
+    combine_spec_entails_always_n!(spec, lift_action(stronger_next), lift_action(Self::next()), lift_state(Self::crash_disabled()));
     let input = (None, None, Some(cr.object_ref()));
     Self::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, Self::continue_reconcile(), no_req_at_state, Self::at_expected_reconcile_states(cr.object_ref(), next_state));
     leads_to_trans_n!(

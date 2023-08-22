@@ -41,13 +41,7 @@ pub proof fn lemma_always_scheduled_cr_has_lower_uid_than_uid_counter(spec: Temp
         && Self::every_object_in_etcd_has_lower_uid_than_uid_counter()(s)
     };
     Self::lemma_always_every_object_in_etcd_has_lower_uid_than_uid_counter(spec);
-    entails_always_and_n!(
-        spec, lift_action(Self::next()), lift_state(Self::every_object_in_etcd_has_lower_uid_than_uid_counter())
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(Self::next()).and(lift_state(Self::every_object_in_etcd_has_lower_uid_than_uid_counter()))
-    );
+    combine_spec_entails_always_n!(spec, lift_action(stronger_next), lift_action(Self::next()), lift_state(Self::every_object_in_etcd_has_lower_uid_than_uid_counter()));
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
         // if s_prime.controller_state.scheduled_reconciles.contains_key(key) {
             assert(s.kubernetes_api_state.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
@@ -81,12 +75,8 @@ pub proof fn lemma_always_triggering_cr_has_lower_uid_than_uid_counter(spec: Tem
         && Self::scheduled_cr_has_lower_uid_than_uid_counter()(s)
     };
     Self::lemma_always_scheduled_cr_has_lower_uid_than_uid_counter(spec);
-    entails_always_and_n!(
-        spec, lift_action(Self::next()), lift_state(Self::scheduled_cr_has_lower_uid_than_uid_counter())
-    );
-    temp_pred_equality(
-        lift_action(stronger_next),
-        lift_action(Self::next()).and(lift_state(Self::scheduled_cr_has_lower_uid_than_uid_counter()))
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next), lift_action(Self::next()), lift_state(Self::scheduled_cr_has_lower_uid_than_uid_counter())
     );
     init_invariant(spec, Self::init(), stronger_next, invariant);
 }

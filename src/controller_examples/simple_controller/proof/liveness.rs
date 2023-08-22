@@ -87,7 +87,6 @@ proof fn liveness_proof(cr: SimpleCRView)
     leads_to_self_temp::<State<SimpleReconcileState>>(always(cr_exists(cr)));
     leads_to_always_combine_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(cr_exists(cr)),
         cr_exists(cr), lift_state(crash_disabled::<SimpleReconcileState>()));
-    always_and_equality::<State<SimpleReconcileState>>(cr_exists(cr), lift_state(crash_disabled::<SimpleReconcileState>()));
     lemma_sm_spec_entails_cr_always_exists_and_crash_always_disabled_leads_to_cm_always_exists(cr);
     // Step (7)
     leads_to_trans_temp::<State<SimpleReconcileState>>(sm_spec(simple_reconciler()), always(cr_exists(cr)),
@@ -269,17 +268,12 @@ proof fn lemma_reconcile_ongoing_leads_to_cm_exists(cr: SimpleCRView)
             .leads_to(lift_state(cm_exists(cr)))
         ),
 {
-    temp_pred_equality::<State<SimpleReconcileState>>(
-        lift_state(|s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.object_ref())),
-        lift_state(reconciler_reconcile_error(cr))
-            .or(lift_state(reconciler_at_init_pc(cr)))
-            .or(lift_state(reconciler_at_after_get_cr_pc(cr)))
-            .or(lift_state(reconciler_at_after_create_cm_pc(cr))));
     lemma_error_pc_leads_to_cm_exists(cr);
     lemma_init_pc_leads_to_cm_exists(cr);
     lemma_after_get_cr_pc_leads_to_cm_exists(cr);
     lemma_after_create_cm_pc_leads_to_cm_exists(cr);
-    or_leads_to_combine_n!(partial_spec_with_invariants_and_assumptions(cr),
+    or_leads_to_combine_and_equality!(
+        partial_spec_with_invariants_and_assumptions(cr), lift_state(|s: State<SimpleReconcileState>| s.reconcile_state_contains(cr.object_ref())),
         lift_state(reconciler_reconcile_error(cr)),
         lift_state(reconciler_at_init_pc(cr)),
         lift_state(reconciler_at_after_get_cr_pc(cr)),
@@ -520,13 +514,9 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_after_get_cr_pc_and_exists_pe
         &&& !s.crash_enabled
         &&& every_in_flight_msg_has_lower_id_than_allocator::<SimpleReconcileState>()(s)
     };
-    entails_always_and_n!(partial_spec_with_invariants_and_assumptions(cr),
+    combine_spec_entails_always_n!(partial_spec_with_invariants_and_assumptions(cr), lift_action(stronger_next)
         lift_action(next(simple_reconciler())), lift_state(crash_disabled::<SimpleReconcileState>()),
         lift_state(every_in_flight_msg_has_lower_id_than_allocator::<SimpleReconcileState>()));
-    temp_pred_equality(lift_action(stronger_next),
-        lift_action(next(simple_reconciler()))
-        .and(lift_state(crash_disabled::<SimpleReconcileState>()))
-        .and(lift_state(every_in_flight_msg_has_lower_id_than_allocator::<SimpleReconcileState>())));
     assert forall |s, s_prime| reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())(s) && #[trigger] stronger_next(s, s_prime) implies
     reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())(s_prime)
     || reconciler_at_after_get_cr_pc_and_exists_pending_req_and_req_in_flight_and_no_resp_in_flight(cr)(s_prime) by {

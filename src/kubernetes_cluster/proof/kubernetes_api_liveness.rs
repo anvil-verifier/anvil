@@ -402,16 +402,11 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
                         && Self::rest_id_counter_is_no_smaller_than(rest_id)(s)
                         && Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime)
                     };
-                    entails_always_and_n!(
-                        spec_with_rest_id,
+                    combine_spec_entails_always_n!(
+                        spec_with_rest_id, lift_action(stronger_next),
                         lift_action(Self::next()),
                         lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)),
                         lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements))
-                    );
-                    temp_pred_equality(
-                        lift_action(stronger_next),
-                        lift_action(Self::next()).and(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))
-                        .and(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)))
                     );
                     init_invariant(spec_with_rest_id, init, stronger_next, invariant);
                 }
@@ -672,8 +667,8 @@ proof fn pending_requests_num_decreases(
         &&& s.has_rest_id_counter_no_smaller_than(rest_id)
         &&& !s.busy_enabled
     };
-    strengthen_next_n!(
-        stronger_next, spec,
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next), 
         lift_action(Self::next()),
         lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(Self::busy_disabled())

@@ -8,6 +8,7 @@ use crate::kubernetes_api_objects::{
 use crate::kubernetes_cluster::proof::controller_runtime::*;
 use crate::kubernetes_cluster::spec::{
     cluster::*,
+    cluster_state_machine::Step,
     controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
     message::*,
 };
@@ -17,6 +18,8 @@ use crate::temporal_logic::defs::*;
 use vstd::prelude::*;
 
 verus! {
+
+pub type RMQStep = Step<RabbitmqClusterView, EmptyAPI>;
 
 pub type RMQCluster = Cluster<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>;
 

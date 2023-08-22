@@ -138,8 +138,8 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id()
     };
     Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator();
     Self::lemma_always_every_in_flight_req_is_unique();
-    strengthen_next_n!(
-        stronger_next, Self::sm_spec(),
+    combine_spec_entails_always_n!(
+        Self::sm_spec(), lift_action(stronger_next), 
         lift_action(Self::next()),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Self::every_in_flight_req_is_unique())

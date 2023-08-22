@@ -581,6 +581,21 @@ pub proof fn temp_pred_equality<T>(p: TempPred<T>, q: TempPred<T>)
     fun_ext::<Execution<T>, bool>(p.pred, q.pred);
 }
 
+pub proof fn always_to_always_later<T>(spec: TempPred<T>, p: TempPred<T>)
+    requires
+        spec.entails(always(p)),
+    ensures
+        spec.entails(always(later(p))),
+{
+    assert forall |ex| #[trigger] always(p).satisfied_by(ex) implies always(later(p)).satisfied_by(ex) by {
+        always_propagate_forwards(ex, p, 1);
+        assert forall |i| #[trigger] later(p).satisfied_by(ex.suffix(i)) by {
+            execution_equality(ex.suffix(i).suffix(1), ex.suffix(1).suffix(i));
+        }
+    }
+    entails_trans(spec, always(p), always(later(p)));
+}
+
 pub proof fn always_double_equality<T>(p: TempPred<T>)
     ensures
         always(always(p)) == always(p),
@@ -1119,65 +1134,63 @@ pub use combine_with_next_internal;
 
 /// Strengthen next with arbitrary number of predicates.
 /// pre:
-///     spec |= []next
 ///     spec |= []p1
 ///     spec |= []p2
 ///        ...
 ///     spec |= []pn
-///     stronger_next == next /\ p1 /\ p2 /\ ... /\ pn
+///     partial_spec <==> p1 /\ p2 /\ ... /\ pn
 /// post:
-///     spec |= []stronger_next
+///     spec |= []all
 ///
-/// Usage: strengthen_next_n!(stronger_next, spec, next, p1, p2, p3, p4)
+/// Usage: combine_spec_entails_always_n!(spec, partial_spec, p1, p2, p3, p4)
 #[macro_export]
-macro_rules! strengthen_next_n {
+macro_rules! combine_spec_entails_always_n {
     [$($tail:tt)*] => {
-        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::strengthen_next_n_internal!($($tail)*))
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::combine_spec_entails_always_n_internal!($($tail)*))
     }
 }
 
 #[macro_export]
-macro_rules! strengthen_next_n_internal {
-    ($stronger_next:expr, $spec:expr, $($tail:tt)*) => {
+macro_rules! combine_spec_entails_always_n_internal {
+    ($spec:expr, $partial_spec:expr, $($tail:tt)*) => {
         entails_always_and_n!($spec, $($tail)*);
-        temp_pred_equality(lift_action($stronger_next), combine_with_next!($($tail)*));
+        temp_pred_equality($partial_spec, combine_with_next!($($tail)*));
     };
 }
 
-pub use strengthen_next_n;
-pub use strengthen_next_n_internal;
+pub use combine_spec_entails_always_n;
+pub use combine_spec_entails_always_n_internal;
 
 /// Show that an spec entails the invariant by a group of action/state predicates which are also invariants entailed by spec.
 /// pre:
-///     spec |= []next
-///     forall |s, s_prime| next(s, s_prime) ==> inv(s, s_prime)
+///     partial_spec |= inv
 ///     spec |= []p1
 ///     spec |= []p2
 ///         ...
 ///     spec |= []pn
-///     next == p1 /\ p2 /\ ... /\ pn
+///     partial_spec <==> p1 /\ p2 /\ ... /\ pn
 /// post:
 ///     spec |= []inv
-/// 
-/// Usage: invariant_action_n!(spec, next, inv, p1, p2, ..., pn)
+///
+/// Usage: invariant_n!(spec, partial_spec, inv, p1, p2, ..., pn)
 #[macro_export]
-macro_rules! invariant_action_n {
+macro_rules! invariant_n {
     [$($tail:tt)*] => {
-        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::invariant_action_n_internal!($($tail)*))
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::invariant_n_internal!($($tail)*))
     }
 }
 
 #[macro_export]
-macro_rules! invariant_action_n_internal {
-    ($spec:expr, $next:expr, $inv:expr, $($tail:tt)*) => {
-        strengthen_next_n!($next, $spec, $($tail)*);
-        implies_preserved_by_always_temp(lift_action($next), lift_action($inv));
-        entails_trans($spec, always(lift_action($next)), always(lift_action($inv)));
+macro_rules! invariant_n_internal {
+    ($spec:expr, $partial_spec:expr, $inv:expr, $($tail:tt)*) => {
+        combine_spec_entails_always_n!($spec, $partial_spec, $($tail)*);
+        implies_preserved_by_always_temp($partial_spec, $inv);
+        entails_trans($spec, always($partial_spec), always($inv));
     };
 }
 
-pub use invariant_action_n;
-pub use invariant_action_n_internal;
+pub use invariant_n;
+pub use invariant_n_internal;
 
 /// Combining two specs together entails p and q if each of them entails p, q respectively.
 /// pre:
@@ -2386,40 +2399,6 @@ pub proof fn leads_to_trans_relaxed_auto<T>(spec: TempPred<T>)
     };
 }
 
-/// This rule can be used to prove leads_to when we have part (q) in this lemma of pre leads to post and 
-/// the rest of pre directly implies post, which means pre ==> q \/ r.
-/// Sometimes pre ==> q \/ r is subject to some assumption. If that assumption is always satisfied, we can get
-/// spec |= always(assumption) |= always(pre ==> q \/ r) |= pre ~> q \/ r ~> r.
-/// 
-/// If there doesn't have to be an assumtpion, i.e., |= pre ==> q \/ r, just pass true as the assumption.
-pub proof fn partial_implies_and_partial_leads_to_to_leads_to<T>(spec: TempPred<T>, assumption: TempPred<T>, pre: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
-    requires
-        spec.entails(always(assumption)),
-        assumption.entails(pre.implies(q.or(r))),
-        spec.entails(q.leads_to(r)),
-    ensures
-        spec.entails(pre.leads_to(r)),
-{
-    implies_preserved_by_always_temp(assumption, pre.implies(q.or(r)));
-    entails_trans(spec, always(assumption), always(pre.implies(q.or(r))));
-    leads_to_self_temp(r);
-    or_leads_to_combine_temp(spec, q, r, r);
-    leads_to_weaken_temp(spec, q.or(r), r, pre, r);
-}
-
-pub proof fn implies_with_spec_to_leads_to<T>(spec: TempPred<T>, pre: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
-    requires
-        spec.entails(always(pre)),
-        pre.entails(p.implies(q)),
-        spec.entails(q.leads_to(r)),
-    ensures
-        spec.entails(p.leads_to(r)),
-{
-    implies_preserved_by_always_temp(pre, p.implies(q));
-    entails_trans(spec, always(pre), always(p.implies(q)));
-    leads_to_weaken_temp(spec, q, r, p, r);
-}
-
 /// Weaken leads_to by implies.
 /// pre:
 ///     spec |= [](p2 => p1)
@@ -2662,6 +2641,7 @@ macro_rules! leads_to_always_combine_n_internal {
     };
     ($spec:expr, $p:expr, $q1:expr, $q2:expr, $($tail:tt)*) => {
         leads_to_always_combine_temp($spec, $p, $q1, $q2);
+        always_and_equality($q1, $q2);
         leads_to_always_combine_n_internal!($spec, $p, $q1.and($q2), $($tail)*);
     };
 }
@@ -2681,6 +2661,7 @@ pub proof fn leads_to_always_combine_temp<T>(spec: TempPred<T>, p: TempPred<T>, 
         spec.entails(p.leads_to(always(r))),
     ensures
         spec.entails(p.leads_to(always(q.and(r)))),
+        spec.entails(p.leads_to(always(q).and(always(r)))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(always(q.and(r))).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(always(q.and(r))).satisfied_by(ex.suffix(i)) by {
@@ -2704,6 +2685,7 @@ pub proof fn leads_to_always_combine_temp<T>(spec: TempPred<T>, p: TempPred<T>, 
             }
         };
     };
+    always_and_equality(q, r);
 }
 
 /// StatePred version of leads_to_always_combine_temp.
@@ -2713,6 +2695,7 @@ pub proof fn leads_to_always_combine<T>(spec: TempPred<T>, p: StatePred<T>, q: S
         spec.entails(lift_state(p).leads_to(always(lift_state(r)))),
     ensures
         spec.entails(lift_state(p).leads_to(always(lift_state(q).and(lift_state(r))))),
+        spec.entails(lift_state(p).leads_to(always(lift_state(q)).and(always(lift_state(r))))),
 {
     leads_to_always_combine_temp::<T>(spec, lift_state(p), lift_state(q), lift_state(r));
 }
