@@ -28,13 +28,11 @@ jobs:
       - name: Build zookeeper controller image
         run: |
           cp docker/zookeeper-controller/Dockerfile .
-          docker build -t zookeeper-controller:v0.1.0 .
+          docker build -t local/zookeeper-controller:v0.1.0 .
       - name: Create kind cluster
         run: kind create --config=./e2e/deploy/kind_config.yaml
-      - name: Load image into kind nodes
-        run: kind load docker-image zookeeper-controller:v0.1.0 --name kind
       - name: Deploy zookeeper controller
-        run: ./e2e/deploy.sh zookeeper
+        run: ./deploy.sh zookeeper local
       - name: Run zookeeper e2e tests
         run: cd e2e && cargo run -- zookeeper
       - name: Tear down kind cluster
@@ -43,13 +41,11 @@ jobs:
       - name: Build rabbitmq controller image
         run: |
           cp docker/rabbitmq-controller/Dockerfile .
-          docker build -t rabbitmq-controller:v0.1.0 .
+          docker build -t local/rabbitmq-controller:v0.1.0 .
       - name: Create kind cluster
         run: kind create --config=./e2e/deploy/kind_config.yaml
-      - name: Load image into kind nodes
-        run: kind load docker-image rabbitmq-controller:v0.1.0 --name kind
       - name: Deploy rabbitmq controller
-        run: ./e2e/deploy.sh rabbitmq
+        run: ./deploy.sh rabbitmq local
       - name: Run rabbitmq e2e tests
         run: cd e2e && cargo run -- rabbitmq
       - name: Tear down kind cluster
