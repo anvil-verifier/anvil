@@ -30,7 +30,7 @@ jobs:
           cp docker/zookeeper-controller/Dockerfile .
           docker build -t zookeeper-controller:v0.1.0 .
       - name: Create kind cluster
-        run: kind create --config ./e2e/deploy/kind_config.yaml
+        run: kind create --config=./e2e/deploy/kind_config.yaml
       - name: Load image into kind nodes
         run: kind load docker-image zookeeper-controller:v0.1.0 --name kind
       - name: Deploy zookeeper controller
@@ -45,7 +45,7 @@ jobs:
           cp docker/rabbitmq-controller/Dockerfile .
           docker build -t rabbitmq-controller:v0.1.0 .
       - name: Create kind cluster
-        run: kind create --config ./e2e/deploy/kind_config.yaml
+        run: kind create --config=./e2e/deploy/kind_config.yaml
       - name: Load image into kind nodes
         run: kind load docker-image rabbitmq-controller:v0.1.0 --name kind
       - name: Deploy rabbitmq controller
