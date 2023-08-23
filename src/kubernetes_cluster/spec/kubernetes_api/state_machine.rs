@@ -95,6 +95,17 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
     } else if s.resources.dom().contains(req.obj.set_namespace(req.namespace).object_ref()) {
         // Creation fails because the object already exists
         Some(APIError::ObjectAlreadyExists)
+    } else if req.obj.metadata.owner_references.is_Some()
+        && req.obj.metadata.owner_references.get_Some_0().len() > 1
+        && exists |i, j| #![auto] (
+            i != j
+            && 0 <= i < req.obj.metadata.owner_references.get_Some_0().len()
+            && 0 <= j < req.obj.metadata.owner_references.get_Some_0().len()
+            && req.obj.metadata.owner_references.get_Some_0()[i].is_controller_ref()
+            && req.obj.metadata.owner_references.get_Some_0()[j].is_controller_ref()
+        ) {
+        // Creation fails because the object has multiple controller owner references
+        Some(APIError::Invalid)
     } else if req.obj.kind == K::kind() && !K::rule(K::from_dynamic_object(req.obj).get_Ok_0()) {
         Some(APIError::Invalid)
     } else {
@@ -223,6 +234,17 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         // Update fails because the object has a wrong uid
         // TODO: double check the Error type
         Some(APIError::InternalError)
+    } else if req.obj.metadata.owner_references.is_Some()
+        && req.obj.metadata.owner_references.get_Some_0().len() > 1
+        && exists |i, j| #![auto] (
+            i != j
+            && 0 <= i < req.obj.metadata.owner_references.get_Some_0().len()
+            && 0 <= j < req.obj.metadata.owner_references.get_Some_0().len()
+            && req.obj.metadata.owner_references.get_Some_0()[i].is_controller_ref()
+            && req.obj.metadata.owner_references.get_Some_0()[j].is_controller_ref()
+        ) {
+        // Update fails because the object has multiple controller owner references
+        Some(APIError::Invalid)
     } else if req.obj.kind == K::kind() && !(
         K::rule(K::from_dynamic_object(req.obj).get_Ok_0())
         && K::transition_rule(K::from_dynamic_object(req.obj).get_Ok_0(), K::from_dynamic_object(s.resources[req.key]).get_Ok_0())

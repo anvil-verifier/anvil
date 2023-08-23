@@ -204,6 +204,8 @@ pub proof fn lemma_create_req_leads_to_res_exists(spec: TempPred<Self>, msg: Mes
                 &&& msg.content.get_create_request().obj.metadata.name.is_Some()
                 &&& msg.content.get_create_request().obj.metadata.namespace.is_None()
                 &&& Self::object_has_well_formed_spec(msg.content.get_create_request().obj)
+                &&& msg.content.get_create_request().obj.metadata.owner_references.is_Some()
+                &&& msg.content.get_create_request().obj.metadata.owner_references.get_Some_0().len() == 1
                 &&& msg.content.get_create_request().obj.kind == K::kind() ==> K::rule(K::from_dynamic_object(msg.content.get_create_request().obj).get_Ok_0())
             })
                 .leads_to(lift_state(|s: Self|
@@ -223,6 +225,8 @@ pub proof fn lemma_create_req_leads_to_res_exists(spec: TempPred<Self>, msg: Mes
         &&& obj.metadata.name.is_Some()
         &&& obj.metadata.namespace.is_None()
         &&& Self::object_has_well_formed_spec(obj)
+        &&& msg.content.get_create_request().obj.metadata.owner_references.is_Some()
+        &&& msg.content.get_create_request().obj.metadata.owner_references.get_Some_0().len() == 1
         &&& obj.kind == K::kind() ==> K::rule(K::from_dynamic_object(obj).get_Ok_0())
     };
     let post = |s: Self|
@@ -668,7 +672,7 @@ proof fn pending_requests_num_decreases(
         &&& !s.busy_enabled
     };
     combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next), 
+        spec, lift_action(stronger_next),
         lift_action(Self::next()),
         lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)),
         lift_state(Self::busy_disabled())
@@ -693,7 +697,7 @@ proof fn pending_requests_num_decreases(
             Step::ControllerStep(input) => {
                 assert(pending_req_multiset =~= pending_req_multiset_prime);
             },
-            Step::ClientStep(input) => {
+            Step::ClientStep() => {
                 assert(pending_req_multiset =~= pending_req_multiset_prime);
             },
             _ => {}

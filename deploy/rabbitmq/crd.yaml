@@ -21,7 +21,7 @@ spec:
           properties:
             spec:
               properties:
-                rabbitmq:
+                rabbitmqConfig:
                   nullable: true
                   properties:
                     additionalConfig:
@@ -38,8 +38,8 @@ spec:
                   format: int32
                   type: integer
                   x-kubernetes-validations:
-                  - rule: "self >= oldSelf"
-                    message: scaling down is not supported
+                    - rule: "self >= oldSelf"
+                      message: scaling down is not supported
               required:
                 - replicas
               type: object
@@ -50,4 +50,3 @@ spec:
       served: true
       storage: true
       subresources: {}
-
