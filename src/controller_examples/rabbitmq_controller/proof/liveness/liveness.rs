@@ -458,9 +458,9 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
 {
     let spec = cluster_spec();
     RMQCluster::lemma_always_every_in_flight_msg_has_unique_id();
-    RMQCluster::lemma_always_each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref());
-    RMQCluster::lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref());
-    RMQCluster::lemma_always_every_in_flight_msg_has_lower_id_than_allocator();
+    RMQCluster::lemma_always_each_resp_matches_at_most_one_pending_req(spec, rabbitmq.object_ref());
+    RMQCluster::lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_matches(spec, rabbitmq.object_ref());
+    RMQCluster::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
     RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     RMQCluster::lemma_always_each_scheduled_object_has_consistent_key_and_valid_metadata(spec);
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);

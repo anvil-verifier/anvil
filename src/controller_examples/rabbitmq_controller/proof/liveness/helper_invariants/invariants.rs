@@ -160,7 +160,7 @@ proof fn lemma_stateful_set_create_request_msg_implies_key_in_reconcile_equals(
 /// update request message (with key as key), it must be a controller action, and the triggering cr is s.triggering_cr_of(key).
 ///
 /// After the action, the controller stays at AfterUpdateStatefulSet step.
-proof fn lemma_stateful_set_update_request_msg_implies_key_in_reconcile_equals(
+pub proof fn lemma_stateful_set_update_request_msg_implies_key_in_reconcile_equals(
     key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: Message<EmptyTypeView, EmptyTypeView>, step: RMQStep
 )
     requires
@@ -690,22 +690,6 @@ pub proof fn lemma_true_leads_to_always_no_delete_cm_req_is_in_flight(spec: Temp
         lift_state(no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref()))),
         lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements))
     );
-}
-
-pub open spec fn sts_create_request_msg(key: ObjectRef) -> FnSpec(Message<EmptyTypeView, EmptyTypeView>) -> bool {
-    |msg: Message<EmptyTypeView, EmptyTypeView>|
-        msg.dst.is_KubernetesAPI()
-        && msg.content.is_create_request()
-        && msg.content.get_create_request().namespace == make_stateful_set_key(key).namespace
-        && msg.content.get_create_request().obj.metadata.name.get_Some_0() == make_stateful_set_key(key).name
-        && msg.content.get_create_request().obj.kind == make_stateful_set_key(key).kind
-}
-
-pub open spec fn sts_update_request_msg(key: ObjectRef) -> FnSpec(Message<EmptyTypeView, EmptyTypeView>) -> bool {
-    |msg: Message<EmptyTypeView, EmptyTypeView>|
-        msg.dst.is_KubernetesAPI()
-        && msg.content.is_update_request()
-        && msg.content.get_update_request().key == make_stateful_set_key(key)
 }
 
 pub open spec fn every_update_sts_req_does_the_same(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>

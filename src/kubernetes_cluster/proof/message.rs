@@ -26,17 +26,19 @@ pub open spec fn every_in_flight_msg_has_lower_id_than_allocator() -> StatePred<
     }
 }
 
-pub proof fn lemma_always_every_in_flight_msg_has_lower_id_than_allocator
-    ()
+pub proof fn lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec: TempPred<Self>)
+    requires
+        spec.entails(lift_state(Self::init())),
+        spec.entails(always(lift_action(Self::next()))),
     ensures
-        Self::sm_spec().entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
+        spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
 {
     let invariant = Self::every_in_flight_msg_has_lower_id_than_allocator();
     assert forall |s, s_prime: Self| invariant(s) && #[trigger] Self::next()(s, s_prime) implies
     invariant(s_prime) by {
         Self::next_preserves_every_in_flight_msg_has_lower_id_than_allocator(s, s_prime);
     };
-    init_invariant::<Self>(Self::sm_spec(), Self::init(), Self::next(), invariant);
+    init_invariant::<Self>(spec, Self::init(), Self::next(), invariant);
 }
 
 proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator(
@@ -117,7 +119,7 @@ pub proof fn lemma_always_every_in_flight_req_is_unique()
         &&& Self::next()(s, s_prime)
         &&& Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
     };
-    Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator();
+    Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(Self::sm_spec());
     strengthen_next::<Self>(
         Self::sm_spec(), Self::next(), Self::every_in_flight_msg_has_lower_id_than_allocator(), stronger_next
     );
@@ -159,7 +161,7 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id()
         && Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
         && Self::every_in_flight_req_is_unique()(s)
     };
-    Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator();
+    Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(Self::sm_spec());
     Self::lemma_always_every_in_flight_req_is_unique();
     combine_spec_entails_always_n!(
         Self::sm_spec(), lift_action(stronger_next),
@@ -265,13 +267,16 @@ pub open spec fn pending_req_has_lower_req_id_than_allocator() -> StatePred<Self
     }
 }
 
-pub proof fn lemma_always_pending_req_has_lower_req_id_than_allocator()
+pub proof fn lemma_always_pending_req_has_lower_req_id_than_allocator(spec: TempPred<Self>)
+    requires
+        spec.entails(lift_state(Self::init())),
+        spec.entails(always(lift_action(Self::next()))),
     ensures
-        Self::sm_spec().entails(always(lift_state(Self::pending_req_has_lower_req_id_than_allocator()))),
+        spec.entails(always(lift_state(Self::pending_req_has_lower_req_id_than_allocator()))),
 {
     let invariant = Self::pending_req_has_lower_req_id_than_allocator();
     init_invariant::<Self>(
-        Self::sm_spec(), Self::init(), Self::next(), invariant
+        spec, Self::init(), Self::next(), invariant
     );
 }
 

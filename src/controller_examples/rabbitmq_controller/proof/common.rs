@@ -366,4 +366,38 @@ pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_no
     }
 }
 
+pub open spec fn sts_create_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
+    |msg: Message|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_create_request()
+        && msg.content.get_create_request().namespace == make_stateful_set_key(key).namespace
+        && msg.content.get_create_request().obj.metadata.name.get_Some_0() == make_stateful_set_key(key).name
+        && msg.content.get_create_request().obj.kind == make_stateful_set_key(key).kind
+}
+
+pub open spec fn sts_update_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
+    |msg: Message|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_update_request()
+        && msg.content.get_update_request().key == make_stateful_set_key(key)
+}
+
+pub open spec fn sts_get_response_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
+    |msg: Message|
+        msg.src.is_KubernetesAPI()
+        && msg.content.is_get_response()
+        && (
+            msg.content.get_get_response().res.is_Ok()
+            ==> msg.content.get_get_response().res.get_Ok_0().object_ref() == make_stateful_set_key(key)
+        )
+}
+
+pub open spec fn ok_sts_get_response_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
+    |msg: Message|
+        msg.src.is_KubernetesAPI()
+        && msg.content.is_get_response()
+        && msg.content.get_get_response().res.is_Ok()
+        && msg.content.get_get_response().res.get_Ok_0().object_ref() == make_stateful_set_key(key)
+}
+
 }
