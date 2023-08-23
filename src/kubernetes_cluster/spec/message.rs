@@ -24,7 +24,7 @@ pub enum HostId {
     KubernetesAPI,
     BuiltinController,
     CustomController,
-    External,
+    ExternalAPI,
     Client,
 }
 
@@ -240,19 +240,27 @@ pub open spec fn client_req_msg(msg_content: MessageContent<I, O>) -> Message<I,
     Message::form_msg(HostId::Client, HostId::KubernetesAPI, msg_content)
 }
 
-// TODO: consider the external request/response messages
 pub open spec fn resp_msg_matches_req_msg(resp_msg: Message<I, O>, req_msg: Message<I, O>) -> bool {
-    &&& resp_msg.content.is_APIResponse()
-    &&& req_msg.content.is_APIRequest()
-    &&& resp_msg.dst == req_msg.src
-    &&& resp_msg.src == req_msg.dst
-    &&& resp_msg.content.get_APIResponse_1() == req_msg.content.get_APIRequest_1()
-    &&& match resp_msg.content.get_APIResponse_0() {
-        APIResponse::GetResponse(_) => req_msg.content.get_APIRequest_0().is_GetRequest(),
-        APIResponse::ListResponse(_) => req_msg.content.get_APIRequest_0().is_ListRequest(),
-        APIResponse::CreateResponse(_) => req_msg.content.get_APIRequest_0().is_CreateRequest(),
-        APIResponse::DeleteResponse(_) => req_msg.content.get_APIRequest_0().is_DeleteRequest(),
-        APIResponse::UpdateResponse(_) => req_msg.content.get_APIRequest_0().is_UpdateRequest(),
+    ||| {
+        &&& resp_msg.content.is_APIResponse()
+        &&& req_msg.content.is_APIRequest()
+        &&& resp_msg.dst == req_msg.src
+        &&& resp_msg.src == req_msg.dst
+        &&& resp_msg.content.get_rest_id() == req_msg.content.get_rest_id()
+        &&& match resp_msg.content.get_APIResponse_0() {
+            APIResponse::GetResponse(_) => req_msg.content.get_APIRequest_0().is_GetRequest(),
+            APIResponse::ListResponse(_) => req_msg.content.get_APIRequest_0().is_ListRequest(),
+            APIResponse::CreateResponse(_) => req_msg.content.get_APIRequest_0().is_CreateRequest(),
+            APIResponse::DeleteResponse(_) => req_msg.content.get_APIRequest_0().is_DeleteRequest(),
+            APIResponse::UpdateResponse(_) => req_msg.content.get_APIRequest_0().is_UpdateRequest(),
+        }
+    }
+    ||| {
+        &&& resp_msg.content.is_ExternalAPIResponse()
+        &&& req_msg.content.is_ExternalAPIRequest()
+        &&& resp_msg.dst == req_msg.src
+        &&& resp_msg.src == req_msg.dst
+        &&& resp_msg.content.get_rest_id() == req_msg.content.get_rest_id()
     }
 }
 
@@ -305,6 +313,12 @@ pub open spec fn form_update_resp_msg(req_msg: Message<I, O>, result: Result<Dyn
     recommends req_msg.content.is_update_request(),
 {
     Self::form_msg(req_msg.dst, req_msg.src, Self::update_resp_msg_content(result, req_msg.content.get_req_id()))
+}
+
+pub open spec fn form_external_resp_msg(req_msg: Message<I, O>, resp: O) -> Message<I, O>
+    recommends req_msg.content.is_ExternalAPIRequest(),
+{
+    Self::form_msg(req_msg.dst, req_msg.src, Self::external_resp_msg_content(resp, req_msg.content.get_rest_id()))
 }
 
 pub open spec fn get_req_msg_content(key: ObjectRef, req_id: RestId) -> MessageContent<I, O> {
@@ -368,6 +382,10 @@ pub open spec fn update_resp_msg_content(res: Result<DynamicObjectView, APIError
     MessageContent::APIResponse(APIResponse::UpdateResponse(UpdateResponse{
         res: res,
     }), resp_id)
+}
+
+pub open spec fn external_resp_msg_content(resp: O, resp_id: RestId) -> MessageContent<I, O> {
+    MessageContent::ExternalAPIResponse(resp, resp_id)
 }
 
 }

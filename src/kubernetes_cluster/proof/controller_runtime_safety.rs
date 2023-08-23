@@ -290,7 +290,7 @@ pub proof fn lemma_always_each_resp_matches_at_most_one_pending_req(
 }
 
 // This lemma ensures that if a controller is at some reconcile state for a cr, there must be the pending request of the
-// reconcile state in flight or a correponding response in flight.
+// reconcile state in flight or a corresponding response in flight.
 // Obviously, this requires that when controller enters the 'state' in reconcile_core, there must be a request generated;
 // otherwise, the pending request may not be there.
 // The proof is very straightforward:
@@ -371,6 +371,13 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
                     }
                 }
                 Step::ClientStep() => {
+                    if s.message_in_flight(s.pending_req_of(key)) {
+                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
+                    } else {
+                        assert(s_prime.message_in_flight(resp));
+                    }
+                }
+                Step::ExternalAPIStep(input) => {
                     if s.message_in_flight(s.pending_req_of(key)) {
                         assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
                     } else {

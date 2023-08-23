@@ -79,7 +79,17 @@ proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator(
                     assert(s.rest_id_allocator.rest_id_counter < s_prime.rest_id_allocator.rest_id_counter)
                 },
                 MessageContent::ExternalAPIResponse(_, id) => {
-                    assert(false)
+                    let next_step = choose |step: Step<E>| Self::next_step(s, s_prime, step);
+                    match next_step {
+                        Step::ExternalAPIStep(input) => {
+                            let req_msg = input.get_Some_0();
+                            assert(s.message_in_flight(req_msg));
+                            assert(s.message_in_flight(req_msg) ==> req_msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
+                            assert(id == req_msg.content.get_rest_id());
+                            assert(id < s.rest_id_allocator.rest_id_counter);
+                        }
+                        _ => assert(false),
+                    }
                 },
             }
             assert(msg.content.get_rest_id() < s_prime.rest_id_allocator.rest_id_counter);
@@ -90,7 +100,8 @@ proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator(
 pub open spec fn every_in_flight_req_is_unique() -> StatePred<Self> {
     |s: Self| {
         forall |msg: Message<E::Input, E::Output>|
-            msg.content.is_APIRequest() && #[trigger] s.message_in_flight(msg)
+            (msg.content.is_APIRequest() || msg.content.is_ExternalAPIRequest())
+            && #[trigger] s.message_in_flight(msg)
             ==> s.network_state.in_flight.count(msg) == 1
     }
 }
@@ -112,7 +123,8 @@ pub proof fn lemma_always_every_in_flight_req_is_unique()
     );
     assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime) implies
     invariant(s_prime) by {
-        assert forall |msg: Message<E::Input, E::Output>| msg.content.is_APIRequest() && #[trigger] s_prime.message_in_flight(msg) implies
+        assert forall |msg: Message<E::Input, E::Output>|
+        (msg.content.is_APIRequest() || msg.content.is_ExternalAPIRequest()) && #[trigger] s_prime.message_in_flight(msg) implies
         s_prime.network_state.in_flight.count(msg) == 1 by {
             if (s.message_in_flight(msg)) {
                 assert(s.network_state.in_flight.count(msg) == 1);
@@ -217,6 +229,16 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(
                 assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
             }
             Step::KubernetesBusy(input) => {
+                let req_msg = input.get_Some_0();
+                assert(s.network_state.in_flight.count(req_msg) <= 1);
+                assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
+            }
+            _ => assert(false),
+        }
+    } else if msg_2.content.is_ExternalAPIResponse() {
+        let next_step = choose |step: Step<E>| Self::next_step(s, s_prime, step);
+        match next_step {
+            Step::ExternalAPIStep(input) => {
                 let req_msg = input.get_Some_0();
                 assert(s.network_state.in_flight.count(req_msg) <= 1);
                 assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());

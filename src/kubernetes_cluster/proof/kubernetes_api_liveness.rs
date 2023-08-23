@@ -700,6 +700,9 @@ proof fn pending_requests_num_decreases(
             Step::ClientStep() => {
                 assert(pending_req_multiset =~= pending_req_multiset_prime);
             },
+            Step::ExternalAPIStep(input) => {
+                assert(pending_req_multiset =~= pending_req_multiset_prime);
+            },
             _ => {}
         }
     }
