@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::external_api::spec::*;
-use crate::kubernetes_api_objects::common::*;
+use crate::kubernetes_api_objects::{common::*, dynamic::*};
 use crate::pervasive_ext::string_view::*;
 use crate::zookeeper_controller::common::*;
 use vstd::{prelude::*, string::*};
@@ -42,7 +42,7 @@ impl ExternalAPI for ZKAPI {
     type Output = ZKAPIOutputView;
     type State = ZooKeeperState;
 
-    open spec fn transition(input: ZKAPIInputView, state: ZooKeeperState) -> (Option<ZKAPIOutputView>, ZooKeeperState) {
+    open spec fn transition(input: ZKAPIInputView, state: ZooKeeperState, resources: StoredState) -> (ZooKeeperState, Option<ZKAPIOutputView>) {
         match input {
             ZKAPIInputView::SetZKNodeRequest(zk_name, zk_namespace, replicas) => set_zk_node(zk_name, zk_namespace, replicas, state),
         }
@@ -82,7 +82,7 @@ impl ExternalAPI for ZKAPI {
 // the old API call from the previously crashed controller.
 pub open spec fn set_zk_node(
     zk_name: StringView, zk_namespace: StringView, replicas: StringView, state: ZooKeeperState
-) -> (Option<ZKAPIOutputView>, ZooKeeperState) {
+) -> (ZooKeeperState, Option<ZKAPIOutputView>) {
     let key = ObjectRef {
         kind: Kind::CustomResourceKind,
         namespace: zk_namespace,
@@ -93,7 +93,7 @@ pub open spec fn set_zk_node(
         data: new_data,
         ..state
     };
-    (Some(ZKAPIOutputView::SetZKNodeResponse(ZKAPIResultView{res: Ok(())})), state_prime)
+    (state_prime, Some(ZKAPIOutputView::SetZKNodeResponse(ZKAPIResultView{res: Ok(())})))
 }
 
 }
