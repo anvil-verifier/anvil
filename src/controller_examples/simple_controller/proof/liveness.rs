@@ -692,7 +692,7 @@ pub proof fn next_and_not_crash_preserves_init_pc_or_reconciler_at_after_get_cr_
         let input = next_step.get_ControllerStep_0();
         let req_msg = controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr.object_ref()}), s.rest_id_allocator.allocate().1);
         assert(is_controller_get_cr_request_msg(req_msg, cr));
-        assert(req_msg.content.get_req_id() == s.rest_id_allocator.rest_id_counter);
+        assert(req_msg.content.get_rest_id() == s.rest_id_allocator.rest_id_counter);
         if (exists |resp_msg: Message<E::Input, E::Output>| {
             &&& #[trigger] s_prime.message_in_flight(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)

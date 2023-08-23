@@ -64,12 +64,12 @@ proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator(
                         Step::KubernetesAPIStep(input) => {
                             let req_msg = input.get_Some_0();
                             assert(s.message_in_flight(req_msg));
-                            assert(id == req_msg.content.get_req_id());
+                            assert(id == req_msg.content.get_rest_id());
                         }
                         Step::KubernetesBusy(input) => {
                             let req_msg = input.get_Some_0();
                             assert(s.message_in_flight(req_msg));
-                            assert(id == req_msg.content.get_req_id());
+                            assert(id == req_msg.content.get_rest_id());
                         }
                         _ => assert(false),
                     }
@@ -261,7 +261,7 @@ pub open spec fn pending_req_has_lower_req_id_than_allocator() -> StatePred<Self
         forall |cr_key: ObjectRef|
             #[trigger] s.reconcile_state_contains(cr_key)
             && Self::pending_k8s_api_req_msg(s, cr_key)
-            ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_req_id() < s.rest_id_allocator.rest_id_counter
+            ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_rest_id() < s.rest_id_allocator.rest_id_counter
     }
 }
 
