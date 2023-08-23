@@ -24,19 +24,6 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-      # For zookeeper
-      # - name: Build zookeeper controller image
-      #   run: |
-      #     cp docker/zookeeper-controller/Dockerfile .
-      #     docker build -t local/zookeeper-controller:v0.1.0 .
-      # - name: Create kind cluster
-      #   run: kind create cluster --config=./e2e/deploy/kind_config.yaml
-      # - name: Deploy zookeeper controller
-      #   run: ./deploy.sh zookeeper local
-      # - name: Run zookeeper e2e tests
-      #   run: cd e2e && cargo run -- zookeeper
-      # - name: Tear down kind cluster
-      #   run: kind delete clusters kind
       # For rabbitmq
       - name: Build rabbitmq controller image
         run: |
@@ -46,11 +33,20 @@ jobs:
         run: kind create cluster --config=./e2e/deploy/kind_config.yaml
       - name: Deploy rabbitmq controller
         run: ./deploy.sh rabbitmq local
-      - name: Apply rabbitmq
-        run: kubectl apply -f ./e2e/rabbitmq.yaml && sleep 1
-      - name: Check roles
-        run: kubectl get roles
       - name: Run rabbitmq e2e tests
         run: cd e2e && cargo run -- rabbitmq
+      - name: Tear down kind cluster
+        run: kind delete clusters kind
+      # For zookeeper
+      - name: Build zookeeper controller image
+        run: |
+          cp docker/zookeeper-controller/Dockerfile .
+          docker build -t local/zookeeper-controller:v0.1.0 .
+      - name: Create kind cluster
+        run: kind create cluster --config=./e2e/deploy/kind_config.yaml
+      - name: Deploy zookeeper controller
+        run: ./deploy.sh zookeeper local
+      - name: Run zookeeper e2e tests
+        run: cd e2e && cargo run -- zookeeper
       - name: Tear down kind cluster
         run: kind delete clusters kind
