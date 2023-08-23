@@ -25,7 +25,7 @@ pub open spec fn handle_external_request() -> ExternalAPIAction<E> {
         },
         transition: |input: ExternalAPIActionInput<E>, s: ExternalAPIState<E>| {
             let req_msg = input.recv.get_Some_0();
-            let (inner_s_prime, resp_o) = E::transition(req_msg.content.get_ExternalAPIRequest_0(), s.state);
+            let (inner_s_prime, resp_o) = E::transition(req_msg.content.get_ExternalAPIRequest_0(), s.state, input.resources);
             let s_prime = ExternalAPIState {
                 state: inner_s_prime,
             };

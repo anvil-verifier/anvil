@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::{common::*, dynamic::*};
 use crate::pervasive_ext::to_view::*;
 use vstd::prelude::*;
 
@@ -17,7 +18,7 @@ pub trait ExternalAPI {
     // transition describes the complete logic of external apis, which is a spec counterpart of ExternalAPI::process.
     // This method consumes the input (which should be computed by reconcile_core) and the current state of the external
     // api and produces the response and the next state of the api.
-    open spec fn transition(input: Self::Input, state: Self::State) -> (Self::State, Option<Self::Output>);
+    open spec fn transition(input: Self::Input, state: Self::State, resources: StoredState) -> (Self::State, Option<Self::Output>);
 
     // init_state gives the initial state of the external api.
     open spec fn init_state() -> Self::State;
@@ -33,7 +34,7 @@ impl ExternalAPI for EmptyAPI {
     type Output = EmptyTypeView;
     type State = EmptyTypeView;
 
-    open spec fn transition(input: EmptyTypeView, state: EmptyTypeView) -> (EmptyTypeView, Option<EmptyTypeView>) {
+    open spec fn transition(input: EmptyTypeView, state: EmptyTypeView, resources: StoredState) -> (EmptyTypeView, Option<EmptyTypeView>) {
         (EmptyTypeView{}, None)
     }
 

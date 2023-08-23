@@ -12,8 +12,6 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub type StoredState = Map<ObjectRef, DynamicObjectView>;
-
 pub struct ExternalAPIState<E: ExternalAPI> {
     pub state: E::State,
 }

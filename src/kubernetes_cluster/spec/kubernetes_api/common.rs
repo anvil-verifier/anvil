@@ -12,8 +12,6 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub type StoredState = Map<ObjectRef, DynamicObjectView>;
-
 pub type Uid = nat;
 
 pub type ResourceVersion = nat;
