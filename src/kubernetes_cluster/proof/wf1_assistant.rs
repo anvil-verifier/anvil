@@ -39,7 +39,7 @@ pub proof fn kubernetes_api_action_pre_implies_next_pre(
     assert forall |s: Self| #[trigger] Self::kubernetes_api_action_pre(action, input)(s)
     implies Self::kubernetes_api_next().pre(input)(s) by {
         Self::exists_next_kubernetes_api_step(
-            action, KubernetesAPIActionInput{recv: input, rest_id_allocator: s.rest_id_allocator}, s.kubernetes_api_state
+            action, KubernetesAPIActionInput{recv: input}, s.kubernetes_api_state
         );
     };
 }

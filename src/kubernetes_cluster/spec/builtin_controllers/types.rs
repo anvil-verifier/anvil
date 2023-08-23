@@ -31,7 +31,10 @@ pub struct BuiltinControllersActionInput {
     pub rest_id_allocator: RestIdAllocator,
 }
 
-pub type BuiltinControllersActionOutput<I, O> = (Multiset<Message<I, O>>, RestIdAllocator);
+pub struct BuiltinControllersActionOutput<I, O> {
+    pub send: Multiset<Message<I, O>>,
+    pub rest_id_allocator: RestIdAllocator,
+}
 
 pub type BuiltinControllersStateMachine<I, O> = StateMachine<BuiltinControllersState,
                                             BuiltinControllersActionInput,

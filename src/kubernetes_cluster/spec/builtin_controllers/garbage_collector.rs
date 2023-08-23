@@ -60,7 +60,12 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction<E::Input, E
             let delete_req_msg = Message::built_in_controller_req_msg(Message::delete_req_msg_content(
                 input.key, input.rest_id_allocator.allocate().1
             ));
-            (s, (Multiset::singleton(delete_req_msg), input.rest_id_allocator.allocate().0))
+            let s_prime = s;
+            let output = BuiltinControllersActionOutput {
+                send: Multiset::singleton(delete_req_msg),
+                rest_id_allocator: input.rest_id_allocator.allocate().0,
+            };
+            (s_prime, output)
         },
     }
 }

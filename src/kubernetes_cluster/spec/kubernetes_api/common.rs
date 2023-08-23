@@ -28,10 +28,11 @@ pub enum KubernetesAPIStep {
 
 pub struct KubernetesAPIActionInput<I, O> {
     pub recv: Option<Message<I, O>>,
-    pub rest_id_allocator: RestIdAllocator,
 }
 
-pub type KubernetesAPIActionOutput<I, O> = (Multiset<Message<I, O>>, RestIdAllocator);
+pub struct KubernetesAPIActionOutput<I, O> {
+    pub send: Multiset<Message<I, O>>
+}
 
 pub type KubernetesAPIStateMachine<I, O> = StateMachine<KubernetesAPIState, KubernetesAPIActionInput<I, O>, KubernetesAPIActionInput<I, O>, KubernetesAPIActionOutput<I, O>, KubernetesAPIStep>;
 

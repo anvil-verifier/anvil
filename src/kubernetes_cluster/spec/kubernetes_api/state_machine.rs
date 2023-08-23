@@ -372,7 +372,9 @@ pub open spec fn handle_request() -> KubernetesAPIAction<E::Input, E::Output> {
             // to built-in controllers and activate their reconciliation.
             // Built-in controllers will be specified as actions of the top level cluster state machine.
             let (s_prime, etcd_resp) = Self::transition_by_etcd(input.recv.get_Some_0(), s);
-            (s_prime, (Multiset::singleton(etcd_resp), input.rest_id_allocator))
+            (s_prime, KubernetesAPIActionOutput {
+                send: Multiset::singleton(etcd_resp)
+            })
         },
     }
 }

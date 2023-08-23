@@ -61,12 +61,12 @@ pub open spec fn init() -> StatePred<Self> {
 pub open spec fn kubernetes_api_next() -> Action<Self, Option<Message<E::Input, E::Output>>, ()> {
     let result = |input: Option<Message<E::Input, E::Output>>, s: Self| {
         let host_result = Self::kubernetes_api().next_result(
-            KubernetesAPIActionInput{recv: input, rest_id_allocator: s.rest_id_allocator},
+            KubernetesAPIActionInput{ recv: input },
             s.kubernetes_api_state
         );
         let msg_ops = MessageOps {
             recv: input,
-            send: host_result.get_Enabled_1().0,
+            send: host_result.get_Enabled_1().send,
         };
         let network_result = Self::network().next_result(msg_ops, s.network_state);
 
@@ -79,10 +79,10 @@ pub open spec fn kubernetes_api_next() -> Action<Self, Option<Message<E::Input, 
             &&& result(input, s).1.is_Enabled()
         },
         transition: |input: Option<Message<E::Input, E::Output>>, s: Self| {
+            let (host_result, network_result) = result(input, s);
             (Self {
-                kubernetes_api_state: result(input, s).0.get_Enabled_0(),
-                network_state: result(input, s).1.get_Enabled_0(),
-                rest_id_allocator: result(input, s).0.get_Enabled_1().1,
+                kubernetes_api_state: host_result.get_Enabled_0(),
+                network_state: network_result.get_Enabled_0(),
                 ..s
             }, ())
         },
@@ -106,7 +106,7 @@ pub open spec fn builtin_controllers_next() -> Action<Self, (BuiltinControllerCh
         );
         let msg_ops = MessageOps {
             recv: None,
-            send: host_result.get_Enabled_1().0,
+            send: host_result.get_Enabled_1().send,
         };
         let network_result = Self::network().next_result(msg_ops, s.network_state);
 
@@ -118,10 +118,11 @@ pub open spec fn builtin_controllers_next() -> Action<Self, (BuiltinControllerCh
             &&& result(input, s).1.is_Enabled()
         },
         transition: |input: (BuiltinControllerChoice, ObjectRef), s: Self| {
+            let (host_result, network_result) = result(input, s);
             (Self {
-                builtin_controllers_state: result(input, s).0.get_Enabled_0(),
-                network_state: result(input, s).1.get_Enabled_0(),
-                rest_id_allocator: result(input, s).0.get_Enabled_1().1,
+                builtin_controllers_state: host_result.get_Enabled_0(),
+                network_state: network_result.get_Enabled_0(),
+                rest_id_allocator: host_result.get_Enabled_1().rest_id_allocator,
                 ..s
             }, ())
         },
@@ -167,7 +168,8 @@ pub open spec fn external_api_next() -> Action<Self, Option<Message<E::Input, E:
                 ..s
             }, ())
         },
-    }}
+    }
+}
 
 pub open spec fn controller_next() -> Action<Self, (Option<Message<E::Input, E::Output>>, Option<ObjectRef>), ()> {
     let result = |input: (Option<Message<E::Input, E::Output>>, Option<ObjectRef>), s: Self| {
@@ -324,7 +326,7 @@ pub open spec fn client_next() -> Action<Self, (), ()> {
         );
         let msg_ops = MessageOps {
             recv: None,
-            send: host_result.get_Enabled_1().0,
+            send: host_result.get_Enabled_1().send,
         };
         let network_result = Self::network().next_result(msg_ops, s.network_state);
 
@@ -336,10 +338,11 @@ pub open spec fn client_next() -> Action<Self, (), ()> {
             &&& result(input, s).1.is_Enabled()
         },
         transition: |input: (), s: Self| {
+            let (host_result, network_result) = result(input, s);
             (Self {
-                client_state: result(input, s).0.get_Enabled_0(),
-                network_state: result(input, s).1.get_Enabled_0(),
-                rest_id_allocator: result(input, s).0.get_Enabled_1().1,
+                client_state: host_result.get_Enabled_0(),
+                network_state: network_result.get_Enabled_0(),
+                rest_id_allocator: host_result.get_Enabled_1().rest_id_allocator,
                 ..s
             }, ())
         },
@@ -402,12 +405,12 @@ pub open spec fn kubernetes_api_action_pre(action: KubernetesAPIAction<E::Input,
     |s: Self| {
         let host_result = Self::kubernetes_api().next_action_result(
             action,
-            KubernetesAPIActionInput{recv: input, rest_id_allocator: s.rest_id_allocator},
+            KubernetesAPIActionInput{recv: input},
             s.kubernetes_api_state
         );
         let msg_ops = MessageOps {
             recv: input,
-            send: host_result.get_Enabled_1().0,
+            send: host_result.get_Enabled_1().send,
         };
         let network_result = Self::network().next_result(msg_ops, s.network_state);
 
@@ -430,7 +433,7 @@ pub open spec fn builtin_controllers_action_pre(action: BuiltinControllersAction
         );
         let msg_ops = MessageOps {
             recv: None,
-            send: host_result.get_Enabled_1().0,
+            send: host_result.get_Enabled_1().send,
         };
         let network_result = Self::network().next_result(msg_ops, s.network_state);
 

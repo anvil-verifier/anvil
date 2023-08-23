@@ -28,7 +28,12 @@ pub open spec fn create_custom_resource() -> ClientAction<K, E::Input, E::Output
                 input.rest_id_allocator.allocate().1
             ));
 
-            (ClientState{}, (Multiset::singleton(create_req_msg), input.rest_id_allocator.allocate().0))
+            let s_prime = s;
+            let output = ClientActionOutput {
+                send: Multiset::singleton(create_req_msg),
+                rest_id_allocator: input.rest_id_allocator.allocate().0,
+            };
+            (s_prime, output)
         },
     }
 }
@@ -44,7 +49,12 @@ pub open spec fn delete_custom_resource() -> ClientAction<K, E::Input, E::Output
                 input.cr.object_ref(), input.rest_id_allocator.allocate().1
             ));
 
-            (ClientState{}, (Multiset::singleton(delete_req_msg), input.rest_id_allocator.allocate().0))
+            let s_prime = s;
+            let output = ClientActionOutput {
+                send: Multiset::singleton(delete_req_msg),
+                rest_id_allocator: input.rest_id_allocator.allocate().0,
+            };
+            (s_prime, output)
         },
     }
 }
@@ -60,7 +70,12 @@ pub open spec fn update_custom_resource() -> ClientAction<K, E::Input, E::Output
                 input.cr.object_ref(), input.cr.to_dynamic_object(), input.rest_id_allocator.allocate().1
             ));
 
-            (ClientState{}, (Multiset::singleton(update_req_msg), input.rest_id_allocator.allocate().0))
+            let s_prime = s;
+            let output = ClientActionOutput {
+                send: Multiset::singleton(update_req_msg),
+                rest_id_allocator: input.rest_id_allocator.allocate().0,
+            };
+            (s_prime, output)
         },
     }
 }
