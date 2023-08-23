@@ -54,16 +54,12 @@ pub open spec fn continue_reconcile() -> ControllerAction<K, E, R> {
                 &&& s.ongoing_reconciles.dom().contains(cr_key)
                 &&& !R::reconcile_done(s.ongoing_reconciles[cr_key].local_state)
                 &&& !R::reconcile_error(s.ongoing_reconciles[cr_key].local_state)
-                // Split cases:
-                // (1) there is a pending request which is destined for kubernetes/external api;
-                // (2) there is no pending request or external api input;
-
                 &&& if s.ongoing_reconciles[cr_key].pending_req_msg.is_Some() {
                     &&& input.recv.is_Some()
-                    &&& input.recv.get_Some_0().content.is_APIResponse()
+                    &&& (input.recv.get_Some_0().content.is_APIResponse() || input.recv.get_Some_0().content.is_ExternalAPIResponse())
                     &&& Message::resp_msg_matches_req_msg(input.recv.get_Some_0(), s.ongoing_reconciles[cr_key].pending_req_msg.get_Some_0())
                 } else {
-                    &&& input.recv.is_None()
+                    input.recv.is_None()
                 }
             } else {
                 false
@@ -73,7 +69,11 @@ pub open spec fn continue_reconcile() -> ControllerAction<K, E, R> {
             let cr_key = input.scheduled_cr_key.get_Some_0();
             let reconcile_state = s.ongoing_reconciles[cr_key];
             let resp_o = if input.recv.is_Some() {
-                Some(ResponseView::KResponse(input.recv.get_Some_0().content.get_APIResponse_0()))
+                if input.recv.get_Some_0().content.is_APIResponse() {
+                    Some(ResponseView::KResponse(input.recv.get_Some_0().content.get_APIResponse_0()))
+                } else {
+                    Some(ResponseView::ExternalResponse(input.recv.get_Some_0().content.get_ExternalAPIResponse_0()))
+                }
             } else {
                 None
             };
