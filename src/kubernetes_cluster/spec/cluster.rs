@@ -7,7 +7,6 @@ use crate::kubernetes_cluster::spec::{
     builtin_controllers::types::BuiltinControllersState,
     client::types::ClientState,
     controller::common::{ControllerState, OngoingReconcile},
-    external_api::*,
     kubernetes_api::common::KubernetesAPIState,
     message::*,
     network::types::NetworkState,
@@ -31,8 +30,8 @@ pub struct Cluster<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
     pub builtin_controllers_state: BuiltinControllersState,
     pub controller_state: ControllerState<K, E, R>,
     pub client_state: ClientState,
-    pub network_state: NetworkState,
-    pub external_api_state: ExternalAPIState<E>,
+    pub network_state: NetworkState<E::Input, E::Output>,
+    // pub external_api_state: ExternalAPIState<E>,
     pub rest_id_allocator: RestIdAllocator,
     pub crash_enabled: bool,
     pub busy_enabled: bool,
@@ -40,7 +39,7 @@ pub struct Cluster<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
 
 impl<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
     #[verifier(inline)]
-    pub open spec fn message_in_flight(self, msg: Message) -> bool {
+    pub open spec fn message_in_flight(self, msg: Message<E::Input, E::Output>) -> bool {
         self.network_state.in_flight.contains(msg)
     }
 
@@ -79,7 +78,7 @@ impl<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
     }
 
     #[verifier(inline)]
-    pub open spec fn pending_req_of(self, key: ObjectRef) -> Message
+    pub open spec fn pending_req_of(self, key: ObjectRef) -> Message<E::Input, E::Output>
         recommends
             self.reconcile_state_contains(key),
             self.reconcile_state_of(key).pending_req_msg.is_Some(),

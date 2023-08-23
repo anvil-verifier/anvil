@@ -10,7 +10,6 @@ use crate::kubernetes_cluster::spec::{
     controller::common::{
         ControllerAction, ControllerActionInput, ControllerState, ControllerStep,
     },
-    external_api::*,
     kubernetes_api::common::{
         KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState, KubernetesAPIStep,
     },
@@ -27,7 +26,7 @@ verus! {
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub proof fn kubernetes_api_action_pre_implies_next_pre(
-    action: KubernetesAPIAction, input: Option<Message>
+    action: KubernetesAPIAction<E::Input, E::Output>, input: Option<Message<E::Input, E::Output>>
 )
     requires
         Self::kubernetes_api().actions.contains(action),
@@ -46,7 +45,7 @@ pub proof fn kubernetes_api_action_pre_implies_next_pre(
 }
 
 pub proof fn exists_next_kubernetes_api_step(
-    action: KubernetesAPIAction, input: KubernetesAPIActionInput, s: KubernetesAPIState
+    action: KubernetesAPIAction<E::Input, E::Output>, input: KubernetesAPIActionInput<E::Input, E::Output>, s: KubernetesAPIState
 )
     requires
         Self::kubernetes_api().actions.contains(action),
@@ -58,7 +57,7 @@ pub proof fn exists_next_kubernetes_api_step(
 }
 
 pub proof fn controller_action_pre_implies_next_pre(
-    action: ControllerAction<K, E, R>, input: (Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>)
+    action: ControllerAction<K, E, R>, input: (Option<Message<E::Input, E::Output>>, Option<ObjectRef>)
 )
     requires
         Self::controller().actions.contains(action),
@@ -72,7 +71,7 @@ pub proof fn controller_action_pre_implies_next_pre(
     implies Self::controller_next().pre(input)(s) by {
         Self::exists_next_controller_step(
             action,
-            ControllerActionInput{recv: input.0, external_api_output: input.1, scheduled_cr_key: input.2, rest_id_allocator: s.rest_id_allocator},
+            ControllerActionInput{recv: input.0, scheduled_cr_key: input.1, rest_id_allocator: s.rest_id_allocator},
             s.controller_state
         );
     };
@@ -100,7 +99,7 @@ pub proof fn exists_next_controller_step(
 }
 
 pub proof fn builtin_controllers_action_pre_implies_next_pre(
-    action: BuiltinControllersAction, input: (BuiltinControllerChoice, ObjectRef)
+    action: BuiltinControllersAction<E::Input, E::Output>, input: (BuiltinControllerChoice, ObjectRef)
 )
     requires
         Self::builtin_controllers().actions.contains(action),
@@ -113,15 +112,15 @@ pub proof fn builtin_controllers_action_pre_implies_next_pre(
     assert forall |s: Self| #[trigger] Self::builtin_controllers_action_pre(action, input)(s)
     implies Self::builtin_controllers_next().pre(input)(s) by {
         Self::exists_next_builtin_controllers_step(
-            action, 
-            BuiltinControllersActionInput{choice: input.0, key: input.1, resources: s.kubernetes_api_state.resources, rest_id_allocator: s.rest_id_allocator}, 
+            action,
+            BuiltinControllersActionInput{choice: input.0, key: input.1, resources: s.kubernetes_api_state.resources, rest_id_allocator: s.rest_id_allocator},
             s.builtin_controllers_state
         );
     };
 }
 
 pub proof fn exists_next_builtin_controllers_step(
-    action: BuiltinControllersAction, input: BuiltinControllersActionInput, s: BuiltinControllersState
+    action: BuiltinControllersAction<E::Input, E::Output>, input: BuiltinControllersActionInput, s: BuiltinControllersState
 )
     requires
         Self::builtin_controllers().actions.contains(action),
@@ -132,7 +131,7 @@ pub proof fn exists_next_builtin_controllers_step(
     if action == Self::run_garbage_collector() {
         let step = BuiltinControllersStep::RunGarbageCollector;
         assert(((Self::builtin_controllers().step_to_action)(step).precondition)(input, s));
-    } 
+    }
 }
 
 }

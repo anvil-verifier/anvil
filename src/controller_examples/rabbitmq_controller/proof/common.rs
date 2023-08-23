@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::EmptyAPI;
+use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, dynamic::*, resource::*, stateful_set::*,
 };
@@ -9,7 +9,7 @@ use crate::kubernetes_cluster::proof::controller_runtime::*;
 use crate::kubernetes_cluster::spec::{
     cluster::*,
     cluster_state_machine::Step,
-    controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
+    controller::common::{ControllerActionInput, ControllerStep},
     message::*,
 };
 use crate::rabbitmq_controller::common::*;
@@ -81,7 +81,7 @@ pub open spec fn pending_req_with_object_in_flight_at_rabbitmq_step_with_rabbitm
 }
 
 pub open spec fn req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(
-    step: RabbitmqReconcileStep, rabbitmq: RabbitmqClusterView, req_msg: Message
+    step: RabbitmqReconcileStep, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
@@ -92,7 +92,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabb
 }
 
 pub open spec fn req_msg_is_the_in_flight_pending_req_with_object_at_rabbitmq_step_with_rabbitmq(
-    step: RabbitmqReconcileStep, rabbitmq: RabbitmqClusterView, req_msg: Message, object: DynamicObjectView
+    step: RabbitmqReconcileStep, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>, object: DynamicObjectView
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
@@ -111,25 +111,25 @@ pub open spec fn exists_resp_in_flight_at_rabbitmq_step_with_rabbitmq(
         &&& is_correct_pending_request_msg_at_rabbitmq_step(step, s.pending_req_of(rabbitmq.object_ref()), rabbitmq)
         &&& exists |resp_msg| {
             &&& #[trigger] s.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
+            &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
         }
     }
 }
 
 pub open spec fn resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(
-    step: RabbitmqReconcileStep, rabbitmq: RabbitmqClusterView, resp_msg: Message
+    step: RabbitmqReconcileStep, rabbitmq: RabbitmqClusterView, resp_msg: Message<EmptyTypeView, EmptyTypeView>
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
         &&& RMQCluster::pending_k8s_api_req_msg(s, rabbitmq.object_ref())
         &&& is_correct_pending_request_msg_at_rabbitmq_step(step, s.pending_req_of(rabbitmq.object_ref()), rabbitmq)
         &&& s.message_in_flight(resp_msg)
-        &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
+        &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
     }
 }
 
 pub open spec fn is_correct_pending_request_msg_at_rabbitmq_step(
-    step: RabbitmqReconcileStep, msg: Message, rabbitmq: RabbitmqClusterView
+    step: RabbitmqReconcileStep, msg: Message<EmptyTypeView, EmptyTypeView>, rabbitmq: RabbitmqClusterView
 ) -> bool {
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI
@@ -160,7 +160,7 @@ pub open spec fn is_correct_pending_request_at_rabbitmq_step(
 }
 
 pub open spec fn is_correct_pending_request_msg_with_object_at_rabbitmq_step(
-    step: RabbitmqReconcileStep, msg: Message, rabbitmq: RabbitmqClusterView, object: DynamicObjectView
+    step: RabbitmqReconcileStep, msg: Message<EmptyTypeView, EmptyTypeView>, rabbitmq: RabbitmqClusterView, object: DynamicObjectView
 ) -> bool {
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI
@@ -287,7 +287,7 @@ pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_ok
         )
         &&& exists |resp_msg| {
             &&& #[trigger] s.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
+            &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
             &&& resp_msg.content.get_get_response().res.is_Ok()
             &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
         }
@@ -305,7 +305,7 @@ pub open spec fn at_after_get_stateful_set_step_with_rabbitmq_and_exists_ok_resp
         )
         &&& exists |resp_msg| {
             &&& #[trigger] s.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
+            &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
             &&& resp_msg.content.get_get_response().res.is_Ok()
             &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
         }
@@ -323,7 +323,7 @@ pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_no
         )
         &&& exists |resp_msg| {
             &&& #[trigger] s.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
+            &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
             &&& resp_msg.content.get_get_response().res.is_Err()
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         }
@@ -341,7 +341,7 @@ pub open spec fn at_after_get_stateful_set_step_with_rabbitmq_and_exists_not_fou
         )
         &&& exists |resp_msg| {
             &&& #[trigger] s.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
+            &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
             &&& resp_msg.content.get_get_response().res.is_Err()
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         }
@@ -359,7 +359,7 @@ pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_no
         )
         &&& exists |resp_msg| {
             &&& #[trigger] s.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
+            &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(rabbitmq.object_ref()))
             &&& resp_msg.content.get_get_response().res.is_Err()
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         }

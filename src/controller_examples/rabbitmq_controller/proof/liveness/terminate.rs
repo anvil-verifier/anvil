@@ -5,12 +5,10 @@ use crate::external_api::spec::EmptyAPI;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, dynamic::*, error::*, resource::*, stateful_set::*,
 };
-use crate::kubernetes_cluster::{
-    spec::{
-        cluster::*,
-        controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
-        message::*,
-    },
+use crate::kubernetes_cluster::spec::{
+    cluster::*,
+    controller::common::{ControllerActionInput, ControllerStep},
+    message::*,
 };
 use crate::rabbitmq_controller::{
     common::RabbitmqReconcileStep,

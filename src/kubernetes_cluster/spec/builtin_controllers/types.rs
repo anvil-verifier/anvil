@@ -31,20 +31,16 @@ pub struct BuiltinControllersActionInput {
     pub rest_id_allocator: RestIdAllocator,
 }
 
-pub type BuiltinControllersActionOutput = (Multiset<Message>, RestIdAllocator);
+pub type BuiltinControllersActionOutput<I, O> = (Multiset<Message<I, O>>, RestIdAllocator);
 
-pub type BuiltinControllersStateMachine = StateMachine<BuiltinControllersState,
+pub type BuiltinControllersStateMachine<I, O> = StateMachine<BuiltinControllersState,
                                             BuiltinControllersActionInput,
                                             BuiltinControllersActionInput,
-                                            BuiltinControllersActionOutput,
+                                            BuiltinControllersActionOutput<I, O>,
                                             BuiltinControllersStep>;
 
-pub type BuiltinControllersAction = Action<BuiltinControllersState,
+pub type BuiltinControllersAction<I, O> = Action<BuiltinControllersState,
                                         BuiltinControllersActionInput,
-                                        BuiltinControllersActionOutput>;
-
-pub open spec fn built_in_controller_req_msg(msg_content: MessageContent) -> Message {
-    form_msg(HostId::BuiltinController, HostId::KubernetesAPI, msg_content)
-}
+                                        BuiltinControllersActionOutput<I, O>>;
 
 }

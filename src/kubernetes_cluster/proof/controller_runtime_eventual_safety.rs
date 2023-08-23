@@ -102,7 +102,7 @@ pub proof fn lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid
         spec.entails(lift_state(scheduled_and_not_reconcile).leads_to(lift_state(Self::the_object_in_reconcile_has_spec_and_uid_as(cr)))),
         {
             let post = Self::the_object_in_reconcile_has_spec_and_uid_as(cr);
-            let input = (None, None, Some(cr.object_ref()));
+            let input = (None, Some(cr.object_ref()));
             K::object_ref_is_well_formed();
             Self::lemma_pre_leads_to_post_by_controller(
                 spec, input, stronger_next, Self::run_scheduled_reconcile(), scheduled_and_not_reconcile, post

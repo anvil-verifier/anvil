@@ -53,9 +53,9 @@ spec fn always_deletion_safety(req_msg: Message) -> TempPred<ZKCluster> {
 
 proof fn deletion_safety_proof_forall_msg()
     ensures
-        forall |msg: Message| cluster_spec().entails(#[trigger] always_deletion_safety(msg)),
+        forall |msg: Message<E::Input, E::Output>| cluster_spec().entails(#[trigger] always_deletion_safety(msg)),
 {
-    assert forall |req_msg: Message| cluster_spec().entails(#[trigger] always_deletion_safety(req_msg)) by {
+    assert forall |req_msg: Message<E::Input, E::Output>| cluster_spec().entails(#[trigger] always_deletion_safety(req_msg)) by {
         deletion_safety_proof(req_msg);
     }
 }

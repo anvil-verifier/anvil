@@ -1,21 +1,22 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*};
 use crate::pervasive_ext::string_view::*;
 use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub struct MessageOps {
-    pub recv: Option<Message>,
-    pub send: Multiset<Message>,
+pub struct MessageOps<I, O> {
+    pub recv: Option<Message<I, O>>,
+    pub send: Multiset<Message<I, O>>,
 }
 
-pub struct Message {
+pub struct Message<I, O> {
     pub src: HostId,
     pub dst: HostId,
-    pub content: MessageContent,
+    pub content: MessageContent<I, O>,
 }
 
 #[is_variant]
@@ -23,6 +24,7 @@ pub enum HostId {
     KubernetesAPI,
     BuiltinController,
     CustomController,
+    External,
     Client,
 }
 
@@ -56,35 +58,15 @@ impl RestIdAllocator {
 
 // Each MessageContent is a request/response and a rest id
 #[is_variant]
-pub enum MessageContent {
+pub enum MessageContent<I, O> {
     APIRequest(APIRequest, RestId),
     APIResponse(APIResponse, RestId),
-}
-
-// WatchEvent is actually also a type of message
-// but since we don't reason about the message flows inside k8s API for now
-// so we don't include it into MessageContent
-#[is_variant]
-pub enum WatchEvent {
-    AddedEvent(AddedEvent),
-    ModifiedEvent(ModifiedEvent),
-    DeletedEvent(DeletedEvent),
-}
-
-pub struct AddedEvent {
-    pub obj: DynamicObjectView,
-}
-
-pub struct ModifiedEvent {
-    pub obj: DynamicObjectView,
-}
-
-pub struct DeletedEvent {
-    pub obj: DynamicObjectView,
+    ExternalAPIRequest(I, RestId),
+    ExternalAPIResponse(O, RestId),
 }
 
 // Some handy methods for pattern matching and retrieving information from MessageContent
-impl MessageContent {
+impl<I, O> MessageContent<I, O> {
     pub open spec fn is_get_request(self) -> bool {
         &&& self.is_APIRequest()
         &&& self.get_APIRequest_0().is_GetRequest()
@@ -222,8 +204,10 @@ impl MessageContent {
     pub open spec fn get_rest_id(self) -> RestId
     {
         match self {
-            MessageContent::APIRequest(_, _) => self.get_APIRequest_1(),
-            MessageContent::APIResponse(_, _) => self.get_APIResponse_1()
+            MessageContent::APIRequest(_, id) => id,
+            MessageContent::APIResponse(_, id) => id,
+            MessageContent::ExternalAPIRequest(_, id) => id,
+            MessageContent::ExternalAPIResponse(_, id) => id,
         }
     }
 }
@@ -238,8 +222,26 @@ pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
     }
 }
 
-// TODO: maybe the predicate should not check if resp_msg is a response message
-pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -> bool {
+impl<I, O> Message<I, O> {
+
+pub open spec fn controller_req_msg(req: APIRequest, req_id: RestId) -> Message<I, O> {
+    Message::form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::APIRequest(req, req_id))
+}
+
+pub open spec fn controller_external_req_msg(req: I, req_id: RestId) -> Message<I, O> {
+    Message::form_msg(HostId::CustomController, HostId::KubernetesAPI, MessageContent::ExternalAPIRequest(req, req_id))
+}
+
+pub open spec fn built_in_controller_req_msg(msg_content: MessageContent<I, O>) -> Message<I, O> {
+    Message::form_msg(HostId::BuiltinController, HostId::KubernetesAPI, msg_content)
+}
+
+pub open spec fn client_req_msg(msg_content: MessageContent<I, O>) -> Message<I, O> {
+    Message::form_msg(HostId::Client, HostId::KubernetesAPI, msg_content)
+}
+
+// TODO: consider the external request/response messages
+pub open spec fn resp_msg_matches_req_msg(resp_msg: Message<I, O>, req_msg: Message<I, O>) -> bool {
     &&& resp_msg.content.is_APIResponse()
     &&& req_msg.content.is_APIRequest()
     &&& resp_msg.dst == req_msg.src
@@ -254,145 +256,130 @@ pub open spec fn resp_msg_matches_req_msg(resp_msg: Message, req_msg: Message) -
     }
 }
 
-pub open spec fn form_matched_resp_msg(req_msg: Message, result: Result<DynamicObjectView, APIError>) -> Message
+// TODO: handle list request
+pub open spec fn form_matched_resp_msg(req_msg: Message<I, O>, result: Result<DynamicObjectView, APIError>) -> Message<I, O>
     recommends req_msg.content.is_APIRequest(),
 {
     match req_msg.content.get_APIRequest_0() {
-        APIRequest::GetRequest(_) => form_get_resp_msg(req_msg, result),
-        APIRequest::ListRequest(_) => form_list_resp_msg(req_msg, Err(APIError::Invalid)),
-        APIRequest::CreateRequest(_) => form_create_resp_msg(req_msg, result),
-        APIRequest::DeleteRequest(_) => form_delete_resp_msg(req_msg, result),
-        APIRequest::UpdateRequest(_) => form_update_resp_msg(req_msg, result),
+        APIRequest::GetRequest(_) => Self::form_get_resp_msg(req_msg, result),
+        APIRequest::ListRequest(_) => Self::form_list_resp_msg(req_msg, Err(APIError::Invalid)),
+        APIRequest::CreateRequest(_) => Self::form_create_resp_msg(req_msg, result),
+        APIRequest::DeleteRequest(_) => Self::form_delete_resp_msg(req_msg, result),
+        APIRequest::UpdateRequest(_) => Self::form_update_resp_msg(req_msg, result),
     }
 }
 
-pub open spec fn form_msg(src: HostId, dst: HostId, msg_content: MessageContent) -> Message {
-    Message{
+pub open spec fn form_msg(src: HostId, dst: HostId, msg_content: MessageContent<I, O>) -> Message<I, O> {
+    Message {
         src: src,
         dst: dst,
         content: msg_content,
     }
 }
 
-pub open spec fn form_get_resp_msg(req_msg: Message, result: Result<DynamicObjectView, APIError>) -> Message
+pub open spec fn form_get_resp_msg(req_msg: Message<I, O>, result: Result<DynamicObjectView, APIError>) -> Message<I, O>
     recommends req_msg.content.is_get_request(),
 {
-    form_msg(req_msg.dst, req_msg.src, get_resp_msg_content(result, req_msg.content.get_req_id()))
+    Self::form_msg(req_msg.dst, req_msg.src, Self::get_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
-pub open spec fn form_list_resp_msg(req_msg: Message, result: Result<Seq<DynamicObjectView>, APIError>) -> Message
+pub open spec fn form_list_resp_msg(req_msg: Message<I, O>, result: Result<Seq<DynamicObjectView>, APIError>) -> Message<I, O>
     recommends req_msg.content.is_list_request(),
 {
-    form_msg(req_msg.dst, req_msg.src, list_resp_msg_content(result, req_msg.content.get_req_id()))
+    Self::form_msg(req_msg.dst, req_msg.src, Self::list_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
-pub open spec fn form_create_resp_msg(req_msg: Message, result: Result<DynamicObjectView, APIError>) -> Message
+pub open spec fn form_create_resp_msg(req_msg: Message<I, O>, result: Result<DynamicObjectView, APIError>) -> Message<I, O>
     recommends req_msg.content.is_create_request(),
 {
-    form_msg(req_msg.dst, req_msg.src, create_resp_msg_content(result, req_msg.content.get_req_id()))
+    Self::form_msg(req_msg.dst, req_msg.src, Self::create_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
-pub open spec fn form_delete_resp_msg(req_msg: Message, result: Result<DynamicObjectView, APIError>) -> Message
+pub open spec fn form_delete_resp_msg(req_msg: Message<I, O>, result: Result<DynamicObjectView, APIError>) -> Message<I, O>
     recommends req_msg.content.is_delete_request(),
 {
-    form_msg(req_msg.dst, req_msg.src, delete_resp_msg_content(result, req_msg.content.get_req_id()))
+    Self::form_msg(req_msg.dst, req_msg.src, Self::delete_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
-pub open spec fn form_update_resp_msg(req_msg: Message, result: Result<DynamicObjectView, APIError>) -> Message
+pub open spec fn form_update_resp_msg(req_msg: Message<I, O>, result: Result<DynamicObjectView, APIError>) -> Message<I, O>
     recommends req_msg.content.is_update_request(),
 {
-    form_msg(req_msg.dst, req_msg.src, update_resp_msg_content(result, req_msg.content.get_req_id()))
+    Self::form_msg(req_msg.dst, req_msg.src, Self::update_resp_msg_content(result, req_msg.content.get_req_id()))
 }
 
-pub open spec fn added_event(obj: DynamicObjectView) -> WatchEvent {
-    WatchEvent::AddedEvent(AddedEvent{
-        obj: obj
-    })
-}
-
-pub open spec fn modified_event(obj: DynamicObjectView) -> WatchEvent {
-    WatchEvent::ModifiedEvent(ModifiedEvent{
-        obj: obj
-    })
-}
-
-pub open spec fn deleted_event(obj: DynamicObjectView) -> WatchEvent {
-    WatchEvent::DeletedEvent(DeletedEvent{
-        obj: obj
-    })
-}
-
-pub open spec fn get_req_msg_content(key: ObjectRef, req_id: RestId) -> MessageContent {
+pub open spec fn get_req_msg_content(key: ObjectRef, req_id: RestId) -> MessageContent<I, O> {
     MessageContent::APIRequest(APIRequest::GetRequest(GetRequest{
         key: key,
     }), req_id)
 }
 
-pub open spec fn list_req_msg_content(kind: Kind, namespace: StringView, req_id: RestId) -> MessageContent {
+pub open spec fn list_req_msg_content(kind: Kind, namespace: StringView, req_id: RestId) -> MessageContent<I, O> {
     MessageContent::APIRequest(APIRequest::ListRequest(ListRequest{
         kind: kind,
         namespace: namespace,
     }), req_id)
 }
 
-pub open spec fn create_req_msg_content(namespace: StringView, obj: DynamicObjectView, req_id: RestId) -> MessageContent {
+pub open spec fn create_req_msg_content(namespace: StringView, obj: DynamicObjectView, req_id: RestId) -> MessageContent<I, O> {
     MessageContent::APIRequest(APIRequest::CreateRequest(CreateRequest{
         namespace: namespace,
         obj: obj,
     }), req_id)
 }
 
-pub open spec fn delete_req_msg_content(key: ObjectRef, req_id: RestId) -> MessageContent {
+pub open spec fn delete_req_msg_content(key: ObjectRef, req_id: RestId) -> MessageContent<I, O> {
     MessageContent::APIRequest(APIRequest::DeleteRequest(DeleteRequest{
         key: key,
     }), req_id)
 }
 
-pub open spec fn update_req_msg_content(key: ObjectRef, obj: DynamicObjectView, req_id: RestId) -> MessageContent {
+pub open spec fn update_req_msg_content(key: ObjectRef, obj: DynamicObjectView, req_id: RestId) -> MessageContent<I, O> {
     MessageContent::APIRequest(APIRequest::UpdateRequest(UpdateRequest{
         key: key,
         obj: obj,
     }), req_id)
 }
 
-pub open spec fn get_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent {
+pub open spec fn get_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent<I, O> {
     MessageContent::APIResponse(APIResponse::GetResponse(GetResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn list_resp_msg_content(res: Result<Seq<DynamicObjectView>, APIError>, resp_id: RestId) -> MessageContent {
+pub open spec fn list_resp_msg_content(res: Result<Seq<DynamicObjectView>, APIError>, resp_id: RestId) -> MessageContent<I, O> {
     MessageContent::APIResponse(APIResponse::ListResponse(ListResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn create_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent {
+pub open spec fn create_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent<I, O> {
     MessageContent::APIResponse(APIResponse::CreateResponse(CreateResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn delete_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent {
+pub open spec fn delete_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent<I, O> {
     MessageContent::APIResponse(APIResponse::DeleteResponse(DeleteResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn update_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent {
+pub open spec fn update_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent<I, O> {
     MessageContent::APIResponse(APIResponse::UpdateResponse(UpdateResponse{
         res: res,
     }), resp_id)
 }
 
-pub open spec fn api_request_msg_before(rest_id: RestId) -> FnSpec(Message) -> bool {
-    |msg: Message|
+}
+
+pub open spec fn api_request_msg_before<I, O>(rest_id: RestId) -> FnSpec(Message<I, O>) -> bool {
+    |msg: Message<I, O>|
         msg.dst.is_KubernetesAPI()
         && msg.content.is_APIRequest()
         && msg.content.get_rest_id() < rest_id
 }
 
-pub open spec fn received_msg_destined_for(recv: Option<Message>, host_id: HostId) -> bool {
+pub open spec fn received_msg_destined_for<I, O>(recv: Option<Message<I, O>>, host_id: HostId) -> bool {
     if recv.is_Some() {
         recv.get_Some_0().dst == host_id
     } else {

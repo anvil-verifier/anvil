@@ -6,7 +6,6 @@ use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
     cluster::*,
     controller::common::{ControllerAction, ControllerActionInput},
-    external_api::*,
     message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
@@ -28,7 +27,7 @@ pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled(cr_ke
 }
 
 pub proof fn lemma_pre_leads_to_post_by_controller(
-    spec: TempPred<Self>, input: (Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>), next: ActionPred<Self>,
+    spec: TempPred<Self>, input: (Option<Message<E::Input, E::Output>>, Option<ObjectRef>), next: ActionPred<Self>,
     action: ControllerAction<K, E, R>, pre: StatePred<Self>, post: StatePred<Self>
 )
     requires
@@ -41,7 +40,7 @@ pub proof fn lemma_pre_leads_to_post_by_controller(
     ensures
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
-    use_tla_forall::<Self, (Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>)>(
+    use_tla_forall::<Self, (Option<Message<E::Input, E::Output>>, Option<ObjectRef>)>(
         spec, |i| Self::controller_next().weak_fairness(i), input
     );
 
@@ -113,7 +112,7 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle
     let post = |s: Self| {
         &&& !s.reconcile_state_contains(cr_key)
     };
-    let input = (None, None, Some(cr_key));
+    let input = (None, Some(cr_key));
     Self::lemma_pre_leads_to_post_by_controller(
         spec, input, Self::next(),
         Self::end_reconcile(), pre, post
@@ -137,7 +136,7 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle
 {
     let pre = Self::reconciler_reconcile_error(cr_key);
     let post = |s: Self| { !s.reconcile_state_contains(cr_key) };
-    let input = (None, None, Some(cr_key));
+    let input = (None, Some(cr_key));
     Self::lemma_pre_leads_to_post_by_controller(
         spec, input,
         Self::next(), Self::end_reconcile(), pre, post
@@ -171,7 +170,7 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init
         &&& !s.crash_enabled
     };
     strengthen_next::<Self>(spec, Self::next(), Self::crash_disabled(), stronger_next);
-    let input = (None, None, Some(cr_key));
+    let input = (None, Some(cr_key));
     Self::lemma_pre_leads_to_post_by_controller(
         spec, input, stronger_next, Self::run_scheduled_reconcile(), pre, post
     );
@@ -257,9 +256,9 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         && Self::pending_k8s_api_req_msg(s, cr.object_ref())
         && Self::request_sent_by_controller(s.pending_req_of(cr.object_ref()))
         && (s.message_in_flight(s.pending_req_of(cr.object_ref()))
-        || exists |resp_msg: Message| {
+        || exists |resp_msg: Message<E::Input, E::Output>| {
             #[trigger] s.message_in_flight(resp_msg)
-            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(cr.object_ref()))
+            && Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(cr.object_ref()))
         })
     };
     temp_pred_equality::<Self>(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(cr.object_ref(), state)), lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)).implies(lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight)));
@@ -328,7 +327,7 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(
     };
     strengthen_next(spec, Self::next(), Self::crash_disabled(), stronger_next);
     Self::lemma_pre_leads_to_post_by_controller(
-        spec, (None, None, Some(cr.object_ref())),
+        spec, (None, Some(cr.object_ref())),
         stronger_next, Self::continue_reconcile(), no_pending_req,
         Self::at_expected_reconcile_states(cr.object_ref(), next_state)
     );
@@ -384,33 +383,33 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
             && Self::pending_k8s_api_req_msg(s, cr.object_ref())
             && Self::request_sent_by_controller(s.pending_req_of(cr.object_ref()))
             && s.message_in_flight(resp)
-            && resp_msg_matches_req_msg(resp, s.pending_req_of(cr.object_ref()))
+            && Message::resp_msg_matches_req_msg(resp, s.pending_req_of(cr.object_ref()))
         }
     );
-    assert forall |msg: Message| spec.entails(#[trigger] known_resp_in_flight(msg)
+    assert forall |msg: Message<E::Input, E::Output>| spec.entails(#[trigger] known_resp_in_flight(msg)
         .leads_to(lift_state(post))) by {
             let resp_in_flight_state = |s: Self| {
                 Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
                 && Self::pending_k8s_api_req_msg(s, cr.object_ref())
                 && Self::request_sent_by_controller(s.pending_req_of(cr.object_ref()))
                 && s.message_in_flight(msg)
-                && resp_msg_matches_req_msg(msg, s.pending_req_of(cr.object_ref()))
+                && Message::resp_msg_matches_req_msg(msg, s.pending_req_of(cr.object_ref()))
             };
-            let input = (Some(msg), None, Some(cr.object_ref()));
+            let input = (Some(msg), Some(cr.object_ref()));
             Self::lemma_pre_leads_to_post_by_controller(
                 spec, input, stronger_next, Self::continue_reconcile(), resp_in_flight_state, post
             );
     };
-    leads_to_exists_intro::<Self, Message>(spec, known_resp_in_flight, lift_state(post));
+    leads_to_exists_intro::<Self, Message<E::Input, E::Output>>(spec, known_resp_in_flight, lift_state(post));
     assert_by(
         tla_exists(known_resp_in_flight) == lift_state(pre),
         {
             assert forall |ex| #[trigger] lift_state(pre).satisfied_by(ex)
             implies tla_exists(known_resp_in_flight).satisfied_by(ex) by {
                 let s = ex.head();
-                let msg = choose |resp_msg: Message| {
+                let msg = choose |resp_msg: Message<E::Input, E::Output>| {
                     #[trigger] s.message_in_flight(resp_msg)
-                    && resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0())
+                    && Message::resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0())
                 };
                 assert(known_resp_in_flight(msg).satisfied_by(ex));
             }
@@ -443,7 +442,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
         ),
 {
     let pre = Self::pending_req_in_flight_at_reconcile_state(cr.object_ref(), state);
-    assert forall |req_msg: Message| spec.entails(
+    assert forall |req_msg: Message<E::Input, E::Output>| spec.entails(
         lift_state(#[trigger] Self::req_msg_is_the_in_flight_pending_req_at_reconcile_state(cr.object_ref(), state, req_msg))
             .leads_to(lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(cr.object_ref(), state)))
     ) by {
@@ -468,7 +467,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
             let resp_msg = Self::transition_by_etcd(req_msg, s.kubernetes_api_state).1;
             assert({
                 &&& s_prime.message_in_flight(resp_msg)
-                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             });
         };
         Self::lemma_pre_leads_to_post_by_kubernetes_api(
@@ -536,7 +535,7 @@ pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile
         &&& Self::crash_disabled()(s)
     };
     combine_spec_entails_always_n!(spec, lift_action(stronger_next), lift_action(Self::next()), lift_state(Self::crash_disabled()));
-    let input = (None, None, Some(cr.object_ref()));
+    let input = (None, Some(cr.object_ref()));
     Self::lemma_pre_leads_to_post_by_controller(spec, input, stronger_next, Self::continue_reconcile(), no_req_at_state, Self::at_expected_reconcile_states(cr.object_ref(), next_state));
     leads_to_trans_n!(
         spec,

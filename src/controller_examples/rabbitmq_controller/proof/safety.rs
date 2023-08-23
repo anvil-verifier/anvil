@@ -8,7 +8,7 @@ use crate::kubernetes_api_objects::{
 use crate::kubernetes_cluster::spec::{
     cluster::*,
     cluster_state_machine::Step,
-    controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
+    controller::common::{ControllerActionInput, ControllerStep},
     message::*,
 };
 use crate::rabbitmq_controller::{

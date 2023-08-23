@@ -49,7 +49,7 @@ pub open spec fn object_has_well_formed_spec(obj: DynamicObjectView) -> bool {
     &&& obj.kind == K::kind() ==> K::unmarshal_spec(obj.spec).is_Ok()
 }
 
-pub open spec fn handle_get_request(msg: Message, s: KubernetesAPIState) -> (KubernetesAPIState, Message)
+pub open spec fn handle_get_request(msg: Message<E::Input, E::Output>, s: KubernetesAPIState) -> (KubernetesAPIState, Message<E::Input, E::Output>)
     recommends
         msg.content.is_get_request(),
 {
@@ -57,12 +57,12 @@ pub open spec fn handle_get_request(msg: Message, s: KubernetesAPIState) -> (Kub
     if !s.resources.dom().contains(req.key) {
         // Get fails
         let result = Err(APIError::ObjectNotFound);
-        let resp = form_get_resp_msg(msg, result);
+        let resp = Message::form_get_resp_msg(msg, result);
         (s, resp)
     } else {
         // Get succeeds
         let result = Ok(s.resources[req.key]);
-        let resp = form_get_resp_msg(msg, result);
+        let resp = Message::form_get_resp_msg(msg, result);
         (s, resp)
     }
 }
@@ -72,13 +72,13 @@ pub open spec fn list_query(list_req: ListRequest, s: KubernetesAPIState) -> Seq
     Seq::empty()
 }
 
-pub open spec fn handle_list_request(msg: Message, s: KubernetesAPIState) -> (KubernetesAPIState, Message)
+pub open spec fn handle_list_request(msg: Message<E::Input, E::Output>, s: KubernetesAPIState) -> (KubernetesAPIState, Message<E::Input, E::Output>)
     recommends
         msg.content.is_list_request(),
 {
     let req = msg.content.get_list_request();
     let result = Ok(Self::list_query(req, s));
-    let resp = form_list_resp_msg(msg, result);
+    let resp = Message::form_list_resp_msg(msg, result);
     (s, resp)
 }
 
@@ -113,7 +113,7 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
     }
 }
 
-pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (KubernetesAPIState, Message)
+pub open spec fn handle_create_request(msg: Message<E::Input, E::Output>, s: KubernetesAPIState) -> (KubernetesAPIState, Message<E::Input, E::Output>)
     recommends
         msg.content.is_create_request(),
 {
@@ -121,7 +121,7 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
     if Self::validate_create_request(req, s).is_Some() {
         // Creation fails.
         let result = Err(Self::validate_create_request(req, s).get_Some_0());
-        let resp = form_create_resp_msg(msg, result);
+        let resp = Message::form_create_resp_msg(msg, result);
         (s, resp)
     } else {
         // Creation succeeds.
@@ -131,7 +131,7 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
                             .set_uid(s.uid_counter)
                             .unset_deletion_timestamp();
         let result = Ok(created_obj);
-        let resp = form_create_resp_msg(msg, result);
+        let resp = Message::form_create_resp_msg(msg, result);
         (KubernetesAPIState {
             resources: s.resources.insert(created_obj.object_ref(), created_obj),
             uid_counter: s.uid_counter + 1,
@@ -143,7 +143,7 @@ pub open spec fn handle_create_request(msg: Message, s: KubernetesAPIState) -> (
 
 pub closed spec fn deletion_timestamp() -> StringView;
 
-pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (KubernetesAPIState, Message)
+pub open spec fn handle_delete_request(msg: Message<E::Input, E::Output>, s: KubernetesAPIState) -> (KubernetesAPIState, Message<E::Input, E::Output>)
     recommends
         msg.content.is_delete_request(),
 {
@@ -151,7 +151,7 @@ pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (
     if !s.resources.dom().contains(req.key) {
         // Deletion fails.
         let result = Err(APIError::ObjectNotFound);
-        let resp = form_delete_resp_msg(msg, result);
+        let resp = Message::form_delete_resp_msg(msg, result);
         (s, resp)
     } else {
         // Deletion succeeds.
@@ -161,7 +161,7 @@ pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (
             // Instead, we set the deletion timestamp of this object.
             let stamped_obj = obj.set_deletion_timestamp(Self::deletion_timestamp());
             let result = Ok(stamped_obj);
-            let resp = form_delete_resp_msg(msg, result);
+            let resp = Message::form_delete_resp_msg(msg, result);
             (KubernetesAPIState {
                 // Here we use req.key, instead of stamped_obj.object_ref(), to insert to the map.
                 // This is intended because using stamped_obj.object_ref() will require us to use
@@ -175,7 +175,7 @@ pub open spec fn handle_delete_request(msg: Message, s: KubernetesAPIState) -> (
         } else {
             // The object can be immediately removed from the key-value store.
             let result = Ok(obj);
-            let resp = form_delete_resp_msg(msg, result);
+            let resp = Message::form_delete_resp_msg(msg, result);
             (KubernetesAPIState {
                 resources: s.resources.remove(req.key),
                 resource_version_counter: s.resource_version_counter + 1,
@@ -269,7 +269,7 @@ pub open spec fn updated_object(req: UpdateRequest, s: KubernetesAPIState) -> Dy
     updated_obj
 }
 
-pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (KubernetesAPIState, Message)
+pub open spec fn handle_update_request(msg: Message<E::Input, E::Output>, s: KubernetesAPIState) -> (KubernetesAPIState, Message<E::Input, E::Output>)
     recommends
         msg.content.is_update_request(),
 {
@@ -277,7 +277,7 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
     if Self::validate_update_request(req, s).is_Some() {
         // Update fails.
         let result = Err(Self::validate_update_request(req, s).get_Some_0());
-        let resp = form_update_resp_msg(msg, result);
+        let resp = Message::form_update_resp_msg(msg, result);
         (s, resp)
     } else {
         // Update succeeds.
@@ -287,14 +287,14 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
             // so the resource version counter does not increase here,
             // and the resource version of this object remains the same.
             let result = Ok(s.resources[req.key]);
-            let resp = form_update_resp_msg(msg, result);
+            let resp = Message::form_update_resp_msg(msg, result);
             (s, resp)
         } else {
             // Update changes something in the object (either in spec or metadata), so we set it a newer resource version,
             // which is the current rv counter.
             let updated_obj_with_new_rv = updated_obj.set_resource_version(s.resource_version_counter);
             let result = Ok(updated_obj_with_new_rv);
-            let resp = form_update_resp_msg(msg, result);
+            let resp = Message::form_update_resp_msg(msg, result);
             if updated_obj_with_new_rv.metadata.deletion_timestamp.is_None()
                 || (updated_obj_with_new_rv.metadata.finalizers.is_Some()
                     && updated_obj_with_new_rv.metadata.finalizers.get_Some_0().len() > 0) {
@@ -330,7 +330,7 @@ pub open spec fn handle_update_request(msg: Message, s: KubernetesAPIState) -> (
 }
 
 // etcd is modeled as a centralized map that handles get/list/create/delete/update
-pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (KubernetesAPIState, Message)
+pub open spec fn transition_by_etcd(msg: Message<E::Input, E::Output>, s: KubernetesAPIState) -> (KubernetesAPIState, Message<E::Input, E::Output>)
     recommends
         msg.content.is_APIRequest(),
 {
@@ -343,15 +343,15 @@ pub open spec fn transition_by_etcd(msg: Message, s: KubernetesAPIState) -> (Kub
     }
 }
 
-pub open spec fn handle_request() -> KubernetesAPIAction {
+pub open spec fn handle_request() -> KubernetesAPIAction<E::Input, E::Output> {
     Action {
-        precondition: |input: KubernetesAPIActionInput, s: KubernetesAPIState| {
+        precondition: |input: KubernetesAPIActionInput<E::Input, E::Output>, s: KubernetesAPIState| {
             &&& input.recv.is_Some()
             &&& input.recv.get_Some_0().content.is_APIRequest()
             // This dst check is redundant since the compound state machine has checked it
             &&& input.recv.get_Some_0().dst == HostId::KubernetesAPI
         },
-        transition: |input: KubernetesAPIActionInput, s: KubernetesAPIState| {
+        transition: |input: KubernetesAPIActionInput<E::Input, E::Output>, s: KubernetesAPIState| {
             // This transition describes how Kubernetes API server handles requests,
             // which consists of multiple steps in reality:
             //
@@ -377,7 +377,7 @@ pub open spec fn handle_request() -> KubernetesAPIAction {
     }
 }
 
-pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine {
+pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine<E::Input, E::Output> {
     StateMachine {
         init: |s: KubernetesAPIState| {
             s.resources == Map::<ObjectRef, DynamicObjectView>::empty()
@@ -388,7 +388,7 @@ pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine {
                 KubernetesAPIStep::HandleRequest => Self::handle_request(),
             }
         },
-        action_input: |step: KubernetesAPIStep, input: KubernetesAPIActionInput| {
+        action_input: |step: KubernetesAPIStep, input: KubernetesAPIActionInput<E::Input, E::Output>| {
             input
         }
     }

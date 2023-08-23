@@ -26,14 +26,14 @@ impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 pub open spec fn garbage_collector_deletion_enabled(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
         let input = BuiltinControllersActionInput {
-            choice: BuiltinControllerChoice::GarbageCollector, key: key, 
+            choice: BuiltinControllerChoice::GarbageCollector, key: key,
             resources: s.kubernetes_api_state.resources, rest_id_allocator: s.rest_id_allocator
         };
         (Self::run_garbage_collector().precondition)(input, s.builtin_controllers_state)
     }
 }
 
-pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
+pub open spec fn run_garbage_collector() -> BuiltinControllersAction<E::Input, E::Output> {
     Action {
         precondition: |input: BuiltinControllersActionInput, s: BuiltinControllersState| {
             let resources = input.resources;
@@ -57,7 +57,7 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction {
             }
         },
         transition: |input: BuiltinControllersActionInput, s: BuiltinControllersState| {
-            let delete_req_msg = built_in_controller_req_msg(delete_req_msg_content(
+            let delete_req_msg = Message::built_in_controller_req_msg(Message::delete_req_msg_content(
                 input.key, input.rest_id_allocator.allocate().1
             ));
             (s, (Multiset::singleton(delete_req_msg), input.rest_id_allocator.allocate().0))

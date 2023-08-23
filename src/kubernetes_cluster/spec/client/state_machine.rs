@@ -13,20 +13,16 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub open spec fn client_req_msg(msg_content: MessageContent) -> Message {
-    form_msg(HostId::Client, HostId::KubernetesAPI, msg_content)
-}
-
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
-pub open spec fn create_custom_resource() -> ClientAction<K> {
+pub open spec fn create_custom_resource() -> ClientAction<K, E::Input, E::Output> {
     Action {
         precondition: |input: ClientActionInput<K>, s: ClientState| {
             &&& input.cr.metadata().name.is_Some()
             &&& input.cr.metadata().namespace.is_Some()
         },
         transition: |input: ClientActionInput<K>, s: ClientState| {
-            let create_req_msg = client_req_msg(create_req_msg_content(
+            let create_req_msg = Message::client_req_msg(Message::create_req_msg_content(
                 input.cr.metadata().namespace.get_Some_0(),
                 input.cr.to_dynamic_object(),
                 input.rest_id_allocator.allocate().1
@@ -37,14 +33,14 @@ pub open spec fn create_custom_resource() -> ClientAction<K> {
     }
 }
 
-pub open spec fn delete_custom_resource() -> ClientAction<K> {
+pub open spec fn delete_custom_resource() -> ClientAction<K, E::Input, E::Output> {
     Action {
         precondition: |input: ClientActionInput<K>, s: ClientState| {
             &&& input.cr.metadata().name.is_Some()
             &&& input.cr.metadata().namespace.is_Some()
         },
         transition: |input: ClientActionInput<K>, s: ClientState| {
-            let delete_req_msg = client_req_msg(delete_req_msg_content(
+            let delete_req_msg = Message::client_req_msg(Message::delete_req_msg_content(
                 input.cr.object_ref(), input.rest_id_allocator.allocate().1
             ));
 
@@ -53,14 +49,14 @@ pub open spec fn delete_custom_resource() -> ClientAction<K> {
     }
 }
 
-pub open spec fn update_custom_resource() -> ClientAction<K> {
+pub open spec fn update_custom_resource() -> ClientAction<K, E::Input, E::Output> {
     Action {
         precondition: |input: ClientActionInput<K>, s: ClientState| {
             &&& input.cr.metadata().name.is_Some()
             &&& input.cr.metadata().namespace.is_Some()
         },
         transition: |input: ClientActionInput<K>, s: ClientState| {
-            let update_req_msg = client_req_msg(update_req_msg_content(
+            let update_req_msg = Message::client_req_msg(Message::update_req_msg_content(
                 input.cr.object_ref(), input.cr.to_dynamic_object(), input.rest_id_allocator.allocate().1
             ));
 
@@ -69,7 +65,7 @@ pub open spec fn update_custom_resource() -> ClientAction<K> {
     }
 }
 
-pub open spec fn client() -> ClientStateMachine<K> {
+pub open spec fn client() -> ClientStateMachine<K, E::Input, E::Output> {
     StateMachine {
         init: |s: ClientState| {
             true

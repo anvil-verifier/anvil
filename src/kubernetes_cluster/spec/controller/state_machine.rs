@@ -4,8 +4,7 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{common::*, resource::*};
 use crate::kubernetes_cluster::spec::{
-    cluster::Cluster, controller::common::*, controller::controller_runtime::*, external_api::*,
-    message::*,
+    cluster::Cluster, controller::common::*, controller::controller_runtime::*, message::*,
 };
 use crate::reconciler::spec::reconciler::*;
 use crate::state_machine::action::*;
@@ -16,10 +15,6 @@ use vstd::prelude::*;
 verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
-
-pub open spec fn form_external_input(input: E::Input, id: nat) -> ExternalComm<E::Input, E::Output> {
-    ExternalComm::Input(input, id)
-}
 
 pub open spec fn init_controller_state() -> ControllerState<K, E, R> {
     ControllerState {

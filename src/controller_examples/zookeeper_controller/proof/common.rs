@@ -73,7 +73,7 @@ pub open spec fn pending_req_in_flight_at_zookeeper_step_with_zk(
 }
 
 pub open spec fn req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(
-    step: ZookeeperReconcileStep, zk: ZookeeperClusterView, req_msg: Message, object: DynamicObjectView
+    step: ZookeeperReconcileStep, zk: ZookeeperClusterView, req_msg: Message<E::Input, E::Output>, object: DynamicObjectView
 ) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
         &&& at_zookeeper_step_with_zk(zk, step)(s)
@@ -92,20 +92,20 @@ pub open spec fn exists_resp_in_flight_at_zookeeper_step_with_zk(
         &&& is_correct_pending_request_msg_at_zookeeper_step(step, s.pending_req_of(zk.object_ref()), zk, object)
         &&& exists |resp_msg| {
             &&& #[trigger] s.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
+            &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
         }
     }
 }
 
 pub open spec fn resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(
-    step: ZookeeperReconcileStep, zk: ZookeeperClusterView, resp_msg: Message, object: DynamicObjectView
+    step: ZookeeperReconcileStep, zk: ZookeeperClusterView, resp_msg: Message<E::Input, E::Output>, object: DynamicObjectView
 ) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
         &&& at_zookeeper_step_with_zk(zk, step)(s)
         &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
         &&& is_correct_pending_request_msg_at_zookeeper_step(step, s.pending_req_of(zk.object_ref()), zk, object)
         &&& s.message_in_flight(resp_msg)
-        &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
+        &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
     }
 }
 
@@ -120,7 +120,7 @@ pub open spec fn at_after_get_stateful_set_step_with_zk_and_exists_ok_resp_in_fl
         )
         &&& exists |resp_msg| {
             &&& #[trigger] s.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
+            &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
             &&& resp_msg.content.get_get_response().res.is_Ok()
             &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
         }
@@ -138,7 +138,7 @@ pub open spec fn at_after_get_stateful_set_step_with_zk_and_exists_not_found_res
         )
         &&& exists |resp_msg| {
             &&& #[trigger] s.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
+            &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
             &&& resp_msg.content.get_get_response().res.is_Err()
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         }
@@ -156,7 +156,7 @@ pub open spec fn at_after_get_stateful_set_step_with_zk_and_exists_not_found_err
         )
         &&& exists |resp_msg| {
             &&& #[trigger] s.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
+            &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
             &&& resp_msg.content.get_get_response().res.is_Err()
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         }
@@ -164,7 +164,7 @@ pub open spec fn at_after_get_stateful_set_step_with_zk_and_exists_not_found_err
 }
 
 pub open spec fn is_correct_pending_request_msg_at_zookeeper_step(
-    step: ZookeeperReconcileStep, msg: Message, zk: ZookeeperClusterView, object: DynamicObjectView
+    step: ZookeeperReconcileStep, msg: Message<E::Input, E::Output>, zk: ZookeeperClusterView, object: DynamicObjectView
 ) -> bool {
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI

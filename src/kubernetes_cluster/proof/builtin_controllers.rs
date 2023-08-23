@@ -7,10 +7,10 @@ use crate::kubernetes_api_objects::{
     stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
-    builtin_controllers::types::{built_in_controller_req_msg, BuiltinControllerChoice},
+    builtin_controllers::types::BuiltinControllerChoice,
     cluster::*,
     cluster_state_machine::Step,
-    controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
+    controller::common::{ControllerActionInput, ControllerStep},
     message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
@@ -25,7 +25,7 @@ pub open spec fn every_update_msg_sets_owner_references_as(
     key: ObjectRef, requirements: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool
 ) -> StatePred<Self> {
     |s: Self| {
-        forall |msg: Message|
+        forall |msg: Message<E::Input, E::Output>|
             #[trigger] s.message_in_flight(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_update_request()
@@ -38,7 +38,7 @@ pub open spec fn every_create_msg_sets_owner_references_as(
     key: ObjectRef, requirements: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool
 ) -> StatePred<Self> {
     |s: Self| {
-        forall |msg: Message|
+        forall |msg: Message<E::Input, E::Output>|
             #[trigger] s.message_in_flight(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_create_request()
@@ -70,7 +70,7 @@ pub open spec fn object_has_no_finalizers(key: ObjectRef) -> StatePred<Self> {
 
 spec fn exists_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
-        exists |msg: Message| {
+        exists |msg: Message<E::Input, E::Output>| {
             #[trigger] s.message_in_flight(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_delete_request_with_key(key)
@@ -158,7 +158,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
     );
 
     assert forall |s, s_prime: Self| pre(s) && #[trigger] stronger_next(s, s_prime) && Self::builtin_controllers_next().forward(input)(s, s_prime) implies delete_msg_in_flight(s_prime) by {
-        let delete_req_msg = built_in_controller_req_msg(delete_req_msg_content(key, s.rest_id_allocator.allocate().1));
+        let delete_req_msg = Message::built_in_controller_req_msg(Message::delete_req_msg_content(key, s.rest_id_allocator.allocate().1));
         assert(s_prime.message_in_flight(delete_req_msg));
     }
 
@@ -168,7 +168,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
             Step::BuiltinControllersStep(i) => {
                 if i == input {
                     assert(Self::garbage_collector_deletion_enabled(key)(s));
-                    let delete_req_msg = built_in_controller_req_msg(delete_req_msg_content(
+                    let delete_req_msg = Message::built_in_controller_req_msg(Message::delete_req_msg_content(
                         key, s.rest_id_allocator.allocate().1
                     ));
                     assert(s_prime.message_in_flight(delete_req_msg));
@@ -227,14 +227,14 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
     assert_by(
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
         {
-            let msg_to_p = |msg: Message| {
+            let msg_to_p = |msg: Message<E::Input, E::Output>| {
                 lift_state(|s: Self| {
                     &&& s.message_in_flight(msg)
                     &&& msg.dst.is_KubernetesAPI()
                     &&& msg.content.is_delete_request_with_key(key)
                 })
             };
-            assert forall |msg: Message| spec.entails((#[trigger] msg_to_p(msg)).leads_to(lift_state(post))) by {
+            assert forall |msg: Message<E::Input, E::Output>| spec.entails((#[trigger] msg_to_p(msg)).leads_to(lift_state(post))) by {
                 let input = Some(msg);
                 let msg_to_p_state = |s: Self| {
                     &&& s.message_in_flight(msg)

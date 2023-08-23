@@ -8,10 +8,10 @@ use crate::kubernetes_api_objects::{
     stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
-    builtin_controllers::types::{built_in_controller_req_msg, BuiltinControllerChoice},
+    builtin_controllers::types::BuiltinControllerChoice,
     cluster::*,
     cluster_state_machine::Step,
-    controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
+    controller::common::{ControllerActionInput, ControllerStep},
     message::*,
 };
 use crate::rabbitmq_controller::{
