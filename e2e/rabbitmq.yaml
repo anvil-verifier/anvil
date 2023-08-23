@@ -5,7 +5,7 @@ metadata:
   namespace: default
 spec:
   replicas: 3
-  rabbitmq:
+  rabbitmqConfig:
     additionalConfig: |
       default_user=new_user
       default_pass=new_pass
