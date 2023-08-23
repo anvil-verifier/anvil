@@ -129,14 +129,10 @@ pub open spec fn builtin_controllers_next() -> Action<Self, (BuiltinControllerCh
     }
 }
 
-/// This action basically executes the transition process of the external api. When external support is needed, It receives
-/// the result computed by the controller as input and store the output of the transition for later use. If no external api
-/// is used (i.e., EmptyAPI is fed to the reconciler), the precondition should not be satisfied since the developer should not
-/// make reconcile_core return a external request.
-///
-/// This action simulates the behavior of certain executions where the reconcile process is blocked and waits for the handling
-/// by external api, the external api will then take the input provided by the controller and carry out its own operations.
-/// We make all the operations by the external api each time atomic.
+/// external_api_next models the behavior of some external system that handles the requests from the controller.
+/// It behaves in a very similar way to the Kubernetes API by interacting with the controller via RPC.
+/// It delivers an external request message to the external system, runs E::transition, and puts the response message
+/// into the network.
 pub open spec fn external_api_next() -> Action<Self, Option<Message<E::Input, E::Output>>, ()> {
     let result = |input: Option<Message<E::Input, E::Output>>, s: Self| {
         let host_result = Self::external_api().next_result(
