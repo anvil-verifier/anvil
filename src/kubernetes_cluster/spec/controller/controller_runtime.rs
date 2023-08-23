@@ -78,8 +78,7 @@ pub open spec fn continue_reconcile() -> ControllerAction<K, E, R> {
                 None
             };
             let (local_state_prime, req_o) = R::reconcile_core(reconcile_state.triggering_cr, resp_o, reconcile_state.local_state);
-            if req_o.is_Some() {
-                let rest_id_allocator_prime = input.rest_id_allocator.allocate().0;
+            let (pending_req_msg, send, rest_id_allocator_prime) = if req_o.is_Some() {
                 let pending_req_msg = match req_o.get_Some_0() {
                     RequestView::KRequest(req) => {
                         Some(Message::controller_req_msg(req, input.rest_id_allocator.allocate().1))
@@ -88,37 +87,25 @@ pub open spec fn continue_reconcile() -> ControllerAction<K, E, R> {
                         Some(Message::controller_external_req_msg(req, input.rest_id_allocator.allocate().1))
                     }
                 };
-                let reconcile_state_prime = OngoingReconcile {
-                    pending_req_msg: pending_req_msg,
-                    local_state: local_state_prime,
-                    ..reconcile_state
-                };
-                let s_prime = ControllerState {
-                    ongoing_reconciles: s.ongoing_reconciles.insert(cr_key, reconcile_state_prime),
-                    ..s
-                };
-                let output = ControllerActionOutput {
-                    send: Multiset::singleton(pending_req_msg.get_Some_0()),
-                    rest_id_allocator: rest_id_allocator_prime,
-                };
-                (s_prime, output)
-           } else {
-                let reconcile_state_prime = OngoingReconcile {
-                    pending_req_msg: None,
-                    local_state: local_state_prime,
-                    ..reconcile_state
-                };
-                let s_prime = ControllerState {
-                    ongoing_reconciles: s.ongoing_reconciles.insert(cr_key, reconcile_state_prime),
-                    ..s
-                };
-                let output = ControllerActionOutput {
-                    send: Multiset::empty(),
-                    // TODO: we don't have to increment the rest id here
-                    rest_id_allocator: input.rest_id_allocator.allocate().0,
-                };
-                (s_prime, output)
-            }
+                (pending_req_msg, Multiset::singleton(pending_req_msg.get_Some_0()), input.rest_id_allocator.allocate().0)
+            } else {
+                (None, Multiset::empty(), input.rest_id_allocator)
+            };
+
+            let reconcile_state_prime = OngoingReconcile {
+                pending_req_msg: pending_req_msg,
+                local_state: local_state_prime,
+                ..reconcile_state
+            };
+            let s_prime = ControllerState {
+                ongoing_reconciles: s.ongoing_reconciles.insert(cr_key, reconcile_state_prime),
+                ..s
+            };
+            let output = ControllerActionOutput {
+                send: send,
+                rest_id_allocator: rest_id_allocator_prime,
+            };
+            (s_prime, output)
         }
     }
 }
