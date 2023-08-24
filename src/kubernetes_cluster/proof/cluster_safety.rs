@@ -33,7 +33,7 @@ pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
         &&& s.resource_obj_of(key).object_ref() == key
         &&& s.resource_obj_of(key).metadata.well_formed()
-        &&& s.resource_obj_of(key).metadata.resource_version.get_Some_0() <= s.kubernetes_api_state.resource_version_counter
+        &&& s.resource_obj_of(key).metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
         &&& {
             &&& key.kind == ConfigMapView::kind() ==> ConfigMapView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
             &&& key.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()

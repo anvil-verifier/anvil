@@ -160,18 +160,26 @@ pub open spec fn handle_delete_request(msg: Message<E::Input, E::Output>, s: Kub
             // With the finalizer(s) in the object, we cannot immediately delete it from the key-value store.
             // Instead, we set the deletion timestamp of this object.
             let stamped_obj = obj.set_deletion_timestamp(Self::deletion_timestamp());
-            let result = Ok(stamped_obj);
-            let resp = Message::form_delete_resp_msg(msg, result);
-            (KubernetesAPIState {
-                // Here we use req.key, instead of stamped_obj.object_ref(), to insert to the map.
-                // This is intended because using stamped_obj.object_ref() will require us to use
-                // the invariant each_object_in_etcd_is_well_formed a lot more frequently:
-                // we need this invariant to convince Verus that the stamped_obj is well formed
-                // so the key we use to insert to the map is the same as req.key.
-                resources: s.resources.insert(req.key, stamped_obj),
-                resource_version_counter: s.resource_version_counter + 1,
-                ..s
-            }, resp)
+            if stamped_obj == obj {
+                let result = Ok(stamped_obj);
+                let resp = Message::form_delete_resp_msg(msg, result);
+                (s, resp)
+            } else {
+                let stamped_obj_with_new_rv = stamped_obj.set_resource_version(s.resource_version_counter);
+                let result = Ok(stamped_obj_with_new_rv);
+                let resp = form_delete_resp_msg(msg, result);
+                (KubernetesAPIState {
+                    // Here we use req.key, instead of stamped_obj.object_ref(), to insert to the map.
+                    // This is intended because using stamped_obj.object_ref() will require us to use
+                    // the invariant each_object_in_etcd_is_well_formed a lot more frequently:
+                    // we need this invariant to convince Verus that the stamped_obj is well formed
+                    // so the key we use to insert to the map is the same as req.key.
+                    resources: s.resources.insert(req.key, stamped_obj_with_new_rv),
+                    resource_version_counter: s.resource_version_counter + 1,
+                    ..s
+                }, resp)
+            }
+            
         } else {
             // The object can be immediately removed from the key-value store.
             let result = Ok(obj);
