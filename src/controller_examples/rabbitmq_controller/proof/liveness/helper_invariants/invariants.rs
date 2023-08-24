@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::EmptyAPI;
+use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, error::*, owner_reference::*, resource::*,
     stateful_set::*,
@@ -9,7 +9,7 @@ use crate::kubernetes_api_objects::{
 use crate::kubernetes_cluster::spec::{
     cluster::*,
     cluster_state_machine::Step,
-    controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
+    controller::common::{ControllerActionInput, ControllerStep},
     message::*,
 };
 use crate::pervasive_ext::{multiset_lemmas, seq_lemmas, string_view::*};
@@ -28,8 +28,8 @@ verus! {
 // And use this assumption to write lemmas that are independent of controllers, then further decouple specific controller
 // from the proof logic.
 
-pub open spec fn server_config_map_create_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
-    |msg: Message|
+pub open spec fn server_config_map_create_request_msg(key: ObjectRef) -> FnSpec(Message<EmptyTypeView, EmptyTypeView>) -> bool {
+    |msg: Message<EmptyTypeView, EmptyTypeView>|
         msg.dst.is_KubernetesAPI()
         && msg.content.is_create_request()
         && msg.content.get_create_request().namespace == make_server_config_map_key(key).namespace
@@ -37,8 +37,8 @@ pub open spec fn server_config_map_create_request_msg(key: ObjectRef) -> FnSpec(
         && msg.content.get_create_request().obj.kind == make_server_config_map_key(key).kind
 }
 
-pub open spec fn server_config_map_update_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
-    |msg: Message|
+pub open spec fn server_config_map_update_request_msg(key: ObjectRef) -> FnSpec(Message<EmptyTypeView, EmptyTypeView>) -> bool {
+    |msg: Message<EmptyTypeView, EmptyTypeView>|
         msg.dst.is_KubernetesAPI()
         && msg.content.is_update_request()
         && msg.content.get_update_request().key == make_server_config_map_key(key)
@@ -56,7 +56,7 @@ spec fn make_owner_references_with_name_and_uid(name: StringView, uid: nat) -> O
 
 spec fn server_config_map_create_request_msg_is_valid(key: ObjectRef) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        forall |msg: Message| {
+        forall |msg: Message<EmptyTypeView, EmptyTypeView>| {
             #[trigger] s.message_in_flight(msg)
             && server_config_map_create_request_msg(key)(msg)
             ==> msg.content.get_create_request().obj.metadata.finalizers.is_None()
@@ -70,10 +70,10 @@ spec fn server_config_map_create_request_msg_is_valid(key: ObjectRef) -> StatePr
 
 /// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a server config map
 /// create request message (with key as key), it must be a controller action, and the triggering cr is s.triggering_cr_of(key).
-/// 
+///
 /// After the action, the controller stays at AfterCreateServerConfigMap step.
 proof fn lemma_server_config_map_create_request_msg_implies_key_in_reconcile_equals(
-    key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: Message, step: RMQStep
+    key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: Message<EmptyTypeView, EmptyTypeView>, step: RMQStep
 )
     requires
         key.kind.is_CustomResourceKind(),
@@ -83,13 +83,13 @@ proof fn lemma_server_config_map_create_request_msg_implies_key_in_reconcile_equ
         RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
     ensures
         step.is_ControllerStep(),
-        step.get_ControllerStep_0().2.get_Some_0() == key,
+        step.get_ControllerStep_0().1.get_Some_0() == key,
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s_prime),
 {
     // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
     // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
     // is possible by extra reasoning about the strings.
-    let cr_key = step.get_ControllerStep_0().2.get_Some_0();
+    let cr_key = step.get_ControllerStep_0().1.get_Some_0();
     // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
 
     // server_config_map_create_request_msg(key)(msg) requires the msg has a key with name key.name "-server-conf". So we
@@ -114,10 +114,10 @@ proof fn lemma_server_config_map_create_request_msg_implies_key_in_reconcile_equ
 
 /// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a server config map
 /// update request message (with key as key), it must be a controller action, and the triggering cr is s.triggering_cr_of(key).
-/// 
+///
 /// After the action, the controller stays at AfterUpdateServerConfigMap step.
 proof fn lemma_server_config_map_update_request_msg_implies_key_in_reconcile_equals(
-    key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: Message, step: RMQStep
+    key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: Message<EmptyTypeView, EmptyTypeView>, step: RMQStep
 )
     requires
         key.kind.is_CustomResourceKind(),
@@ -127,19 +127,19 @@ proof fn lemma_server_config_map_update_request_msg_implies_key_in_reconcile_equ
         RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
     ensures
         step.is_ControllerStep(),
-        step.get_ControllerStep_0().2.get_Some_0() == key,
+        step.get_ControllerStep_0().1.get_Some_0() == key,
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime),
 {
-    let cr_key = step.get_ControllerStep_0().2.get_Some_0();
+    let cr_key = step.get_ControllerStep_0().1.get_Some_0();
     seq_lemmas::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server-conf")@);
 }
 
 /// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a stateful set
 /// create request message (with key as key), it must be a controller action, and the triggering cr is s.triggering_cr_of(key).
-/// 
+///
 /// After the action, the controller stays at AfterCreateStatefulSet step.
 proof fn lemma_stateful_set_create_request_msg_implies_key_in_reconcile_equals(
-    key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: Message, step: RMQStep
+    key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: Message<EmptyTypeView, EmptyTypeView>, step: RMQStep
 )
     requires
         key.kind.is_CustomResourceKind(),
@@ -149,19 +149,19 @@ proof fn lemma_stateful_set_create_request_msg_implies_key_in_reconcile_equals(
         RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
     ensures
         step.is_ControllerStep(),
-        step.get_ControllerStep_0().2.get_Some_0() == key,
+        step.get_ControllerStep_0().1.get_Some_0() == key,
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s_prime),
 {
-    let cr_key = step.get_ControllerStep_0().2.get_Some_0();
+    let cr_key = step.get_ControllerStep_0().1.get_Some_0();
     seq_lemmas::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
 }
 
 /// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a stateful set
 /// update request message (with key as key), it must be a controller action, and the triggering cr is s.triggering_cr_of(key).
-/// 
+///
 /// After the action, the controller stays at AfterUpdateStatefulSet step.
 proof fn lemma_stateful_set_update_request_msg_implies_key_in_reconcile_equals(
-    key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: Message, step: RMQStep
+    key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: Message<EmptyTypeView, EmptyTypeView>, step: RMQStep
 )
     requires
         key.kind.is_CustomResourceKind(),
@@ -171,10 +171,10 @@ proof fn lemma_stateful_set_update_request_msg_implies_key_in_reconcile_equals(
         RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
     ensures
         step.is_ControllerStep(),
-        step.get_ControllerStep_0().2.get_Some_0() == key,
+        step.get_ControllerStep_0().1.get_Some_0() == key,
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s_prime),
 {
-    let cr_key = step.get_ControllerStep_0().2.get_Some_0();
+    let cr_key = step.get_ControllerStep_0().1.get_Some_0();
     seq_lemmas::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
 }
 
@@ -219,7 +219,7 @@ proof fn lemma_always_server_config_map_create_request_msg_is_valid(spec: TempPr
 
 spec fn server_config_map_update_request_msg_is_valid(key: ObjectRef) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        forall |msg: Message| {
+        forall |msg: Message<EmptyTypeView, EmptyTypeView>| {
             #[trigger] s.message_in_flight(msg)
             && server_config_map_update_request_msg(key)(msg)
             ==> msg.content.get_update_request().obj.metadata.finalizers.is_None()
@@ -270,7 +270,7 @@ proof fn lemma_always_server_config_map_update_request_msg_is_valid(spec: TempPr
 
 spec fn sts_update_request_msg_is_valid(key: ObjectRef) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        forall |msg: Message| {
+        forall |msg: Message<EmptyTypeView, EmptyTypeView>| {
             #[trigger] s.message_in_flight(msg)
             && sts_update_request_msg(key)(msg)
             ==> msg.content.get_update_request().obj.metadata.finalizers.is_None()
@@ -321,7 +321,7 @@ proof fn lemma_always_sts_update_request_msg_is_valid(spec: TempPred<RMQCluster>
 
 spec fn sts_create_request_msg_is_valid(key: ObjectRef) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        forall |msg: Message| {
+        forall |msg: Message<EmptyTypeView, EmptyTypeView>| {
             #[trigger] s.message_in_flight(msg)
             && sts_create_request_msg(key)(msg)
             ==> msg.content.get_create_request().obj.metadata.finalizers.is_None()
@@ -401,7 +401,7 @@ pub proof fn lemma_true_leads_to_always_create_server_cm_req_msg_in_flight_impli
             true_pred().leads_to(always(lift_state(create_server_cm_req_msg_in_flight_implies_at_after_create_server_cm_step(key))))
         ),
 {
-    let requirements = |msg: Message, s: RMQCluster| {
+    let requirements = |msg: Message<EmptyTypeView, EmptyTypeView>, s: RMQCluster| {
         server_config_map_create_request_msg(key)(msg)
         ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateServerConfigMap)(s)
@@ -418,7 +418,7 @@ pub proof fn lemma_true_leads_to_always_create_server_cm_req_msg_in_flight_impli
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime)
     implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
-        assert forall |msg: Message| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
+        assert forall |msg: Message<EmptyTypeView, EmptyTypeView>| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
         implies requirements(msg, s_prime) by {
             if server_config_map_create_request_msg(key)(msg) {
                 let pending_req = s_prime.pending_req_of(key);
@@ -475,7 +475,7 @@ pub proof fn lemma_true_leads_to_always_update_server_cm_req_msg_in_flight_impli
             true_pred().leads_to(always(lift_state(update_server_cm_req_msg_in_flight_implies_at_after_update_server_cm_step(key))))
         ),
 {
-    let requirements = |msg: Message, s: RMQCluster| {
+    let requirements = |msg: Message<EmptyTypeView, EmptyTypeView>, s: RMQCluster| {
         server_config_map_update_request_msg(key)(msg)
         ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s)
@@ -524,7 +524,7 @@ pub open spec fn every_update_server_cm_req_does_the_same(rabbitmq: RabbitmqClus
         rabbitmq.well_formed(),
 {
     |s: RMQCluster| {
-        forall |msg: Message| {
+        forall |msg: Message<EmptyTypeView, EmptyTypeView>| {
             &&& #[trigger] s.network_state.in_flight.contains(msg)
             &&& server_config_map_update_request_msg(rabbitmq.object_ref())(msg)
         } ==> msg.content.get_update_request().obj.spec == ConfigMapView::marshal_spec((make_server_config_map(rabbitmq).data, ()))
@@ -609,7 +609,7 @@ pub proof fn lemma_true_leads_to_always_every_update_server_cm_req_does_the_same
             true_pred().leads_to(always(lift_state(every_update_server_cm_req_does_the_same(rabbitmq))))
         ),
 {
-    let requirements = |msg: Message, s: RMQCluster| {
+    let requirements = |msg: Message<EmptyTypeView, EmptyTypeView>, s: RMQCluster| {
         server_config_map_update_request_msg(rabbitmq.object_ref())(msg)
         ==> msg.content.get_update_request().obj.spec == ConfigMapView::marshal_spec((make_server_config_map(rabbitmq).data, ()))
         && msg.content.get_update_request().obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
@@ -620,7 +620,7 @@ pub proof fn lemma_true_leads_to_always_every_update_server_cm_req_does_the_same
         &&& RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)(s)
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
-        assert forall |msg: Message| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
+        assert forall |msg: Message<EmptyTypeView, EmptyTypeView>| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
         && msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest() implies requirements(msg, s_prime) by {
             if !s.message_in_flight(msg) && server_config_map_update_request_msg(rabbitmq.object_ref())(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
@@ -656,7 +656,7 @@ pub proof fn lemma_true_leads_to_always_no_delete_cm_req_is_in_flight(spec: Temp
         ),
 {
     let key = rabbitmq.object_ref();
-    let requirements = |msg: Message, s: RMQCluster| !{
+    let requirements = |msg: Message<EmptyTypeView, EmptyTypeView>, s: RMQCluster| !{
         &&& msg.dst.is_KubernetesAPI()
         &&& msg.content.is_delete_request()
         &&& msg.content.get_delete_request().key == make_server_config_map_key(rabbitmq.object_ref())
@@ -669,7 +669,7 @@ pub proof fn lemma_true_leads_to_always_no_delete_cm_req_is_in_flight(spec: Temp
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
     };
     assert forall |s: RMQCluster, s_prime: RMQCluster| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
-        assert forall |msg: Message| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
+        assert forall |msg: Message<EmptyTypeView, EmptyTypeView>| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
         implies requirements(msg, s_prime) by {
             if s.resource_key_exists(make_server_config_map_key(key)) {
                 let owner_refs = s.resource_obj_of(make_server_config_map_key(key)).metadata.owner_references;
@@ -692,8 +692,8 @@ pub proof fn lemma_true_leads_to_always_no_delete_cm_req_is_in_flight(spec: Temp
     );
 }
 
-pub open spec fn sts_create_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
-    |msg: Message|
+pub open spec fn sts_create_request_msg(key: ObjectRef) -> FnSpec(Message<EmptyTypeView, EmptyTypeView>) -> bool {
+    |msg: Message<EmptyTypeView, EmptyTypeView>|
         msg.dst.is_KubernetesAPI()
         && msg.content.is_create_request()
         && msg.content.get_create_request().namespace == make_stateful_set_key(key).namespace
@@ -701,8 +701,8 @@ pub open spec fn sts_create_request_msg(key: ObjectRef) -> FnSpec(Message) -> bo
         && msg.content.get_create_request().obj.kind == make_stateful_set_key(key).kind
 }
 
-pub open spec fn sts_update_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
-    |msg: Message|
+pub open spec fn sts_update_request_msg(key: ObjectRef) -> FnSpec(Message<EmptyTypeView, EmptyTypeView>) -> bool {
+    |msg: Message<EmptyTypeView, EmptyTypeView>|
         msg.dst.is_KubernetesAPI()
         && msg.content.is_update_request()
         && msg.content.get_update_request().key == make_stateful_set_key(key)
@@ -713,7 +713,7 @@ pub open spec fn every_update_sts_req_does_the_same(rabbitmq: RabbitmqClusterVie
         rabbitmq.well_formed(),
 {
     |s: RMQCluster| {
-        forall |msg: Message| {
+        forall |msg: Message<EmptyTypeView, EmptyTypeView>| {
             &&& #[trigger] s.network_state.in_flight.contains(msg)
             &&& sts_update_request_msg(rabbitmq.object_ref())(msg)
         } ==> msg.content.get_update_request().obj.spec == StatefulSetView::marshal_spec(make_stateful_set(rabbitmq).spec)
@@ -734,7 +734,7 @@ pub proof fn lemma_true_leads_to_always_every_update_sts_req_does_the_same(spec:
             true_pred().leads_to(always(lift_state(every_update_sts_req_does_the_same(rabbitmq))))
         ),
 {
-    let requirements = |msg: Message, s: RMQCluster| {
+    let requirements = |msg: Message<EmptyTypeView, EmptyTypeView>, s: RMQCluster| {
         sts_update_request_msg(rabbitmq.object_ref())(msg)
         ==> msg.content.get_update_request().obj.spec == StatefulSetView::marshal_spec(make_stateful_set(rabbitmq).spec)
         && msg.content.get_update_request().obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
@@ -745,7 +745,7 @@ pub proof fn lemma_true_leads_to_always_every_update_sts_req_does_the_same(spec:
         &&& RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)(s)
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
-        assert forall |msg: Message| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
+        assert forall |msg: Message<EmptyTypeView, EmptyTypeView>| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
         && msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest() implies requirements(msg, s_prime) by {
             if !s.message_in_flight(msg) && sts_update_request_msg(rabbitmq.object_ref())(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
@@ -770,7 +770,7 @@ pub open spec fn every_create_sts_req_does_the_same(rabbitmq: RabbitmqClusterVie
         rabbitmq.well_formed(),
 {
     |s: RMQCluster| {
-        forall |msg: Message| {
+        forall |msg: Message<EmptyTypeView, EmptyTypeView>| {
             &&& #[trigger] s.network_state.in_flight.contains(msg)
             &&& sts_create_request_msg(rabbitmq.object_ref())(msg)
         } ==> msg.content.get_create_request().obj.spec == StatefulSetView::marshal_spec(make_stateful_set(rabbitmq).spec)
@@ -791,7 +791,7 @@ pub proof fn lemma_true_leads_to_always_every_create_sts_req_does_the_same(spec:
             true_pred().leads_to(always(lift_state(every_create_sts_req_does_the_same(rabbitmq))))
         ),
 {
-    let requirements = |msg: Message, s: RMQCluster| {
+    let requirements = |msg: Message<EmptyTypeView, EmptyTypeView>, s: RMQCluster| {
         sts_create_request_msg(rabbitmq.object_ref())(msg)
         ==> msg.content.get_create_request().obj.spec == StatefulSetView::marshal_spec(make_stateful_set(rabbitmq).spec)
         && msg.content.get_create_request().obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
@@ -802,7 +802,7 @@ pub proof fn lemma_true_leads_to_always_every_create_sts_req_does_the_same(spec:
         &&& RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)(s)
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
-        assert forall |msg: Message| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
+        assert forall |msg: Message<EmptyTypeView, EmptyTypeView>| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
         && msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest() implies requirements(msg, s_prime) by {
             if !s.message_in_flight(msg) && sts_create_request_msg(rabbitmq.object_ref())(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
@@ -827,7 +827,7 @@ pub open spec fn every_create_server_cm_req_does_the_same(rabbitmq: RabbitmqClus
         rabbitmq.well_formed(),
 {
     |s: RMQCluster| {
-        forall |msg: Message| {
+        forall |msg: Message<EmptyTypeView, EmptyTypeView>| {
             &&& #[trigger] s.network_state.in_flight.contains(msg)
             &&& server_config_map_create_request_msg(rabbitmq.object_ref())(msg)
         } ==> msg.content.get_create_request().obj.spec == ConfigMapView::marshal_spec((make_server_config_map(rabbitmq).data, ()))
@@ -849,7 +849,7 @@ pub proof fn lemma_true_leads_to_always_every_create_server_cm_req_does_the_same
             true_pred().leads_to(always(lift_state(every_create_server_cm_req_does_the_same(rabbitmq))))
         ),
 {
-    let requirements = |msg: Message, s: RMQCluster| {
+    let requirements = |msg: Message<EmptyTypeView, EmptyTypeView>, s: RMQCluster| {
         server_config_map_create_request_msg(rabbitmq.object_ref())(msg)
         ==> msg.content.get_create_request().obj.spec == ConfigMapView::marshal_spec((make_server_config_map(rabbitmq).data, ()))
         && && msg.content.get_create_request().obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
@@ -860,7 +860,7 @@ pub proof fn lemma_true_leads_to_always_every_create_server_cm_req_does_the_same
         &&& RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)(s)
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
-        assert forall |msg: Message| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
+        assert forall |msg: Message<EmptyTypeView, EmptyTypeView>| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
         && msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest() implies requirements(msg, s_prime) by {
             if !s.message_in_flight(msg) && server_config_map_create_request_msg(rabbitmq.object_ref())(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
@@ -911,7 +911,7 @@ pub proof fn lemma_true_leads_to_always_create_sts_req_msg_in_flight_implies_at_
             true_pred().leads_to(always(lift_state(create_sts_req_msg_in_flight_implies_at_after_create_sts_step(key))))
         ),
 {
-    let requirements = |msg: Message, s: RMQCluster| {
+    let requirements = |msg: Message<EmptyTypeView, EmptyTypeView>, s: RMQCluster| {
         sts_create_request_msg(key)(msg)
         ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s)
@@ -928,7 +928,7 @@ pub proof fn lemma_true_leads_to_always_create_sts_req_msg_in_flight_implies_at_
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime)
     implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
-        assert forall |msg: Message| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
+        assert forall |msg: Message<EmptyTypeView, EmptyTypeView>| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
         implies requirements(msg, s_prime) by {
             if sts_create_request_msg(key)(msg) {
                 if !s.message_in_flight(msg) {
@@ -983,7 +983,7 @@ pub proof fn lemma_true_leads_to_always_update_sts_req_msg_in_flight_implies_at_
             true_pred().leads_to(always(lift_state(update_sts_req_msg_in_flight_implies_at_after_update_sts_step(key))))
         ),
 {
-    let requirements = |msg: Message, s: RMQCluster| {
+    let requirements = |msg: Message<EmptyTypeView, EmptyTypeView>, s: RMQCluster| {
         sts_update_request_msg(key)(msg)
         ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s)
@@ -1000,7 +1000,7 @@ pub proof fn lemma_true_leads_to_always_update_sts_req_msg_in_flight_implies_at_
     };
     assert forall |s, s_prime| #[trigger] stronger_next(s, s_prime)
     implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
-        assert forall |msg: Message| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
+        assert forall |msg: Message<EmptyTypeView, EmptyTypeView>| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
         implies requirements(msg, s_prime) by {
             if sts_update_request_msg(key)(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
@@ -1026,7 +1026,7 @@ pub proof fn lemma_true_leads_to_always_update_sts_req_msg_in_flight_implies_at_
 
 pub open spec fn no_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        forall |msg: Message| !{
+        forall |msg: Message<EmptyTypeView, EmptyTypeView>| !{
             &&& #[trigger] s.message_in_flight(msg)
             &&& msg.dst.is_KubernetesAPI()
             &&& msg.content.is_delete_request()
@@ -1076,7 +1076,7 @@ pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: Tem
         ),
 {
     let key = rabbitmq.object_ref();
-    let requirements = |msg: Message, s: RMQCluster| !{
+    let requirements = |msg: Message<EmptyTypeView, EmptyTypeView>, s: RMQCluster| !{
         &&& msg.dst.is_KubernetesAPI()
         &&& msg.content.is_delete_request()
         &&& msg.content.get_delete_request().key == make_stateful_set_key(rabbitmq.object_ref())
@@ -1089,7 +1089,7 @@ pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: Tem
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
     };
     assert forall |s: RMQCluster, s_prime: RMQCluster| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
-        assert forall |msg: Message| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
+        assert forall |msg: Message<EmptyTypeView, EmptyTypeView>| (!s.message_in_flight(msg) || requirements(msg, s)) && #[trigger] s_prime.message_in_flight(msg)
         implies requirements(msg, s_prime) by {
             if s.resource_key_exists(make_stateful_set_key(key)) {
                 let owner_refs = s.resource_obj_of(make_stateful_set_key(key)).metadata.owner_references;

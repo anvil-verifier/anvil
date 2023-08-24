@@ -690,7 +690,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                     implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                         let resp_msg = choose |resp_msg| {
                             &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                            &&& resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(zk.object_ref()))
+                            &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(zk.object_ref()))
                             &&& resp_msg.content.get_get_response().res.is_Err()
                             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
                         };
@@ -813,7 +813,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                                 implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                                     let resp_msg = choose |resp_msg| {
                                         &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                                        &&& resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(zk.object_ref()))
+                                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(zk.object_ref()))
                                         &&& resp_msg.content.get_get_response().res.is_Ok()
                                         &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
                                     };
@@ -1019,7 +1019,7 @@ proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_
             implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                    &&& resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(zk.object_ref()))
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(zk.object_ref()))
                 };
                 assert(pre_and_resp_in_flight(resp_msg).satisfied_by(ex));
             }
@@ -1162,7 +1162,7 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
 // We don't care about update step here, so arbitraray() is used to show that the object parameter in
 // pending_req_in_flight_at_zookeeper_step_with_zk is unrelated.
 proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(
-    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, resp_msg: Message, step: ZookeeperReconcileStep, result_step: ZookeeperReconcileStep
+    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, resp_msg: Message<E::Input, E::Output>, step: ZookeeperReconcileStep, result_step: ZookeeperReconcileStep
 )
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1241,7 +1241,7 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
 }
 
 proof fn lemma_receives_some_resp_at_zookeeper_step_with_zk(
-    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, req_msg: Message, step: ZookeeperReconcileStep
+    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, req_msg: Message<E::Input, E::Output>, step: ZookeeperReconcileStep
 )
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1286,7 +1286,7 @@ proof fn lemma_receives_some_resp_at_zookeeper_step_with_zk(
         let resp_msg = ZKCluster::transition_by_etcd(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
         });
     }
 
@@ -1296,7 +1296,7 @@ proof fn lemma_receives_some_resp_at_zookeeper_step_with_zk(
 }
 
 proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
-    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, rest_id: nat, req_msg: Message, object: DynamicObjectView
+    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, rest_id: nat, req_msg: Message<E::Input, E::Output>, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1375,7 +1375,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
                     let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.message_in_flight(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                        &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                         &&& resp_msg.content.get_get_response().res.is_Ok()
                         &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
                     });
@@ -1390,7 +1390,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
         let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_get_response().res.is_Ok()
             &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
         });
@@ -1402,7 +1402,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
 }
 
 proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_step(
-    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, rest_id: nat, resp_msg: Message, object: DynamicObjectView
+    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, rest_id: nat, resp_msg: Message<E::Input, E::Output>, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1486,7 +1486,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
 }
 
 proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
-    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, rest_id: nat, req_msg: Message, object: DynamicObjectView
+    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, rest_id: nat, req_msg: Message<E::Input, E::Output>, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1653,7 +1653,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_zk(
                     let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.message_in_flight(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                        &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                         &&& resp_msg.content.get_get_response().res.is_Err()
                         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
                     });
@@ -1668,7 +1668,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_zk(
         let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_get_response().res.is_Err()
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         });

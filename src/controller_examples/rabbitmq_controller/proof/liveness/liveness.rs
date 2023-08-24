@@ -8,10 +8,10 @@ use crate::kubernetes_api_objects::{
     stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
-    builtin_controllers::types::{built_in_controller_req_msg, BuiltinControllerChoice},
+    builtin_controllers::types::BuiltinControllerChoice,
     cluster::*,
     cluster_state_machine::Step,
-    controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
+    controller::common::{ControllerActionInput, ControllerStep},
     message::*,
 };
 use crate::rabbitmq_controller::{
@@ -678,8 +678,8 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<RMQCluster>, rabbitmq:
         &&& s.reconcile_scheduled_for(rabbitmq.object_ref())
     };
     let post = no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init);
-    let input = (None, None, Some(rabbitmq.object_ref()));
-    let stronger_next = |s, s_prime: RMQCluster| {
+    let input = (None, Some(rabbitmq.object_ref()));
+    let stronger_next = |s, s_prime| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
         &&& RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()(s)
@@ -715,7 +715,7 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
 {
     let pre = no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init);
     let post = pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateHeadlessService, rabbitmq);
-    let input = (None, None, Some(rabbitmq.object_ref()));
+    let input = (None, Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
@@ -730,7 +730,7 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
         let step = choose |step| RMQCluster::next_step(s, s_prime, step);
         match step {
             Step::ControllerStep(input) => {
-                if input.2.get_Some_0() != rabbitmq.object_ref() {
+                if input.1.get_Some_0() != rabbitmq.object_ref() {
                     assert(pre(s_prime));
                 } else {
                     assert(post(s_prime));
@@ -843,7 +843,7 @@ proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_
             implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                    &&& resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
                 };
                 assert(pre_and_resp_in_flight(resp_msg).satisfied_by(ex));
             }
@@ -860,7 +860,7 @@ proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_
 }
 
 proof fn lemma_receives_some_resp_at_rabbitmq_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message, step: RabbitmqReconcileStep
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>, step: RabbitmqReconcileStep
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -898,7 +898,7 @@ proof fn lemma_receives_some_resp_at_rabbitmq_step_with_rabbitmq(
         let resp_msg = RMQCluster::transition_by_etcd(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
         });
     }
 
@@ -912,7 +912,7 @@ proof fn lemma_receives_some_resp_at_rabbitmq_step_with_rabbitmq(
 //    1. There is only one possible next_step for it.
 //    2. When the controller enters this step, it must creates a request (which will be used to create the pending request message)
 proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: Message, step: RabbitmqReconcileStep, result_step: RabbitmqReconcileStep
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: Message<EmptyTypeView, EmptyTypeView>, step: RabbitmqReconcileStep, result_step: RabbitmqReconcileStep
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -942,7 +942,7 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
 {
     let pre = resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(step, rabbitmq, resp_msg);
     let post = pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(result_step, rabbitmq);
-    let input = (Some(resp_msg), None, Some(rabbitmq.object_ref()));
+    let input = (Some(resp_msg), Some(rabbitmq.object_ref()));
 
     // For every part of stronger_next:
     //   - next(): the next predicate of the state machine
@@ -969,7 +969,7 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
         let step = choose |step| RMQCluster::next_step(s, s_prime, step);
         match step {
             Step::ControllerStep(input) => {
-                if input.2.is_Some() && input.2.get_Some_0() == rabbitmq.object_ref() {
+                if input.1.is_Some() && input.1.get_Some_0() == rabbitmq.object_ref() {
                     assert(s_prime.reconcile_state_of(rabbitmq.object_ref()).local_state.reconcile_step == result_step);
                     assert(post(s_prime));
                 } else {
@@ -1119,7 +1119,7 @@ proof fn lemma_from_after_get_stateful_set_and_key_not_exists_to_rabbitmq_matche
             implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                    &&& resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
                     &&& resp_msg.content.get_get_response().res.is_Err()
                     &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
                 };
@@ -1254,7 +1254,7 @@ proof fn lemma_from_after_get_stateful_set_and_key_exists_to_rabbitmq_matches(ra
                         implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                             let resp_msg = choose |resp_msg| {
                                 &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                                &&& resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
+                                &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
                                 &&& resp_msg.content.get_get_response().res.is_Ok()
                                 &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
                             };
@@ -1324,7 +1324,7 @@ proof fn lemma_from_after_get_stateful_set_and_key_exists_to_rabbitmq_matches(ra
 }
 
 proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message, object: DynamicObjectView
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -1393,7 +1393,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_rabbitmq(
                     let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.message_in_flight(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                        &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                         &&& resp_msg.content.get_get_response().res.is_Ok()
                         &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
                         &&& object.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
@@ -1409,7 +1409,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_rabbitmq(
         let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_get_response().res.is_Ok()
             &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
             &&& object.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
@@ -1422,7 +1422,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_rabbitmq(
 }
 
 proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_step(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: Message, object: DynamicObjectView
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: Message<EmptyTypeView, EmptyTypeView>, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -1465,7 +1465,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
         &&& pending_req_with_object_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateStatefulSet, rabbitmq, object)(s)
     };
-    let input = (Some(resp_msg), None, Some(rabbitmq.object_ref()));
+    let input = (Some(resp_msg), Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
@@ -1495,7 +1495,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
 }
 
 proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message, object: DynamicObjectView
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -1662,7 +1662,7 @@ proof fn lemma_from_after_get_server_config_map_and_key_not_exists_to_rabbitmq_m
             implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                 let resp_msg = choose |resp_msg| {
                     &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                    &&& resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
                     &&& resp_msg.content.get_get_response().res.is_Err()
                     &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
                 };
@@ -1702,7 +1702,7 @@ proof fn lemma_from_after_get_server_config_map_and_key_not_exists_to_rabbitmq_m
 }
 
 proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -1760,7 +1760,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
                     let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.message_in_flight(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                        &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                         &&& resp_msg.content.get_get_response().res.is_Err()
                         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
                     });
@@ -1775,7 +1775,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
         let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_get_response().res.is_Err()
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         });
@@ -1787,7 +1787,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
 }
 
 proof fn lemma_from_after_get_server_config_map_step_to_after_create_server_config_map_step(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: Message
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: Message<EmptyTypeView, EmptyTypeView>
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -1821,7 +1821,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_create_server_conf
         &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
         &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServerConfigMap, rabbitmq)(s)
     };
-    let input = (Some(resp_msg), None, Some(rabbitmq.object_ref()));
+    let input = (Some(resp_msg), Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
@@ -1848,7 +1848,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_create_server_conf
 }
 
 proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -1921,7 +1921,7 @@ proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitm
 }
 
 proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -1979,7 +1979,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_rabbi
                     let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.message_in_flight(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                        &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                         &&& resp_msg.content.get_get_response().res.is_Err()
                         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
                     });
@@ -1994,7 +1994,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_rabbi
         let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_get_response().res.is_Err()
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         });
@@ -2006,7 +2006,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_rabbi
 }
 
 proof fn lemma_from_after_get_stateful_set_step_to_after_create_stateful_set_step(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: Message
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: Message<EmptyTypeView, EmptyTypeView>
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -2040,7 +2040,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_create_stateful_set_ste
         &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
         &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateStatefulSet, rabbitmq)(s)
     };
-    let input = (Some(resp_msg), None, Some(rabbitmq.object_ref()));
+    let input = (Some(resp_msg), Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)
@@ -2067,7 +2067,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_create_stateful_set_ste
 }
 
 proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -2246,7 +2246,7 @@ proof fn lemma_from_after_get_server_config_map_and_key_exists_to_rabbitmq_match
                         implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                             let resp_msg = choose |resp_msg| {
                                 &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                                &&& resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
+                                &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
                                 &&& resp_msg.content.get_get_response().res.is_Ok()
                                 &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
                             };
@@ -2317,7 +2317,7 @@ proof fn lemma_from_after_get_server_config_map_and_key_exists_to_rabbitmq_match
 }
 
 proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message, object: DynamicObjectView
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -2382,7 +2382,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
                     let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
                         &&& s_prime.message_in_flight(resp_msg)
-                        &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                        &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                         &&& resp_msg.content.get_get_response().res.is_Ok()
                         &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
                     });
@@ -2397,7 +2397,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
         let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
             &&& s_prime.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_get_response().res.is_Ok()
             &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
         });
@@ -2409,7 +2409,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
 }
 
 proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message, object: DynamicObjectView
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -2497,7 +2497,7 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
 }
 
 proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_config_map_step(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: Message, object: DynamicObjectView
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: Message<EmptyTypeView, EmptyTypeView>, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -2539,7 +2539,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_conf
         &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
         &&& pending_req_with_object_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateServerConfigMap, rabbitmq, object)(s)
     };
-    let input = (Some(resp_msg), None, Some(rabbitmq.object_ref()));
+    let input = (Some(resp_msg), Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::crash_disabled()(s)

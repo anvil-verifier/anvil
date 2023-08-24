@@ -19,7 +19,7 @@ verus! {
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(
-    spec: TempPred<Self>, input: Option<Message>, next: ActionPred<Self>, action: KubernetesAPIAction,
+    spec: TempPred<Self>, input: Option<Message<E::Input, E::Output>>, next: ActionPred<Self>, action: KubernetesAPIAction<E::Input, E::Output>,
     pre: StatePred<Self>, post: StatePred<Self>
 )
     requires
@@ -32,7 +32,7 @@ pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(
     ensures
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
-    use_tla_forall::<Self, Option<Message>>(spec, |i| Self::kubernetes_api_next().weak_fairness(i), input);
+    use_tla_forall::<Self, Option<Message<E::Input, E::Output>>>(spec, |i| Self::kubernetes_api_next().weak_fairness(i), input);
 
     Self::kubernetes_api_action_pre_implies_next_pre(action, input);
     valid_implies_trans::<Self>(
@@ -43,7 +43,7 @@ pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(
 }
 
 pub proof fn lemma_pre_leads_to_post_by_builtin_controllers(
-    spec: TempPred<Self>, input: (BuiltinControllerChoice, ObjectRef), next: ActionPred<Self>, action: BuiltinControllersAction,
+    spec: TempPred<Self>, input: (BuiltinControllerChoice, ObjectRef), next: ActionPred<Self>, action: BuiltinControllersAction<E::Input, E::Output>,
     pre: StatePred<Self>, post: StatePred<Self>
 )
     requires
@@ -66,7 +66,7 @@ pub proof fn lemma_pre_leads_to_post_by_builtin_controllers(
 }
 
 pub proof fn lemma_get_req_leads_to_some_resp
-(spec: TempPred<Self>, msg: Message, key: ObjectRef)
+(spec: TempPred<Self>, msg: Message<E::Input, E::Output>, key: ObjectRef)
     requires
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
@@ -80,9 +80,9 @@ pub proof fn lemma_get_req_leads_to_some_resp
                 })
                 .leads_to(
                     lift_state(|s: Self|
-                        exists |resp_msg: Message| {
+                        exists |resp_msg: Message<E::Input, E::Output>| {
                             &&& #[trigger] s.message_in_flight(resp_msg)
-                            &&& resp_msg_matches_req_msg(resp_msg, msg)
+                            &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
                         }
                     )
                 )
@@ -95,9 +95,9 @@ pub proof fn lemma_get_req_leads_to_some_resp
         &&& msg.content.is_get_request()
         &&& msg.content.get_get_request().key == key
     };
-    let post = |s: Self| exists |resp_msg: Message| {
+    let post = |s: Self| exists |resp_msg: Message<E::Input, E::Output>| {
         &&& #[trigger] s.message_in_flight(resp_msg)
-        &&& resp_msg_matches_req_msg(resp_msg, msg)
+        &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
     };
     assert forall |s, s_prime: Self| pre(s) && #[trigger] Self::next()(s, s_prime) implies
     pre(s_prime) || post(s_prime) by {
@@ -106,13 +106,13 @@ pub proof fn lemma_get_req_leads_to_some_resp
             Step::KubernetesAPIStep(input) => {
                 if input.get_Some_0() == msg {
                     if s.resource_key_exists(key) {
-                        let ok_resp_msg = form_get_resp_msg(msg, Ok(s.resource_obj_of(key)));
+                        let ok_resp_msg = Message::form_get_resp_msg(msg, Ok(s.resource_obj_of(key)));
                         assert(s_prime.message_in_flight(ok_resp_msg));
-                        assert(resp_msg_matches_req_msg(ok_resp_msg, msg));
+                        assert(Message::resp_msg_matches_req_msg(ok_resp_msg, msg));
                     } else {
-                        let err_resp_msg = form_get_resp_msg(msg, Err(APIError::ObjectNotFound));
+                        let err_resp_msg = Message::form_get_resp_msg(msg, Err(APIError::ObjectNotFound));
                         assert(s_prime.message_in_flight(err_resp_msg));
-                        assert(resp_msg_matches_req_msg(err_resp_msg, msg));
+                        assert(Message::resp_msg_matches_req_msg(err_resp_msg, msg));
                     }
                 } else {
                     assert(pre(s_prime));
@@ -120,9 +120,9 @@ pub proof fn lemma_get_req_leads_to_some_resp
             },
             Step::KubernetesBusy(input) => {
                 if input.get_Some_0() == msg {
-                    let resp = form_matched_resp_msg(msg, Err(APIError::ServerTimeout));
+                    let resp = Message::form_matched_resp_msg(msg, Err(APIError::ServerTimeout));
                     assert(s_prime.message_in_flight(resp));
-                    assert(resp_msg_matches_req_msg(resp, msg));
+                    assert(Message::resp_msg_matches_req_msg(resp, msg));
                     assert(post(s_prime));
                 } else {
                     assert(pre(s_prime));
@@ -135,20 +135,20 @@ pub proof fn lemma_get_req_leads_to_some_resp
         pre(s) && #[trigger] Self::next()(s, s_prime) && Self::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
         if s.resource_key_exists(key) {
-            let ok_resp_msg = form_get_resp_msg(msg, Ok(s.resource_obj_of(key)));
+            let ok_resp_msg = Message::form_get_resp_msg(msg, Ok(s.resource_obj_of(key)));
             assert(s_prime.message_in_flight(ok_resp_msg));
-            assert(resp_msg_matches_req_msg(ok_resp_msg, msg));
+            assert(Message::resp_msg_matches_req_msg(ok_resp_msg, msg));
         } else {
-            let err_resp_msg = form_get_resp_msg(msg, Err(APIError::ObjectNotFound));
+            let err_resp_msg = Message::form_get_resp_msg(msg, Err(APIError::ObjectNotFound));
             assert(s_prime.message_in_flight(err_resp_msg));
-            assert(resp_msg_matches_req_msg(err_resp_msg, msg));
+            assert(Message::resp_msg_matches_req_msg(err_resp_msg, msg));
         }
     };
     Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, Self::next(), Self::handle_request(), pre, post);
 }
 
 pub proof fn lemma_get_req_leads_to_ok_or_err_resp
-(spec: TempPred<Self>, msg: Message, key: ObjectRef)
+(spec: TempPred<Self>, msg: Message<E::Input, E::Output>, key: ObjectRef)
     requires
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
@@ -162,8 +162,8 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp
                 &&& msg.content.get_get_request().key == key
             })
                 .leads_to(
-                    lift_state(|s: Self| s.message_in_flight(form_get_resp_msg(msg, Ok(s.resource_obj_of(key)))))
-                    .or(lift_state(|s: Self| s.message_in_flight(form_get_resp_msg(msg, Err(APIError::ObjectNotFound)))))
+                    lift_state(|s: Self| s.message_in_flight(Message::form_get_resp_msg(msg, Ok(s.resource_obj_of(key)))))
+                    .or(lift_state(|s: Self| s.message_in_flight(Message::form_get_resp_msg(msg, Err(APIError::ObjectNotFound)))))
                 )
         ),
 {
@@ -174,8 +174,8 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp
         &&& msg.content.get_get_request().key == key
     };
     let post = |s: Self| {
-        ||| s.message_in_flight(form_get_resp_msg(msg, Ok(s.resource_obj_of(key))))
-        ||| s.message_in_flight(form_get_resp_msg(msg, Err(APIError::ObjectNotFound)))
+        ||| s.message_in_flight(Message::form_get_resp_msg(msg, Ok(s.resource_obj_of(key))))
+        ||| s.message_in_flight(Message::form_get_resp_msg(msg, Err(APIError::ObjectNotFound)))
     };
     let stronger_next = |s, s_prime: Self| {
         Self::next()(s, s_prime)
@@ -185,12 +185,12 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp
     Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Some(msg), stronger_next, Self::handle_request(), pre, post);
     temp_pred_equality::<Self>(
         lift_state(post),
-        lift_state(|s: Self| s.message_in_flight(form_get_resp_msg(msg, Ok(s.resource_obj_of(key)))))
-        .or(lift_state(|s: Self| s.message_in_flight(form_get_resp_msg(msg, Err(APIError::ObjectNotFound)))))
+        lift_state(|s: Self| s.message_in_flight(Message::form_get_resp_msg(msg, Ok(s.resource_obj_of(key)))))
+        .or(lift_state(|s: Self| s.message_in_flight(Message::form_get_resp_msg(msg, Err(APIError::ObjectNotFound)))))
     );
 }
 
-pub proof fn lemma_create_req_leads_to_res_exists(spec: TempPred<Self>, msg: Message)
+pub proof fn lemma_create_req_leads_to_res_exists(spec: TempPred<Self>, msg: Message<E::Input, E::Output>)
     requires
         spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
@@ -243,7 +243,7 @@ pub proof fn lemma_create_req_leads_to_res_exists(spec: TempPred<Self>, msg: Mes
 
 pub open spec fn no_req_before_rest_id_is_in_flight(rest_id: RestId) -> StatePred<Self> {
     |s: Self| {
-        forall |msg: Message| !{
+        forall |msg: Message<E::Input, E::Output>| !{
             &&& #[trigger] s.message_in_flight(msg)
             &&& api_request_msg_before(rest_id)(msg)
         }
@@ -268,9 +268,9 @@ pub open spec fn no_req_before_rest_id_is_in_flight(rest_id: RestId) -> StatePre
 ///     (s.in_flight(msg) ==> requirements(msg, s)) ==> (s_prime.in_flight(msg) ==> requirements(msg, s_prime))
 /// If we think of s.in_flight(msg) ==> requirements(msg, s) as an invariant, it is the same as the proof of invariants in previous
 /// proof strategy.
-pub open spec fn every_new_req_msg_if_in_flight_then_satisfies(requirements: FnSpec(Message, Self) -> bool) -> ActionPred<Self> {
+pub open spec fn every_new_req_msg_if_in_flight_then_satisfies(requirements: FnSpec(Message<E::Input, E::Output>, Self) -> bool) -> ActionPred<Self> {
     |s: Self, s_prime: Self| {
-        forall |msg: Message|
+        forall |msg: Message<E::Input, E::Output>|
             (!s.message_in_flight(msg) || requirements(msg, s))
             && #[trigger] s_prime.message_in_flight(msg)
             && msg.dst.is_KubernetesAPI()
@@ -279,9 +279,9 @@ pub open spec fn every_new_req_msg_if_in_flight_then_satisfies(requirements: FnS
     }
 }
 
-pub open spec fn every_in_flight_req_msg_satisfies(requirements: FnSpec(Message, Self) -> bool) -> StatePred<Self> {
+pub open spec fn every_in_flight_req_msg_satisfies(requirements: FnSpec(Message<E::Input, E::Output>, Self) -> bool) -> StatePred<Self> {
     |s: Self| {
-        forall |msg: Message|
+        forall |msg: Message<E::Input, E::Output>|
             #[trigger] s.message_in_flight(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_APIRequest()
@@ -297,7 +297,7 @@ pub open spec fn every_in_flight_req_msg_satisfies(requirements: FnSpec(Message,
 ///
 /// The last parameter must be equivalent to every_in_flight_req_msg_satisfies(requirements)
 pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(
-    spec: TempPred<Self>, requirements: FnSpec(Message, Self) -> bool
+    spec: TempPred<Self>, requirements: FnSpec(Message<E::Input, E::Output>, Self) -> bool
 )
     requires
         spec.entails(always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)))),
@@ -332,7 +332,7 @@ pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(
 
 /// This lemma is an assistant one for the previous one without rest_id.
 pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfies_with_rest_id(
-    spec: TempPred<Self>, requirements: FnSpec(Message, Self) -> bool, rest_id: nat
+    spec: TempPred<Self>, requirements: FnSpec(Message<E::Input, E::Output>, Self) -> bool, rest_id: nat
 )
     requires
         spec.entails(always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)))),
@@ -383,7 +383,7 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
         {
             Self::lemma_always_has_rest_id_counter_no_smaller_than(spec_with_rest_id, rest_id);
             let invariant = |s: Self| {
-                forall |msg: Message| #[trigger]
+                forall |msg: Message<E::Input, E::Output>| #[trigger]
                     s.message_in_flight(msg)
                     && msg.content.get_rest_id() >= rest_id
                     && msg.dst.is_KubernetesAPI()
@@ -575,7 +575,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(
                         && msg.content.get_rest_id() < rest_id)
                     );
                 };
-                len_is_zero_means_count_for_each_value_is_zero::<Message>(
+                len_is_zero_means_count_for_each_value_is_zero::<Message<E::Input, E::Output>>(
                     ex.head().network_state.in_flight.filter(api_request_msg_before(rest_id))
                 );
             };
@@ -596,10 +596,10 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(
             s.network_state.in_flight.filter(api_request_msg_before(rest_id)).len() == (msg_num - 1) as nat
         });
         let no_more_pending_requests = lift_state(Self::no_req_before_rest_id_is_in_flight(rest_id));
-        let pending_req_in_flight = |msg: Message| lift_state(|s: Self| {
+        let pending_req_in_flight = |msg: Message<E::Input, E::Output>| lift_state(|s: Self| {
             s.network_state.in_flight.filter(api_request_msg_before(rest_id)).count(msg) > 0
         });
-        let pending_requests_num_is_msg_num_and_pending_req_in_flight = |msg: Message| lift_state(|s: Self| {
+        let pending_requests_num_is_msg_num_and_pending_req_in_flight = |msg: Message<E::Input, E::Output>| lift_state(|s: Self| {
             &&& s.network_state.in_flight.filter(api_request_msg_before(rest_id)).len() == msg_num
             &&& s.network_state.in_flight.filter(api_request_msg_before(rest_id)).count(msg) > 0
         });
@@ -607,7 +607,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(
         // we need a concrete message to serve as the input of the forward action.
         // So here we split cases on different request messages in the network so that we have a concrete message
         // to reason about.
-        assert forall |msg: Message| spec.entails(
+        assert forall |msg: Message<E::Input, E::Output>| spec.entails(
             #[trigger] pending_requests_num_is_msg_num_and_pending_req_in_flight(msg)
                 .leads_to(pending_requests_num_is_msg_num_minus_1)
         ) by {
@@ -639,7 +639,7 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(
 }
 
 proof fn pending_requests_num_decreases(
-    spec: TempPred<Self>, rest_id: RestId, msg_num: nat, msg: Message
+    spec: TempPred<Self>, rest_id: RestId, msg_num: nat, msg: Message<E::Input, E::Output>
 )
     requires
         msg_num > 0,
@@ -698,6 +698,9 @@ proof fn pending_requests_num_decreases(
                 assert(pending_req_multiset =~= pending_req_multiset_prime);
             },
             Step::ClientStep() => {
+                assert(pending_req_multiset =~= pending_req_multiset_prime);
+            },
+            Step::ExternalAPIStep(input) => {
                 assert(pending_req_multiset =~= pending_req_multiset_prime);
             },
             _ => {}

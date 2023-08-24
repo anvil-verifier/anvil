@@ -56,9 +56,9 @@ pub open spec fn reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_
                 #[trigger] is_controller_get_cr_request_msg(req_msg, cr)
                 && pending_k8s_api_req_msg_is(s, cr.object_ref(), req_msg)
                 && (s.message_in_flight(req_msg)
-                    || exists |resp_msg: Message| {
+                    || exists |resp_msg: Message<E::Input, E::Output>| {
                         #[trigger] s.message_in_flight(resp_msg)
-                        && resp_msg_matches_req_msg(resp_msg, req_msg)
+                        && Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                     })
             }
     }
@@ -108,17 +108,17 @@ proof fn next_preserves_reconcile_get_cr_done_implies_pending_req_in_flight_or_r
                     assert(s_prime.message_in_flight(req_msg)); // providing witness for exists |req_msg| ...
                 } else {
                     let (_, resp_msg, _) = handle_get_request(req_msg, s.kubernetes_api_state);
-                    assert(s_prime.message_in_flight(resp_msg) && resp_msg_matches_req_msg(resp_msg, req_msg)); // providing witness for exists |resp_msg| ...
+                    assert(s_prime.message_in_flight(resp_msg) && Message::resp_msg_matches_req_msg(resp_msg, req_msg)); // providing witness for exists |resp_msg| ...
                 }
             } else {
                 // If req_msg is not in flight at s, then the corresponding resp_msg is in flight at s
-                let resp_msg = choose |resp_msg| #[trigger] s.message_in_flight(resp_msg) && resp_msg_matches_req_msg(resp_msg, req_msg);
+                let resp_msg = choose |resp_msg| #[trigger] s.message_in_flight(resp_msg) && Message::resp_msg_matches_req_msg(resp_msg, req_msg);
                 // The key here is to use the safety invariant: resp_matches_at_most_one_pending_req
                 // It says each response message can match only one pending request message, so req_msg is the only message that can match resp_msg
                 // In other words, if resp_msg is delivered to the controller in this transition, then the reconcile state of cr.object_ref() will be advanced to the next pc at s_prime
                 // By contraposition, since the reconcile state is still after_get_cr_pc at s_prime, we can show that resp_msg is still in flight in s_prime
                 assert(controller_runtime_safety::resp_matches_at_most_one_pending_req::<SimpleReconcileState>(resp_msg, cr.object_ref())(s));
-                assert(s_prime.message_in_flight(resp_msg) && resp_msg_matches_req_msg(resp_msg, req_msg)); // providing witness for exists |resp_msg| ...
+                assert(s_prime.message_in_flight(resp_msg) && Message::resp_msg_matches_req_msg(resp_msg, req_msg)); // providing witness for exists |resp_msg| ...
             }
         } else {
             // If reconcile state is not at after_get_cr_pc for s, then this in transition reconcile_core advances the reconcile state to after_get_cr_pc

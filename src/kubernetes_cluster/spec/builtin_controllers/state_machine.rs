@@ -20,7 +20,7 @@ verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
-pub open spec fn builtin_controllers() -> BuiltinControllersStateMachine {
+pub open spec fn builtin_controllers() -> BuiltinControllersStateMachine<E::Input, E::Output> {
     StateMachine {
         init: |s: BuiltinControllersState| {
             true

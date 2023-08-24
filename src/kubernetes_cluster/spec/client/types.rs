@@ -23,10 +23,13 @@ pub struct ClientActionInput<K> {
     pub rest_id_allocator: RestIdAllocator,
 }
 
-pub type ClientActionOutput = (Multiset<Message>, RestIdAllocator);
+pub struct ClientActionOutput<I, O> {
+    pub send: Multiset<Message<I, O>>,
+    pub rest_id_allocator: RestIdAllocator,
+}
 
-pub type ClientStateMachine<K> = StateMachine<ClientState, RestIdAllocator, ClientActionInput<K>, ClientActionOutput, Step<K>>;
+pub type ClientStateMachine<K, I, O> = StateMachine<ClientState, RestIdAllocator, ClientActionInput<K>, ClientActionOutput<I, O>, Step<K>>;
 
-pub type ClientAction<K> = Action<ClientState, ClientActionInput<K>, ClientActionOutput>;
+pub type ClientAction<K, I, O> = Action<ClientState, ClientActionInput<K>, ClientActionOutput<I, O>>;
 
 }

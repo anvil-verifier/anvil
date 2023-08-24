@@ -20,7 +20,7 @@ impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn every_in_flight_msg_has_lower_id_than_allocator() -> StatePred<Self> {
     |s: Self| {
-        forall |msg: Message|
+        forall |msg: Message<E::Input, E::Output>|
             #[trigger] s.message_in_flight(msg)
             ==> msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter
     }
@@ -47,39 +47,61 @@ proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator(
     ensures
         Self::every_in_flight_msg_has_lower_id_than_allocator()(s_prime),
 {
-    assert forall |msg: Message| #[trigger] s_prime.message_in_flight(msg) implies
+    assert forall |msg: Message<E::Input, E::Output>| #[trigger] s_prime.message_in_flight(msg) implies
     msg.content.get_rest_id() < s_prime.rest_id_allocator.rest_id_counter by {
         assert(s.rest_id_allocator.rest_id_counter <= s_prime.rest_id_allocator.rest_id_counter);
         if (s.message_in_flight(msg)) {
             assert(msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
         } else {
             match msg.content {
-                MessageContent::APIRequest(_, _) => assert(s.rest_id_allocator.rest_id_counter < s_prime.rest_id_allocator.rest_id_counter),
+                MessageContent::APIRequest(_, id) => {
+                    assert(id == s.rest_id_allocator.rest_id_counter);
+                    assert(s.rest_id_allocator.rest_id_counter < s_prime.rest_id_allocator.rest_id_counter)
+                },
                 MessageContent::APIResponse(_, id) => {
                     let next_step = choose |step: Step<E>| Self::next_step(s, s_prime, step);
                     match next_step {
                         Step::KubernetesAPIStep(input) => {
                             let req_msg = input.get_Some_0();
                             assert(s.message_in_flight(req_msg));
-                            assert(id == req_msg.content.get_req_id());
+                            assert(id == req_msg.content.get_rest_id());
                         }
                         Step::KubernetesBusy(input) => {
                             let req_msg = input.get_Some_0();
                             assert(s.message_in_flight(req_msg));
-                            assert(id == req_msg.content.get_req_id());
+                            assert(id == req_msg.content.get_rest_id());
                         }
                         _ => assert(false),
                     }
-                }
+                },
+                MessageContent::ExternalAPIRequest(_, id) => {
+                    assert(id == s.rest_id_allocator.rest_id_counter);
+                    assert(s.rest_id_allocator.rest_id_counter < s_prime.rest_id_allocator.rest_id_counter)
+                },
+                MessageContent::ExternalAPIResponse(_, id) => {
+                    let next_step = choose |step: Step<E>| Self::next_step(s, s_prime, step);
+                    match next_step {
+                        Step::ExternalAPIStep(input) => {
+                            let req_msg = input.get_Some_0();
+                            assert(s.message_in_flight(req_msg));
+                            assert(s.message_in_flight(req_msg) ==> req_msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
+                            assert(id == req_msg.content.get_rest_id());
+                            assert(id < s.rest_id_allocator.rest_id_counter);
+                        }
+                        _ => assert(false),
+                    }
+                },
             }
+            assert(msg.content.get_rest_id() < s_prime.rest_id_allocator.rest_id_counter);
         }
     };
 }
 
 pub open spec fn every_in_flight_req_is_unique() -> StatePred<Self> {
     |s: Self| {
-        forall |msg: Message|
-            msg.content.is_APIRequest() && #[trigger] s.message_in_flight(msg)
+        forall |msg: Message<E::Input, E::Output>|
+            (msg.content.is_APIRequest() || msg.content.is_ExternalAPIRequest())
+            && #[trigger] s.message_in_flight(msg)
             ==> s.network_state.in_flight.count(msg) == 1
     }
 }
@@ -101,7 +123,8 @@ pub proof fn lemma_always_every_in_flight_req_is_unique()
     );
     assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime) implies
     invariant(s_prime) by {
-        assert forall |msg: Message| msg.content.is_APIRequest() && #[trigger] s_prime.message_in_flight(msg) implies
+        assert forall |msg: Message<E::Input, E::Output>|
+        (msg.content.is_APIRequest() || msg.content.is_ExternalAPIRequest()) && #[trigger] s_prime.message_in_flight(msg) implies
         s_prime.network_state.in_flight.count(msg) == 1 by {
             if (s.message_in_flight(msg)) {
                 assert(s.network_state.in_flight.count(msg) == 1);
@@ -113,10 +136,10 @@ pub proof fn lemma_always_every_in_flight_req_is_unique()
 
 pub open spec fn every_in_flight_msg_has_unique_id() -> StatePred<Self> {
     |s: Self| {
-        forall |msg: Message|
+        forall |msg: Message<E::Input, E::Output>|
             #[trigger] s.message_in_flight(msg)
             ==> (
-                forall |other_msg: Message|
+                forall |other_msg: Message<E::Input, E::Output>|
                     #[trigger] s.message_in_flight(other_msg)
                     && msg != other_msg
                     ==> msg.content.get_rest_id() != other_msg.content.get_rest_id()
@@ -162,10 +185,10 @@ proof fn next_and_unique_lower_msg_id_preserves_in_flight_msg_has_unique_id(
     ensures
         Self::every_in_flight_msg_has_unique_id()(s_prime),
 {
-    assert forall |msg: Message| #[trigger] s_prime.message_in_flight(msg) implies
-    (forall |other_msg: Message| #[trigger] s_prime.message_in_flight(other_msg) && msg != other_msg
+    assert forall |msg: Message<E::Input, E::Output>| #[trigger] s_prime.message_in_flight(msg) implies
+    (forall |other_msg: Message<E::Input, E::Output>| #[trigger] s_prime.message_in_flight(other_msg) && msg != other_msg
         ==> msg.content.get_rest_id() != other_msg.content.get_rest_id()) by {
-        assert forall |other_msg: Message| #[trigger] s_prime.message_in_flight(other_msg) && msg != other_msg implies
+        assert forall |other_msg: Message<E::Input, E::Output>| #[trigger] s_prime.message_in_flight(other_msg) && msg != other_msg implies
         msg.content.get_rest_id() != other_msg.content.get_rest_id() by {
             // At most one message will be added to the network_state.in_flight for each action.
             assert(s.message_in_flight(msg) || s.message_in_flight(other_msg));
@@ -183,7 +206,7 @@ proof fn next_and_unique_lower_msg_id_preserves_in_flight_msg_has_unique_id(
 }
 
 proof fn newly_added_msg_have_different_id_from_existing_ones(
-    s: Self, s_prime: Self, msg_1: Message, msg_2: Message
+    s: Self, s_prime: Self, msg_1: Message<E::Input, E::Output>, msg_2: Message<E::Input, E::Output>
 )
     requires
         Self::next()(s, s_prime),
@@ -212,15 +235,24 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(
             }
             _ => assert(false),
         }
+    } else if msg_2.content.is_ExternalAPIResponse() {
+        let next_step = choose |step: Step<E>| Self::next_step(s, s_prime, step);
+        match next_step {
+            Step::ExternalAPIStep(input) => {
+                let req_msg = input.get_Some_0();
+                assert(s.network_state.in_flight.count(req_msg) <= 1);
+                assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
+            }
+            _ => assert(false),
+        }
     }
 }
 
-pub open spec fn req_in_flight_or_pending_at_controller(req_msg: Message, s: Self) -> bool {
+pub open spec fn req_in_flight_or_pending_at_controller(req_msg: Message<E::Input, E::Output>, s: Self) -> bool {
     req_msg.content.is_APIRequest() && (s.message_in_flight(req_msg)
     || exists |cr_key: ObjectRef| (
         #[trigger] s.reconcile_state_contains(cr_key)
         && Self::pending_k8s_api_req_msg_is(s, cr_key, req_msg)
-        && s.reconcile_state_of(cr_key).pending_external_api_input.is_None()
     ))
 }
 
@@ -229,7 +261,7 @@ pub open spec fn pending_req_has_lower_req_id_than_allocator() -> StatePred<Self
         forall |cr_key: ObjectRef|
             #[trigger] s.reconcile_state_contains(cr_key)
             && Self::pending_k8s_api_req_msg(s, cr_key)
-            ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_req_id() < s.rest_id_allocator.rest_id_counter
+            ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_rest_id() < s.rest_id_allocator.rest_id_counter
     }
 }
 

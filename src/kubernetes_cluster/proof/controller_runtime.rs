@@ -77,17 +77,15 @@ pub open spec fn at_expected_reconcile_states(key: ObjectRef, expected_states: F
 
 pub open spec fn pending_k8s_api_req_msg(s: Self, key: ObjectRef) -> bool {
     s.reconcile_state_of(key).pending_req_msg.is_Some()
-    && s.reconcile_state_of(key).pending_external_api_input.is_None()
+    && s.reconcile_state_of(key).pending_req_msg.get_Some_0().content.is_APIRequest()
 }
 
-pub open spec fn pending_k8s_api_req_msg_is(s: Self, key: ObjectRef, req: Message) -> bool {
+pub open spec fn pending_k8s_api_req_msg_is(s: Self, key: ObjectRef, req: Message<E::Input, E::Output>) -> bool {
     s.reconcile_state_of(key).pending_req_msg == Some(req)
-    && s.reconcile_state_of(key).pending_external_api_input.is_None()
 }
 
 pub open spec fn no_pending_req_msg_or_external_api_input(s: Self, key: ObjectRef) -> bool {
     s.reconcile_state_of(key).pending_req_msg.is_None()
-    && s.reconcile_state_of(key).pending_external_api_input.is_None()
 }
 
 pub open spec fn pending_req_in_flight_at_reconcile_state(key: ObjectRef, state: FnSpec(R::T) -> bool) -> StatePred<Self>
@@ -102,14 +100,14 @@ pub open spec fn pending_req_in_flight_at_reconcile_state(key: ObjectRef, state:
     }
 }
 
-pub open spec fn request_sent_by_controller(msg: Message) -> bool {
+pub open spec fn request_sent_by_controller(msg: Message<E::Input, E::Output>) -> bool {
     msg.src.is_CustomController()
     && msg.dst.is_KubernetesAPI()
     && msg.content.is_APIRequest()
 }
 
 pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state(
-    key: ObjectRef, state: FnSpec(R::T) -> bool, req_msg: Message
+    key: ObjectRef, state: FnSpec(R::T) -> bool, req_msg: Message<E::Input, E::Output>
 ) -> StatePred<Self> {
     |s: Self| {
         Self::at_expected_reconcile_states(key, state)(s)
@@ -131,9 +129,9 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
             Self::pending_k8s_api_req_msg(s, key)
             && Self::request_sent_by_controller(s.pending_req_of(key))
             && (s.message_in_flight(s.pending_req_of(key))
-            || exists |resp_msg: Message| {
+            || exists |resp_msg: Message<E::Input, E::Output>| {
                 #[trigger] s.message_in_flight(resp_msg)
-                && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
+                && Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
             })
         }
     }
@@ -173,9 +171,9 @@ pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state(
         Self::at_expected_reconcile_states(key, state)(s)
         && Self::pending_k8s_api_req_msg(s, key)
         && Self::request_sent_by_controller(s.pending_req_of(key))
-        && exists |resp_msg: Message| {
+        && exists |resp_msg: Message<E::Input, E::Output>| {
             #[trigger] s.message_in_flight(resp_msg)
-            && resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
+            && Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
         }
     }
 }

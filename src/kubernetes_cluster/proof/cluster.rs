@@ -12,7 +12,7 @@ use crate::kubernetes_cluster::spec::{
         ControllerAction, ControllerActionInput, ControllerState, OngoingReconcile,
     },
     controller::state_machine::*,
-    external_api::*,
+    external_api::types::{ExternalAPIAction, ExternalAPIActionInput, ExternalAPIState},
     kubernetes_api::common::{KubernetesAPIAction, KubernetesAPIActionInput, KubernetesAPIState},
     message::*,
     network::types::NetworkState,
@@ -55,10 +55,10 @@ pub proof fn sm_partial_spec_is_stable()
         valid(stable(Self::sm_partial_spec())),
 {
     always_p_is_stable::<Self>(lift_action(Self::next()));
-    Self::tla_forall_action_weak_fairness_is_stable::<Option<Message>, ()>(Self::kubernetes_api_next());
+    Self::tla_forall_action_weak_fairness_is_stable::<Option<Message<E::Input, E::Output>>, ()>(Self::kubernetes_api_next());
     Self::tla_forall_action_weak_fairness_is_stable::<(BuiltinControllerChoice, ObjectRef), ()>(Self::builtin_controllers_next());
-    Self::tla_forall_action_weak_fairness_is_stable::<(Option<Message>, Option<ExternalComm<E::Input, E::Output>>, Option<ObjectRef>), ()>(Self::controller_next());
-    Self::tla_forall_action_weak_fairness_is_stable::<ExternalComm<E::Input, E::Output>, ()>(Self::external_api_next());
+    Self::tla_forall_action_weak_fairness_is_stable::<(Option<Message<E::Input, E::Output>>, Option<ObjectRef>), ()>(Self::controller_next());
+    Self::tla_forall_action_weak_fairness_is_stable::<Option<Message<E::Input, E::Output>>, ()>(Self::external_api_next());
     Self::tla_forall_action_weak_fairness_is_stable::<ObjectRef, ()>(Self::schedule_controller_reconcile());
     Self::action_weak_fairness_is_stable::<()>(Self::disable_crash());
     Self::action_weak_fairness_is_stable::<()>(Self::disable_busy());

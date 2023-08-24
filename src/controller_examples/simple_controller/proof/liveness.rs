@@ -48,7 +48,7 @@ spec fn cr_matched(cr: SimpleCRView) -> TempPred<State<SimpleReconcileState>> {
 /// To prove the liveness property, we need some invariants (these invariants have already contained "always" constraint).
 spec fn all_invariants(cr: SimpleCRView) -> TempPred<State<SimpleReconcileState>> {
     tla_forall(|msg| always(lift_state(resp_matches_at_most_one_pending_req(msg, cr.object_ref()))))
-    .and(tla_forall(|resp_msg: Message| always(lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref())))))
+    .and(tla_forall(|resp_msg: Message<E::Input, E::Output>| always(lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref())))))
     .and(always(lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr))))
     .and(always(lift_state(reconciler_at_init_pc(cr))
         .implies(lift_state(reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())))))
@@ -152,7 +152,7 @@ proof fn lemma_sm_partial_spec_is_stable_and_invariants(cr: SimpleCRView)
     always_p_is_stable::<State<SimpleReconcileState>>(
         tla_forall(|msg| lift_state(resp_matches_at_most_one_pending_req(msg, cr.object_ref()))));
     always_p_is_stable::<State<SimpleReconcileState>>(
-        tla_forall(|resp_msg: Message| lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref()))));
+        tla_forall(|resp_msg: Message<E::Input, E::Output>| lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref()))));
     always_p_is_stable::<State<SimpleReconcileState>>(
         lift_state(reconciler_at_init_pc(cr))
             .implies(lift_state(reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref()))));
@@ -164,11 +164,11 @@ proof fn lemma_sm_partial_spec_is_stable_and_invariants(cr: SimpleCRView)
     let a_to_p = |msg| lift_state(resp_matches_at_most_one_pending_req::<SimpleReconcileState>(msg, cr.object_ref()));
     let a_to_always = |msg| always(lift_state(
         resp_matches_at_most_one_pending_req::<SimpleReconcileState>(msg, cr.object_ref())));
-    tla_forall_always_equality_variant::<State<SimpleReconcileState>, Message>(a_to_always, a_to_p);
+    tla_forall_always_equality_variant::<State<SimpleReconcileState>, Message<E::Input, E::Output>>(a_to_always, a_to_p);
 
-    let a_to_p_1 = |resp_msg: Message| lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref()));
-    let a_to_always_1 = |resp_msg: Message| always(lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref())));
-    tla_forall_always_equality_variant::<State<SimpleReconcileState>, Message>(a_to_always_1, a_to_p_1);
+    let a_to_p_1 = |resp_msg: Message<E::Input, E::Output>| lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref()));
+    let a_to_always_1 = |resp_msg: Message<E::Input, E::Output>| always(lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref())));
+    tla_forall_always_equality_variant::<State<SimpleReconcileState>, Message<E::Input, E::Output>>(a_to_always_1, a_to_p_1);
 
     stable_and_n!(
         tla_forall(|msg| always(lift_state(resp_matches_at_most_one_pending_req::<SimpleReconcileState>(msg, cr.object_ref())))),
@@ -197,7 +197,7 @@ proof fn lemma_sm_spec_entails_all_invariants(cr: SimpleCRView)
 
     entails_and_n!(sm_spec(simple_reconciler()),
         tla_forall(|msg| always(lift_state(resp_matches_at_most_one_pending_req(msg, cr.object_ref())))),
-        tla_forall(|resp_msg: Message| always(lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref())))),
+        tla_forall(|resp_msg: Message<E::Input, E::Output>| always(lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref())))),
         always(lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr))),
         always(lift_state(reconciler_at_init_pc(cr))
             .implies(lift_state(reconciler_init_and_no_pending_req(simple_reconciler(), cr.object_ref())))),
@@ -342,13 +342,13 @@ proof fn lemma_after_get_cr_pc_leads_to_cm_exists(cr: SimpleCRView)
             assert(lift_state(reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_flight(cr))
                 .satisfied_by(ex.suffix(i)));
             let s = ex.suffix(i).head();
-            let req_msg = choose |req_msg: Message| {
+            let req_msg = choose |req_msg: Message<E::Input, E::Output>| {
                 #[trigger] is_controller_get_cr_request_msg(req_msg, cr)
                 && ClusterProof::pending_k8s_api_req_msg_is(s, cr.object_ref(), req_msg)
                 && (s.message_in_flight(req_msg)
-                    || exists |resp_msg: Message| {
+                    || exists |resp_msg: Message<E::Input, E::Output>| {
                         #[trigger] s.message_in_flight(resp_msg)
-                        && resp_msg_matches_req_msg(resp_msg, req_msg)
+                        && Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                     })
             };
             if (s.message_in_flight(req_msg)) {
@@ -401,9 +401,9 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_cm_exists(cr: SimpleCRView)
             let req_msg = choose |msg| {
                 &&& #[trigger] is_controller_get_cr_request_msg(msg, cr)
                 &&& ClusterProof::pending_k8s_api_req_msg_is(s, cr.object_ref(), msg)
-                &&& ! exists |resp_msg: Message| {
+                &&& ! exists |resp_msg: Message<E::Input, E::Output>| {
                     &&& #[trigger] s.message_in_flight(resp_msg)
-                    &&& resp_msg_matches_req_msg(resp_msg, msg)
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
                 }
             };
             lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_leads_to_ok_resp_in_flight(req_msg, cr);
@@ -425,7 +425,7 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_cm_exists(cr: SimpleCRView)
         cm_exists(cr));
 }
 
-proof fn lemma_req_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_msg: Message, cr: SimpleCRView)
+proof fn lemma_req_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_msg: Message<E::Input, E::Output>, cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight(req_msg, cr))
@@ -434,9 +434,9 @@ proof fn lemma_req_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_msg: Mess
 {
     let pre = reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight(req_msg, cr);
     let get_cr_resp_msg_sent = |s: State<SimpleReconcileState>| {
-        exists |resp_msg: Message| {
+        exists |resp_msg: Message<E::Input, E::Output>| {
             &&& #[trigger] s.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
         }
     };
     let spec = partial_spec_with_invariants_and_assumptions(cr);
@@ -472,7 +472,7 @@ proof fn lemma_req_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_msg: Mess
         reconciler_at_after_get_cr_pc_and_pending_req_and_exists_resp_in_flight(req_msg, cr), cm_exists(cr));
 }
 
-proof fn lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_msg: Message, cr: SimpleCRView)
+proof fn lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_msg: Message<E::Input, E::Output>, cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_exists_resp_in_flight(req_msg, cr))
@@ -482,17 +482,17 @@ proof fn lemma_exists_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(req_m
     let m_to_pre = |m: Message| lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_flight(req_msg, m, cr));
     let post = lift_state(cm_exists(cr));
     let spec = partial_spec_with_invariants_and_assumptions(cr);
-    assert forall |msg: Message| spec.entails(#[trigger] m_to_pre(msg).leads_to(post)) by {
+    assert forall |msg: Message<E::Input, E::Output>| spec.entails(#[trigger] m_to_pre(msg).leads_to(post)) by {
         lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(msg, req_msg, cr);
     };
-    leads_to_exists_intro::<State<SimpleReconcileState>, Message>(spec, m_to_pre, post);
+    leads_to_exists_intro::<State<SimpleReconcileState>, Message<E::Input, E::Output>>(spec, m_to_pre, post);
 
     // This is for showing exists_m_to_pre == tla_exists(m_to_pre)
     let exists_m_to_pre = lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_exists_resp_in_flight(req_msg, cr));
     assert forall |ex| #[trigger] exists_m_to_pre.satisfied_by(ex) implies tla_exists(m_to_pre).satisfied_by(ex) by {
         let m = choose |m: Message| {
             #[trigger] ex.head().message_in_flight(m)
-            && resp_msg_matches_req_msg(m, req_msg)
+            && Message::resp_msg_matches_req_msg(m, req_msg)
         };
         assert(m_to_pre(m).satisfied_by(ex));
     };
@@ -526,7 +526,7 @@ proof fn lemma_init_pc_and_no_pending_req_leads_to_after_get_cr_pc_and_exists_pe
     lemma_pre_leads_to_post_by_controller(partial_spec_with_invariants_and_assumptions(cr), simple_reconciler(), input, stronger_next, continue_reconcile(simple_reconciler()), pre, post);
 }
 
-proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_leads_to_ok_resp_in_flight(req_msg: Message, cr: SimpleCRView)
+proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_leads_to_ok_resp_in_flight(req_msg: Message<E::Input, E::Output>, cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight(req_msg, cr))
@@ -557,14 +557,14 @@ proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_l
 
 // This lemma proves:
 // ideal_spec |= get_cr_pc /\ pending_req /\ ok_resp_in_flight ~> cm_exists
-proof fn lemma_after_get_cr_pc_and_ok_resp_in_flight_leads_to_cm_exists(req_msg: Message, cr: SimpleCRView)
+proof fn lemma_after_get_cr_pc_and_ok_resp_in_flight_leads_to_cm_exists(req_msg: Message<E::Input, E::Output>, cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr))
                 .leads_to(lift_state(cm_exists(cr)))
         ),
 {
-    let resp_msg = form_get_resp_msg(req_msg, Ok(cr.to_dynamic_object()));
+    let resp_msg = Message::form_get_resp_msg(req_msg, Ok(cr.to_dynamic_object()));
     let input = (Some(resp_msg), Some(cr.object_ref()));
     let pre = reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr);
     let spec = partial_spec_with_invariants_and_assumptions(cr);
@@ -588,7 +588,7 @@ proof fn lemma_after_get_cr_pc_and_ok_resp_in_flight_leads_to_cm_exists(req_msg:
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies lift_state(cm_created).leads_to(lift_state(cm_exists(cr))).satisfied_by(ex) by {
         assert forall |i| #[trigger] lift_state(cm_created).satisfied_by(ex.suffix(i)) implies eventually(lift_state(cm_exists(cr))).satisfied_by(ex.suffix(i)) by {
             let s = ex.suffix(i).head();
-            let req_msg = choose |msg: Message| {
+            let req_msg = choose |msg: Message<E::Input, E::Output>| {
                 s.message_in_flight(msg)
                 && msg.dst == HostId::KubernetesAPI
                 && #[trigger] msg.content.is_create_request()
@@ -608,7 +608,7 @@ proof fn lemma_after_get_cr_pc_and_ok_resp_in_flight_leads_to_cm_exists(req_msg:
         cm_created, cm_exists(cr));
 }
 
-spec fn strengthen_next_with_rep_resp_injectivity(resp_msg: Message, req_msg: Message, cr: SimpleCRView) -> ActionPred<State<SimpleReconcileState>> {
+spec fn strengthen_next_with_rep_resp_injectivity(resp_msg: Message<E::Input, E::Output>, req_msg: Message<E::Input, E::Output>, cr: SimpleCRView) -> ActionPred<State<SimpleReconcileState>> {
     |s, s_prime: State<SimpleReconcileState>| {
         &&& next(simple_reconciler())(s, s_prime)
         &&& at_most_one_resp_matches_req(resp_msg, cr.object_ref())(s)
@@ -617,7 +617,7 @@ spec fn strengthen_next_with_rep_resp_injectivity(resp_msg: Message, req_msg: Me
     }
 }
 
-proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(resp_msg: Message, req_msg: Message, cr: SimpleCRView)
+proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(resp_msg: Message<E::Input, E::Output>, req_msg: Message<E::Input, E::Output>, cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             lift_state(reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_flight(req_msg, resp_msg, cr)).leads_to(lift_state(cm_exists(cr)))
@@ -644,7 +644,7 @@ proof fn lemma_resp_msg_sent_and_after_get_cr_pc_leads_to_cm_exists(resp_msg: Me
     leads_to_trans(partial_spec_with_invariants_and_assumptions(cr), pre, post, cm_exists(cr));
 }
 
-proof fn spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg: Message, req_msg: Message, cr: SimpleCRView)
+proof fn spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg: Message<E::Input, E::Output>, req_msg: Message<E::Input, E::Output>, cr: SimpleCRView)
     ensures
         partial_spec_with_invariants_and_assumptions(cr).entails(
             always(lift_action(strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr)))
@@ -653,10 +653,10 @@ proof fn spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg: Messag
     let next_and_invariant = strengthen_next_with_rep_resp_injectivity(resp_msg, req_msg, cr);
     let spec = partial_spec_with_invariants_and_assumptions(cr);
     // First, show spec |= always(inv1)
-    let a_to_p_1 = |resp_msg: Message| always(lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref())));
+    let a_to_p_1 = |resp_msg: Message<E::Input, E::Output>| always(lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref())));
     let tla_forall_pred_1 = tla_forall(a_to_p_1);
     assert(spec.entails(tla_forall_pred_1));
-    tla_forall_apply::<State<SimpleReconcileState>, Message>(a_to_p_1, resp_msg);
+    tla_forall_apply::<State<SimpleReconcileState>, Message<E::Input, E::Output>>(a_to_p_1, resp_msg);
     entails_trans::<State<SimpleReconcileState>>(spec, tla_forall_pred_1,
         always(lift_state(at_most_one_resp_matches_req(resp_msg, cr.object_ref()))));
 
@@ -664,7 +664,7 @@ proof fn spec_entails_strengthen_next_with_rep_resp_injectivity(resp_msg: Messag
     let a_to_p_2 = |msg| always(lift_state(resp_matches_at_most_one_pending_req(msg, cr.object_ref())));
     let tla_forall_pred_2 = tla_forall(a_to_p_2);
     assert(spec.entails(tla_forall_pred_2));
-    tla_forall_apply::<State<SimpleReconcileState>, Message>(a_to_p_2, resp_msg);
+    tla_forall_apply::<State<SimpleReconcileState>, Message<E::Input, E::Output>>(a_to_p_2, resp_msg);
     entails_trans::<State<SimpleReconcileState>>(spec, tla_forall_pred_2,
         always(lift_state(resp_matches_at_most_one_pending_req(resp_msg, cr.object_ref()))));
 
@@ -692,14 +692,14 @@ pub proof fn next_and_not_crash_preserves_init_pc_or_reconciler_at_after_get_cr_
         let input = next_step.get_ControllerStep_0();
         let req_msg = controller_req_msg(APIRequest::GetRequest(GetRequest{key: cr.object_ref()}), s.rest_id_allocator.allocate().1);
         assert(is_controller_get_cr_request_msg(req_msg, cr));
-        assert(req_msg.content.get_req_id() == s.rest_id_allocator.rest_id_counter);
-        if (exists |resp_msg: Message| {
+        assert(req_msg.content.get_rest_id() == s.rest_id_allocator.rest_id_counter);
+        if (exists |resp_msg: Message<E::Input, E::Output>| {
             &&& #[trigger] s_prime.message_in_flight(resp_msg)
-            &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
         }) {
-            let resp_msg = choose |resp_msg: Message| {
+            let resp_msg = choose |resp_msg: Message<E::Input, E::Output>| {
                 &&& #[trigger] s_prime.message_in_flight(resp_msg)
-                &&& resp_msg_matches_req_msg(resp_msg, req_msg)
+                &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             };
             assert(s.message_in_flight(resp_msg));
             assert(false);
