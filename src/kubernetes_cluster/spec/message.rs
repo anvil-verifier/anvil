@@ -19,6 +19,8 @@ pub struct Message<I, O> {
     pub content: MessageContent<I, O>,
 }
 
+pub type MsgType<E> = Message<<E as ExternalAPI>::Input, <E as ExternalAPI>::Output>;
+
 #[is_variant]
 pub enum HostId {
     KubernetesAPI,

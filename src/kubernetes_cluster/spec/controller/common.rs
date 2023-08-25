@@ -20,7 +20,7 @@ pub struct OngoingReconcile<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>
     pub triggering_cr: K,
     // pending_req_msg: the request message pending for the handling for k8s api
     // pending_external_api_input: the request returned by the reconcile_core which should be sent to be external api
-    pub pending_req_msg: Option<Message<E::Input, E::Output>>,
+    pub pending_req_msg: Option<MsgType<E>>,
     pub local_state: R::T,
 }
 
@@ -32,13 +32,13 @@ pub enum ControllerStep {
 }
 
 pub struct ControllerActionInput<E: ExternalAPI> {
-    pub recv: Option<Message<E::Input, E::Output>>,
+    pub recv: Option<MsgType<E>>,
     pub scheduled_cr_key: Option<ObjectRef>,
     pub rest_id_allocator: RestIdAllocator,
 }
 
 pub struct ControllerActionOutput<E: ExternalAPI> {
-    pub send: Multiset<Message<E::Input, E::Output>>,
+    pub send: Multiset<MsgType<E>>,
     pub rest_id_allocator: RestIdAllocator,
 }
 

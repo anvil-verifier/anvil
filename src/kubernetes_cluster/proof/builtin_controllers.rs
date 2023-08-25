@@ -25,7 +25,7 @@ pub open spec fn every_update_msg_sets_owner_references_as(
     key: ObjectRef, requirements: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool
 ) -> StatePred<Self> {
     |s: Self| {
-        forall |msg: Message<E::Input, E::Output>|
+        forall |msg: MsgType<E>|
             #[trigger] s.message_in_flight(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_update_request()
@@ -38,7 +38,7 @@ pub open spec fn every_create_msg_sets_owner_references_as(
     key: ObjectRef, requirements: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool
 ) -> StatePred<Self> {
     |s: Self| {
-        forall |msg: Message<E::Input, E::Output>|
+        forall |msg: MsgType<E>|
             #[trigger] s.message_in_flight(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_create_request()
@@ -70,7 +70,7 @@ pub open spec fn object_has_no_finalizers(key: ObjectRef) -> StatePred<Self> {
 
 spec fn exists_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
-        exists |msg: Message<E::Input, E::Output>| {
+        exists |msg: MsgType<E>| {
             #[trigger] s.message_in_flight(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_delete_request_with_key(key)
@@ -227,14 +227,14 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
     assert_by(
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
         {
-            let msg_to_p = |msg: Message<E::Input, E::Output>| {
+            let msg_to_p = |msg: MsgType<E>| {
                 lift_state(|s: Self| {
                     &&& s.message_in_flight(msg)
                     &&& msg.dst.is_KubernetesAPI()
                     &&& msg.content.is_delete_request_with_key(key)
                 })
             };
-            assert forall |msg: Message<E::Input, E::Output>| spec.entails((#[trigger] msg_to_p(msg)).leads_to(lift_state(post))) by {
+            assert forall |msg: MsgType<E>| spec.entails((#[trigger] msg_to_p(msg)).leads_to(lift_state(post))) by {
                 let input = Some(msg);
                 let msg_to_p_state = |s: Self| {
                     &&& s.message_in_flight(msg)

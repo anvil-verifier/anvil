@@ -49,7 +49,7 @@ pub open spec fn object_has_well_formed_spec(obj: DynamicObjectView) -> bool {
     &&& obj.kind == K::kind() ==> K::unmarshal_spec(obj.spec).is_Ok()
 }
 
-pub open spec fn handle_get_request(msg: Message<E::Input, E::Output>, s: KubernetesAPIState) -> (KubernetesAPIState, Message<E::Input, E::Output>)
+pub open spec fn handle_get_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
     recommends
         msg.content.is_get_request(),
 {
@@ -72,7 +72,7 @@ pub open spec fn list_query(list_req: ListRequest, s: KubernetesAPIState) -> Seq
     Seq::empty()
 }
 
-pub open spec fn handle_list_request(msg: Message<E::Input, E::Output>, s: KubernetesAPIState) -> (KubernetesAPIState, Message<E::Input, E::Output>)
+pub open spec fn handle_list_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
     recommends
         msg.content.is_list_request(),
 {
@@ -113,7 +113,7 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
     }
 }
 
-pub open spec fn handle_create_request(msg: Message<E::Input, E::Output>, s: KubernetesAPIState) -> (KubernetesAPIState, Message<E::Input, E::Output>)
+pub open spec fn handle_create_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
     recommends
         msg.content.is_create_request(),
 {
@@ -143,7 +143,7 @@ pub open spec fn handle_create_request(msg: Message<E::Input, E::Output>, s: Kub
 
 pub closed spec fn deletion_timestamp() -> StringView;
 
-pub open spec fn handle_delete_request(msg: Message<E::Input, E::Output>, s: KubernetesAPIState) -> (KubernetesAPIState, Message<E::Input, E::Output>)
+pub open spec fn handle_delete_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
     recommends
         msg.content.is_delete_request(),
 {
@@ -167,7 +167,7 @@ pub open spec fn handle_delete_request(msg: Message<E::Input, E::Output>, s: Kub
             } else {
                 let stamped_obj_with_new_rv = stamped_obj.set_resource_version(s.resource_version_counter);
                 let result = Ok(stamped_obj_with_new_rv);
-                let resp = form_delete_resp_msg(msg, result);
+                let resp = Message::form_delete_resp_msg(msg, result);
                 (KubernetesAPIState {
                     // Here we use req.key, instead of stamped_obj.object_ref(), to insert to the map.
                     // This is intended because using stamped_obj.object_ref() will require us to use
@@ -179,7 +179,7 @@ pub open spec fn handle_delete_request(msg: Message<E::Input, E::Output>, s: Kub
                     ..s
                 }, resp)
             }
-            
+
         } else {
             // The object can be immediately removed from the key-value store.
             let result = Ok(obj);
@@ -277,7 +277,7 @@ pub open spec fn updated_object(req: UpdateRequest, s: KubernetesAPIState) -> Dy
     updated_obj
 }
 
-pub open spec fn handle_update_request(msg: Message<E::Input, E::Output>, s: KubernetesAPIState) -> (KubernetesAPIState, Message<E::Input, E::Output>)
+pub open spec fn handle_update_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
     recommends
         msg.content.is_update_request(),
 {
@@ -338,7 +338,7 @@ pub open spec fn handle_update_request(msg: Message<E::Input, E::Output>, s: Kub
 }
 
 // etcd is modeled as a centralized map that handles get/list/create/delete/update
-pub open spec fn transition_by_etcd(msg: Message<E::Input, E::Output>, s: KubernetesAPIState) -> (KubernetesAPIState, Message<E::Input, E::Output>)
+pub open spec fn transition_by_etcd(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
     recommends
         msg.content.is_APIRequest(),
 {

@@ -56,7 +56,7 @@ pub open spec fn reconcile_get_cr_done_implies_pending_req_in_flight_or_resp_in_
                 #[trigger] is_controller_get_cr_request_msg(req_msg, cr)
                 && pending_k8s_api_req_msg_is(s, cr.object_ref(), req_msg)
                 && (s.message_in_flight(req_msg)
-                    || exists |resp_msg: Message<E::Input, E::Output>| {
+                    || exists |resp_msg: SimpleMessage| {
                         #[trigger] s.message_in_flight(resp_msg)
                         && Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                     })

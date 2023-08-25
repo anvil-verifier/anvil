@@ -12,13 +12,15 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::temporal_logic::defs::*;
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::spec::zookeeper_api::ZKAPI;
+use crate::zookeeper_controller::spec::zookeeper_api::*;
 use crate::zookeeper_controller::spec::{reconciler::*, zookeepercluster::*};
 use vstd::prelude::*;
 
 verus! {
 
 pub type ZKCluster = Cluster<ZookeeperClusterView, ZKAPI, ZookeeperReconciler>;
+
+pub type ZKMessage = Message<ZKAPIInputView, ZKAPIOutputView>;
 
 pub open spec fn cluster_spec() -> TempPred<ZKCluster> {
     ZKCluster::sm_spec()
@@ -73,7 +75,7 @@ pub open spec fn pending_req_in_flight_at_zookeeper_step_with_zk(
 }
 
 pub open spec fn req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(
-    step: ZookeeperReconcileStep, zk: ZookeeperClusterView, req_msg: Message<E::Input, E::Output>, object: DynamicObjectView
+    step: ZookeeperReconcileStep, zk: ZookeeperClusterView, req_msg: ZKMessage, object: DynamicObjectView
 ) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
         &&& at_zookeeper_step_with_zk(zk, step)(s)
@@ -98,7 +100,7 @@ pub open spec fn exists_resp_in_flight_at_zookeeper_step_with_zk(
 }
 
 pub open spec fn resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(
-    step: ZookeeperReconcileStep, zk: ZookeeperClusterView, resp_msg: Message<E::Input, E::Output>, object: DynamicObjectView
+    step: ZookeeperReconcileStep, zk: ZookeeperClusterView, resp_msg: ZKMessage, object: DynamicObjectView
 ) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
         &&& at_zookeeper_step_with_zk(zk, step)(s)
@@ -164,7 +166,7 @@ pub open spec fn at_after_get_stateful_set_step_with_zk_and_exists_not_found_err
 }
 
 pub open spec fn is_correct_pending_request_msg_at_zookeeper_step(
-    step: ZookeeperReconcileStep, msg: Message<E::Input, E::Output>, zk: ZookeeperClusterView, object: DynamicObjectView
+    step: ZookeeperReconcileStep, msg: ZKMessage, zk: ZookeeperClusterView, object: DynamicObjectView
 ) -> bool {
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI

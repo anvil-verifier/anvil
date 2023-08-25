@@ -860,7 +860,7 @@ proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_
 }
 
 proof fn lemma_receives_some_resp_at_rabbitmq_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>, step: RabbitmqReconcileStep
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage, step: RabbitmqReconcileStep
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -912,7 +912,7 @@ proof fn lemma_receives_some_resp_at_rabbitmq_step_with_rabbitmq(
 //    1. There is only one possible next_step for it.
 //    2. When the controller enters this step, it must creates a request (which will be used to create the pending request message)
 proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: Message<EmptyTypeView, EmptyTypeView>, step: RabbitmqReconcileStep, result_step: RabbitmqReconcileStep
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage, step: RabbitmqReconcileStep, result_step: RabbitmqReconcileStep
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -1324,7 +1324,7 @@ proof fn lemma_from_after_get_stateful_set_and_key_exists_to_rabbitmq_matches(ra
 }
 
 proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>, object: DynamicObjectView
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -1422,7 +1422,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_rabbitmq(
 }
 
 proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_step(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: Message<EmptyTypeView, EmptyTypeView>, object: DynamicObjectView
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -1495,7 +1495,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
 }
 
 proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>, object: DynamicObjectView
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -1702,7 +1702,7 @@ proof fn lemma_from_after_get_server_config_map_and_key_not_exists_to_rabbitmq_m
 }
 
 proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -1787,7 +1787,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
 }
 
 proof fn lemma_from_after_get_server_config_map_step_to_after_create_server_config_map_step(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: Message<EmptyTypeView, EmptyTypeView>
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -1848,7 +1848,7 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_create_server_conf
 }
 
 proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -1921,7 +1921,7 @@ proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitm
 }
 
 proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -2006,7 +2006,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_rabbi
 }
 
 proof fn lemma_from_after_get_stateful_set_step_to_after_create_stateful_set_step(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: Message<EmptyTypeView, EmptyTypeView>
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -2067,7 +2067,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_create_stateful_set_ste
 }
 
 proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -2317,7 +2317,7 @@ proof fn lemma_from_after_get_server_config_map_and_key_exists_to_rabbitmq_match
 }
 
 proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>, object: DynamicObjectView
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -2409,7 +2409,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
 }
 
 proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitmq(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>, object: DynamicObjectView
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -2497,7 +2497,7 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
 }
 
 proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_config_map_step(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: Message<EmptyTypeView, EmptyTypeView>, object: DynamicObjectView
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(RMQCluster::next()))),

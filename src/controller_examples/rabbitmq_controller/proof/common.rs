@@ -19,9 +19,11 @@ use vstd::prelude::*;
 
 verus! {
 
-pub type RMQStep = Step<EmptyAPI>;
+pub type RMQStep = Step<RMQMessage>;
 
 pub type RMQCluster = Cluster<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>;
+
+pub type RMQMessage = Message<EmptyTypeView, EmptyTypeView>;
 
 pub open spec fn cluster_spec() -> TempPred<RMQCluster> {
     RMQCluster::sm_spec()
@@ -81,7 +83,7 @@ pub open spec fn pending_req_with_object_in_flight_at_rabbitmq_step_with_rabbitm
 }
 
 pub open spec fn req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(
-    step: RabbitmqReconcileStep, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>
+    step: RabbitmqReconcileStep, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
@@ -92,7 +94,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabb
 }
 
 pub open spec fn req_msg_is_the_in_flight_pending_req_with_object_at_rabbitmq_step_with_rabbitmq(
-    step: RabbitmqReconcileStep, rabbitmq: RabbitmqClusterView, req_msg: Message<EmptyTypeView, EmptyTypeView>, object: DynamicObjectView
+    step: RabbitmqReconcileStep, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage, object: DynamicObjectView
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
@@ -117,7 +119,7 @@ pub open spec fn exists_resp_in_flight_at_rabbitmq_step_with_rabbitmq(
 }
 
 pub open spec fn resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(
-    step: RabbitmqReconcileStep, rabbitmq: RabbitmqClusterView, resp_msg: Message<EmptyTypeView, EmptyTypeView>
+    step: RabbitmqReconcileStep, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
@@ -129,7 +131,7 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(
 }
 
 pub open spec fn is_correct_pending_request_msg_at_rabbitmq_step(
-    step: RabbitmqReconcileStep, msg: Message<EmptyTypeView, EmptyTypeView>, rabbitmq: RabbitmqClusterView
+    step: RabbitmqReconcileStep, msg: RMQMessage, rabbitmq: RabbitmqClusterView
 ) -> bool {
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI
@@ -160,7 +162,7 @@ pub open spec fn is_correct_pending_request_at_rabbitmq_step(
 }
 
 pub open spec fn is_correct_pending_request_msg_with_object_at_rabbitmq_step(
-    step: RabbitmqReconcileStep, msg: Message<EmptyTypeView, EmptyTypeView>, rabbitmq: RabbitmqClusterView, object: DynamicObjectView
+    step: RabbitmqReconcileStep, msg: RMQMessage, rabbitmq: RabbitmqClusterView, object: DynamicObjectView
 ) -> bool {
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI
@@ -366,8 +368,8 @@ pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_no
     }
 }
 
-pub open spec fn sts_create_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
-    |msg: Message|
+pub open spec fn sts_create_request_msg(key: ObjectRef) -> FnSpec(RMQMessage) -> bool {
+    |msg: RMQMessage|
         msg.dst.is_KubernetesAPI()
         && msg.content.is_create_request()
         && msg.content.get_create_request().namespace == make_stateful_set_key(key).namespace
@@ -375,15 +377,15 @@ pub open spec fn sts_create_request_msg(key: ObjectRef) -> FnSpec(Message) -> bo
         && msg.content.get_create_request().obj.kind == make_stateful_set_key(key).kind
 }
 
-pub open spec fn sts_update_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
-    |msg: Message|
+pub open spec fn sts_update_request_msg(key: ObjectRef) -> FnSpec(RMQMessage) -> bool {
+    |msg: RMQMessage|
         msg.dst.is_KubernetesAPI()
         && msg.content.is_update_request()
         && msg.content.get_update_request().key == make_stateful_set_key(key)
 }
 
-pub open spec fn sts_get_response_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
-    |msg: Message|
+pub open spec fn sts_get_response_msg(key: ObjectRef) -> FnSpec(RMQMessage) -> bool {
+    |msg: RMQMessage|
         msg.src.is_KubernetesAPI()
         && msg.content.is_get_response()
         && (
@@ -392,8 +394,8 @@ pub open spec fn sts_get_response_msg(key: ObjectRef) -> FnSpec(Message) -> bool
         )
 }
 
-pub open spec fn ok_sts_get_response_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
-    |msg: Message|
+pub open spec fn ok_sts_get_response_msg(key: ObjectRef) -> FnSpec(RMQMessage) -> bool {
+    |msg: RMQMessage|
         msg.src.is_KubernetesAPI()
         && msg.content.is_get_response()
         && msg.content.get_get_response().res.is_Ok()

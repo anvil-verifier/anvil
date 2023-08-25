@@ -82,7 +82,7 @@ pub proof fn lemma_always_triggering_cr_has_lower_uid_than_uid_counter(spec: Tem
 }
 
 pub open spec fn resp_matches_at_most_one_pending_req(
-    resp_msg: Message<E::Input, E::Output>, cr_key: ObjectRef
+    resp_msg: MsgType<E>, cr_key: ObjectRef
 ) -> StatePred<Self> {
     |s: Self| {
         s.reconcile_state_contains(cr_key)
@@ -99,7 +99,7 @@ pub open spec fn resp_matches_at_most_one_pending_req(
 }
 
 pub open spec fn resp_if_matches_pending_req_then_no_other_resp_matches(
-    resp_msg: Message<E::Input, E::Output>, cr_key: ObjectRef
+    resp_msg: MsgType<E>, cr_key: ObjectRef
 ) -> StatePred<Self> {
     |s: Self| {
         s.reconcile_state_contains(cr_key)
@@ -107,14 +107,14 @@ pub open spec fn resp_if_matches_pending_req_then_no_other_resp_matches(
         && Self::pending_k8s_api_req_msg(s, cr_key)
         && Message::resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
         ==> (
-            forall |other_resp: Message<E::Input, E::Output>| other_resp != resp_msg && #[trigger] s.message_in_flight(other_resp)
+            forall |other_resp: MsgType<E>| other_resp != resp_msg && #[trigger] s.message_in_flight(other_resp)
             ==> !Message::resp_msg_matches_req_msg(other_resp, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
         )
     }
 }
 
 pub proof fn lemma_always_resp_if_matches_pending_req_then_no_other_resp_matches(
-    spec: TempPred<Self>, resp_msg: Message<E::Input, E::Output>, cr_key: ObjectRef
+    spec: TempPred<Self>, resp_msg: MsgType<E>, cr_key: ObjectRef
 )
     requires
         spec.entails(lift_state(Self::init())),
@@ -143,7 +143,7 @@ pub proof fn lemma_forall_always_resp_if_matches_pending_req_then_no_other_resp_
         spec.entails(always(lift_action(Self::next()))),
     ensures
         spec.entails(
-            tla_forall(|resp_msg: Message<E::Input, E::Output>| always(lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key))))
+            tla_forall(|resp_msg: MsgType<E>| always(lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key))))
         ),
 {
     let m_to_p = |msg| always(lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(msg, cr_key)));
@@ -160,13 +160,13 @@ pub open spec fn each_resp_if_matches_pending_req_then_no_other_resp_matches(
         cr_key.kind.is_CustomResourceKind(),
 {
     |s: Self| {
-        forall |resp_msg: Message<E::Input, E::Output>|
+        forall |resp_msg: MsgType<E>|
             s.reconcile_state_contains(cr_key)
             && #[trigger] s.message_in_flight(resp_msg)
             && Self::pending_k8s_api_req_msg(s, cr_key)
             && Message::resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
             ==> (
-                forall |other_resp: Message<E::Input, E::Output>| other_resp != resp_msg && #[trigger] s.message_in_flight(other_resp)
+                forall |other_resp: MsgType<E>| other_resp != resp_msg && #[trigger] s.message_in_flight(other_resp)
                 ==> !Message::resp_msg_matches_req_msg(other_resp, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
             )
     }
@@ -185,9 +185,9 @@ pub proof fn lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_ma
         ),
 {
     let forall_a_to_p = lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(cr_key));
-    let a_to_p = |resp_msg: Message<E::Input, E::Output>| lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key));
-    let a_to_always_p = |resp_msg: Message<E::Input, E::Output>| always(a_to_p(resp_msg));
-    assert forall |resp_msg: Message<E::Input, E::Output>| spec.entails(#[trigger] a_to_always_p(resp_msg))
+    let a_to_p = |resp_msg: MsgType<E>| lift_state(Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key));
+    let a_to_always_p = |resp_msg: MsgType<E>| always(a_to_p(resp_msg));
+    assert forall |resp_msg: MsgType<E>| spec.entails(#[trigger] a_to_always_p(resp_msg))
     by {
         Self::lemma_always_resp_if_matches_pending_req_then_no_other_resp_matches(spec, resp_msg, cr_key);
     }
@@ -195,13 +195,13 @@ pub proof fn lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_ma
     tla_forall_always_equality(a_to_p);
 
     assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies forall_a_to_p.satisfied_by(ex) by {
-        assert forall |resp_msg: Message<E::Input, E::Output>|
+        assert forall |resp_msg: MsgType<E>|
             ex.head().reconcile_state_contains(cr_key)
             && #[trigger] ex.head().message_in_flight(resp_msg)
             && Self::pending_k8s_api_req_msg(ex.head(), cr_key)
             && Message::resp_msg_matches_req_msg(resp_msg, ex.head().reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
             ==> (
-                forall |other_resp: Message<E::Input, E::Output>| other_resp != resp_msg && #[trigger] ex.head().message_in_flight(other_resp)
+                forall |other_resp: MsgType<E>| other_resp != resp_msg && #[trigger] ex.head().message_in_flight(other_resp)
                 ==> !Message::resp_msg_matches_req_msg(other_resp, ex.head().reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
             )
         by {
@@ -214,7 +214,7 @@ pub proof fn lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_ma
 }
 
 pub proof fn lemma_always_resp_matches_at_most_one_pending_req(
-    spec: TempPred<Self>, resp_msg: Message<E::Input, E::Output>, cr_key: ObjectRef
+    spec: TempPred<Self>, resp_msg: MsgType<E>, cr_key: ObjectRef
 )
     requires
         cr_key.kind.is_CustomResourceKind(),
@@ -263,7 +263,7 @@ pub open spec fn each_resp_matches_at_most_one_pending_req(
         cr_key.kind.is_CustomResourceKind(),
 {
     |s: Self| {
-        forall |resp_msg: Message<E::Input, E::Output>|
+        forall |resp_msg: MsgType<E>|
             s.reconcile_state_contains(cr_key)
             && Self::pending_k8s_api_req_msg(s, cr_key)
             && #[trigger] Message::resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())

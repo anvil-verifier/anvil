@@ -18,6 +18,8 @@ use vstd::prelude::*;
 
 verus! {
 
+pub type SimpleMessage = Message<EmptyTypeView, EmptyTypeView>;
+
 pub closed spec fn dummy_trigger<A>(x: A);
 
 pub open spec fn reconciler_at_init_pc(cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
@@ -42,7 +44,7 @@ pub open spec fn reconciler_at_after_get_cr_pc(cr: SimpleCRView) -> StatePred<St
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req(msg: Message<E::Input, E::Output>, cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req(msg: SimpleMessage, cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
@@ -51,7 +53,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req(msg: Message<E::I
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg: Message<E::Input, E::Output>, cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg: SimpleMessage, cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
@@ -70,7 +72,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_exists_pending_req_and_req_in
             &&& #[trigger] is_controller_get_cr_request_msg(req_msg, cr)
             &&& s.message_in_flight(req_msg)
             &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg == Some(req_msg)
-            &&& (! exists |resp_msg: Message<E::Input, E::Output>|
+            &&& (! exists |resp_msg: SimpleMessage|
                 #![trigger s.message_in_flight(resp_msg)]
                 #![trigger resp_msg_matches_req_msg(resp_msg, req_msg)]
                 s.message_in_flight(resp_msg)
@@ -79,21 +81,21 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_exists_pending_req_and_req_in
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight(req_msg: Message<E::Input, E::Output>, cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight(req_msg: SimpleMessage, cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
         &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg == Some(req_msg)
         &&& is_controller_get_cr_request_msg(req_msg, cr)
         &&& s.message_in_flight(req_msg)
-        &&& ! exists |resp_msg: Message<E::Input, E::Output>| {
+        &&& ! exists |resp_msg: SimpleMessage| {
             &&& s.message_in_flight(resp_msg)
             &&& #[trigger] Message::resp_msg_matches_req_msg(resp_msg, req_msg)
         }
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight(msg: Message<E::Input, E::Output>, cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight(msg: SimpleMessage, cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
@@ -103,20 +105,20 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_req_in_flight
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_exists_resp_in_flight(msg: Message<E::Input, E::Output>, cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_exists_resp_in_flight(msg: SimpleMessage, cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
         &&& s.reconcile_state_of(cr.object_ref()).pending_req_msg == Some(msg)
         &&& is_controller_get_cr_request_msg(msg, cr)
-        &&& exists |resp_msg: Message<E::Input, E::Output>| {
+        &&& exists |resp_msg: SimpleMessage| {
             &&& #[trigger] s.message_in_flight(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
         }
     }
 }
 
-pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_flight(req_msg: Message<E::Input, E::Output>, resp_msg: Message<E::Input, E::Output>, cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
+pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_flight(req_msg: SimpleMessage, resp_msg: SimpleMessage, cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         &&& s.reconcile_state_contains(cr.object_ref())
         &&& s.reconcile_state_of(cr.object_ref()).local_state.reconcile_pc == reconciler::after_get_cr_pc()
@@ -130,7 +132,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_pending_req_and_resp_in_fligh
 pub open spec fn reconciler_at_after_create_cm_pc_and_req_in_flight_and_cm_created(cr: SimpleCRView) -> StatePred<State<SimpleReconcileState>> {
     |s: State<SimpleReconcileState>| {
         reconciler_at_after_create_cm_pc(cr)(s)
-        && exists |req_msg: Message<E::Input, E::Output>|
+        && exists |req_msg: SimpleMessage|
             #![trigger s.message_in_flight(req_msg)]
             #![trigger req_msg.content.is_create_request()]
             s.message_in_flight(req_msg)
@@ -173,14 +175,14 @@ pub open spec fn cm_exists(cr: SimpleCRView) -> StatePred<State<SimpleReconcileS
     |s: State<SimpleReconcileState>| s.resource_key_exists(reconciler::make_config_map(cr).object_ref())
 }
 
-pub open spec fn is_controller_get_cr_request_msg(msg: Message<E::Input, E::Output>, cr: SimpleCRView) -> bool {
+pub open spec fn is_controller_get_cr_request_msg(msg: SimpleMessage, cr: SimpleCRView) -> bool {
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI
     &&& msg.content.is_get_request()
     &&& msg.content.get_get_request().key == cr.object_ref()
 }
 
-pub open spec fn is_controller_create_cm_request_msg(msg: Message<E::Input, E::Output>, cr: SimpleCRView) -> bool {
+pub open spec fn is_controller_create_cm_request_msg(msg: SimpleMessage, cr: SimpleCRView) -> bool {
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI
     &&& msg.content.is_create_request()

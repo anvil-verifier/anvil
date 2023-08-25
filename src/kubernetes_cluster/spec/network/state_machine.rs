@@ -38,7 +38,7 @@ pub open spec fn deliver() -> Action<NetworkState<E::Input, E::Output>, MessageO
 
 pub open spec fn network() -> NetworkStateMachine<NetworkState<E::Input, E::Output>, MessageOps<E::Input, E::Output>> {
     NetworkStateMachine {
-        init: |s: NetworkState<E::Input, E::Output>| s.in_flight == Multiset::<Message<E::Input, E::Output>>::empty(),
+        init: |s: NetworkState<E::Input, E::Output>| s.in_flight == Multiset::<MsgType<E>>::empty(),
         deliver: Self::deliver(),
     }
 }

@@ -267,9 +267,9 @@ spec fn response_at_after_get_stateful_set_step_is_sts_get_response(rabbitmq: Ra
         ==> s.reconcile_state_of(key).pending_req_msg.is_Some()
             && is_get_stateful_set_request(s.pending_req_of(key).content.get_APIRequest_0(), rabbitmq)
             && (
-                forall |msg: Message|
+                forall |msg: RMQMessage|
                     #[trigger] s.message_in_flight(msg)
-                    && resp_msg_matches_req_msg(msg, s.pending_req_of(key))
+                    && Message::resp_msg_matches_req_msg(msg, s.pending_req_of(key))
                     ==> sts_get_response_msg(key)(msg)
             )
     }
@@ -312,13 +312,13 @@ proof fn lemma_always_response_at_after_get_stateful_set_step_is_sts_get_respons
                 assert(s_prime.reconcile_state_of(key).pending_req_msg.is_Some());
                 assert(is_get_stateful_set_request(s_prime.pending_req_of(key).content.get_APIRequest_0(), rabbitmq));
             }
-            assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && resp_msg_matches_req_msg(msg, s_prime.pending_req_of(key))
+            assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && Message::resp_msg_matches_req_msg(msg, s_prime.pending_req_of(key))
             implies sts_get_response_msg(key)(msg) by {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 match step {
                     Step::ControllerStep(input) => {
                         assert(s.message_in_flight(msg));
-                        let cr_key = input.2.get_Some_0();
+                        let cr_key = input.1.get_Some_0();
                         if cr_key == key {
                             assert(s.message_in_flight(msg));
                             assert(false);
@@ -353,8 +353,15 @@ proof fn lemma_always_response_at_after_get_stateful_set_step_is_sts_get_respons
                             assert(msg.content.is_get_response());
                             assert(msg.content.get_get_response().res.is_Err());
                         }
+                        assert(sts_get_response_msg(key)(msg));
                     },
-                    _ => {}
+                    Step::ClientStep() => {
+                        assert(s.message_in_flight(msg));
+                        assert(sts_get_response_msg(key)(msg));
+                    },
+                    _ => {
+                        assert(sts_get_response_msg(key)(msg));
+                    }
                 }
             }
         }
@@ -366,7 +373,7 @@ spec fn stateful_set_in_get_response_and_update_request_have_no_larger_resource_
     |s: RMQCluster| {
         let sts_key = make_stateful_set_key(rabbitmq.object_ref());
         let etcd_rv = s.resource_obj_of(sts_key).metadata.resource_version.get_Some_0();
-        forall |msg: Message|
+        forall |msg: RMQMessage|
             #[trigger] s.message_in_flight(msg)
             ==> (
                     sts_update_request_msg(rabbitmq.object_ref())(msg)
@@ -391,12 +398,12 @@ proof fn lemma_always_stateful_set_in_get_response_and_update_request_have_no_la
 {
     let key = rabbitmq.object_ref();
     let sts_key = make_stateful_set_key(rabbitmq.object_ref());
-    let upd_rv_leq = |msg: Message, s: RMQCluster| {
+    let upd_rv_leq = |msg: RMQMessage, s: RMQCluster| {
         sts_update_request_msg(rabbitmq.object_ref())(msg)
         ==> msg.content.get_update_request().obj.metadata.resource_version.is_Some()
             && msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
     };
-    let get_rv_leq = |msg: Message, s: RMQCluster| {
+    let get_rv_leq = |msg: RMQMessage, s: RMQCluster| {
         ok_sts_get_response_msg(rabbitmq.object_ref())(msg)
         ==> msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.is_Some()
             && msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
@@ -474,7 +481,7 @@ spec fn replicas_of_etcd_stateful_set_satisfies_order(rabbitmq: RabbitmqClusterV
 spec fn replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let sts_key = make_stateful_set_key(rabbitmq.object_ref());
-        forall |msg: Message|
+        forall |msg: RMQMessage|
             #[trigger] s.message_in_flight(msg)
             && sts_update_request_msg(rabbitmq.object_ref())(msg)
             && s.resource_key_exists(sts_key)
@@ -753,11 +760,11 @@ proof fn lemma_always_object_in_every_create_or_update_request_msg_only_has_vali
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(RMQCluster::next()), lift_state(RMQCluster::triggering_cr_has_lower_uid_than_uid_counter())
     );
-    let create_valid = |msg: Message, s: RMQCluster| {
+    let create_valid = |msg: RMQMessage, s: RMQCluster| {
         msg.content.is_create_request() && msg.content.get_create_request().obj.metadata.owner_references.is_Some()
         ==> owner_references_is_valid(msg.content.get_create_request().obj, s)
     };
-    let update_valid = |msg: Message, s: RMQCluster| {
+    let update_valid = |msg: RMQMessage, s: RMQCluster| {
         msg.content.is_update_request() && msg.content.get_update_request().obj.metadata.owner_references.is_Some()
         ==> owner_references_is_valid(msg.content.get_update_request().obj, s)
     };
@@ -769,7 +776,7 @@ proof fn lemma_always_object_in_every_create_or_update_request_msg_only_has_vali
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 match step {
                     Step::ControllerStep(input) => {
-                        let cr = s.triggering_cr_of(input.2.get_Some_0());
+                        let cr = s.triggering_cr_of(input.1.get_Some_0());
                         if msg.content.is_create_request() {
                             let owner_refs = msg.content.get_create_request().obj.metadata.owner_references;
                             if owner_refs.is_Some() {
@@ -782,7 +789,7 @@ proof fn lemma_always_object_in_every_create_or_update_request_msg_only_has_vali
                             }
                         }
                     },
-                    Step::ClientStep(_) => {
+                    Step::ClientStep() => {
                         if msg.content.is_create_request() {
                             assert(msg.content.get_create_request().obj.kind.is_CustomResourceKind());
                         } else if msg.content.is_update_request() {
@@ -838,7 +845,7 @@ proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_uid_
 spec fn replicas_of_stateful_set_update_request_msg_satisfies_order(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let sts_key = make_stateful_set_key(rabbitmq.object_ref());
-        forall |msg: Message|
+        forall |msg: RMQMessage|
             #[trigger] s.message_in_flight(msg)
             && sts_update_request_msg(rabbitmq.object_ref())(msg)
             ==> msg.content.get_update_request().obj.kind == Kind::StatefulSetKind
@@ -850,7 +857,7 @@ spec fn replicas_of_stateful_set_update_request_msg_satisfies_order(rabbitmq: Ra
 spec fn replicas_of_stateful_set_create_request_msg_satisfies_order(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let sts_key = make_stateful_set_key(rabbitmq.object_ref());
-        forall |msg: Message|
+        forall |msg: RMQMessage|
             #[trigger] s.message_in_flight(msg)
             && sts_create_request_msg(rabbitmq.object_ref())(msg)
             ==> replicas_satisfies_order(msg.content.get_create_request().obj, rabbitmq)(s)

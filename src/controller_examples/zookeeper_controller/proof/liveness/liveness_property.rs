@@ -1162,7 +1162,7 @@ proof fn lemma_from_init_step_to_after_create_headless_service_step(
 // We don't care about update step here, so arbitraray() is used to show that the object parameter in
 // pending_req_in_flight_at_zookeeper_step_with_zk is unrelated.
 proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next_step(
-    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, resp_msg: Message<E::Input, E::Output>, step: ZookeeperReconcileStep, result_step: ZookeeperReconcileStep
+    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, resp_msg: ZKMessage, step: ZookeeperReconcileStep, result_step: ZookeeperReconcileStep
 )
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1241,7 +1241,7 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
 }
 
 proof fn lemma_receives_some_resp_at_zookeeper_step_with_zk(
-    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, req_msg: Message<E::Input, E::Output>, step: ZookeeperReconcileStep
+    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, req_msg: ZKMessage, step: ZookeeperReconcileStep
 )
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1296,7 +1296,7 @@ proof fn lemma_receives_some_resp_at_zookeeper_step_with_zk(
 }
 
 proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
-    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, rest_id: nat, req_msg: Message<E::Input, E::Output>, object: DynamicObjectView
+    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, rest_id: nat, req_msg: ZKMessage, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1402,7 +1402,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
 }
 
 proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_step(
-    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, rest_id: nat, resp_msg: Message<E::Input, E::Output>, object: DynamicObjectView
+    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, rest_id: nat, resp_msg: ZKMessage, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),
@@ -1486,7 +1486,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
 }
 
 proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
-    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, rest_id: nat, req_msg: Message<E::Input, E::Output>, object: DynamicObjectView
+    spec: TempPred<ZKCluster>, zk: ZookeeperClusterView, rest_id: nat, req_msg: ZKMessage, object: DynamicObjectView
 )
     requires
         spec.entails(always(lift_action(ZKCluster::next()))),

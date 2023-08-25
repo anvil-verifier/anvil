@@ -80,7 +80,7 @@ pub open spec fn pending_k8s_api_req_msg(s: Self, key: ObjectRef) -> bool {
     && s.reconcile_state_of(key).pending_req_msg.get_Some_0().content.is_APIRequest()
 }
 
-pub open spec fn pending_k8s_api_req_msg_is(s: Self, key: ObjectRef, req: Message<E::Input, E::Output>) -> bool {
+pub open spec fn pending_k8s_api_req_msg_is(s: Self, key: ObjectRef, req: MsgType<E>) -> bool {
     s.reconcile_state_of(key).pending_req_msg == Some(req)
 }
 
@@ -100,14 +100,14 @@ pub open spec fn pending_req_in_flight_at_reconcile_state(key: ObjectRef, state:
     }
 }
 
-pub open spec fn request_sent_by_controller(msg: Message<E::Input, E::Output>) -> bool {
+pub open spec fn request_sent_by_controller(msg: MsgType<E>) -> bool {
     msg.src.is_CustomController()
     && msg.dst.is_KubernetesAPI()
     && msg.content.is_APIRequest()
 }
 
 pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state(
-    key: ObjectRef, state: FnSpec(R::T) -> bool, req_msg: Message<E::Input, E::Output>
+    key: ObjectRef, state: FnSpec(R::T) -> bool, req_msg: MsgType<E>
 ) -> StatePred<Self> {
     |s: Self| {
         Self::at_expected_reconcile_states(key, state)(s)
@@ -129,7 +129,7 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
             Self::pending_k8s_api_req_msg(s, key)
             && Self::request_sent_by_controller(s.pending_req_of(key))
             && (s.message_in_flight(s.pending_req_of(key))
-            || exists |resp_msg: Message<E::Input, E::Output>| {
+            || exists |resp_msg: MsgType<E>| {
                 #[trigger] s.message_in_flight(resp_msg)
                 && Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
             })
@@ -171,7 +171,7 @@ pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state(
         Self::at_expected_reconcile_states(key, state)(s)
         && Self::pending_k8s_api_req_msg(s, key)
         && Self::request_sent_by_controller(s.pending_req_of(key))
-        && exists |resp_msg: Message<E::Input, E::Output>| {
+        && exists |resp_msg: MsgType<E>| {
             #[trigger] s.message_in_flight(resp_msg)
             && Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
         }

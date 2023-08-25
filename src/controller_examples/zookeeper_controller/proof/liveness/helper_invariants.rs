@@ -23,7 +23,7 @@ use vstd::{multiset::*, prelude::*};
 verus! {
 
 pub open spec fn sts_create_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
-    |msg: Message<E::Input, E::Output>|
+    |msg: ZKMessage|
         msg.dst.is_KubernetesAPI()
         && msg.content.is_create_request()
         && msg.content.get_create_request().namespace == make_stateful_set_key(key).namespace
@@ -32,7 +32,7 @@ pub open spec fn sts_create_request_msg(key: ObjectRef) -> FnSpec(Message) -> bo
 }
 
 pub open spec fn sts_create_request_msg_since(key: ObjectRef, rest_id: RestId) -> FnSpec(Message) -> bool {
-    |msg: Message<E::Input, E::Output>|
+    |msg: ZKMessage|
         sts_create_request_msg(key)(msg)
         && msg.content.get_rest_id() >= rest_id
 }
@@ -336,14 +336,14 @@ pub proof fn lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(
 }
 
 pub open spec fn sts_update_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
-    |msg: Message<E::Input, E::Output>|
+    |msg: ZKMessage|
         msg.dst.is_KubernetesAPI()
         && msg.content.is_update_request()
         && msg.content.get_update_request().key == make_stateful_set_key(key)
 }
 
 pub open spec fn sts_update_request_msg_since(key: ObjectRef, rest_id: RestId) -> FnSpec(Message) -> bool {
-    |msg: Message<E::Input, E::Output>|
+    |msg: ZKMessage|
         sts_update_request_msg(key)(msg)
         && msg.content.get_rest_id() >= rest_id
 }
@@ -653,7 +653,7 @@ pub open spec fn every_update_sts_req_since_rest_id_does_the_same(
         zk.well_formed(),
 {
     |s: ZKCluster| {
-        forall |msg: Message<E::Input, E::Output>| {
+        forall |msg: ZKMessage| {
             &&& #[trigger] s.network_state.in_flight.contains(msg)
             &&& sts_update_request_msg_since(zk.object_ref(), rest_id)(msg)
         } ==> msg.content.get_update_request().obj.spec == StatefulSetView::marshal_spec(make_stateful_set(zk).spec)
@@ -713,7 +713,7 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
 
     assert forall |s, s_prime: ZKCluster| invariant(s) && #[trigger] stronger_next(s, s_prime)
     implies invariant(s_prime) by {
-        assert forall |msg: Message<E::Input, E::Output>|
+        assert forall |msg: ZKMessage|
             #[trigger] s_prime.network_state.in_flight.contains(msg)
             && sts_update_request_msg_since(zk.object_ref(), rest_id)(msg)
         implies msg.content.get_update_request().obj.spec == StatefulSetView::marshal_spec(make_stateful_set(zk).spec) by {
@@ -725,14 +725,14 @@ pub proof fn lemma_always_every_update_sts_req_since_rest_id_does_the_same(
 }
 
 pub open spec fn sts_delete_request_msg(key: ObjectRef) -> FnSpec(Message) -> bool {
-    |msg: Message<E::Input, E::Output>|
+    |msg: ZKMessage|
         msg.dst.is_KubernetesAPI()
         && msg.content.is_delete_request()
         && msg.content.get_delete_request().key == make_stateful_set_key(key)
 }
 
 pub open spec fn sts_delete_request_msg_since(key: ObjectRef, rest_id: RestId) -> FnSpec(Message) -> bool {
-    |msg: Message<E::Input, E::Output>|
+    |msg: ZKMessage|
         sts_delete_request_msg(key)(msg)
         && msg.content.get_rest_id() >= rest_id
 }
@@ -744,7 +744,7 @@ pub open spec fn no_delete_sts_req_since_rest_id_is_in_flight(
         key.kind.is_CustomResourceKind(),
 {
     |s: ZKCluster| {
-        forall |msg: Message<E::Input, E::Output>| !{
+        forall |msg: ZKMessage| !{
             &&& #[trigger] s.message_in_flight(msg)
             &&& sts_delete_request_msg_since(key, rest_id)(msg)
         }
@@ -784,7 +784,7 @@ pub proof fn lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(
 
     assert forall |s, s_prime: ZKCluster| invariant(s) && #[trigger] next(s, s_prime)
     implies invariant(s_prime) by {
-        assert forall |msg: Message<E::Input, E::Output>|
+        assert forall |msg: ZKMessage|
         !(#[trigger] s_prime.message_in_flight(msg) && sts_delete_request_msg_since(key, rest_id)(msg)) by {
             if s.message_in_flight(msg) {} else {}
         }
