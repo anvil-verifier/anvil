@@ -35,7 +35,7 @@ impl ZKNodeAddr {
 
 pub type ZKNodeValue = StringView;
 
-pub type ZKNodeVersion = nat;
+pub type ZKNodeVersion = int;
 
 pub struct ZKState {
     pub data: Map<ZKNodeAddr, (ZKNodeValue, ZKNodeVersion)>,
