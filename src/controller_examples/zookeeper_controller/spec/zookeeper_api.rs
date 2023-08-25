@@ -8,30 +8,71 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-pub struct ZKAPIResultView {
+pub struct ZKNodeAddr {
+    pub name: StringView,
+    pub namespace: StringView,
+    pub uid: Uid,
+    pub path: Seq<StringView>,
+}
+
+impl ZKNodeAddr {
+    pub open spec fn new(name: StringView, namespace: StringView, uid: Uid, path: Seq<StringView>) -> Self {
+        ZKNodeAddr {
+            name: name,
+            namespace: namespace,
+            uid: uid,
+            path: path,
+        }
+    }
+
+    pub open spec fn parent_addr(self) -> Self {
+        ZKNodeAddr {
+            path: self.path.take(self.path.len()-1),
+            ..self
+        }
+    }
+}
+
+pub type ZKNodeValue = StringView;
+
+pub type ZKNodeVersion = nat;
+
+pub struct ZKState {
+    pub data: Map<ZKNodeAddr, (ZKNodeValue, ZKNodeVersion)>,
+}
+
+impl ZKState {
+    pub open spec fn init() -> ZKState {
+        ZKState {
+            data: Map::empty(),
+        }
+    }
+}
+
+pub struct ZKAPIExistsResultView {
+    pub res: Result<Option<ZKNodeVersion>, Error>,
+}
+
+pub struct ZKAPICreateResultView {
+    pub res: Result<(), Error>,
+}
+
+pub struct ZKAPISetDataResultView {
     pub res: Result<(), Error>,
 }
 
 #[is_variant]
 pub enum ZKAPIInputView {
-    SetZKNodeRequest(StringView, StringView, StringView),
+    ExistsRequest(StringView, StringView, Seq<StringView>),
+    CreateRequest(StringView, StringView, Seq<StringView>, ZKNodeValue),
+    SetDataRequest(StringView, StringView, Seq<StringView>, ZKNodeValue, ZKNodeVersion),
 }
 
 #[is_variant]
 pub enum ZKAPIOutputView {
-    SetZKNodeResponse(ZKAPIResultView),
-}
-
-pub struct ZooKeeperState {
-    pub data: Map<ObjectRef, StringView>,
-}
-
-impl ZooKeeperState {
-    pub open spec fn default() -> ZooKeeperState {
-        ZooKeeperState {
-            data: Map::empty(),
-        }
-    }
+    ExistsResponse(ZKAPIExistsResultView),
+    CreateResponse(ZKAPICreateResultView),
+    SetDataResponse(ZKAPISetDataResultView),
 }
 
 pub struct ZKAPI {}
@@ -40,28 +81,39 @@ impl ExternalAPI for ZKAPI {
 
     type Input = ZKAPIInputView;
     type Output = ZKAPIOutputView;
-    type State = ZooKeeperState;
+    type State = ZKState;
 
-    open spec fn transition(input: ZKAPIInputView, state: ZooKeeperState, resources: StoredState) -> (ZooKeeperState, Option<ZKAPIOutputView>) {
+    open spec fn transition(input: ZKAPIInputView, resources: StoredState, state: ZKState) -> (ZKState, ZKAPIOutputView) {
         match input {
-            ZKAPIInputView::SetZKNodeRequest(zk_name, zk_namespace, replicas) => set_zk_node(zk_name, zk_namespace, replicas, state),
+            ZKAPIInputView::ExistsRequest(name, namespace, path) => {
+                let (s_prime, res) = handle_exists(name, namespace, path, resources, state);
+                (s_prime, ZKAPIOutputView::ExistsResponse(res))
+            },
+            ZKAPIInputView::CreateRequest(name, namespace, path, data) => {
+                let (s_prime, res) = handle_create(name, namespace, path, data, resources, state);
+                (s_prime, ZKAPIOutputView::CreateResponse(res))
+            },
+            ZKAPIInputView::SetDataRequest(name, namespace, path, data, version) => {
+                let (s_prime, res) = handle_set_data(name, namespace, path, data, version, resources, state);
+                (s_prime, ZKAPIOutputView::SetDataResponse(res))
+            },
         }
     }
 
-    open spec fn init_state() -> ZooKeeperState {
-        ZooKeeperState::default()
+    open spec fn init_state() -> ZKState {
+        ZKState::init()
     }
 }
 
 // The exec version of this method sets up a connection to the zookeeper cluster,
-// creates the node ("/zookeeper-operator/{zk_name}") (if not exists),
+// creates the node ("/zookeeper-operator/{name}") (if not exists),
 // and sets its data to the replicas number.
 // The behavior can be abstracted as writing the replicas number to an "address"
-// identified by the uri of the zookeeper cluster and the node path (uri, zk_name).
-// Note that the uri is decided by zk_name and zk_namespace, that is,
-// {zk_name}-client.{zk_namespace}.svc.cluster.local:2181 (here we hardcode the port to 2181).
+// identified by the uri of the zookeeper cluster and the node path (uri, name).
+// Note that the uri is decided by name and namespace, that is,
+// {name}-client.{namespace}.svc.cluster.local:2181 (here we hardcode the port to 2181).
 // Assuming the exec version correctly constructs the uri, we can further simplify the "address"
-// as (zk_name, zk_namespace). That's why the key of the map is an ObjectRef (the kind is useless here.).
+// as (name, namespace). That's why the key of the map is an ObjectRef (the kind is useless here.).
 //
 // NOTE: we assume the parent node ("/zookeeper-operator") already exists or successfully gets created
 // by the exec version so we don't model it in the spec version.
@@ -80,20 +132,82 @@ impl ExternalAPI for ZKAPI {
 //
 // TODO: specify version number of zookeeper node to reason about potential race between the current API call and
 // the old API call from the previously crashed controller.
-pub open spec fn set_zk_node(
-    zk_name: StringView, zk_namespace: StringView, replicas: StringView, state: ZooKeeperState
-) -> (ZooKeeperState, Option<ZKAPIOutputView>) {
+
+pub open spec fn validate(name: StringView, namespace: StringView, path: Seq<StringView>, resources: StoredState) -> bool {
     let key = ObjectRef {
-        kind: Kind::CustomResourceKind,
-        namespace: zk_namespace,
-        name: zk_name,
+        kind: Kind::StatefulSetKind,
+        namespace: namespace,
+        name: name,
     };
-    let new_data = state.data.insert(key, replicas);
-    let state_prime = ZooKeeperState {
-        data: new_data,
-        ..state
-    };
-    (state_prime, Some(ZKAPIOutputView::SetZKNodeResponse(ZKAPIResultView{res: Ok(())})))
+    &&& path.len() > 0
+    &&& resources.dom().contains(key)
+}
+
+pub open spec fn handle_exists(
+    name: StringView, namespace: StringView, path: Seq<StringView>, resources: StoredState, state: ZKState
+) -> (ZKState, ZKAPIExistsResultView) {
+    let key = ObjectRef { kind: Kind::StatefulSetKind, namespace: namespace, name: name };
+    if !validate(name, namespace, path, resources) {
+        (state, ZKAPIExistsResultView{res: Err(Error::ZKNodeExistsFailed)})
+    } else {
+        let current_uid = resources[key].metadata.uid.get_Some_0();
+        let addr = ZKNodeAddr::new(name, namespace, current_uid, path);
+        if !state.data.dom().contains(addr) {
+            (state, ZKAPIExistsResultView{res: Ok(None)})
+        } else {
+            let version = state.data[addr].1;
+            (state, ZKAPIExistsResultView{res: Ok(Some(version))})
+        }
+    }
+}
+
+pub open spec fn handle_create(
+    name: StringView, namespace: StringView, path: Seq<StringView>, data: ZKNodeValue, resources: StoredState, state: ZKState
+) -> (ZKState, ZKAPICreateResultView) {
+    let key = ObjectRef { kind: Kind::StatefulSetKind, namespace: namespace, name: name };
+    if !validate(name, namespace, path, resources) {
+        (state, ZKAPICreateResultView{res: Err(Error::ZKNodeCreateFailed)})
+    } else {
+        let current_uid = resources[key].metadata.uid.get_Some_0();
+        let addr = ZKNodeAddr::new(name, namespace, current_uid, path);
+        if !state.data.dom().contains(addr) {
+            if path.len() > 1 && !state.data.dom().contains(addr.parent_addr()) {
+                (state, ZKAPICreateResultView{res: Err(Error::ZKNodeCreateFailed)})
+            } else {
+                let state_prime = ZKState {
+                    data: state.data.insert(addr, (data, 0)),
+                };
+                (state_prime, ZKAPICreateResultView{res: Ok(())})
+            }
+        } else {
+            (state, ZKAPICreateResultView{res: Err(Error::ZKNodeCreateAlreadyExists)})
+        }
+    }
+}
+
+pub open spec fn handle_set_data(
+    name: StringView, namespace: StringView, path: Seq<StringView>, data: ZKNodeValue, version: ZKNodeVersion, resources: StoredState, state: ZKState
+) -> (ZKState, ZKAPISetDataResultView) {
+    let key = ObjectRef { kind: Kind::StatefulSetKind, namespace: namespace, name: name };
+    if !validate(name, namespace, path, resources) {
+        (state, ZKAPISetDataResultView{res: Err(Error::ZKNodeCreateFailed)})
+    } else {
+        let current_uid = resources[key].metadata.uid.get_Some_0();
+        let addr = ZKNodeAddr::new(name, namespace, current_uid, path);
+        if !state.data.dom().contains(addr) {
+            (state, ZKAPISetDataResultView{res: Err(Error::ZKNodeSetDataFailed)})
+        } else {
+            let current_version = state.data[addr].1;
+            if current_version != version {
+                (state, ZKAPISetDataResultView{res: Err(Error::ZKNodeSetDataFailed)})
+            } else {
+                let state_prime = ZKState {
+                    data: state.data.insert(addr, (data, current_version + 1)),
+                };
+                (state_prime, ZKAPISetDataResultView{res: Ok(())})
+            }
+        }
+    }
 }
 
 }
