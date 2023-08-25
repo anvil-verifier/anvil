@@ -91,7 +91,7 @@ pub trait ResourceView: Sized {
     proof fn from_dynamic_object_result_determined_by_unmarshal()
         ensures
             forall |obj: DynamicObjectView|
-                Self::unmarshal_spec(obj.spec).is_Ok() == Self::from_dynamic_object(obj).is_Ok();
+                obj.kind == Self::kind() ==> Self::unmarshal_spec(obj.spec).is_Ok() == #[trigger] Self::from_dynamic_object(obj).is_Ok();
 
     /// This method specifies the validation rule that only checks the new object.
     open spec fn rule(obj: Self) -> bool;

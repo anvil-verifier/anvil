@@ -138,7 +138,7 @@ proof fn lemma_server_config_map_update_request_msg_implies_key_in_reconcile_equ
 /// create request message (with key as key), it must be a controller action, and the triggering cr is s.triggering_cr_of(key).
 ///
 /// After the action, the controller stays at AfterCreateStatefulSet step.
-proof fn lemma_stateful_set_create_request_msg_implies_key_in_reconcile_equals(
+pub proof fn lemma_stateful_set_create_request_msg_implies_key_in_reconcile_equals(
     key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: Message<EmptyTypeView, EmptyTypeView>, step: RMQStep
 )
     requires

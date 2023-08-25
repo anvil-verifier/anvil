@@ -127,7 +127,7 @@ pub proof fn lemma_always_resp_if_matches_pending_req_then_no_other_resp_matches
     implies_preserved_by_always::<Self>(
         Self::every_in_flight_msg_has_unique_id(), Self::resp_if_matches_pending_req_then_no_other_resp_matches(resp_msg, cr_key)
     );
-    Self::lemma_always_every_in_flight_msg_has_unique_id();
+    Self::lemma_always_every_in_flight_msg_has_unique_id(spec);
     entails_trans::<Self>(
         spec,
         always(lift_state(Self::every_in_flight_msg_has_unique_id())),

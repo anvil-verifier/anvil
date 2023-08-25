@@ -285,6 +285,7 @@ pub open spec fn busy_kubernetes_api_rejects_request() -> Action<Self, Option<Me
         precondition: |input: Option<Message<E::Input, E::Output>>, s: Self| {
             &&& s.busy_enabled
             &&& input.is_Some()
+            &&& input.get_Some_0().dst.is_KubernetesAPI()
             &&& input.get_Some_0().content.is_APIRequest()
             &&& network_result(input, s).is_Enabled()
         },

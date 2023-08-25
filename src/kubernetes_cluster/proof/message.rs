@@ -108,9 +108,12 @@ pub open spec fn every_in_flight_req_is_unique() -> StatePred<Self> {
     }
 }
 
-pub proof fn lemma_always_every_in_flight_req_is_unique()
+pub proof fn lemma_always_every_in_flight_req_is_unique(spec: TempPred<Self>)
+    requires
+        spec.entails(lift_state(Self::init())),
+        spec.entails(always(lift_action(Self::next()))),
     ensures
-        Self::sm_spec().entails(
+        spec.entails(
             always(lift_state(Self::every_in_flight_req_is_unique()))
         ),
 {
@@ -119,9 +122,9 @@ pub proof fn lemma_always_every_in_flight_req_is_unique()
         &&& Self::next()(s, s_prime)
         &&& Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
     };
-    Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(Self::sm_spec());
+    Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
     strengthen_next::<Self>(
-        Self::sm_spec(), Self::next(), Self::every_in_flight_msg_has_lower_id_than_allocator(), stronger_next
+        spec, Self::next(), Self::every_in_flight_msg_has_lower_id_than_allocator(), stronger_next
     );
     assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime) implies
     invariant(s_prime) by {
@@ -133,7 +136,74 @@ pub proof fn lemma_always_every_in_flight_req_is_unique()
             }
         };
     };
-    init_invariant::<Self>(Self::sm_spec(), Self::init(), stronger_next, invariant);
+    init_invariant::<Self>(spec, Self::init(), stronger_next, invariant);
+}
+
+pub open spec fn in_flight_or_pending_req_message(s: Self, msg: Message) -> bool {
+    msg.content.is_APIRequest()
+    && (s.message_in_flight(msg)
+    || (
+        exists |key| 
+            #[trigger] s.reconcile_state_contains(key) 
+            && s.reconcile_state_of(key).pending_req_msg == Some(msg)
+    ))
+}
+
+pub open spec fn every_in_flight_or_pending_req_msg_has_unique_id() -> StatePred<Self> {
+    |s: Self| {
+        forall |msg: Message|
+            #[trigger] Self::in_flight_or_pending_req_message(s, msg) 
+            ==> (
+                forall |other_msg: Message|
+                    #[trigger] Self::in_flight_or_pending_req_message(s, other_msg)
+                    && msg != other_msg
+                    ==> msg.content.get_rest_id() != other_msg.content.get_rest_id()
+            )
+    }
+}
+
+pub proof fn lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec: TempPred<Self>)
+    requires
+        spec.entails(lift_state(Self::init())),
+        spec.entails(always(lift_action(Self::next()))),
+    ensures
+        spec.entails(
+            always(lift_state(Self::every_in_flight_or_pending_req_msg_has_unique_id()))
+        ),
+{
+    let invariant = Self::every_in_flight_or_pending_req_msg_has_unique_id();
+    let stronger_next = |s, s_prime: Self| {
+        Self::next()(s, s_prime)
+        && Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
+        && Self::pending_req_has_lower_req_id_than_allocator()(s)
+    };
+    Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
+    Self::lemma_always_pending_req_has_lower_req_id_than_allocator(spec);
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next), 
+        lift_action(Self::next()),
+        lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(Self::pending_req_has_lower_req_id_than_allocator())
+    );
+    assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime) implies
+    invariant(s_prime) by {
+        assert forall |msg| #[trigger] Self::in_flight_or_pending_req_message(s_prime, msg) implies (
+        forall |other_msg: Message| #[trigger] Self::in_flight_or_pending_req_message(s_prime, other_msg) && msg != other_msg 
+        ==> msg.content.get_rest_id() != other_msg.content.get_rest_id()) by {
+            assert forall |other_msg: Message| #[trigger] Self::in_flight_or_pending_req_message(s_prime, other_msg) && msg != other_msg implies
+            msg.content.get_rest_id() != other_msg.content.get_rest_id() by {
+                let step = choose |step| Self::next_step(s, s_prime, step);
+                if Self::in_flight_or_pending_req_message(s, other_msg) && Self::in_flight_or_pending_req_message(s, msg) {
+                    assert(msg.content.get_rest_id() != other_msg.content.get_rest_id());
+                } else if Self::in_flight_or_pending_req_message(s, msg) {
+                    assert(msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
+                } else if Self::in_flight_or_pending_req_message(s, other_msg) {
+                    assert(other_msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
+                }
+            }
+        }
+    };
+    init_invariant::<Self>(spec, Self::init(), stronger_next, invariant);
 }
 
 pub open spec fn every_in_flight_msg_has_unique_id() -> StatePred<Self> {
@@ -149,9 +219,12 @@ pub open spec fn every_in_flight_msg_has_unique_id() -> StatePred<Self> {
     }
 }
 
-pub proof fn lemma_always_every_in_flight_msg_has_unique_id()
+pub proof fn lemma_always_every_in_flight_msg_has_unique_id(spec: TempPred<Self>)
+    requires
+        spec.entails(lift_state(Self::init())),
+        spec.entails(always(lift_action(Self::next()))),
     ensures
-        Self::sm_spec().entails(
+        spec.entails(
             always(lift_state(Self::every_in_flight_msg_has_unique_id()))
         ),
 {
@@ -161,10 +234,10 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id()
         && Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
         && Self::every_in_flight_req_is_unique()(s)
     };
-    Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(Self::sm_spec());
-    Self::lemma_always_every_in_flight_req_is_unique();
+    Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
+    Self::lemma_always_every_in_flight_req_is_unique(spec);
     combine_spec_entails_always_n!(
-        Self::sm_spec(), lift_action(stronger_next),
+        spec, lift_action(stronger_next), 
         lift_action(Self::next()),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
         lift_state(Self::every_in_flight_req_is_unique())
@@ -173,7 +246,7 @@ pub proof fn lemma_always_every_in_flight_msg_has_unique_id()
     invariant(s_prime) by {
         Self::next_and_unique_lower_msg_id_preserves_in_flight_msg_has_unique_id(s, s_prime);
     };
-    init_invariant::<Self>(Self::sm_spec(), Self::init(), stronger_next, invariant);
+    init_invariant::<Self>(spec, Self::init(), stronger_next, invariant);
 }
 
 proof fn next_and_unique_lower_msg_id_preserves_in_flight_msg_has_unique_id(

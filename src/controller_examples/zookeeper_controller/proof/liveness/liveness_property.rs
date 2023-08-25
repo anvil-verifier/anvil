@@ -398,7 +398,7 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
                 always(lift_state(ZKCluster::desired_state_is(zk))).leads_to(always(lift_state(current_state_matches(zk))))
             );
 
-            ZKCluster::lemma_always_every_in_flight_msg_has_unique_id();
+            ZKCluster::lemma_always_every_in_flight_msg_has_unique_id(spec);
             ZKCluster::lemma_always_each_resp_matches_at_most_one_pending_req(spec, zk.object_ref());
             ZKCluster::lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_matches(spec, zk.object_ref());
             ZKCluster::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
