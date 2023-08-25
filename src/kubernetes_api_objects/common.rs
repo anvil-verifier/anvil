@@ -6,6 +6,10 @@ use vstd::string::*;
 
 verus! {
 
+pub type Uid = nat;
+
+pub type ResourceVersion = nat;
+
 #[is_variant]
 pub enum Kind {
     ConfigMapKind,

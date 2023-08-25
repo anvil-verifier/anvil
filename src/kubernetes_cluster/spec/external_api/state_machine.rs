@@ -25,18 +25,12 @@ pub open spec fn handle_external_request() -> ExternalAPIAction<E> {
         },
         transition: |input: ExternalAPIActionInput<E>, s: ExternalAPIState<E>| {
             let req_msg = input.recv.get_Some_0();
-            let (inner_s_prime, resp_o) = E::transition(req_msg.content.get_ExternalAPIRequest_0(), s.state, input.resources);
+            let (inner_s_prime, resp) = E::transition(req_msg.content.get_ExternalAPIRequest_0(), input.resources, s.state);
             let s_prime = ExternalAPIState {
                 state: inner_s_prime,
             };
-            let send = if resp_o.is_None() {
-                Multiset::empty()
-            } else {
-                let resp_msg = Message::form_external_resp_msg(req_msg, resp_o.get_Some_0());
-                Multiset::singleton(resp_msg)
-            };
             let output = ExternalAPIActionOutput {
-                send: send,
+                send: Multiset::singleton(Message::form_external_resp_msg(req_msg, resp)),
             };
             (s_prime, output)
         },
