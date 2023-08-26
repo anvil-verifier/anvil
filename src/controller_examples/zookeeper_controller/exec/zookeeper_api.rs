@@ -193,7 +193,13 @@ pub fn zk_exists(name: String, namespace: String, path: Vec<String>) -> ZKAPIExi
     let result = ZKAPIExistsResult {res: zk_exists_internal(name, namespace, path)};
     match result.res {
         Err(_) => println!("Checking existence of zk node failed"),
-        Ok(_) => println!("Checking existence of zk node successfully"),
+        Ok(o) => {
+            println!("Checking existence of zk node successfully");
+            match o {
+                Some(version) => println!("The zk node exists and version is {}", version),
+                None => println!("The zk node does not exist"),
+            }
+        },
     }
     result
 }
@@ -252,7 +258,7 @@ pub fn zk_set_data_internal(name: String, namespace: String, path: Vec<String>, 
     let zk_client = set_up_zk_client(&name, &namespace).map_err(|e| Error::ZKNodeSetDataFailed)?;
     let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
     let data_as_string = data.into_rust_string();
-    println!("Setting {} {} ...", &path_as_string, &data_as_string);
+    println!("Setting {} {} {}...", &path_as_string, &data_as_string, version);
     match zk_client.set_data(path_as_string.as_str(), data_as_string.as_str().as_bytes().to_vec(), Some(version)) {
         Err(_) => Err(Error::ZKNodeSetDataFailed),
         Ok(_) => Ok(()),
