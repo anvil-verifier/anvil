@@ -35,8 +35,6 @@ rules:
       - configmaps
       - secrets
       - serviceaccounts
-      - roles
-      - rolebindings
     verbs:
       - "*"
   - apiGroups:
@@ -52,6 +50,13 @@ rules:
       - policy
     resources:
       - poddisruptionbudgets
+    verbs:
+      - "*"
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - rolebindings
+      - roles
     verbs:
       - "*"
 ---

@@ -24,7 +24,7 @@ if [ "$registry" != "remote" ] && [ "$registry" != "local" ]; then
     exit 2
 fi
 
-if ["$registry" = "local"]; then
+if [ "$registry" = "local" ]; then
     kind load docker-image local/$app-controller:v0.1.0
 fi
 
