@@ -49,8 +49,8 @@ async fn main() -> Result<()> {
         println!("{}", serde_yaml::to_string(&deps_hack::FluentBitConfig::crd())?);
     } else if cmd == String::from("run") {
         println!("running fluent-controller");
-        let fluentbit_controller_fut = run_controller::<deps_hack::FluentBit, FluentBit, FluentBitReconciler, FluentBitReconcileState, EmptyType, EmptyType, EmptyAPI>();
-        let fluentbit_config_controller_fut = run_controller::<deps_hack::FluentBitConfig, FluentBitConfig, FluentBitConfigReconciler, FluentBitConfigReconcileState, EmptyType, EmptyType, EmptyAPI>();
+        let fluentbit_controller_fut = run_controller::<deps_hack::FluentBit, FluentBit, FluentBitReconciler, FluentBitReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer>();
+        let fluentbit_config_controller_fut = run_controller::<deps_hack::FluentBitConfig, FluentBitConfig, FluentBitConfigReconciler, FluentBitConfigReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer>();
         futures::try_join!(fluentbit_controller_fut, fluentbit_config_controller_fut)?;
         println!("controller terminated");
     } else {
