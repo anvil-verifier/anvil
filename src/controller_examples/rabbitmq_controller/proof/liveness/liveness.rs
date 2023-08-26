@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use super::{helper_invariants, terminate};
+use super::terminate;
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, dynamic::*, owner_reference::*, resource::*,
@@ -16,7 +16,7 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::rabbitmq_controller::{
     common::*,
-    proof::common::*,
+    proof::{common::*, helper_invariants},
     spec::{rabbitmqcluster::*, reconciler::*},
 };
 use crate::temporal_logic::{defs::*, rules::*};

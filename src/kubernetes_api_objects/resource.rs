@@ -98,6 +98,7 @@ pub trait ResourceView: Sized {
 
     /// This method specifies the validation rule that checks the relations between the new and old object.
     open spec fn transition_rule(new_obj: Self, old_obj: Self) -> bool;
+
 }
 
 }

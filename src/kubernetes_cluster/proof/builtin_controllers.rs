@@ -21,6 +21,11 @@ verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
+/// Everytime when we reason about update request message, we can only consider those valid ones (see validata_update_request).
+/// However, listing all requirements makes spec looks cumbersome (consider using validate_create/update_request); we can only 
+/// list those that we need or that may appear according to the spec of system.
+/// 
+/// For example, in some lemma we use msg.content.get_update_request().obj.kind == key.kind, so this requirement is added here.
 pub open spec fn every_update_msg_sets_owner_references_as(
     key: ObjectRef, requirements: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool
 ) -> StatePred<Self> {
@@ -30,6 +35,7 @@ pub open spec fn every_update_msg_sets_owner_references_as(
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_update_request()
             && msg.content.get_update_request().key == key
+            && msg.content.get_update_request().obj.kind == key.kind
             ==> requirements(msg.content.get_update_request().obj.metadata.owner_references)
     }
 }
