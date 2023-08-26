@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::exec::*;
-use crate::fluent_controller::common::*;
-use crate::fluent_controller::exec::fluentbit::*;
-use crate::fluent_controller::spec::reconciler as fluent_spec;
+use crate::fluent_controller::fluentbit::common::*;
+use crate::fluent_controller::fluentbit::exec::types::*;
+use crate::fluent_controller::fluentbit::spec::reconciler as fluent_spec;
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, daemon_set::*, label_selector::*, object_meta::*,
@@ -34,7 +34,7 @@ pub struct FluentBitReconcileState {
 impl FluentBitReconcileState {
     pub open spec fn to_view(&self) -> fluent_spec::FluentBitReconcileState {
         fluent_spec::FluentBitReconcileState {
-                reconcile_step: self.reconcile_step,
+            reconcile_step: self.reconcile_step,
         }
     }
 }
@@ -103,17 +103,41 @@ pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyType>>
     let step = state.reconcile_step;
     match step{
         FluentBitReconcileStep::Init => {
-            let role = make_role(fluentbit);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: Role::api_resource(),
+            let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                api_resource: Secret::api_resource(),
+                name: fluentbit.spec().fluentbit_config_name(),
                 namespace: fluentbit.metadata().namespace().unwrap(),
-                obj: role.to_dynamic_object(),
             });
             let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterCreateRole,
+                reconcile_step: FluentBitReconcileStep::AfterGetSecret,
                 ..state
             };
             return (state_prime, Some(Request::KRequest(req_o)));
+        },
+        FluentBitReconcileStep::AfterGetSecret => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                let get_sts_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_sts_resp.is_ok() {
+                    let role = make_role(fluentbit);
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: Role::api_resource(),
+                        namespace: fluentbit.metadata().namespace().unwrap(),
+                        obj: role.to_dynamic_object(),
+                    });
+                    let state_prime = FluentBitReconcileState {
+                        reconcile_step: FluentBitReconcileStep::AfterCreateRole,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
+            // return error state
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
         },
         FluentBitReconcileStep::AfterCreateRole => {
             let service_account = make_service_account(fluentbit);
@@ -142,19 +166,6 @@ pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyType>>
             return (state_prime, Some(Request::KRequest(req_o)));
         },
         FluentBitReconcileStep::AfterCreateRoleBinding => {
-            let secret = make_secret(fluentbit);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: Secret::api_resource(),
-                namespace: fluentbit.metadata().namespace().unwrap(),
-                obj: secret.to_dynamic_object(),
-            });
-            let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterCreateSecret,
-                ..state
-            };
-            return (state_prime, Some(Request::KRequest(req_o)));
-        },
-        FluentBitReconcileStep::AfterCreateSecret => {
             let daemon_set = make_daemon_set(fluentbit);
             let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                 api_resource: DaemonSet::api_resource(),
@@ -340,39 +351,6 @@ fn make_role_binding(fluentbit: &FluentBit) -> (role_binding: RoleBinding)
     role_binding
 }
 
-pub fn make_secret(fluentbit: &FluentBit) -> (secret: Secret)
-    requires
-        fluentbit@.metadata.name.is_Some(),
-        fluentbit@.metadata.namespace.is_Some(),
-    ensures
-        secret@ == fluent_spec::make_secret(fluentbit@),
-{
-    let mut secret = Secret::default();
-    secret.set_metadata({
-        let mut metadata = ObjectMeta::default();
-        metadata.set_name(fluentbit.metadata().name().unwrap().concat(new_strlit("-config-secret")));
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(fluentbit.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    fluent_spec::make_secret(fluentbit@).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
-        metadata
-    });
-    secret.set_data({
-        let mut data = StringMap::empty();
-        data.insert(new_strlit("fluent-bit.conf").to_string(), fluentbit.spec().fluentbit_config());
-        data.insert(new_strlit("parsers.conf").to_string(), fluentbit.spec().parsers_config());
-        data
-    });
-    secret
-}
-
 fn make_daemon_set(fluentbit: &FluentBit) -> (daemon_set: DaemonSet)
     requires
         fluentbit@.metadata.name.is_Some(),
@@ -533,7 +511,7 @@ fn make_fluentbit_pod_spec(fluentbit: &FluentBit) -> (pod_spec: PodSpec)
             volume.set_name(new_strlit("config").to_string());
             volume.set_secret({
                 let mut secret = SecretVolumeSource::default();
-                secret.set_secret_name(fluentbit.metadata().name().unwrap().concat(new_strlit("-config-secret")));
+                secret.set_secret_name(fluentbit.spec().fluentbit_config_name());
                 secret
             });
             volume

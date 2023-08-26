@@ -9,12 +9,12 @@ use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
-pub struct FluentBitView {
+pub struct FluentBitConfigView {
     pub metadata: ObjectMetaView,
-    pub spec: FluentBitSpecView,
+    pub spec: FluentBitConfigSpecView,
 }
 
-impl FluentBitView {
+impl FluentBitConfigView {
     pub open spec fn well_formed(self) -> bool {
         &&& self.metadata.name.is_Some()
         &&& self.metadata.namespace.is_Some()
@@ -31,8 +31,8 @@ impl FluentBitView {
     }
 }
 
-impl ResourceView for FluentBitView {
-    type Spec = FluentBitSpecView;
+impl ResourceView for FluentBitConfigView {
+    type Spec = FluentBitConfigSpecView;
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
@@ -52,7 +52,7 @@ impl ResourceView for FluentBitView {
 
     proof fn object_ref_is_well_formed() {}
 
-    open spec fn spec(self) -> FluentBitSpecView {
+    open spec fn spec(self) -> FluentBitConfigSpecView {
         self.spec
     }
 
@@ -60,56 +60,55 @@ impl ResourceView for FluentBitView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            spec: FluentBitView::marshal_spec(self.spec)
+            spec: FluentBitConfigView::marshal_spec(self.spec)
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<FluentBitView, ParseDynamicObjectError> {
+    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<FluentBitConfigView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
             Err(ParseDynamicObjectError::UnmarshalError)
-        } else if !FluentBitView::unmarshal_spec(obj.spec).is_Ok() {
+        } else if !FluentBitConfigView::unmarshal_spec(obj.spec).is_Ok() {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else {
-            Ok(FluentBitView {
+            Ok(FluentBitConfigView {
                 metadata: obj.metadata,
-                spec: FluentBitView::unmarshal_spec(obj.spec).get_Ok_0(),
+                spec: FluentBitConfigView::unmarshal_spec(obj.spec).get_Ok_0(),
             })
         }
     }
 
     proof fn to_dynamic_preserves_integrity() {
-        FluentBitView::spec_integrity_is_preserved_by_marshal();
+        FluentBitConfigView::spec_integrity_is_preserved_by_marshal();
     }
 
     proof fn from_dynamic_preserves_metadata() {}
 
     proof fn from_dynamic_preserves_kind() {}
 
-    closed spec fn marshal_spec(s: FluentBitSpecView) -> Value;
+    closed spec fn marshal_spec(s: FluentBitConfigSpecView) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<FluentBitSpecView, ParseDynamicObjectError>;
+    closed spec fn unmarshal_spec(v: Value) -> Result<FluentBitConfigSpecView, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
-    open spec fn rule(obj: FluentBitView) -> bool {
+    open spec fn rule(obj: FluentBitConfigView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_obj: FluentBitView, old_obj: FluentBitView) -> bool {
+    open spec fn transition_rule(new_obj: FluentBitConfigView, old_obj: FluentBitConfigView) -> bool {
         true
     }
 }
 
-pub struct FluentBitSpecView {
+pub struct FluentBitConfigSpecView {
     pub fluentbit_config: StringView,
     pub parsers_config: StringView,
-    pub resources: ResourceRequirementsView,
 }
 
-impl FluentBitSpecView {}
+impl FluentBitConfigSpecView {}
 
-impl Marshalable for FluentBitSpecView {
+impl Marshalable for FluentBitConfigSpecView {
     spec fn marshal(self) -> Value;
 
     spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;

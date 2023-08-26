@@ -17,9 +17,18 @@ use builtin::*;
 use builtin_macros::*;
 
 use crate::external_api::exec::*;
-use crate::fluent_controller::exec::fluentbit::FluentBit;
-use crate::fluent_controller::exec::reconciler::{FluentBitReconcileState, FluentBitReconciler};
+use crate::fluent_controller::{
+    fluentbit::exec::{
+        reconciler::{FluentBitReconcileState, FluentBitReconciler},
+        types::FluentBit,
+    },
+    fluentbit_config::exec::{
+        reconciler::{FluentBitConfigReconcileState, FluentBitConfigReconciler},
+        types::FluentBitConfig,
+    },
+};
 use deps_hack::anyhow::Result;
+use deps_hack::futures;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
 use deps_hack::tokio;
@@ -37,9 +46,12 @@ async fn main() -> Result<()> {
     if cmd == String::from("export") {
         println!("exporting custom resource definition");
         println!("{}", serde_yaml::to_string(&deps_hack::FluentBit::crd())?);
+        println!("{}", serde_yaml::to_string(&deps_hack::FluentBitConfig::crd())?);
     } else if cmd == String::from("run") {
         println!("running fluent-controller");
-        run_controller::<deps_hack::FluentBit, FluentBit, FluentBitReconciler, FluentBitReconcileState, EmptyType, EmptyType, EmptyAPI>().await?;
+        let fluentbit_controller_fut = run_controller::<deps_hack::FluentBit, FluentBit, FluentBitReconciler, FluentBitReconcileState, EmptyType, EmptyType, EmptyAPI>();
+        let fluentbit_config_controller_fut = run_controller::<deps_hack::FluentBitConfig, FluentBitConfig, FluentBitConfigReconciler, FluentBitConfigReconcileState, EmptyType, EmptyType, EmptyAPI>();
+        futures::try_join!(fluentbit_controller_fut, fluentbit_config_controller_fut)?;
         println!("controller terminated");
     } else {
         println!("wrong command; please use \"export\" or \"run\"");

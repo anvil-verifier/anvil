@@ -6,13 +6,9 @@ use vstd::prelude::*;
 verus! {
 
 #[is_variant]
-pub enum FluentBitReconcileStep {
+pub enum FluentBitConfigReconcileStep {
     Init,
-    AfterCreateRole,
-    AfterCreateServiceAccount,
-    AfterCreateRoleBinding,
     AfterCreateSecret,
-    AfterCreateDaemonSet,
     Done,
     Error,
 }

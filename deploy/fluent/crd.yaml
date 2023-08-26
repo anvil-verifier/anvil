@@ -21,9 +21,7 @@ spec:
           properties:
             spec:
               properties:
-                fluentBitConfig:
-                  type: string
-                parsersConfig:
+                fluentBitConfigName:
                   type: string
                 resources:
                   default: {}
@@ -55,12 +53,50 @@ spec:
                       type: object
                   type: object
               required:
+                - fluentBitConfigName
+              type: object
+          required:
+            - spec
+          title: FluentBit
+          type: object
+      served: true
+      storage: true
+      subresources: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: fluentbitconfigs.anvil.dev
+spec:
+  group: anvil.dev
+  names:
+    categories: []
+    kind: FluentBitConfig
+    plural: fluentbitconfigs
+    shortNames:
+      - fbc
+    singular: fluentbitconfig
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns: []
+      name: v1
+      schema:
+        openAPIV3Schema:
+          description: "Auto-generated derived type for FluentBitConfigSpec via `CustomResource`"
+          properties:
+            spec:
+              properties:
+                fluentBitConfig:
+                  type: string
+                parsersConfig:
+                  type: string
+              required:
                 - fluentBitConfig
                 - parsersConfig
               type: object
           required:
             - spec
-          title: FluentBit
+          title: FluentBitConfig
           type: object
       served: true
       storage: true
