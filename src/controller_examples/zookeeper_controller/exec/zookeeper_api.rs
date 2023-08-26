@@ -258,7 +258,7 @@ pub fn zk_set_data_internal(name: String, namespace: String, path: Vec<String>, 
     let zk_client = set_up_zk_client(&name, &namespace).map_err(|e| Error::ZKNodeSetDataFailed)?;
     let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
     let data_as_string = data.into_rust_string();
-    println!("Setting {} {} {}...", &path_as_string, &data_as_string, version);
+    println!("Setting {} {} {} ...", &path_as_string, &data_as_string, version);
     match zk_client.set_data(path_as_string.as_str(), data_as_string.as_str().as_bytes().to_vec(), Some(version)) {
         Err(_) => Err(Error::ZKNodeSetDataFailed),
         Ok(_) => Ok(()),
