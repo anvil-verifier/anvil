@@ -35,11 +35,15 @@ jobs:
         run: ./deploy.sh rabbitmq local
       - name: Run rabbitmq e2e tests
         run: cd e2e && cargo run -- rabbitmq
+      - name: Tear down kind cluster
+        run: kind delete clusters kind && sleep 15
       # For zookeeper
       - name: Build zookeeper controller image
         run: |
           cp docker/zookeeper-controller/Dockerfile .
           docker build -t local/zookeeper-controller:v0.1.0 .
+      - name: Create kind cluster
+        run: kind create cluster --config=./e2e/deploy/kind_config.yaml
       - name: Deploy zookeeper controller
         run: ./deploy.sh zookeeper local
       - name: Run zookeeper e2e tests
