@@ -8,6 +8,19 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
+// ZKNodeAddr represents the location of a zk node.
+// Here the location includes not only the key (i.e., the path field),
+// but also the zookeeper cluster (hosted by some stateful set object).
+// The zookeeper cluster is identified by name, namespace and uid:
+// the name and namespace tells which stateful set object hosts the zookeeper cluster
+// (and gives us the uri to connect to), and the uid helps to distinguish stateful set
+// objects that share the same name -- the new stateful set object shares the same name/namespace,
+// but does not inherit the data stored in the previous zookeeper cluster.
+//
+// Note that the path is represented as a sequence of string(view), because zookeeper exposes
+// a file system like interface to the user: each node is a file path with some data associated with it,
+// and each node can have child and parent node just like a hierarchical file system.
+// We use the sequence to represent the full path for each node.
 pub struct ZKNodeAddr {
     pub name: StringView,
     pub namespace: StringView,
@@ -37,6 +50,8 @@ pub type ZKNodeValue = StringView;
 
 pub type ZKNodeVersion = int;
 
+// ZKState is basically a map from the key (the id of the zookeeper cluster and the node path)
+// to the value, and the stat data associated with the node (i.e., version number).
 pub struct ZKState {
     pub data: Map<ZKNodeAddr, (ZKNodeValue, ZKNodeVersion)>,
 }
@@ -105,34 +120,13 @@ impl ExternalAPI for ZKAPI {
     }
 }
 
-// The exec version of this method sets up a connection to the zookeeper cluster,
-// creates the node ("/zookeeper-operator/{name}") (if not exists),
-// and sets its data to the replicas number.
-// The behavior can be abstracted as writing the replicas number to an "address"
-// identified by the uri of the zookeeper cluster and the node path (uri, name).
-// Note that the uri is decided by name and namespace, that is,
-// {name}-client.{namespace}.svc.cluster.local:2181 (here we hardcode the port to 2181).
-// Assuming the exec version correctly constructs the uri, we can further simplify the "address"
-// as (name, namespace). That's why the key of the map is an ObjectRef (the kind is useless here.).
+// validate checks the stateful set object (the end point that the client connects to in the exec implementation)
+// exists, and the path is valid.
 //
-// NOTE: we assume the parent node ("/zookeeper-operator") already exists or successfully gets created
-// by the exec version so we don't model it in the spec version.
-// We also omit the "CLUSTER_SIZE=" prefix since it is always written with the replicas.
-//
-// TODO: the result of this zk api should also depend on the cluster state, for example
-// whether the client service object and the zookeeper stateful set object exist.
-// Specifying such dependency would require us to pass the cluster state into this function.
-//
-// TODO: we should also consider the uid of the stateful set (that hosts the zookeeper cluster) inside this function.
-// If the stateful set (with the same name) gets deleted and recrated,
-// the controller, when connecting to the same uri, will talk to a different zookeeper cluster,
-// which does not remember all the data written before.
-// A potential solution is to associate the written zookeeper node with the current uid of the stateful set
-// by querying the cluster state.
-//
-// TODO: specify version number of zookeeper node to reason about potential race between the current API call and
-// the old API call from the previously crashed controller.
-
+// TODO: more validation check could be implemented,
+// such as checking the existence of the service object as well,
+// checking whether the stateful set is really ready,
+// and checking whether the port number is correct (if not hardcoded as it is).
 pub open spec fn validate(name: StringView, namespace: StringView, path: Seq<StringView>, resources: StoredState) -> bool {
     let key = ObjectRef {
         kind: Kind::StatefulSetKind,
@@ -143,6 +137,10 @@ pub open spec fn validate(name: StringView, namespace: StringView, path: Seq<Str
     &&& resources.dom().contains(key)
 }
 
+// handle_exists models the behavior of the zookeeper server handling the exists request.
+// It checks the existence of the node by querying the map.
+// If the node exists, it returns its stat (i.e., version number), otherwise none.
+// Note that it uses the uid to avoid querying the data belonging to the old stateful set object.
 pub open spec fn handle_exists(
     name: StringView, namespace: StringView, path: Seq<StringView>, resources: StoredState, state: ZKState
 ) -> (ZKState, ZKAPIExistsResultView) {
@@ -161,6 +159,8 @@ pub open spec fn handle_exists(
     }
 }
 
+// handle_create models the behavior of the zookeeper server handling the create request.
+// The creation succeeds only when (1) the node does not exist yet and (2) the parent node exists.
 pub open spec fn handle_create(
     name: StringView, namespace: StringView, path: Seq<StringView>, data: ZKNodeValue, resources: StoredState, state: ZKState
 ) -> (ZKState, ZKAPICreateResultView) {
@@ -185,6 +185,8 @@ pub open spec fn handle_create(
     }
 }
 
+// handle_set_data models the behavior of the zookeeper server handling the set data request.
+// To set the data, the node needs to exist and the provided version number must match the current version of the node.
 pub open spec fn handle_set_data(
     name: StringView, namespace: StringView, path: Seq<StringView>, data: ZKNodeValue, version: ZKNodeVersion, resources: StoredState, state: ZKState
 ) -> (ZKState, ZKAPISetDataResultView) {
