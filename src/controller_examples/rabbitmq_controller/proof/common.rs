@@ -385,6 +385,13 @@ pub open spec fn sts_update_request_msg(key: ObjectRef) -> FnSpec(RMQMessage) ->
         && msg.content.get_update_request().obj.kind == Kind::StatefulSetKind
 }
 
+pub open spec fn sts_get_request_msg(key: ObjectRef) -> FnSpec(RMQMessage) -> bool {
+    |msg: RMQMessage|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_get_request()
+        && msg.content.get_get_request().key == make_stateful_set_key(key)
+}
+
 pub open spec fn sts_get_response_msg(key: ObjectRef) -> FnSpec(RMQMessage) -> bool {
     |msg: RMQMessage|
         msg.src.is_KubernetesAPI()

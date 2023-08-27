@@ -1107,7 +1107,7 @@ pub open spec fn response_at_after_get_stateful_set_step_is_sts_get_response(rab
     |s: RMQCluster| {
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterGetStatefulSet)(s)
         ==> s.reconcile_state_of(key).pending_req_msg.is_Some()
-            && is_get_stateful_set_request(s.pending_req_of(key).content.get_APIRequest_0(), rabbitmq)
+            && sts_get_request_msg(key)(s.pending_req_of(key))
             && (
                 forall |msg: RMQMessage|
                     #[trigger] s.message_in_flight(msg)
@@ -1128,91 +1128,17 @@ pub proof fn lemma_always_response_at_after_get_stateful_set_step_is_sts_get_res
     let key = rabbitmq.object_ref();
     let next = |s, s_prime| {
         &&& RMQCluster::next()(s, s_prime)
-        &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
-        &&& RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
-        &&& RMQCluster::every_in_flight_or_pending_req_msg_has_unique_id()(s)
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
+        &&& RMQCluster::reference_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)(s_prime)
     };
-    RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
-    RMQCluster::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
-    RMQCluster::lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec);
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
+    RMQCluster::lemma_always_reference_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, key);
+    always_to_always_later(spec, lift_state(RMQCluster::reference_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)));
     combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(RMQCluster::next()), lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
-        lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(RMQCluster::every_in_flight_or_pending_req_msg_has_unique_id()),
-        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
+        spec, lift_action(next), lift_action(RMQCluster::next()), 
+        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
+        later(lift_state(RMQCluster::reference_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)))
     );
-    assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterGetStatefulSet)(s_prime) {
-            if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterGetStatefulSet)(s) {
-                assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                assert(s_prime.reconcile_state_of(key).pending_req_msg.is_Some());
-                assert(is_get_stateful_set_request(s_prime.pending_req_of(key).content.get_APIRequest_0(), rabbitmq));
-            } else {
-                assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateRoleBinding)(s));
-                assert(s_prime.reconcile_state_of(key).pending_req_msg.is_Some());
-                assert(is_get_stateful_set_request(s_prime.pending_req_of(key).content.get_APIRequest_0(), rabbitmq));
-            }
-            assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && Message::resp_msg_matches_req_msg(msg, s_prime.pending_req_of(key))
-            implies sts_get_response_msg(key)(msg) by {
-                let step = choose |step| RMQCluster::next_step(s, s_prime, step);
-                match step {
-                    Step::ControllerStep(input) => {
-                        assert(s.message_in_flight(msg));
-                        let cr_key = input.1.get_Some_0();
-                        if cr_key == key {
-                            assert(s.message_in_flight(msg));
-                            assert(false);
-                        } else {
-                            assert(s.pending_req_of(key) == s_prime.pending_req_of(key));
-                            assert(sts_get_response_msg(key)(msg));
-                        }
-                    },
-                    Step::KubernetesAPIStep(input) => {
-                        assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        if !s.message_in_flight(msg) {
-                            assert(RMQCluster::in_flight_or_pending_req_message(s, s.pending_req_of(key)));
-                            assert(RMQCluster::in_flight_or_pending_req_message(s, input.get_Some_0()));
-                            assert(is_get_stateful_set_request(s_prime.pending_req_of(key).content.get_APIRequest_0(), rabbitmq));
-                            assert(msg.content.is_get_response());
-                            assert(msg == RMQCluster::handle_get_request(s.pending_req_of(key), s.kubernetes_api_state).1);
-                            assert(msg.src.is_KubernetesAPI()
-                            && msg.content.is_get_response());
-                            if msg.content.get_get_response().res.is_Ok() {
-                                assert(s.resource_key_exists(make_stateful_set_key(key)));
-                                assert(s.resource_obj_of(make_stateful_set_key(key)).object_ref() == make_stateful_set_key(key));
-                            }
-                            assert(sts_get_response_msg(key)(msg));
-                        }
-                    },
-                    Step::KubernetesBusy(input) => {
-                        assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                        if !s.message_in_flight(msg) {
-                            assert(RMQCluster::in_flight_or_pending_req_message(s, s.pending_req_of(key)));
-                            assert(RMQCluster::in_flight_or_pending_req_message(s, input.get_Some_0()));
-                            assert(msg.src.is_KubernetesAPI());
-                            assert(msg.content.is_get_response());
-                            assert(msg.content.get_get_response().res.is_Err());
-                        }
-                        assert(sts_get_response_msg(key)(msg));
-                    },
-                    Step::ClientStep() => {
-                        assert(s.message_in_flight(msg));
-                        assert(sts_get_response_msg(key)(msg));
-                    },
-                    Step::ExternalAPIStep(input) => {
-                        assert(input.get_Some_0() != msg);
-                        assert(s.message_in_flight(msg));
-                    },
-                    _ => {
-                        assert(s.message_in_flight(msg));
-                        assert(sts_get_response_msg(key)(msg));
-                    }
-                }
-            }
-        }
-    }
     init_invariant(spec, RMQCluster::init(), next, inv);
 }
 

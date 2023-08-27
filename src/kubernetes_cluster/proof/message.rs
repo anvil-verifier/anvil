@@ -346,7 +346,14 @@ pub proof fn lemma_always_pending_req_has_lower_req_id_than_allocator(spec: Temp
     );
 }
 
-pub open spec fn ok_get_response_msg(key: ObjectRef) -> FnSpec(MsgType<E>) -> bool {
+pub open spec fn ok_get_response_msg() -> FnSpec(MsgType<E>) -> bool {
+    |msg: MsgType<E>|
+        msg.src.is_KubernetesAPI()
+        && msg.content.is_get_response()
+        && msg.content.get_get_response().res.is_Ok()
+}
+
+pub open spec fn ok_get_response_msg_with_key(key: ObjectRef) -> FnSpec(MsgType<E>) -> bool {
     |msg: MsgType<E>|
         msg.src.is_KubernetesAPI()
         && msg.content.is_get_response()
@@ -359,7 +366,7 @@ pub open spec fn object_in_ok_get_response_has_smaller_rv_than_etcd(key: ObjectR
         let etcd_rv = s.resource_obj_of(key).metadata.resource_version.get_Some_0();
         forall |msg: MsgType<E>|
             #[trigger] s.message_in_flight(msg)
-            && Self::ok_get_response_msg(key)(msg)
+            && Self::ok_get_response_msg_with_key(key)(msg)
             ==> msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.is_Some()
                 && msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
     }
@@ -390,7 +397,7 @@ pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spe
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let etcd_rv = s.resource_obj_of(key).metadata.resource_version.get_Some_0();
-        assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && Self::ok_get_response_msg(key)(msg) implies
+        assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && Self::ok_get_response_msg_with_key(key)(msg) implies
         msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.is_Some()
         && msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter by {
             let step = choose |step| Self::next_step(s, s_prime, step);
@@ -412,7 +419,7 @@ pub open spec fn object_in_ok_get_resp_is_same_as_etcd_with_same_rv(key: ObjectR
     |s: Self| {
         forall |msg|
             #[trigger] s.message_in_flight(msg)
-            && Self::ok_get_response_msg(key)(msg)
+            && Self::ok_get_response_msg_with_key(key)(msg)
             && s.resource_key_exists(key)
             && s.resource_obj_of(key).metadata.resource_version.get_Some_0() == msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0()
             ==> s.resource_obj_of(key) == msg.content.get_get_response().res.get_Ok_0()
@@ -439,7 +446,7 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spe
         lift_state(Self::object_in_ok_get_response_has_smaller_rv_than_etcd(key))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && Self::ok_get_response_msg(key)(msg) && s_prime.resource_key_exists(key)
+        assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && Self::ok_get_response_msg_with_key(key)(msg) && s_prime.resource_key_exists(key)
         && s_prime.resource_obj_of(key).metadata.resource_version.get_Some_0() == msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() implies s_prime.resource_obj_of(key) == msg.content.get_get_response().res.get_Ok_0() by {
             if s.message_in_flight(msg) {
                 if !s.resource_key_exists(key) || s.resource_obj_of(key) != s_prime.resource_obj_of(key) {
@@ -455,6 +462,114 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spe
                 assert(req.content.get_get_request().key == msg.content.get_get_response().res.get_Ok_0().object_ref());
                 assert(s.kubernetes_api_state == s_prime.kubernetes_api_state);
                 assert(s_prime.resource_obj_of(key) == msg.content.get_get_response().res.get_Ok_0());
+            }
+        }
+    }
+    init_invariant(spec, Self::init(), next, inv);
+}
+
+pub open spec fn reference_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key: ObjectRef) -> StatePred<Self> 
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: Self| {
+        forall |msg: MsgType<E>|
+            #[trigger] s.message_in_flight(msg)
+            && Self::ok_get_response_msg()(msg)
+            && s.reconcile_state_contains(key)
+            && s.reconcile_state_of(key).pending_req_msg.is_Some()
+            && Message::resp_msg_matches_req_msg(msg, s.pending_req_of(key))
+            ==> Self::ok_get_response_msg_with_key(s.pending_req_of(key).content.get_get_request().key)(msg)
+    }
+    
+}
+
+pub proof fn lemma_always_reference_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec: TempPred<Self>, key: ObjectRef)
+    requires
+        key.kind.is_CustomResourceKind(),
+        spec.entails(lift_state(Self::init())),
+        spec.entails(always(lift_action(Self::next()))),
+    ensures
+        spec.entails(always(lift_state(Self::reference_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)))),
+{
+    let inv = Self::reference_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key);
+    let next = |s, s_prime| {
+        &&& Self::next()(s, s_prime)
+        &&& Self::each_object_in_etcd_is_well_formed()(s)
+        &&& Self::every_in_flight_msg_has_lower_id_than_allocator()(s)
+        &&& Self::every_in_flight_or_pending_req_msg_has_unique_id()(s)
+        &&& Self::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
+        &&& Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(key)(s)
+    };
+    Self::lemma_always_each_object_in_etcd_is_well_formed(spec);
+    Self::lemma_always_every_in_flight_msg_has_lower_id_than_allocator(spec);
+    Self::lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec);
+    Self::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
+    Self::lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_matches(spec, key);
+    combine_spec_entails_always_n!(
+        spec, lift_action(next), lift_action(Self::next()), lift_state(Self::each_object_in_etcd_is_well_formed()),
+        lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
+        lift_state(Self::every_in_flight_or_pending_req_msg_has_unique_id()),
+        lift_state(Self::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
+        lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(key))
+    );
+    assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+        assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && Self::ok_get_response_msg()(msg) && s_prime.reconcile_state_contains(key) 
+        && s_prime.reconcile_state_of(key).pending_req_msg.is_Some() && Message::resp_msg_matches_req_msg(msg, s_prime.pending_req_of(key)) implies
+        Self::ok_get_response_msg_with_key(s_prime.pending_req_of(key).content.get_get_request().key)(msg) by {
+            assert(s_prime.pending_req_of(key).content.is_get_request());
+            let req_key = s_prime.pending_req_of(key).content.get_get_request().key;
+            let step = choose |step| Self::next_step(s, s_prime, step);
+            match step {
+                Step::ControllerStep(input) => {
+                    assert(s.message_in_flight(msg));
+                    let cr_key = input.1.get_Some_0();
+                    if cr_key == key {
+                        assert(false);
+                    } else {
+                        assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
+                        assert(Self::ok_get_response_msg_with_key(req_key)(msg));
+                    }
+                },
+                Step::KubernetesAPIStep(input) => {
+                    assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
+                    if !s.message_in_flight(msg) {
+                        assert(Self::in_flight_or_pending_req_message(s, s.pending_req_of(key)));
+                        assert(Self::in_flight_or_pending_req_message(s, input.get_Some_0()));
+                        assert(msg.content.is_get_response());
+                        assert(msg == Self::handle_get_request(s.pending_req_of(key), s.kubernetes_api_state).1);
+                        assert(msg.src.is_KubernetesAPI()
+                        && msg.content.is_get_response());
+                        if msg.content.get_get_response().res.is_Ok() {
+                            assert(s.resource_key_exists(req_key));
+                            assert(s.resource_obj_of(req_key).object_ref() == req_key);
+                        }
+                        assert(Self::ok_get_response_msg_with_key(req_key)(msg));
+                    }
+                },
+                Step::KubernetesBusy(input) => {
+                    assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
+                    if !s.message_in_flight(msg) {
+                        assert(Self::in_flight_or_pending_req_message(s, s.pending_req_of(key)));
+                        assert(Self::in_flight_or_pending_req_message(s, input.get_Some_0()));
+                        assert(msg.src.is_KubernetesAPI());
+                        assert(msg.content.is_get_response());
+                        assert(msg.content.get_get_response().res.is_Err());
+                    }
+                    assert(Self::ok_get_response_msg_with_key(req_key)(msg));
+                },
+                Step::ClientStep() => {
+                    assert(s.message_in_flight(msg));
+                    assert(Self::ok_get_response_msg_with_key(req_key)(msg));
+                },
+                Step::ExternalAPIStep(input) => {
+                    assert(input.get_Some_0() != msg);
+                    assert(s.message_in_flight(msg));
+                },
+                _ => {
+                    assert(s.message_in_flight(msg));
+                    assert(Self::ok_get_response_msg_with_key(req_key)(msg));
+                }
             }
         }
     }

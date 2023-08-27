@@ -35,17 +35,17 @@ pub open spec fn is_reflexive_and_transitive() -> bool {
 /// This spec and also this module are targeted at the relations of the three versions of custom resource object. We know that
 /// if cr is updated, the old and new object are subject to the transition rule (if any). Since scheduled_cr and triggering_cr
 /// are derived from the cr in etcd, they are either equal to or satisfy the transition rule with etcd cr.
-/// 
+///
 /// When the transition rule is transitive, we can determine a linear order of the three custom resource objects.
-pub open spec fn etcd_and_scheduled_and_triggering_cr_in_correct_order(cr: K) -> StatePred<Self> {
+pub open spec fn transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(cr: K) -> StatePred<Self> {
     |s: Self| {
-        Self::scheduled_cr_is_in_correct_order_with_etcd_cr(cr)(s)
-        && Self::triggering_cr_is_in_correct_order_with_scheduled_cr(cr)(s)
-        && Self::triggering_cr_is_in_correct_order_with_etcd_cr(cr)(s)
+        Self::transition_rule_applies_to_etcd_and_scheduled_cr(cr)(s)
+        && Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)(s)
+        && Self::transition_rule_applies_to_etcd_and_triggering_cr(cr)(s)
     }
 }
 
-pub proof fn lemma_always_etcd_and_scheduled_and_triggering_cr_in_correct_order(spec: TempPred<Self>, cr: K)
+pub proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(spec: TempPred<Self>, cr: K)
     requires
         K::kind() == Kind::CustomResourceKind,
         Self::from_dynamic_preserves_spec(),
@@ -53,19 +53,19 @@ pub proof fn lemma_always_etcd_and_scheduled_and_triggering_cr_in_correct_order(
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
-        spec.entails(always(lift_state(Self::etcd_and_scheduled_and_triggering_cr_in_correct_order(cr)))),
+        spec.entails(always(lift_state(Self::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(cr)))),
 {
-    Self::lemma_always_scheduled_cr_is_in_correct_order_with_etcd_cr(spec, cr);
+    Self::lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec, cr);
     Self::lemma_always_triggering_cr_is_in_correct_order(spec, cr);
     combine_spec_entails_always_n!(
-        spec, lift_state(Self::etcd_and_scheduled_and_triggering_cr_in_correct_order(cr)),
-        lift_state(Self::scheduled_cr_is_in_correct_order_with_etcd_cr(cr)),
-        lift_state(Self::triggering_cr_is_in_correct_order_with_scheduled_cr(cr)),
-        lift_state(Self::triggering_cr_is_in_correct_order_with_etcd_cr(cr))
+        spec, lift_state(Self::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(cr)),
+        lift_state(Self::transition_rule_applies_to_etcd_and_scheduled_cr(cr)),
+        lift_state(Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)),
+        lift_state(Self::transition_rule_applies_to_etcd_and_triggering_cr(cr))
     );
 }
 
-pub open spec fn scheduled_cr_is_in_correct_order_with_etcd_cr(cr: K) -> StatePred<Self> {
+pub open spec fn transition_rule_applies_to_etcd_and_scheduled_cr(cr: K) -> StatePred<Self> {
     |s: Self| {
         let key = cr.object_ref();
         s.reconcile_scheduled_for(key)
@@ -75,7 +75,7 @@ pub open spec fn scheduled_cr_is_in_correct_order_with_etcd_cr(cr: K) -> StatePr
     }
 }
 
-proof fn lemma_always_scheduled_cr_is_in_correct_order_with_etcd_cr(spec: TempPred<Self>, cr: K)
+proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: TempPred<Self>, cr: K)
     requires
         K::kind() == Kind::CustomResourceKind,
         Self::is_reflexive_and_transitive(),
@@ -83,9 +83,9 @@ proof fn lemma_always_scheduled_cr_is_in_correct_order_with_etcd_cr(spec: TempPr
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
-        spec.entails(always(lift_state(Self::scheduled_cr_is_in_correct_order_with_etcd_cr(cr)))),
+        spec.entails(always(lift_state(Self::transition_rule_applies_to_etcd_and_scheduled_cr(cr)))),
 {
-    let inv = Self::scheduled_cr_is_in_correct_order_with_etcd_cr(cr);
+    let inv = Self::transition_rule_applies_to_etcd_and_scheduled_cr(cr);
     let next = |s, s_prime| {
         &&& Self::next()(s, s_prime)
         &&& Self::each_object_in_etcd_is_well_formed()(s)
@@ -143,7 +143,7 @@ proof fn lemma_always_scheduled_cr_is_in_correct_order_with_etcd_cr(spec: TempPr
     init_invariant(spec, Self::init(), next, inv);
 }
 
-pub open spec fn triggering_cr_is_in_correct_order_with_etcd_cr(cr: K) -> StatePred<Self> {
+pub open spec fn transition_rule_applies_to_etcd_and_triggering_cr(cr: K) -> StatePred<Self> {
     |s: Self| {
         let key = cr.object_ref();
         s.reconcile_state_contains(key)
@@ -153,7 +153,7 @@ pub open spec fn triggering_cr_is_in_correct_order_with_etcd_cr(cr: K) -> StateP
     }
 }
 
-pub open spec fn triggering_cr_is_in_correct_order_with_scheduled_cr(cr: K) -> StatePred<Self> {
+pub open spec fn transition_rule_applies_to_scheduled_and_triggering_cr(cr: K) -> StatePred<Self> {
     |s: Self| {
         let key = cr.object_ref();
         s.reconcile_state_contains(key)
@@ -171,30 +171,30 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
-        spec.entails(always(lift_state(Self::triggering_cr_is_in_correct_order_with_etcd_cr(cr)))),
-        spec.entails(always(lift_state(Self::triggering_cr_is_in_correct_order_with_scheduled_cr(cr)))),
+        spec.entails(always(lift_state(Self::transition_rule_applies_to_etcd_and_triggering_cr(cr)))),
+        spec.entails(always(lift_state(Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)))),
 {
     let inv = |s: Self| {
-        &&& Self::triggering_cr_is_in_correct_order_with_etcd_cr(cr)(s)
-        &&& Self::triggering_cr_is_in_correct_order_with_scheduled_cr(cr)(s)
+        &&& Self::transition_rule_applies_to_etcd_and_triggering_cr(cr)(s)
+        &&& Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)(s)
     };
     let next = |s, s_prime| {
         &&& Self::next()(s, s_prime)
         &&& Self::each_object_in_etcd_is_well_formed()(s)
         &&& Self::each_object_in_etcd_is_well_formed()(s_prime)
         &&& Self::triggering_cr_has_lower_uid_than_uid_counter()(s)
-        &&& Self::scheduled_cr_is_in_correct_order_with_etcd_cr(cr)(s)
+        &&& Self::transition_rule_applies_to_etcd_and_scheduled_cr(cr)(s)
     };
     Self::lemma_always_each_object_in_etcd_is_well_formed(spec);
     always_to_always_later(spec, lift_state(Self::each_object_in_etcd_is_well_formed()));
     Self::lemma_always_triggering_cr_has_lower_uid_than_uid_counter(spec);
-    Self::lemma_always_scheduled_cr_is_in_correct_order_with_etcd_cr(spec, cr);
+    Self::lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec, cr);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(Self::next()),
         lift_state(Self::each_object_in_etcd_is_well_formed()),
         later(lift_state(Self::each_object_in_etcd_is_well_formed())),
         lift_state(Self::triggering_cr_has_lower_uid_than_uid_counter()),
-        lift_state(Self::scheduled_cr_is_in_correct_order_with_etcd_cr(cr))
+        lift_state(Self::transition_rule_applies_to_etcd_and_scheduled_cr(cr))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = cr.object_ref();
@@ -245,17 +245,17 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
                         assert(K::transition_rule(s_prime.reconcile_scheduled_obj_of(key), K::from_dynamic_object(s.resource_obj_of(key)).get_Ok_0()));
                         assert(K::transition_rule(K::from_dynamic_object(s.resource_obj_of(key)).get_Ok_0(), s.triggering_cr_of(key)));
                     }
-                    assert(Self::triggering_cr_is_in_correct_order_with_scheduled_cr(cr)(s_prime));
+                    assert(Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)(s_prime));
                 },
                 _ => {
-                    assert(Self::triggering_cr_is_in_correct_order_with_scheduled_cr(cr)(s_prime));
+                    assert(Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)(s_prime));
                 }
             }
         }
     }
     init_invariant(spec, Self::init(), next, inv);
-    always_weaken(spec, inv, Self::triggering_cr_is_in_correct_order_with_etcd_cr(cr));
-    always_weaken(spec, inv, Self::triggering_cr_is_in_correct_order_with_scheduled_cr(cr));
+    always_weaken(spec, inv, Self::transition_rule_applies_to_etcd_and_triggering_cr(cr));
+    always_weaken(spec, inv, Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr));
 }
 
 }
