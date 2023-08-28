@@ -361,25 +361,24 @@ pub open spec fn is_ok_get_response_msg_and_matches_key(key: ObjectRef) -> FnSpe
         && msg.content.get_get_response().res.get_Ok_0().object_ref() == key
 }
 
-pub open spec fn object_in_ok_get_response_has_smaller_rv_than_etcd(key: ObjectRef) -> StatePred<Self> {
+pub open spec fn object_in_ok_get_response_has_smaller_rv_than_etcd() -> StatePred<Self> {
     |s: Self| {
-        let etcd_rv = s.resource_obj_of(key).metadata.resource_version.get_Some_0();
         forall |msg: MsgType<E>|
             #[trigger] s.message_in_flight(msg)
-            && Self::is_ok_get_response_msg_and_matches_key(key)(msg)
+            && Self::is_ok_get_response_msg()(msg)
             ==> msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.is_Some()
                 && msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
     }
 }
 
-pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec: TempPred<Self>, key: ObjectRef)
+pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec: TempPred<Self>)
     requires
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
-        spec.entails(always(lift_state(Self::object_in_ok_get_response_has_smaller_rv_than_etcd(key)))),
+        spec.entails(always(lift_state(Self::object_in_ok_get_response_has_smaller_rv_than_etcd()))),
 {
-    let inv = Self::object_in_ok_get_response_has_smaller_rv_than_etcd(key);
+    let inv = Self::object_in_ok_get_response_has_smaller_rv_than_etcd();
     let next = |s, s_prime| {
         &&& Self::next()(s, s_prime)
         &&& Self::each_object_in_etcd_is_well_formed()(s)
@@ -396,8 +395,7 @@ pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spe
         lift_state(Self::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        let etcd_rv = s.resource_obj_of(key).metadata.resource_version.get_Some_0();
-        assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && Self::is_ok_get_response_msg_and_matches_key(key)(msg) implies
+        assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && Self::is_ok_get_response_msg()(msg) implies
         msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.is_Some()
         && msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter by {
             let step = choose |step| Self::next_step(s, s_prime, step);
@@ -405,10 +403,10 @@ pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spe
                 assert(s.kubernetes_api_state.resource_version_counter <= s_prime.kubernetes_api_state.resource_version_counter);
             } else {
                 let input = step.get_KubernetesAPIStep_0().get_Some_0();
-                assert(s.resource_key_exists(input.content.get_get_request().key));
-                assert(input.content.get_get_request().key == key);
-                assert(msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() == s.resource_obj_of(key).metadata.resource_version.get_Some_0());
-                assert(s.resource_obj_of(key).metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter);
+                let req_key = input.content.get_get_request().key;
+                assert(s.resource_key_exists(req_key));
+                assert(msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() == s.resource_obj_of(req_key).metadata.resource_version.get_Some_0());
+                assert(s.resource_obj_of(req_key).metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter);
             }
         }
     }
@@ -437,13 +435,13 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spe
     let next = |s, s_prime| {
         &&& Self::next()(s, s_prime)
         &&& Self::each_object_in_etcd_is_well_formed()(s)
-        &&& Self::object_in_ok_get_response_has_smaller_rv_than_etcd(key)(s)
+        &&& Self::object_in_ok_get_response_has_smaller_rv_than_etcd()(s)
     };
     Self::lemma_always_each_object_in_etcd_is_well_formed(spec);
-    Self::lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec, key);
+    Self::lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(Self::next()), lift_state(Self::each_object_in_etcd_is_well_formed()),
-        lift_state(Self::object_in_ok_get_response_has_smaller_rv_than_etcd(key))
+        lift_state(Self::object_in_ok_get_response_has_smaller_rv_than_etcd())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && Self::is_ok_get_response_msg_and_matches_key(key)(msg) && s_prime.resource_key_exists(key)

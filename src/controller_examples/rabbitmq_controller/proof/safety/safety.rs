@@ -125,9 +125,7 @@ spec fn object_in_sts_update_request_has_smaller_rv_than_etcd(rabbitmq: Rabbitmq
     }
 }
 
-proof fn lemma_always_object_in_sts_update_request_has_smaller_rv_than_etcd(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView
-)
+proof fn lemma_always_object_in_sts_update_request_has_smaller_rv_than_etcd(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
@@ -148,23 +146,22 @@ proof fn lemma_always_object_in_sts_update_request_has_smaller_rv_than_etcd(
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s_prime)
         &&& response_at_after_get_stateful_set_step_is_sts_get_response(rabbitmq)(s)
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
-        &&& RMQCluster::object_in_ok_get_response_has_smaller_rv_than_etcd(sts_key)(s)
+        &&& RMQCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()(s)
     };
     RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     lemma_always_response_at_after_get_stateful_set_step_is_sts_get_response(spec, rabbitmq);
     always_to_always_later(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
-    RMQCluster::lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec, sts_key);
+    RMQCluster::lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(RMQCluster::next()),
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         later(lift_state(RMQCluster::each_object_in_etcd_is_well_formed())),
         lift_state(response_at_after_get_stateful_set_step_is_sts_get_response(rabbitmq)),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        lift_state(RMQCluster::object_in_ok_get_response_has_smaller_rv_than_etcd(sts_key))
+        lift_state(RMQCluster::object_in_ok_get_response_has_smaller_rv_than_etcd())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        let etcd_rv = s.resource_obj_of(sts_key).metadata.resource_version.get_Some_0();
         assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && sts_update_request_msg(rabbitmq.object_ref())(msg) implies
         msg.content.get_update_request().obj.metadata.resource_version.is_Some()
         && msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter by {
@@ -174,6 +171,8 @@ proof fn lemma_always_object_in_sts_update_request_has_smaller_rv_than_etcd(
             } else if sts_update_request_msg(rabbitmq.object_ref())(msg) {
                 lemma_stateful_set_update_request_msg_implies_key_in_reconcile_equals(key, s, s_prime, msg, step);
                 assert(at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s_prime));
+                let resp_msg = step.get_ControllerStep_0().0.get_Some_0();
+                assert(RMQCluster::is_ok_get_response_msg()(resp_msg));
             }
         }
     }
