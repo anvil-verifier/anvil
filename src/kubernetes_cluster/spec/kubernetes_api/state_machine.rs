@@ -204,7 +204,6 @@ pub open spec fn allow_unconditional_update(kind: Kind) -> bool {
 }
 
 pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPIState) -> Option<APIError> {
-    // let req = msg.content.get_update_request();
     if req.obj.metadata.name.is_None() {
         // Update fails because the name of the object is not provided
         Some(APIError::BadRequest)
