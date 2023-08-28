@@ -1100,7 +1100,7 @@ pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: Tem
 /// sts_get_response_msg. This lemma is used to show that the response message, if is ok, has an object whose reference is
 /// stateful_set_key. resp_msg_matches_req_msg doesn't talk about the object in response should match the key in request
 /// so we need this extra spec and lemma.
-/// 
+///
 /// If we don't have this, we have no idea of what is inside the response message.
 pub open spec fn response_at_after_get_stateful_set_step_is_sts_get_response(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     let key = rabbitmq.object_ref();
@@ -1129,15 +1129,15 @@ pub proof fn lemma_always_response_at_after_get_stateful_set_step_is_sts_get_res
     let next = |s, s_prime| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
-        &&& RMQCluster::reference_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)(s_prime)
+        &&& RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)(s_prime)
     };
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
-    RMQCluster::lemma_always_reference_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, key);
-    always_to_always_later(spec, lift_state(RMQCluster::reference_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)));
+    RMQCluster::lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, key);
+    always_to_always_later(spec, lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)));
     combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(RMQCluster::next()), 
+        spec, lift_action(next), lift_action(RMQCluster::next()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        later(lift_state(RMQCluster::reference_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)))
+        later(lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)))
     );
     init_invariant(spec, RMQCluster::init(), next, inv);
 }
