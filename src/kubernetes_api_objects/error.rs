@@ -12,6 +12,7 @@ verus! {
 pub enum APIError {
     BadRequest,
     Conflict,
+    Forbidden,
     Invalid,
     ObjectNotFound,
     ObjectAlreadyExists,
@@ -27,6 +28,7 @@ impl std::fmt::Debug for APIError {
         match *self {
             APIError::BadRequest => write!(f, "BadRequest"),
             APIError::Conflict => write!(f, "Conflict"),
+            APIError::Forbidden => write!(f, "Forbidden"),
             APIError::Invalid => write!(f, "Invalid"),
             APIError::ObjectNotFound => write!(f, "ObjectNotFound"),
             APIError::ObjectAlreadyExists => write!(f, "ObjectAlreadyExists"),
