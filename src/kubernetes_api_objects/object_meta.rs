@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::owner_reference::*;
@@ -10,7 +11,6 @@ use vstd::prelude::*;
 use vstd::string::*;
 
 verus! {
-
 
 /// ObjectMeta contains the metadata that all Kubernetes resource objects must have,
 /// including name, namespace, uid, and so on.
@@ -87,13 +87,13 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
-    pub fn resource_version(&self) -> (version: Option<u64>)
+    pub fn resource_version(&self) -> (version: Option<String>)
         ensures
             self@.resource_version.is_Some() == version.is_Some(),
-            version.is_Some() ==> version.get_Some_0() == self@.resource_version.get_Some_0(),
+            version.is_Some() ==> version.get_Some_0()@ == int_to_string_view(self@.resource_version.get_Some_0()),
     {
         match &self.inner.resource_version {
-            Some(n) => Some( n.parse::<std::primitive::u64>().unwrap() as u64 ),
+            Some(n) => Some(String::from_rust_string(n.to_string())),
             None => None,
         }
     }
@@ -194,8 +194,8 @@ pub struct ObjectMetaView {
     pub name: Option<StringView>,
     pub namespace: Option<StringView>,
     pub generate_name: Option<StringView>,
-    pub resource_version: Option<nat>, // make rv a nat so that it is easy to compare in spec/proof
-    pub uid: Option<nat>,
+    pub resource_version: Option<ResourceVersion>, // make rv a nat so that it is easy to compare in spec/proof
+    pub uid: Option<Uid>,
     pub labels: Option<Map<StringView, StringView>>,
     pub annotations: Option<Map<StringView, StringView>>,
     pub owner_references: Option<Seq<OwnerReferenceView>>,
@@ -261,7 +261,7 @@ impl ObjectMetaView {
         }
     }
 
-    pub open spec fn set_resource_version(self, resource_version: nat) -> ObjectMetaView {
+    pub open spec fn set_resource_version(self, resource_version: ResourceVersion) -> ObjectMetaView {
         ObjectMetaView {
             resource_version: Some(resource_version),
             ..self

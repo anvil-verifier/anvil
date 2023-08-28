@@ -49,7 +49,7 @@ pub struct OwnerReferenceView {
     pub controller: Option<bool>,
     pub kind: Kind,
     pub name: StringView,
-    pub uid: nat,
+    pub uid: Uid,
 }
 
 impl OwnerReferenceView {

@@ -100,7 +100,7 @@ impl DynamicObjectView {
         }
     }
 
-    pub open spec fn set_resource_version(self, resource_version: nat) -> DynamicObjectView {
+    pub open spec fn set_resource_version(self, resource_version: ResourceVersion) -> DynamicObjectView {
         DynamicObjectView {
             metadata: ObjectMetaView {
                 resource_version: Some(resource_version),
@@ -110,7 +110,7 @@ impl DynamicObjectView {
         }
     }
 
-    pub open spec fn set_uid(self, uid: nat) -> DynamicObjectView {
+    pub open spec fn set_uid(self, uid: Uid) -> DynamicObjectView {
         DynamicObjectView {
             metadata: ObjectMetaView {
                 uid: Some(uid),
