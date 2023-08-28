@@ -192,7 +192,7 @@ pub open spec fn handle_set_data(
 ) -> (ZKState, ZKAPISetDataResultView) {
     let key = ObjectRef { kind: Kind::StatefulSetKind, namespace: namespace, name: name };
     if !validate(name, namespace, path, resources) {
-        (state, ZKAPISetDataResultView{res: Err(Error::ZKNodeCreateFailed)})
+        (state, ZKAPISetDataResultView{res: Err(Error::ZKNodeSetDataFailed)})
     } else {
         let current_uid = resources[key].metadata.uid.get_Some_0();
         let addr = ZKNodeAddr::new(name, namespace, current_uid, path);
