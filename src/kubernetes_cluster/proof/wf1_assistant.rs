@@ -26,7 +26,7 @@ verus! {
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub proof fn kubernetes_api_action_pre_implies_next_pre(
-    action: KubernetesAPIAction<E::Input, E::Output>, input: Option<Message<E::Input, E::Output>>
+    action: KubernetesAPIAction<E::Input, E::Output>, input: Option<MsgType<E>>
 )
     requires
         Self::kubernetes_api().actions.contains(action),
@@ -57,7 +57,7 @@ pub proof fn exists_next_kubernetes_api_step(
 }
 
 pub proof fn controller_action_pre_implies_next_pre(
-    action: ControllerAction<K, E, R>, input: (Option<Message<E::Input, E::Output>>, Option<ObjectRef>)
+    action: ControllerAction<K, E, R>, input: (Option<MsgType<E>>, Option<ObjectRef>)
 )
     requires
         Self::controller().actions.contains(action),

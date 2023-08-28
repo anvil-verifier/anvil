@@ -21,12 +21,12 @@ pub enum ExternalAPIStep {
 }
 
 pub struct ExternalAPIActionInput<E: ExternalAPI> {
-    pub recv: Option<Message<E::Input, E::Output>>,
+    pub recv: Option<MsgType<E>>,
     pub resources: StoredState,
 }
 
 pub struct ExternalAPIActionOutput<E: ExternalAPI> {
-    pub send: Multiset<Message<E::Input, E::Output>>,
+    pub send: Multiset<MsgType<E>>,
 }
 
 pub type ExternalAPIStateMachine<E> = StateMachine<ExternalAPIState<E>, ExternalAPIActionInput<E>, ExternalAPIActionInput<E>, ExternalAPIActionOutput<E>, ExternalAPIStep>;

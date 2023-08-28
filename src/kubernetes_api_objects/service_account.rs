@@ -189,6 +189,8 @@ impl ResourceView for ServiceAccountView {
     #[verifier(external_body)]
     proof fn spec_integrity_is_preserved_by_marshal() {}
 
+    proof fn from_dynamic_object_result_determined_by_unmarshal() {}
+
     open spec fn rule(obj: ServiceAccountView) -> bool {
         true
     }

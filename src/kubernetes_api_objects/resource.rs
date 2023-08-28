@@ -87,12 +87,18 @@ pub trait ResourceView: Sized {
             forall |s: Self::Spec|
                 Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
                 && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0();
+    
+    proof fn from_dynamic_object_result_determined_by_unmarshal()
+        ensures
+            forall |obj: DynamicObjectView|
+                obj.kind == Self::kind() ==> Self::unmarshal_spec(obj.spec).is_Ok() == #[trigger] Self::from_dynamic_object(obj).is_Ok();
 
     /// This method specifies the validation rule that only checks the new object.
     open spec fn rule(obj: Self) -> bool;
 
     /// This method specifies the validation rule that checks the relations between the new and old object.
     open spec fn transition_rule(new_obj: Self, old_obj: Self) -> bool;
+
 }
 
 }

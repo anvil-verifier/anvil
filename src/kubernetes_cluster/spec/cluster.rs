@@ -40,7 +40,7 @@ pub struct Cluster<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
 
 impl<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
     #[verifier(inline)]
-    pub open spec fn message_in_flight(self, msg: Message<E::Input, E::Output>) -> bool {
+    pub open spec fn message_in_flight(self, msg: MsgType<E>) -> bool {
         self.network_state.in_flight.contains(msg)
     }
 
@@ -79,7 +79,7 @@ impl<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
     }
 
     #[verifier(inline)]
-    pub open spec fn pending_req_of(self, key: ObjectRef) -> Message<E::Input, E::Output>
+    pub open spec fn pending_req_of(self, key: ObjectRef) -> MsgType<E>
         recommends
             self.reconcile_state_contains(key),
             self.reconcile_state_of(key).pending_req_msg.is_Some(),

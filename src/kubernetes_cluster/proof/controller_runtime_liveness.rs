@@ -27,7 +27,7 @@ pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled(cr_ke
 }
 
 pub proof fn lemma_pre_leads_to_post_by_controller(
-    spec: TempPred<Self>, input: (Option<Message<E::Input, E::Output>>, Option<ObjectRef>), next: ActionPred<Self>,
+    spec: TempPred<Self>, input: (Option<MsgType<E>>, Option<ObjectRef>), next: ActionPred<Self>,
     action: ControllerAction<K, E, R>, pre: StatePred<Self>, post: StatePred<Self>
 )
     requires
@@ -40,7 +40,7 @@ pub proof fn lemma_pre_leads_to_post_by_controller(
     ensures
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
-    use_tla_forall::<Self, (Option<Message<E::Input, E::Output>>, Option<ObjectRef>)>(
+    use_tla_forall::<Self, (Option<MsgType<E>>, Option<ObjectRef>)>(
         spec, |i| Self::controller_next().weak_fairness(i), input
     );
 
@@ -256,7 +256,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         && Self::pending_k8s_api_req_msg(s, cr.object_ref())
         && Self::request_sent_by_controller(s.pending_req_of(cr.object_ref()))
         && (s.message_in_flight(s.pending_req_of(cr.object_ref()))
-        || exists |resp_msg: Message<E::Input, E::Output>| {
+        || exists |resp_msg: MsgType<E>| {
             #[trigger] s.message_in_flight(resp_msg)
             && Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(cr.object_ref()))
         })
@@ -386,7 +386,7 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
             && Message::resp_msg_matches_req_msg(resp, s.pending_req_of(cr.object_ref()))
         }
     );
-    assert forall |msg: Message<E::Input, E::Output>| spec.entails(#[trigger] known_resp_in_flight(msg)
+    assert forall |msg: MsgType<E>| spec.entails(#[trigger] known_resp_in_flight(msg)
         .leads_to(lift_state(post))) by {
             let resp_in_flight_state = |s: Self| {
                 Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
@@ -400,14 +400,14 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
                 spec, input, stronger_next, Self::continue_reconcile(), resp_in_flight_state, post
             );
     };
-    leads_to_exists_intro::<Self, Message<E::Input, E::Output>>(spec, known_resp_in_flight, lift_state(post));
+    leads_to_exists_intro::<Self, MsgType<E>>(spec, known_resp_in_flight, lift_state(post));
     assert_by(
         tla_exists(known_resp_in_flight) == lift_state(pre),
         {
             assert forall |ex| #[trigger] lift_state(pre).satisfied_by(ex)
             implies tla_exists(known_resp_in_flight).satisfied_by(ex) by {
                 let s = ex.head();
-                let msg = choose |resp_msg: Message<E::Input, E::Output>| {
+                let msg = choose |resp_msg: MsgType<E>| {
                     #[trigger] s.message_in_flight(resp_msg)
                     && Message::resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0())
                 };
@@ -442,7 +442,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
         ),
 {
     let pre = Self::pending_req_in_flight_at_reconcile_state(cr.object_ref(), state);
-    assert forall |req_msg: Message<E::Input, E::Output>| spec.entails(
+    assert forall |req_msg: MsgType<E>| spec.entails(
         lift_state(#[trigger] Self::req_msg_is_the_in_flight_pending_req_at_reconcile_state(cr.object_ref(), state, req_msg))
             .leads_to(lift_state(Self::resp_in_flight_matches_pending_req_at_reconcile_state(cr.object_ref(), state)))
     ) by {

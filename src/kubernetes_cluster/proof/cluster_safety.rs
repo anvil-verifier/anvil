@@ -33,6 +33,7 @@ pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
         &&& s.resource_obj_of(key).object_ref() == key
         &&& s.resource_obj_of(key).metadata.well_formed()
+        &&& s.resource_obj_of(key).metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
         &&& {
             &&& key.kind == ConfigMapView::kind() ==> ConfigMapView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
             &&& key.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
@@ -42,6 +43,7 @@ pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
             &&& key.kind == SecretView::kind() ==> SecretView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
             &&& key.kind == ServiceView::kind() ==> ServiceView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
             &&& key.kind == StatefulSetView::kind() ==> StatefulSetView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
+            &&& key.kind == K::kind() ==> K::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
         }
     }
 }
@@ -67,6 +69,7 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(spec: TempPred<Self
     implies invariant(s_prime) by {
         assert forall |key: ObjectRef| #[trigger] s_prime.resource_key_exists(key)
         implies Self::etcd_object_is_well_formed(key)(s_prime) by {
+            K::from_dynamic_object_result_determined_by_unmarshal();
             if s.resource_key_exists(key) {} else {}
         }
     }
