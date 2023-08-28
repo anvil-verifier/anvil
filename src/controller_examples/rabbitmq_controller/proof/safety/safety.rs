@@ -179,32 +179,6 @@ proof fn lemma_always_object_in_sts_update_request_has_smaller_rv_than_etcd(spec
     init_invariant(spec, RMQCluster::init(), next, inv);
 }
 
-/// This function defined a replicas order for stateful set object. Here, obj can be the etcd statful set object, the object 
-/// in create/update stateful set object. We define this order because, the replicas in the update request is derived from 
-/// the triggering cr; so, in order to show the updated replicas is no smaller than the original one, we need to show that 
-/// the original one (the one stored in etcd)'s replicas is no larger than that of triggering cr. obj.metadata.owner_references_only_contains
-/// (s.triggering_cr_of(key).controller_owner_ref()) here is to ensure that the cr is still the one that creates the stateful 
-/// set object. The left two comparison is to assist the last one because when the state moves to the next state, the triggering_cr 
-/// may be assigned (inserted or updated).
-spec fn replicas_satisfies_order(obj: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
-    recommends
-        obj.kind.is_StatefulSetKind(),
-{
-    |s: RMQCluster| {
-        let key = rabbitmq.object_ref();
-        let sts_replicas = replicas_of_stateful_set(obj);
-        &&& s.resource_key_exists(key)
-            && obj.metadata.owner_references_only_contains(RabbitmqClusterView::from_dynamic_object(s.resource_obj_of(key)).get_Ok_0().controller_owner_ref())
-            ==> sts_replicas <= replicas_of_rabbitmq(s.resource_obj_of(key))
-        &&& s.reconcile_scheduled_for(key)
-            && obj.metadata.owner_references_only_contains(s.reconcile_scheduled_obj_of(key).controller_owner_ref())
-            ==> sts_replicas <= s.reconcile_scheduled_obj_of(key).spec.replicas
-        &&& s.reconcile_state_contains(key)
-            && obj.metadata.owner_references_only_contains(s.triggering_cr_of(key).controller_owner_ref())
-            ==> sts_replicas <= s.triggering_cr_of(key).spec.replicas
-    }
-}
-
 spec fn replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let sts_key = make_stateful_set_key(rabbitmq.object_ref());
@@ -302,6 +276,32 @@ proof fn replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd_ind
     }
 }
 
+/// This function defined a replicas order for stateful set object. Here, obj can be the etcd statful set object, the object 
+/// in create/update stateful set object. We define this order because, the replicas in the update request is derived from 
+/// the triggering cr; so, in order to show the updated replicas is no smaller than the original one, we need to show that 
+/// the original one (the one stored in etcd)'s replicas is no larger than that of triggering cr. obj.metadata.owner_references_only_contains
+/// (s.triggering_cr_of(key).controller_owner_ref()) here is to ensure that the cr is still the one that creates the stateful 
+/// set object. The left two comparison is to assist the last one because when the state moves to the next state, the triggering_cr 
+/// may be assigned (inserted or updated).
+spec fn replicas_satisfies_order(obj: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
+    recommends
+        obj.kind.is_StatefulSetKind(),
+{
+    |s: RMQCluster| {
+        let key = rabbitmq.object_ref();
+        let sts_replicas = replicas_of_stateful_set(obj);
+        &&& s.resource_key_exists(key)
+            && obj.metadata.owner_references_only_contains(RabbitmqClusterView::from_dynamic_object(s.resource_obj_of(key)).get_Ok_0().controller_owner_ref())
+            ==> sts_replicas <= replicas_of_rabbitmq(s.resource_obj_of(key))
+        &&& s.reconcile_scheduled_for(key)
+            && obj.metadata.owner_references_only_contains(s.reconcile_scheduled_obj_of(key).controller_owner_ref())
+            ==> sts_replicas <= s.reconcile_scheduled_obj_of(key).spec.replicas
+        &&& s.reconcile_state_contains(key)
+            && obj.metadata.owner_references_only_contains(s.triggering_cr_of(key).controller_owner_ref())
+            ==> sts_replicas <= s.triggering_cr_of(key).spec.replicas
+    }
+}
+
 spec fn replicas_of_etcd_stateful_set_satisfies_order(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let key = rabbitmq.object_ref();
@@ -341,7 +341,8 @@ proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPr
     init_invariant(spec, RMQCluster::init(), next, inv);
 }
 
-/// To do this induction, we mainly proves how the invariant holds if everything is not changed from the previous state.
+/// To do this induction, we mainly proves how the invariant holds if if the stateful set in etcd is not changed (neither 
+/// created not updated)from the previous state.
 /// If the state changes, we rely on the property of create/update request message which is proved in another lemma.
 proof fn replicas_of_etcd_stateful_set_satisfies_order_induction(rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster)
     requires
