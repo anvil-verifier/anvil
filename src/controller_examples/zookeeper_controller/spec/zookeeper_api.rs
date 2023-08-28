@@ -148,8 +148,7 @@ pub open spec fn handle_exists(
     if !validate(name, namespace, path, resources) {
         (state, ZKAPIExistsResultView{res: Err(Error::ZKNodeExistsFailed)})
     } else {
-        let current_uid = resources[key].metadata.uid.get_Some_0();
-        let addr = ZKNodeAddr::new(name, namespace, current_uid, path);
+        let addr = ZKNodeAddr::new(name, namespace, resources[key].metadata.uid.get_Some_0(), path);
         if !state.data.dom().contains(addr) {
             (state, ZKAPIExistsResultView{res: Ok(None)})
         } else {
@@ -168,8 +167,7 @@ pub open spec fn handle_create(
     if !validate(name, namespace, path, resources) {
         (state, ZKAPICreateResultView{res: Err(Error::ZKNodeCreateFailed)})
     } else {
-        let current_uid = resources[key].metadata.uid.get_Some_0();
-        let addr = ZKNodeAddr::new(name, namespace, current_uid, path);
+        let addr = ZKNodeAddr::new(name, namespace, resources[key].metadata.uid.get_Some_0(), path);
         if !state.data.dom().contains(addr) {
             if path.len() > 1 && !state.data.dom().contains(addr.parent_addr()) {
                 (state, ZKAPICreateResultView{res: Err(Error::ZKNodeCreateFailed)})
@@ -194,8 +192,7 @@ pub open spec fn handle_set_data(
     if !validate(name, namespace, path, resources) {
         (state, ZKAPISetDataResultView{res: Err(Error::ZKNodeSetDataFailed)})
     } else {
-        let current_uid = resources[key].metadata.uid.get_Some_0();
-        let addr = ZKNodeAddr::new(name, namespace, current_uid, path);
+        let addr = ZKNodeAddr::new(name, namespace, resources[key].metadata.uid.get_Some_0(), path);
         if !state.data.dom().contains(addr) {
             (state, ZKAPISetDataResultView{res: Err(Error::ZKNodeSetDataFailed)})
         } else {
