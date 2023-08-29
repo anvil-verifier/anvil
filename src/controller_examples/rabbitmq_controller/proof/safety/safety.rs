@@ -22,11 +22,11 @@ use vstd::prelude::*;
 verus! {
 
 /// To prove the safety property about stateful set, we need to first specify what the property is.
-/// 
-/// Previously, we planned to use Message to describe the possible update/deletion/creation actions, and also specify the 
-/// relevant properties. However, it is better not to include Message in the description the high-level safety property 
-/// because Message is just a tool and a detail of the system. For update action, one way to circumvent using Message is 
-/// to talk about the previous and current state: an object being updated means that it exists in both states but changes 
+///
+/// Previously, we planned to use Message to describe the possible update/deletion/creation actions, and also specify the
+/// relevant properties. However, it is better not to include Message in the description the high-level safety property
+/// because Message is just a tool and a detail of the system. For update action, one way to circumvent using Message is
+/// to talk about the previous and current state: an object being updated means that it exists in both states but changes
 /// in current state.
 spec fn stateful_set_not_scaled_down(rabbitmq: RabbitmqClusterView) -> ActionPred<RMQCluster> {
     |s: RMQCluster, s_prime: RMQCluster| {
@@ -53,7 +53,7 @@ proof fn lemma_stateful_set_never_scaled_down_for_all(spec: TempPred<RMQCluster>
 /// This invariant is exactly the high-level property. The proof of this invariant is where we talk about update Message. It requires another two invariants to hold all the time:
 /// - replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd
 /// - object_in_sts_update_request_has_smaller_rv_than_etcd
-/// 
+///
 /// Invariant 2 is to show that every stateful set update request must specify the resource version because stateful set is allowed to update unconditionally. If resource version can be none, we can't rule out invalid update request through resource version. Invariant 3 is quite obvious.
 proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
@@ -276,12 +276,12 @@ proof fn replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd_ind
     }
 }
 
-/// This function defined a replicas order for stateful set object. Here, obj can be the etcd statful set object, the object 
-/// in create/update stateful set object. We define this order because, the replicas in the update request is derived from 
-/// the triggering cr; so, in order to show the updated replicas is no smaller than the original one, we need to show that 
+/// This function defined a replicas order for stateful set object. Here, obj can be the etcd statful set object, the object
+/// in create/update stateful set object. We define this order because, the replicas in the update request is derived from
+/// the triggering cr; so, in order to show the updated replicas is no smaller than the original one, we need to show that
 /// the original one (the one stored in etcd)'s replicas is no larger than that of triggering cr. obj.metadata.owner_references_only_contains
-/// (s.triggering_cr_of(key).controller_owner_ref()) here is to ensure that the cr is still the one that creates the stateful 
-/// set object. The left two comparison is to assist the last one because when the state moves to the next state, the triggering_cr 
+/// (s.triggering_cr_of(key).controller_owner_ref()) here is to ensure that the cr is still the one that creates the stateful
+/// set object. The left two comparison is to assist the last one because when the state moves to the next state, the triggering_cr
 /// may be assigned (inserted or updated).
 spec fn replicas_satisfies_order(obj: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
     recommends
@@ -341,7 +341,7 @@ proof fn lemma_always_replicas_of_etcd_stateful_set_satisfies_order(spec: TempPr
     init_invariant(spec, RMQCluster::init(), next, inv);
 }
 
-/// To do this induction, we mainly proves how the invariant holds if if the stateful set in etcd is not changed (neither 
+/// To do this induction, we mainly proves how the invariant holds if if the stateful set in etcd is not changed (neither
 /// created not updated)from the previous state.
 /// If the state changes, we rely on the property of create/update request message which is proved in another lemma.
 proof fn replicas_of_etcd_stateful_set_satisfies_order_induction(rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster)
@@ -551,6 +551,7 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
                     }
                 }
             }
+            assert(replicas_satisfies_order(msg.content.get_update_request().obj, rabbitmq)(s_prime));
         },
         Step::ControllerStep(input) => {
             if !s.message_in_flight(msg) {
@@ -558,19 +559,23 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
                 lemma_stateful_set_update_request_msg_implies_key_in_reconcile_equals(key, s, s_prime, msg, step);
                 assert(StatefulSetView::from_dynamic_object(msg.content.get_update_request().obj).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() <= s.triggering_cr_of(key).spec.replicas);
             }
+            assert(replicas_satisfies_order(msg.content.get_update_request().obj, rabbitmq)(s_prime));
         },
         Step::ScheduleControllerReconcileStep(input) => {
             assert(s.message_in_flight(msg));
             assert(s.kubernetes_api_state == s_prime.kubernetes_api_state);
+            assert(replicas_satisfies_order(msg.content.get_update_request().obj, rabbitmq)(s_prime));
         },
         Step::RestartController() => {
             assert(s.message_in_flight(msg));
             assert(s.kubernetes_api_state == s_prime.kubernetes_api_state);
+            assert(replicas_satisfies_order(msg.content.get_update_request().obj, rabbitmq)(s_prime));
         },
         _ => {
             assert(s.message_in_flight(msg));
             assert(s.kubernetes_api_state == s_prime.kubernetes_api_state);
             assert(s.controller_state == s_prime.controller_state);
+            assert(replicas_satisfies_order(msg.content.get_update_request().obj, rabbitmq)(s_prime));
         }
     }
 }

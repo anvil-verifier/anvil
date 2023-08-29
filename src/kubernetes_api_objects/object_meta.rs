@@ -289,6 +289,14 @@ impl ObjectMetaView {
         }
     }
 
+    pub open spec fn finalizers_as_set(self) -> Set<StringView> {
+        if self.finalizers.is_None() {
+            Set::empty()
+        } else {
+            self.finalizers.get_Some_0().to_set()
+        }
+    }
+
     pub open spec fn set_deletion_timestamp(self, deletion_timestamp: StringView) -> ObjectMetaView {
         ObjectMetaView {
             deletion_timestamp: Some(deletion_timestamp),

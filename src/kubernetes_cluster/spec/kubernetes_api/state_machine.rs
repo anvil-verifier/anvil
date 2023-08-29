@@ -204,7 +204,6 @@ pub open spec fn allow_unconditional_update(kind: Kind) -> bool {
 }
 
 pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPIState) -> Option<APIError> {
-    // let req = msg.content.get_update_request();
     if req.obj.metadata.name.is_None() {
         // Update fails because the name of the object is not provided
         Some(APIError::BadRequest)
@@ -253,6 +252,11 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         ) {
         // Update fails because the object has multiple controller owner references
         Some(APIError::Invalid)
+    } else if s.resources[req.key].metadata.deletion_timestamp.is_Some()
+        && req.obj.metadata.finalizers.is_Some() // Short circuit: we don't need to reason about the set difference if the finalizers is None
+        && !req.obj.metadata.finalizers_as_set().subset_of(s.resources[req.key].metadata.finalizers_as_set()) {
+        // Update fails because the object is marked to be deleted but the update tries to add more finalizers
+        Some(APIError::Forbidden)
     } else if req.obj.kind == K::kind() && !(
         K::rule(K::from_dynamic_object(req.obj).get_Ok_0())
         && K::transition_rule(K::from_dynamic_object(req.obj).get_Ok_0(), K::from_dynamic_object(s.resources[req.key]).get_Ok_0())
