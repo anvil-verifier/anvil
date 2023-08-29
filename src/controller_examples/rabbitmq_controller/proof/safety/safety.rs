@@ -491,6 +491,7 @@ proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
                     }
                 }
             }
+            assert(replicas_satisfies_order(msg.content.get_create_request().obj, rabbitmq)(s_prime));
         },
         Step::ControllerStep(input) => {
             if !s.message_in_flight(msg) {
@@ -498,19 +499,23 @@ proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
                 lemma_stateful_set_create_request_msg_implies_key_in_reconcile_equals(key, s, s_prime, msg, step);
                 assert(StatefulSetView::from_dynamic_object(msg.content.get_create_request().obj).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() <= s.triggering_cr_of(key).spec.replicas);
             }
+            assert(replicas_satisfies_order(msg.content.get_create_request().obj, rabbitmq)(s_prime));
         },
         Step::ScheduleControllerReconcileStep(input) => {
             assert(s.message_in_flight(msg));
             assert(s.kubernetes_api_state == s_prime.kubernetes_api_state);
+            assert(replicas_satisfies_order(msg.content.get_create_request().obj, rabbitmq)(s_prime));
         },
         Step::RestartController() => {
             assert(s.message_in_flight(msg));
             assert(s.kubernetes_api_state == s_prime.kubernetes_api_state);
+            assert(replicas_satisfies_order(msg.content.get_create_request().obj, rabbitmq)(s_prime));
         },
         _ => {
             assert(s.message_in_flight(msg));
             assert(s.kubernetes_api_state == s_prime.kubernetes_api_state);
             assert(s.controller_state == s_prime.controller_state);
+            assert(replicas_satisfies_order(msg.content.get_create_request().obj, rabbitmq)(s_prime));
         }
     }
 }
