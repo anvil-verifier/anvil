@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
         println!("{}", serde_yaml::to_string(&deps_hack::SimpleCR::crd())?);
     } else if cmd == String::from("run") {
         println!("running simple-controller");
-        run_controller::<deps_hack::SimpleCR, SimpleCR, SimpleReconciler, SimpleReconcileState, EmptyType, EmptyType, EmptyAPI>().await?;
+        run_controller::<deps_hack::SimpleCR, SimpleCR, SimpleReconciler, SimpleReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer>().await?;
         println!("controller terminated");
     } else {
         println!("wrong command; please use \"export\" or \"run\"");

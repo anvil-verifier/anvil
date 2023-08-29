@@ -147,12 +147,13 @@ pub open spec fn reconcile_core(
                         let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).get_Ok_0();
                         // update
                         let state_prime = ZookeeperReconcileState {
-                            reconcile_step: ZookeeperReconcileStep::AfterSetZKNode,
+                            reconcile_step: ZookeeperReconcileStep::AfterExistsZKNode,
                             found_stateful_set_opt: Some(found_stateful_set),
                             ..state
                         };
-                        let ext_req = ZKAPIInputView::SetZKNodeRequest(
-                            zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), int_to_string_view(zk.spec.replicas)
+                        let node_path = seq![new_strlit("zookeeper-operator")@, zk.metadata.name.get_Some_0()];
+                        let ext_req = ZKAPIInputView::ExistsRequest(
+                            zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), node_path
                         );
                         (state_prime, Some(RequestView::ExternalRequest(ext_req)))
                     } else {
@@ -188,10 +189,110 @@ pub open spec fn reconcile_core(
                 (state_prime, None)
             }
         },
-        ZookeeperReconcileStep::AfterSetZKNode => {
+        ZookeeperReconcileStep::AfterExistsZKNode => {
             if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
-            && resp_o.get_Some_0().get_ExternalResponse_0().is_SetZKNodeResponse()
-            && resp_o.get_Some_0().get_ExternalResponse_0().get_SetZKNodeResponse_0().res.is_Ok()
+            && resp_o.get_Some_0().get_ExternalResponse_0().is_ExistsResponse() {
+                let exists_resp = resp_o.get_Some_0().get_ExternalResponse_0().get_ExistsResponse_0().res;
+                if exists_resp.is_Ok() {
+                    if exists_resp.get_Ok_0().is_Some() {
+                        let version = exists_resp.get_Ok_0().get_Some_0();
+                        let node_path = zk_node_path(zk);
+                        let data = zk_node_data(zk);
+                        let ext_req = ZKAPIInputView::SetDataRequest(
+                            zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), node_path, data, version
+                        );
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
+                            ..state
+                        };
+                        (state_prime, Some(RequestView::ExternalRequest(ext_req)))
+                    } else {
+                        let version = exists_resp.get_Ok_0().get_Some_0();
+                        let node_path = zk_parent_node_path(zk);
+                        let data = new_strlit("")@;
+                        let ext_req = ZKAPIInputView::CreateRequest(
+                            zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), node_path, data
+                        );
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterCreateZKParentNode,
+                            ..state
+                        };
+                        (state_prime, Some(RequestView::ExternalRequest(ext_req)))
+                    }
+                } else {
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        ZookeeperReconcileStep::AfterCreateZKParentNode => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
+            && resp_o.get_Some_0().get_ExternalResponse_0().is_CreateResponse() {
+                let create_resp = resp_o.get_Some_0().get_ExternalResponse_0().get_CreateResponse_0().res;
+                if create_resp.is_Ok() || create_resp.get_Err_0().is_ZKNodeCreateAlreadyExists() {
+                    let node_path = zk_node_path(zk);
+                    let data = zk_node_data(zk);
+                    let ext_req = ZKAPIInputView::CreateRequest(
+                        zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), node_path, data
+                    );
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::ExternalRequest(ext_req)))
+                } else {
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        ZookeeperReconcileStep::AfterCreateZKNode => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
+            && resp_o.get_Some_0().get_ExternalResponse_0().is_CreateResponse()
+            && resp_o.get_Some_0().get_ExternalResponse_0().get_CreateResponse_0().res.is_Ok()
+            && state.found_stateful_set_opt.is_Some() {
+                // Only proceed to update the stateful set when zk node is set successfully,
+                // otherwise it might cause unsafe downscale.
+                let found_stateful_set = state.found_stateful_set_opt.get_Some_0();
+                let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                    key: make_stateful_set_key(zk.object_ref()),
+                    obj: update_stateful_set(zk, found_stateful_set).to_dynamic_object(),
+                });
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
+                    found_stateful_set_opt: None,
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        ZookeeperReconcileStep::AfterUpdateZKNode => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
+            && resp_o.get_Some_0().get_ExternalResponse_0().is_SetDataResponse()
+            && resp_o.get_Some_0().get_ExternalResponse_0().get_SetDataResponse_0().res.is_Ok()
             && state.found_stateful_set_opt.is_Some() {
                 // Only proceed to update the stateful set when zk node is set successfully,
                 // otherwise it might cause unsafe downscale.
@@ -243,6 +344,27 @@ pub open spec fn reconcile_error_result(state: ZookeeperReconcileState) -> (Zook
         ..state
     };
     (state_prime, None)
+}
+
+pub open spec fn zk_node_path(zk: ZookeeperClusterView) -> Seq<StringView>
+    recommends
+        zk.well_formed(),
+{
+    seq![new_strlit("zookeeper-operator")@, zk.metadata.name.get_Some_0()]
+}
+
+pub open spec fn zk_parent_node_path(zk: ZookeeperClusterView) -> Seq<StringView>
+    recommends
+        zk.well_formed(),
+{
+    seq![new_strlit("zookeeper-operator")@]
+}
+
+pub open spec fn zk_node_data(zk: ZookeeperClusterView) -> StringView
+    recommends
+        zk.well_formed(),
+{
+    new_strlit("CLUSTER_SIZE=")@ + int_to_string_view(zk.spec.replicas)
 }
 
 pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView

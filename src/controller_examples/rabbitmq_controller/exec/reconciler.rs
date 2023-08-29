@@ -39,7 +39,7 @@ impl RabbitmqReconcileState {
 pub struct RabbitmqReconciler {}
 
 #[verifier(external)]
-impl Reconciler<RabbitmqCluster, RabbitmqReconcileState, EmptyType, EmptyType, EmptyAPI> for RabbitmqReconciler {
+impl Reconciler<RabbitmqCluster, RabbitmqReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer> for RabbitmqReconciler {
     fn reconcile_init_state(&self) -> RabbitmqReconcileState {
         reconcile_init_state()
     }

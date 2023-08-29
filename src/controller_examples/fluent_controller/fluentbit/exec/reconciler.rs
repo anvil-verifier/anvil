@@ -42,7 +42,7 @@ impl FluentBitReconcileState {
 pub struct FluentBitReconciler {}
 
 #[verifier(external)]
-impl Reconciler<FluentBit, FluentBitReconcileState, EmptyType, EmptyType, EmptyAPI> for FluentBitReconciler {
+impl Reconciler<FluentBit, FluentBitReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer> for FluentBitReconciler {
     fn reconcile_init_state(&self) -> FluentBitReconcileState {
         reconcile_init_state()
     }

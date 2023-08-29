@@ -4,34 +4,78 @@ use crate::external_api::exec::*;
 use crate::pervasive_ext::to_view::*;
 use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::spec::zookeeper_api::{
-    ZKAPIInputView, ZKAPIOutputView, ZKAPIResultView,
+    ZKAPICreateResultView, ZKAPIExistsResultView, ZKAPIInputView, ZKAPIOutputView,
+    ZKAPISetDataResultView,
 };
 use core::time::Duration;
-use deps_hack::zookeeper::{Acl, CreateMode, WatchedEvent, Watcher, ZkError, ZooKeeper};
+use deps_hack::zookeeper::{Acl, CreateMode, WatchedEvent, Watcher, ZkError, ZkResult, ZooKeeper};
 use vstd::{prelude::*, string::*};
 
 verus! {
 
-pub struct ZKAPIResult {
+pub struct ZKAPIExistsResult {
+    pub res: Result<Option<i32>, Error>,
+}
+
+impl ToView for ZKAPIExistsResult {
+    type V = ZKAPIExistsResultView;
+    open spec fn to_view(&self) -> ZKAPIExistsResultView {
+        match self.res {
+            Ok(o) => match o {
+                Some(i) => ZKAPIExistsResultView { res: Ok(Some(i as int)) },
+                None => ZKAPIExistsResultView { res: Ok(None) },
+            }
+            Err(e) => ZKAPIExistsResultView { res: Err(e) },
+        }
+    }
+}
+
+pub struct ZKAPICreateResult {
     pub res: Result<(), Error>,
+}
+
+impl ToView for ZKAPICreateResult {
+    type V = ZKAPICreateResultView;
+    open spec fn to_view(&self) -> ZKAPICreateResultView {
+        ZKAPICreateResultView {res: self.res}
+    }
+}
+
+pub struct ZKAPISetDataResult {
+    pub res: Result<(), Error>,
+}
+
+impl ToView for ZKAPISetDataResult {
+    type V = ZKAPISetDataResultView;
+    open spec fn to_view(&self) -> ZKAPISetDataResultView {
+        ZKAPISetDataResultView {res: self.res}
+    }
 }
 
 #[is_variant]
 pub enum ZKAPIInput {
-    SetZKNodeRequest(String, String, String),
+    ExistsRequest(String, String, Vec<String>),
+    CreateRequest(String, String, Vec<String>, String),
+    SetDataRequest(String, String, Vec<String>, String, i32),
 }
 
 #[is_variant]
 pub enum ZKAPIOutput {
-    SetZKNodeResponse(ZKAPIResult),
+    ExistsResponse(ZKAPIExistsResult),
+    CreateResponse(ZKAPICreateResult),
+    SetDataResponse(ZKAPISetDataResult),
 }
 
 impl ToView for ZKAPIInput {
     type V = ZKAPIInputView;
     open spec fn to_view(&self) -> ZKAPIInputView {
         match self {
-            ZKAPIInput::SetZKNodeRequest(zk_name, zk_namespace, replicas)
-                => ZKAPIInputView::SetZKNodeRequest(zk_name@, zk_namespace@, replicas@),
+            ZKAPIInput::ExistsRequest(name, namespace, path)
+                => ZKAPIInputView::ExistsRequest(name@, namespace@, path@.map_values(|s: String| s@)),
+            ZKAPIInput::CreateRequest(name, namespace, path, data)
+                => ZKAPIInputView::CreateRequest(name@, namespace@, path@.map_values(|s: String| s@), data@),
+            ZKAPIInput::SetDataRequest(name, namespace, path, data, version)
+                => ZKAPIInputView::SetDataRequest(name@, namespace@, path@.map_values(|s: String| s@), data@, *version as int),
         }
     }
 }
@@ -40,41 +84,93 @@ impl ToView for ZKAPIOutput {
     type V = ZKAPIOutputView;
     open spec fn to_view(&self) -> ZKAPIOutputView {
         match self {
-            ZKAPIOutput::SetZKNodeResponse(result) => ZKAPIOutputView::SetZKNodeResponse(ZKAPIResultView {res: result.res}),
+            ZKAPIOutput::ExistsResponse(result) => ZKAPIOutputView::ExistsResponse(result.to_view()),
+            ZKAPIOutput::CreateResponse(result) => ZKAPIOutputView::CreateResponse(result.to_view()),
+            ZKAPIOutput::SetDataResponse(result) => ZKAPIOutputView::SetDataResponse(result.to_view()),
         }
     }
 }
 
 impl ZKAPIOutput {
-    pub fn is_set_zk_node_response(&self) -> (res: bool)
+    pub fn is_exists_response(&self) -> (res: bool)
         ensures
-            res == self.is_SetZKNodeResponse(),
+            res == self.is_ExistsResponse(),
     {
         match self {
-            ZKAPIOutput::SetZKNodeResponse(_) => true,
+            ZKAPIOutput::ExistsResponse(_) => true,
+            _ => false,
         }
     }
 
-    pub fn into_set_zk_node_response(self) -> (result: ZKAPIResult)
+    pub fn unwrap_exists_response(self) -> (result: ZKAPIExistsResult)
         requires
-            self.is_SetZKNodeResponse(),
+            self.is_ExistsResponse(),
         ensures
-            result == self.get_SetZKNodeResponse_0(),
+            result == self.get_ExistsResponse_0(),
     {
         match self {
-            ZKAPIOutput::SetZKNodeResponse(result) => result,
+            ZKAPIOutput::ExistsResponse(result) => result,
+            _ => unreached(),
+        }
+    }
+
+    pub fn is_create_response(&self) -> (res: bool)
+        ensures
+            res == self.is_CreateResponse(),
+    {
+        match self {
+            ZKAPIOutput::CreateResponse(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn unwrap_create_response(self) -> (result: ZKAPICreateResult)
+        requires
+            self.is_CreateResponse(),
+        ensures
+            result == self.get_CreateResponse_0(),
+    {
+        match self {
+            ZKAPIOutput::CreateResponse(result) => result,
+            _ => unreached(),
+        }
+    }
+
+    pub fn is_set_data_response(&self) -> (res: bool)
+        ensures
+            res == self.is_SetDataResponse(),
+    {
+        match self {
+            ZKAPIOutput::SetDataResponse(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn unwrap_set_data_response(self) -> (result: ZKAPISetDataResult)
+        requires
+            self.is_SetDataResponse(),
+        ensures
+            result == self.get_SetDataResponse_0(),
+    {
+        match self {
+            ZKAPIOutput::SetDataResponse(result) => result,
+            _ => unreached(),
         }
     }
 }
 
-pub struct ZKAPI {}
+pub struct ZKAPIShimLayer {}
 
-impl ExternalAPI<ZKAPIInput, ZKAPIOutput> for ZKAPI {
+impl ExternalAPIShimLayer<ZKAPIInput, ZKAPIOutput> for ZKAPIShimLayer {
     #[verifier(external)]
-    fn transition(input: ZKAPIInput) -> Option<ZKAPIOutput> {
+    fn call_external_api(input: ZKAPIInput) -> ZKAPIOutput {
         match input {
-            ZKAPIInput::SetZKNodeRequest(zk_name, zk_namespace, replicas)
-                => Some(ZKAPIOutput::SetZKNodeResponse(set_zk_node(zk_name, zk_namespace, replicas))),
+            ZKAPIInput::ExistsRequest(zk_name, zk_namespace, path)
+                => ZKAPIOutput::ExistsResponse(zk_exists(zk_name, zk_namespace, path)),
+            ZKAPIInput::CreateRequest(zk_name, zk_namespace, path, data)
+                => ZKAPIOutput::CreateResponse(zk_create(zk_name, zk_namespace, path, data)),
+            ZKAPIInput::SetDataRequest(zk_name, zk_namespace, path, data, version)
+                => ZKAPIOutput::SetDataResponse(zk_set_data(zk_name, zk_namespace, path, data, version)),
         }
     }
 }
@@ -86,8 +182,70 @@ impl Watcher for LoggingWatcher {
 }
 
 #[verifier(external)]
-pub fn set_zk_node(zk_name: String, zk_namespace: String, replicas: String) -> ZKAPIResult {
-    let result = ZKAPIResult {res: set_zk_node_internal(zk_name, zk_namespace, replicas)};
+pub fn set_up_zk_client(name: &String, namespace: &String) -> ZkResult<ZooKeeper> {
+    let uri = &format!("{}-client.{}.svc.cluster.local:2181", name.as_rust_string_ref(), namespace.as_rust_string_ref());
+    println!("Connecting to zk uri {} ...", uri);
+    ZooKeeper::connect(uri, Duration::from_secs(10), LoggingWatcher)
+}
+
+#[verifier(external)]
+pub fn zk_exists(name: String, namespace: String, path: Vec<String>) -> ZKAPIExistsResult {
+    let result = ZKAPIExistsResult {res: zk_exists_internal(name, namespace, path)};
+    match result.res {
+        Err(_) => println!("Checking existence of zk node failed"),
+        Ok(o) => {
+            println!("Checking existence of zk node successfully");
+            match o {
+                Some(version) => println!("The zk node exists and version is {}", version),
+                None => println!("The zk node does not exist"),
+            }
+        },
+    }
+    result
+}
+
+#[verifier(external)]
+pub fn zk_exists_internal(name: String, namespace: String, path: Vec<String>) -> Result<Option<i32>, Error> {
+    let zk_client = set_up_zk_client(&name, &namespace).map_err(|e| Error::ZKNodeExistsFailed)?;
+    let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
+    println!("Checking existence of {} ...", &path_as_string);
+    match zk_client.exists(path_as_string.as_str(), false) {
+        Err(e) => Err(Error::ZKNodeExistsFailed),
+        Ok(o) => match o {
+            Some(stat) => Ok(Some(stat.version)),
+            None => Ok(None),
+        },
+    }
+}
+
+#[verifier(external)]
+pub fn zk_create(name: String, namespace: String, path: Vec<String>, data: String) -> ZKAPICreateResult {
+    let result = ZKAPICreateResult {res: zk_create_internal(name, namespace, path, data)};
+    match result.res {
+        Err(_) => println!("Create zk node failed"),
+        Ok(_) => println!("Create zk node successfully"),
+    }
+    result
+}
+
+#[verifier(external)]
+pub fn zk_create_internal(name: String, namespace: String, path: Vec<String>, data: String) -> Result<(), Error> {
+    let zk_client = set_up_zk_client(&name, &namespace).map_err(|e| Error::ZKNodeCreateFailed)?;
+    let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
+    let data_as_string = data.into_rust_string();
+    println!("Creating {} {} ...", &path_as_string, &data_as_string);
+    match zk_client.create(path_as_string.as_str(), data_as_string.as_str().as_bytes().to_vec(), Acl::open_unsafe().to_vec(), CreateMode::Persistent) {
+        Err(e) => match e {
+            ZkError::NodeExists => Err(Error::ZKNodeCreateAlreadyExists),
+            _ => Err(Error::ZKNodeCreateFailed),
+        },
+        Ok(_) => Ok(()),
+    }
+}
+
+#[verifier(external)]
+pub fn zk_set_data(name: String, namespace: String, path: Vec<String>, data: String, version: i32) -> ZKAPISetDataResult {
+    let result = ZKAPISetDataResult {res: zk_set_data_internal(name, namespace, path, data, version)};
     match result.res {
         Err(_) => println!("Set zk node failed"),
         Ok(_) => println!("Set zk node successfully"),
@@ -96,58 +254,14 @@ pub fn set_zk_node(zk_name: String, zk_namespace: String, replicas: String) -> Z
 }
 
 #[verifier(external)]
-pub fn set_zk_node_internal(zk_name: String, zk_namespace: String, replicas: String) -> Result<(), Error> {
-    let uri = &format!(
-        "{}-client.{}.svc.cluster.local:2181",
-        zk_name.as_rust_string_ref(),
-        zk_namespace.as_rust_string_ref()
-    );
-    println!("Connecting to zk uri {} ...", uri);
-    let zk_client = ZooKeeper::connect(uri, Duration::from_secs(10), LoggingWatcher)
-        .map_err(|e| Error::ClusterSizeZKNodeSetFailed)?;
-
-    let parent_node_path = "/zookeeper-operator";
-    println!("Ensuring {} ...", parent_node_path);
-    ensure_parent_node_exists(parent_node_path, &zk_client)?;
-
-    let node_path = &format!("{}/{}", parent_node_path, zk_name.as_rust_string_ref());
-    let data = format!("CLUSTER_SIZE={}", replicas.as_rust_string_ref());
-    let acl = Acl::open_unsafe().to_vec();
-    println!("Setting {} {} ...", node_path, data);
-    match zk_client.exists(node_path, false) {
-        Err(_) => Err(Error::ClusterSizeZKNodeSetFailed),
-        Ok(stat_opt) => match stat_opt {
-            Some(stat) => {
-                println!("Current version is {}", stat.version);
-                match zk_client.set_data(node_path, data.as_bytes().to_vec(), Some(stat.version)) {
-                    Err(_) => Err(Error::ClusterSizeZKNodeSetFailed),
-                    Ok(_) => Ok(()),
-                }
-            }
-            None => {
-                match zk_client.create(node_path, data.as_bytes().to_vec(), acl, CreateMode::Persistent) {
-                    Err(_) => Err(Error::ClusterSizeZKNodeSetFailed),
-                    Ok(_) => Ok(()),
-                }
-            }
-        }
-    }
-}
-
-#[verifier(external)]
-pub fn ensure_parent_node_exists(parent_node_path: &str, zk_client: &ZooKeeper) -> Result<(), Error> {
-    let acl = Acl::open_unsafe().to_vec();
-    match zk_client.exists(parent_node_path, false) {
-        Err(_) => Err(Error::ClusterSizeZKNodeSetFailed),
-        Ok(stat_opt) => match stat_opt {
-            Some(_) => Ok(()),
-            None => {
-                match zk_client.create(parent_node_path, Vec::new(), acl, CreateMode::Persistent) {
-                    Err(_) => Err(Error::ClusterSizeZKNodeSetFailed),
-                    Ok(_) => Ok(()),
-                }
-            }
-        }
+pub fn zk_set_data_internal(name: String, namespace: String, path: Vec<String>, data: String, version: i32) -> Result<(), Error> {
+    let zk_client = set_up_zk_client(&name, &namespace).map_err(|e| Error::ZKNodeSetDataFailed)?;
+    let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
+    let data_as_string = data.into_rust_string();
+    println!("Setting {} {} {} ...", &path_as_string, &data_as_string, version);
+    match zk_client.set_data(path_as_string.as_str(), data_as_string.as_str().as_bytes().to_vec(), Some(version)) {
+        Err(_) => Err(Error::ZKNodeSetDataFailed),
+        Ok(_) => Ok(()),
     }
 }
 

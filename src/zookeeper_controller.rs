@@ -39,8 +39,7 @@ async fn main() -> Result<()> {
         println!("{}", serde_yaml::to_string(&deps_hack::ZookeeperCluster::crd())?);
     } else if cmd == String::from("run") {
         println!("running zookeeper-controller");
-        run_controller::<deps_hack::ZookeeperCluster, ZookeeperCluster, ZookeeperReconciler, ZookeeperReconcileState,
-        ZKAPIInput, ZKAPIOutput, ZKAPI>().await?;
+        run_controller::<deps_hack::ZookeeperCluster, ZookeeperCluster, ZookeeperReconciler, ZookeeperReconcileState, ZKAPIInput, ZKAPIOutput, ZKAPIShimLayer>().await?;
         println!("controller terminated");
     } else {
         println!("wrong command; please use \"export\" or \"run\"");

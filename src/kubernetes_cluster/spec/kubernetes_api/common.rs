@@ -12,10 +12,6 @@ use vstd::{multiset::*, prelude::*};
 
 verus! {
 
-pub type Uid = nat;
-
-pub type ResourceVersion = nat;
-
 pub struct KubernetesAPIState {
     pub resources: StoredState,
     pub uid_counter: Uid,
