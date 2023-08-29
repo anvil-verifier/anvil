@@ -44,7 +44,7 @@ pub open spec fn server_config_map_update_request_msg(key: ObjectRef) -> FnSpec(
         && msg.content.get_update_request().key == make_server_config_map_key(key)
 }
 
-spec fn make_owner_references_with_name_and_uid(name: StringView, uid: nat) -> OwnerReferenceView {
+spec fn make_owner_references_with_name_and_uid(name: StringView, uid: Uid) -> OwnerReferenceView {
     OwnerReferenceView {
         block_owner_deletion: None,
         controller: Some(true),
@@ -60,7 +60,7 @@ spec fn server_config_map_create_request_msg_is_valid(key: ObjectRef) -> StatePr
             #[trigger] s.message_in_flight(msg)
             && server_config_map_create_request_msg(key)(msg)
             ==> msg.content.get_create_request().obj.metadata.finalizers.is_None()
-                && exists |uid: nat| #![auto]
+                && exists |uid: Uid| #![auto]
                     msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
                         make_owner_references_with_name_and_uid(key.name, uid)
                     ])
@@ -201,7 +201,7 @@ proof fn lemma_always_server_config_map_create_request_msg_is_valid(spec: TempPr
     server_config_map_create_request_msg_is_valid(key)(s_prime) by {
         assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && server_config_map_create_request_msg(key)(msg) implies
         msg.content.get_create_request().obj.metadata.finalizers.is_None()
-        && exists |uid: nat| #![auto] msg.content.get_create_request().obj.metadata.owner_references
+        && exists |uid: Uid| #![auto] msg.content.get_create_request().obj.metadata.owner_references
             == Some(seq![make_owner_references_with_name_and_uid(key.name, uid)]) by {
             if !s.message_in_flight(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
@@ -223,7 +223,7 @@ spec fn server_config_map_update_request_msg_is_valid(key: ObjectRef) -> StatePr
             #[trigger] s.message_in_flight(msg)
             && server_config_map_update_request_msg(key)(msg)
             ==> msg.content.get_update_request().obj.metadata.finalizers.is_None()
-                && exists |uid: nat| #![auto]
+                && exists |uid: Uid| #![auto]
                     msg.content.get_update_request().obj.metadata.owner_references == Some(seq![
                         make_owner_references_with_name_and_uid(key.name, uid)
                     ])
@@ -253,7 +253,7 @@ proof fn lemma_always_server_config_map_update_request_msg_is_valid(spec: TempPr
     server_config_map_update_request_msg_is_valid(key)(s_prime) by {
         assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && server_config_map_update_request_msg(key)(msg) implies
         msg.content.get_update_request().obj.metadata.finalizers.is_None()
-        && exists |uid: nat| #![auto] msg.content.get_update_request().obj.metadata.owner_references
+        && exists |uid: Uid| #![auto] msg.content.get_update_request().obj.metadata.owner_references
             == Some(seq![make_owner_references_with_name_and_uid(key.name, uid)]) by {
             if !s.message_in_flight(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
@@ -274,7 +274,7 @@ spec fn sts_update_request_msg_is_valid(key: ObjectRef) -> StatePred<RMQCluster>
             #[trigger] s.message_in_flight(msg)
             && sts_update_request_msg(key)(msg)
             ==> msg.content.get_update_request().obj.metadata.finalizers.is_None()
-                && exists |uid: nat| #![auto]
+                && exists |uid: Uid| #![auto]
                     msg.content.get_update_request().obj.metadata.owner_references == Some(seq![
                         make_owner_references_with_name_and_uid(key.name, uid)
                     ])
@@ -304,7 +304,7 @@ proof fn lemma_always_sts_update_request_msg_is_valid(spec: TempPred<RMQCluster>
     sts_update_request_msg_is_valid(key)(s_prime) by {
         assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && sts_update_request_msg(key)(msg) implies
         msg.content.get_update_request().obj.metadata.finalizers.is_None()
-        && exists |uid: nat| #![auto] msg.content.get_update_request().obj.metadata.owner_references
+        && exists |uid: Uid| #![auto] msg.content.get_update_request().obj.metadata.owner_references
             == Some(seq![make_owner_references_with_name_and_uid(key.name, uid)]) by {
             if !s.message_in_flight(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
@@ -325,7 +325,7 @@ spec fn sts_create_request_msg_is_valid(key: ObjectRef) -> StatePred<RMQCluster>
             #[trigger] s.message_in_flight(msg)
             && sts_create_request_msg(key)(msg)
             ==> msg.content.get_create_request().obj.metadata.finalizers.is_None()
-                && exists |uid: nat| #![auto]
+                && exists |uid: Uid| #![auto]
                     msg.content.get_create_request().obj.metadata.owner_references == Some(seq![
                         make_owner_references_with_name_and_uid(key.name, uid)
                     ])
@@ -355,7 +355,7 @@ proof fn lemma_always_sts_create_request_msg_is_valid(spec: TempPred<RMQCluster>
     sts_create_request_msg_is_valid(key)(s_prime) by {
         assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && sts_create_request_msg(key)(msg) implies
         msg.content.get_create_request().obj.metadata.finalizers.is_None()
-        && exists |uid: nat| #![auto] msg.content.get_create_request().obj.metadata.owner_references
+        && exists |uid: Uid| #![auto] msg.content.get_create_request().obj.metadata.owner_references
             == Some(seq![make_owner_references_with_name_and_uid(key.name, uid)]) by {
             if !s.message_in_flight(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
@@ -561,7 +561,7 @@ pub open spec fn object_of_key_has_no_finalizers_or_timestamp_and_only_has_contr
         s.resource_key_exists(key)
         ==> s.resource_obj_of(key).metadata.deletion_timestamp.is_None()
             && s.resource_obj_of(key).metadata.finalizers.is_None()
-            && exists |uid: nat| #![auto]
+            && exists |uid: Uid| #![auto]
             s.resource_obj_of(key).metadata.owner_references == Some(seq![OwnerReferenceView {
                 block_owner_deletion: None,
                 controller: Some(true),

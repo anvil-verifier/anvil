@@ -6,9 +6,9 @@ use vstd::string::*;
 
 verus! {
 
-pub type Uid = nat;
+pub type Uid = int;
 
-pub type ResourceVersion = nat;
+pub type ResourceVersion = int;
 
 #[is_variant]
 pub enum Kind {

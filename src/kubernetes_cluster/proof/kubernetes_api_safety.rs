@@ -16,7 +16,7 @@ verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
-pub open spec fn has_lower_uid_than(obj: DynamicObjectView, uid: nat) -> bool {
+pub open spec fn has_lower_uid_than(obj: DynamicObjectView, uid: Uid) -> bool {
     obj.metadata.uid.is_Some() && obj.metadata.uid.get_Some_0() < uid
 }
 
@@ -45,7 +45,7 @@ pub proof fn lemma_always_every_object_in_etcd_has_lower_uid_than_uid_counter(sp
                 assert(Self::has_lower_uid_than(s_prime.resource_obj_of(key), s_prime.kubernetes_api_state.uid_counter));
             }
         }
-        
+
     }
     init_invariant(spec, Self::init(), Self::next(), invariant);
 }
