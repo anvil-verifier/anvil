@@ -21,4 +21,4 @@ Documentation:
 - https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/controller-revision-v1/
 
 Source code:
-- https://github.com/kubernetes/kubernetes/tree/v1.26.3/pkg/controller/stateful_set
+- https://github.com/kubernetes/kubernetes/tree/v1.26.3/pkg/controller/statefulset
