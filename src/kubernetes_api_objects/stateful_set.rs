@@ -49,14 +49,6 @@ impl StatefulSet {
     }
 
     #[verifier(external_body)]
-    pub fn eq(&self, other: &Self) -> (res: bool)
-        ensures
-            res == (self@ == other@),
-    {
-        self.inner == other.inner
-    }
-
-    #[verifier(external_body)]
     pub fn clone(&self) -> (s: Self)
         ensures
             s@ == self@,

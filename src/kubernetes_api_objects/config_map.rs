@@ -42,6 +42,16 @@ impl ConfigMap {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (c: Self)
+        ensures
+            c@ == self@,
+    {
+        ConfigMap {
+            inner: self.inner.clone(),
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures
             metadata@ == self@.metadata,
