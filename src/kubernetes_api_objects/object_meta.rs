@@ -151,13 +151,14 @@ impl ObjectMeta {
         ensures
             self@ == old(self)@.add_annotation(key@, value@),
     {
-        let mut new_annotations = if self.inner.annotations.is_None() {
-            std::collections::BTreeMap::new()
+        if self.inner.annotations.is_None() {
+            let mut annotations = std::collections::BTreeMap::new();
+            annotations.insert(key.into_rust_string(), value.into_rust_string());
+            self.inner.annotations = Some(annotations);
+            return;
         } else {
-            self.inner.annotations.unwrap()
+            self.inner.annotations.as_mut().unwrap().insert(key.into_rust_string(), value.into_rust_string());
         };
-        new_annotations.insert(key.into_rust_string(), value.into_rust_string());
-        self.inner.annotations = Some(new_annotations);
     }
 
     #[verifier(external_body)]
@@ -275,7 +276,7 @@ impl ObjectMetaView {
         }
     }
 
-    pub open spec fn add_annotation(self, key: StringView, valud: StringView) -> ObjectMetaView {
+    pub open spec fn add_annotation(self, key: StringView, value: StringView) -> ObjectMetaView {
         let old_map = if self.annotations.is_None() {
             Map::empty()
         } else {
