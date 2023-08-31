@@ -40,6 +40,42 @@ pub struct SimpleCRSpec {
 #[kube(shortname = "zk", namespaced)]
 pub struct ZookeeperClusterSpec {
     pub replicas: i32,
+    pub image: String,
+    pub conf: ZookeeperConfig,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+pub struct ZookeeperConfig {
+    #[serde(rename = "initLimit")]
+    pub init_limit: i32,
+    #[serde(rename = "tickTime")]
+    pub tick_time: i32,
+    #[serde(rename = "syncLimit")]
+    pub sync_limit: i32,
+    #[serde(rename = "globalOutstandingLimit")]
+    pub global_outstanding_limit: i32,
+    #[serde(rename = "preAllocSize")]
+    pub pre_alloc_size: i32,
+    #[serde(rename = "snapCount")]
+    pub snap_count: i32,
+    #[serde(rename = "commitLogCount")]
+    pub commit_log_count: i32,
+    #[serde(rename = "snapSizeLimitInKb")]
+    pub snap_size_limit_in_kb: i32,
+    #[serde(rename = "maxCnxns")]
+    pub max_cnxns: i32,
+    #[serde(rename = "maxClientCnxns")]
+    pub max_client_cnxns: i32,
+    #[serde(rename = "minSessionTimeout")]
+    pub min_session_timeout: i32,
+    #[serde(rename = "maxSessionTimeout")]
+    pub max_session_timeout: i32,
+    #[serde(rename = "autoPurgeSnapRetainCount")]
+    pub auto_purge_snap_retain_count: i32,
+    #[serde(rename = "autoPurgePurgeInterval")]
+    pub auto_purge_purge_interval: i32,
+    #[serde(rename = "quorumListenOnAllIps")]
+    pub quorum_listen_on_all_ips: bool,
 }
 
 #[derive(

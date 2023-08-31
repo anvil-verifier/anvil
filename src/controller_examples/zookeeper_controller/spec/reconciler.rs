@@ -441,14 +441,14 @@ pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
             .set_labels(Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()))
         )
         .set_data(Map::empty()
-            .insert(new_strlit("zoo.cfg")@, make_zk_config())
+            .insert(new_strlit("zoo.cfg")@, make_zk_config(zk))
             .insert(new_strlit("log4j.properties")@, make_log4j_config())
             .insert(new_strlit("log4j-quiet.properties")@, make_log4j_quiet_config())
             .insert(new_strlit("env.sh")@, make_env_config(zk))
         )
 }
 
-pub open spec fn make_zk_config() -> StringView {
+pub open spec fn make_zk_config(zk: ZookeeperClusterView) -> StringView {
     new_strlit(
         "4lw.commands.whitelist=cons, envi, conf, crst, srvr, stat, mntr, ruok\n\
         dataDir=/data\n\
@@ -458,21 +458,21 @@ pub open spec fn make_zk_config() -> StringView {
         metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider\n\
         metricsProvider.httpPort=7000\n\
         metricsProvider.exportJvmInfo=true\n\
-        initLimit=10\n\
-        syncLimit=2\n\
-        tickTime=2000\n\
-        globalOutstandingLimit=1000\n\
-        preAllocSize=65536\n\
-        snapCount=10000\n\
-        commitLogCount=500\n\
-        snapSizeLimitInKb=4194304\n\
-        maxCnxns=0\n\
-        maxClientCnxns=60\n\
-        minSessionTimeout=4000\n\
-        maxSessionTimeout=40000\n\
-        autopurge.snapRetainCount=3\n\
-        autopurge.purgeInterval=1\n\
-        quorumListenOnAllIPs=false\n\
+        initLimit=")@ + int_to_string_view(zk.spec.conf.init_limit) + new_strlit("\n\
+        syncLimit=")@ + int_to_string_view(zk.spec.conf.sync_limit) + new_strlit("\n\
+        tickTime=")@ + int_to_string_view(zk.spec.conf.tick_time) + new_strlit("\n\
+        globalOutstandingLimit=")@ + int_to_string_view(zk.spec.conf.global_outstanding_limit) + new_strlit("\n\
+        preAllocSize=")@ + int_to_string_view(zk.spec.conf.pre_alloc_size) + new_strlit("\n\
+        snapCount=")@ + int_to_string_view(zk.spec.conf.snap_count) + new_strlit("\n\
+        commitLogCount=")@ + int_to_string_view(zk.spec.conf.commit_log_count) + new_strlit("\n\
+        snapSizeLimitInKb=")@ + int_to_string_view(zk.spec.conf.snap_size_limit_in_kb) + new_strlit("\n\
+        maxCnxns=")@ + int_to_string_view(zk.spec.conf.max_cnxns) + new_strlit("\n\
+        maxClientCnxns=")@ + int_to_string_view(zk.spec.conf.max_client_cnxns) + new_strlit("\n\
+        minSessionTimeout=")@ + int_to_string_view(zk.spec.conf.min_session_timeout) + new_strlit("\n\
+        maxSessionTimeout=")@ + int_to_string_view(zk.spec.conf.max_session_timeout) + new_strlit("\n\
+        autopurge.snapRetainCount=")@ + int_to_string_view(zk.spec.conf.auto_purge_snap_retain_count) + new_strlit("\n\
+        autopurge.purgeInterval=")@ + int_to_string_view(zk.spec.conf.auto_purge_purge_interval) + new_strlit("\n\
+        quorumListenOnAllIPs=")@ + bool_to_string_view(zk.spec.conf.quorum_listen_on_all_ips) + new_strlit("\n\
         admin.serverPort=8080\n\
         dynamicConfigFile=/data/zoo.cfg.dynamic\n"
     )@
@@ -600,7 +600,7 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
         .set_containers(seq![
             ContainerView::default()
                 .set_name(new_strlit("zookeeper")@)
-                .set_image(new_strlit("pravega/zookeeper:0.2.14")@)
+                .set_image(zk.spec.image)
                 .set_lifecycle(LifecycleView::default()
                     .set_pre_stop(LifecycleHandlerView::default()
                         .set_exec(seq![new_strlit("zookeeperTeardown.sh")@])

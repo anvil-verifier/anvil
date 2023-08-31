@@ -524,7 +524,7 @@ fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
     });
     config_map.set_data({
         let mut data = StringMap::empty();
-        data.insert(new_strlit("zoo.cfg").to_string(), make_zk_config());
+        data.insert(new_strlit("zoo.cfg").to_string(), make_zk_config(zk));
         data.insert(new_strlit("log4j.properties").to_string(), make_log4j_config());
         data.insert(new_strlit("log4j-quiet.properties").to_string(), make_log4j_quiet_config());
         data.insert(new_strlit("env.sh").to_string(), make_env_config(zk));
@@ -534,9 +534,9 @@ fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
     config_map
 }
 
-fn make_zk_config() -> (s: String)
+fn make_zk_config(zk: &ZookeeperCluster) -> (s: String)
     ensures
-        s@ == zk_spec::make_zk_config(),
+        s@ == zk_spec::make_zk_config(zk@),
 {
     new_strlit(
         "4lw.commands.whitelist=cons, envi, conf, crst, srvr, stat, mntr, ruok\n\
@@ -547,24 +547,24 @@ fn make_zk_config() -> (s: String)
         metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider\n\
         metricsProvider.httpPort=7000\n\
         metricsProvider.exportJvmInfo=true\n\
-        initLimit=10\n\
-        syncLimit=2\n\
-        tickTime=2000\n\
-        globalOutstandingLimit=1000\n\
-        preAllocSize=65536\n\
-        snapCount=10000\n\
-        commitLogCount=500\n\
-        snapSizeLimitInKb=4194304\n\
-        maxCnxns=0\n\
-        maxClientCnxns=60\n\
-        minSessionTimeout=4000\n\
-        maxSessionTimeout=40000\n\
-        autopurge.snapRetainCount=3\n\
-        autopurge.purgeInterval=1\n\
-        quorumListenOnAllIPs=false\n\
+        initLimit=").to_string().concat(i32_to_string(zk.spec().conf().init_limit()).as_str()).concat(new_strlit("\n\
+        syncLimit=")).concat(i32_to_string(zk.spec().conf().sync_limit()).as_str()).concat(new_strlit("\n\
+        tickTime=")).concat(i32_to_string(zk.spec().conf().tick_time()).as_str()).concat(new_strlit("\n\
+        globalOutstandingLimit=")).concat(i32_to_string(zk.spec().conf().global_outstanding_limit()).as_str()).concat(new_strlit("\n\
+        preAllocSize=")).concat(i32_to_string(zk.spec().conf().pre_alloc_size()).as_str()).concat(new_strlit("\n\
+        snapCount=")).concat(i32_to_string(zk.spec().conf().snap_count()).as_str()).concat(new_strlit("\n\
+        commitLogCount=")).concat(i32_to_string(zk.spec().conf().commit_log_count()).as_str()).concat(new_strlit("\n\
+        snapSizeLimitInKb=")).concat(i32_to_string(zk.spec().conf().snap_size_limit_in_kb()).as_str()).concat(new_strlit("\n\
+        maxCnxns=")).concat(i32_to_string(zk.spec().conf().max_cnxns()).as_str()).concat(new_strlit("\n\
+        maxClientCnxns=")).concat(i32_to_string(zk.spec().conf().max_client_cnxns()).as_str()).concat(new_strlit("\n\
+        minSessionTimeout=")).concat(i32_to_string(zk.spec().conf().min_session_timeout()).as_str()).concat(new_strlit("\n\
+        maxSessionTimeout=")).concat(i32_to_string(zk.spec().conf().max_session_timeout()).as_str()).concat(new_strlit("\n\
+        autopurge.snapRetainCount=")).concat(i32_to_string(zk.spec().conf().auto_purge_snap_retain_count()).as_str()).concat(new_strlit("\n\
+        autopurge.purgeInterval=")).concat(i32_to_string(zk.spec().conf().auto_purge_purge_interval()).as_str()).concat(new_strlit("\n\
+        quorumListenOnAllIPs=")).concat(bool_to_string(zk.spec().conf().quorum_listen_on_all_ips()).as_str()).concat(new_strlit("\n\
         admin.serverPort=8080\n\
         dynamicConfigFile=/data/zoo.cfg.dynamic\n"
-    ).to_string()
+    ))
 }
 
 fn make_log4j_config() -> (s: String)
@@ -767,7 +767,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
         containers.push({
             let mut zk_container = Container::default();
             zk_container.set_name(new_strlit("zookeeper").to_string());
-            zk_container.set_image(new_strlit("pravega/zookeeper:0.2.14").to_string());
+            zk_container.set_image(zk.spec().image());
             zk_container.set_command({
                 let mut command = Vec::new();
                 command.push(new_strlit("/usr/local/bin/zookeeperStart.sh").to_string());

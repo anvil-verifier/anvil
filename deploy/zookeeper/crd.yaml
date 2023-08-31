@@ -21,10 +21,77 @@ spec:
           properties:
             spec:
               properties:
+                conf:
+                  properties:
+                    autoPurgePurgeInterval:
+                      format: int32
+                      type: integer
+                    autoPurgeSnapRetainCount:
+                      format: int32
+                      type: integer
+                    commitLogCount:
+                      format: int32
+                      type: integer
+                    globalOutstandingLimit:
+                      format: int32
+                      type: integer
+                    initLimit:
+                      format: int32
+                      type: integer
+                    maxClientCnxns:
+                      format: int32
+                      type: integer
+                    maxCnxns:
+                      format: int32
+                      type: integer
+                    maxSessionTimeout:
+                      format: int32
+                      type: integer
+                    minSessionTimeout:
+                      format: int32
+                      type: integer
+                    preAllocSize:
+                      format: int32
+                      type: integer
+                    quorumListenOnAllIps:
+                      type: boolean
+                    snapCount:
+                      format: int32
+                      type: integer
+                    snapSizeLimitInKb:
+                      format: int32
+                      type: integer
+                    syncLimit:
+                      format: int32
+                      type: integer
+                    tickTime:
+                      format: int32
+                      type: integer
+                  required:
+                    - autoPurgePurgeInterval
+                    - autoPurgeSnapRetainCount
+                    - commitLogCount
+                    - globalOutstandingLimit
+                    - initLimit
+                    - maxClientCnxns
+                    - maxCnxns
+                    - maxSessionTimeout
+                    - minSessionTimeout
+                    - preAllocSize
+                    - quorumListenOnAllIps
+                    - snapCount
+                    - snapSizeLimitInKb
+                    - syncLimit
+                    - tickTime
+                  type: object
+                image:
+                  type: string
                 replicas:
                   format: int32
                   type: integer
               required:
+                - conf
+                - image
                 - replicas
               type: object
           required:
