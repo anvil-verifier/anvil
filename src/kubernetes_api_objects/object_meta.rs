@@ -147,6 +147,20 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn add_annotation(&mut self, key: String, value: String)
+        ensures
+            self@ == old(self)@.add_annotation(key@, value@),
+    {
+        let mut new_annotations = if self.inner.annotations.is_None() {
+            std::collections::BTreeMap::new()
+        } else {
+            self.inner.annotations.unwrap()
+        };
+        new_annotations.insert(key.into_rust_string(), value.into_rust_string());
+        self.inner.annotations = Some(new_annotations);
+    }
+
+    #[verifier(external_body)]
     pub fn set_owner_references(&mut self, owner_references: Vec<OwnerReference>)
         ensures
             self@ == old(self)@.set_owner_references(owner_references@.map_values(|o: OwnerReference| o@)),
@@ -257,6 +271,18 @@ impl ObjectMetaView {
     pub open spec fn set_annotations(self, annotations: Map<StringView, StringView>) -> ObjectMetaView {
         ObjectMetaView {
             annotations: Some(annotations),
+            ..self
+        }
+    }
+
+    pub open spec fn add_annotation(self, key: StringView, valud: StringView) -> ObjectMetaView {
+        let old_map = if self.annotations.is_None() {
+            Map::empty()
+        } else {
+            self.annotations.get_Some_0()
+        };
+        ObjectMetaView {
+            annotations: Some(old_map.insert(key, value)),
             ..self
         }
     }
