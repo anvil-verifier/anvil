@@ -26,6 +26,7 @@ pub struct RabbitmqReconcileState {
     // reconcile_step, like a program counter, is used to track the progress of reconcile_core
     // since reconcile_core is frequently "trapped" into the controller_runtime spec.
     pub reconcile_step: RabbitmqReconcileStep,
+    pub current_config_map_opt: Option<ConfigMap>,
 }
 
 impl RabbitmqReconcileState {
@@ -219,33 +220,65 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 ..state
             };
             let req_o = None;
-            (state_prime, req_o)
+            return (state_prime, req_o);
         },
         RabbitmqReconcileStep::AfterUpdateServerConfigMap => {
-            let service_account = make_service_account(rabbitmq);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: ServiceAccount::api_resource(),
-                namespace: rabbitmq.namespace().unwrap(),
-                obj: service_account.to_dynamic_object(),
-            });
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response() {
+                let config_map = make_server_config_map(rabbitmq);
+                let update_config_resp = resp_o.unwrap().into_k_response().into_update_response().res;
+                if update_config_resp.is_ok() {
+                    // update
+                    let updated_config_map = ConfigMap::from_dynamic_object(update_config_resp.unwrap());
+
+                    let service_account = make_service_account(rabbitmq);
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: ServiceAccount::api_resource(),
+                        namespace: rabbitmq.namespace().unwrap(),
+                        obj: service_account.to_dynamic_object(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
+                        current_config_map_opt: Some(updated_config_map),
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
+                reconcile_step: RabbitmqReconcileStep::Error,
                 ..state
             };
-            return (state_prime, Some(Request::KRequest(req_o)));
+            let req_o = None;
+            return (state_prime, req_o);
         },
         RabbitmqReconcileStep::AfterCreateServerConfigMap => {
-            let service_account = make_service_account(rabbitmq);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: ServiceAccount::api_resource(),
-                namespace: rabbitmq.namespace().unwrap(),
-                obj: service_account.to_dynamic_object(),
-            });
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response() {
+                let config_map = make_server_config_map(rabbitmq);
+                let create_config_resp = resp_o.unwrap().into_k_response().into_create_response().res;
+                if create_config_resp.is_ok() {
+                    let created_config_map = ConfigMap::from_dynamic_object(create_config_resp.unwrap());
+                    let service_account = make_service_account(rabbitmq);
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: ServiceAccount::api_resource(),
+                        namespace: rabbitmq.namespace().unwrap(),
+                        obj: service_account.to_dynamic_object(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
+                        current_config_map_opt: Some(created_config_map),
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
+                reconcile_step: RabbitmqReconcileStep::Error,
                 ..state
             };
-            return (state_prime, Some(Request::KRequest(req_o)));
+            let req_o = None;
+            return (state_prime, req_o);
         },
         RabbitmqReconcileStep::AfterCreateServiceAccount => {
             let role = make_role(rabbitmq);
@@ -288,7 +321,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterGetStatefulSet => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
-                let stateful_set = make_stateful_set(rabbitmq);
+                let stateful_set = make_stateful_set(rabbitmq, state.current_config_map_opt);
                 let get_sts_resp = resp_o.unwrap().into_k_response().into_get_response().res;
                 if get_sts_resp.is_ok() {
                     // update
@@ -307,7 +340,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                                 api_resource: StatefulSet::api_resource(),
                                 name: stateful_set.metadata().name().unwrap(),
                                 namespace: rabbitmq.namespace().unwrap(),
-                                obj: update_stateful_set(rabbitmq, found_stateful_set).to_dynamic_object(),
+                                obj: update_stateful_set(rabbitmq, found_stateful_set, state.current_config_map_opt).to_dynamic_object(),
                             });
                             let state_prime = RabbitmqReconcileState {
                                 reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
@@ -345,7 +378,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: RabbitmqReconcileStep::Done,
                 ..state
             };
-            (state_prime, req_o)
+            return (state_prime, req_o);
         },
         RabbitmqReconcileStep::AfterUpdateStatefulSet => {
             let req_o = None;
@@ -353,7 +386,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 reconcile_step: RabbitmqReconcileStep::Done,
                 ..state
             };
-            (state_prime, req_o)
+            return (state_prime, req_o);
         },
         _ => {
             let state_prime = RabbitmqReconcileState {
@@ -361,7 +394,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 ..state
             };
             let req_o = None;
-            (state_prime, req_o)
+            return (state_prime, req_o);
         }
     }
 }
@@ -880,7 +913,7 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
     role_binding
 }
 
-fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: StatefulSet) -> (stateful_set: StatefulSet)
+fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: StatefulSet, config_map: Option<ConfigMap>) -> (stateful_set: StatefulSet)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
@@ -904,12 +937,19 @@ fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: State
     // for stateful set are.
     metadata.set_owner_references(owner_references);
     metadata.unset_finalizers();
-    found_stateful_set.set_spec(make_stateful_set(rabbitmq).spec().unwrap());
+    found_stateful_set.set_spec(make_stateful_set(rabbitmq, config_map).spec().unwrap());
     found_stateful_set.set_metadata(metadata);
     found_stateful_set
 }
 
-fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
+fn sts_restart_annotation() -> (anno: String)
+    ensures
+        anno@ == rabbitmq_spec::sts_restart_annotation(),
+{
+    new_strlit("rabbitmq.com/lastRestartAt").to_string()
+}
+
+fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map: Option<ConfigMap>) -> (stateful_set: StatefulSet)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
@@ -1013,6 +1053,13 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster) -> (stateful_set: StatefulSet)
                     labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
                     labels
                 });
+                if config_map.is_some() {
+                    let cm = config_map.as_ref().unwrap();
+                    if cm.metadata().resource_version().is_some() {
+                        let cm_rv = cm.metadata().resource_version().unwrap();
+                        metadata.add_annotation(sts_restart_annotation(), cm_rv);
+                    }
+                }
                 metadata
             });
             pod_template_spec.set_spec(make_rabbitmq_pod_spec(rabbitmq));
