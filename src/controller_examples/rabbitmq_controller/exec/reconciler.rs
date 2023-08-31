@@ -32,7 +32,8 @@ pub struct RabbitmqReconcileState {
 impl RabbitmqReconcileState {
     pub open spec fn to_view(&self) -> rabbitmq_spec::RabbitmqReconcileState {
         rabbitmq_spec::RabbitmqReconcileState {
-                reconcile_step: self.reconcile_step,
+            reconcile_step: self.reconcile_step,
+            current_config_map_opt: opt_config_map_to_view(&self.current_config_map_opt),
         }
     }
 }
@@ -62,12 +63,20 @@ impl Default for RabbitmqReconciler {
     fn default() -> RabbitmqReconciler { RabbitmqReconciler{} }
 }
 
+pub open spec fn opt_config_map_to_view(cm: &Option<ConfigMap>) -> Option<ConfigMapView> {
+    match cm {
+        Some(config_map) => Some(config_map@),
+        None => None,
+    }
+}
+
 pub fn reconcile_init_state() -> (state: RabbitmqReconcileState)
     ensures
         state.to_view() == rabbitmq_spec::reconcile_init_state(),
 {
     RabbitmqReconcileState {
         reconcile_step: RabbitmqReconcileStep::Init,
+        current_config_map_opt: None,
     }
 }
 
@@ -224,13 +233,11 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         },
         RabbitmqReconcileStep::AfterUpdateServerConfigMap => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response() {
-                let config_map = make_server_config_map(rabbitmq);
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
                 let update_config_resp = resp_o.unwrap().into_k_response().into_update_response().res;
-                if update_config_resp.is_ok() {
-                    // update
-                    let updated_config_map = ConfigMap::from_dynamic_object(update_config_resp.unwrap());
-
+                let updated_config_map = ConfigMap::from_dynamic_object(update_config_resp.unwrap());
+                if updated_config_map.is_ok() {
                     let service_account = make_service_account(rabbitmq);
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: ServiceAccount::api_resource(),
@@ -239,7 +246,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                     });
                     let state_prime = RabbitmqReconcileState {
                         reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
-                        current_config_map_opt: Some(updated_config_map),
+                        current_config_map_opt: Some(updated_config_map.unwrap()),
                         ..state
                     };
                     return (state_prime, Some(Request::KRequest(req_o)));
@@ -254,11 +261,11 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         },
         RabbitmqReconcileStep::AfterCreateServerConfigMap => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response() {
-                let config_map = make_server_config_map(rabbitmq);
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() {
                 let create_config_resp = resp_o.unwrap().into_k_response().into_create_response().res;
-                if create_config_resp.is_ok() {
-                    let created_config_map = ConfigMap::from_dynamic_object(create_config_resp.unwrap());
+                let created_config_map = ConfigMap::from_dynamic_object(create_config_resp.unwrap());
+                if created_config_map.is_ok() {
                     let service_account = make_service_account(rabbitmq);
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: ServiceAccount::api_resource(),
@@ -267,7 +274,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                     });
                     let state_prime = RabbitmqReconcileState {
                         reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
-                        current_config_map_opt: Some(created_config_map),
+                        current_config_map_opt: Some(created_config_map.unwrap()),
                         ..state
                     };
                     return (state_prime, Some(Request::KRequest(req_o)));
@@ -321,7 +328,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterGetStatefulSet => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
-                let stateful_set = make_stateful_set(rabbitmq, state.current_config_map_opt);
+                let stateful_set = make_stateful_set(rabbitmq, &state.current_config_map_opt);
                 let get_sts_resp = resp_o.unwrap().into_k_response().into_get_response().res;
                 if get_sts_resp.is_ok() {
                     // update
@@ -340,7 +347,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                                 api_resource: StatefulSet::api_resource(),
                                 name: stateful_set.metadata().name().unwrap(),
                                 namespace: rabbitmq.namespace().unwrap(),
-                                obj: update_stateful_set(rabbitmq, found_stateful_set, state.current_config_map_opt).to_dynamic_object(),
+                                obj: update_stateful_set(rabbitmq, found_stateful_set, &state.current_config_map_opt).to_dynamic_object(),
                             });
                             let state_prime = RabbitmqReconcileState {
                                 reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
@@ -913,12 +920,12 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
     role_binding
 }
 
-fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: StatefulSet, config_map: Option<ConfigMap>) -> (stateful_set: StatefulSet)
+fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: StatefulSet, config_map: &Option<ConfigMap>) -> (stateful_set: StatefulSet)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        stateful_set@ == rabbitmq_spec::update_stateful_set(rabbitmq@, found_stateful_set@),
+        stateful_set@ == rabbitmq_spec::update_stateful_set(rabbitmq@, found_stateful_set@, opt_config_map_to_view(config_map)),
 {
     let mut owner_references = Vec::new();
     owner_references.push(rabbitmq.controller_owner_ref());
@@ -949,12 +956,12 @@ fn sts_restart_annotation() -> (anno: String)
     new_strlit("rabbitmq.com/lastRestartAt").to_string()
 }
 
-fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map: Option<ConfigMap>) -> (stateful_set: StatefulSet)
+fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map: &Option<ConfigMap>) -> (stateful_set: StatefulSet)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        stateful_set@ == rabbitmq_spec::make_stateful_set(rabbitmq@),
+        stateful_set@ == rabbitmq_spec::make_stateful_set(rabbitmq@, opt_config_map_to_view(config_map)),
 {
     let mut stateful_set = StatefulSet::default();
     stateful_set.set_metadata({
@@ -1020,7 +1027,7 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map: Option<ConfigMap>) 
                         proof {
                             assert_seqs_equal!(
                                 access_modes@.map_values(|mode: String| mode@),
-                                rabbitmq_spec::make_stateful_set(rabbitmq@)
+                                rabbitmq_spec::make_stateful_set(rabbitmq@, opt_config_map_to_view(config_map))
                                     .spec.get_Some_0().volume_claim_templates.get_Some_0()[0]
                                     .spec.get_Some_0().access_modes.get_Some_0()
                             );
@@ -1036,7 +1043,7 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map: Option<ConfigMap>) 
             proof {
                 assert_seqs_equal!(
                     volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
-                    rabbitmq_spec::make_stateful_set(rabbitmq@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+                    rabbitmq_spec::make_stateful_set(rabbitmq@, opt_config_map_to_view(config_map)).spec.get_Some_0().volume_claim_templates.get_Some_0()
                 );
             }
             volume_claim_templates

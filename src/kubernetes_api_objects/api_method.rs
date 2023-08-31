@@ -394,6 +394,74 @@ impl KubeAPIResponse {
             _ => unreached(),
         }
     }
+
+    pub fn is_update_response(&self) -> (res: bool)
+        ensures
+            res == self.is_UpdateResponse(),
+    {
+        match self {
+            KubeAPIResponse::UpdateResponse(resp) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_update_response_ref(&self) -> (resp: &KubeUpdateResponse)
+        requires
+            self.is_UpdateResponse(),
+        ensures
+            resp == self.get_UpdateResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::UpdateResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn into_update_response(self) -> (resp: KubeUpdateResponse)
+        requires
+            self.is_UpdateResponse(),
+        ensures
+            resp == self.get_UpdateResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::UpdateResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn is_create_response(&self) -> (res: bool)
+        ensures
+            res == self.is_CreateResponse(),
+    {
+        match self {
+            KubeAPIResponse::CreateResponse(resp) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_create_response_ref(&self) -> (resp: &KubeCreateResponse)
+        requires
+            self.is_CreateResponse(),
+        ensures
+            resp == self.get_CreateResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::CreateResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn into_create_response(self) -> (resp: KubeCreateResponse)
+        requires
+            self.is_CreateResponse(),
+        ensures
+            resp == self.get_CreateResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::CreateResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
 }
 
 pub open spec fn opt_resp_to_view(resp: &Option<KubeAPIResponse>) -> Option<APIResponse> {
