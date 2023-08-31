@@ -155,7 +155,6 @@ impl ObjectMeta {
             let mut annotations = std::collections::BTreeMap::new();
             annotations.insert(key.into_rust_string(), value.into_rust_string());
             self.inner.annotations = Some(annotations);
-            return;
         } else {
             self.inner.annotations.as_mut().unwrap().insert(key.into_rust_string(), value.into_rust_string());
         };
