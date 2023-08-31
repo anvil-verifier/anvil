@@ -12,7 +12,7 @@ app=$1
 cp docker/$app-controller/Dockerfile .
 docker build -t local/$app-controller:v0.1.0 .
 # Set up the kind cluster and load the image into the cluster
-kind create cluster --config kind-config.yaml
+kind create cluster --config deploy/kind.yaml
 kind load docker-image local/$app-controller:v0.1.0
 # Deploy the controller as a pod to the kind cluster, using the image just loaded
 ./deploy.sh $app local

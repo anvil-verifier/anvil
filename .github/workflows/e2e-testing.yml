@@ -17,28 +17,20 @@ jobs:
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       # For rabbitmq
-      - name: Build rabbitmq controller image
-        run: |
-          cp docker/rabbitmq-controller/Dockerfile .
-          docker build -t local/rabbitmq-controller:v0.1.0 .
       - name: Create kind cluster
-        run: kind create cluster --config=./e2e/deploy/kind_config.yaml
+        run: kind create cluster --config=./deploy/kind.yaml
       - name: Deploy rabbitmq controller
-        run: ./deploy.sh rabbitmq local
+        run: ./deploy.sh rabbitmq remote
       - name: Run rabbitmq e2e tests
         run: cd e2e && cargo run -- rabbitmq
       - name: Tear down kind cluster
-        run: kind delete clusters kind && sleep 15
+        run: kind delete cluster && sleep 15
       # For zookeeper
-      - name: Build zookeeper controller image
-        run: |
-          cp docker/zookeeper-controller/Dockerfile .
-          docker build -t local/zookeeper-controller:v0.1.0 .
       - name: Create kind cluster
-        run: kind create cluster --config=./e2e/deploy/kind_config.yaml
+        run: kind create cluster --config=./deploy/kind.yaml
       - name: Deploy zookeeper controller
-        run: ./deploy.sh zookeeper local
+        run: ./deploy.sh zookeeper remote
       - name: Run zookeeper e2e tests
         run: cd e2e && cargo run -- zookeeper
       - name: Tear down kind cluster
-        run: kind delete clusters kind
+        run: kind delete cluster
