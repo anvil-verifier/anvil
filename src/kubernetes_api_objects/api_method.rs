@@ -394,6 +394,7 @@ impl KubeAPIResponse {
             _ => unreached(),
         }
     }
+
 }
 
 pub open spec fn opt_resp_to_view(resp: &Option<KubeAPIResponse>) -> Option<APIResponse> {
