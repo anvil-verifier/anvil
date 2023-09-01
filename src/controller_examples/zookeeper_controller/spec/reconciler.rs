@@ -303,11 +303,11 @@ pub open spec fn reconcile_core(
                         };
                         (state_prime, None)
                     }
-                } else if get_sts_resp.get_Err_0().is_ObjectNotFound() {
+                } else if get_sts_resp.get_Err_0().is_ObjectNotFound() && state.latest_config_map_rv_opt.is_Some() {
                     // create
                     let req_o = APIRequest::CreateRequest(CreateRequest {
                             namespace: zk.metadata.namespace.get_Some_0(),
-                            obj: make_stateful_set(zk).to_dynamic_object(),
+                            obj: make_stateful_set(zk, state.latest_config_map_rv_opt.get_Some_0()).to_dynamic_object(),
                     });
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::AfterCreateStatefulSet,
@@ -408,13 +408,14 @@ pub open spec fn reconcile_core(
             if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
             && resp_o.get_Some_0().get_ExternalResponse_0().is_CreateResponse()
             && resp_o.get_Some_0().get_ExternalResponse_0().get_CreateResponse_0().res.is_Ok()
-            && state.found_stateful_set_opt.is_Some() {
+            && state.found_stateful_set_opt.is_Some() && state.latest_config_map_rv_opt.is_Some() {
                 // Only proceed to update the stateful set when zk node is set successfully,
                 // otherwise it might cause unsafe downscale.
                 let found_stateful_set = state.found_stateful_set_opt.get_Some_0();
+                let latest_config_map_rv = state.latest_config_map_rv_opt.get_Some_0();
                 let req_o = APIRequest::UpdateRequest(UpdateRequest {
                     key: make_stateful_set_key(zk.object_ref()),
-                    obj: update_stateful_set(zk, found_stateful_set).to_dynamic_object(),
+                    obj: update_stateful_set(zk, found_stateful_set, latest_config_map_rv).to_dynamic_object(),
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
@@ -434,13 +435,14 @@ pub open spec fn reconcile_core(
             if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
             && resp_o.get_Some_0().get_ExternalResponse_0().is_SetDataResponse()
             && resp_o.get_Some_0().get_ExternalResponse_0().get_SetDataResponse_0().res.is_Ok()
-            && state.found_stateful_set_opt.is_Some() {
+            && state.found_stateful_set_opt.is_Some() && state.latest_config_map_rv_opt.is_Some() {
                 // Only proceed to update the stateful set when zk node is set successfully,
                 // otherwise it might cause unsafe downscale.
                 let found_stateful_set = state.found_stateful_set_opt.get_Some_0();
+                let latest_config_map_rv = state.latest_config_map_rv_opt.get_Some_0();
                 let req_o = APIRequest::UpdateRequest(UpdateRequest {
                     key: make_stateful_set_key(zk.object_ref()),
-                    obj: update_stateful_set(zk, found_stateful_set).to_dynamic_object(),
+                    obj: update_stateful_set(zk, found_stateful_set, latest_config_map_rv).to_dynamic_object(),
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
@@ -704,19 +706,19 @@ pub open spec fn make_stateful_set_name(zk_name: StringView) -> StringView {
     zk_name
 }
 
-pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_set: StatefulSetView) -> StatefulSetView
+pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_set: StatefulSetView, rv: StringView) -> StatefulSetView
     recommends
         zk.well_formed(),
 {
     found_stateful_set
         .set_metadata(
             found_stateful_set.metadata
-                .set_labels(make_stateful_set(zk).metadata.labels.get_Some_0())
+                .set_labels(make_stateful_set(zk, rv).metadata.labels.get_Some_0())
         )
-        .set_spec(make_stateful_set(zk).spec.get_Some_0())
+        .set_spec(make_stateful_set(zk, rv).spec.get_Some_0())
 }
 
-pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView
+pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> StatefulSetView
     recommends
         zk.well_formed(),
 {
@@ -739,6 +741,10 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView) -> StatefulSetView
                     Map::empty()
                         .insert(new_strlit("app")@, zk.metadata.name.get_Some_0())
                         .insert(new_strlit("kind")@, new_strlit("ZookeeperMember")@)
+                )
+                .set_annotations(
+                    Map::empty()
+                        .insert(new_strlit("config")@, rv)
                 )
             )
             .set_spec(make_zk_pod_spec(zk))

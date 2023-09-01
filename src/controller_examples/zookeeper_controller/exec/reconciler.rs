@@ -296,9 +296,9 @@ pub fn reconcile_core(
                         );
                         return (state_prime, Some(Request::ExternalRequest(ext_req)));
                     }
-                } else if get_sts_resp.unwrap_err().is_object_not_found() {
+                } else if get_sts_resp.unwrap_err().is_object_not_found() && state.latest_config_map_rv_opt.is_some() {
                     // Create the stateful set since it doesn't exist yet.
-                    let stateful_set = make_stateful_set(zk);
+                    let stateful_set = make_stateful_set(zk, state.latest_config_map_rv_opt.as_ref().unwrap());
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: StatefulSet::api_resource(),
                         namespace: zk.metadata().namespace().unwrap(),
@@ -382,11 +382,12 @@ pub fn reconcile_core(
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
             && resp_o.as_ref().unwrap().as_external_response_ref().is_create_response()
             && resp_o.unwrap().into_external_response().unwrap_create_response().res.is_ok()
-            && state.found_stateful_set_opt.is_some() {
+            && state.found_stateful_set_opt.is_some() && state.latest_config_map_rv_opt.is_some() {
                 // Update the stateful set only after we ensure
                 // that the ZK node has been set correctly.
-                let found_stateful_set = state.found_stateful_set_opt.unwrap();
-                let new_stateful_set = update_stateful_set(zk, &found_stateful_set);
+                let found_stateful_set = state.found_stateful_set_opt.as_ref().unwrap();
+                let latest_config_map_rv = state.latest_config_map_rv_opt.as_ref().unwrap();
+                let new_stateful_set = update_stateful_set(zk, found_stateful_set, latest_config_map_rv);
                 let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                     api_resource: StatefulSet::api_resource(),
                     name: make_stateful_set_name(zk),
@@ -411,11 +412,12 @@ pub fn reconcile_core(
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
             && resp_o.as_ref().unwrap().as_external_response_ref().is_set_data_response()
             && resp_o.unwrap().into_external_response().unwrap_set_data_response().res.is_ok()
-            && state.found_stateful_set_opt.is_some() {
+            && state.found_stateful_set_opt.is_some() && state.latest_config_map_rv_opt.is_some() {
                 // Update the stateful set only after we ensure
                 // that the ZK node has been set correctly.
-                let found_stateful_set = state.found_stateful_set_opt.unwrap();
-                let new_stateful_set = update_stateful_set(zk, &found_stateful_set);
+                let found_stateful_set = state.found_stateful_set_opt.as_ref().unwrap();
+                let latest_config_map_rv = state.latest_config_map_rv_opt.as_ref().unwrap();
+                let new_stateful_set = update_stateful_set(zk, found_stateful_set, latest_config_map_rv);
                 let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                     api_resource: StatefulSet::api_resource(),
                     name: make_stateful_set_name(zk),
@@ -750,14 +752,14 @@ fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
     zk.metadata().name().unwrap()
 }
 
-fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulSet) -> (stateful_set: StatefulSet)
+fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulSet, rv: &String) -> (stateful_set: StatefulSet)
     requires
         zk@.well_formed(),
     ensures
-        stateful_set@ == zk_spec::update_stateful_set(zk@, found_stateful_set@),
+        stateful_set@ == zk_spec::update_stateful_set(zk@, found_stateful_set@, rv@),
 {
     let mut stateful_set = found_stateful_set.clone();
-    let made_stateful_set = make_stateful_set(zk);
+    let made_stateful_set = make_stateful_set(zk, rv);
     stateful_set.set_metadata({
         let mut metadata = found_stateful_set.metadata();
         metadata.set_labels(made_stateful_set.metadata().labels().unwrap());
@@ -769,11 +771,11 @@ fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulSet) 
 
 /// The StatefulSet manages the zookeeper server containers (as Pods)
 /// and the volumes attached to each server (as PersistentVolumeClaims)
-fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
+fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: StatefulSet)
     requires
         zk@.well_formed(),
     ensures
-        stateful_set@ == zk_spec::make_stateful_set(zk@),
+        stateful_set@ == zk_spec::make_stateful_set(zk@, rv@),
 {
     let mut stateful_set = StatefulSet::default();
     stateful_set.set_metadata({
@@ -820,6 +822,11 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
                     labels.insert(new_strlit("kind").to_string(), new_strlit("ZookeeperMember").to_string());
                     labels
                 });
+                metadata.set_annotations({
+                    let mut annotations = StringMap::empty();
+                    annotations.insert(new_strlit("config").to_string(), rv.clone());
+                    annotations
+                });
                 metadata
             });
             pod_template_spec.set_spec(make_zk_pod_spec(zk));
@@ -849,7 +856,7 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
                         proof {
                             assert_seqs_equal!(
                                 access_modes@.map_values(|mode: String| mode@),
-                                zk_spec::make_stateful_set(zk@)
+                                zk_spec::make_stateful_set(zk@, rv@)
                                     .spec.get_Some_0().volume_claim_templates.get_Some_0()[0]
                                     .spec.get_Some_0().access_modes.get_Some_0()
                             );
@@ -866,7 +873,7 @@ fn make_stateful_set(zk: &ZookeeperCluster) -> (stateful_set: StatefulSet)
             proof {
                 assert_seqs_equal!(
                     volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
-                    zk_spec::make_stateful_set(zk@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+                    zk_spec::make_stateful_set(zk@, rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
                 );
             }
 
