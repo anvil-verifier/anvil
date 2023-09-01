@@ -149,8 +149,7 @@ pub open spec fn reconcile_core(
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
         RabbitmqReconcileStep::AfterGetServerConfigMap => {
-            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() &&
-            resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
                 let config_map = make_server_config_map(rabbitmq);
                 let get_config_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
                 if get_config_resp.is_Ok() {
