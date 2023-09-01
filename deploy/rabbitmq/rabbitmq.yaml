@@ -7,4 +7,4 @@ spec:
   replicas: 3
   rabbitmqConfig:
     additionalConfig: |
-      log.console.level = debug
+      queue_leader_locator = balanced

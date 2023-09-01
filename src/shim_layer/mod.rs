@@ -157,7 +157,7 @@ where
                                     kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse{
                                         res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
                                     });
-                                    println!("Get done");
+                                    println!("Get {} done", get_req.name.into_rust_string());
                                 },
                             }
                         },

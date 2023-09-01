@@ -53,7 +53,6 @@ impl RabbitmqCluster {
         RabbitmqClusterSpec { inner: self.inner.spec.clone() }
     }
 
-
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::RabbitmqCluster {
         self.inner
