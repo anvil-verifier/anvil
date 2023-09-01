@@ -77,11 +77,14 @@ pub open spec fn reconcile_core(
         zk.well_formed(),
 {
     let step = state.reconcile_step;
+    let resp = resp_o.get_Some_0();
+    let zk_name = zk.metadata.name.get_Some_0();
+    let zk_namespace = zk.metadata.namespace.get_Some_0();
     match step {
         ZookeeperReconcileStep::Init => {
             let headless_service = make_headless_service(zk);
             let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: zk.metadata.namespace.get_Some_0(),
+                namespace: zk_namespace,
                 obj: headless_service.to_dynamic_object(),
             });
             let state_prime = ZookeeperReconcileState {
@@ -93,7 +96,7 @@ pub open spec fn reconcile_core(
         ZookeeperReconcileStep::AfterCreateHeadlessService => {
             let client_service = make_client_service(zk);
             let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: zk.metadata.namespace.get_Some_0(),
+                namespace: zk_namespace,
                 obj: client_service.to_dynamic_object(),
             });
             let state_prime = ZookeeperReconcileState {
@@ -105,7 +108,7 @@ pub open spec fn reconcile_core(
         ZookeeperReconcileStep::AfterCreateClientService => {
             let admin_server_service = make_admin_server_service(zk);
             let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: zk.metadata.namespace.get_Some_0(),
+                namespace: zk_namespace,
                 obj: admin_server_service.to_dynamic_object(),
             });
             let state_prime = ZookeeperReconcileState {
@@ -118,8 +121,8 @@ pub open spec fn reconcile_core(
             let req_o = APIRequest::GetRequest(GetRequest{
                 key: ObjectRef {
                     kind: ConfigMapView::kind(),
-                    name: make_config_map_name(zk.metadata.name.get_Some_0()),
-                    namespace: zk.metadata.namespace.get_Some_0(),
+                    name: make_config_map_name(zk_name),
+                    namespace: zk_namespace,
                 }
             });
             let state_prime = ZookeeperReconcileState {
@@ -129,9 +132,8 @@ pub open spec fn reconcile_core(
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
         ZookeeperReconcileStep::AfterGetConfigMap => {
-            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
-            && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
-                let get_cm_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
+                let get_cm_resp = resp.get_KResponse_0().get_GetResponse_0().res;
                 if get_cm_resp.is_Ok() {
                     if ConfigMapView::from_dynamic_object(get_cm_resp.get_Ok_0()).is_Ok() {
                         // update
@@ -155,7 +157,7 @@ pub open spec fn reconcile_core(
                 } else if get_cm_resp.get_Err_0().is_ObjectNotFound() {
                     // create
                     let req_o = APIRequest::CreateRequest(CreateRequest {
-                        namespace: zk.metadata.namespace.get_Some_0(),
+                        namespace: zk_namespace,
                         obj: make_config_map(zk).to_dynamic_object(),
                     });
                     let state_prime = ZookeeperReconcileState {
@@ -179,47 +181,24 @@ pub open spec fn reconcile_core(
             }
         },
         ZookeeperReconcileStep::AfterCreateConfigMap => {
-            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
-            && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse() {
-                let create_cm_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
-                if create_cm_resp.is_Ok() {
-                    if ConfigMapView::from_dynamic_object(create_cm_resp.get_Ok_0()).is_Ok() {
-                        let latest_config_map = ConfigMapView::from_dynamic_object(create_cm_resp.get_Ok_0()).get_Ok_0();
-                        if latest_config_map.metadata.resource_version.is_Some() {
-                            let req_o = APIRequest::GetRequest(GetRequest {
-                                key: ObjectRef {
-                                    kind: StatefulSetView::kind(),
-                                    name: make_stateful_set_name(zk.metadata.name.get_Some_0()),
-                                    namespace: zk.metadata.namespace.get_Some_0(),
-                                }
-                            });
-                            let state_prime = ZookeeperReconcileState {
-                                reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
-                                latest_config_map_rv_opt: Some(int_to_string_view(latest_config_map.metadata.resource_version.get_Some_0())),
-                                ..state
-                            };
-                            (state_prime, Some(RequestView::KRequest(req_o)))
-                        } else {
-                            let state_prime = ZookeeperReconcileState {
-                                reconcile_step: ZookeeperReconcileStep::Error,
-                                ..state
-                            };
-                            (state_prime, None)
-                        }
-                    } else {
-                        let state_prime = ZookeeperReconcileState {
-                            reconcile_step: ZookeeperReconcileStep::Error,
-                            ..state
-                        };
-                        (state_prime, None)
+            let create_cm_resp = resp.get_KResponse_0().get_CreateResponse_0().res;
+            let latest_config_map = ConfigMapView::from_dynamic_object(create_cm_resp.get_Ok_0()).get_Ok_0();
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
+            && create_cm_resp.is_Ok() && ConfigMapView::from_dynamic_object(create_cm_resp.get_Ok_0()).is_Ok()
+            && latest_config_map.metadata.resource_version.is_Some() {
+                let req_o = APIRequest::GetRequest(GetRequest {
+                    key: ObjectRef {
+                        kind: StatefulSetView::kind(),
+                        name: make_stateful_set_name(zk_name),
+                        namespace: zk_namespace,
                     }
-                } else {
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Error,
-                        ..state
-                    };
-                    (state_prime, None)
-                }
+                });
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
+                    latest_config_map_rv_opt: Some(int_to_string_view(latest_config_map.metadata.resource_version.get_Some_0())),
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
             } else {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Error,
@@ -229,47 +208,24 @@ pub open spec fn reconcile_core(
             }
         },
         ZookeeperReconcileStep::AfterUpdateConfigMap => {
-            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
-            && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse() {
-                let update_cm_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
-                if update_cm_resp.is_Ok() {
-                    if ConfigMapView::from_dynamic_object(update_cm_resp.get_Ok_0()).is_Ok() {
-                        let latest_config_map = ConfigMapView::from_dynamic_object(update_cm_resp.get_Ok_0()).get_Ok_0();
-                        if latest_config_map.metadata.resource_version.is_Some() {
-                            let req_o = APIRequest::GetRequest(GetRequest {
-                                key: ObjectRef {
-                                    kind: StatefulSetView::kind(),
-                                    name: make_stateful_set_name(zk.metadata.name.get_Some_0()),
-                                    namespace: zk.metadata.namespace.get_Some_0(),
-                                }
-                            });
-                            let state_prime = ZookeeperReconcileState {
-                                reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
-                                latest_config_map_rv_opt: Some(int_to_string_view(latest_config_map.metadata.resource_version.get_Some_0())),
-                                ..state
-                            };
-                            (state_prime, Some(RequestView::KRequest(req_o)))
-                        } else {
-                            let state_prime = ZookeeperReconcileState {
-                                reconcile_step: ZookeeperReconcileStep::Error,
-                                ..state
-                            };
-                            (state_prime, None)
-                        }
-                    } else {
-                        let state_prime = ZookeeperReconcileState {
-                            reconcile_step: ZookeeperReconcileStep::Error,
-                            ..state
-                        };
-                        (state_prime, None)
+            let update_cm_resp = resp.get_KResponse_0().get_UpdateResponse_0().res;
+            let latest_config_map = ConfigMapView::from_dynamic_object(update_cm_resp.get_Ok_0()).get_Ok_0();
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
+            && update_cm_resp.is_Ok() && ConfigMapView::from_dynamic_object(update_cm_resp.get_Ok_0()).is_Ok()
+            && latest_config_map.metadata.resource_version.is_Some() {
+                let req_o = APIRequest::GetRequest(GetRequest {
+                    key: ObjectRef {
+                        kind: StatefulSetView::kind(),
+                        name: make_stateful_set_name(zk_name),
+                        namespace: zk_namespace,
                     }
-                } else {
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Error,
-                        ..state
-                    };
-                    (state_prime, None)
-                }
+                });
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
+                    latest_config_map_rv_opt: Some(int_to_string_view(latest_config_map.metadata.resource_version.get_Some_0())),
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
             } else {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Error,
@@ -279,9 +235,8 @@ pub open spec fn reconcile_core(
             }
         },
         ZookeeperReconcileStep::AfterGetStatefulSet => {
-            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse()
-            && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
-                let get_sts_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
+                let get_sts_resp = resp.get_KResponse_0().get_GetResponse_0().res;
                 if get_sts_resp.is_Ok() {
                     if StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).is_Ok() {
                         let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).get_Ok_0();
@@ -291,9 +246,9 @@ pub open spec fn reconcile_core(
                             found_stateful_set_opt: Some(found_stateful_set),
                             ..state
                         };
-                        let node_path = seq![new_strlit("zookeeper-operator")@, zk.metadata.name.get_Some_0()];
+                        let node_path = seq![new_strlit("zookeeper-operator")@, zk_name];
                         let ext_req = ZKAPIInputView::ExistsRequest(
-                            zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), node_path
+                            zk_name, zk_namespace, node_path
                         );
                         (state_prime, Some(RequestView::ExternalRequest(ext_req)))
                     } else {
@@ -306,7 +261,7 @@ pub open spec fn reconcile_core(
                 } else if get_sts_resp.get_Err_0().is_ObjectNotFound() && state.latest_config_map_rv_opt.is_Some() {
                     // create
                     let req_o = APIRequest::CreateRequest(CreateRequest {
-                            namespace: zk.metadata.namespace.get_Some_0(),
+                            namespace: zk_namespace,
                             obj: make_stateful_set(zk, state.latest_config_map_rv_opt.get_Some_0()).to_dynamic_object(),
                     });
                     let state_prime = ZookeeperReconcileState {
@@ -330,41 +285,33 @@ pub open spec fn reconcile_core(
             }
         },
         ZookeeperReconcileStep::AfterExistsZKNode => {
-            if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
-            && resp_o.get_Some_0().get_ExternalResponse_0().is_ExistsResponse() {
-                let exists_resp = resp_o.get_Some_0().get_ExternalResponse_0().get_ExistsResponse_0().res;
-                if exists_resp.is_Ok() {
-                    if exists_resp.get_Ok_0().is_Some() {
-                        let version = exists_resp.get_Ok_0().get_Some_0();
-                        let node_path = zk_node_path(zk);
-                        let data = zk_node_data(zk);
-                        let ext_req = ZKAPIInputView::SetDataRequest(
-                            zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), node_path, data, version
-                        );
-                        let state_prime = ZookeeperReconcileState {
-                            reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
-                            ..state
-                        };
-                        (state_prime, Some(RequestView::ExternalRequest(ext_req)))
-                    } else {
-                        let version = exists_resp.get_Ok_0().get_Some_0();
-                        let node_path = zk_parent_node_path(zk);
-                        let data = new_strlit("")@;
-                        let ext_req = ZKAPIInputView::CreateRequest(
-                            zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), node_path, data
-                        );
-                        let state_prime = ZookeeperReconcileState {
-                            reconcile_step: ZookeeperReconcileStep::AfterCreateZKParentNode,
-                            ..state
-                        };
-                        (state_prime, Some(RequestView::ExternalRequest(ext_req)))
-                    }
-                } else {
+            let exists_resp = resp.get_ExternalResponse_0().get_ExistsResponse_0().res;
+            if resp_o.is_Some() && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_ExistsResponse()
+            && exists_resp.is_Ok() {
+                if exists_resp.get_Ok_0().is_Some() {
+                    let version = exists_resp.get_Ok_0().get_Some_0();
+                    let node_path = zk_node_path(zk);
+                    let data = zk_node_data(zk);
+                    let ext_req = ZKAPIInputView::SetDataRequest(
+                        zk_name, zk_namespace, node_path, data, version
+                    );
                     let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Error,
+                        reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
                         ..state
                     };
-                    (state_prime, None)
+                    (state_prime, Some(RequestView::ExternalRequest(ext_req)))
+                } else {
+                    let version = exists_resp.get_Ok_0().get_Some_0();
+                    let node_path = zk_parent_node_path(zk);
+                    let data = new_strlit("")@;
+                    let ext_req = ZKAPIInputView::CreateRequest(
+                        zk_name, zk_namespace, node_path, data
+                    );
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterCreateZKParentNode,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::ExternalRequest(ext_req)))
                 }
             } else {
                 let state_prime = ZookeeperReconcileState {
@@ -375,27 +322,19 @@ pub open spec fn reconcile_core(
             }
         },
         ZookeeperReconcileStep::AfterCreateZKParentNode => {
-            if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
-            && resp_o.get_Some_0().get_ExternalResponse_0().is_CreateResponse() {
-                let create_resp = resp_o.get_Some_0().get_ExternalResponse_0().get_CreateResponse_0().res;
-                if create_resp.is_Ok() || create_resp.get_Err_0().is_ZKNodeCreateAlreadyExists() {
-                    let node_path = zk_node_path(zk);
-                    let data = zk_node_data(zk);
-                    let ext_req = ZKAPIInputView::CreateRequest(
-                        zk.metadata.name.get_Some_0(), zk.metadata.namespace.get_Some_0(), node_path, data
-                    );
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
-                        ..state
-                    };
-                    (state_prime, Some(RequestView::ExternalRequest(ext_req)))
-                } else {
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Error,
-                        ..state
-                    };
-                    (state_prime, None)
-                }
+            let create_resp = resp.get_ExternalResponse_0().get_CreateResponse_0().res;
+            if resp_o.is_Some() && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_CreateResponse()
+            && (create_resp.is_Ok() || create_resp.get_Err_0().is_ZKNodeCreateAlreadyExists()) {
+                let node_path = zk_node_path(zk);
+                let data = zk_node_data(zk);
+                let ext_req = ZKAPIInputView::CreateRequest(
+                    zk_name, zk_namespace, node_path, data
+                );
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
+                    ..state
+                };
+                (state_prime, Some(RequestView::ExternalRequest(ext_req)))
             } else {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Error,
@@ -405,9 +344,8 @@ pub open spec fn reconcile_core(
             }
         },
         ZookeeperReconcileStep::AfterCreateZKNode => {
-            if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
-            && resp_o.get_Some_0().get_ExternalResponse_0().is_CreateResponse()
-            && resp_o.get_Some_0().get_ExternalResponse_0().get_CreateResponse_0().res.is_Ok()
+            if resp_o.is_Some() && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_CreateResponse()
+            && resp.get_ExternalResponse_0().get_CreateResponse_0().res.is_Ok()
             && state.found_stateful_set_opt.is_Some() && state.latest_config_map_rv_opt.is_Some() {
                 // Only proceed to update the stateful set when zk node is set successfully,
                 // otherwise it might cause unsafe downscale.
@@ -432,9 +370,8 @@ pub open spec fn reconcile_core(
             }
         },
         ZookeeperReconcileStep::AfterUpdateZKNode => {
-            if resp_o.is_Some() && resp_o.get_Some_0().is_ExternalResponse()
-            && resp_o.get_Some_0().get_ExternalResponse_0().is_SetDataResponse()
-            && resp_o.get_Some_0().get_ExternalResponse_0().get_SetDataResponse_0().res.is_Ok()
+            if resp_o.is_Some() && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_SetDataResponse()
+            && resp.get_ExternalResponse_0().get_SetDataResponse_0().res.is_Ok()
             && state.found_stateful_set_opt.is_Some() && state.latest_config_map_rv_opt.is_Some() {
                 // Only proceed to update the stateful set when zk node is set successfully,
                 // otherwise it might cause unsafe downscale.
