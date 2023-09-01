@@ -24,4 +24,20 @@ pub proof fn int_to_string_view_injectivity()
         forall |i: int, j: int| int_to_string_view(i) == int_to_string_view(j) ==> i == j,
 {}
 
+#[verifier(external_body)]
+pub fn bool_to_string(b: bool) -> (s: String)
+    ensures
+        s@ == bool_to_string_view(b),
+{
+    String::from_rust_string(b.to_string())
+}
+
+pub closed spec fn bool_to_string_view(b: bool) -> StringView;
+
+#[verifier(external_body)]
+pub proof fn bool_to_string_view_injectivity()
+    ensures
+        forall |i: bool, j: bool| bool_to_string_view(i) == bool_to_string_view(j) ==> i == j,
+{}
+
 }

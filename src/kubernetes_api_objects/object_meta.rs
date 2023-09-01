@@ -76,6 +76,18 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn annotations(&self) -> (annotations: Option<StringMap>)
+        ensures
+            self@.annotations.is_Some() == annotations.is_Some(),
+            annotations.is_Some() ==> annotations.get_Some_0()@ == self@.annotations.get_Some_0(),
+    {
+        match &self.inner.annotations {
+            Some(a) => Some(StringMap::from_rust_map(a.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn owner_references_only_contains(&self, owner_ref: OwnerReference) -> (res: bool)
         ensures
             res == self@.owner_references_only_contains(owner_ref@),
@@ -93,7 +105,7 @@ impl ObjectMeta {
             version.is_Some() ==> version.get_Some_0()@ == int_to_string_view(self@.resource_version.get_Some_0()),
     {
         match &self.inner.resource_version {
-            Some(n) => Some(String::from_rust_string(n.to_string())),
+            Some(rv) => Some(String::from_rust_string(rv.to_string())),
             None => None,
         }
     }
@@ -151,7 +163,7 @@ impl ObjectMeta {
         ensures
             self@ == old(self)@.add_annotation(key@, value@),
     {
-        if self.inner.annotations.is_None() {
+        if self.inner.annotations.is_none() {
             let mut annotations = std::collections::BTreeMap::new();
             annotations.insert(key.into_rust_string(), value.into_rust_string());
             self.inner.annotations = Some(annotations);

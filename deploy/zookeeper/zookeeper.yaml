@@ -5,3 +5,20 @@ metadata:
   namespace: default
 spec:
   replicas: 3
+  image: pravega/zookeeper:0.2.14
+  conf:
+    initLimit: 10
+    syncLimit: 2
+    tickTime: 2000
+    globalOutstandingLimit: 1000
+    preAllocSize: 65536
+    snapCount: 10000
+    commitLogCount: 500
+    snapSizeLimitInKb: 4194304
+    maxCnxns: 0
+    maxClientCnxns: 60
+    minSessionTimeout: 4000
+    maxSessionTimeout: 40000
+    autoPurgeSnapRetainCount: 3
+    autoPurgePurgeInterval: 1
+    quorumListenOnAllIps: false

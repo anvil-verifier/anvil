@@ -96,9 +96,29 @@ impl ResourceView for ZookeeperClusterView {
 
 pub struct ZookeeperClusterSpecView {
     pub replicas: int,
+    pub image: StringView,
+    pub conf: ZookeeperConfigView,
 }
 
 impl ZookeeperClusterSpecView {}
+
+pub struct ZookeeperConfigView {
+    pub init_limit: int,
+    pub tick_time: int,
+    pub sync_limit: int,
+    pub global_outstanding_limit: int,
+    pub pre_alloc_size: int,
+    pub snap_count: int,
+    pub commit_log_count: int,
+    pub snap_size_limit_in_kb: int,
+    pub max_cnxns: int,
+    pub max_client_cnxns: int,
+    pub min_session_timeout: int,
+    pub max_session_timeout: int,
+    pub auto_purge_snap_retain_count: int,
+    pub auto_purge_purge_interval: int,
+    pub quorum_listen_on_all_ips: bool,
+}
 
 impl Marshalable for ZookeeperClusterSpecView {
     spec fn marshal(self) -> Value;
