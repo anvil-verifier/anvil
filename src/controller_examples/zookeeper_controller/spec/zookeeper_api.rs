@@ -134,7 +134,7 @@ pub open spec fn validate(name: StringView, namespace: StringView, path: Seq<Str
         name: name,
     };
     &&& path.len() > 0
-    &&& resources.dom().contains(key)
+    &&& resources.contains_key(key)
 }
 
 // handle_exists models the behavior of the zookeeper server handling the exists request.
@@ -149,7 +149,7 @@ pub open spec fn handle_exists(
         (state, ZKAPIExistsResultView{res: Err(Error::ZKNodeExistsFailed)})
     } else {
         let addr = ZKNodeAddr::new(name, namespace, resources[key].metadata.uid.get_Some_0(), path);
-        if !state.data.dom().contains(addr) {
+        if !state.data.contains_key(addr) {
             (state, ZKAPIExistsResultView{res: Ok(None)})
         } else {
             let version = state.data[addr].1;
@@ -168,8 +168,8 @@ pub open spec fn handle_create(
         (state, ZKAPICreateResultView{res: Err(Error::ZKNodeCreateFailed)})
     } else {
         let addr = ZKNodeAddr::new(name, namespace, resources[key].metadata.uid.get_Some_0(), path);
-        if !state.data.dom().contains(addr) {
-            if path.len() > 1 && !state.data.dom().contains(addr.parent_addr()) {
+        if !state.data.contains_key(addr) {
+            if path.len() > 1 && !state.data.contains_key(addr.parent_addr()) {
                 (state, ZKAPICreateResultView{res: Err(Error::ZKNodeCreateFailed)})
             } else {
                 let state_prime = ZKState {
@@ -193,7 +193,7 @@ pub open spec fn handle_set_data(
         (state, ZKAPISetDataResultView{res: Err(Error::ZKNodeSetDataFailed)})
     } else {
         let addr = ZKNodeAddr::new(name, namespace, resources[key].metadata.uid.get_Some_0(), path);
-        if !state.data.dom().contains(addr) {
+        if !state.data.contains_key(addr) {
             (state, ZKAPISetDataResultView{res: Err(Error::ZKNodeSetDataFailed)})
         } else {
             let current_version = state.data[addr].1;

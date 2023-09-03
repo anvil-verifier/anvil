@@ -86,7 +86,7 @@ pub open spec fn message_sent(s: CState, m: Message) -> bool {
 }
 
 pub open spec fn resource_exists(s: CState, key: ResourceKey) -> bool {
-    s.resources.dom().contains(key)
+    s.resources.contains_key(key)
 }
 
 pub open spec fn create_req_msg(key: ResourceKey) -> Message {
@@ -193,13 +193,13 @@ pub open spec fn update_resources_with(s: CState, msg: Message) -> Map<ResourceK
         msg.is_CreateRequest() || msg.is_DeleteRequest(),
 {
     if msg.is_CreateRequest() {
-        if s.resources.dom().contains(msg.get_CreateRequest_0().obj.key) {
+        if s.resources.contains_key(msg.get_CreateRequest_0().obj.key) {
             s.resources
         } else {
             s.resources.insert(msg.get_CreateRequest_0().obj.key, msg.get_CreateRequest_0().obj)
         }
     } else {
-        if !s.resources.dom().contains(msg.get_DeleteRequest_0().key) {
+        if !s.resources.contains_key(msg.get_DeleteRequest_0().key) {
             s.resources
         } else {
             s.resources.remove(msg.get_DeleteRequest_0().key)

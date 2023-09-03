@@ -28,9 +28,9 @@ verus! {
 // I.e., the corresponding stateful set exists and its spec is the same as desired.
 spec fn current_config_map_matches(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).is_Ok()
-        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).get_Ok_0().data == make_server_config_map(rabbitmq).data
+        &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
+        &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
     }
 }
 
@@ -38,9 +38,9 @@ spec fn current_config_map_matches(rabbitmq: RabbitmqClusterView) -> StatePred<R
 // I.e., the corresponding stateful set exists and its spec is the same as desired.
 spec fn current_stateful_set_matches(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref()))).is_Ok()
-        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref()))).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
+        &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
+        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
     }
 }
 
@@ -584,8 +584,8 @@ proof fn lemma_true_leads_to_always_current_state_matches_rabbitmq_under_eventua
     leads_to_trans_n!(
         spec,
         true_pred(),
-        lift_state(|s: RMQCluster| { !s.reconcile_state_contains(rabbitmq.object_ref()) }),
-        lift_state(|s: RMQCluster| { !s.reconcile_state_contains(rabbitmq.object_ref()) && s.reconcile_scheduled_for(rabbitmq.object_ref())}),
+        lift_state(|s: RMQCluster| { !s.ongoing_reconciles().contains_key(rabbitmq.object_ref()) }),
+        lift_state(|s: RMQCluster| { !s.ongoing_reconciles().contains_key(rabbitmq.object_ref()) && s.scheduled_reconciles().contains_key(rabbitmq.object_ref())}),
         lift_state(no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init)),
         lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateHeadlessService, rabbitmq)),
         lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateService, rabbitmq)),
@@ -631,20 +631,20 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<RMQCluster>, rabb
         rabbitmq.well_formed(),
     ensures
         spec.entails(
-            lift_state(|s: RMQCluster| { !s.reconcile_state_contains(rabbitmq.object_ref()) })
+            lift_state(|s: RMQCluster| { !s.ongoing_reconciles().contains_key(rabbitmq.object_ref()) })
                 .leads_to(lift_state(|s: RMQCluster| {
-                    &&& !s.reconcile_state_contains(rabbitmq.object_ref())
-                    &&& s.reconcile_scheduled_for(rabbitmq.object_ref())
+                    &&& !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())
+                    &&& s.scheduled_reconciles().contains_key(rabbitmq.object_ref())
                 }))
         ),
 {
     let pre = |s: RMQCluster| {
-        &&& !s.reconcile_state_contains(rabbitmq.object_ref())
-        &&& !s.reconcile_scheduled_for(rabbitmq.object_ref())
+        &&& !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())
+        &&& !s.scheduled_reconciles().contains_key(rabbitmq.object_ref())
     };
     let post = |s: RMQCluster| {
-        &&& !s.reconcile_state_contains(rabbitmq.object_ref())
-        &&& s.reconcile_scheduled_for(rabbitmq.object_ref())
+        &&& !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())
+        &&& s.scheduled_reconciles().contains_key(rabbitmq.object_ref())
     };
     let input = rabbitmq.object_ref();
 
@@ -653,7 +653,7 @@ proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<RMQCluster>, rabb
     );
     valid_implies_implies_leads_to(spec, lift_state(post), lift_state(post));
     or_leads_to_combine(spec, pre, post, post);
-    temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: RMQCluster| {!s.reconcile_state_contains(rabbitmq.object_ref())}));
+    temp_pred_equality(lift_state(pre).or(lift_state(post)), lift_state(|s: RMQCluster| {!s.ongoing_reconciles().contains_key(rabbitmq.object_ref())}));
 }
 
 proof fn lemma_from_scheduled_to_init_step(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
@@ -667,15 +667,15 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<RMQCluster>, rabbitmq:
     ensures
         spec.entails(
             lift_state(|s: RMQCluster| {
-                &&& !s.reconcile_state_contains(rabbitmq.object_ref())
-                &&& s.reconcile_scheduled_for(rabbitmq.object_ref())
+                &&& !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())
+                &&& s.scheduled_reconciles().contains_key(rabbitmq.object_ref())
             })
                 .leads_to(lift_state(no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init)))
         ),
 {
     let pre = |s: RMQCluster| {
-        &&& !s.reconcile_state_contains(rabbitmq.object_ref())
-        &&& s.reconcile_scheduled_for(rabbitmq.object_ref())
+        &&& !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())
+        &&& s.scheduled_reconciles().contains_key(rabbitmq.object_ref())
     };
     let post = no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq, RabbitmqReconcileStep::Init);
     let input = (None, Some(rabbitmq.object_ref()));
@@ -813,7 +813,7 @@ proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_
             assert forall |ex|
                 #[trigger] lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(step, rabbitmq)).satisfied_by(ex)
             implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                let req_msg = ex.head().pending_req_of(rabbitmq.object_ref());
+                let req_msg = ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
                 assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(
@@ -842,8 +842,8 @@ proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_
             assert forall |ex| #[trigger] pre_and_exists_resp_in_flight.satisfied_by(ex)
             implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                 let resp_msg = choose |resp_msg| {
-                    &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
+                    &&& #[trigger] ex.head().in_flight().contains(resp_msg)
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0())
                 };
                 assert(pre_and_resp_in_flight(resp_msg).satisfied_by(ex));
             }
@@ -897,7 +897,7 @@ proof fn lemma_receives_some_resp_at_rabbitmq_step_with_rabbitmq(
     implies post(s_prime) by {
         let resp_msg = RMQCluster::transition_by_etcd(req_msg, s.kubernetes_api_state).1;
         assert({
-            &&& s_prime.message_in_flight(resp_msg)
+            &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
         });
     }
@@ -970,7 +970,7 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
         match step {
             Step::ControllerStep(input) => {
                 if input.1.is_Some() && input.1.get_Some_0() == rabbitmq.object_ref() {
-                    assert(s_prime.reconcile_state_of(rabbitmq.object_ref()).local_state.reconcile_step == result_step);
+                    assert(s_prime.ongoing_reconciles()[rabbitmq.object_ref()].local_state.reconcile_step == result_step);
                     assert(post(s_prime));
                 } else {
                     assert(pre(s_prime));
@@ -1002,11 +1002,11 @@ proof fn lemma_from_after_get_server_config_map_to_rabbitmq_matches(rabbitmq: Ra
     lemma_from_after_get_server_config_map_and_key_not_exists_to_rabbitmq_matches(rabbitmq);
     lemma_from_after_get_server_config_map_and_key_exists_to_rabbitmq_matches(rabbitmq);
     let key_not_exists = |s: RMQCluster| {
-            &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
             &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq)(s)
     };
     let key_exists = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
         &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq)(s)
     };
     or_leads_to_combine(spec, key_not_exists, key_exists, current_config_map_matches(rabbitmq));
@@ -1030,11 +1030,11 @@ proof fn lemma_from_after_get_stateful_set_to_rabbitmq_matches(rabbitmq: Rabbitm
     lemma_from_after_get_stateful_set_and_key_not_exists_to_rabbitmq_matches(rabbitmq);
     lemma_from_after_get_stateful_set_and_key_exists_to_rabbitmq_matches(rabbitmq);
     let key_not_exists = |s: RMQCluster| {
-            &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+            &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
             &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq)(s)
     };
     let key_exists = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
         &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq)(s)
     };
     or_leads_to_combine(spec, key_not_exists, key_exists, current_stateful_set_matches(rabbitmq));
@@ -1051,35 +1051,35 @@ proof fn lemma_from_after_get_stateful_set_and_key_not_exists_to_rabbitmq_matche
         assumption_and_invariants_of_all_phases(rabbitmq)
         .entails(
             lift_state(|s: RMQCluster| {
-                &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+                &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
                 &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq)(s)
             }).leads_to(lift_state(current_stateful_set_matches(rabbitmq)))
         ),
 {
     let spec = assumption_and_invariants_of_all_phases(rabbitmq);
     let pre = lift_state(|s: RMQCluster| {
-        &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
         &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq)(s)
     });
     let post = lift_state(|s: RMQCluster| {
-        &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
         &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateStatefulSet, rabbitmq)(s)
     });
     let pre_and_req_in_flight = |req_msg| lift_state(
         |s: RMQCluster| {
-            &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+            &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
             &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq, req_msg)(s)
         }
     );
     let pre_and_exists_resp_in_flight = lift_state(
         |s: RMQCluster| {
-            &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+            &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
             &&& at_after_get_stateful_set_step_with_rabbitmq_and_exists_not_found_resp_in_flight(rabbitmq)(s)
         }
     );
     let pre_and_resp_in_flight = |resp_msg| lift_state(
         |s: RMQCluster| {
-            &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+            &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
             &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq, resp_msg)(s)
             &&& resp_msg.content.get_get_response().res.is_Err()
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
@@ -1087,7 +1087,7 @@ proof fn lemma_from_after_get_stateful_set_and_key_not_exists_to_rabbitmq_matche
     );
     let post_and_req_in_flight = |req_msg| lift_state(
         |s: RMQCluster| {
-            &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+            &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
             &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateStatefulSet, rabbitmq, req_msg)(s)
         }
     );
@@ -1100,7 +1100,7 @@ proof fn lemma_from_after_get_stateful_set_and_key_not_exists_to_rabbitmq_matche
         {
             assert forall |ex| #[trigger] pre.satisfied_by(ex)
             implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                let req_msg = ex.head().pending_req_of(rabbitmq.object_ref());
+                let req_msg = ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
                 assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(tla_exists(pre_and_req_in_flight), pre);
@@ -1118,8 +1118,8 @@ proof fn lemma_from_after_get_stateful_set_and_key_not_exists_to_rabbitmq_matche
             assert forall |ex| #[trigger] pre_and_exists_resp_in_flight.satisfied_by(ex)
             implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                 let resp_msg = choose |resp_msg| {
-                    &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
+                    &&& #[trigger] ex.head().in_flight().contains(resp_msg)
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0())
                     &&& resp_msg.content.get_get_response().res.is_Err()
                     &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
                 };
@@ -1138,7 +1138,7 @@ proof fn lemma_from_after_get_stateful_set_and_key_not_exists_to_rabbitmq_matche
         {
             assert forall |ex| #[trigger] post.satisfied_by(ex)
             implies tla_exists(post_and_req_in_flight).satisfied_by(ex) by {
-                let req_msg = ex.head().pending_req_of(rabbitmq.object_ref());
+                let req_msg = ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
                 assert(post_and_req_in_flight(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(tla_exists(post_and_req_in_flight), post);
@@ -1156,42 +1156,42 @@ proof fn lemma_from_after_get_stateful_set_and_key_exists_to_rabbitmq_matches(ra
         assumption_and_invariants_of_all_phases(rabbitmq)
         .entails(
             lift_state(|s: RMQCluster| {
-                &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+                &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
                 &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq)(s)
             }).leads_to(lift_state(current_stateful_set_matches(rabbitmq)))
         ),
 {
     let spec = assumption_and_invariants_of_all_phases(rabbitmq);
     let pre = lift_state(|s: RMQCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
         &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq)(s)
     });
     let pre_with_object = |object: DynamicObjectView| lift_state(
         |s: RMQCluster| {
-            &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-            &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+            &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+            &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
             &&& object.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
             &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq)(s)
         }
     );
     let post_with_object = |object| lift_state(
         |s: RMQCluster| {
-            &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-            &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+            &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+            &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
             &&& pending_req_with_object_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateStatefulSet, rabbitmq, object)(s)
         }
     );
     assert forall |object: DynamicObjectView| spec.entails(#[trigger] pre_with_object(object).leads_to(post_with_object(object))) by
     {
         let p1 = lift_state(|s: RMQCluster| {
-            &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-            &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+            &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+            &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
             &&& object.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
             &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq)(s)
         });
         let p2 = lift_state(|s: RMQCluster| {
-            &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-            &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+            &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+            &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
             &&& pending_req_with_object_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateStatefulSet, rabbitmq, object)(s)
         });
 
@@ -1200,24 +1200,24 @@ proof fn lemma_from_after_get_stateful_set_and_key_exists_to_rabbitmq_matches(ra
             {
                 let pre_and_req_in_flight = |req_msg| lift_state(
                     |s: RMQCluster| {
-                        &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-                        &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+                        &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+                        &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
                         &&& object.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
                         &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq, req_msg)(s)
                     }
                 );
                 let pre_and_exists_resp_in_flight = lift_state(
                     |s: RMQCluster| {
-                        &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-                        &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+                        &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+                        &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
                         &&& object.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
                         &&& at_after_get_stateful_set_step_with_rabbitmq_and_exists_ok_resp_in_flight(rabbitmq, object)(s)
                     }
                 );
                 let pre_and_resp_in_flight = |resp_msg| lift_state(
                     |s: RMQCluster| {
-                        &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-                        &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+                        &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+                        &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
                         &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq, resp_msg)(s)
                         &&& resp_msg.content.get_get_response().res.is_Ok()
                         &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
@@ -1235,7 +1235,7 @@ proof fn lemma_from_after_get_stateful_set_and_key_exists_to_rabbitmq_matches(ra
                     {
                         assert forall |ex| #[trigger] p1.satisfied_by(ex)
                         implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                            let req_msg = ex.head().pending_req_of(rabbitmq.object_ref());
+                            let req_msg = ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
                             assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
                         }
                         temp_pred_equality(tla_exists(pre_and_req_in_flight), p1);
@@ -1253,8 +1253,8 @@ proof fn lemma_from_after_get_stateful_set_and_key_exists_to_rabbitmq_matches(ra
                         assert forall |ex| #[trigger] pre_and_exists_resp_in_flight.satisfied_by(ex)
                         implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                             let resp_msg = choose |resp_msg| {
-                                &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                                &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
+                                &&& #[trigger] ex.head().in_flight().contains(resp_msg)
+                                &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0())
                                 &&& resp_msg.content.get_get_response().res.is_Ok()
                                 &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
                             };
@@ -1275,8 +1275,8 @@ proof fn lemma_from_after_get_stateful_set_and_key_exists_to_rabbitmq_matches(ra
             {
                 let pre_and_req_in_flight = |req_msg| lift_state(
                     |s: RMQCluster| {
-                        &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-                        &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+                        &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+                        &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
                         &&& req_msg_is_the_in_flight_pending_req_with_object_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateStatefulSet, rabbitmq, req_msg, object)(s)
                     }
                 );
@@ -1290,7 +1290,7 @@ proof fn lemma_from_after_get_stateful_set_and_key_exists_to_rabbitmq_matches(ra
                     {
                         assert forall |ex| #[trigger] post_with_object(object).satisfied_by(ex)
                         implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                            let req_msg = ex.head().pending_req_of(rabbitmq.object_ref());
+                            let req_msg = ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
                             assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
                         }
                         temp_pred_equality(tla_exists(pre_and_req_in_flight), post_with_object(object));
@@ -1306,7 +1306,7 @@ proof fn lemma_from_after_get_stateful_set_and_key_exists_to_rabbitmq_matches(ra
         {
             assert forall |ex| #[trigger] lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)).satisfied_by(ex) implies pre.implies(tla_exists(pre_with_object)).satisfied_by(ex) by {
                 if pre.satisfied_by(ex) {
-                    let object = ex.head().resource_obj_of(make_stateful_set_key(rabbitmq.object_ref()));
+                    let object = ex.head().resources()[make_stateful_set_key(rabbitmq.object_ref())];
                     assert(pre_with_object(object).satisfied_by(ex));
                 }
 
@@ -1339,15 +1339,15 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_rabbitmq(
         spec.entails(
             lift_state(
                 |s: RMQCluster| {
-                    &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-                    &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+                    &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+                    &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
                     &&& object.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
                     &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq, req_msg)(s)
                 }
             ).leads_to(lift_state(
                 |s: RMQCluster| {
-                    &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-                    &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+                    &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+                    &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
                     &&& object.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
                     &&& at_after_get_stateful_set_step_with_rabbitmq_and_exists_ok_resp_in_flight(rabbitmq, object)(s)
                 }
@@ -1355,14 +1355,14 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_rabbitmq(
         ),
 {
     let pre = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-        &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+        &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
         &&& object.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
         &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq, req_msg)(s)
     };
     let post = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-        &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+        &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
         &&& object.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
         &&& at_after_get_stateful_set_step_with_rabbitmq_and_exists_ok_resp_in_flight(rabbitmq, object)(s)
     };
@@ -1392,7 +1392,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_rabbitmq(
                 if input.get_Some_0() == req_msg {
                     let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
-                        &&& s_prime.message_in_flight(resp_msg)
+                        &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                         &&& resp_msg.content.get_get_response().res.is_Ok()
                         &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
@@ -1408,7 +1408,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_rabbitmq(
     implies post(s_prime) by {
         let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
-            &&& s_prime.message_in_flight(resp_msg)
+            &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_get_response().res.is_Ok()
             &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
@@ -1439,30 +1439,30 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
     ensures
         spec.entails(
             lift_state(|s: RMQCluster| {
-                &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-                &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+                &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+                &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
                 &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq, resp_msg)(s)
                 &&& resp_msg.content.get_get_response().res.is_Ok()
                 &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
                 &&& object.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
             }).leads_to(lift_state(|s: RMQCluster| {
-                &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-                &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+                &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+                &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
                 &&& pending_req_with_object_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateStatefulSet, rabbitmq, object)(s)
             }))
         ),
 {
     let pre = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-        &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+        &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
         &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq, resp_msg)(s)
         &&& resp_msg.content.get_get_response().res.is_Ok()
         &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
         &&& object.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
     };
     let post = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-        &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+        &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
         &&& pending_req_with_object_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateStatefulSet, rabbitmq, object)(s)
     };
     let input = (Some(resp_msg), Some(rabbitmq.object_ref()));
@@ -1513,28 +1513,28 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_rabbitmq(
         spec.entails(
             lift_state(
                 |s: RMQCluster| {
-                    &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-                    &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+                    &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+                    &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
                     &&& req_msg_is_the_in_flight_pending_req_with_object_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateStatefulSet, rabbitmq, req_msg, object)(s)
                 }
             ).leads_to(lift_state(
                 |s: RMQCluster| {
-                    &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-                    &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref()))).is_Ok()
-                    &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref()))).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
+                    &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+                    &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
+                    &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
                 }
             ))
         ),
 {
     let pre = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-        &&& s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref())) == object
+        &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& s.resources()[make_stateful_set_key(rabbitmq.object_ref())] == object
         &&& req_msg_is_the_in_flight_pending_req_with_object_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateStatefulSet, rabbitmq, req_msg, object)(s)
     };
     let post = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref()))).is_Ok()
-        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref()))).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
+        &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
+        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
     };
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
@@ -1586,42 +1586,42 @@ proof fn lemma_from_after_get_server_config_map_and_key_not_exists_to_rabbitmq_m
         assumption_and_invariants_of_all_phases(rabbitmq)
         .entails(
             lift_state(|s: RMQCluster| {
-                &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
                 &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq)(s)
             }).leads_to(lift_state(current_config_map_matches(rabbitmq)))
         ),
         assumption_and_invariants_of_all_phases(rabbitmq)
         .entails(
             lift_state(|s: RMQCluster| {
-                &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
                 &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq)(s)
             }).leads_to(lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServiceAccount, rabbitmq)))
         ),
 {
     let spec = assumption_and_invariants_of_all_phases(rabbitmq);
     let pre = lift_state(|s: RMQCluster| {
-        &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
         &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq)(s)
     });
     let post = lift_state(|s: RMQCluster| {
-        &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
         &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServerConfigMap, rabbitmq)(s)
     });
     let pre_and_req_in_flight = |req_msg| lift_state(
         |s: RMQCluster| {
-            &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
             &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, req_msg)(s)
         }
     );
     let pre_and_exists_resp_in_flight = lift_state(
         |s: RMQCluster| {
-            &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
             &&& at_after_get_server_config_map_step_with_rabbitmq_and_exists_not_found_resp_in_flight(rabbitmq)(s)
         }
     );
     let pre_and_resp_in_flight = |resp_msg| lift_state(
         |s: RMQCluster| {
-            &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
             &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, resp_msg)(s)
             &&& resp_msg.content.get_get_response().res.is_Err()
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
@@ -1629,7 +1629,7 @@ proof fn lemma_from_after_get_server_config_map_and_key_not_exists_to_rabbitmq_m
     );
     let post_and_req_in_flight = |req_msg| lift_state(
         |s: RMQCluster| {
-            &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
             &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServerConfigMap, rabbitmq, req_msg)(s)
         }
     );
@@ -1643,7 +1643,7 @@ proof fn lemma_from_after_get_server_config_map_and_key_not_exists_to_rabbitmq_m
         {
             assert forall |ex| #[trigger] pre.satisfied_by(ex)
             implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                let req_msg = ex.head().pending_req_of(rabbitmq.object_ref());
+                let req_msg = ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
                 assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(tla_exists(pre_and_req_in_flight), pre);
@@ -1661,8 +1661,8 @@ proof fn lemma_from_after_get_server_config_map_and_key_not_exists_to_rabbitmq_m
             assert forall |ex| #[trigger] pre_and_exists_resp_in_flight.satisfied_by(ex)
             implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                 let resp_msg = choose |resp_msg| {
-                    &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
+                    &&& #[trigger] ex.head().in_flight().contains(resp_msg)
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0())
                     &&& resp_msg.content.get_get_response().res.is_Err()
                     &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
                 };
@@ -1682,7 +1682,7 @@ proof fn lemma_from_after_get_server_config_map_and_key_not_exists_to_rabbitmq_m
         {
             assert forall |ex| #[trigger] post.satisfied_by(ex)
             implies tla_exists(post_and_req_in_flight).satisfied_by(ex) by {
-                let req_msg = ex.head().pending_req_of(rabbitmq.object_ref());
+                let req_msg = ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
                 assert(post_and_req_in_flight(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(tla_exists(post_and_req_in_flight), post);
@@ -1716,23 +1716,23 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
         spec.entails(
             lift_state(
                 |s: RMQCluster| {
-                    &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                    &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
                     &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, req_msg)(s)
                 }
             ).leads_to(lift_state(
                 |s: RMQCluster| {
-                    &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                    &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
                     &&& at_after_get_server_config_map_step_with_rabbitmq_and_exists_not_found_resp_in_flight(rabbitmq)(s)
                 }
             ))
         ),
 {
     let pre = |s: RMQCluster| {
-        &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
         &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, req_msg)(s)
     };
     let post = |s: RMQCluster| {
-        &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
         &&& at_after_get_server_config_map_step_with_rabbitmq_and_exists_not_found_resp_in_flight(rabbitmq)(s)
     };
     let input = Some(req_msg);
@@ -1759,7 +1759,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
                 if input.get_Some_0() == req_msg {
                     let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
-                        &&& s_prime.message_in_flight(resp_msg)
+                        &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                         &&& resp_msg.content.get_get_response().res.is_Err()
                         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
@@ -1774,7 +1774,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_server_config_map_step_with_
     implies post(s_prime) by {
         let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
-            &&& s_prime.message_in_flight(resp_msg)
+            &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_get_response().res.is_Err()
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
@@ -1801,24 +1801,24 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_create_server_conf
     ensures
         spec.entails(
             lift_state(|s: RMQCluster| {
-                &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
                 &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, resp_msg)(s)
                 &&& resp_msg.content.get_get_response().res.is_Err()
                 &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
             }).leads_to(lift_state(|s: RMQCluster| {
-                &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
                 &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServerConfigMap, rabbitmq)(s)
             }))
         ),
 {
     let pre = |s: RMQCluster| {
-        &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
         &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, resp_msg)(s)
         &&& resp_msg.content.get_get_response().res.is_Err()
         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
     };
     let post = |s: RMQCluster| {
-        &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
         &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServerConfigMap, rabbitmq)(s)
     };
     let input = (Some(resp_msg), Some(rabbitmq.object_ref()));
@@ -1862,26 +1862,26 @@ proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitm
         spec.entails(
             lift_state(
                 |s: RMQCluster| {
-                    &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                    &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
                     &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServerConfigMap, rabbitmq, req_msg)(s)
                 }
             ).leads_to(lift_state(
                 |s: RMQCluster| {
-                    &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-                    &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).is_Ok()
-                    &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).get_Ok_0().data == make_server_config_map(rabbitmq).data
+                    &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+                    &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
+                    &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
                 }
             ))
         ),
 {
     let pre = |s: RMQCluster| {
-        &&& !s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& !s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
         &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServerConfigMap, rabbitmq, req_msg)(s)
     };
     let post = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).is_Ok()
-        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).get_Ok_0().data == make_server_config_map(rabbitmq).data
+        &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
+        &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
     };
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
@@ -1935,23 +1935,23 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_rabbi
         spec.entails(
             lift_state(
                 |s: RMQCluster| {
-                    &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+                    &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
                     &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq, req_msg)(s)
                 }
             ).leads_to(lift_state(
                 |s: RMQCluster| {
-                    &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+                    &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
                     &&& at_after_get_stateful_set_step_with_rabbitmq_and_exists_not_found_resp_in_flight(rabbitmq)(s)
                 }
             ))
         ),
 {
     let pre = |s: RMQCluster| {
-        &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
         &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq, req_msg)(s)
     };
     let post = |s: RMQCluster| {
-        &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
         &&& at_after_get_stateful_set_step_with_rabbitmq_and_exists_not_found_resp_in_flight(rabbitmq)(s)
     };
     let input = Some(req_msg);
@@ -1978,7 +1978,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_rabbi
                 if input.get_Some_0() == req_msg {
                     let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
-                        &&& s_prime.message_in_flight(resp_msg)
+                        &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                         &&& resp_msg.content.get_get_response().res.is_Err()
                         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
@@ -1993,7 +1993,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_rabbi
     implies post(s_prime) by {
         let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
-            &&& s_prime.message_in_flight(resp_msg)
+            &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_get_response().res.is_Err()
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
@@ -2020,24 +2020,24 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_create_stateful_set_ste
     ensures
         spec.entails(
             lift_state(|s: RMQCluster| {
-                &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+                &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
                 &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq, resp_msg)(s)
                 &&& resp_msg.content.get_get_response().res.is_Err()
                 &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
             }).leads_to(lift_state(|s: RMQCluster| {
-                &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+                &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
                 &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateStatefulSet, rabbitmq)(s)
             }))
         ),
 {
     let pre = |s: RMQCluster| {
-        &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
         &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetStatefulSet, rabbitmq, resp_msg)(s)
         &&& resp_msg.content.get_get_response().res.is_Err()
         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
     };
     let post = |s: RMQCluster| {
-        &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
         &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateStatefulSet, rabbitmq)(s)
     };
     let input = (Some(resp_msg), Some(rabbitmq.object_ref()));
@@ -2081,26 +2081,26 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_rabbitmq(
         spec.entails(
             lift_state(
                 |s: RMQCluster| {
-                    &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+                    &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
                     &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateStatefulSet, rabbitmq, req_msg)(s)
                 }
             ).leads_to(lift_state(
                 |s: RMQCluster| {
-                    &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-                    &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref()))).is_Ok()
-                    &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref()))).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
+                    &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+                    &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
+                    &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
                 }
             ))
         ),
 {
     let pre = |s: RMQCluster| {
-        &&& !s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& !s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
         &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateStatefulSet, rabbitmq, req_msg)(s)
     };
     let post = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(rabbitmq.object_ref()))
-        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref()))).is_Ok()
-        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(rabbitmq.object_ref()))).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
+        &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
+        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
+        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
     };
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
@@ -2146,47 +2146,47 @@ proof fn lemma_from_after_get_server_config_map_and_key_exists_to_rabbitmq_match
         assumption_and_invariants_of_all_phases(rabbitmq)
         .entails(
             lift_state(|s: RMQCluster| {
-                &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
                 &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq)(s)
             }).leads_to(lift_state(current_config_map_matches(rabbitmq)))
         ),
         assumption_and_invariants_of_all_phases(rabbitmq)
         .entails(
             lift_state(|s: RMQCluster| {
-                &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+                &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
                 &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq)(s)
             }).leads_to(lift_state(pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterCreateServiceAccount, rabbitmq)))
         ),
 {
     let spec = assumption_and_invariants_of_all_phases(rabbitmq);
     let pre = lift_state(|s: RMQCluster| {
-        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
         &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq)(s)
     });
     let pre_with_object = |object| lift_state(
         |s: RMQCluster| {
-            &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-            &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+            &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
             &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq)(s)
         }
     );
     let post_with_object = |object| lift_state(
         |s: RMQCluster| {
-            &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-            &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+            &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
             &&& pending_req_with_object_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateServerConfigMap, rabbitmq, object)(s)
         }
     );
     assert forall |object: DynamicObjectView| spec.entails(#[trigger] pre_with_object(object).leads_to(post_with_object(object))) by
     {
         let p1 = lift_state(|s: RMQCluster| {
-            &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-            &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+            &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
             &&& pending_req_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq)(s)
         });
         let p2 = lift_state(|s: RMQCluster| {
-            &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-            &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+            &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+            &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
             &&& pending_req_with_object_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateServerConfigMap, rabbitmq, object)(s)
         });
 
@@ -2195,22 +2195,22 @@ proof fn lemma_from_after_get_server_config_map_and_key_exists_to_rabbitmq_match
             {
                 let pre_and_req_in_flight = |req_msg| lift_state(
                     |s: RMQCluster| {
-                        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-                        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                        &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+                        &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
                         &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, req_msg)(s)
                     }
                 );
                 let pre_and_exists_resp_in_flight = lift_state(
                     |s: RMQCluster| {
-                        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-                        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                        &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+                        &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
                         &&& at_after_get_server_config_map_step_with_rabbitmq_and_exists_ok_resp_in_flight(rabbitmq, object)(s)
                     }
                 );
                 let pre_and_resp_in_flight = |resp_msg| lift_state(
                     |s: RMQCluster| {
-                        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-                        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                        &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+                        &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
                         &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, resp_msg)(s)
                         &&& resp_msg.content.get_get_response().res.is_Ok()
                         &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
@@ -2227,7 +2227,7 @@ proof fn lemma_from_after_get_server_config_map_and_key_exists_to_rabbitmq_match
                     {
                         assert forall |ex| #[trigger] p1.satisfied_by(ex)
                         implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                            let req_msg = ex.head().pending_req_of(rabbitmq.object_ref());
+                            let req_msg = ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
                             assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
                         }
                         temp_pred_equality(tla_exists(pre_and_req_in_flight), p1);
@@ -2245,8 +2245,8 @@ proof fn lemma_from_after_get_server_config_map_and_key_exists_to_rabbitmq_match
                         assert forall |ex| #[trigger] pre_and_exists_resp_in_flight.satisfied_by(ex)
                         implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                             let resp_msg = choose |resp_msg| {
-                                &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                                &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(rabbitmq.object_ref()))
+                                &&& #[trigger] ex.head().in_flight().contains(resp_msg)
+                                &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0())
                                 &&& resp_msg.content.get_get_response().res.is_Ok()
                                 &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
                             };
@@ -2267,8 +2267,8 @@ proof fn lemma_from_after_get_server_config_map_and_key_exists_to_rabbitmq_match
             {
                 let pre_and_req_in_flight = |req_msg| lift_state(
                     |s: RMQCluster| {
-                        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-                        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                        &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+                        &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
                         &&& req_msg_is_the_in_flight_pending_req_with_object_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateServerConfigMap, rabbitmq, req_msg, object)(s)
                     }
                 );
@@ -2282,7 +2282,7 @@ proof fn lemma_from_after_get_server_config_map_and_key_exists_to_rabbitmq_match
                     {
                         assert forall |ex| #[trigger] post_with_object(object).satisfied_by(ex)
                         implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                            let req_msg = ex.head().pending_req_of(rabbitmq.object_ref());
+                            let req_msg = ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
                             assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
                         }
                         temp_pred_equality(tla_exists(pre_and_req_in_flight), post_with_object(object));
@@ -2308,7 +2308,7 @@ proof fn lemma_from_after_get_server_config_map_and_key_exists_to_rabbitmq_match
         {
             assert forall |ex| #[trigger] pre.satisfied_by(ex)
             implies tla_exists(pre_with_object).satisfied_by(ex) by {
-                let object = ex.head().resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()));
+                let object = ex.head().resources()[make_server_config_map_key(rabbitmq.object_ref())];
                 assert(pre_with_object(object).satisfied_by(ex));
             }
             temp_pred_equality(tla_exists(pre_with_object), pre);
@@ -2332,27 +2332,27 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
         spec.entails(
             lift_state(
                 |s: RMQCluster| {
-                    &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-                    &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                    &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+                    &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
                     &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, req_msg)(s)
                 }
             ).leads_to(lift_state(
                 |s: RMQCluster| {
-                    &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-                    &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                    &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+                    &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
                     &&& at_after_get_server_config_map_step_with_rabbitmq_and_exists_ok_resp_in_flight(rabbitmq, object)(s)
                 }
             ))
         ),
 {
     let pre = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+        &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
         &&& req_msg_is_the_in_flight_pending_req_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, req_msg)(s)
     };
     let post = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+        &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
         &&& at_after_get_server_config_map_step_with_rabbitmq_and_exists_ok_resp_in_flight(rabbitmq, object)(s)
     };
     let input = Some(req_msg);
@@ -2381,7 +2381,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
                 if input.get_Some_0() == req_msg {
                     let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
-                        &&& s_prime.message_in_flight(resp_msg)
+                        &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                         &&& resp_msg.content.get_get_response().res.is_Ok()
                         &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
@@ -2396,7 +2396,7 @@ proof fn lemma_receives_ok_resp_at_after_get_server_config_map_step_with_rabbitm
     implies post(s_prime) by {
         let resp_msg = RMQCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
-            &&& s_prime.message_in_flight(resp_msg)
+            &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_get_response().res.is_Ok()
             &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
@@ -2427,29 +2427,29 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
         spec.entails(
             lift_state(
                 |s: RMQCluster| {
-                    &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-                    &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                    &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+                    &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
                     &&& req_msg_is_the_in_flight_pending_req_with_object_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateServerConfigMap, rabbitmq, req_msg, object)(s)
                 }
             )
             .leads_to(lift_state(
                 |s: RMQCluster| {
-                    &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-                    &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).is_Ok()
-                    &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).get_Ok_0().data == make_server_config_map(rabbitmq).data
+                    &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+                    &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
+                    &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
                 }
             ))
         ),
 {
     let pre = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+        &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
         &&& req_msg_is_the_in_flight_pending_req_with_object_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateServerConfigMap, rabbitmq, req_msg, object)(s)
     };
     let post = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).is_Ok()
-        &&& ConfigMapView::from_dynamic_object(s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref()))).get_Ok_0().data == make_server_config_map(rabbitmq).data
+        &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
+        &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
     };
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
@@ -2514,29 +2514,29 @@ proof fn lemma_from_after_get_server_config_map_step_to_after_update_server_conf
     ensures
         spec.entails(
             lift_state(|s: RMQCluster| {
-                &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-                &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+                &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
                 &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, resp_msg)(s)
                 &&& resp_msg.content.get_get_response().res.is_Ok()
                 &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
             })
                 .leads_to(lift_state(|s: RMQCluster| {
-                    &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-                    &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+                    &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+                    &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
                     &&& pending_req_with_object_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateServerConfigMap, rabbitmq, object)(s)
                 }))
         ),
 {
     let pre = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+        &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
         &&& resp_msg_is_the_in_flight_resp_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterGetServerConfigMap, rabbitmq, resp_msg)(s)
         &&& resp_msg.content.get_get_response().res.is_Ok()
         &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
     };
     let post = |s: RMQCluster| {
-        &&& s.resource_key_exists(make_server_config_map_key(rabbitmq.object_ref()))
-        &&& s.resource_obj_of(make_server_config_map_key(rabbitmq.object_ref())) == object
+        &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
+        &&& s.resources()[make_server_config_map_key(rabbitmq.object_ref())] == object
         &&& pending_req_with_object_in_flight_at_rabbitmq_step_with_rabbitmq(RabbitmqReconcileStep::AfterUpdateServerConfigMap, rabbitmq, object)(s)
     };
     let input = (Some(resp_msg), Some(rabbitmq.object_ref()));

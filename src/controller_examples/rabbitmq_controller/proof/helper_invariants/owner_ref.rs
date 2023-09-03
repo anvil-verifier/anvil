@@ -112,7 +112,7 @@ pub open spec fn owner_references_is_valid(obj: DynamicObjectView, s: RMQCluster
 pub open spec fn object_in_every_create_or_update_request_msg_only_has_valid_owner_references() -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         forall |msg|
-            #[trigger] s.message_in_flight(msg)
+            #[trigger] s.in_flight().contains(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_APIRequest()
             ==> (
@@ -150,14 +150,14 @@ pub proof fn lemma_always_object_in_every_create_or_update_request_msg_only_has_
         ==> owner_references_is_valid(msg.content.get_update_request().obj, s)
     };
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest()
+        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && msg.dst.is_KubernetesAPI() && msg.content.is_APIRequest()
         implies create_valid(msg, s_prime) && update_valid(msg, s_prime) by {
             assert(s.kubernetes_api_state.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
-            if !s.message_in_flight(msg) {
+            if !s.in_flight().contains(msg) {
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 match step {
                     Step::ControllerStep(input) => {
-                        let cr = s.triggering_cr_of(input.1.get_Some_0());
+                        let cr = s.ongoing_reconciles()[input.1.get_Some_0()].triggering_cr;
                         if msg.content.is_create_request() {
                             let owner_refs = msg.content.get_create_request().obj.metadata.owner_references;
                             if owner_refs.is_Some() {
@@ -191,9 +191,9 @@ pub proof fn lemma_always_object_in_every_create_or_update_request_msg_only_has_
 pub open spec fn every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter() -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         forall |key|
-            #[trigger] s.resource_key_exists(key)
-            && s.resource_obj_of(key).metadata.owner_references.is_Some()
-            ==> owner_references_is_valid(s.resource_obj_of(key), s)
+            #[trigger] s.resources().contains_key(key)
+            && s.resources()[key].metadata.owner_references.is_Some()
+            ==> owner_references_is_valid(s.resources()[key], s)
     }
 }
 
@@ -213,10 +213,10 @@ pub proof fn lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_
     combine_spec_entails_always_n!(spec, lift_action(next), lift_action(RMQCluster::next()), lift_state(object_in_every_create_or_update_request_msg_only_has_valid_owner_references()));
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         assert forall |key|
-        #[trigger] s_prime.resource_key_exists(key) && s_prime.resource_obj_of(key).metadata.owner_references.is_Some()
-        implies owner_references_is_valid(s_prime.resource_obj_of(key), s_prime) by {
+        #[trigger] s_prime.resources().contains_key(key) && s_prime.resources()[key].metadata.owner_references.is_Some()
+        implies owner_references_is_valid(s_prime.resources()[key], s_prime) by {
             assert(s.kubernetes_api_state.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
-            if !s.resource_key_exists(key) || s.resource_obj_of(key).metadata.owner_references != s_prime.resource_obj_of(key).metadata.owner_references {} else {}
+            if !s.resources().contains_key(key) || s.resources()[key].metadata.owner_references != s_prime.resources()[key].metadata.owner_references {} else {}
         }
     }
     init_invariant(spec, RMQCluster::init(), next, inv);

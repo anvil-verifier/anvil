@@ -54,7 +54,7 @@ pub open spec fn handle_get_request(msg: MsgType<E>, s: KubernetesAPIState) -> (
         msg.content.is_get_request(),
 {
     let req = msg.content.get_get_request();
-    if !s.resources.dom().contains(req.key) {
+    if !s.resources.contains_key(req.key) {
         // Get fails
         let result = Err(APIError::ObjectNotFound);
         let resp = Message::form_get_resp_msg(msg, result);
@@ -92,7 +92,7 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
     } else if !Self::object_has_well_formed_spec(req.obj) {
         // Creation fails because the spec of the provided object is not well formed
         Some(APIError::BadRequest) // TODO: should the error be BadRequest?
-    } else if s.resources.dom().contains(req.obj.set_namespace(req.namespace).object_ref()) {
+    } else if s.resources.contains_key(req.obj.set_namespace(req.namespace).object_ref()) {
         // Creation fails because the object already exists
         Some(APIError::ObjectAlreadyExists)
     } else if req.obj.metadata.owner_references.is_Some()
@@ -148,7 +148,7 @@ pub open spec fn handle_delete_request(msg: MsgType<E>, s: KubernetesAPIState) -
         msg.content.is_delete_request(),
 {
     let req = msg.content.get_delete_request();
-    if !s.resources.dom().contains(req.key) {
+    if !s.resources.contains_key(req.key) {
         // Deletion fails.
         let result = Err(APIError::ObjectNotFound);
         let resp = Message::form_delete_resp_msg(msg, result);
@@ -224,7 +224,7 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         // Update fails because the spec of the provided object is not well formed
         // TODO: should the error be BadRequest?
         Some(APIError::BadRequest)
-    } else if !s.resources.dom().contains(req.key) {
+    } else if !s.resources.contains_key(req.key) {
         // Update fails because the object does not exist
         // TODO: check AllowCreateOnUpdate() to see whether to support create-on-update
         Some(APIError::ObjectNotFound)

@@ -31,19 +31,19 @@ pub proof fn lemma_always_has_rest_id_counter_no_smaller_than(
 
 pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
-        &&& s.resource_obj_of(key).object_ref() == key
-        &&& s.resource_obj_of(key).metadata.well_formed()
-        &&& s.resource_obj_of(key).metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
+        &&& s.resources()[key].object_ref() == key
+        &&& s.resources()[key].metadata.well_formed()
+        &&& s.resources()[key].metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
         &&& {
-            &&& key.kind == ConfigMapView::kind() ==> ConfigMapView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
-            &&& key.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
-            &&& key.kind == PodView::kind() ==> PodView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
-            &&& key.kind == RoleBindingView::kind() ==> RoleBindingView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
-            &&& key.kind == RoleView::kind() ==> RoleView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
-            &&& key.kind == SecretView::kind() ==> SecretView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
-            &&& key.kind == ServiceView::kind() ==> ServiceView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
-            &&& key.kind == StatefulSetView::kind() ==> StatefulSetView::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
-            &&& key.kind == K::kind() ==> K::from_dynamic_object(s.resource_obj_of(key)).is_Ok()
+            &&& key.kind == ConfigMapView::kind() ==> ConfigMapView::from_dynamic_object(s.resources()[key]).is_Ok()
+            &&& key.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::from_dynamic_object(s.resources()[key]).is_Ok()
+            &&& key.kind == PodView::kind() ==> PodView::from_dynamic_object(s.resources()[key]).is_Ok()
+            &&& key.kind == RoleBindingView::kind() ==> RoleBindingView::from_dynamic_object(s.resources()[key]).is_Ok()
+            &&& key.kind == RoleView::kind() ==> RoleView::from_dynamic_object(s.resources()[key]).is_Ok()
+            &&& key.kind == SecretView::kind() ==> SecretView::from_dynamic_object(s.resources()[key]).is_Ok()
+            &&& key.kind == ServiceView::kind() ==> ServiceView::from_dynamic_object(s.resources()[key]).is_Ok()
+            &&& key.kind == StatefulSetView::kind() ==> StatefulSetView::from_dynamic_object(s.resources()[key]).is_Ok()
+            &&& key.kind == K::kind() ==> K::from_dynamic_object(s.resources()[key]).is_Ok()
         }
     }
 }
@@ -51,7 +51,7 @@ pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
 pub open spec fn each_object_in_etcd_is_well_formed() -> StatePred<Self> {
     |s: Self| {
         forall |key: ObjectRef|
-            #[trigger] s.resource_key_exists(key)
+            #[trigger] s.resources().contains_key(key)
                 ==> Self::etcd_object_is_well_formed(key)(s)
     }
 }
@@ -67,10 +67,10 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(spec: TempPred<Self
 
     assert forall |s, s_prime: Self| invariant(s) && #[trigger] Self::next()(s, s_prime)
     implies invariant(s_prime) by {
-        assert forall |key: ObjectRef| #[trigger] s_prime.resource_key_exists(key)
+        assert forall |key: ObjectRef| #[trigger] s_prime.resources().contains_key(key)
         implies Self::etcd_object_is_well_formed(key)(s_prime) by {
             K::from_dynamic_object_result_determined_by_unmarshal();
-            if s.resource_key_exists(key) {} else {}
+            if s.resources().contains_key(key) {} else {}
         }
     }
 
@@ -80,9 +80,9 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(spec: TempPred<Self
 pub open spec fn each_scheduled_object_has_consistent_key_and_valid_metadata() -> StatePred<Self> {
     |s: Self| {
         forall |key: ObjectRef|
-            #[trigger] s.reconcile_scheduled_for(key)
-                ==> s.reconcile_scheduled_obj_of(key).object_ref() == key
-                    && s.reconcile_scheduled_obj_of(key).metadata().well_formed()
+            #[trigger] s.scheduled_reconciles().contains_key(key)
+                ==> s.scheduled_reconciles()[key].object_ref() == key
+                    && s.scheduled_reconciles()[key].metadata().well_formed()
     }
 }
 
@@ -108,9 +108,9 @@ pub proof fn lemma_always_each_scheduled_object_has_consistent_key_and_valid_met
 
     assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime)
     implies invariant(s_prime) by {
-        assert forall |key: ObjectRef| #[trigger] s_prime.reconcile_scheduled_for(key)
-        implies s_prime.reconcile_scheduled_obj_of(key).object_ref() == key
-        && s_prime.reconcile_scheduled_obj_of(key).metadata().well_formed() by {
+        assert forall |key: ObjectRef| #[trigger] s_prime.scheduled_reconciles().contains_key(key)
+        implies s_prime.scheduled_reconciles()[key].object_ref() == key
+        && s_prime.scheduled_reconciles()[key].metadata().well_formed() by {
             let step = choose |step| Self::next_step(s, s_prime, step);
             match step {
                 Step::ScheduleControllerReconcileStep(input) => {
@@ -120,11 +120,11 @@ pub proof fn lemma_always_each_scheduled_object_has_consistent_key_and_valid_met
                             K::from_dynamic_preserves_kind();
                             K::object_ref_is_well_formed();
                         } else {
-                            assert(s.reconcile_scheduled_for(key));
+                            assert(s.scheduled_reconciles().contains_key(key));
                         }
                 },
                 _ => {
-                        assert(s.reconcile_scheduled_for(key));
+                        assert(s.scheduled_reconciles().contains_key(key));
                 }
             }
         }
@@ -136,9 +136,9 @@ pub proof fn lemma_always_each_scheduled_object_has_consistent_key_and_valid_met
 pub open spec fn each_object_in_reconcile_has_consistent_key_and_valid_metadata() -> StatePred<Self> {
     |s: Self| {
         forall |key: ObjectRef|
-            #[trigger] s.reconcile_state_contains(key)
-                ==> s.triggering_cr_of(key).object_ref() == key
-                    && s.triggering_cr_of(key).metadata().well_formed()
+            #[trigger] s.ongoing_reconciles().contains_key(key)
+                ==> s.ongoing_reconciles()[key].triggering_cr.object_ref() == key
+                    && s.ongoing_reconciles()[key].triggering_cr.metadata().well_formed()
     }
 }
 
@@ -164,12 +164,12 @@ pub proof fn lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_
 
     assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime)
     implies invariant(s_prime) by {
-        assert forall |key: ObjectRef| #[trigger] s_prime.reconcile_state_contains(key)
-        implies s_prime.triggering_cr_of(key).object_ref() == key
-        && s_prime.triggering_cr_of(key).metadata().well_formed() by {
-            if s.reconcile_state_contains(key) {
+        assert forall |key: ObjectRef| #[trigger] s_prime.ongoing_reconciles().contains_key(key)
+        implies s_prime.ongoing_reconciles()[key].triggering_cr.object_ref() == key
+        && s_prime.ongoing_reconciles()[key].triggering_cr.metadata().well_formed() by {
+            if s.ongoing_reconciles().contains_key(key) {
             } else {
-                assert(s.reconcile_scheduled_for(key));
+                assert(s.scheduled_reconciles().contains_key(key));
             }
         }
     }

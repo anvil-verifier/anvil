@@ -25,9 +25,9 @@ verus! {
 // I.e., the corresponding stateful set exists and its spec is the same as desired.
 spec fn current_state_matches(zk: ZookeeperClusterView) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(zk.object_ref()))).is_Ok()
-        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(zk.object_ref()))).get_Ok_0().spec == make_stateful_set(zk).spec
+        &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).is_Ok()
+        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).get_Ok_0().spec == make_stateful_set(zk).spec
     }
 }
 
@@ -205,7 +205,7 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
         {
             let spec = next_with_wf().and(invariants(zk)).and(assumptions(zk));
 
-            let idle = lift_state(|s: ZKCluster| !s.reconcile_state_contains(zk.object_ref()));
+            let idle = lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zk.object_ref()));
             let idle_and_rest_id_is = |rest_id| lift_state(ZKCluster::rest_id_counter_is(rest_id)).and(idle);
             assert forall |rest_id|
             spec.entails(#[trigger] idle_and_rest_id_is(rest_id).leads_to(always(lift_state(current_state_matches(zk))))) by {
@@ -226,7 +226,7 @@ proof fn liveness_proof(zk: ZookeeperClusterView)
                 );
                 temp_pred_equality(
                     lift_state(ZKCluster::rest_id_counter_is(rest_id))
-                    .and(lift_state(|s: ZKCluster| !s.reconcile_state_contains(zk.object_ref())))
+                    .and(lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zk.object_ref())))
                     .and(next_with_wf()).and(invariants(zk)).and(assumptions(zk)),
                     spec.and(idle_and_rest_id_is(rest_id))
                 );
@@ -452,7 +452,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_from_idle_with_rest
         zk.well_formed(),
     ensures
         lift_state(ZKCluster::rest_id_counter_is(rest_id))
-        .and(lift_state(|s: ZKCluster| !s.reconcile_state_contains(zk.object_ref())))
+        .and(lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zk.object_ref())))
         .and(next_with_wf()).and(invariants(zk)).and(assumptions(zk))
         .entails(
             true_pred().leads_to(always(lift_state(current_state_matches(zk))))
@@ -460,7 +460,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_from_idle_with_rest
 {
     let stable_spec = next_with_wf().and(invariants(zk)).and(assumptions(zk));
     let spec = lift_state(ZKCluster::rest_id_counter_is(rest_id))
-        .and(lift_state(|s: ZKCluster| !s.reconcile_state_contains(zk.object_ref())))
+        .and(lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zk.object_ref())))
         .and(next_with_wf())
         .and(invariants(zk))
         .and(assumptions(zk));
@@ -561,7 +561,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
     // First we prove true ~> not_in_reconcile, because reconcile always terminates.
     assert_by(
         spec.entails(
-            true_pred().leads_to(lift_state(|s: ZKCluster| !s.reconcile_state_contains(zk.object_ref())))
+            true_pred().leads_to(lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zk.object_ref())))
         ),
         {
             terminate::reconcile_eventually_terminates(spec, zk);
@@ -571,17 +571,17 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
     // Then we prove not_in_reconcile ~> init_step by applying wf1.
     assert_by(
         spec.entails(
-            lift_state(|s: ZKCluster| !s.reconcile_state_contains(zk.object_ref()))
+            lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zk.object_ref()))
                 .leads_to(lift_state(no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init)))
         ),
         {
             let unscheduled_and_not_in_reconcile = lift_state(|s: ZKCluster| {
-                &&& !s.reconcile_state_contains(zk.object_ref())
-                &&& !s.reconcile_scheduled_for(zk.object_ref())
+                &&& !s.ongoing_reconciles().contains_key(zk.object_ref())
+                &&& !s.scheduled_reconciles().contains_key(zk.object_ref())
             });
             let scheduled_and_not_in_reconcile = lift_state(|s: ZKCluster| {
-                &&& !s.reconcile_state_contains(zk.object_ref())
-                &&& s.reconcile_scheduled_for(zk.object_ref())
+                &&& !s.ongoing_reconciles().contains_key(zk.object_ref())
+                &&& s.scheduled_reconciles().contains_key(zk.object_ref())
             });
             lemma_from_unscheduled_to_scheduled(spec, zk);
             lemma_from_scheduled_to_init_step(spec, zk);
@@ -592,7 +592,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                 lift_state(no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init))
             );
             or_leads_to_combine_and_equality!(
-                spec, lift_state(|s: ZKCluster| !s.reconcile_state_contains(zk.object_ref())),
+                spec, lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zk.object_ref())),
                 unscheduled_and_not_in_reconcile,
                 scheduled_and_not_in_reconcile;
                 lift_state(no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init))
@@ -621,35 +621,35 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
     assert_by(
         spec.entails(
             lift_state(|s: ZKCluster| {
-                &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                 &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
             })
                 .leads_to(lift_state(current_state_matches(zk)))
         ),
         {
             let pre = lift_state(|s: ZKCluster| {
-                &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                 &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
             });
             let post = lift_state(|s: ZKCluster| {
-                &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                 &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateStatefulSet, zk, arbitrary())(s)
             });
             let pre_and_req_in_flight = |req_msg| lift_state(
                 |s: ZKCluster| {
-                    &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                    &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                     &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, req_msg, arbitrary())(s)
                 }
             );
             let pre_and_exists_resp_in_flight = lift_state(
                 |s: ZKCluster| {
-                    &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                    &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                     &&& at_after_get_stateful_set_step_with_zk_and_exists_not_found_resp_in_flight(zk)(s)
                 }
             );
             let pre_and_resp_in_flight = |resp_msg| lift_state(
                 |s: ZKCluster| {
-                    &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                    &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                     &&& resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, resp_msg, arbitrary())(s)
                     &&& resp_msg.content.get_get_response().res.is_Err()
                     &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
@@ -657,7 +657,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
             );
             let post_and_req_in_flight = |req_msg| lift_state(
                 |s: ZKCluster| {
-                    &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                    &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                     &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateStatefulSet, zk, req_msg, arbitrary())(s)
                 }
             );
@@ -671,7 +671,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                 {
                     assert forall |ex| #[trigger] pre.satisfied_by(ex)
                     implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                        let req_msg = ex.head().pending_req_of(zk.object_ref());
+                        let req_msg = ex.head().ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
                         assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
                     }
                     temp_pred_equality(tla_exists(pre_and_req_in_flight), pre);
@@ -689,8 +689,8 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                     assert forall |ex| #[trigger] pre_and_exists_resp_in_flight.satisfied_by(ex)
                     implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                         let resp_msg = choose |resp_msg| {
-                            &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                            &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(zk.object_ref()))
+                            &&& #[trigger] ex.head().in_flight().contains(resp_msg)
+                            &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0())
                             &&& resp_msg.content.get_get_response().res.is_Err()
                             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
                         };
@@ -710,7 +710,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                 {
                     assert forall |ex| #[trigger] post.satisfied_by(ex)
                     implies tla_exists(post_and_req_in_flight).satisfied_by(ex) by {
-                        let req_msg = ex.head().pending_req_of(zk.object_ref());
+                        let req_msg = ex.head().ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
                         assert(post_and_req_in_flight(req_msg).satisfied_by(ex));
                     }
                     temp_pred_equality(tla_exists(post_and_req_in_flight), post);
@@ -727,33 +727,33 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
     assert_by(
         spec.entails(
             lift_state(|s: ZKCluster| {
-                &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                 &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
             })
                 .leads_to(lift_state(current_state_matches(zk)))
         ),
         {
             let pre = lift_state(|s: ZKCluster| {
-                &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                 &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
             });
             let pre_with_object = |object| lift_state(
                 |s: ZKCluster| {
-                    &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                    &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+                    &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+                    &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
                     &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
                 }
             );
             assert forall |object: DynamicObjectView| spec.entails(#[trigger] pre_with_object(object).leads_to(lift_state(current_state_matches(zk))))
             by {
                 let p1 = lift_state(|s: ZKCluster| {
-                    &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                    &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+                    &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+                    &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
                     &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
                 });
                 let p2 = lift_state(|s: ZKCluster| {
-                    &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                    &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+                    &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+                    &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
                     &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterUpdateStatefulSet, zk, object)(s)
                 });
 
@@ -762,22 +762,22 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                     {
                         let pre_and_req_in_flight = |req_msg| lift_state(
                             |s: ZKCluster| {
-                                &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                                &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+                                &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+                                &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
                                 &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, req_msg, arbitrary())(s)
                             }
                         );
                         let pre_and_exists_resp_in_flight = lift_state(
                             |s: ZKCluster| {
-                                &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                                &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+                                &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+                                &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
                                 &&& at_after_get_stateful_set_step_with_zk_and_exists_ok_resp_in_flight(zk, object)(s)
                             }
                         );
                         let pre_and_resp_in_flight = |resp_msg| lift_state(
                             |s: ZKCluster| {
-                                &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                                &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+                                &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+                                &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
                                 &&& resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, resp_msg, arbitrary())(s)
                                 &&& resp_msg.content.get_get_response().res.is_Ok()
                                 &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
@@ -794,7 +794,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                             {
                                 assert forall |ex| #[trigger] p1.satisfied_by(ex)
                                 implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                                    let req_msg = ex.head().pending_req_of(zk.object_ref());
+                                    let req_msg = ex.head().ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
                                     assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
                                 }
                                 temp_pred_equality(tla_exists(pre_and_req_in_flight), p1);
@@ -812,8 +812,8 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                                 assert forall |ex| #[trigger] pre_and_exists_resp_in_flight.satisfied_by(ex)
                                 implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                                     let resp_msg = choose |resp_msg| {
-                                        &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(zk.object_ref()))
+                                        &&& #[trigger] ex.head().in_flight().contains(resp_msg)
+                                        &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0())
                                         &&& resp_msg.content.get_get_response().res.is_Ok()
                                         &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
                                     };
@@ -832,8 +832,8 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                     {
                         let pre_and_req_in_flight = |req_msg| lift_state(
                             |s: ZKCluster| {
-                                &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                                &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+                                &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+                                &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
                                 &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterUpdateStatefulSet, zk, req_msg, object)(s)
                             }
                         );
@@ -847,7 +847,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                             {
                                 assert forall |ex| #[trigger] p2.satisfied_by(ex)
                                 implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                                    let req_msg = ex.head().pending_req_of(zk.object_ref());
+                                    let req_msg = ex.head().ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
                                     assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
                                 }
                                 temp_pred_equality(tla_exists(pre_and_req_in_flight), p2);
@@ -864,7 +864,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
                 {
                     assert forall |ex| #[trigger] pre.satisfied_by(ex)
                     implies tla_exists(pre_with_object).satisfied_by(ex) by {
-                        let object = ex.head().resource_obj_of(make_stateful_set_key(zk.object_ref()));
+                        let object = ex.head().resources()[make_stateful_set_key(zk.object_ref())];
                         assert(pre_with_object(object).satisfied_by(ex));
                     }
                     temp_pred_equality(tla_exists(pre_with_object), pre);
@@ -881,11 +881,11 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
         ),
         {
             let p1 = lift_state(|s: ZKCluster| {
-                &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                 &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
             });
             let p2 = lift_state(|s: ZKCluster| {
-                &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                 &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, arbitrary())(s)
             });
             or_leads_to_combine_and_equality!(
@@ -911,7 +911,7 @@ proof fn lemma_true_leads_to_always_current_state_matches_zk_under_eventual_inva
     leads_to_trans_n!(
         spec,
         true_pred(),
-        lift_state(|s: ZKCluster| !s.reconcile_state_contains(zk.object_ref())),
+        lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zk.object_ref())),
         lift_state(no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init)),
         lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateHeadlessService, zk, arbitrary())),
         lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateClientService, zk, arbitrary())),
@@ -989,7 +989,7 @@ proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_
             assert forall |ex|
                 #[trigger] lift_state(pending_req_in_flight_at_zookeeper_step_with_zk(step, zk, arbitrary())).satisfied_by(ex)
             implies tla_exists(pre_and_req_in_flight).satisfied_by(ex) by {
-                let req_msg = ex.head().pending_req_of(zk.object_ref());
+                let req_msg = ex.head().ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0();
                 assert(pre_and_req_in_flight(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(
@@ -1018,8 +1018,8 @@ proof fn lemma_from_pending_req_in_flight_at_some_step_to_pending_req_in_flight_
             assert forall |ex| #[trigger] pre_and_exists_resp_in_flight.satisfied_by(ex)
             implies tla_exists(pre_and_resp_in_flight).satisfied_by(ex) by {
                 let resp_msg = choose |resp_msg| {
-                    &&& #[trigger] ex.head().message_in_flight(resp_msg)
-                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().pending_req_of(zk.object_ref()))
+                    &&& #[trigger] ex.head().in_flight().contains(resp_msg)
+                    &&& Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0())
                 };
                 assert(pre_and_resp_in_flight(resp_msg).satisfied_by(ex));
             }
@@ -1044,22 +1044,22 @@ proof fn lemma_from_unscheduled_to_scheduled(spec: TempPred<ZKCluster>, zk: Zook
     ensures
         spec.entails(
             lift_state(|s: ZKCluster| {
-                &&& !s.reconcile_state_contains(zk.object_ref())
-                &&& !s.reconcile_scheduled_for(zk.object_ref())
+                &&& !s.ongoing_reconciles().contains_key(zk.object_ref())
+                &&& !s.scheduled_reconciles().contains_key(zk.object_ref())
             })
                 .leads_to(lift_state(|s: ZKCluster| {
-                    &&& !s.reconcile_state_contains(zk.object_ref())
-                    &&& s.reconcile_scheduled_for(zk.object_ref())
+                    &&& !s.ongoing_reconciles().contains_key(zk.object_ref())
+                    &&& s.scheduled_reconciles().contains_key(zk.object_ref())
                 }))
         ),
 {
     let pre = |s: ZKCluster| {
-        &&& !s.reconcile_state_contains(zk.object_ref())
-        &&& !s.reconcile_scheduled_for(zk.object_ref())
+        &&& !s.ongoing_reconciles().contains_key(zk.object_ref())
+        &&& !s.scheduled_reconciles().contains_key(zk.object_ref())
     };
     let post = |s: ZKCluster| {
-        &&& !s.reconcile_state_contains(zk.object_ref())
-        &&& s.reconcile_scheduled_for(zk.object_ref())
+        &&& !s.ongoing_reconciles().contains_key(zk.object_ref())
+        &&& s.scheduled_reconciles().contains_key(zk.object_ref())
     };
     let input = zk.object_ref();
 
@@ -1079,15 +1079,15 @@ proof fn lemma_from_scheduled_to_init_step(spec: TempPred<ZKCluster>, zk: Zookee
     ensures
         spec.entails(
             lift_state(|s: ZKCluster| {
-                &&& !s.reconcile_state_contains(zk.object_ref())
-                &&& s.reconcile_scheduled_for(zk.object_ref())
+                &&& !s.ongoing_reconciles().contains_key(zk.object_ref())
+                &&& s.scheduled_reconciles().contains_key(zk.object_ref())
             })
                 .leads_to(lift_state(no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init)))
         ),
 {
     let pre = |s: ZKCluster| {
-        &&& !s.reconcile_state_contains(zk.object_ref())
-        &&& s.reconcile_scheduled_for(zk.object_ref())
+        &&& !s.ongoing_reconciles().contains_key(zk.object_ref())
+        &&& s.scheduled_reconciles().contains_key(zk.object_ref())
     };
     let post = no_pending_req_at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::Init);
     let input = (None, Some(zk.object_ref()));
@@ -1225,7 +1225,7 @@ proof fn lemma_from_resp_in_flight_at_some_step_to_pending_req_in_flight_at_next
         match step {
             Step::ControllerStep(input) => {
                 if input.1.is_Some() && input.1.get_Some_0() == zk.object_ref() {
-                    assert(s_prime.reconcile_state_of(zk.object_ref()).pending_req_msg.is_Some());
+                    assert(s_prime.ongoing_reconciles()[zk.object_ref()].pending_req_msg.is_Some());
                     assert(post(s_prime));
                 } else {
                     assert(pre(s_prime));
@@ -1285,7 +1285,7 @@ proof fn lemma_receives_some_resp_at_zookeeper_step_with_zk(
     implies post(s_prime) by {
         let resp_msg = ZKCluster::transition_by_etcd(req_msg, s.kubernetes_api_state).1;
         assert({
-            &&& s_prime.message_in_flight(resp_msg)
+            &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
         });
     }
@@ -1312,28 +1312,28 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
         spec.entails(
             lift_state(
                 |s: ZKCluster| {
-                    &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                    &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+                    &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+                    &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
                     &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, req_msg, arbitrary())(s)
                 }
             )
                 .leads_to(lift_state(
                     |s: ZKCluster| {
-                        &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                        &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+                        &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+                        &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
                         &&& at_after_get_stateful_set_step_with_zk_and_exists_ok_resp_in_flight(zk, object)(s)
                     }
                 ))
         ),
 {
     let pre = |s: ZKCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-        &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+        &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+        &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
         &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, req_msg, arbitrary())(s)
     };
     let post = |s: ZKCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-        &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+        &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+        &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
         &&& at_after_get_stateful_set_step_with_zk_and_exists_ok_resp_in_flight(zk, object)(s)
     };
     let input = Some(req_msg);
@@ -1374,7 +1374,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
                 if input.get_Some_0() == req_msg {
                     let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
-                        &&& s_prime.message_in_flight(resp_msg)
+                        &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                         &&& resp_msg.content.get_get_response().res.is_Ok()
                         &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
@@ -1389,7 +1389,7 @@ proof fn lemma_receives_ok_resp_at_after_get_stateful_set_step_with_zk(
     implies post(s_prime) by {
         let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
-            &&& s_prime.message_in_flight(resp_msg)
+            &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_get_response().res.is_Ok()
             &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
@@ -1419,29 +1419,29 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
     ensures
         spec.entails(
             lift_state(|s: ZKCluster| {
-                &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+                &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+                &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
                 &&& resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, resp_msg, arbitrary())(s)
                 &&& resp_msg.content.get_get_response().res.is_Ok()
                 &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
             })
                 .leads_to(lift_state(|s: ZKCluster| {
-                    &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                    &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+                    &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+                    &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
                     &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterUpdateStatefulSet, zk, object)(s)
                 }))
         ),
 {
     let pre = |s: ZKCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-        &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+        &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+        &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
         &&& resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, resp_msg, arbitrary())(s)
         &&& resp_msg.content.get_get_response().res.is_Ok()
         &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
     };
     let post = |s: ZKCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-        &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+        &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+        &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
         &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterUpdateStatefulSet, zk, object)(s)
     };
     let input = (Some(resp_msg), Some(zk.object_ref()));
@@ -1503,29 +1503,29 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
         spec.entails(
             lift_state(
                 |s: ZKCluster| {
-                    &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                    &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+                    &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+                    &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
                     &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterUpdateStatefulSet, zk, req_msg, object)(s)
                 }
             )
                 .leads_to(lift_state(
                     |s: ZKCluster| {
-                        &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(zk.object_ref()))).is_Ok()
-                        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(zk.object_ref()))).get_Ok_0().spec == make_stateful_set(zk).spec
+                        &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+                        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).is_Ok()
+                        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).get_Ok_0().spec == make_stateful_set(zk).spec
                     }
                 ))
         ),
 {
     let pre = |s: ZKCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-        &&& s.resource_obj_of(make_stateful_set_key(zk.object_ref())) == object
+        &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+        &&& s.resources()[make_stateful_set_key(zk.object_ref())] == object
         &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterUpdateStatefulSet, zk, req_msg, object)(s)
     };
     let post = |s: ZKCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(zk.object_ref()))).is_Ok()
-        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(zk.object_ref()))).get_Ok_0().spec == make_stateful_set(zk).spec
+        &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).is_Ok()
+        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).get_Ok_0().spec == make_stateful_set(zk).spec
     };
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: ZKCluster| {
@@ -1597,24 +1597,24 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_zk(
         spec.entails(
             lift_state(
                 |s: ZKCluster| {
-                    &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                    &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                     &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, req_msg, arbitrary())(s)
                 }
             )
                 .leads_to(lift_state(
                     |s: ZKCluster| {
-                        &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                        &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                         &&& at_after_get_stateful_set_step_with_zk_and_exists_not_found_resp_in_flight(zk)(s)
                     }
                 ))
         ),
 {
     let pre = |s: ZKCluster| {
-        &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+        &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
         &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, req_msg, arbitrary())(s)
     };
     let post = |s: ZKCluster| {
-        &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+        &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
         &&& at_after_get_stateful_set_step_with_zk_and_exists_not_found_resp_in_flight(zk)(s)
     };
     let input = Some(req_msg);
@@ -1652,7 +1652,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_zk(
                 if input.get_Some_0() == req_msg {
                     let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
                     assert({
-                        &&& s_prime.message_in_flight(resp_msg)
+                        &&& s_prime.in_flight().contains(resp_msg)
                         &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
                         &&& resp_msg.content.get_get_response().res.is_Err()
                         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
@@ -1667,7 +1667,7 @@ proof fn lemma_receives_not_found_resp_at_after_get_stateful_set_step_with_zk(
     implies post(s_prime) by {
         let resp_msg = ZKCluster::handle_get_request(req_msg, s.kubernetes_api_state).1;
         assert({
-            &&& s_prime.message_in_flight(resp_msg)
+            &&& s_prime.in_flight().contains(resp_msg)
             &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             &&& resp_msg.content.get_get_response().res.is_Err()
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
@@ -1694,25 +1694,25 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_create_stateful_set_ste
     ensures
         spec.entails(
             lift_state(|s: ZKCluster| {
-                &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                 &&& resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, resp_msg, arbitrary())(s)
                 &&& resp_msg.content.get_get_response().res.is_Err()
                 &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
             })
                 .leads_to(lift_state(|s: ZKCluster| {
-                    &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                    &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                     &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateStatefulSet, zk, arbitrary())(s)
                 }))
         ),
 {
     let pre = |s: ZKCluster| {
-        &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+        &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
         &&& resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterGetStatefulSet, zk, resp_msg, arbitrary())(s)
         &&& resp_msg.content.get_get_response().res.is_Err()
         &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
     };
     let post = |s: ZKCluster| {
-        &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+        &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
         &&& pending_req_in_flight_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateStatefulSet, zk, arbitrary())(s)
     };
     let input = (Some(resp_msg), Some(zk.object_ref()));
@@ -1763,27 +1763,27 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_zk(
         spec.entails(
             lift_state(
                 |s: ZKCluster| {
-                    &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+                    &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
                     &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateStatefulSet, zk, req_msg, arbitrary())(s)
                 }
             )
                 .leads_to(lift_state(
                     |s: ZKCluster| {
-                        &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-                        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(zk.object_ref()))).is_Ok()
-                        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(zk.object_ref()))).get_Ok_0().spec == make_stateful_set(zk).spec
+                        &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+                        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).is_Ok()
+                        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).get_Ok_0().spec == make_stateful_set(zk).spec
                     }
                 ))
         ),
 {
     let pre = |s: ZKCluster| {
-        &&& !s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
+        &&& !s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
         &&& req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(ZookeeperReconcileStep::AfterCreateStatefulSet, zk, req_msg, arbitrary())(s)
     };
     let post = |s: ZKCluster| {
-        &&& s.resource_key_exists(make_stateful_set_key(zk.object_ref()))
-        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(zk.object_ref()))).is_Ok()
-        &&& StatefulSetView::from_dynamic_object(s.resource_obj_of(make_stateful_set_key(zk.object_ref()))).get_Ok_0().spec == make_stateful_set(zk).spec
+        &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
+        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).is_Ok()
+        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).get_Ok_0().spec == make_stateful_set(zk).spec
     };
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: ZKCluster| {

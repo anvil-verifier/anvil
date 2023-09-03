@@ -22,16 +22,16 @@ verus! {
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 /// Everytime when we reason about update request message, we can only consider those valid ones (see validata_update_request).
-/// However, listing all requirements makes spec looks cumbersome (consider using validate_create/update_request); we can only 
+/// However, listing all requirements makes spec looks cumbersome (consider using validate_create/update_request); we can only
 /// list those that we need or that may appear according to the spec of system.
-/// 
+///
 /// For example, in some lemma we use msg.content.get_update_request().obj.kind == key.kind, so this requirement is added here.
 pub open spec fn every_update_msg_sets_owner_references_as(
     key: ObjectRef, requirements: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool
 ) -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
-            #[trigger] s.message_in_flight(msg)
+            #[trigger] s.in_flight().contains(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_update_request()
             && msg.content.get_update_request().key == key
@@ -45,7 +45,7 @@ pub open spec fn every_create_msg_sets_owner_references_as(
 ) -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
-            #[trigger] s.message_in_flight(msg)
+            #[trigger] s.in_flight().contains(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_create_request()
             && msg.content.get_create_request().namespace == key.namespace
@@ -57,27 +57,27 @@ pub open spec fn every_create_msg_sets_owner_references_as(
 
 pub open spec fn objects_owner_references_satisfies(key: ObjectRef, requirements: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool) -> StatePred<Self> {
     |s: Self| {
-        s.resource_key_exists(key) ==> requirements(s.resource_obj_of(key).metadata.owner_references)
+        s.resources().contains_key(key) ==> requirements(s.resources()[key].metadata.owner_references)
     }
 }
 
 pub open spec fn objects_owner_references_violates(key: ObjectRef, requirements: FnSpec(Option<Seq<OwnerReferenceView>>) -> bool) -> StatePred<Self> {
     |s: Self| {
-        s.resource_key_exists(key) && !requirements(s.resource_obj_of(key).metadata.owner_references)
+        s.resources().contains_key(key) && !requirements(s.resources()[key].metadata.owner_references)
     }
 }
 
 pub open spec fn object_has_no_finalizers(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
-        s.resource_key_exists(key)
-        ==> s.resource_obj_of(key).metadata.finalizers.is_None()
+        s.resources().contains_key(key)
+        ==> s.resources()[key].metadata.finalizers.is_None()
     }
 }
 
 spec fn exists_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
         exists |msg: MsgType<E>| {
-            #[trigger] s.message_in_flight(msg)
+            #[trigger] s.in_flight().contains(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_delete_request_with_key(key)
         }
@@ -165,7 +165,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
 
     assert forall |s, s_prime: Self| pre(s) && #[trigger] stronger_next(s, s_prime) && Self::builtin_controllers_next().forward(input)(s, s_prime) implies delete_msg_in_flight(s_prime) by {
         let delete_req_msg = Message::built_in_controller_req_msg(Message::delete_req_msg_content(key, s.rest_id_allocator.allocate().1));
-        assert(s_prime.message_in_flight(delete_req_msg));
+        assert(s_prime.in_flight().contains(delete_req_msg));
     }
 
     assert forall |s, s_prime: Self| pre(s) && #[trigger] stronger_next(s, s_prime) implies pre(s_prime) || delete_msg_in_flight(s_prime) by {
@@ -177,7 +177,7 @@ pub proof fn lemma_eventually_objects_owner_references_satisfies(
                     let delete_req_msg = Message::built_in_controller_req_msg(Message::delete_req_msg_content(
                         key, s.rest_id_allocator.allocate().1
                     ));
-                    assert(s_prime.message_in_flight(delete_req_msg));
+                    assert(s_prime.in_flight().contains(delete_req_msg));
                     assert(Self::exists_delete_request_msg_in_flight_with_key(key)(s_prime));
                     assert(delete_msg_in_flight(s_prime));
                 } else {
@@ -235,7 +235,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
         {
             let msg_to_p = |msg: MsgType<E>| {
                 lift_state(|s: Self| {
-                    &&& s.message_in_flight(msg)
+                    &&& s.in_flight().contains(msg)
                     &&& msg.dst.is_KubernetesAPI()
                     &&& msg.content.is_delete_request_with_key(key)
                 })
@@ -243,7 +243,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
             assert forall |msg: MsgType<E>| spec.entails((#[trigger] msg_to_p(msg)).leads_to(lift_state(post))) by {
                 let input = Some(msg);
                 let msg_to_p_state = |s: Self| {
-                    &&& s.message_in_flight(msg)
+                    &&& s.in_flight().contains(msg)
                     &&& msg.dst.is_KubernetesAPI()
                     &&& msg.content.is_delete_request_with_key(key)
                 };
@@ -268,7 +268,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
                 {
                     assert forall |ex| #[trigger] lift_state(pre).satisfied_by(ex) implies tla_exists(msg_to_p).satisfied_by(ex) by {
                         let msg = choose |msg| {
-                            &&& #[trigger] ex.head().message_in_flight(msg)
+                            &&& #[trigger] ex.head().in_flight().contains(msg)
                             &&& msg.dst.is_KubernetesAPI()
                             &&& msg.content.is_delete_request_with_key(key)
                         };

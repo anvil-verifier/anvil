@@ -68,10 +68,10 @@ pub proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_and_trig
 pub open spec fn transition_rule_applies_to_etcd_and_scheduled_cr(cr: K) -> StatePred<Self> {
     |s: Self| {
         let key = cr.object_ref();
-        s.reconcile_scheduled_for(key)
-        && s.resource_key_exists(key)
-        && s.resource_obj_of(key).metadata.uid.get_Some_0() == s.reconcile_scheduled_obj_of(key).metadata().uid.get_Some_0()
-        ==> K::transition_rule(K::from_dynamic_object(s.resource_obj_of(key)).get_Ok_0(), s.reconcile_scheduled_obj_of(key))
+        s.scheduled_reconciles().contains_key(key)
+        && s.resources().contains_key(key)
+        && s.resources()[key].metadata.uid.get_Some_0() == s.scheduled_reconciles()[key].metadata().uid.get_Some_0()
+        ==> K::transition_rule(K::from_dynamic_object(s.resources()[key]).get_Ok_0(), s.scheduled_reconciles()[key])
     }
 }
 
@@ -103,37 +103,37 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: Tem
     K::object_ref_is_well_formed();
     K::from_dynamic_object_result_determined_by_unmarshal();
     assert forall |s, s_prime: Self| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        if s_prime.reconcile_scheduled_for(key) && s_prime.resource_key_exists(key)
-        && s_prime.resource_obj_of(key).metadata.uid.get_Some_0() == s_prime.reconcile_scheduled_obj_of(key).metadata().uid.get_Some_0() {
+        if s_prime.scheduled_reconciles().contains_key(key) && s_prime.resources().contains_key(key)
+        && s_prime.resources()[key].metadata.uid.get_Some_0() == s_prime.scheduled_reconciles()[key].metadata().uid.get_Some_0() {
             let step = choose |step: Step<MsgType<E>>| Self::next_step(s, s_prime, step);
             match step {
                 Step::KubernetesAPIStep(input) => {
-                    assert(s.reconcile_scheduled_for(key) && s.reconcile_scheduled_obj_of(key) == s_prime.reconcile_scheduled_obj_of(key));
-                    if !s.resource_key_exists(key) {
-                        assert(s_prime.resource_obj_of(key).metadata.uid == Some(s.kubernetes_api_state.uid_counter));
-                        assert(s_prime.resource_obj_of(key).metadata.uid.get_Some_0() != s_prime.reconcile_scheduled_obj_of(key).metadata().uid.get_Some_0());
-                    } else if s.resource_obj_of(key) != s_prime.resource_obj_of(key) {
+                    assert(s.scheduled_reconciles().contains_key(key) && s.scheduled_reconciles()[key] == s_prime.scheduled_reconciles()[key]);
+                    if !s.resources().contains_key(key) {
+                        assert(s_prime.resources()[key].metadata.uid == Some(s.kubernetes_api_state.uid_counter));
+                        assert(s_prime.resources()[key].metadata.uid.get_Some_0() != s_prime.scheduled_reconciles()[key].metadata().uid.get_Some_0());
+                    } else if s.resources()[key] != s_prime.resources()[key] {
                         if input.get_Some_0().content.is_delete_request() {
-                            assert(s_prime.resource_obj_of(key).spec == s.resource_obj_of(key).spec);
+                            assert(s_prime.resources()[key].spec == s.resources()[key].spec);
                             assert(K::transition_rule(
-                                K::from_dynamic_object(s_prime.resource_obj_of(key)).get_Ok_0(),
-                                K::from_dynamic_object(s.resource_obj_of(key)).get_Ok_0()
+                                K::from_dynamic_object(s_prime.resources()[key]).get_Ok_0(),
+                                K::from_dynamic_object(s.resources()[key]).get_Ok_0()
                             ));
                         } else {
                             assert(input.get_Some_0().content.is_update_request());
                             assert(K::from_dynamic_object(input.get_Some_0().content.get_update_request().obj).is_Ok());
-                            assert(input.get_Some_0().content.get_update_request().obj.spec == s_prime.resource_obj_of(key).spec);
+                            assert(input.get_Some_0().content.get_update_request().obj.spec == s_prime.resources()[key].spec);
                             assert(K::transition_rule(
-                                K::from_dynamic_object(s_prime.resource_obj_of(key)).get_Ok_0(),
+                                K::from_dynamic_object(s_prime.resources()[key]).get_Ok_0(),
                                 K::from_dynamic_object(input.get_Some_0().content.get_update_request().obj).get_Ok_0()
                             ));
                         }
                     }
                 },
                 Step::ScheduleControllerReconcileStep(input) => {
-                    assert(s.resource_key_exists(key) && s.resource_obj_of(key) == s_prime.resource_obj_of(key));
-                    if !s.reconcile_scheduled_for(key) || s.reconcile_scheduled_obj_of(key) != s_prime.reconcile_scheduled_obj_of(key) {
-                        assert(s_prime.reconcile_scheduled_obj_of(key) == K::from_dynamic_object(s_prime.resource_obj_of(key)).get_Ok_0());
+                    assert(s.resources().contains_key(key) && s.resources()[key] == s_prime.resources()[key]);
+                    if !s.scheduled_reconciles().contains_key(key) || s.scheduled_reconciles()[key] != s_prime.scheduled_reconciles()[key] {
+                        assert(s_prime.scheduled_reconciles()[key] == K::from_dynamic_object(s_prime.resources()[key]).get_Ok_0());
                     }
                 },
                 _ => {}
@@ -146,20 +146,20 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: Tem
 pub open spec fn transition_rule_applies_to_etcd_and_triggering_cr(cr: K) -> StatePred<Self> {
     |s: Self| {
         let key = cr.object_ref();
-        s.reconcile_state_contains(key)
-        && s.resource_key_exists(key)
-        && s.resource_obj_of(key).metadata.uid.get_Some_0() == s.triggering_cr_of(key).metadata().uid.get_Some_0()
-        ==> K::transition_rule(K::from_dynamic_object(s.resource_obj_of(key)).get_Ok_0(), s.triggering_cr_of(key))
+        s.ongoing_reconciles().contains_key(key)
+        && s.resources().contains_key(key)
+        && s.resources()[key].metadata.uid.get_Some_0() == s.ongoing_reconciles()[key].triggering_cr.metadata().uid.get_Some_0()
+        ==> K::transition_rule(K::from_dynamic_object(s.resources()[key]).get_Ok_0(), s.ongoing_reconciles()[key].triggering_cr)
     }
 }
 
 pub open spec fn transition_rule_applies_to_scheduled_and_triggering_cr(cr: K) -> StatePred<Self> {
     |s: Self| {
         let key = cr.object_ref();
-        s.reconcile_state_contains(key)
-        && s.reconcile_scheduled_for(key)
-        && s.triggering_cr_of(key).metadata().uid.get_Some_0() == s.reconcile_scheduled_obj_of(key).metadata().uid.get_Some_0()
-        ==> K::transition_rule(s.reconcile_scheduled_obj_of(key), s.triggering_cr_of(key))
+        s.ongoing_reconciles().contains_key(key)
+        && s.scheduled_reconciles().contains_key(key)
+        && s.ongoing_reconciles()[key].triggering_cr.metadata().uid.get_Some_0() == s.scheduled_reconciles()[key].metadata().uid.get_Some_0()
+        ==> K::transition_rule(s.scheduled_reconciles()[key], s.ongoing_reconciles()[key].triggering_cr)
     }
 }
 
@@ -202,48 +202,48 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
         K::from_dynamic_preserves_metadata();
         K::from_dynamic_object_result_determined_by_unmarshal();
         let step = choose |step| Self::next_step(s, s_prime, step);
-        if s_prime.reconcile_state_contains(key) && s_prime.resource_key_exists(key)
-        && s_prime.resource_obj_of(key).metadata.uid.get_Some_0() == s_prime.triggering_cr_of(key).metadata().uid.get_Some_0() {
+        if s_prime.ongoing_reconciles().contains_key(key) && s_prime.resources().contains_key(key)
+        && s_prime.resources()[key].metadata.uid.get_Some_0() == s_prime.ongoing_reconciles()[key].triggering_cr.metadata().uid.get_Some_0() {
             match step {
                 Step::KubernetesAPIStep(input) => {
-                    assert(s.reconcile_state_contains(key) && s.triggering_cr_of(key) == s_prime.triggering_cr_of(key));
-                    if !s.resource_key_exists(key) {
-                        assert(s_prime.resource_obj_of(key).metadata.uid == Some(s.kubernetes_api_state.uid_counter));
-                        assert(s_prime.resource_obj_of(key).metadata.uid.get_Some_0() != s_prime.triggering_cr_of(key).metadata().uid.get_Some_0());
-                    } else if s.resource_obj_of(key) != s_prime.resource_obj_of(key) {
+                    assert(s.ongoing_reconciles().contains_key(key) && s.ongoing_reconciles()[key].triggering_cr == s_prime.ongoing_reconciles()[key].triggering_cr);
+                    if !s.resources().contains_key(key) {
+                        assert(s_prime.resources()[key].metadata.uid == Some(s.kubernetes_api_state.uid_counter));
+                        assert(s_prime.resources()[key].metadata.uid.get_Some_0() != s_prime.ongoing_reconciles()[key].triggering_cr.metadata().uid.get_Some_0());
+                    } else if s.resources()[key] != s_prime.resources()[key] {
                         if input.get_Some_0().content.is_delete_request() {
-                            assert(s_prime.resource_obj_of(key).spec == s.resource_obj_of(key).spec);
+                            assert(s_prime.resources()[key].spec == s.resources()[key].spec);
                             assert(K::transition_rule(
-                                K::from_dynamic_object(s_prime.resource_obj_of(key)).get_Ok_0(),
-                                K::from_dynamic_object(s.resource_obj_of(key)).get_Ok_0()
+                                K::from_dynamic_object(s_prime.resources()[key]).get_Ok_0(),
+                                K::from_dynamic_object(s.resources()[key]).get_Ok_0()
                             ));
                         } else {
                             assert(input.get_Some_0().content.is_update_request());
                             assert(K::from_dynamic_object(input.get_Some_0().content.get_update_request().obj).is_Ok());
-                            assert(input.get_Some_0().content.get_update_request().obj.spec == s_prime.resource_obj_of(key).spec);
+                            assert(input.get_Some_0().content.get_update_request().obj.spec == s_prime.resources()[key].spec);
                             assert(K::transition_rule(
-                                K::from_dynamic_object(s_prime.resource_obj_of(key)).get_Ok_0(),
+                                K::from_dynamic_object(s_prime.resources()[key]).get_Ok_0(),
                                 K::from_dynamic_object(input.get_Some_0().content.get_update_request().obj).get_Ok_0()
                             ));
                         }
                     }
                 },
                 Step::ControllerStep(_) => {
-                    assert(s.resource_key_exists(key) && s.resource_obj_of(key) == s_prime.resource_obj_of(key));
-                    if !s.reconcile_state_contains(key) || s.triggering_cr_of(key) != s_prime.triggering_cr_of(key) {
-                        assert(s_prime.triggering_cr_of(key) == s.reconcile_scheduled_obj_of(key));
+                    assert(s.resources().contains_key(key) && s.resources()[key] == s_prime.resources()[key]);
+                    if !s.ongoing_reconciles().contains_key(key) || s.ongoing_reconciles()[key].triggering_cr != s_prime.ongoing_reconciles()[key].triggering_cr {
+                        assert(s_prime.ongoing_reconciles()[key].triggering_cr == s.scheduled_reconciles()[key]);
                     }
                 },
                 _ => {}
             }
         }
-        if s_prime.reconcile_state_contains(key) && s_prime.reconcile_scheduled_for(key)
-        && s_prime.triggering_cr_of(key).metadata().uid.get_Some_0() == s_prime.reconcile_scheduled_obj_of(key).metadata().uid.get_Some_0() {
+        if s_prime.ongoing_reconciles().contains_key(key) && s_prime.scheduled_reconciles().contains_key(key)
+        && s_prime.ongoing_reconciles()[key].triggering_cr.metadata().uid.get_Some_0() == s_prime.scheduled_reconciles()[key].metadata().uid.get_Some_0() {
             match step {
                 Step::ScheduleControllerReconcileStep(_) => {
-                    if !s.reconcile_scheduled_for(key) || s.reconcile_scheduled_obj_of(key) != s_prime.reconcile_scheduled_obj_of(key) {
-                        assert(K::transition_rule(s_prime.reconcile_scheduled_obj_of(key), K::from_dynamic_object(s.resource_obj_of(key)).get_Ok_0()));
-                        assert(K::transition_rule(K::from_dynamic_object(s.resource_obj_of(key)).get_Ok_0(), s.triggering_cr_of(key)));
+                    if !s.scheduled_reconciles().contains_key(key) || s.scheduled_reconciles()[key] != s_prime.scheduled_reconciles()[key] {
+                        assert(K::transition_rule(s_prime.scheduled_reconciles()[key], K::from_dynamic_object(s.resources()[key]).get_Ok_0()));
+                        assert(K::transition_rule(K::from_dynamic_object(s.resources()[key]).get_Ok_0(), s.ongoing_reconciles()[key].triggering_cr));
                     }
                     assert(Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)(s_prime));
                 },

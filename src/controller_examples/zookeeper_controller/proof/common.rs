@@ -42,17 +42,17 @@ pub open spec fn at_zookeeper_step(key: ObjectRef, step: ZookeeperReconcileStep)
         key.kind.is_CustomResourceKind()
 {
     |s: ZKCluster| {
-        &&& s.reconcile_state_contains(key)
-        &&& s.reconcile_state_of(key).local_state.reconcile_step == step
+        &&& s.ongoing_reconciles().contains_key(key)
+        &&& s.ongoing_reconciles()[key].local_state.reconcile_step == step
     }
 }
 
 pub open spec fn at_zookeeper_step_with_zk(zk: ZookeeperClusterView, step: ZookeeperReconcileStep) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
-        &&& s.reconcile_state_contains(zk.object_ref())
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.object_ref() == zk.object_ref()
-        &&& s.reconcile_state_of(zk.object_ref()).triggering_cr.spec == zk.spec
-        &&& s.reconcile_state_of(zk.object_ref()).local_state.reconcile_step == step
+        &&& s.ongoing_reconciles().contains_key(zk.object_ref())
+        &&& s.ongoing_reconciles()[zk.object_ref()].triggering_cr.object_ref() == zk.object_ref()
+        &&& s.ongoing_reconciles()[zk.object_ref()].triggering_cr.spec == zk.spec
+        &&& s.ongoing_reconciles()[zk.object_ref()].local_state.reconcile_step == step
     }
 }
 
@@ -69,8 +69,8 @@ pub open spec fn pending_req_in_flight_at_zookeeper_step_with_zk(
     |s: ZKCluster| {
         &&& at_zookeeper_step_with_zk(zk, step)(s)
         &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
-        &&& s.message_in_flight(s.pending_req_of(zk.object_ref()))
-        &&& is_correct_pending_request_msg_at_zookeeper_step(step, s.pending_req_of(zk.object_ref()), zk, object)
+        &&& s.in_flight().contains(s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0())
+        &&& is_correct_pending_request_msg_at_zookeeper_step(step, s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0(), zk, object)
     }
 }
 
@@ -80,7 +80,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_zookeeper_step_with_zk(
     |s: ZKCluster| {
         &&& at_zookeeper_step_with_zk(zk, step)(s)
         &&& ZKCluster::pending_k8s_api_req_msg_is(s, zk.object_ref(), req_msg)
-        &&& s.message_in_flight(req_msg)
+        &&& s.in_flight().contains(req_msg)
         &&& is_correct_pending_request_msg_at_zookeeper_step(step, req_msg, zk, object)
     }
 }
@@ -91,10 +91,10 @@ pub open spec fn exists_resp_in_flight_at_zookeeper_step_with_zk(
     |s: ZKCluster| {
         &&& at_zookeeper_step_with_zk(zk, step)(s)
         &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
-        &&& is_correct_pending_request_msg_at_zookeeper_step(step, s.pending_req_of(zk.object_ref()), zk, object)
+        &&& is_correct_pending_request_msg_at_zookeeper_step(step, s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0(), zk, object)
         &&& exists |resp_msg| {
-            &&& #[trigger] s.message_in_flight(resp_msg)
-            &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0())
         }
     }
 }
@@ -105,9 +105,9 @@ pub open spec fn resp_msg_is_the_in_flight_resp_at_zookeeper_step_with_zk(
     |s: ZKCluster| {
         &&& at_zookeeper_step_with_zk(zk, step)(s)
         &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
-        &&& is_correct_pending_request_msg_at_zookeeper_step(step, s.pending_req_of(zk.object_ref()), zk, object)
-        &&& s.message_in_flight(resp_msg)
-        &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
+        &&& is_correct_pending_request_msg_at_zookeeper_step(step, s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0(), zk, object)
+        &&& s.in_flight().contains(resp_msg)
+        &&& Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0())
     }
 }
 
@@ -118,11 +118,11 @@ pub open spec fn at_after_get_stateful_set_step_with_zk_and_exists_ok_resp_in_fl
         &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterGetStatefulSet)(s)
         &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
         &&& is_correct_pending_request_msg_at_zookeeper_step(
-            ZookeeperReconcileStep::AfterGetStatefulSet, s.pending_req_of(zk.object_ref()), zk, arbitrary()
+            ZookeeperReconcileStep::AfterGetStatefulSet, s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0(), zk, arbitrary()
         )
         &&& exists |resp_msg| {
-            &&& #[trigger] s.message_in_flight(resp_msg)
-            &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0())
             &&& resp_msg.content.get_get_response().res.is_Ok()
             &&& resp_msg.content.get_get_response().res.get_Ok_0() == object
         }
@@ -136,11 +136,11 @@ pub open spec fn at_after_get_stateful_set_step_with_zk_and_exists_not_found_res
         &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterGetStatefulSet)(s)
         &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
         &&& is_correct_pending_request_msg_at_zookeeper_step(
-            ZookeeperReconcileStep::AfterGetStatefulSet, s.pending_req_of(zk.object_ref()), zk, arbitrary()
+            ZookeeperReconcileStep::AfterGetStatefulSet, s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0(), zk, arbitrary()
         )
         &&& exists |resp_msg| {
-            &&& #[trigger] s.message_in_flight(resp_msg)
-            &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0())
             &&& resp_msg.content.get_get_response().res.is_Err()
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         }
@@ -154,11 +154,11 @@ pub open spec fn at_after_get_stateful_set_step_with_zk_and_exists_not_found_err
         &&& at_zookeeper_step_with_zk(zk, ZookeeperReconcileStep::AfterGetStatefulSet)(s)
         &&& ZKCluster::pending_k8s_api_req_msg(s, zk.object_ref())
         &&& is_correct_pending_request_msg_at_zookeeper_step(
-            ZookeeperReconcileStep::AfterGetStatefulSet, s.pending_req_of(zk.object_ref()), zk, arbitrary()
+            ZookeeperReconcileStep::AfterGetStatefulSet, s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0(), zk, arbitrary()
         )
         &&& exists |resp_msg| {
-            &&& #[trigger] s.message_in_flight(resp_msg)
-            &&& Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(zk.object_ref()))
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[zk.object_ref()].pending_req_msg.get_Some_0())
             &&& resp_msg.content.get_get_response().res.is_Err()
             &&& resp_msg.content.get_get_response().res.get_Err_0().is_ObjectNotFound()
         }

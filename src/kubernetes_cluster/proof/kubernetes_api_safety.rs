@@ -23,7 +23,7 @@ pub open spec fn has_lower_uid_than(obj: DynamicObjectView, uid: Uid) -> bool {
 pub open spec fn every_object_in_etcd_has_lower_uid_than_uid_counter() -> StatePred<Self> {
     |s: Self| {
         forall |key: ObjectRef|
-            #[trigger] s.resource_key_exists(key) ==> Self::has_lower_uid_than(s.resource_obj_of(key), s.kubernetes_api_state.uid_counter)
+            #[trigger] s.resources().contains_key(key) ==> Self::has_lower_uid_than(s.resources()[key], s.kubernetes_api_state.uid_counter)
     }
 }
 
@@ -36,13 +36,13 @@ pub proof fn lemma_always_every_object_in_etcd_has_lower_uid_than_uid_counter(sp
 {
     let invariant = Self::every_object_in_etcd_has_lower_uid_than_uid_counter();
     assert forall |s, s_prime| invariant(s) && #[trigger] Self::next()(s, s_prime) implies invariant(s_prime) by {
-        assert forall |key| #[trigger] s_prime.resource_key_exists(key) implies Self::has_lower_uid_than(s_prime.resource_obj_of(key), s_prime.kubernetes_api_state.uid_counter) by {
+        assert forall |key| #[trigger] s_prime.resources().contains_key(key) implies Self::has_lower_uid_than(s_prime.resources()[key], s_prime.kubernetes_api_state.uid_counter) by {
             assert(s_prime.kubernetes_api_state.uid_counter >= s.kubernetes_api_state.uid_counter);
-            if s.resource_key_exists(key) {
-                assert(Self::has_lower_uid_than(s.resource_obj_of(key), s.kubernetes_api_state.uid_counter));
-                assert(s.resource_obj_of(key).metadata.uid == s_prime.resource_obj_of(key).metadata.uid);
+            if s.resources().contains_key(key) {
+                assert(Self::has_lower_uid_than(s.resources()[key], s.kubernetes_api_state.uid_counter));
+                assert(s.resources()[key].metadata.uid == s_prime.resources()[key].metadata.uid);
             } else {
-                assert(Self::has_lower_uid_than(s_prime.resource_obj_of(key), s_prime.kubernetes_api_state.uid_counter));
+                assert(Self::has_lower_uid_than(s_prime.resources()[key], s_prime.kubernetes_api_state.uid_counter));
             }
         }
 
