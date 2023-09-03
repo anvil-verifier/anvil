@@ -43,10 +43,10 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<ZKCluster>, zk: Zook
         spec.entails(always(pending_req_is_none(zk.object_ref(), ZookeeperReconcileStep::Init))),
     ensures
         spec.entails(
-            true_pred().leads_to(lift_state(|s: ZKCluster| !s.reconcile_state_contains(zk.object_ref())))
+            true_pred().leads_to(lift_state(|s: ZKCluster| !s.ongoing_reconciles().contains_key(zk.object_ref())))
         ),
 {
-    let reconcile_idle = |s: ZKCluster| { !s.reconcile_state_contains(zk.object_ref()) };
+    let reconcile_idle = |s: ZKCluster| { !s.ongoing_reconciles().contains_key(zk.object_ref()) };
     ZKCluster::lemma_reconcile_error_leads_to_reconcile_idle(spec, zk.object_ref());
     ZKCluster::lemma_reconcile_done_leads_to_reconcile_idle(spec, zk.object_ref());
     temp_pred_equality(

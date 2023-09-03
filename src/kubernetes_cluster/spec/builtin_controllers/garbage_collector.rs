@@ -42,7 +42,7 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction<E::Input, E
             // The garbage collector is chosen by the top level state machine
             &&& input.choice.is_GarbageCollector()
             // The object exists in the cluster state
-            &&& resources.dom().contains(input.key)
+            &&& resources.contains_key(input.key)
             // and it has at least one owner reference
             &&& resources[key].metadata.owner_references.is_Some()
             &&& resources[key].metadata.owner_references.get_Some_0().len() > 0
@@ -50,7 +50,7 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction<E::Input, E
             // it deletes the object if for each owner reference...
             &&& forall |i| #![trigger owner_references[i]] 0 <= i < owner_references.len() ==> {
                 // the referred owner object does not exist in the cluster state
-                ||| !resources.dom().contains(owner_reference_to_object_reference(owner_references[i], key.namespace))
+                ||| !resources.contains_key(owner_reference_to_object_reference(owner_references[i], key.namespace))
                 // or it exists but has a different uid
                 // (which means the actual owner was deleted and another object with the same name gets created again)
                 ||| resources[owner_reference_to_object_reference(owner_references[i], key.namespace)].metadata.uid != Some(owner_references[i].uid)

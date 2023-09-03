@@ -55,10 +55,10 @@ pub open spec fn triggering_cr_has_lower_uid_than_uid_counter() -> StatePred<Sel
 {
     |s: Self| {
         forall |key: ObjectRef|
-        #[trigger] s.reconcile_state_contains(key)
+        #[trigger] s.ongoing_reconciles().contains_key(key)
         && key.kind.is_CustomResourceKind()
-        ==> s.reconcile_state_of(key).triggering_cr.metadata().uid.is_Some()
-        && s.reconcile_state_of(key).triggering_cr.metadata().uid.get_Some_0() < s.kubernetes_api_state.uid_counter
+        ==> s.ongoing_reconciles()[key].triggering_cr.metadata().uid.is_Some()
+        && s.ongoing_reconciles()[key].triggering_cr.metadata().uid.get_Some_0() < s.kubernetes_api_state.uid_counter
     }
 }
 
@@ -85,15 +85,15 @@ pub open spec fn resp_matches_at_most_one_pending_req(
     resp_msg: MsgType<E>, cr_key: ObjectRef
 ) -> StatePred<Self> {
     |s: Self| {
-        s.reconcile_state_contains(cr_key)
+        s.ongoing_reconciles().contains_key(cr_key)
         && Self::pending_k8s_api_req_msg(s, cr_key)
-        && Message::resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
+        && Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
         ==> (
             forall |other_key: ObjectRef|
-                #[trigger] s.reconcile_state_contains(other_key)
+                #[trigger] s.ongoing_reconciles().contains_key(other_key)
                 && Self::pending_k8s_api_req_msg(s, other_key)
                 && other_key != cr_key
-                ==> !Message::resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(other_key).pending_req_msg.get_Some_0())
+                ==> !Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[other_key].pending_req_msg.get_Some_0())
             )
     }
 }
@@ -102,13 +102,13 @@ pub open spec fn resp_if_matches_pending_req_then_no_other_resp_matches(
     resp_msg: MsgType<E>, cr_key: ObjectRef
 ) -> StatePred<Self> {
     |s: Self| {
-        s.reconcile_state_contains(cr_key)
-        && s.message_in_flight(resp_msg)
+        s.ongoing_reconciles().contains_key(cr_key)
+        && s.in_flight().contains(resp_msg)
         && Self::pending_k8s_api_req_msg(s, cr_key)
-        && Message::resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
+        && Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
         ==> (
-            forall |other_resp: MsgType<E>| other_resp != resp_msg && #[trigger] s.message_in_flight(other_resp)
-            ==> !Message::resp_msg_matches_req_msg(other_resp, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
+            forall |other_resp: MsgType<E>| other_resp != resp_msg && #[trigger] s.in_flight().contains(other_resp)
+            ==> !Message::resp_msg_matches_req_msg(other_resp, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
         )
     }
 }
@@ -161,13 +161,13 @@ pub open spec fn each_resp_if_matches_pending_req_then_no_other_resp_matches(
 {
     |s: Self| {
         forall |resp_msg: MsgType<E>|
-            s.reconcile_state_contains(cr_key)
-            && #[trigger] s.message_in_flight(resp_msg)
+            s.ongoing_reconciles().contains_key(cr_key)
+            && #[trigger] s.in_flight().contains(resp_msg)
             && Self::pending_k8s_api_req_msg(s, cr_key)
-            && Message::resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
+            && Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
             ==> (
-                forall |other_resp: MsgType<E>| other_resp != resp_msg && #[trigger] s.message_in_flight(other_resp)
-                ==> !Message::resp_msg_matches_req_msg(other_resp, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
+                forall |other_resp: MsgType<E>| other_resp != resp_msg && #[trigger] s.in_flight().contains(other_resp)
+                ==> !Message::resp_msg_matches_req_msg(other_resp, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
             )
     }
 }
@@ -196,13 +196,13 @@ pub proof fn lemma_always_each_resp_if_matches_pending_req_then_no_other_resp_ma
 
     assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies forall_a_to_p.satisfied_by(ex) by {
         assert forall |resp_msg: MsgType<E>|
-            ex.head().reconcile_state_contains(cr_key)
-            && #[trigger] ex.head().message_in_flight(resp_msg)
+            ex.head().ongoing_reconciles().contains_key(cr_key)
+            && #[trigger] ex.head().in_flight().contains(resp_msg)
             && Self::pending_k8s_api_req_msg(ex.head(), cr_key)
-            && Message::resp_msg_matches_req_msg(resp_msg, ex.head().reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
+            && Message::resp_msg_matches_req_msg(resp_msg, ex.head().ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
             ==> (
-                forall |other_resp: MsgType<E>| other_resp != resp_msg && #[trigger] ex.head().message_in_flight(other_resp)
-                ==> !Message::resp_msg_matches_req_msg(other_resp, ex.head().reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
+                forall |other_resp: MsgType<E>| other_resp != resp_msg && #[trigger] ex.head().in_flight().contains(other_resp)
+                ==> !Message::resp_msg_matches_req_msg(other_resp, ex.head().ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
             )
         by {
             assert(a_to_p(resp_msg).satisfied_by(ex));
@@ -264,15 +264,15 @@ pub open spec fn each_resp_matches_at_most_one_pending_req(
 {
     |s: Self| {
         forall |resp_msg: MsgType<E>|
-            s.reconcile_state_contains(cr_key)
+            s.ongoing_reconciles().contains_key(cr_key)
             && Self::pending_k8s_api_req_msg(s, cr_key)
-            && #[trigger] Message::resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0())
+            && #[trigger] Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0())
             ==> (
                 forall |other_key: ObjectRef|
-                    #[trigger] s.reconcile_state_contains(other_key)
+                    #[trigger] s.ongoing_reconciles().contains_key(other_key)
                     && Self::pending_k8s_api_req_msg(s, other_key)
                     && other_key != cr_key
-                    ==> !Message::resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(other_key).pending_req_msg.get_Some_0())
+                    ==> !Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[other_key].pending_req_msg.get_Some_0())
                 )
     }
 }
@@ -339,61 +339,61 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
             let next_step = choose |step| Self::next_step(s, s_prime, step);
             assert(!next_step.is_RestartController());
             let resp = choose |msg| {
-                #[trigger] s.message_in_flight(msg)
-                && Message::resp_msg_matches_req_msg(msg, s.pending_req_of(key))
+                #[trigger] s.in_flight().contains(msg)
+                && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
             };
             match next_step {
                 Step::KubernetesAPIStep(input) => {
-                    if input == Some(s.pending_req_of(key)) {
-                        let resp_msg = Self::transition_by_etcd(s.pending_req_of(key), s.kubernetes_api_state).1;
-                        assert(s_prime.message_in_flight(resp_msg));
+                    if input == Some(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+                        let resp_msg = Self::transition_by_etcd(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1;
+                        assert(s_prime.in_flight().contains(resp_msg));
                     } else {
-                        if !s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(resp));
+                        if !s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+                            assert(s_prime.in_flight().contains(resp));
                         }
                     }
                 }
                 Step::BuiltinControllersStep(input) => {
-                    if s.message_in_flight(s.pending_req_of(key)) {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
+                    if s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
                     } else {
-                        assert(s_prime.message_in_flight(resp));
+                        assert(s_prime.in_flight().contains(resp));
                     }
                 }
                 Step::KubernetesBusy(input) => {
-                    if input == Some(s.pending_req_of(key)) {
-                        let resp_msg = Message::form_matched_resp_msg(s.pending_req_of(key), Err(APIError::ServerTimeout));
-                        assert(s_prime.message_in_flight(resp_msg));
+                    if input == Some(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+                        let resp_msg = Message::form_matched_resp_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), Err(APIError::ServerTimeout));
+                        assert(s_prime.in_flight().contains(resp_msg));
                     } else {
-                        if !s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(resp));
+                        if !s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+                            assert(s_prime.in_flight().contains(resp));
                         }
                     }
                 }
                 Step::ControllerStep(input) => {
                     let cr_key = input.1.get_Some_0();
                     if cr_key != key {
-                        if s.message_in_flight(s.pending_req_of(key)) {
-                            assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
+                        if s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+                            assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
                         } else {
-                            assert(s_prime.message_in_flight(resp));
+                            assert(s_prime.in_flight().contains(resp));
                         }
                     } else {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
+                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
                     }
                 }
                 Step::ClientStep() => {
-                    if s.message_in_flight(s.pending_req_of(key)) {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
+                    if s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
                     } else {
-                        assert(s_prime.message_in_flight(resp));
+                        assert(s_prime.in_flight().contains(resp));
                     }
                 }
                 Step::ExternalAPIStep(input) => {
-                    if s.message_in_flight(s.pending_req_of(key)) {
-                        assert(s_prime.message_in_flight(s_prime.pending_req_of(key)));
+                    if s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
+                        assert(s_prime.in_flight().contains(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
                     } else {
-                        assert(s_prime.message_in_flight(resp));
+                        assert(s_prime.in_flight().contains(resp));
                     }
                 }
                 _ => {
@@ -421,12 +421,12 @@ pub proof fn lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_
     let invariant = Self::no_pending_req_msg_or_external_api_input_at_reconcile_state(key, state);
     assert forall |s, s_prime: Self| invariant(s) &&
     #[trigger] Self::next()(s, s_prime) implies invariant(s_prime) by {
-        if s_prime.reconcile_state_contains(key) && state(s_prime.reconcile_state_of(key).local_state) {
+        if s_prime.ongoing_reconciles().contains_key(key) && state(s_prime.ongoing_reconciles()[key].local_state) {
             if s.controller_state == s_prime.controller_state {
-                assert(s.reconcile_state_of(key).pending_req_msg.is_None());
-                assert(s_prime.reconcile_state_of(key).pending_req_msg.is_None());
+                assert(s.ongoing_reconciles()[key].pending_req_msg.is_None());
+                assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_None());
             } else {
-                assert(s_prime.reconcile_state_of(key).pending_req_msg.is_None());
+                assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_None());
             }
         }
     }

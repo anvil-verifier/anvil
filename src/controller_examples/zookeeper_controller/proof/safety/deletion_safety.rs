@@ -29,7 +29,7 @@ verus! {
 spec fn is_in_flight_controller_request_msg(s: ZKCluster, req_msg: Message) -> bool {
     &&& req_msg.src.is_CustomController()
     &&& req_msg.content.is_APIRequest()
-    &&& s.message_in_flight(req_msg)
+    &&& s.in_flight().contains(req_msg)
 }
 
 // We have to define some desired properties for controller requests.

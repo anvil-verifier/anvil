@@ -21,7 +21,7 @@ impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 pub open spec fn every_in_flight_msg_has_lower_id_than_allocator() -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
-            #[trigger] s.message_in_flight(msg)
+            #[trigger] s.in_flight().contains(msg)
             ==> msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter
     }
 }
@@ -49,10 +49,10 @@ proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator(
     ensures
         Self::every_in_flight_msg_has_lower_id_than_allocator()(s_prime),
 {
-    assert forall |msg: MsgType<E>| #[trigger] s_prime.message_in_flight(msg) implies
+    assert forall |msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(msg) implies
     msg.content.get_rest_id() < s_prime.rest_id_allocator.rest_id_counter by {
         assert(s.rest_id_allocator.rest_id_counter <= s_prime.rest_id_allocator.rest_id_counter);
-        if (s.message_in_flight(msg)) {
+        if (s.in_flight().contains(msg)) {
             assert(msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
         } else {
             match msg.content {
@@ -65,12 +65,12 @@ proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator(
                     match next_step {
                         Step::KubernetesAPIStep(input) => {
                             let req_msg = input.get_Some_0();
-                            assert(s.message_in_flight(req_msg));
+                            assert(s.in_flight().contains(req_msg));
                             assert(id == req_msg.content.get_rest_id());
                         }
                         Step::KubernetesBusy(input) => {
                             let req_msg = input.get_Some_0();
-                            assert(s.message_in_flight(req_msg));
+                            assert(s.in_flight().contains(req_msg));
                             assert(id == req_msg.content.get_rest_id());
                         }
                         _ => assert(false),
@@ -85,8 +85,8 @@ proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator(
                     match next_step {
                         Step::ExternalAPIStep(input) => {
                             let req_msg = input.get_Some_0();
-                            assert(s.message_in_flight(req_msg));
-                            assert(s.message_in_flight(req_msg) ==> req_msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
+                            assert(s.in_flight().contains(req_msg));
+                            assert(s.in_flight().contains(req_msg) ==> req_msg.content.get_rest_id() < s.rest_id_allocator.rest_id_counter);
                             assert(id == req_msg.content.get_rest_id());
                             assert(id < s.rest_id_allocator.rest_id_counter);
                         }
@@ -103,7 +103,7 @@ pub open spec fn every_in_flight_req_is_unique() -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
             (msg.content.is_APIRequest() || msg.content.is_ExternalAPIRequest())
-            && #[trigger] s.message_in_flight(msg)
+            && #[trigger] s.in_flight().contains(msg)
             ==> s.network_state.in_flight.count(msg) == 1
     }
 }
@@ -129,9 +129,9 @@ pub proof fn lemma_always_every_in_flight_req_is_unique(spec: TempPred<Self>)
     assert forall |s, s_prime: Self| invariant(s) && #[trigger] stronger_next(s, s_prime) implies
     invariant(s_prime) by {
         assert forall |msg: MsgType<E>|
-        (msg.content.is_APIRequest() || msg.content.is_ExternalAPIRequest()) && #[trigger] s_prime.message_in_flight(msg) implies
+        (msg.content.is_APIRequest() || msg.content.is_ExternalAPIRequest()) && #[trigger] s_prime.in_flight().contains(msg) implies
         s_prime.network_state.in_flight.count(msg) == 1 by {
-            if (s.message_in_flight(msg)) {
+            if (s.in_flight().contains(msg)) {
                 assert(s.network_state.in_flight.count(msg) == 1);
             }
         };
@@ -141,11 +141,11 @@ pub proof fn lemma_always_every_in_flight_req_is_unique(spec: TempPred<Self>)
 
 pub open spec fn in_flight_or_pending_req_message(s: Self, msg: MsgType<E>) -> bool {
     msg.content.is_APIRequest()
-    && (s.message_in_flight(msg)
+    && (s.in_flight().contains(msg)
     || (
         exists |key|
-            #[trigger] s.reconcile_state_contains(key)
-            && s.reconcile_state_of(key).pending_req_msg == Some(msg)
+            #[trigger] s.ongoing_reconciles().contains_key(key)
+            && s.ongoing_reconciles()[key].pending_req_msg == Some(msg)
     ))
 }
 
@@ -209,10 +209,10 @@ pub proof fn lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec:
 pub open spec fn every_in_flight_msg_has_unique_id() -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
-            #[trigger] s.message_in_flight(msg)
+            #[trigger] s.in_flight().contains(msg)
             ==> (
                 forall |other_msg: MsgType<E>|
-                    #[trigger] s.message_in_flight(other_msg)
+                    #[trigger] s.in_flight().contains(other_msg)
                     && msg != other_msg
                     ==> msg.content.get_rest_id() != other_msg.content.get_rest_id()
             )
@@ -260,17 +260,17 @@ proof fn next_and_unique_lower_msg_id_preserves_in_flight_msg_has_unique_id(
     ensures
         Self::every_in_flight_msg_has_unique_id()(s_prime),
 {
-    assert forall |msg: MsgType<E>| #[trigger] s_prime.message_in_flight(msg) implies
-    (forall |other_msg: MsgType<E>| #[trigger] s_prime.message_in_flight(other_msg) && msg != other_msg
+    assert forall |msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(msg) implies
+    (forall |other_msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(other_msg) && msg != other_msg
         ==> msg.content.get_rest_id() != other_msg.content.get_rest_id()) by {
-        assert forall |other_msg: MsgType<E>| #[trigger] s_prime.message_in_flight(other_msg) && msg != other_msg implies
+        assert forall |other_msg: MsgType<E>| #[trigger] s_prime.in_flight().contains(other_msg) && msg != other_msg implies
         msg.content.get_rest_id() != other_msg.content.get_rest_id() by {
             // At most one message will be added to the network_state.in_flight for each action.
-            assert(s.message_in_flight(msg) || s.message_in_flight(other_msg));
-            if (s.message_in_flight(msg) && s.message_in_flight(other_msg)) {
+            assert(s.in_flight().contains(msg) || s.in_flight().contains(other_msg));
+            if (s.in_flight().contains(msg) && s.in_flight().contains(other_msg)) {
                 assert(msg.content.get_rest_id() != other_msg.content.get_rest_id());
             } else {
-                if (s.message_in_flight(msg)) {
+                if (s.in_flight().contains(msg)) {
                     Self::newly_added_msg_have_different_id_from_existing_ones(s, s_prime, msg, other_msg);
                 } else {
                     Self::newly_added_msg_have_different_id_from_existing_ones(s, s_prime, other_msg, msg);
@@ -287,10 +287,10 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(
         Self::next()(s, s_prime),
         Self::every_in_flight_msg_has_lower_id_than_allocator()(s),
         Self::every_in_flight_req_is_unique()(s),
-        s.message_in_flight(msg_1),
-        !s.message_in_flight(msg_2),
-        s_prime.message_in_flight(msg_1),
-        s_prime.message_in_flight(msg_2),
+        s.in_flight().contains(msg_1),
+        !s.in_flight().contains(msg_2),
+        s_prime.in_flight().contains(msg_1),
+        s_prime.in_flight().contains(msg_2),
         Self::every_in_flight_msg_has_unique_id()(s), // the invariant
     ensures
         msg_1.content.get_rest_id() != msg_2.content.get_rest_id(),
@@ -327,9 +327,9 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(
 pub open spec fn pending_req_has_lower_req_id_than_allocator() -> StatePred<Self> {
     |s: Self| {
         forall |cr_key: ObjectRef|
-            #[trigger] s.reconcile_state_contains(cr_key)
+            #[trigger] s.ongoing_reconciles().contains_key(cr_key)
             && Self::pending_k8s_api_req_msg(s, cr_key)
-            ==> s.reconcile_state_of(cr_key).pending_req_msg.get_Some_0().content.get_rest_id() < s.rest_id_allocator.rest_id_counter
+            ==> s.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0().content.get_rest_id() < s.rest_id_allocator.rest_id_counter
     }
 }
 
@@ -364,7 +364,7 @@ pub open spec fn is_ok_get_response_msg_and_matches_key(key: ObjectRef) -> FnSpe
 pub open spec fn object_in_ok_get_response_has_smaller_rv_than_etcd() -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
-            #[trigger] s.message_in_flight(msg)
+            #[trigger] s.in_flight().contains(msg)
             && Self::is_ok_get_response_msg()(msg)
             ==> msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.is_Some()
                 && msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
@@ -395,18 +395,18 @@ pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spe
         lift_state(Self::each_object_in_reconcile_has_consistent_key_and_valid_metadata())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && Self::is_ok_get_response_msg()(msg) implies
+        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && Self::is_ok_get_response_msg()(msg) implies
         msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.is_Some()
         && msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter by {
             let step = choose |step| Self::next_step(s, s_prime, step);
-            if s.message_in_flight(msg) {
+            if s.in_flight().contains(msg) {
                 assert(s.kubernetes_api_state.resource_version_counter <= s_prime.kubernetes_api_state.resource_version_counter);
             } else {
                 let input = step.get_KubernetesAPIStep_0().get_Some_0();
                 let req_key = input.content.get_get_request().key;
-                assert(s.resource_key_exists(req_key));
-                assert(msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() == s.resource_obj_of(req_key).metadata.resource_version.get_Some_0());
-                assert(s.resource_obj_of(req_key).metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter);
+                assert(s.resources().contains_key(req_key));
+                assert(msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() == s.resources()[req_key].metadata.resource_version.get_Some_0());
+                assert(s.resources()[req_key].metadata.resource_version.get_Some_0() < s_prime.kubernetes_api_state.resource_version_counter);
             }
         }
     }
@@ -416,11 +416,11 @@ pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spe
 pub open spec fn object_in_ok_get_resp_is_same_as_etcd_with_same_rv(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
         forall |msg|
-            #[trigger] s.message_in_flight(msg)
+            #[trigger] s.in_flight().contains(msg)
             && Self::is_ok_get_response_msg_and_matches_key(key)(msg)
-            && s.resource_key_exists(key)
-            && s.resource_obj_of(key).metadata.resource_version.get_Some_0() == msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0()
-            ==> s.resource_obj_of(key) == msg.content.get_get_response().res.get_Ok_0()
+            && s.resources().contains_key(key)
+            && s.resources()[key].metadata.resource_version.get_Some_0() == msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0()
+            ==> s.resources()[key] == msg.content.get_get_response().res.get_Ok_0()
     }
 }
 
@@ -444,22 +444,22 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spe
         lift_state(Self::object_in_ok_get_response_has_smaller_rv_than_etcd())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && Self::is_ok_get_response_msg_and_matches_key(key)(msg) && s_prime.resource_key_exists(key)
-        && s_prime.resource_obj_of(key).metadata.resource_version.get_Some_0() == msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() implies s_prime.resource_obj_of(key) == msg.content.get_get_response().res.get_Ok_0() by {
-            if s.message_in_flight(msg) {
-                if !s.resource_key_exists(key) || s.resource_obj_of(key) != s_prime.resource_obj_of(key) {
-                    assert(s_prime.resource_obj_of(key).metadata.resource_version.get_Some_0() != msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0())
+        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && Self::is_ok_get_response_msg_and_matches_key(key)(msg) && s_prime.resources().contains_key(key)
+        && s_prime.resources()[key].metadata.resource_version.get_Some_0() == msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() implies s_prime.resources()[key] == msg.content.get_get_response().res.get_Ok_0() by {
+            if s.in_flight().contains(msg) {
+                if !s.resources().contains_key(key) || s.resources()[key] != s_prime.resources()[key] {
+                    assert(s_prime.resources()[key].metadata.resource_version.get_Some_0() != msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0())
                 }
             } else {
                 let step = choose |step| Self::next_step(s, s_prime, step);
                 assert(step.is_KubernetesAPIStep());
                 let req = step.get_KubernetesAPIStep_0().get_Some_0();
                 assert(msg == Self::handle_get_request(req, s.kubernetes_api_state).1);
-                assert(s.resource_key_exists(req.content.get_get_request().key));
-                assert(msg.content.get_get_response().res.get_Ok_0() == s.resource_obj_of(req.content.get_get_request().key));
+                assert(s.resources().contains_key(req.content.get_get_request().key));
+                assert(msg.content.get_get_response().res.get_Ok_0() == s.resources()[req.content.get_get_request().key]);
                 assert(req.content.get_get_request().key == msg.content.get_get_response().res.get_Ok_0().object_ref());
                 assert(s.kubernetes_api_state == s_prime.kubernetes_api_state);
-                assert(s_prime.resource_obj_of(key) == msg.content.get_get_response().res.get_Ok_0());
+                assert(s_prime.resources()[key] == msg.content.get_get_response().res.get_Ok_0());
             }
         }
     }
@@ -472,12 +472,12 @@ pub open spec fn key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_
 {
     |s: Self| {
         forall |msg: MsgType<E>|
-            #[trigger] s.message_in_flight(msg)
+            #[trigger] s.in_flight().contains(msg)
             && Self::is_ok_get_response_msg()(msg)
-            && s.reconcile_state_contains(key)
-            && s.reconcile_state_of(key).pending_req_msg.is_Some()
-            && Message::resp_msg_matches_req_msg(msg, s.pending_req_of(key))
-            ==> Self::is_ok_get_response_msg_and_matches_key(s.pending_req_of(key).content.get_get_request().key)(msg)
+            && s.ongoing_reconciles().contains_key(key)
+            && s.ongoing_reconciles()[key].pending_req_msg.is_Some()
+            && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+            ==> Self::is_ok_get_response_msg_and_matches_key(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_get_request().key)(msg)
     }
 
 }
@@ -512,43 +512,43 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
         lift_state(Self::each_resp_if_matches_pending_req_then_no_other_resp_matches(key))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg| #[trigger] s_prime.message_in_flight(msg) && Self::is_ok_get_response_msg()(msg) && s_prime.reconcile_state_contains(key)
-        && s_prime.reconcile_state_of(key).pending_req_msg.is_Some() && Message::resp_msg_matches_req_msg(msg, s_prime.pending_req_of(key)) implies
-        Self::is_ok_get_response_msg_and_matches_key(s_prime.pending_req_of(key).content.get_get_request().key)(msg) by {
-            assert(s_prime.pending_req_of(key).content.is_get_request());
-            let req_key = s_prime.pending_req_of(key).content.get_get_request().key;
+        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && Self::is_ok_get_response_msg()(msg) && s_prime.ongoing_reconciles().contains_key(key)
+        && s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some() && Message::resp_msg_matches_req_msg(msg, s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) implies
+        Self::is_ok_get_response_msg_and_matches_key(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_get_request().key)(msg) by {
+            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.is_get_request());
+            let req_key = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_get_request().key;
             let step = choose |step| Self::next_step(s, s_prime, step);
             match step {
                 Step::ControllerStep(input) => {
-                    assert(s.message_in_flight(msg));
+                    assert(s.in_flight().contains(msg));
                     let cr_key = input.1.get_Some_0();
                     if cr_key == key {
                         assert(false);
                     } else {
-                        assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
+                        assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                         assert(Self::is_ok_get_response_msg_and_matches_key(req_key)(msg));
                     }
                 },
                 Step::KubernetesAPIStep(input) => {
-                    assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                    if !s.message_in_flight(msg) {
-                        assert(Self::in_flight_or_pending_req_message(s, s.pending_req_of(key)));
+                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+                    if !s.in_flight().contains(msg) {
+                        assert(Self::in_flight_or_pending_req_message(s, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
                         assert(Self::in_flight_or_pending_req_message(s, input.get_Some_0()));
                         assert(msg.content.is_get_response());
-                        assert(msg == Self::handle_get_request(s.pending_req_of(key), s.kubernetes_api_state).1);
+                        assert(msg == Self::handle_get_request(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), s.kubernetes_api_state).1);
                         assert(msg.src.is_KubernetesAPI()
                         && msg.content.is_get_response());
                         if msg.content.get_get_response().res.is_Ok() {
-                            assert(s.resource_key_exists(req_key));
-                            assert(s.resource_obj_of(req_key).object_ref() == req_key);
+                            assert(s.resources().contains_key(req_key));
+                            assert(s.resources()[req_key].object_ref() == req_key);
                         }
                         assert(Self::is_ok_get_response_msg_and_matches_key(req_key)(msg));
                     }
                 },
                 Step::KubernetesBusy(input) => {
-                    assert(s.reconcile_state_of(key) == s_prime.reconcile_state_of(key));
-                    if !s.message_in_flight(msg) {
-                        assert(Self::in_flight_or_pending_req_message(s, s.pending_req_of(key)));
+                    assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+                    if !s.in_flight().contains(msg) {
+                        assert(Self::in_flight_or_pending_req_message(s, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
                         assert(Self::in_flight_or_pending_req_message(s, input.get_Some_0()));
                         assert(msg.src.is_KubernetesAPI());
                         assert(msg.content.is_get_response());
@@ -557,15 +557,15 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
                     assert(Self::is_ok_get_response_msg_and_matches_key(req_key)(msg));
                 },
                 Step::ClientStep() => {
-                    assert(s.message_in_flight(msg));
+                    assert(s.in_flight().contains(msg));
                     assert(Self::is_ok_get_response_msg_and_matches_key(req_key)(msg));
                 },
                 Step::ExternalAPIStep(input) => {
                     assert(input.get_Some_0() != msg);
-                    assert(s.message_in_flight(msg));
+                    assert(s.in_flight().contains(msg));
                 },
                 _ => {
-                    assert(s.message_in_flight(msg));
+                    assert(s.in_flight().contains(msg));
                     assert(Self::is_ok_get_response_msg_and_matches_key(req_key)(msg));
                 }
             }

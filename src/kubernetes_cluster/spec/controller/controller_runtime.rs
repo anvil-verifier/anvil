@@ -21,7 +21,7 @@ pub open spec fn run_scheduled_reconcile() -> ControllerAction<K, E, R> {
             &&& input.scheduled_cr_key.get_Some_0().kind == K::kind()
             &&& s.scheduled_reconciles.contains_key(input.scheduled_cr_key.get_Some_0())
             &&& input.recv.is_None()
-            &&& !s.ongoing_reconciles.dom().contains(input.scheduled_cr_key.get_Some_0())
+            &&& !s.ongoing_reconciles.contains_key(input.scheduled_cr_key.get_Some_0())
         },
         transition: |input: ControllerActionInput<E>, s: ControllerState<K, E, R>| {
             let cr_key = input.scheduled_cr_key.get_Some_0();
@@ -51,7 +51,7 @@ pub open spec fn continue_reconcile() -> ControllerAction<K, E, R> {
                 let cr_key = input.scheduled_cr_key.get_Some_0();
 
                 &&& cr_key.kind == K::kind()
-                &&& s.ongoing_reconciles.dom().contains(cr_key)
+                &&& s.ongoing_reconciles.contains_key(cr_key)
                 &&& !R::reconcile_done(s.ongoing_reconciles[cr_key].local_state)
                 &&& !R::reconcile_error(s.ongoing_reconciles[cr_key].local_state)
                 &&& if s.ongoing_reconciles[cr_key].pending_req_msg.is_Some() {
@@ -117,7 +117,7 @@ pub open spec fn end_reconcile() -> ControllerAction<K, E, R> {
                 let cr_key = input.scheduled_cr_key.get_Some_0();
 
                 &&& cr_key.kind == K::kind()
-                &&& s.ongoing_reconciles.dom().contains(cr_key)
+                &&& s.ongoing_reconciles.contains_key(cr_key)
                 &&& (R::reconcile_done(s.ongoing_reconciles[cr_key].local_state) || R::reconcile_error(s.ongoing_reconciles[cr_key].local_state))
                 &&& input.recv.is_None()
             } else {

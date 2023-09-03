@@ -122,10 +122,10 @@ pub open spec fn desired_state_is(cr: K) -> StatePred<Self>
         K::kind().is_CustomResourceKind(),
 {
     |s: Self| {
-        &&& s.resource_key_exists(cr.object_ref())
-        &&& K::from_dynamic_object(s.resource_obj_of(cr.object_ref())).is_Ok()
-        &&& K::from_dynamic_object(s.resource_obj_of(cr.object_ref())).get_Ok_0().spec() == cr.spec()
-        &&& K::from_dynamic_object(s.resource_obj_of(cr.object_ref())).get_Ok_0().metadata().uid == cr.metadata().uid
+        &&& s.resources().contains_key(cr.object_ref())
+        &&& K::from_dynamic_object(s.resources()[cr.object_ref()]).is_Ok()
+        &&& K::from_dynamic_object(s.resources()[cr.object_ref()]).get_Ok_0().spec() == cr.spec()
+        &&& K::from_dynamic_object(s.resources()[cr.object_ref()]).get_Ok_0().metadata().uid == cr.metadata().uid
     }
 }
 

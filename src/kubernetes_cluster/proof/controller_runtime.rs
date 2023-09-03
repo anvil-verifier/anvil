@@ -28,8 +28,8 @@ pub open spec fn reconciler_reconcile_init(cr_key: ObjectRef)
         cr_key.kind.is_CustomResourceKind(),
 {
     |s: Self| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& R::reconcile_init_state() == s.reconcile_state_of(cr_key).local_state
+        &&& s.ongoing_reconciles().contains_key(cr_key)
+        &&& R::reconcile_init_state() == s.ongoing_reconciles()[cr_key].local_state
     }
 }
 
@@ -39,8 +39,8 @@ pub open spec fn reconciler_reconcile_done(cr_key: ObjectRef)
         cr_key.kind.is_CustomResourceKind(),
 {
     |s: Self| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& R::reconcile_done(s.reconcile_state_of(cr_key).local_state)
+        &&& s.ongoing_reconciles().contains_key(cr_key)
+        &&& R::reconcile_done(s.ongoing_reconciles()[cr_key].local_state)
     }
 }
 
@@ -50,8 +50,8 @@ pub open spec fn reconciler_reconcile_error(cr_key: ObjectRef)
         cr_key.kind.is_CustomResourceKind(),
 {
     |s: Self| {
-        &&& s.reconcile_state_contains(cr_key)
-        &&& R::reconcile_error(s.reconcile_state_of(cr_key).local_state)
+        &&& s.ongoing_reconciles().contains_key(cr_key)
+        &&& R::reconcile_error(s.ongoing_reconciles()[cr_key].local_state)
     }
 }
 
@@ -60,8 +60,8 @@ pub open spec fn at_reconcile_state(key: ObjectRef, state: R::T) -> StatePred<Se
         key.kind.is_CustomResourceKind()
 {
     |s: Self| {
-        &&& s.reconcile_state_contains(key)
-        &&& s.reconcile_state_of(key).local_state == state
+        &&& s.ongoing_reconciles().contains_key(key)
+        &&& s.ongoing_reconciles()[key].local_state == state
     }
 }
 
@@ -70,22 +70,22 @@ pub open spec fn at_expected_reconcile_states(key: ObjectRef, expected_states: F
         key.kind.is_CustomResourceKind()
 {
     |s: Self| {
-        &&& s.reconcile_state_contains(key)
-        &&& expected_states(s.reconcile_state_of(key).local_state)
+        &&& s.ongoing_reconciles().contains_key(key)
+        &&& expected_states(s.ongoing_reconciles()[key].local_state)
     }
 }
 
 pub open spec fn pending_k8s_api_req_msg(s: Self, key: ObjectRef) -> bool {
-    s.reconcile_state_of(key).pending_req_msg.is_Some()
-    && s.reconcile_state_of(key).pending_req_msg.get_Some_0().content.is_APIRequest()
+    s.ongoing_reconciles()[key].pending_req_msg.is_Some()
+    && s.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.is_APIRequest()
 }
 
 pub open spec fn pending_k8s_api_req_msg_is(s: Self, key: ObjectRef, req: MsgType<E>) -> bool {
-    s.reconcile_state_of(key).pending_req_msg == Some(req)
+    s.ongoing_reconciles()[key].pending_req_msg == Some(req)
 }
 
 pub open spec fn no_pending_req_msg_or_external_api_input(s: Self, key: ObjectRef) -> bool {
-    s.reconcile_state_of(key).pending_req_msg.is_None()
+    s.ongoing_reconciles()[key].pending_req_msg.is_None()
 }
 
 pub open spec fn pending_req_in_flight_at_reconcile_state(key: ObjectRef, state: FnSpec(R::T) -> bool) -> StatePred<Self>
@@ -95,8 +95,8 @@ pub open spec fn pending_req_in_flight_at_reconcile_state(key: ObjectRef, state:
     |s: Self| {
         Self::at_expected_reconcile_states(key, state)(s)
         && Self::pending_k8s_api_req_msg(s, key)
-        && Self::request_sent_by_controller(s.pending_req_of(key))
-        && s.message_in_flight(s.pending_req_of(key))
+        && Self::request_sent_by_controller(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+        && s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
     }
 }
 
@@ -113,7 +113,7 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_reconcile_state(
         Self::at_expected_reconcile_states(key, state)(s)
         && Self::pending_k8s_api_req_msg_is(s, key, req_msg)
         && Self::request_sent_by_controller(req_msg)
-        && s.message_in_flight(req_msg)
+        && s.in_flight().contains(req_msg)
     }
 }
 
@@ -127,11 +127,11 @@ pub open spec fn pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
         Self::at_expected_reconcile_states(key, state)(s)
         ==> {
             Self::pending_k8s_api_req_msg(s, key)
-            && Self::request_sent_by_controller(s.pending_req_of(key))
-            && (s.message_in_flight(s.pending_req_of(key))
+            && Self::request_sent_by_controller(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+            && (s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
             || exists |resp_msg: MsgType<E>| {
-                #[trigger] s.message_in_flight(resp_msg)
-                && Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
+                #[trigger] s.in_flight().contains(resp_msg)
+                && Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
             })
         }
     }
@@ -145,7 +145,7 @@ pub open spec fn pending_req_msg_is_none_at_reconcile_state(
 {
     |s: Self| {
         Self::at_expected_reconcile_states(key, state)(s)
-        ==> s.reconcile_state_of(key).pending_req_msg.is_None()
+        ==> s.ongoing_reconciles()[key].pending_req_msg.is_None()
     }
 }
 
@@ -170,10 +170,10 @@ pub open spec fn resp_in_flight_matches_pending_req_at_reconcile_state(
     |s: Self| {
         Self::at_expected_reconcile_states(key, state)(s)
         && Self::pending_k8s_api_req_msg(s, key)
-        && Self::request_sent_by_controller(s.pending_req_of(key))
+        && Self::request_sent_by_controller(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
         && exists |resp_msg: MsgType<E>| {
-            #[trigger] s.message_in_flight(resp_msg)
-            && Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(key))
+            #[trigger] s.in_flight().contains(resp_msg)
+            && Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
         }
     }
 }

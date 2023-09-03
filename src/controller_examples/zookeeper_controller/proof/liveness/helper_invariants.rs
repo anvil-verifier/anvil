@@ -47,7 +47,7 @@ pub open spec fn pending_msg_at_after_create_stateful_set_step_is_create_sts_req
         at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s)
             ==> {
                 &&& ZKCluster::pending_k8s_api_req_msg(s, key)
-                &&& sts_create_request_msg(key)(s.pending_req_of(key))
+                &&& sts_create_request_msg(key)(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
             }
     }
 }
@@ -96,9 +96,9 @@ pub open spec fn filtered_create_sts_req_len_is_at_most_one(
         s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() > 0
         ==> {
             &&& at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s)
-            &&& s.pending_req_of(key).content.get_rest_id() >= rest_id
-            &&& s.message_in_flight(s.pending_req_of(key))
-            &&& sts_create_request_msg_since(key, rest_id)(s.pending_req_of(key))
+            &&& s.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id() >= rest_id
+            &&& s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+            &&& sts_create_request_msg_since(key, rest_id)(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
             &&& s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() == 1
         }
     }
@@ -178,7 +178,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
         let sts_create_req_multiset = s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id));
 
         assert forall |msg| sts_create_req_multiset.count(msg) == 0 by {
-            assert(!(s.message_in_flight(msg) && sts_create_request_msg_since(key, rest_id)(msg)));
+            assert(!(s.in_flight().contains(msg) && sts_create_request_msg_since(key, rest_id)(msg)));
         }
         multiset_lemmas::len_is_zero_means_count_for_each_value_is_zero(sts_create_req_multiset);
     }
@@ -220,10 +220,10 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
                         // has a no-smaller id than rest_id.
                         // So We go ahead and prove s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() == 1
                         // using extensional equality here.
-                        assert(sts_create_req_multiset.insert(s_prime.pending_req_of(key)) =~= sts_create_req_multiset_prime);
+                        assert(sts_create_req_multiset.insert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) =~= sts_create_req_multiset_prime);
                     } else if at_zookeeper_step(key, ZookeeperReconcileStep::Done)(s_prime) {
                         if at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s) {
-                            if s.pending_req_of(key).content.get_rest_id() >= rest_id {
+                            if s.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id() >= rest_id {
                                 // This is the most tricky path: we need to show
                                 // s.network_state.in_flight.filter(sts_create_request_msg_since(key, rest_id)).len() == 0
                                 // since this transition won't remove any req_msg from the network.
@@ -276,7 +276,7 @@ pub open spec fn at_most_one_create_sts_req_since_rest_id_is_in_flight(
             &&& #[trigger] s.network_state.in_flight.contains(msg)
             &&& sts_create_request_msg_since(key, rest_id)(msg)
         } ==> {
-            let pending_msg = s.pending_req_of(key);
+            let pending_msg = s.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
             &&& at_zookeeper_step(key, ZookeeperReconcileStep::AfterCreateStatefulSet)(s)
             &&& pending_msg.content.get_rest_id() >= rest_id
             &&& msg == pending_msg
@@ -358,7 +358,7 @@ pub open spec fn pending_msg_at_after_update_stateful_set_step_is_update_sts_req
         at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s)
             ==> {
                 &&& ZKCluster::pending_k8s_api_req_msg(s, key)
-                &&& sts_update_request_msg(key)(s.pending_req_of(key))
+                &&& sts_update_request_msg(key)(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
             }
     }
 }
@@ -407,9 +407,9 @@ pub open spec fn filtered_update_sts_req_len_is_at_most_one(
         s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() > 0
         ==> {
             &&& at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s)
-            &&& s.pending_req_of(key).content.get_rest_id() >= rest_id
-            &&& s.message_in_flight(s.pending_req_of(key))
-            &&& sts_update_request_msg_since(key, rest_id)(s.pending_req_of(key))
+            &&& s.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id() >= rest_id
+            &&& s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+            &&& sts_update_request_msg_since(key, rest_id)(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
             &&& s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() == 1
         }
     }
@@ -489,7 +489,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
         let sts_update_req_multiset = s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id));
 
         assert forall |msg| sts_update_req_multiset.count(msg) == 0 by {
-            assert(!(s.message_in_flight(msg) && sts_update_request_msg_since(key, rest_id)(msg)));
+            assert(!(s.in_flight().contains(msg) && sts_update_request_msg_since(key, rest_id)(msg)));
         }
         multiset_lemmas::len_is_zero_means_count_for_each_value_is_zero(sts_update_req_multiset);
     }
@@ -531,10 +531,10 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
                         // has a no-smaller id than rest_id.
                         // So We go ahead and prove s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() == 1
                         // using extensional equality here.
-                        assert(sts_update_req_multiset.insert(s_prime.pending_req_of(key)) =~= sts_update_req_multiset_prime);
+                        assert(sts_update_req_multiset.insert(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) =~= sts_update_req_multiset_prime);
                     } else if at_zookeeper_step(key, ZookeeperReconcileStep::Done)(s_prime) {
                         if at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s) {
-                            if s.pending_req_of(key).content.get_rest_id() >= rest_id {
+                            if s.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_rest_id() >= rest_id {
                                 // This is the most tricky path: we need to show
                                 // s.network_state.in_flight.filter(sts_update_request_msg_since(key, rest_id)).len() == 0
                                 // since this transition won't remove any req_msg from the network.
@@ -587,7 +587,7 @@ pub open spec fn at_most_one_update_sts_req_since_rest_id_is_in_flight(
             &&& #[trigger] s.network_state.in_flight.contains(msg)
             &&& sts_update_request_msg_since(key, rest_id)(msg)
         } ==> {
-            let pending_msg = s.pending_req_of(key);
+            let pending_msg = s.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
             &&& at_zookeeper_step(key, ZookeeperReconcileStep::AfterUpdateStatefulSet)(s)
             &&& pending_msg.content.get_rest_id() >= rest_id
             &&& msg == pending_msg
@@ -745,7 +745,7 @@ pub open spec fn no_delete_sts_req_since_rest_id_is_in_flight(
 {
     |s: ZKCluster| {
         forall |msg: ZKMessage| !{
-            &&& #[trigger] s.message_in_flight(msg)
+            &&& #[trigger] s.in_flight().contains(msg)
             &&& sts_delete_request_msg_since(key, rest_id)(msg)
         }
     }
@@ -785,8 +785,8 @@ pub proof fn lemma_always_no_delete_sts_req_since_rest_id_is_in_flight(
     assert forall |s, s_prime: ZKCluster| invariant(s) && #[trigger] next(s, s_prime)
     implies invariant(s_prime) by {
         assert forall |msg: ZKMessage|
-        !(#[trigger] s_prime.message_in_flight(msg) && sts_delete_request_msg_since(key, rest_id)(msg)) by {
-            if s.message_in_flight(msg) {} else {}
+        !(#[trigger] s_prime.in_flight().contains(msg) && sts_delete_request_msg_since(key, rest_id)(msg)) by {
+            if s.in_flight().contains(msg) {} else {}
         }
     }
 

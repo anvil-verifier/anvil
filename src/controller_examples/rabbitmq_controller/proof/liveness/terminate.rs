@@ -40,10 +40,10 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<RMQCluster>, rabbitm
         )))),
     ensures
         spec.entails(
-            true_pred().leads_to(lift_state(|s: RMQCluster| !s.reconcile_state_contains(rabbitmq.object_ref())))
+            true_pred().leads_to(lift_state(|s: RMQCluster| !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())))
         ),
 {
-    let reconcile_idle = |s: RMQCluster| { !s.reconcile_state_contains(rabbitmq.object_ref()) };
+    let reconcile_idle = |s: RMQCluster| { !s.ongoing_reconciles().contains_key(rabbitmq.object_ref()) };
     RMQCluster::lemma_reconcile_error_leads_to_reconcile_idle(spec, rabbitmq.object_ref());
     RMQCluster::lemma_reconcile_done_leads_to_reconcile_idle(spec, rabbitmq.object_ref());
     temp_pred_equality(
@@ -66,7 +66,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<RMQCluster>, rabbitm
         lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterUpdateStatefulSet)),
         lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateStatefulSet)),
         lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::Error));
-        lift_state(|s: RMQCluster| { !s.reconcile_state_contains(rabbitmq.object_ref()) })
+        lift_state(|s: RMQCluster| { !s.ongoing_reconciles().contains_key(rabbitmq.object_ref()) })
     );
     RMQCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterGetStatefulSet), next_state
@@ -87,7 +87,7 @@ pub proof fn reconcile_eventually_terminates(spec: TempPred<RMQCluster>, rabbitm
         lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterUpdateServerConfigMap)),
         lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::AfterCreateServerConfigMap)),
         lift_state(at_step_state_pred(rabbitmq, RabbitmqReconcileStep::Error));
-        lift_state(|s: RMQCluster| { !s.reconcile_state_contains(rabbitmq.object_ref()) })
+        lift_state(|s: RMQCluster| { !s.ongoing_reconciles().contains_key(rabbitmq.object_ref()) })
     );
     RMQCluster::lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         spec, rabbitmq, at_step_closure(RabbitmqReconcileStep::AfterGetServerConfigMap), next_state_1

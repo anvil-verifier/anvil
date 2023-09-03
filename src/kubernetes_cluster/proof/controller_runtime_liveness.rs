@@ -20,8 +20,8 @@ impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled(cr_key: ObjectRef) -> TempPred<Self> {
     Self::sm_partial_spec()
     .and(always(lift_state(|s: Self| {
-        &&& s.resource_key_exists(cr_key)
-        &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
+        &&& s.resources().contains_key(cr_key)
+        &&& K::from_dynamic_object(s.resources()[cr_key]).is_Ok()
     })))
     .and(always(lift_state(Self::crash_disabled())))
 }
@@ -104,13 +104,13 @@ pub proof fn lemma_reconcile_done_leads_to_reconcile_idle
         spec.entails(
             lift_state(Self::reconciler_reconcile_done(cr_key))
                 .leads_to(lift_state(|s: Self| {
-                    &&& !s.reconcile_state_contains(cr_key)
+                    &&& !s.ongoing_reconciles().contains_key(cr_key)
                 }))
         ),
 {
     let pre = Self::reconciler_reconcile_done(cr_key);
     let post = |s: Self| {
-        &&& !s.reconcile_state_contains(cr_key)
+        &&& !s.ongoing_reconciles().contains_key(cr_key)
     };
     let input = (None, Some(cr_key));
     Self::lemma_pre_leads_to_post_by_controller(
@@ -130,12 +130,12 @@ pub proof fn lemma_reconcile_error_leads_to_reconcile_idle
         spec.entails(
             lift_state(Self::reconciler_reconcile_error(cr_key))
                 .leads_to(lift_state(|s: Self| {
-                    &&& !s.reconcile_state_contains(cr_key)
+                    &&& !s.ongoing_reconciles().contains_key(cr_key)
                 }))
         ),
 {
     let pre = Self::reconciler_reconcile_error(cr_key);
-    let post = |s: Self| { !s.reconcile_state_contains(cr_key) };
+    let post = |s: Self| { !s.ongoing_reconciles().contains_key(cr_key) };
     let input = (None, Some(cr_key));
     Self::lemma_pre_leads_to_post_by_controller(
         spec, input,
@@ -154,15 +154,15 @@ pub proof fn lemma_reconcile_idle_and_scheduled_leads_to_reconcile_init
     ensures
         spec.entails(
             lift_state(|s: Self| {
-                &&& !s.reconcile_state_contains(cr_key)
-                &&& s.reconcile_scheduled_for(cr_key)
+                &&& !s.ongoing_reconciles().contains_key(cr_key)
+                &&& s.scheduled_reconciles().contains_key(cr_key)
             })
                 .leads_to(lift_state(Self::reconciler_init_and_no_pending_req(cr_key)))
         ),
 {
     let pre = |s: Self| {
-        &&& !s.reconcile_state_contains(cr_key)
-        &&& s.reconcile_scheduled_for(cr_key)
+        &&& !s.ongoing_reconciles().contains_key(cr_key)
+        &&& s.scheduled_reconciles().contains_key(cr_key)
     };
     let post = Self::reconciler_init_and_no_pending_req(cr_key);
     let stronger_next = |s, s_prime: Self| {
@@ -183,22 +183,22 @@ pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption(
         K::kind().is_CustomResourceKind(),
         cr_key.kind.is_CustomResourceKind(),
         spec.entails(always(lift_state(|s: Self| {
-            &&& s.resource_key_exists(cr_key)
-            &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
+            &&& s.resources().contains_key(cr_key)
+            &&& K::from_dynamic_object(s.resources()[cr_key]).is_Ok()
         }))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|input| Self::schedule_controller_reconcile().weak_fairness(input))),
     ensures
         spec.entails(
-            true_pred().leads_to(lift_state(|s: Self| s.reconcile_scheduled_for(cr_key)))
+            true_pred().leads_to(lift_state(|s: Self| s.scheduled_reconciles().contains_key(cr_key)))
         ),
 {
     let cr_key_exists = |s: Self| {
-        &&& s.resource_key_exists(cr_key)
-        &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
+        &&& s.resources().contains_key(cr_key)
+        &&& K::from_dynamic_object(s.resources()[cr_key]).is_Ok()
     };
     let pre = |s: Self| true;
-    let post = |s: Self| s.reconcile_scheduled_for(cr_key);
+    let post = |s: Self| s.scheduled_reconciles().contains_key(cr_key);
     let next_and_cr_exists = |s, s_prime: Self| {
         &&& Self::next()(s, s_prime)
         &&& cr_key_exists(s)
@@ -208,16 +208,16 @@ pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption(
     use_tla_forall::<Self, ObjectRef>(spec, |key| Self::schedule_controller_reconcile().weak_fairness(key), cr_key);
 
     entails_and_temp(spec, always(lift_state(|s: Self| {
-        &&& s.resource_key_exists(cr_key)
-        &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
+        &&& s.resources().contains_key(cr_key)
+        &&& K::from_dynamic_object(s.resources()[cr_key]).is_Ok()
     })), always(lift_state(|s: Self| { cr_key.kind.is_CustomResourceKind() })));
     always_and_equality(lift_state(|s: Self| {
-        &&& s.resource_key_exists(cr_key)
-        &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
+        &&& s.resources().contains_key(cr_key)
+        &&& K::from_dynamic_object(s.resources()[cr_key]).is_Ok()
     }), lift_state(|s: Self| { cr_key.kind.is_CustomResourceKind() }));
     temp_pred_equality(lift_state(|s: Self| {
-        &&& s.resource_key_exists(cr_key)
-        &&& K::from_dynamic_object(s.resource_obj_of(cr_key)).is_Ok()
+        &&& s.resources().contains_key(cr_key)
+        &&& K::from_dynamic_object(s.resources()[cr_key]).is_Ok()
     }).and(lift_state(|s: Self| { cr_key.kind.is_CustomResourceKind() })), lift_state(pre).implies(lift_state(Self::schedule_controller_reconcile().pre(cr_key))));
 
     Self::schedule_controller_reconcile().wf1(cr_key, spec, next_and_cr_exists, pre, post);
@@ -243,22 +243,22 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
             #[trigger] next_state(R::reconcile_core(cr_1, resp_o, s).0),
         spec.entails(
             lift_state(Self::at_expected_reconcile_states(cr.object_ref(), next_state))
-                .leads_to(lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref())))
+                .leads_to(lift_state(|s: Self| !s.ongoing_reconciles().contains_key(cr.object_ref())))
         ),
     ensures
         spec.entails(
             lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state))
-                .leads_to(lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref())))
+                .leads_to(lift_state(|s: Self| !s.ongoing_reconciles().contains_key(cr.object_ref())))
         ),
 {
     let at_some_state_and_pending_req_in_flight_or_resp_in_flight = |s: Self| {
         Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
         && Self::pending_k8s_api_req_msg(s, cr.object_ref())
-        && Self::request_sent_by_controller(s.pending_req_of(cr.object_ref()))
-        && (s.message_in_flight(s.pending_req_of(cr.object_ref()))
+        && Self::request_sent_by_controller(s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
+        && (s.in_flight().contains(s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
         || exists |resp_msg: MsgType<E>| {
-            #[trigger] s.message_in_flight(resp_msg)
-            && Message::resp_msg_matches_req_msg(resp_msg, s.pending_req_of(cr.object_ref()))
+            #[trigger] s.in_flight().contains(resp_msg)
+            && Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
         })
     };
     temp_pred_equality::<Self>(lift_state(Self::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(cr.object_ref(), state)), lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)).implies(lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight)));
@@ -280,7 +280,7 @@ pub proof fn lemma_from_some_state_to_arbitrary_next_state_to_reconcile_idle(
         lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)),
         lift_state(at_some_state_and_pending_req_in_flight_or_resp_in_flight),
         lift_state(Self::at_expected_reconcile_states(cr.object_ref(), next_state)),
-        lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref()))
+        lift_state(|s: Self| !s.ongoing_reconciles().contains_key(cr.object_ref()))
     );
 }
 
@@ -300,12 +300,12 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(
             next_state(#[trigger] R::reconcile_core(cr_1, resp_o, s).0),
         spec.entails(
             lift_state(Self::at_expected_reconcile_states(cr.object_ref(), next_state))
-                .leads_to(lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref())))
+                .leads_to(lift_state(|s: Self| !s.ongoing_reconciles().contains_key(cr.object_ref())))
         ),
     ensures
         spec.entails(
             lift_state(Self::at_expected_reconcile_states(cr.object_ref(), init_state))
-                .leads_to(lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref())))
+                .leads_to(lift_state(|s: Self| !s.ongoing_reconciles().contains_key(cr.object_ref())))
         ),
 {
     let no_pending_req = |s: Self| {
@@ -336,7 +336,7 @@ pub proof fn lemma_from_init_state_to_next_state_to_reconcile_idle(
         lift_state(Self::at_expected_reconcile_states(cr.object_ref(), init_state)),
         lift_state(no_pending_req),
         lift_state(Self::at_expected_reconcile_states(cr.object_ref(), next_state)),
-        lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref()))
+        lift_state(|s: Self| !s.ongoing_reconciles().contains_key(cr.object_ref()))
     );
 }
 
@@ -381,9 +381,9 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
         |s: Self| {
             Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
             && Self::pending_k8s_api_req_msg(s, cr.object_ref())
-            && Self::request_sent_by_controller(s.pending_req_of(cr.object_ref()))
-            && s.message_in_flight(resp)
-            && Message::resp_msg_matches_req_msg(resp, s.pending_req_of(cr.object_ref()))
+            && Self::request_sent_by_controller(s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
+            && s.in_flight().contains(resp)
+            && Message::resp_msg_matches_req_msg(resp, s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
         }
     );
     assert forall |msg: MsgType<E>| spec.entails(#[trigger] known_resp_in_flight(msg)
@@ -391,9 +391,9 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
             let resp_in_flight_state = |s: Self| {
                 Self::at_expected_reconcile_states(cr.object_ref(), state)(s)
                 && Self::pending_k8s_api_req_msg(s, cr.object_ref())
-                && Self::request_sent_by_controller(s.pending_req_of(cr.object_ref()))
-                && s.message_in_flight(msg)
-                && Message::resp_msg_matches_req_msg(msg, s.pending_req_of(cr.object_ref()))
+                && Self::request_sent_by_controller(s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
+                && s.in_flight().contains(msg)
+                && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
             };
             let input = (Some(msg), Some(cr.object_ref()));
             Self::lemma_pre_leads_to_post_by_controller(
@@ -408,8 +408,8 @@ pub proof fn lemma_from_in_flight_resp_matches_pending_req_at_some_state_to_next
             implies tla_exists(known_resp_in_flight).satisfied_by(ex) by {
                 let s = ex.head();
                 let msg = choose |resp_msg: MsgType<E>| {
-                    #[trigger] s.message_in_flight(resp_msg)
-                    && Message::resp_msg_matches_req_msg(resp_msg, s.reconcile_state_of(cr.object_ref()).pending_req_msg.get_Some_0())
+                    #[trigger] s.in_flight().contains(resp_msg)
+                    && Message::resp_msg_matches_req_msg(resp_msg, s.ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0())
                 };
                 assert(known_resp_in_flight(msg).satisfied_by(ex));
             }
@@ -466,7 +466,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
         && Self::kubernetes_api_next().forward(input)(s, s_prime) implies post_1(s_prime) by {
             let resp_msg = Self::transition_by_etcd(req_msg, s.kubernetes_api_state).1;
             assert({
-                &&& s_prime.message_in_flight(resp_msg)
+                &&& s_prime.in_flight().contains(resp_msg)
                 &&& Message::resp_msg_matches_req_msg(resp_msg, req_msg)
             });
         };
@@ -485,7 +485,7 @@ pub proof fn lemma_from_pending_req_in_flight_at_some_state_to_next_state(
         {
             assert forall |ex| #[trigger] lift_state(pre).satisfied_by(ex) implies
             tla_exists(msg_2_temp).satisfied_by(ex) by {
-                let req_msg = ex.head().pending_req_of(cr.object_ref());
+                let req_msg = ex.head().ongoing_reconciles()[cr.object_ref()].pending_req_msg.get_Some_0();
                 assert(msg_2_temp(req_msg).satisfied_by(ex));
             }
             temp_pred_equality(lift_state(pre), tla_exists(msg_2_temp));
@@ -515,12 +515,12 @@ pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile
             state(s) ==> next_state(#[trigger] R::reconcile_core(cr_1, resp_o, s).0),
         spec.entails(
             lift_state(Self::at_expected_reconcile_states(cr.object_ref(), next_state))
-                .leads_to(lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref())))
+                .leads_to(lift_state(|s: Self| !s.ongoing_reconciles().contains_key(cr.object_ref())))
         ),
     ensures
         spec.entails(
             lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state))
-                .leads_to(lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref())))
+                .leads_to(lift_state(|s: Self| !s.ongoing_reconciles().contains_key(cr.object_ref())))
         ),
 {
     let no_req_at_state = |s: Self| {
@@ -542,7 +542,7 @@ pub proof fn lemma_from_some_state_with_ext_resp_to_two_next_states_to_reconcile
         lift_state(Self::at_expected_reconcile_states(cr.object_ref(), state)),
         lift_state(no_req_at_state),
         lift_state(Self::at_expected_reconcile_states(cr.object_ref(), next_state)),
-        lift_state(|s: Self| !s.reconcile_state_contains(cr.object_ref()))
+        lift_state(|s: Self| !s.ongoing_reconciles().contains_key(cr.object_ref()))
     );
 }
 
