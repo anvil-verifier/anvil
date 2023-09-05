@@ -3,9 +3,9 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*,
+    api_method::*, common::*, config_map::*, container::*, label_selector::*, object_meta::*,
     persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, role::*,
-    role_binding::*, secret::*, service::*, service_account::*, stateful_set::*,
+    role_binding::*, secret::*, service::*, service_account::*, stateful_set::*, volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
@@ -283,7 +283,7 @@ pub open spec fn reconcile_core(
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
         RabbitmqReconcileStep::AfterGetStatefulSet => {
-            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() 
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse()
             && state.latest_config_map_rv_opt.is_Some() {
                 let get_sts_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
                 if get_sts_resp.is_Ok() {
@@ -294,7 +294,7 @@ pub open spec fn reconcile_core(
                             let req_o = APIRequest::UpdateRequest(UpdateRequest {
                                 key: make_stateful_set_key(rabbitmq.object_ref()),
                                 obj: update_stateful_set(
-                                    rabbitmq, found_stateful_set, 
+                                    rabbitmq, found_stateful_set,
                                     state.latest_config_map_rv_opt.get_Some_0()
                                 ).to_dynamic_object(),
                             });
@@ -690,7 +690,6 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
     StatefulSetView::default().set_metadata(metadata).set_spec(spec)
 }
 
-
 pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpecView
     recommends
         rabbitmq.metadata.name.is_Some(),
@@ -817,6 +816,15 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                     ContainerPortView::default().set_name(new_strlit("amqp")@).set_container_port(5672),
                     ContainerPortView::default().set_name(new_strlit("management")@).set_container_port(15672),
                 ])
+                .set_readiness_probe(
+                    ProbeView::default()
+                        .set_failure_threshold(3)
+                        .set_initial_delay_seconds(50)
+                        .set_period_seconds(10)
+                        .set_success_threshold(1)
+                        .set_timeout_seconds(5)
+                        .set_tcp_socket(TCPSocketActionView::default().set_port(5672))
+                )
         ])
         .set_volumes(volumes)
 }

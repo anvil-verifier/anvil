@@ -186,7 +186,6 @@ impl ContainerPort {
     }
 }
 
-
 #[verifier(external_body)]
 pub struct VolumeMount {
     inner: deps_hack::k8s_openapi::api::core::v1::VolumeMount,
@@ -313,6 +312,14 @@ impl Probe {
     }
 
     #[verifier(external_body)]
+    pub fn set_tcp_socket(&mut self, tcp_socket: TCPSocketAction)
+        ensures
+            self@ == old(self)@.set_tcp_socket(tcp_socket@),
+    {
+        self.inner.tcp_socket = Some(tcp_socket.into_kube());
+    }
+
+    #[verifier(external_body)]
     pub fn set_timeout_seconds(&mut self, timeout_seconds: i32)
         ensures
             self@ == old(self)@.set_timeout_seconds(timeout_seconds as int),
@@ -364,6 +371,51 @@ impl ExecAction {
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ExecAction {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct TCPSocketAction {
+    inner: deps_hack::k8s_openapi::api::core::v1::TCPSocketAction,
+}
+
+impl TCPSocketAction {
+    pub spec fn view(&self) -> TCPSocketActionView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (tcp_socket_action: TCPSocketAction)
+        ensures
+            tcp_socket_action@ == TCPSocketActionView::default(),
+    {
+        TCPSocketAction {
+            inner: deps_hack::k8s_openapi::api::core::v1::TCPSocketAction::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_host(&mut self, host: String)
+        ensures
+            self@ == old(self)@.set_host(host@),
+    {
+        self.inner.host = Some(host.into_rust_string());
+    }
+
+    #[verifier(external_body)]
+    pub fn set_port(&mut self, port: i32)
+        ensures
+            self@ == old(self)@.set_port(port as int),
+    {
+        self.inner.port = deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(port);
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::TCPSocketAction) -> TCPSocketAction {
+        TCPSocketAction { inner: inner }
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::TCPSocketAction {
         self.inner
     }
 }
@@ -649,6 +701,7 @@ pub struct ProbeView {
     pub initial_delay_seconds: Option<int>,
     pub period_seconds: Option<int>,
     pub success_threshold: Option<int>,
+    pub tcp_socket: Option<TCPSocketActionView>,
     pub timeout_seconds: Option<int>,
 }
 
@@ -660,6 +713,7 @@ impl ProbeView {
             initial_delay_seconds: None,
             period_seconds: None,
             success_threshold: None,
+            tcp_socket: None,
             timeout_seconds: None,
         }
     }
@@ -699,6 +753,13 @@ impl ProbeView {
         }
     }
 
+    pub open spec fn set_tcp_socket(self, tcp_socket: TCPSocketActionView) -> ProbeView {
+        ProbeView {
+            tcp_socket: Some(tcp_socket),
+            ..self
+        }
+    }
+
     pub open spec fn set_timeout_seconds(self, timeout_seconds: int) -> ProbeView {
         ProbeView {
             timeout_seconds: Some(timeout_seconds),
@@ -721,6 +782,34 @@ impl ExecActionView {
     pub open spec fn set_command(self, command: Seq<StringView>) -> ExecActionView {
         ExecActionView {
             command: Some(command),
+            ..self
+        }
+    }
+}
+
+pub struct TCPSocketActionView {
+    pub host: Option<StringView>,
+    pub port: int,
+}
+
+impl TCPSocketActionView {
+    pub open spec fn default() -> TCPSocketActionView {
+        TCPSocketActionView {
+            host: None,
+            port: 0,
+        }
+    }
+
+    pub open spec fn set_host(self, host: StringView) -> TCPSocketActionView {
+        TCPSocketActionView {
+            host: Some(host),
+            ..self
+        }
+    }
+
+    pub open spec fn set_port(self, port: int) -> TCPSocketActionView {
+        TCPSocketActionView {
+            port: port,
             ..self
         }
     }
