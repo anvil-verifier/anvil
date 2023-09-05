@@ -3,9 +3,9 @@
 #![allow(unused_imports)]
 use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, error::*, label_selector::*, object_meta::*,
-    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
-    resource_requirements::*, service::*, stateful_set::*,
+    api_method::*, common::*, config_map::*, container::*, error::*, label_selector::*,
+    object_meta::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
+    resource_requirements::*, service::*, stateful_set::*, volume::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::{string_view::*, to_view::*};
@@ -908,15 +908,21 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                 lifecycle.set_pre_stop({
                     let mut pre_stop = LifecycleHandler::default();
                     pre_stop.set_exec({
-                        let mut commands = Vec::new();
-                        commands.push(new_strlit("zookeeperTeardown.sh").to_string());
-                        proof {
-                            assert_seqs_equal!(
-                                commands@.map_values(|command: String| command@),
-                                zk_spec::make_zk_pod_spec(zk@).containers[0].lifecycle.get_Some_0().pre_stop.get_Some_0().exec_.get_Some_0()
-                            );
-                        }
-                        commands
+                        let mut exec = ExecAction::default();
+                        exec.set_command({
+                            let mut command = Vec::new();
+                            command.push(new_strlit("zookeeperTeardown.sh").to_string());
+
+                            proof {
+                                assert_seqs_equal!(
+                                    command@.map_values(|s: String| s@),
+                                    zk_spec::make_zk_pod_spec(zk@).containers[0].lifecycle.get_Some_0().pre_stop.get_Some_0().exec_.get_Some_0().command.get_Some_0()
+                                );
+                            }
+
+                            command
+                        });
+                        exec
                     });
                     pre_stop
                 });
@@ -964,8 +970,58 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
 
                 ports
             });
-            zk_container.set_readiness_probe(make_readiness_probe());
-            zk_container.set_liveness_probe(make_liveness_probe());
+            zk_container.set_readiness_probe({
+                let mut probe = Probe::default();
+                probe.set_exec({
+                    let mut exec = ExecAction::default();
+                    exec.set_command({
+                        let mut command = Vec::new();
+                        command.push(new_strlit("zookeeperReady.sh").to_string());
+
+                        proof {
+                            assert_seqs_equal!(
+                                command@.map_values(|s: String| s@),
+                                zk_spec::make_zk_pod_spec(zk@).containers[0].readiness_probe.get_Some_0().exec_.get_Some_0().command.get_Some_0()
+                            );
+                        }
+
+                        command
+                    });
+                    exec
+                });
+                probe.set_failure_threshold(3);
+                probe.set_initial_delay_seconds(10);
+                probe.set_period_seconds(10);
+                probe.set_success_threshold(1);
+                probe.set_timeout_seconds(10);
+                probe
+            });
+            zk_container.set_liveness_probe({
+                let mut probe = Probe::default();
+                probe.set_exec({
+                    let mut exec = ExecAction::default();
+                    exec.set_command({
+                        let mut command = Vec::new();
+                        command.push(new_strlit("zookeeperLive.sh").to_string());
+
+                        proof {
+                            assert_seqs_equal!(
+                                command@.map_values(|s: String| s@),
+                                zk_spec::make_zk_pod_spec(zk@).containers[0].liveness_probe.get_Some_0().exec_.get_Some_0().command.get_Some_0()
+                            );
+                        }
+
+                        command
+                    });
+                    exec
+                });
+                probe.set_failure_threshold(3);
+                probe.set_initial_delay_seconds(10);
+                probe.set_period_seconds(10);
+                probe.set_success_threshold(1);
+                probe.set_timeout_seconds(10);
+                probe
+            });
             zk_container
         });
 
@@ -1002,42 +1058,6 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
     });
 
     pod_spec
-}
-
-#[verifier(external_body)]
-fn make_readiness_probe() -> Probe
-{
-    Probe::from_kube(
-        deps_hack::k8s_openapi::api::core::v1::Probe {
-            exec: Some(deps_hack::k8s_openapi::api::core::v1::ExecAction {
-                command: Some(vec!["zookeeperReady.sh".to_string()]),
-            }),
-            failure_threshold: Some(3),
-            initial_delay_seconds: Some(10),
-            period_seconds: Some(10),
-            success_threshold: Some(1),
-            timeout_seconds: Some(10),
-            ..deps_hack::k8s_openapi::api::core::v1::Probe::default()
-        }
-    )
-}
-
-#[verifier(external_body)]
-fn make_liveness_probe() -> Probe
-{
-    Probe::from_kube(
-        deps_hack::k8s_openapi::api::core::v1::Probe {
-            exec: Some(deps_hack::k8s_openapi::api::core::v1::ExecAction {
-                command: Some(vec!["zookeeperLive.sh".to_string()]),
-            }),
-            failure_threshold: Some(3),
-            initial_delay_seconds: Some(10),
-            period_seconds: Some(10),
-            success_threshold: Some(1),
-            timeout_seconds: Some(10),
-            ..deps_hack::k8s_openapi::api::core::v1::Probe::default()
-        }
-    )
 }
 
 #[verifier(external_body)]

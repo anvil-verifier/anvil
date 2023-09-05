@@ -83,6 +83,22 @@ impl Container {
         self.inner.resources = Some(resources.into_kube())
     }
 
+    #[verifier(external_body)]
+    pub fn set_liveness_probe(&mut self, liveness_probe: Probe)
+        ensures
+            self@ == old(self)@.set_liveness_probe(liveness_probe@),
+    {
+        self.inner.liveness_probe = Some(liveness_probe.into_kube())
+    }
+
+    #[verifier(external_body)]
+    pub fn set_readiness_probe(&mut self, readiness_probe: Probe)
+        ensures
+            self@ == old(self)@.set_readiness_probe(readiness_probe@),
+    {
+        self.inner.readiness_probe = Some(readiness_probe.into_kube())
+    }
+
     // Methods for the fields that do not appear in spec
 
     #[verifier(external_body)]
@@ -101,22 +117,6 @@ impl Container {
             self@ == old(self)@,
     {
         self.inner.image_pull_policy = Some(image_pull_policy.into_rust_string())
-    }
-
-    #[verifier(external_body)]
-    pub fn set_liveness_probe(&mut self, liveness_probe: Probe)
-        ensures
-            self@ == old(self)@,
-    {
-        self.inner.liveness_probe = Some(liveness_probe.into_kube())
-    }
-
-    #[verifier(external_body)]
-    pub fn set_readiness_probe(&mut self, readiness_probe: Probe)
-        ensures
-            self@ == old(self)@,
-    {
-        self.inner.readiness_probe = Some(readiness_probe.into_kube())
     }
 
     #[verifier(external_body)]
@@ -260,6 +260,66 @@ pub struct Probe {
 }
 
 impl Probe {
+    pub spec fn view(&self) -> ProbeView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (probe: Probe)
+        ensures
+            probe@ == ProbeView::default(),
+    {
+        Probe {
+            inner: deps_hack::k8s_openapi::api::core::v1::Probe::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_exec(&mut self, exec: ExecAction)
+        ensures
+            self@ == old(self)@.set_exec(exec@),
+    {
+        self.inner.exec = Some(exec.into_kube());
+    }
+
+    #[verifier(external_body)]
+    pub fn set_failure_threshold(&mut self, failure_threshold: i32)
+        ensures
+            self@ == old(self)@.set_failure_threshold(failure_threshold as int),
+    {
+        self.inner.failure_threshold = Some(failure_threshold);
+    }
+
+    #[verifier(external_body)]
+    pub fn set_initial_delay_seconds(&mut self, initial_delay_seconds: i32)
+        ensures
+            self@ == old(self)@.set_initial_delay_seconds(initial_delay_seconds as int),
+    {
+        self.inner.initial_delay_seconds = Some(initial_delay_seconds);
+    }
+
+    #[verifier(external_body)]
+    pub fn set_period_seconds(&mut self, period_seconds: i32)
+        ensures
+            self@ == old(self)@.set_period_seconds(period_seconds as int),
+    {
+        self.inner.period_seconds = Some(period_seconds);
+    }
+
+    #[verifier(external_body)]
+    pub fn set_success_threshold(&mut self, success_threshold: i32)
+        ensures
+            self@ == old(self)@.set_success_threshold(success_threshold as int),
+    {
+        self.inner.success_threshold = Some(success_threshold);
+    }
+
+    #[verifier(external_body)]
+    pub fn set_timeout_seconds(&mut self, timeout_seconds: i32)
+        ensures
+            self@ == old(self)@.set_timeout_seconds(timeout_seconds as int),
+    {
+        self.inner.timeout_seconds = Some(timeout_seconds);
+    }
+
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Probe) -> Probe {
         Probe { inner: inner }
@@ -267,6 +327,43 @@ impl Probe {
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Probe {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct ExecAction {
+    inner: deps_hack::k8s_openapi::api::core::v1::ExecAction,
+}
+
+impl ExecAction {
+    pub spec fn view(&self) -> ExecActionView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (exec_action: ExecAction)
+        ensures
+            exec_action@ == ExecActionView::default(),
+    {
+        ExecAction {
+            inner: deps_hack::k8s_openapi::api::core::v1::ExecAction::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_command(&mut self, command: Vec<String>)
+        ensures
+            self@ == old(self)@.set_command(command@.map_values(|s: String| s@)),
+    {
+        self.inner.command = Some(command.into_iter().map(|s: String| s.into_rust_string()).collect());
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ExecAction) -> ExecAction {
+        ExecAction { inner: inner }
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ExecAction {
         self.inner
     }
 }
@@ -322,16 +419,11 @@ impl LifecycleHandler {
     }
 
     #[verifier(external_body)]
-    pub fn set_exec(&mut self, commands: Vec<String>)
+    pub fn set_exec(&mut self, exec: ExecAction)
         ensures
-            self@ == old(self)@.set_exec(commands@.map_values(|c: String| c@)),
+            self@ == old(self)@.set_exec(exec@),
     {
-        self.inner.exec = Some(
-            // TODO: wrap a resource wrapper for ExecAction
-            deps_hack::k8s_openapi::api::core::v1::ExecAction {
-                command: Some(commands.into_iter().map(|c: String| c.into_rust_string()).collect())
-            }
-        );
+        self.inner.exec = Some(exec.into_kube());
     }
 
     #[verifier(external)]
@@ -364,6 +456,8 @@ pub struct ContainerView {
     pub volume_mounts: Option<Seq<VolumeMountView>>,
     pub lifecycle: Option<LifecycleView>,
     pub resources: Option<ResourceRequirementsView>,
+    pub readiness_probe: Option<ProbeView>,
+    pub liveness_probe: Option<ProbeView>,
 }
 
 impl ContainerView {
@@ -375,6 +469,8 @@ impl ContainerView {
             volume_mounts: None,
             lifecycle: None,
             resources: None,
+            readiness_probe: None,
+            liveness_probe: None,
         }
     }
 
@@ -419,6 +515,20 @@ impl ContainerView {
             ..self
         }
     }
+
+    pub open spec fn set_readiness_probe(self, readiness_probe: ProbeView) -> ContainerView {
+        ContainerView {
+            readiness_probe: Some(readiness_probe),
+            ..self
+        }
+    }
+
+    pub open spec fn set_liveness_probe(self, liveness_probe: ProbeView) -> ContainerView {
+        ContainerView {
+            liveness_probe: Some(liveness_probe),
+            ..self
+        }
+    }
 }
 
 pub struct LifecycleView {
@@ -441,7 +551,7 @@ impl LifecycleView {
 }
 
 pub struct LifecycleHandlerView {
-    pub exec_: Option<Seq<StringView>>,
+    pub exec_: Option<ExecActionView>,
 }
 
 impl LifecycleHandlerView {
@@ -451,10 +561,9 @@ impl LifecycleHandlerView {
         }
     }
 
-    pub open spec fn set_exec(self, commands: Seq<StringView>) -> LifecycleHandlerView {
-        // TODO: implement a ghost type for ExecAction
+    pub open spec fn set_exec(self, exec: ExecActionView) -> LifecycleHandlerView {
         LifecycleHandlerView {
-            exec_: Some(commands),
+            exec_: Some(exec),
             ..self
         }
     }
@@ -529,6 +638,89 @@ impl VolumeMountView {
     pub open spec fn set_sub_path(self, sub_path: StringView) -> VolumeMountView {
         VolumeMountView {
             sub_path: Some(sub_path),
+            ..self
+        }
+    }
+}
+
+pub struct ProbeView {
+    pub exec_: Option<ExecActionView>,
+    pub failure_threshold: Option<int>,
+    pub initial_delay_seconds: Option<int>,
+    pub period_seconds: Option<int>,
+    pub success_threshold: Option<int>,
+    pub timeout_seconds: Option<int>,
+}
+
+impl ProbeView {
+    pub open spec fn default() -> ProbeView {
+        ProbeView {
+            exec_: None,
+            failure_threshold: None,
+            initial_delay_seconds: None,
+            period_seconds: None,
+            success_threshold: None,
+            timeout_seconds: None,
+        }
+    }
+
+    pub open spec fn set_exec(self, exec: ExecActionView) -> ProbeView {
+        ProbeView {
+            exec_: Some(exec),
+            ..self
+        }
+    }
+
+    pub open spec fn set_failure_threshold(self, failure_threshold: int) -> ProbeView {
+        ProbeView {
+            failure_threshold: Some(failure_threshold),
+            ..self
+        }
+    }
+
+    pub open spec fn set_initial_delay_seconds(self, initial_delay_seconds: int) -> ProbeView {
+        ProbeView {
+            initial_delay_seconds: Some(initial_delay_seconds),
+            ..self
+        }
+    }
+
+    pub open spec fn set_period_seconds(self, period_seconds: int) -> ProbeView {
+        ProbeView {
+            period_seconds: Some(period_seconds),
+            ..self
+        }
+    }
+
+    pub open spec fn set_success_threshold(self, success_threshold: int) -> ProbeView {
+        ProbeView {
+            success_threshold: Some(success_threshold),
+            ..self
+        }
+    }
+
+    pub open spec fn set_timeout_seconds(self, timeout_seconds: int) -> ProbeView {
+        ProbeView {
+            timeout_seconds: Some(timeout_seconds),
+            ..self
+        }
+    }
+}
+
+pub struct ExecActionView {
+    pub command: Option<Seq<StringView>>,
+}
+
+impl ExecActionView {
+    pub open spec fn default() -> ExecActionView {
+        ExecActionView {
+            command: None,
+        }
+    }
+
+    pub open spec fn set_command(self, command: Seq<StringView>) -> ExecActionView {
+        ExecActionView {
+            command: Some(command),
             ..self
         }
     }
