@@ -534,7 +534,7 @@ pub fn make_default_user_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
     );
     data.insert(new_strlit("provider").to_string(), new_strlit("rabbitmq").to_string());
     data.insert(new_strlit("default_user.conf").to_string(), new_strlit("default_user = user\ndefault_pass = changeme").to_string());
-    data.insert(new_strlit(".port").to_string(), new_strlit("5672").to_string());
+    data.insert(new_strlit("port").to_string(), new_strlit("5672").to_string());
     make_secret(rabbitmq, rabbitmq.name().unwrap().concat(new_strlit("-default-user")), data)
 }
 

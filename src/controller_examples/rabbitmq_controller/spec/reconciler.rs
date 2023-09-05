@@ -456,7 +456,7 @@ pub open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> Secr
         )
         .insert(new_strlit("provider")@, new_strlit("rabbitmq")@)
         .insert(new_strlit("default_user.conf")@, new_strlit("default_user = user\ndefault_pass = changeme")@)
-        .insert(new_strlit(".port")@, new_strlit("5672")@);
+        .insert(new_strlit("port")@, new_strlit("5672")@);
     make_secret(rabbitmq, rabbitmq.metadata.name.get_Some_0() + new_strlit("-default-user")@, data)
 }
 
