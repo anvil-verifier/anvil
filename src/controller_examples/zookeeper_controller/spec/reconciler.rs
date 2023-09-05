@@ -4,7 +4,7 @@
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, container::*, error::*, label_selector::*,
     object_meta::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
-    service::*, stateful_set::*, volume::*,
+    resource_requirements::*, service::*, stateful_set::*, volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
@@ -698,6 +698,11 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
                 )
                 .set_spec(PersistentVolumeClaimSpecView::default()
                     .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
+                    .set_resources(ResourceRequirementsView::default()
+                        .set_requests(Map::empty()
+                            .insert(new_strlit("storage")@, new_strlit("20Gi")@)
+                        )
+                    )
                 )
         ]);
 
