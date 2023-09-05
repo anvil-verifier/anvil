@@ -4,10 +4,10 @@
 use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, label_selector::*, object_meta::*, owner_reference::*,
-    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
+    api_method::*, common::*, config_map::*, container::*, label_selector::*, object_meta::*,
+    owner_reference::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
     resource_requirements::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
-    stateful_set::*,
+    stateful_set::*, volume::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
@@ -1316,7 +1316,6 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
             rabbitmq_container.set_name(new_strlit("rabbitmq").to_string());
             rabbitmq_container.set_image(new_strlit("rabbitmq:3.11.10-management").to_string());
             rabbitmq_container.set_env(make_env_vars(&rabbitmq));
-            // rabbitmq_container.set_resources(make_container_resource_requirements());
             rabbitmq_container.set_volume_mounts({
                 let mut volume_mounts = Vec::new();
                 volume_mounts.push({
@@ -1387,7 +1386,20 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
 
                 ports
             });
-            rabbitmq_container.set_readiness_probe(make_readiness_probe());
+            rabbitmq_container.set_readiness_probe({
+                let mut probe = Probe::default();
+                probe.set_failure_threshold(3);
+                probe.set_initial_delay_seconds(50);
+                probe.set_period_seconds(10);
+                probe.set_success_threshold(1);
+                probe.set_timeout_seconds(5);
+                probe.set_tcp_socket({
+                    let mut tcp_socket_action = TCPSocketAction::default();
+                    tcp_socket_action.set_port(5672);
+                    tcp_socket_action
+                });
+                probe
+            });
             rabbitmq_container
         });
         proof {
@@ -1400,25 +1412,6 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     });
     pod_spec.set_volumes(volumes);
     pod_spec
-}
-
-#[verifier(external_body)]
-fn make_readiness_probe() -> Probe
-{
-    Probe::from_kube(
-        deps_hack::k8s_openapi::api::core::v1::Probe {
-            failure_threshold: Some(3),
-            initial_delay_seconds: Some(50),
-            period_seconds: Some(10),
-            success_threshold: Some(1),
-            timeout_seconds: Some(5),
-            tcp_socket: Some(deps_hack::k8s_openapi::api::core::v1::TCPSocketAction{
-                port: deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::String(new_strlit("amqp").to_string().into_rust_string()),
-                ..deps_hack::k8s_openapi::api::core::v1::TCPSocketAction::default()
-            }),
-            ..deps_hack::k8s_openapi::api::core::v1::Probe::default()
-        }
-    )
 }
 
 #[verifier(external_body)]

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, error::*, label_selector::*, object_meta::*,
-    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, service::*,
-    stateful_set::*,
+    api_method::*, common::*, config_map::*, container::*, error::*, label_selector::*,
+    object_meta::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
+    service::*, stateful_set::*, volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
@@ -715,7 +715,10 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
                 .set_image(zk.spec.image)
                 .set_lifecycle(LifecycleView::default()
                     .set_pre_stop(LifecycleHandlerView::default()
-                        .set_exec(seq![new_strlit("zookeeperTeardown.sh")@])
+                        .set_exec(
+                            ExecActionView::default()
+                                .set_command(seq![new_strlit("zookeeperTeardown.sh")@])
+                        )
                     )
                 )
                 .set_volume_mounts(seq![
@@ -733,6 +736,30 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
                     ContainerPortView::default().set_name(new_strlit("metrics")@).set_container_port(7000),
                     ContainerPortView::default().set_name(new_strlit("admin-server")@).set_container_port(8080)
                 ])
+                .set_readiness_probe(
+                    ProbeView::default()
+                        .set_exec(
+                            ExecActionView::default()
+                                .set_command(seq![new_strlit("zookeeperReady.sh")@])
+                        )
+                        .set_failure_threshold(3)
+                        .set_initial_delay_seconds(10)
+                        .set_period_seconds(10)
+                        .set_success_threshold(1)
+                        .set_timeout_seconds(10)
+                )
+                .set_liveness_probe(
+                    ProbeView::default()
+                        .set_exec(
+                            ExecActionView::default()
+                                .set_command(seq![new_strlit("zookeeperLive.sh")@])
+                        )
+                        .set_failure_threshold(3)
+                        .set_initial_delay_seconds(10)
+                        .set_period_seconds(10)
+                        .set_success_threshold(1)
+                        .set_timeout_seconds(10)
+                )
         ])
         .set_volumes(seq![
             VolumeView::default().set_name(new_strlit("conf")@).set_config_map(
