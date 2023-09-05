@@ -1041,7 +1041,15 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (sta
 
                         access_modes
                     });
-                    pvc_spec.set_resources(make_pvc_resource_requirements());
+                    pvc_spec.set_resources({
+                        let mut resources = ResourceRequirements::default();
+                        resources.set_requests({
+                            let mut requests = StringMap::empty();
+                            requests.insert(new_strlit("storage").to_string(), new_strlit("10Gi").to_string());
+                            requests
+                        });
+                        resources
+                    });
                     pvc_spec
                 });
                 pvc
@@ -1495,20 +1503,6 @@ fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> {
         )
     );
     env_vars
-}
-
-#[verifier(external_body)]
-fn make_pvc_resource_requirements() -> ResourceRequirements
-{
-    ResourceRequirements::from_kube(
-        deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
-            requests: Some(std::collections::BTreeMap::from([(
-                "storage".to_string(),
-                deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity("10Gi".to_string()),
-            )])),
-            ..deps_hack::k8s_openapi::api::core::v1::ResourceRequirements::default()
-        }
-    )
 }
 
 }

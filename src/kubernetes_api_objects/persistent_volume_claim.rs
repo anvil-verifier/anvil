@@ -153,7 +153,7 @@ impl PersistentVolumeClaimSpec {
     #[verifier(external_body)]
     pub fn set_resources(&mut self, resources: ResourceRequirements)
         ensures
-            self@ == old(self)@,
+            self@ == old(self)@.set_resources(resources@),
     {
         self.inner.resources = Some(resources.into_kube())
     }
@@ -290,18 +290,27 @@ impl Marshalable for PersistentVolumeClaimView {
 
 pub struct PersistentVolumeClaimSpecView {
     pub access_modes: Option<Seq<StringView>>,
+    pub resources: Option<ResourceRequirementsView>,
 }
 
 impl PersistentVolumeClaimSpecView {
     pub open spec fn default() -> PersistentVolumeClaimSpecView {
         PersistentVolumeClaimSpecView {
             access_modes: None,
+            resources: None,
         }
     }
 
     pub open spec fn set_access_modes(self, access_modes: Seq<StringView>) -> PersistentVolumeClaimSpecView {
         PersistentVolumeClaimSpecView {
             access_modes: Some(access_modes),
+            ..self
+        }
+    }
+
+    pub open spec fn set_resources(self, resources: ResourceRequirementsView) -> PersistentVolumeClaimSpecView {
+        PersistentVolumeClaimSpecView {
+            resources: Some(resources),
             ..self
         }
     }
