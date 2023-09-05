@@ -4,8 +4,9 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, container::*, label_selector::*, object_meta::*,
-    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, role::*,
-    role_binding::*, secret::*, service::*, service_account::*, stateful_set::*, volume::*,
+    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
+    resource_requirements::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
+    stateful_set::*, volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
@@ -683,6 +684,11 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
                 )
                 .set_spec(PersistentVolumeClaimSpecView::default()
                     .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
+                    .set_resources(ResourceRequirementsView::default()
+                        .set_requests(Map::empty()
+                            .insert(new_strlit("storage")@, new_strlit("10Gi")@)
+                        )
+                    )
                 )
         ])
         .set_pod_management_policy(new_strlit("Parallel")@);
