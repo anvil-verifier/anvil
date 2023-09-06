@@ -726,6 +726,7 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
                         )
                     )
                 )
+                .set_resources(zk.spec.resources)
                 .set_volume_mounts(seq![
                     VolumeMountView::default()
                         .set_name(new_strlit("data")@)
