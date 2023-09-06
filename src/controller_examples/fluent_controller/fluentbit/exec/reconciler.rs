@@ -7,9 +7,10 @@ use crate::fluent_controller::fluentbit::exec::types::*;
 use crate::fluent_controller::fluentbit::spec::reconciler as fluent_spec;
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, daemon_set::*, label_selector::*, object_meta::*,
-    owner_reference::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
-    resource_requirements::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
+    api_method::*, common::*, config_map::*, container::*, daemon_set::*, label_selector::*,
+    object_meta::*, owner_reference::*, persistent_volume_claim::*, pod::*, pod_template_spec::*,
+    resource::*, resource_requirements::*, role::*, role_binding::*, secret::*, service::*,
+    service_account::*, volume::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;

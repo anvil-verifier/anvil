@@ -5,9 +5,9 @@ use crate::external_api::spec::*;
 use crate::fluent_controller::fluentbit::common::*;
 use crate::fluent_controller::fluentbit::spec::types::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, daemon_set::*, label_selector::*, object_meta::*,
-    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, role::*,
-    role_binding::*, secret::*, service::*, service_account::*,
+    api_method::*, common::*, config_map::*, container::*, daemon_set::*, label_selector::*,
+    object_meta::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, role::*,
+    role_binding::*, secret::*, service::*, service_account::*, volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
