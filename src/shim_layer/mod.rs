@@ -175,7 +175,7 @@ where
                                     println!("Create failed with error: {}", err);
                                 },
                                 std::result::Result::Ok(obj) => {
-                                    kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse{
+                                    kube_resp = KubeAPIResponse::CreateResponse(KubeCreateResponse{
                                         res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
                                     });
                                     println!("Create done");
