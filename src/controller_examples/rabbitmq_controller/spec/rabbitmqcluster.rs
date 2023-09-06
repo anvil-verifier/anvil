@@ -21,6 +21,7 @@ impl RabbitmqClusterView {
         &&& self.metadata.uid.is_Some()
     }
 
+    // TODO: remove the redundant spec methods name() and namespace()
     pub open spec fn name(self) -> Option<StringView> {
         self.metadata.name
     }

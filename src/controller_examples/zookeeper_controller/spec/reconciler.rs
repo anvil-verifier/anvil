@@ -498,6 +498,7 @@ pub open spec fn make_service(
         .set_metadata(ObjectMetaView::default()
             .set_name(name)
             .set_labels(Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()))
+            .set_owner_references(seq![zk.controller_owner_ref()])
         ).set_spec({
             let spec = ServiceSpecView::default()
                 .set_ports(ports)
@@ -535,6 +536,7 @@ pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
         .set_metadata(ObjectMetaView::default()
             .set_name(make_config_map_name(zk.metadata.name.get_Some_0()))
             .set_labels(Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()))
+            .set_owner_references(seq![zk.controller_owner_ref()])
         )
         .set_data(Map::empty()
             .insert(new_strlit("zoo.cfg")@, make_zk_config(zk))
@@ -665,7 +667,8 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
     let labels = Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0());
     let metadata = ObjectMetaView::default()
         .set_name(name)
-        .set_labels(labels);
+        .set_labels(labels)
+        .set_owner_references(seq![zk.controller_owner_ref()]);
 
     let spec = StatefulSetSpecView::default()
         .set_replicas(zk.spec.replicas)
