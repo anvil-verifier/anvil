@@ -11,6 +11,7 @@ app=$1
 # Copy the Dockerfile and build the docker image of the controller
 cp docker/controller/Dockerfile .
 docker build -t local/$app-controller:v0.1.0 --build-arg APP=$app .
+rm Dockerfile
 # Set up the kind cluster and load the image into the cluster
 kind create cluster --config deploy/kind.yaml
 kind load docker-image local/$app-controller:v0.1.0
