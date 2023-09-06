@@ -35,3 +35,5 @@ jobs:
         run: VERUS_DIR=$PWD/verus ./build.sh zookeeper_controller.rs --rlimit 30 --time
       - name: Build rabbitmq controller
         run: VERUS_DIR=$PWD/verus ./build.sh rabbitmq_controller.rs --rlimit 30 --time
+      - name: Build fluent controller
+        run: VERUS_DIR=$PWD/verus ./build.sh fluent_controller.rs --rlimit 30 --time
