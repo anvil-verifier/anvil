@@ -35,8 +35,8 @@ pub fn rabbitmq_cluster() -> String {
       replicas: 3
       rabbitmqConfig:
         additionalConfig: |
-            default_user = new_user
-            default_pass = new_pass
+          default_user = new_user
+          default_pass = new_pass
     "
     .to_string()
 }
