@@ -89,7 +89,4 @@ spec:
         - image: local/zookeeper-controller:v0.1.0
           imagePullPolicy: IfNotPresent
           name: controller
-          command:
-            - zookeeper-controller
-            - run
       serviceAccountName: zookeeper-controller

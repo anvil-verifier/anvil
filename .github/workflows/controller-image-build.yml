@@ -4,7 +4,7 @@ on:
 env:
   IMAGE_NAME: ${{ github.repository }}
 jobs:
-  build:
+  build-simple-controller:
     runs-on: ubuntu-20.04
     permissions:
       contents: read
@@ -17,24 +17,54 @@ jobs:
       - name: Build simple controller image
         run: |
           cp docker/simple-controller/Dockerfile .
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/simple-controller:latest .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/simple-controller:latest --build-arg APP=simple .
       - name: Push simple controller image
         run: docker push ghcr.io/${{ env.IMAGE_NAME }}/simple-controller:latest
+  build-zookeeper-controller:
+    runs-on: ubuntu-20.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Log into registry ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build zookeeper controller image
         run: |
-          cp docker/zookeeper-controller/Dockerfile .
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/zookeeper-controller:latest .
+          cp docker/controller/Dockerfile .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/zookeeper-controller:latest --build-arg APP=zookeeper .
       - name: Push zookeeper controller image
         run: docker push ghcr.io/${{ env.IMAGE_NAME }}/zookeeper-controller:latest
+  build-rabbitmq-controller:
+    runs-on: ubuntu-20.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Log into registry ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build rabbitmq controller image
         run: |
-          cp docker/rabbitmq-controller/Dockerfile .
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest .
+          cp docker/controller/Dockerfile .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest --build-arg APP=rabbitmq .
       - name: Push rabbitmq controller image
         run: docker push ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest
+  build-fluent-controller:
+    runs-on: ubuntu-20.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Log into registry ghcr.io
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build fluent controller image
         run: |
-          cp docker/fluent-controller/Dockerfile .
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/fluent-controller:latest .
+          cp docker/controller/Dockerfile .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/fluent-controller:latest --build-arg APP=fluent .
       - name: Push fluent controller image
         run: docker push ghcr.io/${{ env.IMAGE_NAME }}/fluent-controller:latest

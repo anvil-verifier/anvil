@@ -159,12 +159,5 @@ spec:
     spec:
       containers:
         - image: ghcr.io/vmware-research/verifiable-controllers/fluent-controller:latest
-          name: fluent-operator
-          resources:
-            limits:
-              cpu: 200m
-              memory: 60Mi
-            requests:
-              cpu: 100m
-              memory: 20Mi
+          name: controller
       serviceAccountName: fluent-operator

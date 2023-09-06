@@ -160,12 +160,5 @@ spec:
       containers:
         - image: local/fluent-controller:v0.1.0
           imagePullPolicy: IfNotPresent
-          name: fluent-operator
-          resources:
-            limits:
-              cpu: 200m
-              memory: 60Mi
-            requests:
-              cpu: 100m
-              memory: 20Mi
+          name: controller
       serviceAccountName: fluent-operator

@@ -97,7 +97,4 @@ spec:
       containers:
         - image: ghcr.io/vmware-research/verifiable-controllers/rabbitmq-controller:latest
           name: controller
-          command:
-            - rabbitmq-controller
-            - run
       serviceAccountName: rabbitmq-controller
