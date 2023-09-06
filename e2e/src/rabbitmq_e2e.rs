@@ -35,7 +35,8 @@ pub fn rabbitmq_cluster() -> String {
       replicas: 3
       rabbitmqConfig:
         additionalConfig: |
-          log.console.level = debug
+            default_user = new_user
+            default_pass = new_pass
     "
     .to_string()
 }
@@ -79,8 +80,8 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
             Ok(cm) => {
                 let data = cm.data.unwrap();
                 let user_config = data.get("userDefinedConfiguration.conf").unwrap();
-                if !user_config.contains("default_user=new_user")
-                    || !user_config.contains("default_pass=new_pass")
+                if !user_config.contains("default_user = new_user")
+                    || !user_config.contains("default_pass = new_pass")
                 {
                     println!(
                         "Configmap is not consistent with rabbitmq cluster spec. E2e test failed."
