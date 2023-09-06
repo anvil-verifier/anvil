@@ -29,6 +29,10 @@ jobs:
           ./tools/get-z3.sh
           source ../tools/activate
           vargo build --release
+      - name: Build main and run unit tests
+        run: |
+          VERUS_DIR=$PWD/verus ./build.sh main.rs --time
+          src/main
       - name: Build simple controller
         run: VERUS_DIR=$PWD/verus ./build.sh simple_controller.rs --rlimit 30 --time
       - name: Build zookeeper controller
