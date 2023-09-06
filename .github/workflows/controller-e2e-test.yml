@@ -1,9 +1,9 @@
-name: e2e Testing
+name: Controller E2e Test
 run-name: e2e tests run by ${{ github.actor }}
 on:
   workflow_dispatch:
 jobs:
-  e2e-testing:
+  e2e-test:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2

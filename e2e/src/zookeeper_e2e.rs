@@ -20,6 +20,40 @@ use tokio::time::sleep;
 use crate::common::apply;
 use crate::common::Error;
 
+pub fn zookeeper_cluster() -> String {
+    "
+    apiVersion: anvil.dev/v1
+    kind: ZookeeperCluster
+    metadata:
+      name: zookeeper
+      namespace: default
+    spec:
+      replicas: 3
+      image: pravega/zookeeper:0.2.14
+      resources:
+        requests:
+          memory: \"256Mi\"
+          cpu: \"500m\"
+      conf:
+        initLimit: 10
+        syncLimit: 2
+        tickTime: 2000
+        globalOutstandingLimit: 1000
+        preAllocSize: 65536
+        snapCount: 10000
+        commitLogCount: 500
+        snapSizeLimitInKb: 4194304
+        maxCnxns: 0
+        maxClientCnxns: 60
+        minSessionTimeout: 4000
+        maxSessionTimeout: 40000
+        autoPurgeSnapRetainCount: 3
+        autoPurgePurgeInterval: 1
+        quorumListenOnAllIps: false
+    "
+    .to_string()
+}
+
 pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     // check if the CRD is already registered
     let client = Client::try_default().await?;
@@ -27,24 +61,23 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     let zk_crd = crds.get("zookeeperclusters.anvil.dev").await;
     match zk_crd {
         Err(e) => {
-            println!("No CRD found, create one before run the e2e test!\n");
+            println!("No CRD found, create one before run the e2e test.");
             return Err(Error::CRDGetFailed(e));
         }
         Ok(crd) => {
-            println!("CRD found, continue to run the e2e test!\n");
+            println!("CRD found, continue to run the e2e test.");
         }
     }
 
     // create a zookeeper cluster
     let discovery = Discovery::new(client.clone()).run().await?;
-    let pth = PathBuf::from("./zookeeper.yaml");
-    let zk_name = apply(pth, client.clone(), &discovery).await?;
+    let zk_name = apply(zookeeper_cluster(), client.clone(), &discovery).await?;
 
-    let seconds = Duration::from_secs(360);
+    let timeout = Duration::from_secs(360);
     let start = Instant::now();
     loop {
         sleep(Duration::from_secs(5)).await;
-        if start.elapsed() > seconds {
+        if start.elapsed() > timeout {
             return Err(Error::Timeout);
         }
         // Check statefulset
@@ -52,17 +85,15 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
         let sts = sts_api.get(&zk_name).await;
         match sts {
             Err(e) => {
-                println!("No statefulset found, continue to wait!\n");
+                println!("Get statefulset failed with error {}.", e);
                 continue;
             }
             Ok(sts) => {
                 if sts.spec.unwrap().replicas != Some(3) {
-                    println!("Statefulset spec is not consistent with zookeeper cluster spec! e2e_test failed!\n");
+                    println!("Statefulset spec is not consistent with zookeeper cluster spec. E2e test failed.");
                     return Err(Error::ZookeeperStsFailed);
                 }
-                if sts.status.unwrap().replicas != 3 {
-                    continue;
-                }
+                println!("Statefulset is found as expected.");
             }
         };
         // Check pods
@@ -70,7 +101,7 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
         let lp = ListParams::default().labels(&format!("app={}", &zk_name)); // only want results for our pod
         let pod_list = pods.list(&lp).await?;
         if pod_list.items.len() != 3 {
-            println!("Pods are not ready! Continue to wait!\n");
+            println!("Pods are not ready. Continue to wait.");
             continue;
         }
         let mut pods_ready = true;
@@ -80,7 +111,10 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
             // container should also be ready
             || !status.container_statuses.unwrap()[0].ready
             {
-                println!("Pods are not ready! Continue to wait!\n");
+                println!(
+                    "Pod {} not ready. Continue to wait.",
+                    p.metadata.name.unwrap()
+                );
                 pods_ready = false;
                 break;
             }
@@ -89,6 +123,6 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
             break;
         }
     }
-    println!("Zookeeper cluster is ready! e2e test passed\n");
+    println!("E2e test passed.");
     Ok(())
 }
