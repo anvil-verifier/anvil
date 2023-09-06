@@ -2,6 +2,7 @@
 [![Regression Testing](https://github.com/vmware-research/verifiable-controllers/actions/workflows/regression-testing.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/regression-testing.yml)
 [![Verus Image Build](https://github.com/vmware-research/verifiable-controllers/actions/workflows/verus-image-build.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/verus-image-build.yml)
 [![Controller Image Build](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-image-build.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-image-build.yml)
+[![Controller e2e test](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-e2e-test.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-e2e-test.yml)
 
 # verifiable-controllers
 

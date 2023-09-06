@@ -24,6 +24,22 @@ use tokio::time::sleep;
 use crate::common::apply;
 use crate::common::Error;
 
+pub fn rabbitmq_cluster() -> String {
+    "
+    apiVersion: anvil.dev/v1
+    kind: RabbitmqCluster
+    metadata:
+      name: rabbitmq
+      namespace: default
+    spec:
+      replicas: 3
+      rabbitmqConfig:
+        additionalConfig: |
+          log.console.level = debug
+    "
+    .to_string()
+}
+
 pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
     // check if the CRD is already registered
     let client = Client::try_default().await?;
@@ -31,26 +47,25 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
     let rabbitmq_crd = crds.get("rabbitmqclusters.anvil.dev").await;
     match rabbitmq_crd {
         Err(e) => {
-            println!("No CRD found, create one before run the e2e test!\n");
+            println!("No CRD found, create one before run the e2e test.");
             return Err(Error::CRDGetFailed(e));
         }
         Ok(crd) => {
-            println!("CRD found, continue to run the e2e test!\n");
+            println!("CRD found, continue to run the e2e test.");
         }
     }
 
     // create a rabbitmq cluster
     let discovery = Discovery::new(client.clone()).run().await?;
-    let pth = PathBuf::from("./rabbitmq.yaml");
-    let rabbitmq_name = apply(pth, client.clone(), &discovery).await?;
+    let rabbitmq_name = apply(rabbitmq_cluster(), client.clone(), &discovery).await?;
     let rabbitmq_sts_name = format!("{}-server", &rabbitmq_name);
     let rabbitmq_cm_name = format!("{}-server-conf", &rabbitmq_name);
 
-    let seconds = Duration::from_secs(600);
+    let timeout = Duration::from_secs(600);
     let start = Instant::now();
     loop {
         sleep(Duration::from_secs(5)).await;
-        if start.elapsed() > seconds {
+        if start.elapsed() > timeout {
             return Err(Error::Timeout);
         }
         // Check configmap
@@ -58,7 +73,7 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
         let cm = configmaps.get(&rabbitmq_cm_name).await;
         match cm {
             Err(e) => {
-                println!("No configmap found, continue to wait!\n");
+                println!("Get configmap failed with {}, continue to wait.", e);
                 continue;
             }
             Ok(cm) => {
@@ -67,9 +82,12 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
                 if !user_config.contains("default_user=new_user")
                     || !user_config.contains("default_pass=new_pass")
                 {
-                    println!("Configmap is not consistent with rabbitmq cluster spec! e2e_test failed!\n");
+                    println!(
+                        "Configmap is not consistent with rabbitmq cluster spec. E2e test failed."
+                    );
                     return Err(Error::RabbitmqConfigMapFailed);
                 }
+                println!("Configmap is found as expected.");
             }
         };
         // Check statefulset
@@ -77,17 +95,15 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
         let sts = sts_api.get(&rabbitmq_sts_name).await;
         match sts {
             Err(e) => {
-                println!("No statefulset found, continue to wait!\n");
+                println!("Get statefulset failed with {}, continue to wait.", e);
                 continue;
             }
             Ok(sts) => {
                 if sts.spec.unwrap().replicas != Some(3) {
-                    println!("Statefulset spec is not consistent with rabbitmq cluster spec! e2e_test failed!\n");
+                    println!("Statefulset spec is not consistent with rabbitmq cluster spec. E2e test failed.");
                     return Err(Error::RabbitmqStsFailed);
                 }
-                if sts.status.unwrap().replicas != 3 {
-                    continue;
-                }
+                println!("Statefulset is found as expected.");
             }
         };
 
@@ -96,7 +112,7 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
         let lp = ListParams::default().labels(&format!("app={}", &rabbitmq_name)); // only want results for our pod
         let pod_list = pods.list(&lp).await?;
         if pod_list.items.len() != 3 {
-            println!("Pods are not ready! Continue to wait!\n");
+            println!("Pods are not ready. Continue to wait.");
             continue;
         }
         let mut pods_ready = true;
@@ -106,7 +122,10 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
             // container should also be ready
             || !status.container_statuses.unwrap()[0].ready
             {
-                println!("Pods are not ready! Continue to wait!\n");
+                println!(
+                    "Pod {} is not ready. Continue to wait.",
+                    p.metadata.name.unwrap()
+                );
                 pods_ready = false;
                 break;
             }
@@ -119,7 +138,7 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
                 .await?;
             let err = get_err(attached).await;
             if err != "" {
-                println!("User and password test failed!\n");
+                println!("User and password test failed.");
                 return Err(Error::RabbitmqUserPassFailed);
             }
         }
@@ -127,7 +146,7 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
             break;
         }
     }
-    println!("Rabbitmq cluster is ready! e2e test passed\n");
+    println!("E2e test passed.");
     Ok(())
 }
 

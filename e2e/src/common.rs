@@ -45,13 +45,17 @@ pub enum Error {
     RabbitmqUserPassFailed,
 }
 
-pub async fn apply(
+pub async fn apply_file(
     pth: std::path::PathBuf,
     client: Client,
     discovery: &Discovery,
 ) -> Result<String, Error> {
-    let ssapply = PatchParams::apply("kubectl-light").force();
     let yaml = std::fs::read_to_string(&pth)?;
+    apply(yaml, client, discovery).await
+}
+
+pub async fn apply(yaml: String, client: Client, discovery: &Discovery) -> Result<String, Error> {
+    let ssapply = PatchParams::apply("kubectl-light").force();
     let doc = serde_yaml::from_str(&yaml)?;
 
     let obj: DynamicObject = serde_yaml::from_value(doc)?;
