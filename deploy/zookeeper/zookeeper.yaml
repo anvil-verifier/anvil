@@ -6,6 +6,10 @@ metadata:
 spec:
   replicas: 3
   image: pravega/zookeeper:0.2.14
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "500m"
   conf:
     initLimit: 10
     syncLimit: 2
