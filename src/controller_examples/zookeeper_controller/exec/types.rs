@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError, marshal::*,
-    object_meta::*, resource::*, resource_requirements::*,
+    object_meta::*, owner_reference::*, resource::*, resource_requirements::*,
 };
 use crate::pervasive_ext::string_view::*;
 use crate::zookeeper_controller::spec::types::*;
+use deps_hack::kube::Resource;
 use vstd::prelude::*;
 
 verus! {
@@ -32,6 +33,17 @@ impl ZookeeperCluster {
             spec@ == self@.spec,
     {
         ZookeeperClusterSpec::from_kube(self.inner.spec.clone())
+    }
+
+    #[verifier(external_body)]
+    pub fn controller_owner_ref(&self) -> (owner_reference: OwnerReference)
+        ensures
+            owner_reference@ == self@.controller_owner_ref(),
+    {
+        OwnerReference::from_kube(
+            // We can safely unwrap here because the trait method implementation always returns a Some(...)
+            self.inner.controller_owner_ref(&()).unwrap()
+        )
     }
 
     #[verifier(external_body)]

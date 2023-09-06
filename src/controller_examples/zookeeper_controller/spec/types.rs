@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError, marshal::*,
-    object_meta::*, resource::*, resource_requirements::*,
+    object_meta::*, owner_reference::*, resource::*, resource_requirements::*,
 };
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -19,6 +19,16 @@ impl ZookeeperClusterView {
         &&& self.metadata.name.is_Some()
         &&& self.metadata.namespace.is_Some()
         &&& self.metadata.uid.is_Some()
+    }
+
+    pub open spec fn controller_owner_ref(self) -> OwnerReferenceView {
+        OwnerReferenceView {
+            block_owner_deletion: None,
+            controller: Some(true),
+            kind: Self::kind(),
+            name: self.metadata.name.get_Some_0(),
+            uid: self.metadata.uid.get_Some_0(),
+        }
     }
 }
 
