@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError, marshal::*,
-    object_meta::*, resource::*,
+    object_meta::*, resource::*, resource_requirements::*,
 };
 use crate::pervasive_ext::string_view::*;
 use crate::zookeeper_controller::spec::types::*;
@@ -114,6 +114,14 @@ impl ZookeeperClusterSpec {
             conf@ == self@.conf,
     {
         ZookeeperConfig::from_kube(self.inner.conf.clone())
+    }
+
+    #[verifier(external_body)]
+    pub fn resources(&self) -> (resources: ResourceRequirements)
+        ensures
+            resources@ == self@.resources,
+    {
+        ResourceRequirements::from_kube(self.inner.resources.clone())
     }
 }
 

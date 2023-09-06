@@ -42,6 +42,8 @@ pub struct ZookeeperClusterSpec {
     pub replicas: i32,
     pub image: String,
     pub conf: ZookeeperConfig,
+    #[serde(default)]
+    pub resources: k8s_openapi::api::core::v1::ResourceRequirements,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
