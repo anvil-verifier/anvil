@@ -1,4 +1,4 @@
-name: Delete package
+name: Package deletion
 on:
   workflow_dispatch:
     inputs:

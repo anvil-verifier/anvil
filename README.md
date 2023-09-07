@@ -1,8 +1,5 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/vmware-research/verifiable-controllers/blob/main/LICENSE)
-[![ci](https://github.com/vmware-research/verifiable-controllers/actions/workflows/ci.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/ci.yml)
-[![verus build](https://github.com/vmware-research/verifiable-controllers/actions/workflows/verus-build.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/verus-build.yml)
-[![controller build](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-build.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-build.yml)
-[![controller e2e test](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-e2e-test.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-e2e-test.yml)
+[![CI](https://github.com/vmware-research/verifiable-controllers/actions/workflows/ci.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/ci.yml)
 
 # verifiable-controllers
 
