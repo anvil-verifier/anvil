@@ -16,7 +16,7 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build simple controller image
         run: |
-          cp docker/simple-controller/Dockerfile .
+          cp docker/controller/Dockerfile .
           docker build -t ghcr.io/${{ env.IMAGE_NAME }}/simple-controller:latest --build-arg APP=simple .
       - name: Push simple controller image
         run: docker push ghcr.io/${{ env.IMAGE_NAME }}/simple-controller:latest
