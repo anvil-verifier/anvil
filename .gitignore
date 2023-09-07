@@ -9,4 +9,3 @@ src/*.long-type-*.txt
 src/.verus-log/
 reference-controllers/*-controller/target/
 e2e/target/
-Dockerfile

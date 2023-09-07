@@ -1,9 +1,9 @@
-name: Controller E2e Test
+name: Controller e2e test
 run-name: e2e tests run by ${{ github.actor }}
 on:
   workflow_dispatch:
 jobs:
-  e2e-test:
+  rabbitmq-e2e-test:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
@@ -16,21 +16,28 @@ jobs:
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-      # For rabbitmq
       - name: Create kind cluster
         run: kind create cluster --config=./deploy/kind.yaml
       - name: Deploy rabbitmq controller
         run: ./deploy.sh rabbitmq remote
       - name: Run rabbitmq e2e tests
         run: cd e2e && cargo run -- rabbitmq
-      - name: Tear down kind cluster
-        run: kind delete cluster && sleep 15
-      # For zookeeper
+  zookeeper-e2e-test:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "^1.20"
+      - name: Install kind
+        run: go install sigs.k8s.io/kind@v0.20.0
+      - name: Install Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Create kind cluster
         run: kind create cluster --config=./deploy/kind.yaml
       - name: Deploy zookeeper controller
         run: ./deploy.sh zookeeper remote
       - name: Run zookeeper e2e tests
         run: cd e2e && cargo run -- zookeeper
-      - name: Tear down kind cluster
-        run: kind delete cluster
