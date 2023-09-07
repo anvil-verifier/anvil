@@ -1,4 +1,4 @@
-name: Verus Image Build
+name: Verus build
 on:
   workflow_dispatch:
 env:

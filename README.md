@@ -1,8 +1,8 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/vmware-research/verifiable-controllers/blob/main/LICENSE)
-[![Regression Testing](https://github.com/vmware-research/verifiable-controllers/actions/workflows/regression-testing.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/regression-testing.yml)
-[![Verus Image Build](https://github.com/vmware-research/verifiable-controllers/actions/workflows/verus-image-build.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/verus-image-build.yml)
-[![Controller Image Build](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-image-build.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-image-build.yml)
-[![Controller e2e test](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-e2e-test.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-e2e-test.yml)
+[![ci](https://github.com/vmware-research/verifiable-controllers/actions/workflows/ci.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/ci.yml)
+[![verus build](https://github.com/vmware-research/verifiable-controllers/actions/workflows/verus-build.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/verus-build.yml)
+[![controller build](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-build.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-build.yml)
+[![controller e2e test](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-e2e-test.yml/badge.svg)](https://github.com/vmware-research/verifiable-controllers/actions/workflows/controller-e2e-test.yml)
 
 # verifiable-controllers
 

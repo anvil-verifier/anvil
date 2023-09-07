@@ -1,4 +1,4 @@
-name: Controller Image Build
+name: Controller build
 on:
   workflow_dispatch:
 env:

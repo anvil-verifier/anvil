@@ -1,4 +1,4 @@
-name: Regression Testing
+name: Continuous integration
 run-name: Regression tests run by ${{ github.actor }}
 on:
   push:

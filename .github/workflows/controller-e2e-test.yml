@@ -1,4 +1,4 @@
-name: Controller E2e Test
+name: Controller e2e test
 run-name: e2e tests run by ${{ github.actor }}
 on:
   workflow_dispatch:
