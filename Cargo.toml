@@ -9,6 +9,6 @@ builtin_macros = { path = "../verus/source/builtin_macros" }
 vstd = { path = "../verus/source/pervasive" }
 deps_hack = { path = "src/deps_hack" }
 
-[[bin]]
-name = "zookeeper_controller"
-path = "src/zookeeper_controller.rs"
+# [[bin]]
+# name = "zookeeper_controller"
+# path = "src/zookeeper_controller.rs"

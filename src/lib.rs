@@ -15,11 +15,3 @@ pub mod unit_tests;
 
 use vstd::prelude::*;
 
-verus! {
-
-#[verifier(external)]
-fn main() {
-    unit_tests::test();
-}
-
-}
