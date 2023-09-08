@@ -6,6 +6,8 @@ use crate::pervasive_ext::to_view::*;
 use crate::reconciler::spec::io::*;
 use vstd::{prelude::*, view::*};
 
+use vstd::pervasive::unreached;
+
 verus! {
 
 // Third-party libraries can also receive requests from reconciler.

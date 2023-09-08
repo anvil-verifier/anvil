@@ -11,6 +11,8 @@ use core::time::Duration;
 use deps_hack::zookeeper::{Acl, CreateMode, WatchedEvent, Watcher, ZkError, ZkResult, ZooKeeper};
 use vstd::{prelude::*, string::*};
 
+use vstd::pervasive::unreached;
+
 verus! {
 
 pub struct ZKAPIExistsResult {

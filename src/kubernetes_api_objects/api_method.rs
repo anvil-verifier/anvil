@@ -8,6 +8,8 @@ use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
+use vstd::pervasive::unreached;
+
 verus! {
 
 /// APIRequest represents API requests sent to the Kubernetes API for specifications.
