@@ -4,7 +4,10 @@ use k8s_openapi::api::apps::v1::StatefulSet;
 use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use kube::{
-    api::{Api, DeleteParams, ListParams, Patch, PatchParams, PostParams, ResourceExt},
+    api::{
+        Api, AttachParams, AttachedProcess, DeleteParams, ListParams, Patch, PatchParams,
+        PostParams, ResourceExt,
+    },
     core::crd::CustomResourceExt,
     discovery::{ApiCapabilities, ApiResource, Discovery, Scope},
     Client, CustomResource,
@@ -17,8 +20,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 
-use crate::common::apply;
-use crate::common::Error;
+use crate::common::*;
 
 pub fn zookeeper_cluster() -> String {
     "
@@ -54,11 +56,128 @@ pub fn zookeeper_cluster() -> String {
     .to_string()
 }
 
+pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), Error> {
+    let timeout = Duration::from_secs(360);
+    let start = Instant::now();
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            return Err(Error::Timeout);
+        }
+        // Check stateful set
+        let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
+        let sts = sts_api.get(&zk_name).await;
+        match sts {
+            Err(e) => {
+                println!("Get stateful set failed with error {}.", e);
+                continue;
+            }
+            Ok(sts) => {
+                if sts.spec.unwrap().replicas != Some(3) {
+                    println!("Stateful set spec is not consistent with zookeeper cluster spec. E2e test failed.");
+                    return Err(Error::ZookeeperStsFailed);
+                }
+                println!("Stateful set is found as expected.");
+                if sts.status.as_ref().unwrap().ready_replicas.is_none() {
+                    println!("No stateful set pod is ready.");
+                } else if *sts
+                    .status
+                    .as_ref()
+                    .unwrap()
+                    .ready_replicas
+                    .as_ref()
+                    .unwrap()
+                    == 3
+                {
+                    println!("All stateful set pods are ready.");
+                    break;
+                } else {
+                    println!(
+                        "Only {} pods are ready now.",
+                        sts.status
+                            .as_ref()
+                            .unwrap()
+                            .ready_replicas
+                            .as_ref()
+                            .unwrap()
+                    );
+                }
+            }
+        };
+    }
+    println!("Desired state test passed.");
+    Ok(())
+}
+
+pub async fn zk_workload_test(client: Client, zk_name: String) -> Result<(), Error> {
+    let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
+    let pod_name = zk_name.clone() + "-0";
+
+    let mut attached = pod_api
+        .exec(
+            pod_name.as_str(),
+            vec!["zkCli.sh", "create", "/test-key", "test-data"],
+            &AttachParams::default().stderr(true),
+        )
+        .await?;
+    let (out, err) = get_output_and_err(attached).await;
+
+    attached = pod_api
+        .exec(
+            pod_name.as_str(),
+            vec!["zkCli.sh", "get", "/test-key"],
+            &AttachParams::default().stderr(true),
+        )
+        .await?;
+    let (out, err) = get_output_and_err(attached).await;
+    if err != "" {
+        println!("ZK workload test failed with {}.", err);
+        return Err(Error::ZookeeperWorkloadFailed);
+    } else {
+        println!("{}", out);
+        if !out.contains("test-data") {
+            println!("Test failed because of unexpected get output.");
+            return Err(Error::ZookeeperWorkloadFailed);
+        }
+    }
+
+    attached = pod_api
+        .exec(
+            pod_name.as_str(),
+            vec!["zkCli.sh", "set", "/test-key", "test-data-2"],
+            &AttachParams::default().stderr(true),
+        )
+        .await?;
+    let (out, err) = get_output_and_err(attached).await;
+
+    attached = pod_api
+        .exec(
+            pod_name.as_str(),
+            vec!["zkCli.sh", "get", "/test-key"],
+            &AttachParams::default().stderr(true),
+        )
+        .await?;
+    let (out, err) = get_output_and_err(attached).await;
+    if err != "" {
+        println!("ZK workload test failed with {}.", err);
+        return Err(Error::ZookeeperWorkloadFailed);
+    } else {
+        println!("{}", out);
+        if !out.contains("test-data-2") {
+            println!("Test failed because of unexpected get output.");
+            return Err(Error::ZookeeperWorkloadFailed);
+        }
+    }
+
+    println!("Zookeeper workload test passed.");
+    Ok(())
+}
+
 pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     // check if the CRD is already registered
     let client = Client::try_default().await?;
-    let crds: Api<CustomResourceDefinition> = Api::all(client.clone());
-    let zk_crd = crds.get("zookeeperclusters.anvil.dev").await;
+    let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
+    let zk_crd = crd_api.get("zookeeperclusters.anvil.dev").await;
     match zk_crd {
         Err(e) => {
             println!("No CRD found, create one before run the e2e test.");
@@ -73,56 +192,9 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     let discovery = Discovery::new(client.clone()).run().await?;
     let zk_name = apply(zookeeper_cluster(), client.clone(), &discovery).await?;
 
-    let timeout = Duration::from_secs(360);
-    let start = Instant::now();
-    loop {
-        sleep(Duration::from_secs(5)).await;
-        if start.elapsed() > timeout {
-            return Err(Error::Timeout);
-        }
-        // Check statefulset
-        let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
-        let sts = sts_api.get(&zk_name).await;
-        match sts {
-            Err(e) => {
-                println!("Get statefulset failed with error {}.", e);
-                continue;
-            }
-            Ok(sts) => {
-                if sts.spec.unwrap().replicas != Some(3) {
-                    println!("Statefulset spec is not consistent with zookeeper cluster spec. E2e test failed.");
-                    return Err(Error::ZookeeperStsFailed);
-                }
-                println!("Statefulset is found as expected.");
-            }
-        };
-        // Check pods
-        let pods: Api<Pod> = Api::default_namespaced(client.clone());
-        let lp = ListParams::default().labels(&format!("app={}", &zk_name)); // only want results for our pod
-        let pod_list = pods.list(&lp).await?;
-        if pod_list.items.len() != 3 {
-            println!("Pods are not ready. Continue to wait.");
-            continue;
-        }
-        let mut pods_ready = true;
-        for p in pod_list {
-            let status = p.status.unwrap();
-            if status.phase != Some("Running".to_string())
-            // container should also be ready
-            || !status.container_statuses.unwrap()[0].ready
-            {
-                println!(
-                    "Pod {} not ready. Continue to wait.",
-                    p.metadata.name.unwrap()
-                );
-                pods_ready = false;
-                break;
-            }
-        }
-        if pods_ready {
-            break;
-        }
-    }
+    desired_state_test(client.clone(), zk_name.clone()).await?;
+    zk_workload_test(client.clone(), zk_name.clone()).await?;
+
     println!("E2e test passed.");
     Ok(())
 }

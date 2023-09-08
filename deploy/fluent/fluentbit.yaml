@@ -1,7 +1,7 @@
 apiVersion: anvil.dev/v1
 kind: FluentBit
 metadata:
-    name: fluent-bit-config
+    name: fluent-bit
     namespace: default
 spec:
     fluentBitConfigName: fluent-bit-config
