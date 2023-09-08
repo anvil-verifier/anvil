@@ -33,7 +33,7 @@ fn make_secret(fbc: &FluentBitConfig) -> Secret {
         data: Some(BTreeMap::from([
             (
                 "fluent-bit.conf".to_string(),
-                ByteString(fbc.spec.config.clone().into_bytes()),
+                ByteString(fbc.spec.fluentbit_config.clone().into_bytes()),
             ),
             (
                 "parsers.conf".to_string(),
