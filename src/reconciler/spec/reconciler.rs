@@ -21,21 +21,21 @@ pub trait Reconciler<#[verifier(maybe_negative)] K: ResourceView, #[verifier(may
     // Currently the local state is hardcoded to a ReconcileState.
     // We would like to make ReconcileState more general and reconcile_init_state
     // can also be more flexible.
-    open spec fn reconcile_init_state() -> Self::T;
+    spec fn reconcile_init_state() -> Self::T;
 
     // reconcile_core describes the logic of reconcile function and is the key logic we want to verify.
     // Each reconcile_core should take the local state and a response of the previous request (if any) as input
     // and outputs the next local state and the request to send to Kubernetes API (if any).
-    open spec fn reconcile_core(cr: K, resp_o: Option<ResponseView<ExternalAPIType::Output>>, state: Self::T)
+    spec fn reconcile_core(cr: K, resp_o: Option<ResponseView<ExternalAPIType::Output>>, state: Self::T)
         -> (Self::T, Option<RequestView<ExternalAPIType::Input>>);
 
     // reconcile_done is used to tell the controller_runtime whether this reconcile round is done.
     // If it is true, controller_runtime will probably requeue the reconcile.
-    open spec fn reconcile_done(state: Self::T) -> bool;
+    spec fn reconcile_done(state: Self::T) -> bool;
 
     // reconcile_error is used to tell the controller_runtime whether this reconcile round returns with error.
     // If it is true, controller_runtime will requeue the reconcile.
-    open spec fn reconcile_error(state: Self::T) -> bool;
+    spec fn reconcile_error(state: Self::T) -> bool;
 }
 
 }

@@ -18,10 +18,10 @@ pub trait ExternalAPI {
     // transition describes the complete logic of external apis, which is a spec counterpart of ExternalAPI::process.
     // This method consumes the input (which should be computed by reconcile_core) and the current state of the external
     // api and produces the response and the next state of the api.
-    open spec fn transition(input: Self::Input, resources: StoredState, state: Self::State) -> (Self::State, Self::Output);
+    spec fn transition(input: Self::Input, resources: StoredState, state: Self::State) -> (Self::State, Self::Output);
 
     // init_state gives the initial state of the external api.
-    open spec fn init_state() -> Self::State;
+    spec fn init_state() -> Self::State;
 }
 
 pub struct EmptyTypeView {}
