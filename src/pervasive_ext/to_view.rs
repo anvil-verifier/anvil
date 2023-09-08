@@ -6,7 +6,7 @@ verus! {
 
 pub trait ToView {
     type V;
-    open spec fn to_view(&self) -> Self::V;
+    spec fn to_view(&self) -> Self::V;
 }
 
 }

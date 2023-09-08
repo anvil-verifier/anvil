@@ -26,17 +26,17 @@ pub trait ResourceView: Sized {
 
     /// Get the metadata of the object
 
-    open spec fn metadata(self) -> ObjectMetaView;
+    spec fn metadata(self) -> ObjectMetaView;
 
     /// Get the kind of the object
 
-    open spec fn kind() -> Kind;
+    spec fn kind() -> Kind;
 
     /// Get the reference of the object,
     /// which consists of kind, name and namespace
 
     // TODO: object_ref can be implemented here if default implementation is supported by Verus
-    open spec fn object_ref(self) -> ObjectRef;
+    spec fn object_ref(self) -> ObjectRef;
 
     proof fn object_ref_is_well_formed()
         ensures
@@ -49,15 +49,15 @@ pub trait ResourceView: Sized {
 
     /// Get the spec of the object
 
-    open spec fn spec(self) -> Self::Spec;
+    spec fn spec(self) -> Self::Spec;
 
     /// Convert the object to a dynamic object
 
-    open spec fn to_dynamic_object(self) -> DynamicObjectView;
+    spec fn to_dynamic_object(self) -> DynamicObjectView;
 
     /// Convert back from a dynamic object
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<Self, ParseDynamicObjectError>;
+    spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<Self, ParseDynamicObjectError>;
 
     /// Check if the data integrity is preserved after converting to and back from dynamic object
 
@@ -78,26 +78,26 @@ pub trait ResourceView: Sized {
                 #[trigger] Self::from_dynamic_object(d).is_Ok()
                     ==> d.kind == Self::kind();
 
-    closed spec fn marshal_spec(s: Self::Spec) -> Value;
+    spec fn marshal_spec(s: Self::Spec) -> Value;
 
-    closed spec fn unmarshal_spec(v: Value) -> Result<Self::Spec, ParseDynamicObjectError>;
+    spec fn unmarshal_spec(v: Value) -> Result<Self::Spec, ParseDynamicObjectError>;
 
     proof fn spec_integrity_is_preserved_by_marshal()
         ensures
             forall |s: Self::Spec|
                 Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
                 && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0();
-    
+
     proof fn from_dynamic_object_result_determined_by_unmarshal()
         ensures
             forall |obj: DynamicObjectView|
                 obj.kind == Self::kind() ==> Self::unmarshal_spec(obj.spec).is_Ok() == #[trigger] Self::from_dynamic_object(obj).is_Ok();
 
     /// This method specifies the validation rule that only checks the new object.
-    open spec fn rule(obj: Self) -> bool;
+    spec fn rule(obj: Self) -> bool;
 
     /// This method specifies the validation rule that checks the relations between the new and old object.
-    open spec fn transition_rule(new_obj: Self, old_obj: Self) -> bool;
+    spec fn transition_rule(new_obj: Self, old_obj: Self) -> bool;
 
 }
 
