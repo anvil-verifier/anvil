@@ -120,24 +120,3 @@ pub async fn get_output_and_err(mut attached: AttachedProcess) -> (String, Strin
     attached.join().await.unwrap();
     (out, err)
 }
-
-pub async fn get_output(mut attached: AttachedProcess) -> String {
-    let stdout = tokio_util::io::ReaderStream::new(attached.stdout().unwrap());
-    let out = stdout
-        .filter_map(|r| async { r.ok().and_then(|v| String::from_utf8(v.to_vec()).ok()) })
-        .collect::<Vec<_>>()
-        .await
-        .join("");
-    attached.join().await.unwrap();
-    out
-}
-
-pub async fn get_err(mut attached: AttachedProcess) -> String {
-    let mut stderr = tokio_util::io::ReaderStream::new(attached.stderr().unwrap());
-    let mut stream_contents = Vec::new();
-    while let Some(chunk) = stderr.next().await {
-        stream_contents.extend_from_slice(&chunk.unwrap());
-    }
-    attached.join().await.unwrap();
-    String::from_utf8_lossy(&stream_contents).to_string()
-}
