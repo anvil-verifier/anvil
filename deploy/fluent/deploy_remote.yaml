@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fluent-operator
+  name: fluent-controller
   namespace: fluent
   labels:
-    app.kubernetes.io/name: fluent-operator
+    app.kubernetes.io/name: fluent-controller
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: fluent-operator
+      app.kubernetes.io/name: fluent-controller
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: fluent-operator
+        app.kubernetes.io/name: fluent-controller
     spec:
       containers:
         - image: ghcr.io/vmware-research/verifiable-controllers/fluent-controller:latest
           name: controller
-      serviceAccountName: fluent-operator
+      serviceAccountName: fluent-controller

@@ -27,7 +27,7 @@ pub fn fluent_bit() -> String {
     apiVersion: anvil.dev/v1
     kind: FluentBit
     metadata:
-        name: fluent-bit-config
+        name: fluent-bit
         namespace: default
     spec:
         fluentBitConfigName: fluent-bit-config
@@ -112,7 +112,8 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
                 continue;
             }
             Ok(ds) => {
-                if ds.status.as_ref().unwrap().number_ready == 3 {
+                if ds.status.as_ref().unwrap().number_ready == 4 {
+                    // this number depends on the number of nodes
                     println!("All daemons are ready now.");
                     break;
                 } else {
