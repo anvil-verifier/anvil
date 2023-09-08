@@ -1,0 +1,14 @@
+[package]
+name = "verifiable-controllers"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+builtin = { path = "../verus/source/builtin" }
+builtin_macros = { path = "../verus/source/builtin_macros" }
+vstd = { path = "../verus/source/pervasive" }
+deps_hack = { path = "src/deps_hack" }
+
+[[bin]]
+name = "zookeeper_controller"
+path = "src/zookeeper_controller.rs"
