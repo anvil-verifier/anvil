@@ -86,7 +86,9 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
                     return Err(Error::RabbitmqStsFailed);
                 }
                 println!("Stateful set is found as expected.");
-                if *sts
+                if sts.status.as_ref().unwrap().ready_replicas.is_none() {
+                    println!("No stateful set pod is ready.");
+                } else if *sts
                     .status
                     .as_ref()
                     .unwrap()
