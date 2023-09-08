@@ -192,7 +192,7 @@ impl ServicePort {
 
     pub fn new_with(name: String, port: i32) -> (service_port: ServicePort)
         ensures
-            service_port@ == ServicePortView::default().set_name(name@).set_port(port as nat),
+            service_port@ == ServicePortView::default().set_name(name@).set_port(port as int),
     {
         let mut service_port = Self::default();
         service_port.set_name(name);
@@ -212,7 +212,7 @@ impl ServicePort {
     #[verifier(external_body)]
     pub fn set_port(&mut self, port: i32)
         ensures
-            self@ == old(self)@.set_port(port as nat),
+            self@ == old(self)@.set_port(port as int),
     {
         self.inner.port = port;
     }
@@ -394,7 +394,7 @@ impl Marshalable for ServiceSpecView {
 
 pub struct ServicePortView {
     pub name: Option<StringView>,
-    pub port: nat,
+    pub port: int,
     pub app_protocol: Option<StringView>,
 }
 
@@ -414,7 +414,7 @@ impl ServicePortView {
         }
     }
 
-    pub open spec fn set_port(self, port: nat) -> ServicePortView {
+    pub open spec fn set_port(self, port: int) -> ServicePortView {
         ServicePortView {
             port: port,
             ..self

@@ -42,6 +42,8 @@ pub struct ZookeeperClusterSpec {
     pub replicas: i32,
     pub image: String,
     pub conf: ZookeeperConfig,
+    #[serde(rename = "clientPort")]
+    pub client_port: i32,
     #[serde(default)]
     pub resources: k8s_openapi::api::core::v1::ResourceRequirements,
 }

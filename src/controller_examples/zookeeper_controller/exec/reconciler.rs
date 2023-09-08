@@ -292,7 +292,7 @@ pub fn reconcile_core(
                         };
                         let node_path = zk_node_path(zk);
                         let ext_req = ZKAPIInput::ExistsRequest(
-                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), node_path
+                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().client_port(), node_path
                         );
                         return (state_prime, Some(Request::ExternalRequest(ext_req)));
                     }
@@ -328,7 +328,7 @@ pub fn reconcile_core(
                         let node_path = zk_node_path(zk);
                         let data = zk_node_data(zk);
                         let ext_req = ZKAPIInput::SetDataRequest(
-                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), node_path, data, version
+                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().client_port(), node_path, data, version
                         );
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
@@ -339,7 +339,7 @@ pub fn reconcile_core(
                         let node_path = zk_parent_node_path(zk);
                         let data = new_strlit("").to_string();
                         let ext_req = ZKAPIInput::CreateRequest(
-                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), node_path, data
+                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().client_port(), node_path, data
                         );
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::AfterCreateZKParentNode,
@@ -363,7 +363,7 @@ pub fn reconcile_core(
                     let node_path = zk_node_path(zk);
                     let data = zk_node_data(zk);
                     let ext_req = ZKAPIInput::CreateRequest(
-                        zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), node_path, data
+                        zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().client_port(), node_path, data
                     );
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
@@ -509,7 +509,7 @@ fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
 {
     let mut ports = Vec::new();
 
-    ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), 2181));
+    ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), zk.spec().client_port()));
     ports.push(ServicePort::new_with(new_strlit("tcp-quorum").to_string(), 2888));
     ports.push(ServicePort::new_with(new_strlit("tcp-leader-election").to_string(), 3888));
     ports.push(ServicePort::new_with(new_strlit("tcp-metrics").to_string(), 7000));
@@ -534,7 +534,7 @@ fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
 {
     let mut ports = Vec::new();
 
-    ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), 2181));
+    ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), zk.spec().client_port()));
 
     proof {
         assert_seqs_equal!(
@@ -750,6 +750,7 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
 {
     let name = zk.metadata().name().unwrap();
     let namespace = zk.metadata().namespace().unwrap();
+    let client_port = i32_to_string(zk.spec().client_port());
 
     new_strlit(
         "#!/usr/bin/env bash\n\n\
@@ -758,7 +759,7 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
         QUORUM_PORT=2888\n\
         LEADER_PORT=3888\n\
         CLIENT_HOST=")).concat(name.as_str()).concat(new_strlit("-client\n\
-        CLIENT_PORT=2181\n\
+        CLIENT_PORT=")).concat(client_port.as_str()).concat(new_strlit("\n\
         ADMIN_SERVER_HOST=")).concat(name.as_str()).concat(new_strlit("-admin-server\n\
         ADMIN_SERVER_PORT=8080\n\
         CLUSTER_NAME=")).concat(name.as_str()).concat(new_strlit("\n\
@@ -997,7 +998,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
             });
             zk_container.set_ports({
                 let mut ports = Vec::new();
-                ports.push(ContainerPort::new_with(new_strlit("client").to_string(), 2181));
+                ports.push(ContainerPort::new_with(new_strlit("client").to_string(), zk.spec().client_port()));
                 ports.push(ContainerPort::new_with(new_strlit("quorum").to_string(), 2888));
                 ports.push(ContainerPort::new_with(new_strlit("leader-election").to_string(), 3888));
                 ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), 7000));

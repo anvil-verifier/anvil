@@ -129,6 +129,14 @@ impl ZookeeperClusterSpec {
     }
 
     #[verifier(external_body)]
+    pub fn client_port(&self) -> (client_port: i32)
+        ensures
+            client_port as int == self@.client_port,
+    {
+        self.inner.client_port
+    }
+
+    #[verifier(external_body)]
     pub fn resources(&self) -> (resources: ResourceRequirements)
         ensures
             resources@ == self@.resources,

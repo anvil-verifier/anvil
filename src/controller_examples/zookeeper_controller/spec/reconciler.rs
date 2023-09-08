@@ -80,6 +80,7 @@ pub open spec fn reconcile_core(
     let resp = resp_o.get_Some_0();
     let zk_name = zk.metadata.name.get_Some_0();
     let zk_namespace = zk.metadata.namespace.get_Some_0();
+    let client_port = zk.spec.client_port;
     match step {
         ZookeeperReconcileStep::Init => {
             let headless_service = make_headless_service(zk);
@@ -248,7 +249,7 @@ pub open spec fn reconcile_core(
                         };
                         let node_path = seq![new_strlit("zookeeper-operator")@, zk_name];
                         let ext_req = ZKAPIInputView::ExistsRequest(
-                            zk_name, zk_namespace, node_path
+                            zk_name, zk_namespace, client_port, node_path
                         );
                         (state_prime, Some(RequestView::ExternalRequest(ext_req)))
                     } else {
@@ -293,7 +294,7 @@ pub open spec fn reconcile_core(
                     let node_path = zk_node_path(zk);
                     let data = zk_node_data(zk);
                     let ext_req = ZKAPIInputView::SetDataRequest(
-                        zk_name, zk_namespace, node_path, data, version
+                        zk_name, zk_namespace, client_port, node_path, data, version
                     );
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
@@ -305,7 +306,7 @@ pub open spec fn reconcile_core(
                     let node_path = zk_parent_node_path(zk);
                     let data = new_strlit("")@;
                     let ext_req = ZKAPIInputView::CreateRequest(
-                        zk_name, zk_namespace, node_path, data
+                        zk_name, zk_namespace, client_port, node_path, data
                     );
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::AfterCreateZKParentNode,
@@ -328,7 +329,7 @@ pub open spec fn reconcile_core(
                 let node_path = zk_node_path(zk);
                 let data = zk_node_data(zk);
                 let ext_req = ZKAPIInputView::CreateRequest(
-                    zk_name, zk_namespace, node_path, data
+                    zk_name, zk_namespace, client_port, node_path, data
                 );
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
@@ -453,7 +454,7 @@ pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView
         zk.well_formed(),
 {
     let ports = seq![
-        ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(2181),
+        ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(zk.spec.client_port),
         ServicePortView::default().set_name(new_strlit("tcp-quorum")@).set_port(2888),
         ServicePortView::default().set_name(new_strlit("tcp-leader-election")@).set_port(3888),
         ServicePortView::default().set_name(new_strlit("tcp-metrics")@).set_port(7000),
@@ -467,7 +468,7 @@ pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView
     recommends
         zk.well_formed(),
 {
-    let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(2181)];
+    let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(zk.spec.client_port)];
 
     make_service(zk, make_client_service_name(zk), ports, true)
 }
@@ -616,6 +617,7 @@ pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView
 {
     let name = zk.metadata.name.get_Some_0();
     let namespace = zk.metadata.namespace.get_Some_0();
+    let client_port = int_to_string_view(zk.spec.client_port);
 
     new_strlit(
         "#!/usr/bin/env bash\n\n\
@@ -623,7 +625,7 @@ pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView
         QUORUM_PORT=2888\n\
         LEADER_PORT=3888\n\
         CLIENT_HOST=")@ + name + new_strlit("-client\n\
-        CLIENT_PORT=2181\n\
+        CLIENT_PORT=")@ + client_port + new_strlit("\n\
         ADMIN_SERVER_HOST=")@ + name + new_strlit("-admin-server\n\
         ADMIN_SERVER_PORT=8080\n\
         CLUSTER_NAME=")@ + name + new_strlit("\n\
@@ -739,7 +741,7 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
                         .set_mount_path(new_strlit("/conf")@),
                 ])
                 .set_ports(seq![
-                    ContainerPortView::default().set_name(new_strlit("client")@).set_container_port(2181),
+                    ContainerPortView::default().set_name(new_strlit("client")@).set_container_port(zk.spec.client_port),
                     ContainerPortView::default().set_name(new_strlit("quorum")@).set_container_port(2888),
                     ContainerPortView::default().set_name(new_strlit("leader-election")@).set_container_port(3888),
                     ContainerPortView::default().set_name(new_strlit("metrics")@).set_container_port(7000),
