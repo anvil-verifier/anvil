@@ -64,48 +64,44 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
         if start.elapsed() > timeout {
             return Err(Error::Timeout);
         }
-        // Check statefulset
+        // Check stateful set
         let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
         let sts = sts_api.get(&zk_name).await;
         match sts {
             Err(e) => {
-                println!("Get statefulset failed with error {}.", e);
+                println!("Get stateful set failed with error {}.", e);
                 continue;
             }
             Ok(sts) => {
                 if sts.spec.unwrap().replicas != Some(3) {
-                    println!("Statefulset spec is not consistent with zookeeper cluster spec. E2e test failed.");
+                    println!("Stateful set spec is not consistent with zookeeper cluster spec. E2e test failed.");
                     return Err(Error::ZookeeperStsFailed);
                 }
-                println!("Statefulset is found as expected.");
+                println!("Stateful set is found as expected.");
+                if *sts
+                    .status
+                    .as_ref()
+                    .unwrap()
+                    .ready_replicas
+                    .as_ref()
+                    .unwrap()
+                    == 3
+                {
+                    println!("All stateful set pods are ready.");
+                    break;
+                } else {
+                    println!(
+                        "Only {} pods are ready now.",
+                        sts.status
+                            .as_ref()
+                            .unwrap()
+                            .ready_replicas
+                            .as_ref()
+                            .unwrap()
+                    );
+                }
             }
         };
-        // Check pods
-        let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
-        let lp = ListParams::default().labels(&format!("app={}", &zk_name)); // only want results for our pod
-        let pod_list = pod_api.list(&lp).await?;
-        if pod_list.items.len() != 3 {
-            println!("Pods are not ready. Continue to wait.");
-            continue;
-        }
-        let mut pods_ready = true;
-        for p in pod_list {
-            let status = p.status.unwrap();
-            if status.phase != Some("Running".to_string())
-            // container should also be ready
-            || !status.container_statuses.unwrap()[0].ready
-            {
-                println!(
-                    "Pod {} not ready. Continue to wait.",
-                    p.metadata.name.unwrap()
-                );
-                pods_ready = false;
-                break;
-            }
-        }
-        if pods_ready {
-            break;
-        }
     }
     println!("Desired state test passed.");
     Ok(())
@@ -178,8 +174,8 @@ pub async fn zk_workload_test(client: Client, zk_name: String) -> Result<(), Err
 pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     // check if the CRD is already registered
     let client = Client::try_default().await?;
-    let crds: Api<CustomResourceDefinition> = Api::all(client.clone());
-    let zk_crd = crds.get("zookeeperclusters.anvil.dev").await;
+    let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
+    let zk_crd = crd_api.get("zookeeperclusters.anvil.dev").await;
     match zk_crd {
         Err(e) => {
             println!("No CRD found, create one before run the e2e test.");

@@ -1,9 +1,12 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 pub mod common;
+pub mod fluent_e2e;
 pub mod rabbitmq_e2e;
 pub mod zookeeper_e2e;
+
 use common::Error;
+use fluent_e2e::fluent_e2e_test;
 use rabbitmq_e2e::rabbitmq_e2e_test;
 use std::str::FromStr;
 use std::{env, sync::Arc};
@@ -15,15 +18,19 @@ async fn main() -> Result<(), Error> {
     let cmd = args[1].clone();
     match cmd.as_str() {
         "zookeeper" => {
-            println!("Running zookeeper end to end test!\n");
+            println!("Running zookeeper end-to-end test");
             return zookeeper_e2e_test().await;
         }
         "rabbitmq" => {
-            println!("Running rabbitmq end to end test!\n");
+            println!("Running rabbitmq end-to-end test");
             return rabbitmq_e2e_test().await;
         }
+        "fluent" => {
+            println!("Running fluent end-to-end test");
+            return fluent_e2e_test().await;
+        }
         _ => {
-            println!("Please specify one controller!\n");
+            println!("Please specify one controller");
             Ok(())
         }
     }
