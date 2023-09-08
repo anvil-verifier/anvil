@@ -11,7 +11,7 @@ on:
   pull_request:
   workflow_dispatch:
 jobs:
-  verification:
+  controller-verification:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
@@ -31,16 +31,14 @@ jobs:
           ./tools/get-z3.sh
           source ../tools/activate
           vargo build --release
-      - name: Set VERUS_DIR
-        run: VERUS_DIR="$(dirname "${PWD}")/verus"
       - name: Build fluent controller
-        run: ./build.sh fluent_controller.rs --rlimit 30 --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh fluent_controller.rs --rlimit 30 --time
       - name: Build rabbitmq controller
-        run: ./build.sh rabbitmq_controller.rs --rlimit 30 --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh rabbitmq_controller.rs --rlimit 30 --time
       - name: Build simple controller
-        run: ./build.sh simple_controller.rs --rlimit 30 --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh simple_controller.rs --rlimit 30 --time
       - name: Build zookeeper controller
-        run: ./build.sh zookeeper_controller.rs --rlimit 30 --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh zookeeper_controller.rs --rlimit 30 --time
   unit-tests:
     runs-on: ubuntu-20.04
     steps:
