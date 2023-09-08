@@ -3,13 +3,15 @@
 
 #![allow(unused_imports)]
 
+pub mod external_api;
 pub mod kubernetes_api_objects;
 pub mod kubernetes_cluster;
 pub mod pervasive_ext;
 pub mod reconciler;
-pub mod external_api;
 pub mod shim_layer;
 pub mod state_machine;
 pub mod temporal_logic;
+pub mod unit_tests;
 
-fn main() {}
+use vstd::prelude::*;
+

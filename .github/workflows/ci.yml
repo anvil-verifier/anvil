@@ -11,7 +11,7 @@ on:
   pull_request:
   workflow_dispatch:
 jobs:
-  verification:
+  controller-verification:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
@@ -20,23 +20,47 @@ jobs:
         with:
           repository: verus-lang/verus
           path: verus
+      - name: Move Verus
+        run: mv verus ../verus
       - name: Install Rust toolchain
         run: |
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
       - name: Build Verus
         run: |
-          cd verus/source
+          cd ../verus/source
           ./tools/get-z3.sh
           source ../tools/activate
           vargo build --release
       - name: Build fluent controller
-        run: VERUS_DIR=$PWD/verus ./build.sh fluent_controller.rs --rlimit 30 --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh fluent_controller.rs --rlimit 30 --time
       - name: Build rabbitmq controller
-        run: VERUS_DIR=$PWD/verus ./build.sh rabbitmq_controller.rs --rlimit 30 --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh rabbitmq_controller.rs --rlimit 30 --time
       - name: Build simple controller
-        run: VERUS_DIR=$PWD/verus ./build.sh simple_controller.rs --rlimit 30 --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh simple_controller.rs --rlimit 30 --time
       - name: Build zookeeper controller
-        run: VERUS_DIR=$PWD/verus ./build.sh zookeeper_controller.rs --rlimit 30 --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh zookeeper_controller.rs --rlimit 30 --time
+  unit-tests:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download Verus
+        uses: actions/checkout@v2
+        with:
+          repository: verus-lang/verus
+          path: verus
+      - name: Move Verus
+        run: mv verus ../verus
+      - name: Install Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+      - name: Build Verus
+        run: |
+          cd ../verus/source
+          ./tools/get-z3.sh
+          source ../tools/activate
+          vargo build --release
+      - name: Run unit tests
+        run: cargo test
   rabbitmq-e2e-test:
     runs-on: ubuntu-20.04
     steps:

@@ -27,6 +27,14 @@ impl StringMap {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (m: Self)
+        ensures
+            m@ == self@,
+    {
+        StringMap { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn insert(&mut self, key: String, value: String) -> (old_v: Option<String>)
         ensures
             self@ == old(self)@.insert(key@, value@),
