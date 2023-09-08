@@ -21,8 +21,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 
-use crate::common::apply;
-use crate::common::Error;
+use crate::common::*;
 
 pub fn rabbitmq_cluster() -> String {
     "
@@ -41,27 +40,9 @@ pub fn rabbitmq_cluster() -> String {
     .to_string()
 }
 
-pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
-    // check if the CRD is already registered
-    let client = Client::try_default().await?;
-    let crds: Api<CustomResourceDefinition> = Api::all(client.clone());
-    let rabbitmq_crd = crds.get("rabbitmqclusters.anvil.dev").await;
-    match rabbitmq_crd {
-        Err(e) => {
-            println!("No CRD found, create one before run the e2e test.");
-            return Err(Error::CRDGetFailed(e));
-        }
-        Ok(crd) => {
-            println!("CRD found, continue to run the e2e test.");
-        }
-    }
-
-    // create a rabbitmq cluster
-    let discovery = Discovery::new(client.clone()).run().await?;
-    let rabbitmq_name = apply(rabbitmq_cluster(), client.clone(), &discovery).await?;
+pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
     let rabbitmq_sts_name = format!("{}-server", &rabbitmq_name);
     let rabbitmq_cm_name = format!("{}-server-conf", &rabbitmq_name);
-
     let timeout = Duration::from_secs(600);
     let start = Instant::now();
     loop {
@@ -109,9 +90,9 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
         };
 
         // Check pods
-        let pods: Api<Pod> = Api::default_namespaced(client.clone());
+        let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
         let lp = ListParams::default().labels(&format!("app={}", &rabbitmq_name)); // only want results for our pod
-        let pod_list = pods.list(&lp).await?;
+        let pod_list = pod_api.list(&lp).await?;
         if pod_list.items.len() != 3 {
             println!("Pods are not ready. Continue to wait.");
             continue;
@@ -130,33 +111,58 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
                 pods_ready = false;
                 break;
             }
-            let attached = pods
-                .exec(
-                    p.metadata.name.unwrap().as_str(),
-                    vec!["rabbitmqctl", "authenticate_user", "new_user", "new_pass"],
-                    &AttachParams::default().stderr(true),
-                )
-                .await?;
-            let err = get_err(attached).await;
-            if err != "" {
-                println!("User and password test failed.");
-                return Err(Error::RabbitmqUserPassFailed);
-            }
         }
         if pods_ready {
             break;
         }
     }
-    println!("E2e test passed.");
+    println!("Desired state test passed.");
     Ok(())
 }
 
-async fn get_err(mut attached: AttachedProcess) -> String {
-    let mut stderr = tokio_util::io::ReaderStream::new(attached.stderr().unwrap());
-    let mut stream_contents = Vec::new();
-    while let Some(chunk) = stderr.next().await {
-        stream_contents.extend_from_slice(&chunk.unwrap());
+pub async fn authenticate_user_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
+    let pod_name = rabbitmq_name + "-server-0";
+    let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
+    let attached = pod_api
+        .exec(
+            pod_name.as_str(),
+            vec!["rabbitmqctl", "authenticate_user", "new_user", "new_pass"],
+            &AttachParams::default().stderr(true),
+        )
+        .await?;
+    let (out, err) = get_output_and_err(attached).await;
+    if err != "" {
+        println!("User and password test failed with {}.", err);
+        return Err(Error::RabbitmqUserPassFailed);
+    } else {
+        println!("{}", out);
     }
-    attached.join().await.unwrap();
-    String::from_utf8_lossy(&stream_contents).to_string()
+    println!("Authenticate user test passed.");
+    Ok(())
+}
+
+pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
+    // check if the CRD is already registered
+    let client = Client::try_default().await?;
+    let crds: Api<CustomResourceDefinition> = Api::all(client.clone());
+    let rabbitmq_crd = crds.get("rabbitmqclusters.anvil.dev").await;
+    match rabbitmq_crd {
+        Err(e) => {
+            println!("No CRD found, create one before run the e2e test.");
+            return Err(Error::CRDGetFailed(e));
+        }
+        Ok(crd) => {
+            println!("CRD found, continue to run the e2e test.");
+        }
+    }
+
+    // create a rabbitmq cluster
+    let discovery = Discovery::new(client.clone()).run().await?;
+    let rabbitmq_name = apply(rabbitmq_cluster(), client.clone(), &discovery).await?;
+
+    desired_state_test(client.clone(), rabbitmq_name.clone()).await?;
+    authenticate_user_test(client.clone(), rabbitmq_name.clone()).await?;
+
+    println!("E2e test passed.");
+    Ok(())
 }

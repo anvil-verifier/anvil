@@ -1,8 +1,12 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+use futures::{StreamExt, TryStreamExt};
 use kube::{
-    api::{Api, DeleteParams, DynamicObject, ListParams, Patch, PatchParams, ResourceExt},
+    api::{
+        Api, AttachedProcess, DeleteParams, DynamicObject, ListParams, Patch, PatchParams,
+        ResourceExt,
+    },
     core::crd::CustomResourceExt,
     core::GroupVersionKind,
     discovery::{ApiCapabilities, ApiResource, Discovery, Scope},
@@ -34,6 +38,9 @@ pub enum Error {
 
     #[error("Statefulset is not consistent with zookeeper cluster spec!")]
     ZookeeperStsFailed,
+
+    #[error("Failed to set/get data to/from the zookeeper cluster!")]
+    ZookeeperWorkloadFailed,
 
     #[error("Statefulset is not consistent with rabbitmq cluster spec!")]
     RabbitmqStsFailed,
@@ -95,4 +102,42 @@ fn dynamic_api(
     } else {
         Api::default_namespaced_with(client, &ar)
     }
+}
+
+pub async fn get_output_and_err(mut attached: AttachedProcess) -> (String, String) {
+    let stdout = tokio_util::io::ReaderStream::new(attached.stdout().unwrap());
+    let out = stdout
+        .filter_map(|r| async { r.ok().and_then(|v| String::from_utf8(v.to_vec()).ok()) })
+        .collect::<Vec<_>>()
+        .await
+        .join("");
+    let stderr = tokio_util::io::ReaderStream::new(attached.stderr().unwrap());
+    let err = stderr
+        .filter_map(|r| async { r.ok().and_then(|v| String::from_utf8(v.to_vec()).ok()) })
+        .collect::<Vec<_>>()
+        .await
+        .join("");
+    attached.join().await.unwrap();
+    (out, err)
+}
+
+pub async fn get_output(mut attached: AttachedProcess) -> String {
+    let stdout = tokio_util::io::ReaderStream::new(attached.stdout().unwrap());
+    let out = stdout
+        .filter_map(|r| async { r.ok().and_then(|v| String::from_utf8(v.to_vec()).ok()) })
+        .collect::<Vec<_>>()
+        .await
+        .join("");
+    attached.join().await.unwrap();
+    out
+}
+
+pub async fn get_err(mut attached: AttachedProcess) -> String {
+    let mut stderr = tokio_util::io::ReaderStream::new(attached.stderr().unwrap());
+    let mut stream_contents = Vec::new();
+    while let Some(chunk) = stderr.next().await {
+        stream_contents.extend_from_slice(&chunk.unwrap());
+    }
+    attached.join().await.unwrap();
+    String::from_utf8_lossy(&stream_contents).to_string()
 }

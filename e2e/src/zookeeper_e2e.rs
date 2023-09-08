@@ -4,7 +4,10 @@ use k8s_openapi::api::apps::v1::StatefulSet;
 use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use kube::{
-    api::{Api, DeleteParams, ListParams, Patch, PatchParams, PostParams, ResourceExt},
+    api::{
+        Api, AttachParams, AttachedProcess, DeleteParams, ListParams, Patch, PatchParams,
+        PostParams, ResourceExt,
+    },
     core::crd::CustomResourceExt,
     discovery::{ApiCapabilities, ApiResource, Discovery, Scope},
     Client, CustomResource,
@@ -17,8 +20,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 
-use crate::common::apply;
-use crate::common::Error;
+use crate::common::*;
 
 pub fn zookeeper_cluster() -> String {
     "
@@ -54,25 +56,7 @@ pub fn zookeeper_cluster() -> String {
     .to_string()
 }
 
-pub async fn zookeeper_e2e_test() -> Result<(), Error> {
-    // check if the CRD is already registered
-    let client = Client::try_default().await?;
-    let crds: Api<CustomResourceDefinition> = Api::all(client.clone());
-    let zk_crd = crds.get("zookeeperclusters.anvil.dev").await;
-    match zk_crd {
-        Err(e) => {
-            println!("No CRD found, create one before run the e2e test.");
-            return Err(Error::CRDGetFailed(e));
-        }
-        Ok(crd) => {
-            println!("CRD found, continue to run the e2e test.");
-        }
-    }
-
-    // create a zookeeper cluster
-    let discovery = Discovery::new(client.clone()).run().await?;
-    let zk_name = apply(zookeeper_cluster(), client.clone(), &discovery).await?;
-
+pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), Error> {
     let timeout = Duration::from_secs(360);
     let start = Instant::now();
     loop {
@@ -97,9 +81,9 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
             }
         };
         // Check pods
-        let pods: Api<Pod> = Api::default_namespaced(client.clone());
+        let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
         let lp = ListParams::default().labels(&format!("app={}", &zk_name)); // only want results for our pod
-        let pod_list = pods.list(&lp).await?;
+        let pod_list = pod_api.list(&lp).await?;
         if pod_list.items.len() != 3 {
             println!("Pods are not ready. Continue to wait.");
             continue;
@@ -123,6 +107,96 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
             break;
         }
     }
+    println!("Desired state test passed.");
+    Ok(())
+}
+
+pub async fn zk_workload_test(client: Client, zk_name: String) -> Result<(), Error> {
+    let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
+    let pod_name = zk_name.clone() + "-0";
+
+    let mut attached = pod_api
+        .exec(
+            pod_name.as_str(),
+            vec!["zkCli.sh", "create", "/test-key", "test-data"],
+            &AttachParams::default().stderr(true),
+        )
+        .await?;
+    let (out, err) = get_output_and_err(attached).await;
+
+    attached = pod_api
+        .exec(
+            pod_name.as_str(),
+            vec!["zkCli.sh", "get", "/test-key"],
+            &AttachParams::default().stderr(true),
+        )
+        .await?;
+    let (out, err) = get_output_and_err(attached).await;
+    if err != "" {
+        println!("ZK workload test failed with {}.", err);
+        return Err(Error::ZookeeperWorkloadFailed);
+    } else {
+        println!("{}", out);
+        if !out.contains("test-data") {
+            println!("Test failed because of unexpected get output.");
+            return Err(Error::ZookeeperWorkloadFailed);
+        }
+    }
+
+    attached = pod_api
+        .exec(
+            pod_name.as_str(),
+            vec!["zkCli.sh", "set", "/test-key", "test-data-2"],
+            &AttachParams::default().stderr(true),
+        )
+        .await?;
+    let (out, err) = get_output_and_err(attached).await;
+
+    attached = pod_api
+        .exec(
+            pod_name.as_str(),
+            vec!["zkCli.sh", "get", "/test-key"],
+            &AttachParams::default().stderr(true),
+        )
+        .await?;
+    let (out, err) = get_output_and_err(attached).await;
+    if err != "" {
+        println!("ZK workload test failed with {}.", err);
+        return Err(Error::ZookeeperWorkloadFailed);
+    } else {
+        println!("{}", out);
+        if !out.contains("test-data-2") {
+            println!("Test failed because of unexpected get output.");
+            return Err(Error::ZookeeperWorkloadFailed);
+        }
+    }
+
+    println!("Zookeeper workload test passed.");
+    Ok(())
+}
+
+pub async fn zookeeper_e2e_test() -> Result<(), Error> {
+    // check if the CRD is already registered
+    let client = Client::try_default().await?;
+    let crds: Api<CustomResourceDefinition> = Api::all(client.clone());
+    let zk_crd = crds.get("zookeeperclusters.anvil.dev").await;
+    match zk_crd {
+        Err(e) => {
+            println!("No CRD found, create one before run the e2e test.");
+            return Err(Error::CRDGetFailed(e));
+        }
+        Ok(crd) => {
+            println!("CRD found, continue to run the e2e test.");
+        }
+    }
+
+    // create a zookeeper cluster
+    let discovery = Discovery::new(client.clone()).run().await?;
+    let zk_name = apply(zookeeper_cluster(), client.clone(), &discovery).await?;
+
+    desired_state_test(client.clone(), zk_name.clone()).await?;
+    zk_workload_test(client.clone(), zk_name.clone()).await?;
+
     println!("E2e test passed.");
     Ok(())
 }
