@@ -21,6 +21,9 @@ spec:
           properties:
             spec:
               properties:
+                clientPort:
+                  format: int32
+                  type: integer
                 conf:
                   properties:
                     autoPurgePurgeInterval:
@@ -119,6 +122,7 @@ spec:
                       type: object
                   type: object
               required:
+                - clientPort
                 - conf
                 - image
                 - replicas

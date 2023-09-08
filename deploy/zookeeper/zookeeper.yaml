@@ -6,10 +6,7 @@ metadata:
 spec:
   replicas: 3
   image: pravega/zookeeper:0.2.14
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "500m"
+  clientPort: 2181
   conf:
     initLimit: 10
     syncLimit: 2
@@ -26,3 +23,7 @@ spec:
     autoPurgeSnapRetainCount: 3
     autoPurgePurgeInterval: 1
     quorumListenOnAllIps: false
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "500m"
