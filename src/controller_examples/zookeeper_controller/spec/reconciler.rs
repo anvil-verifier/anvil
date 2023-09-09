@@ -99,11 +99,11 @@ pub open spec fn reconcile_core(
         ZookeeperReconcileStep::AfterGetHeadlessService => {
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
                 let get_headless_service_resp = resp.get_KResponse_0().get_GetResponse_0().res;
-                let headless_service_unmarshal_result = ServiceView::from_dynamic_object(get_headless_service_resp.get_Ok_0());
+                let unmarshal_headless_service_result = ServiceView::from_dynamic_object(get_headless_service_resp.get_Ok_0());
                 if get_headless_service_resp.is_Ok() {
-                    if headless_service_unmarshal_result.is_Ok() && headless_service_unmarshal_result.get_Ok_0().spec.is_Some() {
+                    if unmarshal_headless_service_result.is_Ok() && unmarshal_headless_service_result.get_Ok_0().spec.is_Some() {
                         // update
-                        let found_headless_service = headless_service_unmarshal_result.get_Ok_0();
+                        let found_headless_service = unmarshal_headless_service_result.get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
                             key: make_headless_service_key(zk.object_ref()),
                             obj: update_headless_service(zk, found_headless_service).to_dynamic_object(),
@@ -148,8 +148,9 @@ pub open spec fn reconcile_core(
         },
         ZookeeperReconcileStep::AfterCreateHeadlessService => {
             let create_headless_service_resp = resp.get_KResponse_0().get_CreateResponse_0().res;
+            let unmarshal_headless_service_result = ServiceView::from_dynamic_object(create_headless_service_resp.get_Ok_0());
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
-            && create_headless_service_resp.is_Ok() && ServiceView::from_dynamic_object(create_headless_service_resp.get_Ok_0()).is_Ok() {
+            && create_headless_service_resp.is_Ok() && unmarshal_headless_service_result.is_Ok() {
                 let req_o = APIRequest::CreateRequest(CreateRequest{
                     namespace: zk_namespace,
                     obj: make_client_service(zk).to_dynamic_object(),
@@ -169,8 +170,9 @@ pub open spec fn reconcile_core(
         },
         ZookeeperReconcileStep::AfterUpdateHeadlessService => {
             let update_headless_service_resp = resp.get_KResponse_0().get_UpdateResponse_0().res;
+            let unmarshal_headless_service_result = ServiceView::from_dynamic_object(update_headless_service_resp.get_Ok_0());
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
-            && update_headless_service_resp.is_Ok() && ServiceView::from_dynamic_object(update_headless_service_resp.get_Ok_0()).is_Ok() {
+            && update_headless_service_resp.is_Ok() && unmarshal_headless_service_result.is_Ok() {
                 let req_o = APIRequest::CreateRequest(CreateRequest{
                     namespace: zk_namespace,
                     obj: make_client_service(zk).to_dynamic_object(),
@@ -216,11 +218,12 @@ pub open spec fn reconcile_core(
         },
         ZookeeperReconcileStep::AfterGetConfigMap => {
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
-                let get_cm_resp = resp.get_KResponse_0().get_GetResponse_0().res;
-                if get_cm_resp.is_Ok() {
-                    if ConfigMapView::from_dynamic_object(get_cm_resp.get_Ok_0()).is_Ok() {
+                let get_config_map_resp = resp.get_KResponse_0().get_GetResponse_0().res;
+                let unmarshal_config_map_result = ConfigMapView::from_dynamic_object(get_config_map_resp.get_Ok_0());
+                if get_config_map_resp.is_Ok() {
+                    if unmarshal_config_map_result.is_Ok() {
                         // update
-                        let found_config_map = ConfigMapView::from_dynamic_object(get_cm_resp.get_Ok_0()).get_Ok_0();
+                        let found_config_map = unmarshal_config_map_result.get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
                             key: make_config_map_key(zk.object_ref()),
                             obj: update_config_map(zk, found_config_map).to_dynamic_object(),
@@ -237,7 +240,7 @@ pub open spec fn reconcile_core(
                         };
                         (state_prime, None)
                     }
-                } else if get_cm_resp.get_Err_0().is_ObjectNotFound() {
+                } else if get_config_map_resp.get_Err_0().is_ObjectNotFound() {
                     // create
                     let req_o = APIRequest::CreateRequest(CreateRequest {
                         namespace: zk_namespace,
@@ -264,10 +267,11 @@ pub open spec fn reconcile_core(
             }
         },
         ZookeeperReconcileStep::AfterCreateConfigMap => {
-            let create_cm_resp = resp.get_KResponse_0().get_CreateResponse_0().res;
-            let latest_config_map = ConfigMapView::from_dynamic_object(create_cm_resp.get_Ok_0()).get_Ok_0();
+            let create_config_map_resp = resp.get_KResponse_0().get_CreateResponse_0().res;
+            let unmarshal_config_map_result = ConfigMapView::from_dynamic_object(create_config_map_resp.get_Ok_0());
+            let latest_config_map = unmarshal_config_map_result.get_Ok_0();
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
-            && create_cm_resp.is_Ok() && ConfigMapView::from_dynamic_object(create_cm_resp.get_Ok_0()).is_Ok()
+            && create_config_map_resp.is_Ok() && unmarshal_config_map_result.is_Ok()
             && latest_config_map.metadata.resource_version.is_Some() {
                 let req_o = APIRequest::GetRequest(GetRequest {
                     key: ObjectRef {
@@ -291,10 +295,11 @@ pub open spec fn reconcile_core(
             }
         },
         ZookeeperReconcileStep::AfterUpdateConfigMap => {
-            let update_cm_resp = resp.get_KResponse_0().get_UpdateResponse_0().res;
-            let latest_config_map = ConfigMapView::from_dynamic_object(update_cm_resp.get_Ok_0()).get_Ok_0();
+            let update_config_map_resp = resp.get_KResponse_0().get_UpdateResponse_0().res;
+            let unmarshal_config_map_result = ConfigMapView::from_dynamic_object(update_config_map_resp.get_Ok_0());
+            let latest_config_map = unmarshal_config_map_result.get_Ok_0();
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
-            && update_cm_resp.is_Ok() && ConfigMapView::from_dynamic_object(update_cm_resp.get_Ok_0()).is_Ok()
+            && update_config_map_resp.is_Ok() && unmarshal_config_map_result.is_Ok()
             && latest_config_map.metadata.resource_version.is_Some() {
                 let req_o = APIRequest::GetRequest(GetRequest {
                     key: ObjectRef {
@@ -319,10 +324,11 @@ pub open spec fn reconcile_core(
         },
         ZookeeperReconcileStep::AfterGetStatefulSet => {
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
-                let get_sts_resp = resp.get_KResponse_0().get_GetResponse_0().res;
-                if get_sts_resp.is_Ok() {
-                    if StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).is_Ok() {
-                        let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).get_Ok_0();
+                let get_stateful_set_resp = resp.get_KResponse_0().get_GetResponse_0().res;
+                let unmarshal_stateful_set_result = StatefulSetView::from_dynamic_object(get_stateful_set_resp.get_Ok_0());
+                if get_stateful_set_resp.is_Ok() {
+                    if unmarshal_stateful_set_result.is_Ok() {
+                        let found_stateful_set = unmarshal_stateful_set_result.get_Ok_0();
                         // update
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::AfterExistsZKNode,
@@ -341,7 +347,7 @@ pub open spec fn reconcile_core(
                         };
                         (state_prime, None)
                     }
-                } else if get_sts_resp.get_Err_0().is_ObjectNotFound() && state.latest_config_map_rv_opt.is_Some() {
+                } else if get_stateful_set_resp.get_Err_0().is_ObjectNotFound() && state.latest_config_map_rv_opt.is_Some() {
                     // create
                     let req_o = APIRequest::CreateRequest(CreateRequest {
                             namespace: zk_namespace,

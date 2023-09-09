@@ -130,10 +130,10 @@ pub fn reconcile_core(
             && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
                 let get_headless_service_resp = resp_o.unwrap().into_k_response().into_get_response().res;
                 if get_headless_service_resp.is_ok() {
-                    let get_headless_service_result = Service::from_dynamic_object(get_headless_service_resp.unwrap());
-                    if get_headless_service_result.is_ok() {
+                    let unmarshal_headless_service_result = Service::from_dynamic_object(get_headless_service_resp.unwrap());
+                    if unmarshal_headless_service_result.is_ok() {
                         // Update the headless service with the new port.
-                        let found_headless_service = get_headless_service_result.unwrap();
+                        let found_headless_service = unmarshal_headless_service_result.unwrap();
                         if found_headless_service.spec().is_some() {
                             let new_headless_service = update_headless_service(zk, &found_headless_service);
                             let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
@@ -175,8 +175,8 @@ pub fn reconcile_core(
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response() {
                 let create_headless_service_resp = resp_o.unwrap().into_k_response().into_create_response().res;
                 if create_headless_service_resp.is_ok() {
-                    let create_headless_service_result = Service::from_dynamic_object(create_headless_service_resp.unwrap());
-                    if create_headless_service_result.is_ok() {
+                    let unmarshal_headless_service_result = Service::from_dynamic_object(create_headless_service_resp.unwrap());
+                    if unmarshal_headless_service_result.is_ok() {
                         let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                             api_resource: Service::api_resource(),
                             namespace: zk.metadata().namespace().unwrap(),
@@ -201,8 +201,8 @@ pub fn reconcile_core(
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response() {
                 let update_headless_service_resp = resp_o.unwrap().into_k_response().into_update_response().res;
                 if update_headless_service_resp.is_ok() {
-                    let update_headless_service_result = Service::from_dynamic_object(update_headless_service_resp.unwrap());
-                    if update_headless_service_result.is_ok() {
+                    let unmarshal_headless_service_result = Service::from_dynamic_object(update_headless_service_resp.unwrap());
+                    if unmarshal_headless_service_result.is_ok() {
                         let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                             api_resource: Service::api_resource(),
                             namespace: zk.metadata().namespace().unwrap(),
@@ -250,12 +250,12 @@ pub fn reconcile_core(
         ZookeeperReconcileStep::AfterGetConfigMap => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
-                let get_cm_resp = resp_o.unwrap().into_k_response().into_get_response().res;
-                if get_cm_resp.is_ok() {
-                    let get_cm_result = ConfigMap::from_dynamic_object(get_cm_resp.unwrap());
-                    if get_cm_result.is_ok() {
+                let get_config_map_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_config_map_resp.is_ok() {
+                    let unmarshal_config_map_result = ConfigMap::from_dynamic_object(get_config_map_resp.unwrap());
+                    if unmarshal_config_map_result.is_ok() {
                         // Update the config map with the new configuration data
-                        let found_config_map = get_cm_result.unwrap();
+                        let found_config_map = unmarshal_config_map_result.unwrap();
                         let new_config_map = update_config_map(zk, &found_config_map);
                         let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                             api_resource: ConfigMap::api_resource(),
@@ -269,7 +269,7 @@ pub fn reconcile_core(
                         };
                         return (state_prime, Some(Request::KRequest(req_o)));
                     }
-                } else if get_cm_resp.unwrap_err().is_object_not_found() {
+                } else if get_config_map_resp.unwrap_err().is_object_not_found() {
                     // Create the config map since it doesn't exist yet.
                     let config_map = make_config_map(zk);
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
@@ -293,11 +293,11 @@ pub fn reconcile_core(
         ZookeeperReconcileStep::AfterCreateConfigMap => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response() {
-                let create_cm_resp = resp_o.unwrap().into_k_response().into_create_response().res;
-                if create_cm_resp.is_ok() {
-                    let create_cm_result = ConfigMap::from_dynamic_object(create_cm_resp.unwrap());
-                    if create_cm_result.is_ok() {
-                        let latest_config_map = create_cm_result.unwrap();
+                let create_config_map_resp = resp_o.unwrap().into_k_response().into_create_response().res;
+                if create_config_map_resp.is_ok() {
+                    let unmarshal_config_map_result = ConfigMap::from_dynamic_object(create_config_map_resp.unwrap());
+                    if unmarshal_config_map_result.is_ok() {
+                        let latest_config_map = unmarshal_config_map_result.unwrap();
                         if latest_config_map.metadata().resource_version().is_some() {
                             let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                                 api_resource: StatefulSet::api_resource(),
@@ -323,11 +323,11 @@ pub fn reconcile_core(
         ZookeeperReconcileStep::AfterUpdateConfigMap => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response() {
-                let update_cm_resp = resp_o.unwrap().into_k_response().into_update_response().res;
-                if update_cm_resp.is_ok() {
-                    let update_cm_result = ConfigMap::from_dynamic_object(update_cm_resp.unwrap());
-                    if update_cm_result.is_ok() {
-                        let latest_config_map = update_cm_result.unwrap();
+                let update_config_map_resp = resp_o.unwrap().into_k_response().into_update_response().res;
+                if update_config_map_resp.is_ok() {
+                    let unmarshal_config_map_result = ConfigMap::from_dynamic_object(update_config_map_resp.unwrap());
+                    if unmarshal_config_map_result.is_ok() {
+                        let latest_config_map = unmarshal_config_map_result.unwrap();
                         if latest_config_map.metadata().resource_version().is_some() {
                             let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                                 api_resource: StatefulSet::api_resource(),
@@ -353,11 +353,11 @@ pub fn reconcile_core(
         ZookeeperReconcileStep::AfterGetStatefulSet => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
-                let get_sts_resp = resp_o.unwrap().into_k_response().into_get_response().res;
-                if get_sts_resp.is_ok() {
-                    let get_sts_result = StatefulSet::from_dynamic_object(get_sts_resp.unwrap());
-                    if get_sts_result.is_ok() {
-                        let found_stateful_set = get_sts_result.unwrap();
+                let get_stateful_set_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_stateful_set_resp.is_ok() {
+                    let unmarshal_stateful_set_result = StatefulSet::from_dynamic_object(get_stateful_set_resp.unwrap());
+                    if unmarshal_stateful_set_result.is_ok() {
+                        let found_stateful_set = unmarshal_stateful_set_result.unwrap();
                         // Updating the stateful set can lead to downscale,
                         // which also requires to remove the zookeeper replica from the membership list explicitly.
                         // If the zookeeper replica is deleted without being removed from the membership,
@@ -379,7 +379,7 @@ pub fn reconcile_core(
                         );
                         return (state_prime, Some(Request::ExternalRequest(ext_req)));
                     }
-                } else if get_sts_resp.unwrap_err().is_object_not_found() && state.latest_config_map_rv_opt.is_some() {
+                } else if get_stateful_set_resp.unwrap_err().is_object_not_found() && state.latest_config_map_rv_opt.is_some() {
                     // Create the stateful set since it doesn't exist yet.
                     let stateful_set = make_stateful_set(zk, state.latest_config_map_rv_opt.as_ref().unwrap());
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
