@@ -114,30 +114,113 @@ pub fn reconcile_core(
     let step = state.reconcile_step;
     match step {
         ZookeeperReconcileStep::Init => {
-            let headless_service = make_headless_service(&zk);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+            let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                 api_resource: Service::api_resource(),
+                name: make_headless_service_name(zk),
                 namespace: zk.metadata().namespace().unwrap(),
-                obj: headless_service.to_dynamic_object(),
             });
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterCreateHeadlessService,
+                reconcile_step: ZookeeperReconcileStep::AfterGetHeadlessService,
                 ..state
             };
             return (state_prime, Some(Request::KRequest(req_o)));
         },
-        ZookeeperReconcileStep::AfterCreateHeadlessService => {
-            let client_service = make_client_service(zk);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: Service::api_resource(),
-                namespace: zk.metadata().namespace().unwrap(),
-                obj: client_service.to_dynamic_object(),
-            });
+        ZookeeperReconcileStep::AfterGetHeadlessService => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                let get_headless_service_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_headless_service_resp.is_ok() {
+                    let get_headless_service_result = Service::from_dynamic_object(get_headless_service_resp.unwrap());
+                    if get_headless_service_result.is_ok() {
+                        // Update the headless service with the new port.
+                        let found_headless_service = get_headless_service_result.unwrap();
+                        if found_headless_service.spec().is_some() {
+                            let new_headless_service = update_headless_service(zk, &found_headless_service);
+                            let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                                api_resource: Service::api_resource(),
+                                name: make_headless_service_name(zk),
+                                namespace: zk.metadata().namespace().unwrap(),
+                                obj: new_headless_service.to_dynamic_object(),
+                            });
+                            let state_prime = ZookeeperReconcileState {
+                                reconcile_step: ZookeeperReconcileStep::AfterUpdateHeadlessService,
+                                ..state
+                            };
+                            return (state_prime, Some(Request::KRequest(req_o)));
+                        }
+                    }
+                } else if get_headless_service_resp.unwrap_err().is_object_not_found() {
+                    // Create the headless service since it doesn't exist yet.
+                    let headless_service = make_headless_service(zk);
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: Service::api_resource(),
+                        namespace: zk.metadata().namespace().unwrap(),
+                        obj: headless_service.to_dynamic_object(),
+                    });
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterCreateHeadlessService,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterCreateClientService,
+                reconcile_step: ZookeeperReconcileStep::Error,
                 ..state
             };
-            return (state_prime, Some(Request::KRequest(req_o)));
+            return (state_prime, None);
+        },
+        ZookeeperReconcileStep::AfterCreateHeadlessService => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response() {
+                let create_headless_service_resp = resp_o.unwrap().into_k_response().into_create_response().res;
+                if create_headless_service_resp.is_ok() {
+                    let create_headless_service_result = Service::from_dynamic_object(create_headless_service_resp.unwrap());
+                    if create_headless_service_result.is_ok() {
+                        let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                            api_resource: Service::api_resource(),
+                            namespace: zk.metadata().namespace().unwrap(),
+                            obj: make_client_service(zk).to_dynamic_object(),
+                        });
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterCreateClientService,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                }
+            }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
+        },
+        ZookeeperReconcileStep::AfterUpdateHeadlessService => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response() {
+                let update_headless_service_resp = resp_o.unwrap().into_k_response().into_update_response().res;
+                if update_headless_service_resp.is_ok() {
+                    let update_headless_service_result = Service::from_dynamic_object(update_headless_service_resp.unwrap());
+                    if update_headless_service_result.is_ok() {
+                        let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                            api_resource: Service::api_resource(),
+                            namespace: zk.metadata().namespace().unwrap(),
+                            obj: make_client_service(zk).to_dynamic_object(),
+                        });
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterCreateClientService,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                }
+            }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
         },
         ZookeeperReconcileStep::AfterCreateClientService => {
             let admin_server_service = make_admin_server_service(zk);
@@ -500,6 +583,37 @@ fn zk_node_data(zk: &ZookeeperCluster) -> (data: String)
     new_strlit("CLUSTER_SIZE=").to_string().concat(i32_to_string(zk.spec().replicas()).as_str())
 }
 
+fn make_headless_service_name(zk: &ZookeeperCluster) -> (name: String)
+    requires
+        zk@.well_formed(),
+    ensures
+        name@ == zk_spec::make_headless_service_name(zk@.metadata.name.get_Some_0()),
+{
+    zk.metadata().name().unwrap().concat(new_strlit("-headless"))
+}
+
+fn update_headless_service(zk: &ZookeeperCluster, found_headless_service: &Service) -> (headless_service: Service)
+    requires
+        zk@.well_formed(),
+        found_headless_service@.spec.is_Some(),
+    ensures
+        headless_service@ == zk_spec::update_headless_service(zk@, found_headless_service@),
+{
+    let mut headless_service = found_headless_service.clone();
+    let made_headless_service = make_headless_service(zk);
+    headless_service.set_metadata({
+        let mut metadata = found_headless_service.metadata();
+        metadata.set_labels(made_headless_service.metadata().labels().unwrap());
+        metadata
+    });
+    headless_service.set_spec({
+        let mut spec = found_headless_service.spec().unwrap();
+        spec.set_ports(made_headless_service.spec().unwrap().ports().unwrap());
+        spec
+    });
+    headless_service
+}
+
 /// Headless Service is used to assign DNS entry to each zookeeper server Pod
 fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
@@ -522,7 +636,7 @@ fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
         );
     }
 
-    make_service(zk, zk.metadata().name().unwrap().concat(new_strlit("-headless")), ports, false)
+    make_service(zk, make_headless_service_name(zk), ports, false)
 }
 
 /// Client Service is used for any client to connect to the zookeeper server

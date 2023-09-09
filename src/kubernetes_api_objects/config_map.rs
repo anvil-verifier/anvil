@@ -36,9 +36,7 @@ impl ConfigMap {
         ensures
             config_map@ == ConfigMapView::default(),
     {
-        ConfigMap {
-            inner: deps_hack::k8s_openapi::api::core::v1::ConfigMap::default(),
-        }
+        ConfigMap { inner: deps_hack::k8s_openapi::api::core::v1::ConfigMap::default() }
     }
 
     #[verifier(external_body)]
@@ -46,9 +44,7 @@ impl ConfigMap {
         ensures
             c@ == self@,
     {
-        ConfigMap {
-            inner: self.inner.clone(),
-        }
+        ConfigMap { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
@@ -65,10 +61,9 @@ impl ConfigMap {
             self@.data.is_Some() == data.is_Some(),
             data.is_Some() ==> data.get_Some_0()@ == self@.data.get_Some_0(),
     {
-        if self.inner.data.is_none() {
-            None
-        } else {
-            Some(StringMap::from_rust_map(self.inner.data.clone().unwrap()))
+        match &self.inner.data {
+            Some(d) => Some(StringMap::from_rust_map(d.clone())),
+            None => None,
         }
     }
 

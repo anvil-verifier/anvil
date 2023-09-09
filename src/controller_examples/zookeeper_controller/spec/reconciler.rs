@@ -83,28 +83,110 @@ pub open spec fn reconcile_core(
     let client_port = zk.spec.client_port;
     match step {
         ZookeeperReconcileStep::Init => {
-            let headless_service = make_headless_service(zk);
-            let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: zk_namespace,
-                obj: headless_service.to_dynamic_object(),
+            let req_o = APIRequest::GetRequest(GetRequest{
+                key: ObjectRef {
+                    kind: ServiceView::kind(),
+                    name: make_headless_service_name(zk_name),
+                    namespace: zk_namespace,
+                }
             });
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterCreateHeadlessService,
+                reconcile_step: ZookeeperReconcileStep::AfterGetHeadlessService,
                 ..state
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
+        ZookeeperReconcileStep::AfterGetHeadlessService => {
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
+                let get_headless_service_resp = resp.get_KResponse_0().get_GetResponse_0().res;
+                let headless_service_unmarshal_result = ServiceView::from_dynamic_object(get_headless_service_resp.get_Ok_0());
+                if get_headless_service_resp.is_Ok() {
+                    if headless_service_unmarshal_result.is_Ok() && headless_service_unmarshal_result.get_Ok_0().spec.is_Some() {
+                        // update
+                        let found_headless_service = headless_service_unmarshal_result.get_Ok_0();
+                        let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                            key: make_headless_service_key(zk.object_ref()),
+                            obj: update_headless_service(zk, found_headless_service).to_dynamic_object(),
+                        });
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterUpdateHeadlessService,
+                            ..state
+                        };
+                        (state_prime, Some(RequestView::KRequest(req_o)))
+                    } else {
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                } else if get_headless_service_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = APIRequest::CreateRequest(CreateRequest {
+                        namespace: zk_namespace,
+                        obj: make_headless_service(zk).to_dynamic_object(),
+                    });
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterCreateHeadlessService,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::KRequest(req_o)))
+                } else {
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
         ZookeeperReconcileStep::AfterCreateHeadlessService => {
-            let client_service = make_client_service(zk);
-            let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: zk_namespace,
-                obj: client_service.to_dynamic_object(),
-            });
-            let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterCreateClientService,
-                ..state
-            };
-            (state_prime, Some(RequestView::KRequest(req_o)))
+            let create_headless_service_resp = resp.get_KResponse_0().get_CreateResponse_0().res;
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
+            && create_headless_service_resp.is_Ok() && ServiceView::from_dynamic_object(create_headless_service_resp.get_Ok_0()).is_Ok() {
+                let req_o = APIRequest::CreateRequest(CreateRequest{
+                    namespace: zk_namespace,
+                    obj: make_client_service(zk).to_dynamic_object(),
+                });
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::AfterCreateClientService,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        ZookeeperReconcileStep::AfterUpdateHeadlessService => {
+            let update_headless_service_resp = resp.get_KResponse_0().get_UpdateResponse_0().res;
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
+            && update_headless_service_resp.is_Ok() && ServiceView::from_dynamic_object(update_headless_service_resp.get_Ok_0()).is_Ok() {
+                let req_o = APIRequest::CreateRequest(CreateRequest{
+                    namespace: zk_namespace,
+                    obj: make_client_service(zk).to_dynamic_object(),
+                });
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::AfterCreateClientService,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         ZookeeperReconcileStep::AfterCreateClientService => {
             let admin_server_service = make_admin_server_service(zk);
@@ -449,6 +531,36 @@ pub open spec fn zk_node_data(zk: ZookeeperClusterView) -> StringView
     new_strlit("CLUSTER_SIZE=")@ + int_to_string_view(zk.spec.replicas)
 }
 
+pub open spec fn make_headless_service_key(key: ObjectRef) -> ObjectRef
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    ObjectRef {
+        kind: ServiceView::kind(),
+        name: make_headless_service_name(key.name),
+        namespace: key.namespace,
+    }
+}
+
+pub open spec fn make_headless_service_name(zk_name: StringView) -> StringView {
+    zk_name + new_strlit("-headless")@
+}
+
+pub open spec fn update_headless_service(zk: ZookeeperClusterView, found_headless_service: ServiceView) -> ServiceView
+    recommends
+        zk.well_formed(),
+{
+    found_headless_service
+        .set_metadata(
+            found_headless_service.metadata
+                .set_labels(make_headless_service(zk).metadata.labels.get_Some_0())
+        )
+        .set_spec(
+            found_headless_service.spec.get_Some_0()
+                .set_ports(make_headless_service(zk).spec.get_Some_0().ports.get_Some_0())
+        )
+}
+
 pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView
     recommends
         zk.well_formed(),
@@ -461,7 +573,14 @@ pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView
         ServicePortView::default().set_name(new_strlit("tcp-admin-server")@).set_port(8080)
     ];
 
-    make_service(zk, zk.metadata.name.get_Some_0() + new_strlit("-headless")@, ports, false)
+    make_service(zk, make_headless_service_name(zk.metadata.name.get_Some_0()), ports, false)
+}
+
+pub open spec fn make_client_service_name(zk: ZookeeperClusterView) -> StringView
+    recommends
+        zk.well_formed(),
+{
+    zk.metadata.name.get_Some_0() + new_strlit("-client")@
 }
 
 pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView
@@ -471,13 +590,6 @@ pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView
     let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(zk.spec.client_port)];
 
     make_service(zk, make_client_service_name(zk), ports, true)
-}
-
-pub open spec fn make_client_service_name(zk: ZookeeperClusterView) -> StringView
-    recommends
-        zk.well_formed(),
-{
-    zk.metadata.name.get_Some_0() + new_strlit("-client")@
 }
 
 pub open spec fn make_admin_server_service(zk: ZookeeperClusterView) -> ServiceView
