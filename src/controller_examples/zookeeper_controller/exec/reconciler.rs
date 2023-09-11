@@ -544,7 +544,7 @@ pub fn reconcile_core(
                         };
                         let node_path = zk_node_path(zk);
                         let ext_req = ZKAPIInput::ExistsRequest(
-                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().client_port(), node_path
+                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().ports().client(), node_path
                         );
                         return (state_prime, Some(Request::ExternalRequest(ext_req)));
                     }
@@ -580,7 +580,7 @@ pub fn reconcile_core(
                         let node_path = zk_node_path(zk);
                         let data = zk_node_data(zk);
                         let ext_req = ZKAPIInput::SetDataRequest(
-                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().client_port(), node_path, data, version
+                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().ports().client(), node_path, data, version
                         );
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
@@ -591,7 +591,7 @@ pub fn reconcile_core(
                         let node_path = zk_parent_node_path(zk);
                         let data = new_strlit("").to_string();
                         let ext_req = ZKAPIInput::CreateRequest(
-                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().client_port(), node_path, data
+                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().ports().client(), node_path, data
                         );
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::AfterCreateZKParentNode,
@@ -615,7 +615,7 @@ pub fn reconcile_core(
                     let node_path = zk_node_path(zk);
                     let data = zk_node_data(zk);
                     let ext_req = ZKAPIInput::CreateRequest(
-                        zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().client_port(), node_path, data
+                        zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().ports().client(), node_path, data
                     );
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
@@ -792,11 +792,11 @@ fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
 {
     let mut ports = Vec::new();
 
-    ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), zk.spec().client_port()));
-    ports.push(ServicePort::new_with(new_strlit("tcp-quorum").to_string(), zk.spec().quorum_port()));
-    ports.push(ServicePort::new_with(new_strlit("tcp-leader-election").to_string(), zk.spec().leader_election_port()));
-    ports.push(ServicePort::new_with(new_strlit("tcp-metrics").to_string(), zk.spec().metrics_port()));
-    ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), zk.spec().admin_server_port()));
+    ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), zk.spec().ports().client()));
+    ports.push(ServicePort::new_with(new_strlit("tcp-quorum").to_string(), zk.spec().ports().quorum()));
+    ports.push(ServicePort::new_with(new_strlit("tcp-leader-election").to_string(), zk.spec().ports().leader_election()));
+    ports.push(ServicePort::new_with(new_strlit("tcp-metrics").to_string(), zk.spec().ports().metrics()));
+    ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), zk.spec().ports().admin_server()));
 
     proof {
         assert_seqs_equal!(
@@ -848,7 +848,7 @@ fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
 {
     let mut ports = Vec::new();
 
-    ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), zk.spec().client_port()));
+    ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), zk.spec().ports().client()));
 
     proof {
         assert_seqs_equal!(
@@ -900,7 +900,7 @@ fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
 {
     let mut ports = Vec::new();
 
-    ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), zk.spec().admin_server_port()));
+    ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), zk.spec().ports().admin_server()));
 
     proof {
         assert_seqs_equal!(
@@ -1037,7 +1037,7 @@ fn make_zk_config(zk: &ZookeeperCluster) -> (s: String)
         reconfigEnabled=true\n\
         skipACL=yes\n\
         metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider\n\
-        metricsProvider.httpPort=").to_string().concat(i32_to_string(zk.spec().metrics_port()).as_str()).concat(new_strlit("\n\
+        metricsProvider.httpPort=").to_string().concat(i32_to_string(zk.spec().ports().metrics()).as_str()).concat(new_strlit("\n\
         metricsProvider.exportJvmInfo=true\n\
         initLimit=")).concat(i32_to_string(zk.spec().conf().init_limit()).as_str()).concat(new_strlit("\n\
         syncLimit=")).concat(i32_to_string(zk.spec().conf().sync_limit()).as_str()).concat(new_strlit("\n\
@@ -1054,7 +1054,7 @@ fn make_zk_config(zk: &ZookeeperCluster) -> (s: String)
         autopurge.snapRetainCount=")).concat(i32_to_string(zk.spec().conf().auto_purge_snap_retain_count()).as_str()).concat(new_strlit("\n\
         autopurge.purgeInterval=")).concat(i32_to_string(zk.spec().conf().auto_purge_purge_interval()).as_str()).concat(new_strlit("\n\
         quorumListenOnAllIPs=")).concat(bool_to_string(zk.spec().conf().quorum_listen_on_all_ips()).as_str()).concat(new_strlit("\n\
-        admin.serverPort=")).concat(i32_to_string(zk.spec().admin_server_port()).as_str()).concat(new_strlit("\n\
+        admin.serverPort=")).concat(i32_to_string(zk.spec().ports().admin_server()).as_str()).concat(new_strlit("\n\
         dynamicConfigFile=/data/zoo.cfg.dynamic\n"
     ))
 }
@@ -1095,10 +1095,10 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
 {
     let name = zk.metadata().name().unwrap();
     let namespace = zk.metadata().namespace().unwrap();
-    let client_port = i32_to_string(zk.spec().client_port());
-    let quorum_port = i32_to_string(zk.spec().quorum_port());
-    let leader_election_port = i32_to_string(zk.spec().leader_election_port());
-    let admin_server_port = i32_to_string(zk.spec().admin_server_port());
+    let client_port = i32_to_string(zk.spec().ports().client());
+    let quorum_port = i32_to_string(zk.spec().ports().quorum());
+    let leader_election_port = i32_to_string(zk.spec().ports().leader_election());
+    let admin_server_port = i32_to_string(zk.spec().ports().admin_server());
 
     new_strlit(
         "#!/usr/bin/env bash\n\n\
@@ -1346,11 +1346,11 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
             });
             zk_container.set_ports({
                 let mut ports = Vec::new();
-                ports.push(ContainerPort::new_with(new_strlit("client").to_string(), zk.spec().client_port()));
-                ports.push(ContainerPort::new_with(new_strlit("quorum").to_string(), zk.spec().quorum_port()));
-                ports.push(ContainerPort::new_with(new_strlit("leader-election").to_string(), zk.spec().leader_election_port()));
-                ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), zk.spec().metrics_port()));
-                ports.push(ContainerPort::new_with(new_strlit("admin-server").to_string(), zk.spec().admin_server_port()));
+                ports.push(ContainerPort::new_with(new_strlit("client").to_string(), zk.spec().ports().client()));
+                ports.push(ContainerPort::new_with(new_strlit("quorum").to_string(), zk.spec().ports().quorum()));
+                ports.push(ContainerPort::new_with(new_strlit("leader-election").to_string(), zk.spec().ports().leader_election()));
+                ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), zk.spec().ports().metrics()));
+                ports.push(ContainerPort::new_with(new_strlit("admin-server").to_string(), zk.spec().ports().admin_server()));
 
                 proof {
                     assert_seqs_equal!(

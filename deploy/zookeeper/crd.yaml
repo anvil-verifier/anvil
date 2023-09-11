@@ -21,12 +21,6 @@ spec:
           properties:
             spec:
               properties:
-                adminServerPort:
-                  format: int32
-                  type: integer
-                clientPort:
-                  format: int32
-                  type: integer
                 conf:
                   properties:
                     autoPurgePurgeInterval:
@@ -92,15 +86,30 @@ spec:
                   type: object
                 image:
                   type: string
-                leaderElectionPort:
-                  format: int32
-                  type: integer
-                metricsPort:
-                  format: int32
-                  type: integer
-                quorumPort:
-                  format: int32
-                  type: integer
+                ports:
+                  properties:
+                    adminServer:
+                      format: int32
+                      type: integer
+                    client:
+                      format: int32
+                      type: integer
+                    leaderElection:
+                      format: int32
+                      type: integer
+                    metrics:
+                      format: int32
+                      type: integer
+                    quorum:
+                      format: int32
+                      type: integer
+                  required:
+                    - adminServer
+                    - client
+                    - leaderElection
+                    - metrics
+                    - quorum
+                  type: object
                 replicas:
                   format: int32
                   type: integer
@@ -134,13 +143,9 @@ spec:
                       type: object
                   type: object
               required:
-                - adminServerPort
-                - clientPort
                 - conf
                 - image
-                - leaderElectionPort
-                - metricsPort
-                - quorumPort
+                - ports
                 - replicas
               type: object
           required:

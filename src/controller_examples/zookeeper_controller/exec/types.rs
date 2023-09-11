@@ -121,51 +121,19 @@ impl ZookeeperClusterSpec {
     }
 
     #[verifier(external_body)]
+    pub fn ports(&self) -> (ports: ZookeeperPorts)
+        ensures
+            ports@ == self@.ports,
+    {
+        ZookeeperPorts::from_kube(self.inner.ports.clone())
+    }
+
+    #[verifier(external_body)]
     pub fn conf(&self) -> (conf: ZookeeperConfig)
         ensures
             conf@ == self@.conf,
     {
         ZookeeperConfig::from_kube(self.inner.conf.clone())
-    }
-
-    #[verifier(external_body)]
-    pub fn client_port(&self) -> (client_port: i32)
-        ensures
-            client_port as int == self@.client_port,
-    {
-        self.inner.client_port
-    }
-
-    #[verifier(external_body)]
-    pub fn quorum_port(&self) -> (quorum_port: i32)
-        ensures
-            quorum_port as int == self@.quorum_port,
-    {
-        self.inner.quorum_port
-    }
-
-    #[verifier(external_body)]
-    pub fn leader_election_port(&self) -> (leader_election_port: i32)
-        ensures
-            leader_election_port as int == self@.leader_election_port,
-    {
-        self.inner.leader_election_port
-    }
-
-    #[verifier(external_body)]
-    pub fn metrics_port(&self) -> (metrics_port: i32)
-        ensures
-            metrics_port as int == self@.metrics_port,
-    {
-        self.inner.metrics_port
-    }
-
-    #[verifier(external_body)]
-    pub fn admin_server_port(&self) -> (admin_server_port: i32)
-        ensures
-            admin_server_port as int == self@.admin_server_port,
-    {
-        self.inner.admin_server_port
     }
 
     #[verifier(external_body)]
@@ -187,6 +155,69 @@ impl ResourceWrapper<deps_hack::ZookeeperClusterSpec> for ZookeeperClusterSpec {
 
     #[verifier(external)]
     fn into_kube(self) -> deps_hack::ZookeeperClusterSpec {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct ZookeeperPorts {
+    inner: deps_hack::ZookeeperPorts,
+}
+
+impl ZookeeperPorts {
+    pub spec fn view(&self) -> ZookeeperPortsView;
+
+    #[verifier(external_body)]
+    pub fn client(&self) -> (client: i32)
+        ensures
+            client as int == self@.client,
+    {
+        self.inner.client
+    }
+
+    #[verifier(external_body)]
+    pub fn quorum(&self) -> (quorum: i32)
+        ensures
+            quorum as int == self@.quorum,
+    {
+        self.inner.quorum
+    }
+
+    #[verifier(external_body)]
+    pub fn leader_election(&self) -> (leader_election: i32)
+        ensures
+            leader_election as int == self@.leader_election,
+    {
+        self.inner.leader_election
+    }
+
+    #[verifier(external_body)]
+    pub fn metrics(&self) -> (metrics: i32)
+        ensures
+            metrics as int == self@.metrics,
+    {
+        self.inner.metrics
+    }
+
+    #[verifier(external_body)]
+    pub fn admin_server(&self) -> (admin_server: i32)
+        ensures
+            admin_server as int == self@.admin_server,
+    {
+        self.inner.admin_server
+    }
+}
+
+impl ResourceWrapper<deps_hack::ZookeeperPorts> for ZookeeperPorts {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::ZookeeperPorts) -> ZookeeperPorts {
+        ZookeeperPorts {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::ZookeeperPorts {
         self.inner
     }
 }
