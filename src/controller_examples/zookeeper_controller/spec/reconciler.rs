@@ -290,19 +290,105 @@ pub open spec fn reconcile_core(
                 (state_prime, None)
             }
         },
-        ZookeeperReconcileStep::AfterCreateAdminServerService => {
-            let req_o = APIRequest::GetRequest(GetRequest{
-                key: ObjectRef {
-                    kind: ConfigMapView::kind(),
-                    name: make_config_map_name(zk_name),
-                    namespace: zk_namespace,
+        ZookeeperReconcileStep::AfterGetAdminServerService => {
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
+                let get_admin_server_service_resp = resp.get_KResponse_0().get_GetResponse_0().res;
+                let unmarshal_admin_server_service_result = ServiceView::from_dynamic_object(get_admin_server_service_resp.get_Ok_0());
+                if get_admin_server_service_resp.is_Ok() {
+                    if unmarshal_admin_server_service_result.is_Ok() && unmarshal_admin_server_service_result.get_Ok_0().spec.is_Some() {
+                        // update
+                        let found_admin_server_service = unmarshal_admin_server_service_result.get_Ok_0();
+                        let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                            key: make_admin_server_service_key(zk.object_ref()),
+                            obj: update_admin_server_service(zk, found_admin_server_service).to_dynamic_object(),
+                        });
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterUpdateAdminServerService,
+                            ..state
+                        };
+                        (state_prime, Some(RequestView::KRequest(req_o)))
+                    } else {
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                } else if get_admin_server_service_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = APIRequest::CreateRequest(CreateRequest {
+                        namespace: zk_namespace,
+                        obj: make_admin_server_service(zk).to_dynamic_object(),
+                    });
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterCreateAdminServerService,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::KRequest(req_o)))
+                } else {
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
                 }
-            });
-            let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterGetConfigMap,
-                ..state
-            };
-            (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        ZookeeperReconcileStep::AfterCreateAdminServerService => {
+            let create_admin_server_service_resp = resp.get_KResponse_0().get_CreateResponse_0().res;
+            let unmarshal_admin_server_service_result = ServiceView::from_dynamic_object(create_admin_server_service_resp.get_Ok_0());
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
+            && create_admin_server_service_resp.is_Ok() && unmarshal_admin_server_service_result.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: ObjectRef {
+                        kind: ConfigMapView::kind(),
+                        name: make_config_map_name(zk_name),
+                        namespace: zk_namespace,
+                    }
+                });
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::AfterGetConfigMap,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        ZookeeperReconcileStep::AfterUpdateAdminServerService => {
+            let update_admin_server_service_resp = resp.get_KResponse_0().get_UpdateResponse_0().res;
+            let unmarshal_admin_server_service_result = ServiceView::from_dynamic_object(update_admin_server_service_resp.get_Ok_0());
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
+            && update_admin_server_service_resp.is_Ok() && unmarshal_admin_server_service_result.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: ObjectRef {
+                        kind: ConfigMapView::kind(),
+                        name: make_config_map_name(zk_name),
+                        namespace: zk_namespace,
+                    }
+                });
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::AfterGetConfigMap,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         ZookeeperReconcileStep::AfterGetConfigMap => {
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
@@ -709,13 +795,43 @@ pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView
     make_service(zk, make_client_service_name(zk.metadata.name.get_Some_0()), ports, true)
 }
 
+pub open spec fn make_admin_server_service_key(key: ObjectRef) -> ObjectRef
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    ObjectRef {
+        kind: ServiceView::kind(),
+        name: make_admin_server_service_name(key.name),
+        namespace: key.namespace,
+    }
+}
+
+pub open spec fn make_admin_server_service_name(zk_name: StringView) -> StringView {
+    zk_name + new_strlit("-admin-server")@
+}
+
+pub open spec fn update_admin_server_service(zk: ZookeeperClusterView, found_admin_server_service: ServiceView) -> ServiceView
+    recommends
+        zk.well_formed(),
+{
+    found_admin_server_service
+        .set_metadata(
+            found_admin_server_service.metadata
+                .set_labels(make_admin_server_service(zk).metadata.labels.get_Some_0())
+        )
+        .set_spec(
+            found_admin_server_service.spec.get_Some_0()
+                .set_ports(make_admin_server_service(zk).spec.get_Some_0().ports.get_Some_0())
+        )
+}
+
 pub open spec fn make_admin_server_service(zk: ZookeeperClusterView) -> ServiceView
     recommends
         zk.well_formed(),
 {
     let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-admin-server")@).set_port(zk.spec.admin_server_port)];
 
-    make_service(zk, zk.metadata.name.get_Some_0() + new_strlit("-admin-server")@, ports, true)
+    make_service(zk, make_admin_server_service_name(zk.metadata.name.get_Some_0()), ports, true)
 }
 
 pub open spec fn make_service(
