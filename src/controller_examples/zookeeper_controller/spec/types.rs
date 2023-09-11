@@ -112,6 +112,7 @@ pub struct ZookeeperClusterSpecView {
     pub quorum_port: int,
     pub leader_election_port: int,
     pub metrics_port: int,
+    pub admin_server_port: int,
     pub resources: ResourceRequirementsView,
 }
 

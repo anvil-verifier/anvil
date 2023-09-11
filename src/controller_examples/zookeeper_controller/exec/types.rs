@@ -161,6 +161,14 @@ impl ZookeeperClusterSpec {
     }
 
     #[verifier(external_body)]
+    pub fn admin_server_port(&self) -> (admin_server_port: i32)
+        ensures
+            admin_server_port as int == self@.admin_server_port,
+    {
+        self.inner.admin_server_port
+    }
+
+    #[verifier(external_body)]
     pub fn resources(&self) -> (resources: ResourceRequirements)
         ensures
             resources@ == self@.resources,

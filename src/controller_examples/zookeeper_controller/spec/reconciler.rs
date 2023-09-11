@@ -664,7 +664,7 @@ pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView
         ServicePortView::default().set_name(new_strlit("tcp-quorum")@).set_port(zk.spec.quorum_port),
         ServicePortView::default().set_name(new_strlit("tcp-leader-election")@).set_port(zk.spec.leader_election_port),
         ServicePortView::default().set_name(new_strlit("tcp-metrics")@).set_port(zk.spec.metrics_port),
-        ServicePortView::default().set_name(new_strlit("tcp-admin-server")@).set_port(8080)
+        ServicePortView::default().set_name(new_strlit("tcp-admin-server")@).set_port(zk.spec.admin_server_port)
     ];
 
     make_service(zk, make_headless_service_name(zk.metadata.name.get_Some_0()), ports, false)
@@ -713,7 +713,7 @@ pub open spec fn make_admin_server_service(zk: ZookeeperClusterView) -> ServiceV
     recommends
         zk.well_formed(),
 {
-    let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-admin-server")@).set_port(8080)];
+    let ports = seq![ServicePortView::default().set_name(new_strlit("tcp-admin-server")@).set_port(zk.spec.admin_server_port)];
 
     make_service(zk, zk.metadata.name.get_Some_0() + new_strlit("-admin-server")@, ports, true)
 }
@@ -813,7 +813,7 @@ pub open spec fn make_zk_config(zk: ZookeeperClusterView) -> StringView {
         autopurge.snapRetainCount=")@ + int_to_string_view(zk.spec.conf.auto_purge_snap_retain_count) + new_strlit("\n\
         autopurge.purgeInterval=")@ + int_to_string_view(zk.spec.conf.auto_purge_purge_interval) + new_strlit("\n\
         quorumListenOnAllIPs=")@ + bool_to_string_view(zk.spec.conf.quorum_listen_on_all_ips) + new_strlit("\n\
-        admin.serverPort=8080\n\
+        admin.serverPort=")@ + int_to_string_view(zk.spec.admin_server_port) + new_strlit("\n\
         dynamicConfigFile=/data/zoo.cfg.dynamic\n"
     )@
 }
@@ -849,6 +849,7 @@ pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView
     let client_port = int_to_string_view(zk.spec.client_port);
     let quorum_port = int_to_string_view(zk.spec.quorum_port);
     let leader_election_port = int_to_string_view(zk.spec.leader_election_port);
+    let admin_server_port = int_to_string_view(zk.spec.admin_server_port);
 
     new_strlit(
         "#!/usr/bin/env bash\n\n\
@@ -858,7 +859,7 @@ pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView
         CLIENT_HOST=")@ + name + new_strlit("-client\n\
         CLIENT_PORT=")@ + client_port + new_strlit("\n\
         ADMIN_SERVER_HOST=")@ + name + new_strlit("-admin-server\n\
-        ADMIN_SERVER_PORT=8080\n\
+        ADMIN_SERVER_PORT=")@ + admin_server_port + new_strlit("\n\
         CLUSTER_NAME=")@ + name + new_strlit("\n\
         CLUSTER_SIZE=")@ + int_to_string_view(zk.spec.replicas) + new_strlit("\n")@
 }
@@ -976,7 +977,7 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
                     ContainerPortView::default().set_name(new_strlit("quorum")@).set_container_port(zk.spec.quorum_port),
                     ContainerPortView::default().set_name(new_strlit("leader-election")@).set_container_port(zk.spec.leader_election_port),
                     ContainerPortView::default().set_name(new_strlit("metrics")@).set_container_port(zk.spec.metrics_port),
-                    ContainerPortView::default().set_name(new_strlit("admin-server")@).set_container_port(8080)
+                    ContainerPortView::default().set_name(new_strlit("admin-server")@).set_container_port(zk.spec.admin_server_port)
                 ])
                 .set_readiness_probe(
                     ProbeView::default()

@@ -711,7 +711,7 @@ fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     ports.push(ServicePort::new_with(new_strlit("tcp-quorum").to_string(), zk.spec().quorum_port()));
     ports.push(ServicePort::new_with(new_strlit("tcp-leader-election").to_string(), zk.spec().leader_election_port()));
     ports.push(ServicePort::new_with(new_strlit("tcp-metrics").to_string(), zk.spec().metrics_port()));
-    ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), 8080));
+    ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), zk.spec().admin_server_port()));
 
     proof {
         assert_seqs_equal!(
@@ -784,7 +784,7 @@ fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
 {
     let mut ports = Vec::new();
 
-    ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), 8080));
+    ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), zk.spec().admin_server_port()));
 
     proof {
         assert_seqs_equal!(
@@ -938,7 +938,7 @@ fn make_zk_config(zk: &ZookeeperCluster) -> (s: String)
         autopurge.snapRetainCount=")).concat(i32_to_string(zk.spec().conf().auto_purge_snap_retain_count()).as_str()).concat(new_strlit("\n\
         autopurge.purgeInterval=")).concat(i32_to_string(zk.spec().conf().auto_purge_purge_interval()).as_str()).concat(new_strlit("\n\
         quorumListenOnAllIPs=")).concat(bool_to_string(zk.spec().conf().quorum_listen_on_all_ips()).as_str()).concat(new_strlit("\n\
-        admin.serverPort=8080\n\
+        admin.serverPort=")).concat(i32_to_string(zk.spec().admin_server_port()).as_str()).concat(new_strlit("\n\
         dynamicConfigFile=/data/zoo.cfg.dynamic\n"
     ))
 }
@@ -982,6 +982,7 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
     let client_port = i32_to_string(zk.spec().client_port());
     let quorum_port = i32_to_string(zk.spec().quorum_port());
     let leader_election_port = i32_to_string(zk.spec().leader_election_port());
+    let admin_server_port = i32_to_string(zk.spec().admin_server_port());
 
     new_strlit(
         "#!/usr/bin/env bash\n\n\
@@ -992,7 +993,7 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
         CLIENT_HOST=")).concat(name.as_str()).concat(new_strlit("-client\n\
         CLIENT_PORT=")).concat(client_port.as_str()).concat(new_strlit("\n\
         ADMIN_SERVER_HOST=")).concat(name.as_str()).concat(new_strlit("-admin-server\n\
-        ADMIN_SERVER_PORT=8080\n\
+        ADMIN_SERVER_PORT=")).concat(admin_server_port.as_str()).concat(new_strlit("\n\
         CLUSTER_NAME=")).concat(name.as_str()).concat(new_strlit("\n\
         CLUSTER_SIZE=")).concat(i32_to_string(zk.spec().replicas()).as_str()).concat(new_strlit("\n"))
 }
@@ -1233,7 +1234,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                 ports.push(ContainerPort::new_with(new_strlit("quorum").to_string(), zk.spec().quorum_port()));
                 ports.push(ContainerPort::new_with(new_strlit("leader-election").to_string(), zk.spec().leader_election_port()));
                 ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), zk.spec().metrics_port()));
-                ports.push(ContainerPort::new_with(new_strlit("admin-server").to_string(), 8080));
+                ports.push(ContainerPort::new_with(new_strlit("admin-server").to_string(), zk.spec().admin_server_port()));
 
                 proof {
                     assert_seqs_equal!(
