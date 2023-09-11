@@ -21,6 +21,9 @@ spec:
           properties:
             spec:
               properties:
+                adminServerPort:
+                  format: int32
+                  type: integer
                 clientPort:
                   format: int32
                   type: integer
@@ -131,6 +134,7 @@ spec:
                       type: object
                   type: object
               required:
+                - adminServerPort
                 - clientPort
                 - conf
                 - image

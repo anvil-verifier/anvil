@@ -36,6 +36,7 @@ pub fn zookeeper_cluster() -> String {
       quorumPort: 2888
       leaderElectionPort: 3888
       metricsPort: 7000
+      adminServerPort: 8080
       resources:
         requests:
           memory: \"256Mi\"
