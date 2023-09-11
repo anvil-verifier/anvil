@@ -44,6 +44,12 @@ pub struct ZookeeperClusterSpec {
     pub conf: ZookeeperConfig,
     #[serde(rename = "clientPort")]
     pub client_port: i32,
+    #[serde(rename = "quorumPort")]
+    pub quorum_port: i32,
+    #[serde(rename = "leaderElectionPort")]
+    pub leader_election_port: i32,
+    #[serde(rename = "metricsPort")]
+    pub metrics_port: i32,
     #[serde(default)]
     pub resources: k8s_openapi::api::core::v1::ResourceRequirements,
 }

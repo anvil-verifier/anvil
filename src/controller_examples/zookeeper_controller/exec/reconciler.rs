@@ -708,9 +708,9 @@ fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     let mut ports = Vec::new();
 
     ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), zk.spec().client_port()));
-    ports.push(ServicePort::new_with(new_strlit("tcp-quorum").to_string(), 2888));
-    ports.push(ServicePort::new_with(new_strlit("tcp-leader-election").to_string(), 3888));
-    ports.push(ServicePort::new_with(new_strlit("tcp-metrics").to_string(), 7000));
+    ports.push(ServicePort::new_with(new_strlit("tcp-quorum").to_string(), zk.spec().quorum_port()));
+    ports.push(ServicePort::new_with(new_strlit("tcp-leader-election").to_string(), zk.spec().leader_election_port()));
+    ports.push(ServicePort::new_with(new_strlit("tcp-metrics").to_string(), zk.spec().metrics_port()));
     ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), 8080));
 
     proof {
@@ -921,9 +921,9 @@ fn make_zk_config(zk: &ZookeeperCluster) -> (s: String)
         reconfigEnabled=true\n\
         skipACL=yes\n\
         metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider\n\
-        metricsProvider.httpPort=7000\n\
+        metricsProvider.httpPort=").to_string().concat(i32_to_string(zk.spec().metrics_port()).as_str()).concat(new_strlit("\n\
         metricsProvider.exportJvmInfo=true\n\
-        initLimit=").to_string().concat(i32_to_string(zk.spec().conf().init_limit()).as_str()).concat(new_strlit("\n\
+        initLimit=")).concat(i32_to_string(zk.spec().conf().init_limit()).as_str()).concat(new_strlit("\n\
         syncLimit=")).concat(i32_to_string(zk.spec().conf().sync_limit()).as_str()).concat(new_strlit("\n\
         tickTime=")).concat(i32_to_string(zk.spec().conf().tick_time()).as_str()).concat(new_strlit("\n\
         globalOutstandingLimit=")).concat(i32_to_string(zk.spec().conf().global_outstanding_limit()).as_str()).concat(new_strlit("\n\
@@ -980,13 +980,15 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
     let name = zk.metadata().name().unwrap();
     let namespace = zk.metadata().namespace().unwrap();
     let client_port = i32_to_string(zk.spec().client_port());
+    let quorum_port = i32_to_string(zk.spec().quorum_port());
+    let leader_election_port = i32_to_string(zk.spec().leader_election_port());
 
     new_strlit(
         "#!/usr/bin/env bash\n\n\
         DOMAIN=").to_string().concat(name.as_str()).concat(new_strlit("-headless.")).concat(namespace.as_str())
             .concat(new_strlit(".svc.cluster.local\n\
-        QUORUM_PORT=2888\n\
-        LEADER_PORT=3888\n\
+        QUORUM_PORT=")).concat(quorum_port.as_str()).concat(new_strlit("\n\
+        LEADER_PORT=")).concat(leader_election_port.as_str()).concat(new_strlit("\n\
         CLIENT_HOST=")).concat(name.as_str()).concat(new_strlit("-client\n\
         CLIENT_PORT=")).concat(client_port.as_str()).concat(new_strlit("\n\
         ADMIN_SERVER_HOST=")).concat(name.as_str()).concat(new_strlit("-admin-server\n\
@@ -1228,9 +1230,9 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
             zk_container.set_ports({
                 let mut ports = Vec::new();
                 ports.push(ContainerPort::new_with(new_strlit("client").to_string(), zk.spec().client_port()));
-                ports.push(ContainerPort::new_with(new_strlit("quorum").to_string(), 2888));
-                ports.push(ContainerPort::new_with(new_strlit("leader-election").to_string(), 3888));
-                ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), 7000));
+                ports.push(ContainerPort::new_with(new_strlit("quorum").to_string(), zk.spec().quorum_port()));
+                ports.push(ContainerPort::new_with(new_strlit("leader-election").to_string(), zk.spec().leader_election_port()));
+                ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), zk.spec().metrics_port()));
                 ports.push(ContainerPort::new_with(new_strlit("admin-server").to_string(), 8080));
 
                 proof {

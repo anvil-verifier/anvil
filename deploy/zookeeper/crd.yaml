@@ -89,6 +89,15 @@ spec:
                   type: object
                 image:
                   type: string
+                leaderElectionPort:
+                  format: int32
+                  type: integer
+                metricsPort:
+                  format: int32
+                  type: integer
+                quorumPort:
+                  format: int32
+                  type: integer
                 replicas:
                   format: int32
                   type: integer
@@ -125,6 +134,9 @@ spec:
                 - clientPort
                 - conf
                 - image
+                - leaderElectionPort
+                - metricsPort
+                - quorumPort
                 - replicas
               type: object
           required:

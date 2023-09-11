@@ -33,6 +33,9 @@ pub fn zookeeper_cluster() -> String {
       replicas: 3
       image: pravega/zookeeper:0.2.14
       clientPort: 2181
+      quorumPort: 2888
+      leaderElectionPort: 3888
+      metricsPort: 7000
       resources:
         requests:
           memory: \"256Mi\"

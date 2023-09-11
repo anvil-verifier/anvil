@@ -661,9 +661,9 @@ pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView
 {
     let ports = seq![
         ServicePortView::default().set_name(new_strlit("tcp-client")@).set_port(zk.spec.client_port),
-        ServicePortView::default().set_name(new_strlit("tcp-quorum")@).set_port(2888),
-        ServicePortView::default().set_name(new_strlit("tcp-leader-election")@).set_port(3888),
-        ServicePortView::default().set_name(new_strlit("tcp-metrics")@).set_port(7000),
+        ServicePortView::default().set_name(new_strlit("tcp-quorum")@).set_port(zk.spec.quorum_port),
+        ServicePortView::default().set_name(new_strlit("tcp-leader-election")@).set_port(zk.spec.leader_election_port),
+        ServicePortView::default().set_name(new_strlit("tcp-metrics")@).set_port(zk.spec.metrics_port),
         ServicePortView::default().set_name(new_strlit("tcp-admin-server")@).set_port(8080)
     ];
 
@@ -796,7 +796,7 @@ pub open spec fn make_zk_config(zk: ZookeeperClusterView) -> StringView {
         reconfigEnabled=true\n\
         skipACL=yes\n\
         metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider\n\
-        metricsProvider.httpPort=7000\n\
+        metricsProvider.httpPort=")@ + int_to_string_view(zk.spec.metrics_port) + new_strlit("\n\
         metricsProvider.exportJvmInfo=true\n\
         initLimit=")@ + int_to_string_view(zk.spec.conf.init_limit) + new_strlit("\n\
         syncLimit=")@ + int_to_string_view(zk.spec.conf.sync_limit) + new_strlit("\n\
@@ -847,12 +847,14 @@ pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView
     let name = zk.metadata.name.get_Some_0();
     let namespace = zk.metadata.namespace.get_Some_0();
     let client_port = int_to_string_view(zk.spec.client_port);
+    let quorum_port = int_to_string_view(zk.spec.quorum_port);
+    let leader_election_port = int_to_string_view(zk.spec.leader_election_port);
 
     new_strlit(
         "#!/usr/bin/env bash\n\n\
         DOMAIN=")@ + name + new_strlit("-headless.")@ + namespace + new_strlit(".svc.cluster.local\n\
-        QUORUM_PORT=2888\n\
-        LEADER_PORT=3888\n\
+        QUORUM_PORT=")@ + quorum_port + new_strlit("\n\
+        LEADER_PORT=")@ + leader_election_port + new_strlit("\n\
         CLIENT_HOST=")@ + name + new_strlit("-client\n\
         CLIENT_PORT=")@ + client_port + new_strlit("\n\
         ADMIN_SERVER_HOST=")@ + name + new_strlit("-admin-server\n\
@@ -971,9 +973,9 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
                 ])
                 .set_ports(seq![
                     ContainerPortView::default().set_name(new_strlit("client")@).set_container_port(zk.spec.client_port),
-                    ContainerPortView::default().set_name(new_strlit("quorum")@).set_container_port(2888),
-                    ContainerPortView::default().set_name(new_strlit("leader-election")@).set_container_port(3888),
-                    ContainerPortView::default().set_name(new_strlit("metrics")@).set_container_port(7000),
+                    ContainerPortView::default().set_name(new_strlit("quorum")@).set_container_port(zk.spec.quorum_port),
+                    ContainerPortView::default().set_name(new_strlit("leader-election")@).set_container_port(zk.spec.leader_election_port),
+                    ContainerPortView::default().set_name(new_strlit("metrics")@).set_container_port(zk.spec.metrics_port),
                     ContainerPortView::default().set_name(new_strlit("admin-server")@).set_container_port(8080)
                 ])
                 .set_readiness_probe(

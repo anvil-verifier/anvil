@@ -109,6 +109,9 @@ pub struct ZookeeperClusterSpecView {
     pub image: StringView,
     pub conf: ZookeeperConfigView,
     pub client_port: int,
+    pub quorum_port: int,
+    pub leader_election_port: int,
+    pub metrics_port: int,
     pub resources: ResourceRequirementsView,
 }
 

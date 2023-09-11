@@ -137,6 +137,30 @@ impl ZookeeperClusterSpec {
     }
 
     #[verifier(external_body)]
+    pub fn quorum_port(&self) -> (quorum_port: i32)
+        ensures
+            quorum_port as int == self@.quorum_port,
+    {
+        self.inner.quorum_port
+    }
+
+    #[verifier(external_body)]
+    pub fn leader_election_port(&self) -> (leader_election_port: i32)
+        ensures
+            leader_election_port as int == self@.leader_election_port,
+    {
+        self.inner.leader_election_port
+    }
+
+    #[verifier(external_body)]
+    pub fn metrics_port(&self) -> (metrics_port: i32)
+        ensures
+            metrics_port as int == self@.metrics_port,
+    {
+        self.inner.metrics_port
+    }
+
+    #[verifier(external_body)]
     pub fn resources(&self) -> (resources: ResourceRequirements)
         ensures
             resources@ == self@.resources,
