@@ -100,18 +100,27 @@ impl ResourceView for ZookeeperClusterView {
     }
 
     open spec fn transition_rule(new_obj: ZookeeperClusterView, old_obj: ZookeeperClusterView) -> bool {
-        true
+        new_obj.spec.ports == old_obj.spec.ports
     }
 }
 
 pub struct ZookeeperClusterSpecView {
     pub replicas: int,
     pub image: StringView,
+    pub ports: ZookeeperPortsView,
     pub conf: ZookeeperConfigView,
     pub resources: ResourceRequirementsView,
 }
 
 impl ZookeeperClusterSpecView {}
+
+pub struct ZookeeperPortsView {
+    pub client: int,
+    pub quorum: int,
+    pub leader_election: int,
+    pub metrics: int,
+    pub admin_server: int,
+}
 
 pub struct ZookeeperConfigView {
     pub init_limit: int,
@@ -129,18 +138,6 @@ pub struct ZookeeperConfigView {
     pub auto_purge_snap_retain_count: int,
     pub auto_purge_purge_interval: int,
     pub quorum_listen_on_all_ips: bool,
-}
-
-impl Marshalable for ZookeeperClusterSpecView {
-    spec fn marshal(self) -> Value;
-
-    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_returns_non_null() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_preserves_integrity() {}
 }
 
 }

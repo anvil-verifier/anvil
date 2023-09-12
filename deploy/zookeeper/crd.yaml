@@ -86,6 +86,33 @@ spec:
                   type: object
                 image:
                   type: string
+                ports:
+                  properties:
+                    adminServer:
+                      format: int32
+                      type: integer
+                    client:
+                      format: int32
+                      type: integer
+                    leaderElection:
+                      format: int32
+                      type: integer
+                    metrics:
+                      format: int32
+                      type: integer
+                    quorum:
+                      format: int32
+                      type: integer
+                  required:
+                    - adminServer
+                    - client
+                    - leaderElection
+                    - metrics
+                    - quorum
+                  type: object
+                  x-kubernetes-validations:
+                    - rule: "self == oldSelf"
+                      message: changing ports is not supported
                 replicas:
                   format: int32
                   type: integer
@@ -121,6 +148,7 @@ spec:
               required:
                 - conf
                 - image
+                - ports
                 - replicas
               type: object
           required:

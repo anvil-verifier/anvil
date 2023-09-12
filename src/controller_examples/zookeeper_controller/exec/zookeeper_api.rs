@@ -56,9 +56,9 @@ impl ToView for ZKAPISetDataResult {
 
 #[is_variant]
 pub enum ZKAPIInput {
-    ExistsRequest(String, String, Vec<String>),
-    CreateRequest(String, String, Vec<String>, String),
-    SetDataRequest(String, String, Vec<String>, String, i32),
+    ExistsRequest(String, String, i32, Vec<String>),
+    CreateRequest(String, String, i32, Vec<String>, String),
+    SetDataRequest(String, String, i32, Vec<String>, String, i32),
 }
 
 #[is_variant]
@@ -72,12 +72,12 @@ impl ToView for ZKAPIInput {
     type V = ZKAPIInputView;
     open spec fn to_view(&self) -> ZKAPIInputView {
         match self {
-            ZKAPIInput::ExistsRequest(name, namespace, path)
-                => ZKAPIInputView::ExistsRequest(name@, namespace@, path@.map_values(|s: String| s@)),
-            ZKAPIInput::CreateRequest(name, namespace, path, data)
-                => ZKAPIInputView::CreateRequest(name@, namespace@, path@.map_values(|s: String| s@), data@),
-            ZKAPIInput::SetDataRequest(name, namespace, path, data, version)
-                => ZKAPIInputView::SetDataRequest(name@, namespace@, path@.map_values(|s: String| s@), data@, *version as int),
+            ZKAPIInput::ExistsRequest(name, namespace, port, path)
+                => ZKAPIInputView::ExistsRequest(name@, namespace@, *port as int, path@.map_values(|s: String| s@)),
+            ZKAPIInput::CreateRequest(name, namespace, port, path, data)
+                => ZKAPIInputView::CreateRequest(name@, namespace@, *port as int, path@.map_values(|s: String| s@), data@),
+            ZKAPIInput::SetDataRequest(name, namespace, port, path, data, version)
+                => ZKAPIInputView::SetDataRequest(name@, namespace@, *port as int, path@.map_values(|s: String| s@), data@, *version as int),
         }
     }
 }
@@ -167,12 +167,12 @@ impl ExternalAPIShimLayer<ZKAPIInput, ZKAPIOutput> for ZKAPIShimLayer {
     #[verifier(external)]
     fn call_external_api(input: ZKAPIInput) -> ZKAPIOutput {
         match input {
-            ZKAPIInput::ExistsRequest(zk_name, zk_namespace, path)
-                => ZKAPIOutput::ExistsResponse(zk_exists(zk_name, zk_namespace, path)),
-            ZKAPIInput::CreateRequest(zk_name, zk_namespace, path, data)
-                => ZKAPIOutput::CreateResponse(zk_create(zk_name, zk_namespace, path, data)),
-            ZKAPIInput::SetDataRequest(zk_name, zk_namespace, path, data, version)
-                => ZKAPIOutput::SetDataResponse(zk_set_data(zk_name, zk_namespace, path, data, version)),
+            ZKAPIInput::ExistsRequest(zk_name, zk_namespace, port, path)
+                => ZKAPIOutput::ExistsResponse(zk_exists(zk_name, zk_namespace, port, path)),
+            ZKAPIInput::CreateRequest(zk_name, zk_namespace, port, path, data)
+                => ZKAPIOutput::CreateResponse(zk_create(zk_name, zk_namespace, port, path, data)),
+            ZKAPIInput::SetDataRequest(zk_name, zk_namespace, port, path, data, version)
+                => ZKAPIOutput::SetDataResponse(zk_set_data(zk_name, zk_namespace, port, path, data, version)),
         }
     }
 }
@@ -184,15 +184,15 @@ impl Watcher for LoggingWatcher {
 }
 
 #[verifier(external)]
-pub fn set_up_zk_client(name: &String, namespace: &String) -> ZkResult<ZooKeeper> {
-    let uri = &format!("{}-client.{}.svc.cluster.local:2181", name.as_rust_string_ref(), namespace.as_rust_string_ref());
+pub fn set_up_zk_client(name: &String, namespace: &String, port: i32) -> ZkResult<ZooKeeper> {
+    let uri = &format!("{}-client.{}.svc.cluster.local:{}", name.as_rust_string_ref(), namespace.as_rust_string_ref(), port);
     println!("Connecting to zk uri {} ...", uri);
     ZooKeeper::connect(uri, Duration::from_secs(10), LoggingWatcher)
 }
 
 #[verifier(external)]
-pub fn zk_exists(name: String, namespace: String, path: Vec<String>) -> ZKAPIExistsResult {
-    let result = ZKAPIExistsResult {res: zk_exists_internal(name, namespace, path)};
+pub fn zk_exists(name: String, namespace: String, port: i32, path: Vec<String>) -> ZKAPIExistsResult {
+    let result = ZKAPIExistsResult {res: zk_exists_internal(name, namespace, port, path)};
     match result.res {
         Err(_) => println!("Checking existence of zk node failed"),
         Ok(o) => {
@@ -207,8 +207,8 @@ pub fn zk_exists(name: String, namespace: String, path: Vec<String>) -> ZKAPIExi
 }
 
 #[verifier(external)]
-pub fn zk_exists_internal(name: String, namespace: String, path: Vec<String>) -> Result<Option<i32>, Error> {
-    let zk_client = set_up_zk_client(&name, &namespace).map_err(|e| Error::ZKNodeExistsFailed)?;
+pub fn zk_exists_internal(name: String, namespace: String, port: i32, path: Vec<String>) -> Result<Option<i32>, Error> {
+    let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|e| Error::ZKNodeExistsFailed)?;
     let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
     println!("Checking existence of {} ...", &path_as_string);
     match zk_client.exists(path_as_string.as_str(), false) {
@@ -221,8 +221,8 @@ pub fn zk_exists_internal(name: String, namespace: String, path: Vec<String>) ->
 }
 
 #[verifier(external)]
-pub fn zk_create(name: String, namespace: String, path: Vec<String>, data: String) -> ZKAPICreateResult {
-    let result = ZKAPICreateResult {res: zk_create_internal(name, namespace, path, data)};
+pub fn zk_create(name: String, namespace: String, port: i32, path: Vec<String>, data: String) -> ZKAPICreateResult {
+    let result = ZKAPICreateResult {res: zk_create_internal(name, namespace, port, path, data)};
     match result.res {
         Err(_) => println!("Create zk node failed"),
         Ok(_) => println!("Create zk node successfully"),
@@ -231,8 +231,8 @@ pub fn zk_create(name: String, namespace: String, path: Vec<String>, data: Strin
 }
 
 #[verifier(external)]
-pub fn zk_create_internal(name: String, namespace: String, path: Vec<String>, data: String) -> Result<(), Error> {
-    let zk_client = set_up_zk_client(&name, &namespace).map_err(|e| Error::ZKNodeCreateFailed)?;
+pub fn zk_create_internal(name: String, namespace: String, port: i32, path: Vec<String>, data: String) -> Result<(), Error> {
+    let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|e| Error::ZKNodeCreateFailed)?;
     let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
     let data_as_string = data.into_rust_string();
     println!("Creating {} {} ...", &path_as_string, &data_as_string);
@@ -246,8 +246,8 @@ pub fn zk_create_internal(name: String, namespace: String, path: Vec<String>, da
 }
 
 #[verifier(external)]
-pub fn zk_set_data(name: String, namespace: String, path: Vec<String>, data: String, version: i32) -> ZKAPISetDataResult {
-    let result = ZKAPISetDataResult {res: zk_set_data_internal(name, namespace, path, data, version)};
+pub fn zk_set_data(name: String, namespace: String, port: i32, path: Vec<String>, data: String, version: i32) -> ZKAPISetDataResult {
+    let result = ZKAPISetDataResult {res: zk_set_data_internal(name, namespace, port, path, data, version)};
     match result.res {
         Err(_) => println!("Set zk node failed"),
         Ok(_) => println!("Set zk node successfully"),
@@ -256,8 +256,8 @@ pub fn zk_set_data(name: String, namespace: String, path: Vec<String>, data: Str
 }
 
 #[verifier(external)]
-pub fn zk_set_data_internal(name: String, namespace: String, path: Vec<String>, data: String, version: i32) -> Result<(), Error> {
-    let zk_client = set_up_zk_client(&name, &namespace).map_err(|e| Error::ZKNodeSetDataFailed)?;
+pub fn zk_set_data_internal(name: String, namespace: String, port: i32, path: Vec<String>, data: String, version: i32) -> Result<(), Error> {
+    let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|e| Error::ZKNodeSetDataFailed)?;
     let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
     let data_as_string = data.into_rust_string();
     println!("Setting {} {} {} ...", &path_as_string, &data_as_string, version);

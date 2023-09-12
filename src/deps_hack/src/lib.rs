@@ -41,9 +41,24 @@ pub struct SimpleCRSpec {
 pub struct ZookeeperClusterSpec {
     pub replicas: i32,
     pub image: String,
+    pub ports: ZookeeperPorts,
     pub conf: ZookeeperConfig,
     #[serde(default)]
     pub resources: k8s_openapi::api::core::v1::ResourceRequirements,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+pub struct ZookeeperPorts {
+    #[serde(rename = "client")]
+    pub client: i32,
+    #[serde(rename = "quorum")]
+    pub quorum: i32,
+    #[serde(rename = "leaderElection")]
+    pub leader_election: i32,
+    #[serde(rename = "metrics")]
+    pub metrics: i32,
+    #[serde(rename = "adminServer")]
+    pub admin_server: i32,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]

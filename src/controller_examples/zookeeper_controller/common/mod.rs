@@ -8,9 +8,15 @@ verus! {
 #[is_variant]
 pub enum ZookeeperReconcileStep {
     Init,
+    AfterGetHeadlessService,
     AfterCreateHeadlessService,
+    AfterUpdateHeadlessService,
+    AfterGetClientService,
     AfterCreateClientService,
+    AfterUpdateClientService,
+    AfterGetAdminServerService,
     AfterCreateAdminServerService,
+    AfterUpdateAdminServerService,
     AfterGetConfigMap,
     AfterCreateConfigMap,
     AfterUpdateConfigMap,
