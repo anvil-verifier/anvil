@@ -110,6 +110,9 @@ spec:
                     - metrics
                     - quorum
                   type: object
+                  x-kubernetes-validations:
+                    - rule: "self == oldSelf"
+                      message: changing ports is not supported
                 replicas:
                   format: int32
                   type: integer

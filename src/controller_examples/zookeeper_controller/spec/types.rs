@@ -100,7 +100,7 @@ impl ResourceView for ZookeeperClusterView {
     }
 
     open spec fn transition_rule(new_obj: ZookeeperClusterView, old_obj: ZookeeperClusterView) -> bool {
-        true
+        new_obj.spec.ports == old_obj.spec.ports
     }
 }
 
