@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
-use k8s_openapi::api::apps::v1::StatefulSet;
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::core::v1::{ConfigMap, Pod};
+use k8s_openapi::api::{apps::v1::StatefulSet, core::v1::Service};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use kube::{
     api::{
@@ -65,13 +65,52 @@ pub fn zookeeper_cluster() -> String {
 pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), Error> {
     let timeout = Duration::from_secs(360);
     let start = Instant::now();
+    let svc_api: Api<Service> = Api::default_namespaced(client.clone());
+    let cm_api: Api<ConfigMap> = Api::default_namespaced(client.clone());
+    let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
             return Err(Error::Timeout);
         }
+
+        let svc = svc_api.get(&(zk_name.clone() + "-headless")).await;
+        match svc {
+            Err(e) => {
+                println!("Get headless service failed with error {}.", e);
+                continue;
+            }
+            _ => {}
+        };
+
+        let svc = svc_api.get(&(zk_name.clone() + "-client")).await;
+        match svc {
+            Err(e) => {
+                println!("Get client service failed with error {}.", e);
+                continue;
+            }
+            _ => {}
+        };
+
+        let svc = svc_api.get(&(zk_name.clone() + "-admin-server")).await;
+        match svc {
+            Err(e) => {
+                println!("Get admin server service failed with error {}.", e);
+                continue;
+            }
+            _ => {}
+        };
+
+        let cm = cm_api.get(&(zk_name.clone() + "-configmap")).await;
+        match cm {
+            Err(e) => {
+                println!("Get config map failed with error {}.", e);
+                continue;
+            }
+            _ => {}
+        };
+
         // Check stateful set
-        let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
         let sts = sts_api.get(&zk_name).await;
         match sts {
             Err(e) => {
