@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 use k8s_openapi::api::apps::v1::StatefulSet;
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::core::v1::{ConfigMap, Pod, Service};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use kube::{
     api::{
@@ -65,13 +65,52 @@ pub fn zookeeper_cluster() -> String {
 pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), Error> {
     let timeout = Duration::from_secs(360);
     let start = Instant::now();
+    let svc_api: Api<Service> = Api::default_namespaced(client.clone());
+    let cm_api: Api<ConfigMap> = Api::default_namespaced(client.clone());
+    let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
     loop {
         sleep(Duration::from_secs(5)).await;
         if start.elapsed() > timeout {
             return Err(Error::Timeout);
         }
+
+        let svc = svc_api.get(&(zk_name.clone() + "-headless")).await;
+        match svc {
+            Err(e) => {
+                println!("Get headless service failed with error {}.", e);
+                continue;
+            }
+            _ => {}
+        };
+
+        let svc = svc_api.get(&(zk_name.clone() + "-client")).await;
+        match svc {
+            Err(e) => {
+                println!("Get client service failed with error {}.", e);
+                continue;
+            }
+            _ => {}
+        };
+
+        let svc = svc_api.get(&(zk_name.clone() + "-admin-server")).await;
+        match svc {
+            Err(e) => {
+                println!("Get admin server service failed with error {}.", e);
+                continue;
+            }
+            _ => {}
+        };
+
+        let cm = cm_api.get(&(zk_name.clone() + "-configmap")).await;
+        match cm {
+            Err(e) => {
+                println!("Get config map failed with error {}.", e);
+                continue;
+            }
+            _ => {}
+        };
+
         // Check stateful set
-        let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
         let sts = sts_api.get(&zk_name).await;
         match sts {
             Err(e) => {
@@ -112,6 +151,136 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
         };
     }
     println!("Desired state test passed.");
+    Ok(())
+}
+
+pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> {
+    let timeout = Duration::from_secs(360);
+    let start = Instant::now();
+    let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
+    run_command(
+        "kubectl",
+        vec![
+            "patch",
+            "zk",
+            "zookeeper",
+            "--type=json",
+            "-p",
+            "[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 2}]",
+        ],
+        "failed to scale zk",
+    );
+
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            return Err(Error::Timeout);
+        }
+
+        // Check stateful set
+        let sts = sts_api.get(&zk_name).await;
+        match sts {
+            Err(e) => {
+                println!("Get stateful set failed with error {}.", e);
+                continue;
+            }
+            Ok(sts) => {
+                if sts.spec.unwrap().replicas != Some(2) {
+                    println!(
+                        "Stateful set spec is not consistent with zookeeper cluster spec yet."
+                    );
+                    continue;
+                }
+                println!("Stateful set is found as expected.");
+                if sts.status.as_ref().unwrap().ready_replicas.is_none() {
+                    println!("No stateful set pod is ready.");
+                } else if *sts
+                    .status
+                    .as_ref()
+                    .unwrap()
+                    .ready_replicas
+                    .as_ref()
+                    .unwrap()
+                    == 2
+                {
+                    println!("Scale down is done with 2 replicas ready.");
+                    break;
+                } else {
+                    println!(
+                        "Scale down is in progress. {} pods are ready now.",
+                        sts.status
+                            .as_ref()
+                            .unwrap()
+                            .ready_replicas
+                            .as_ref()
+                            .unwrap()
+                    );
+                }
+            }
+        };
+    }
+
+    run_command(
+        "kubectl",
+        vec![
+            "patch",
+            "zk",
+            "zookeeper",
+            "--type=json",
+            "-p",
+            "[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 3}]",
+        ],
+        "failed to scale zk",
+    );
+
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            return Err(Error::Timeout);
+        }
+
+        let sts = sts_api.get(&zk_name).await;
+        match sts {
+            Err(e) => {
+                println!("Get stateful set failed with error {}.", e);
+                continue;
+            }
+            Ok(sts) => {
+                if sts.spec.unwrap().replicas != Some(3) {
+                    println!(
+                        "Stateful set spec is not consistent with zookeeper cluster spec yet."
+                    );
+                    continue;
+                }
+                println!("Stateful set is found as expected.");
+                if sts.status.as_ref().unwrap().ready_replicas.is_none() {
+                    println!("No stateful set pod is ready.");
+                } else if *sts
+                    .status
+                    .as_ref()
+                    .unwrap()
+                    .ready_replicas
+                    .as_ref()
+                    .unwrap()
+                    == 3
+                {
+                    println!("Scale up is done with 3 replicas ready.");
+                    break;
+                } else {
+                    println!(
+                        "Scale up is in progress. {} pods are ready now.",
+                        sts.status
+                            .as_ref()
+                            .unwrap()
+                            .ready_replicas
+                            .as_ref()
+                            .unwrap()
+                    );
+                }
+            }
+        };
+    }
+    println!("Scaling test passed.");
     Ok(())
 }
 
@@ -199,6 +368,7 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     let zk_name = apply(zookeeper_cluster(), client.clone(), &discovery).await?;
 
     desired_state_test(client.clone(), zk_name.clone()).await?;
+    scaling_test(client.clone(), zk_name.clone()).await?;
     zk_workload_test(client.clone(), zk_name.clone()).await?;
 
     println!("E2e test passed.");
