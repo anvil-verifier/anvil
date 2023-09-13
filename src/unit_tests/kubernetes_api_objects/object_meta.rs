@@ -11,7 +11,6 @@ verus! {
 #[test]
 #[verifier(external)]
 pub fn test_set_name() {
-    println!("Testing set_name()...");
     let mut object_meta = ObjectMeta::default();
     object_meta.set_name(new_strlit("name").to_string());
     assert_eq!("name".to_string(), object_meta.into_kube().name.unwrap());
