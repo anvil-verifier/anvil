@@ -59,6 +59,14 @@ impl StringMap {
         }
     }
 
+    #[verifier(external_body)]
+    pub fn extend(&mut self, m2: StringMap)
+        ensures
+            self@ == old(self)@.union_prefer_right(m2@),
+    {
+        self.inner.extend(m2.into_rust_map())
+    }
+
     #[verifier(external)]
     pub fn from_rust_map(inner: std::collections::BTreeMap<std::string::String, std::string::String>) -> StringMap
     {
