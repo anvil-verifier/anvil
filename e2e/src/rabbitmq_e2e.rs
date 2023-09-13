@@ -192,6 +192,7 @@ pub async fn rabbitmq_workload_test(client: Client, rabbitmq_name: String) -> Re
         };
     }
     // Shall we delete the perf test pod here?
+    println!("Rabbitmq workload test passed.");
     Ok(())
 }
 
