@@ -9,6 +9,7 @@ use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
 use crate::kubernetes_api_objects::resource_requirements::*;
+use crate::kubernetes_api_objects::toleration::*;
 use crate::kubernetes_api_objects::volume::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -183,23 +184,6 @@ impl PodSpec {
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSpec {
-        self.inner
-    }
-}
-
-#[verifier(external_body)]
-pub struct Toleration {
-    inner: deps_hack::k8s_openapi::api::core::v1::Toleration,
-}
-
-impl Toleration {
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Toleration) -> Toleration {
-        Toleration { inner: inner }
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Toleration {
         self.inner
     }
 }
