@@ -138,6 +138,76 @@ pub async fn authenticate_user_test(client: Client, rabbitmq_name: String) -> Re
     Ok(())
 }
 
+pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
+    let timeout = Duration::from_secs(360);
+    let start = Instant::now();
+    let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
+    let rabbitmq_sts_name = format!("{}-server", &rabbitmq_name);
+
+    run_command(
+        "kubectl",
+        vec![
+            "patch",
+            "rbmq",
+            "rabbitmq",
+            "--type=json",
+            "-p",
+            "[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 4}]",
+        ],
+        "failed to scale rabbitmq",
+    );
+
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            return Err(Error::Timeout);
+        }
+
+        let sts = sts_api.get(&rabbitmq_sts_name).await;
+        match sts {
+            Err(e) => {
+                println!("Get stateful set failed with error {}.", e);
+                continue;
+            }
+            Ok(sts) => {
+                if sts.spec.unwrap().replicas != Some(4) {
+                    println!(
+                        "Stateful set spec is not consistent with zookeeper cluster spec yet."
+                    );
+                    continue;
+                }
+                println!("Stateful set is found as expected.");
+                if sts.status.as_ref().unwrap().ready_replicas.is_none() {
+                    println!("No stateful set pod is ready.");
+                } else if *sts
+                    .status
+                    .as_ref()
+                    .unwrap()
+                    .ready_replicas
+                    .as_ref()
+                    .unwrap()
+                    == 4
+                {
+                    println!("Scale up is done with 4 replicas ready.");
+                    break;
+                } else {
+                    println!(
+                        "Scale up is in progress. {} pods are ready now.",
+                        sts.status
+                            .as_ref()
+                            .unwrap()
+                            .ready_replicas
+                            .as_ref()
+                            .unwrap()
+                    );
+                }
+            }
+        };
+    }
+    println!("Scaling test passed.");
+    Ok(())
+}
+
 pub async fn rabbitmq_workload_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
     run_command(
         "kubectl",
@@ -216,6 +286,7 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
     let rabbitmq_name = apply(rabbitmq_cluster(), client.clone(), &discovery).await?;
 
     desired_state_test(client.clone(), rabbitmq_name.clone()).await?;
+    scaling_test(client.clone(), rabbitmq_name.clone()).await?;
     authenticate_user_test(client.clone(), rabbitmq_name.clone()).await?;
     rabbitmq_workload_test(client.clone(), rabbitmq_name.clone()).await?;
 
