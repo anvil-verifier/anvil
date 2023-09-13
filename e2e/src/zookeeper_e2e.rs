@@ -340,7 +340,7 @@ pub async fn upgrading_test(client: Client, zk_name: String) -> Result<(), Error
                         sts.status
                             .as_ref()
                             .unwrap()
-                            .ready_replicas
+                            .updated_replicas
                             .as_ref()
                             .unwrap()
                     );
@@ -433,7 +433,7 @@ pub async fn reconfiguration_test(client: Client, zk_name: String) -> Result<(),
                         sts.status
                             .as_ref()
                             .unwrap()
-                            .ready_replicas
+                            .updated_replicas
                             .as_ref()
                             .unwrap()
                     );
