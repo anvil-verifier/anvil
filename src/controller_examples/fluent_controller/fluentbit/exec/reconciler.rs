@@ -10,7 +10,7 @@ use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, container::*, daemon_set::*, label_selector::*,
     object_meta::*, owner_reference::*, persistent_volume_claim::*, pod::*, pod_template_spec::*,
     resource::*, resource_requirements::*, role::*, role_binding::*, secret::*, service::*,
-    service_account::*, volume::*,
+    service_account::*, toleration::*, volume::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
