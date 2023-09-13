@@ -284,13 +284,103 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
     Ok(())
 }
 
+pub async fn upgrading_test(client: Client, zk_name: String) -> Result<(), Error> {
+    let timeout = Duration::from_secs(360);
+    let start = Instant::now();
+    let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
+    run_command(
+        "kubectl",
+        vec![
+            "patch",
+            "zk",
+            "zookeeper",
+            "--type=json",
+            "-p",
+            "[{\"op\": \"replace\", \"path\": \"/spec/image\", \"value\": \"pravega/zookeeper:0.2.15\"}]",
+        ],
+        "failed to upgrade zk",
+    );
+
+    // Sleep for extra 5 seconds to ensure the upgrading has started
+    sleep(Duration::from_secs(5)).await;
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            return Err(Error::Timeout);
+        }
+
+        // Check stateful set
+        let sts = sts_api.get(&zk_name).await;
+        match sts {
+            Err(e) => {
+                println!("Get stateful set failed with error {}.", e);
+                continue;
+            }
+            Ok(sts) => {
+                if sts.status.as_ref().unwrap().updated_replicas.is_none() {
+                    println!("No stateful set pod is updated yet.");
+                } else if *sts
+                    .status
+                    .as_ref()
+                    .unwrap()
+                    .updated_replicas
+                    .as_ref()
+                    .unwrap()
+                    == 3
+                {
+                    println!("Upgrading is done.");
+                } else {
+                    println!(
+                        "Upgrading is in progress. {} pods are updated now.",
+                        sts.status
+                            .as_ref()
+                            .unwrap()
+                            .ready_replicas
+                            .as_ref()
+                            .unwrap()
+                    );
+                }
+
+                if sts.status.as_ref().unwrap().ready_replicas.is_none() {
+                    println!("No stateful set pod is ready.");
+                } else if *sts
+                    .status
+                    .as_ref()
+                    .unwrap()
+                    .ready_replicas
+                    .as_ref()
+                    .unwrap()
+                    == 3
+                {
+                    println!("All stateful set pods are ready.");
+                    break;
+                } else {
+                    println!(
+                        "Only {} pods are ready now.",
+                        sts.status
+                            .as_ref()
+                            .unwrap()
+                            .ready_replicas
+                            .as_ref()
+                            .unwrap()
+                    );
+                }
+            }
+        };
+    }
+
+    println!("Upgrading test passed.");
+    Ok(())
+}
+
 pub async fn zk_workload_test(client: Client, zk_name: String) -> Result<(), Error> {
     let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
-    let pod_name = zk_name.clone() + "-0";
+    let pod_name_0 = zk_name.clone() + "-0";
+    let pod_name_1 = zk_name.clone() + "-1";
 
     let mut attached = pod_api
         .exec(
-            pod_name.as_str(),
+            pod_name_0.as_str(),
             vec!["zkCli.sh", "create", "/test-key", "test-data"],
             &AttachParams::default().stderr(true),
         )
@@ -299,7 +389,7 @@ pub async fn zk_workload_test(client: Client, zk_name: String) -> Result<(), Err
 
     attached = pod_api
         .exec(
-            pod_name.as_str(),
+            pod_name_0.as_str(),
             vec!["zkCli.sh", "get", "/test-key"],
             &AttachParams::default().stderr(true),
         )
@@ -318,7 +408,7 @@ pub async fn zk_workload_test(client: Client, zk_name: String) -> Result<(), Err
 
     attached = pod_api
         .exec(
-            pod_name.as_str(),
+            pod_name_0.as_str(),
             vec!["zkCli.sh", "set", "/test-key", "test-data-2"],
             &AttachParams::default().stderr(true),
         )
@@ -327,7 +417,27 @@ pub async fn zk_workload_test(client: Client, zk_name: String) -> Result<(), Err
 
     attached = pod_api
         .exec(
-            pod_name.as_str(),
+            pod_name_0.as_str(),
+            vec!["zkCli.sh", "get", "/test-key"],
+            &AttachParams::default().stderr(true),
+        )
+        .await?;
+    let (out, err) = get_output_and_err(attached).await;
+    if err != "" {
+        println!("ZK workload test failed with {}.", err);
+        return Err(Error::ZookeeperWorkloadFailed);
+    } else {
+        println!("{}", out);
+        if !out.contains("test-data-2") {
+            println!("Test failed because of unexpected get output.");
+            return Err(Error::ZookeeperWorkloadFailed);
+        }
+    }
+
+    // Try to read data from another zookeeper node
+    attached = pod_api
+        .exec(
+            pod_name_1.as_str(),
             vec!["zkCli.sh", "get", "/test-key"],
             &AttachParams::default().stderr(true),
         )
@@ -345,6 +455,33 @@ pub async fn zk_workload_test(client: Client, zk_name: String) -> Result<(), Err
     }
 
     println!("Zookeeper workload test passed.");
+    Ok(())
+}
+
+pub async fn zk_workload_test2(client: Client, zk_name: String) -> Result<(), Error> {
+    let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
+    let pod_name_0 = zk_name.clone() + "-0";
+
+    let attached = pod_api
+        .exec(
+            pod_name_0.as_str(),
+            vec!["zkCli.sh", "get", "/test-key"],
+            &AttachParams::default().stderr(true),
+        )
+        .await?;
+    let (out, err) = get_output_and_err(attached).await;
+    if err != "" {
+        println!("ZK workload test failed with {}.", err);
+        return Err(Error::ZookeeperWorkloadFailed);
+    } else {
+        println!("{}", out);
+        if !out.contains("test-data-2") {
+            println!("Test failed because of unexpected get output.");
+            return Err(Error::ZookeeperWorkloadFailed);
+        }
+    }
+
+    println!("Zookeeper workload test2 passed.");
     Ok(())
 }
 
@@ -370,6 +507,8 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     desired_state_test(client.clone(), zk_name.clone()).await?;
     scaling_test(client.clone(), zk_name.clone()).await?;
     zk_workload_test(client.clone(), zk_name.clone()).await?;
+    upgrading_test(client.clone(), zk_name.clone()).await?;
+    zk_workload_test2(client.clone(), zk_name.clone()).await?; // Test if the data is still there after upgrading
 
     println!("E2e test passed.");
     Ok(())
