@@ -17,7 +17,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::PathBuf;
-use std::process::Command;
 use std::thread;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
@@ -140,17 +139,18 @@ pub async fn authenticate_user_test(client: Client, rabbitmq_name: String) -> Re
 }
 
 pub async fn rabbitmq_workload_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
-    Command::new("kubectl")
-        .args([
+    run_command(
+        "kubectl",
+        vec![
             "run",
             "perf-test",
             "--image=pivotalrabbitmq/perf-test",
             "--",
             "--uri",
             "\"amqp://new_user:new_pass@rabbitmq\"",
-        ])
-        .output()
-        .expect("failed to run perf test pod");
+        ],
+        "failed to run perf test pod",
+    );
     let pod_name = "perf-test";
     let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
     let timeout = Duration::from_secs(600);
