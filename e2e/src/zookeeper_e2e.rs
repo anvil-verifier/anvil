@@ -125,6 +125,7 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
                 println!("Stateful set is found as expected.");
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
                     println!("No stateful set pod is ready.");
+                    continue;
                 } else if *sts
                     .status
                     .as_ref()
@@ -146,6 +147,7 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
                             .as_ref()
                             .unwrap()
                     );
+                    continue;
                 }
             }
         };
@@ -215,6 +217,7 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
                             .as_ref()
                             .unwrap()
                     );
+                    continue;
                 }
             }
         };
@@ -276,6 +279,7 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
                             .as_ref()
                             .unwrap()
                     );
+                    continue;
                 }
             }
         };
@@ -319,6 +323,7 @@ pub async fn upgrading_test(client: Client, zk_name: String) -> Result<(), Error
             Ok(sts) => {
                 if sts.status.as_ref().unwrap().updated_replicas.is_none() {
                     println!("No stateful set pod is updated yet.");
+                    continue;
                 } else if *sts
                     .status
                     .as_ref()
@@ -339,10 +344,12 @@ pub async fn upgrading_test(client: Client, zk_name: String) -> Result<(), Error
                             .as_ref()
                             .unwrap()
                     );
+                    continue;
                 }
 
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
                     println!("No stateful set pod is ready.");
+                    continue;
                 } else if *sts
                     .status
                     .as_ref()
@@ -364,6 +371,7 @@ pub async fn upgrading_test(client: Client, zk_name: String) -> Result<(), Error
                             .as_ref()
                             .unwrap()
                     );
+                    continue;
                 }
             }
         };
@@ -408,6 +416,7 @@ pub async fn reconfiguration_test(client: Client, zk_name: String) -> Result<(),
             Ok(sts) => {
                 if sts.status.as_ref().unwrap().updated_replicas.is_none() {
                     println!("No stateful set pod is updated yet.");
+                    continue;
                 } else if *sts
                     .status
                     .as_ref()
@@ -428,10 +437,12 @@ pub async fn reconfiguration_test(client: Client, zk_name: String) -> Result<(),
                             .as_ref()
                             .unwrap()
                     );
+                    continue;
                 }
 
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
                     println!("No stateful set pod is ready.");
+                    continue;
                 } else if *sts
                     .status
                     .as_ref()
@@ -453,6 +464,7 @@ pub async fn reconfiguration_test(client: Client, zk_name: String) -> Result<(),
                             .as_ref()
                             .unwrap()
                     );
+                    continue;
                 }
             }
         };
@@ -474,8 +486,8 @@ pub async fn reconfiguration_test(client: Client, zk_name: String) -> Result<(),
         return Err(Error::ZookeeperWorkloadFailed);
     } else {
         println!("{}", out);
-        if !out.contains("initLimit: 15") {
-            println!("Test failed because of unexpected get output.");
+        if !out.contains("initLimit=15") {
+            println!("Test failed because of unexpected zoo.cfg data.");
             return Err(Error::ZookeeperWorkloadFailed);
         }
     }

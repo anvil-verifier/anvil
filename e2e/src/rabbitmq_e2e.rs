@@ -88,6 +88,7 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
                 println!("Stateful set is found as expected.");
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
                     println!("No stateful set pod is ready.");
+                    continue;
                 } else if *sts
                     .status
                     .as_ref()
@@ -109,6 +110,7 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
                             .as_ref()
                             .unwrap()
                     );
+                    continue;
                 }
             }
         };
@@ -158,6 +160,7 @@ pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), E
                 println!("Stateful set is found as expected.");
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
                     println!("No stateful set pod is ready.");
+                    continue;
                 } else if *sts
                     .status
                     .as_ref()
@@ -179,6 +182,7 @@ pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), E
                             .as_ref()
                             .unwrap()
                     );
+                    continue;
                 }
             }
         };
