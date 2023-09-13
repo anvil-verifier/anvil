@@ -982,8 +982,7 @@ pub open spec fn make_env_config(zk: ZookeeperClusterView) -> StringView
         CLIENT_PORT=")@ + client_port + new_strlit("\n\
         ADMIN_SERVER_HOST=")@ + name + new_strlit("-admin-server\n\
         ADMIN_SERVER_PORT=")@ + admin_server_port + new_strlit("\n\
-        CLUSTER_NAME=")@ + name + new_strlit("\n\
-        CLUSTER_SIZE=")@ + int_to_string_view(zk.spec.replicas) + new_strlit("\n")@
+        CLUSTER_NAME=")@ + name + new_strlit("\n")@
 }
 
 pub open spec fn make_stateful_set_key(key: ObjectRef) -> ObjectRef

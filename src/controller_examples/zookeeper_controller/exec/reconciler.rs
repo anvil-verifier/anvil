@@ -1110,8 +1110,7 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
         CLIENT_PORT=")).concat(client_port.as_str()).concat(new_strlit("\n\
         ADMIN_SERVER_HOST=")).concat(name.as_str()).concat(new_strlit("-admin-server\n\
         ADMIN_SERVER_PORT=")).concat(admin_server_port.as_str()).concat(new_strlit("\n\
-        CLUSTER_NAME=")).concat(name.as_str()).concat(new_strlit("\n\
-        CLUSTER_SIZE=")).concat(i32_to_string(zk.spec().replicas()).as_str()).concat(new_strlit("\n"))
+        CLUSTER_NAME=")).concat(name.as_str()).concat(new_strlit("\n"))
 }
 
 fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
