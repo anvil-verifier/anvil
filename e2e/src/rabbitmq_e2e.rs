@@ -88,6 +88,7 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
                 println!("Stateful set is found as expected.");
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
                     println!("No stateful set pod is ready.");
+                    continue;
                 } else if *sts
                     .status
                     .as_ref()
@@ -109,32 +110,12 @@ pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result
                             .as_ref()
                             .unwrap()
                     );
+                    continue;
                 }
             }
         };
     }
     println!("Desired state test passed.");
-    Ok(())
-}
-
-pub async fn authenticate_user_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
-    let pod_name = rabbitmq_name + "-server-0";
-    let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
-    let attached = pod_api
-        .exec(
-            pod_name.as_str(),
-            vec!["rabbitmqctl", "authenticate_user", "new_user", "new_pass"],
-            &AttachParams::default().stderr(true),
-        )
-        .await?;
-    let (out, err) = get_output_and_err(attached).await;
-    if err != "" {
-        println!("User and password test failed with {}.", err);
-        return Err(Error::RabbitmqUserPassFailed);
-    } else {
-        println!("{}", out);
-    }
-    println!("Authenticate user test passed.");
     Ok(())
 }
 
@@ -179,6 +160,7 @@ pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), E
                 println!("Stateful set is found as expected.");
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
                     println!("No stateful set pod is ready.");
+                    continue;
                 } else if *sts
                     .status
                     .as_ref()
@@ -200,11 +182,33 @@ pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), E
                             .as_ref()
                             .unwrap()
                     );
+                    continue;
                 }
             }
         };
     }
     println!("Scaling test passed.");
+    Ok(())
+}
+
+pub async fn authenticate_user_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
+    let pod_name = rabbitmq_name + "-server-0";
+    let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
+    let attached = pod_api
+        .exec(
+            pod_name.as_str(),
+            vec!["rabbitmqctl", "authenticate_user", "new_user", "new_pass"],
+            &AttachParams::default().stderr(true),
+        )
+        .await?;
+    let (out, err) = get_output_and_err(attached).await;
+    if err != "" {
+        println!("User and password test failed with {}.", err);
+        return Err(Error::RabbitmqUserPassFailed);
+    } else {
+        println!("{}", out);
+    }
+    println!("Authenticate user test passed.");
     Ok(())
 }
 
