@@ -159,7 +159,7 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
     let timeout = Duration::from_secs(360);
     let start = Instant::now();
     let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
-    Command::new("kubectl")
+    let scale_output = Command::new("kubectl")
         .args([
             "patch",
             "zk",
@@ -169,7 +169,15 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
             "'[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 2}]'",
         ])
         .output()
-        .expect("failed to run perf test pod");
+        .expect("failed to scale zk");
+    println!(
+        "scale output: {}",
+        String::from_utf8_lossy(&scale_output.stdout)
+    );
+    println!(
+        "scale error: {}",
+        String::from_utf8_lossy(&scale_output.stderr)
+    );
 
     loop {
         sleep(Duration::from_secs(5)).await;
@@ -230,7 +238,7 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
             "'[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 3}]'",
         ])
         .output()
-        .expect("failed to run perf test pod");
+        .expect("failed to scale zk");
 
     loop {
         sleep(Duration::from_secs(5)).await;
