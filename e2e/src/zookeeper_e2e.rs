@@ -164,8 +164,9 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
             "patch",
             "zk",
             "zookeeper",
-            "--patch",
-            "'{\"spec\": {\"replicas\": 2}}'",
+            "--type=json",
+            "-p",
+            "'[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 2}]'",
         ])
         .output()
         .expect("failed to run perf test pod");
@@ -185,8 +186,10 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
             }
             Ok(sts) => {
                 if sts.spec.unwrap().replicas != Some(2) {
-                    println!("Stateful set spec is not consistent with zookeeper cluster spec. E2e test failed.");
-                    return Err(Error::ZookeeperStsFailed);
+                    println!(
+                        "Stateful set spec is not consistent with zookeeper cluster spec yet."
+                    );
+                    continue;
                 }
                 println!("Stateful set is found as expected.");
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {
@@ -222,8 +225,9 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
             "patch",
             "zk",
             "zookeeper",
-            "--patch",
-            "'{\"spec\": {\"replicas\": 3}}'",
+            "--type=json",
+            "-p",
+            "'[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 3}]'",
         ])
         .output()
         .expect("failed to run perf test pod");
@@ -242,8 +246,10 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
             }
             Ok(sts) => {
                 if sts.spec.unwrap().replicas != Some(3) {
-                    println!("Stateful set spec is not consistent with zookeeper cluster spec. E2e test failed.");
-                    return Err(Error::ZookeeperStsFailed);
+                    println!(
+                        "Stateful set spec is not consistent with zookeeper cluster spec yet."
+                    );
+                    continue;
                 }
                 println!("Stateful set is found as expected.");
                 if sts.status.as_ref().unwrap().ready_replicas.is_none() {

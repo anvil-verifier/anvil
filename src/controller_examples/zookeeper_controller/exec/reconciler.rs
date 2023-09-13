@@ -274,13 +274,13 @@ pub fn reconcile_core(
                 if create_client_service_resp.is_ok() {
                     let unmarshal_client_service_result = Service::from_dynamic_object(create_client_service_resp.unwrap());
                     if unmarshal_client_service_result.is_ok() {
-                        let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                             api_resource: Service::api_resource(),
+                            name: make_admin_server_service_name(zk),
                             namespace: zk.metadata().namespace().unwrap(),
-                            obj: make_admin_server_service(zk).to_dynamic_object(),
                         });
                         let state_prime = ZookeeperReconcileState {
-                            reconcile_step: ZookeeperReconcileStep::AfterCreateAdminServerService,
+                            reconcile_step: ZookeeperReconcileStep::AfterGetAdminServerService,
                             ..state
                         };
                         return (state_prime, Some(Request::KRequest(req_o)));
@@ -300,13 +300,13 @@ pub fn reconcile_core(
                 if update_client_service_resp.is_ok() {
                     let unmarshal_client_service_result = Service::from_dynamic_object(update_client_service_resp.unwrap());
                     if unmarshal_client_service_result.is_ok() {
-                        let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                             api_resource: Service::api_resource(),
+                            name: make_admin_server_service_name(zk),
                             namespace: zk.metadata().namespace().unwrap(),
-                            obj: make_admin_server_service(zk).to_dynamic_object(),
                         });
                         let state_prime = ZookeeperReconcileState {
-                            reconcile_step: ZookeeperReconcileStep::AfterCreateAdminServerService,
+                            reconcile_step: ZookeeperReconcileStep::AfterGetAdminServerService,
                             ..state
                         };
                         return (state_prime, Some(Request::KRequest(req_o)));
