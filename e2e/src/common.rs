@@ -12,7 +12,9 @@ use kube::{
     discovery::{ApiCapabilities, ApiResource, Discovery, Scope},
     Client, CustomResource,
 };
+use std::process::Command;
 use thiserror::Error;
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("Failed to get kube client: {0}")]
@@ -119,4 +121,10 @@ pub async fn get_output_and_err(mut attached: AttachedProcess) -> (String, Strin
         .join("");
     attached.join().await.unwrap();
     (out, err)
+}
+
+pub fn run_command(program: &str, args: Vec<&str>, err_msg: &str) {
+    let cmd = Command::new(program).args(args).output().expect(err_msg);
+    println!("cmd output: {}", String::from_utf8_lossy(&cmd.stdout));
+    println!("cmd error: {}", String::from_utf8_lossy(&cmd.stderr));
 }

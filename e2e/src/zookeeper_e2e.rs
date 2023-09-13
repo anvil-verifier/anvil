@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
-use k8s_openapi::api::core::v1::{ConfigMap, Pod};
-use k8s_openapi::api::{apps::v1::StatefulSet, core::v1::Service};
+use k8s_openapi::api::apps::v1::StatefulSet;
+use k8s_openapi::api::core::v1::{ConfigMap, Pod, Service};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use kube::{
     api::{
@@ -16,7 +16,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::PathBuf;
-use std::process::Command;
 use std::thread;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
@@ -159,24 +158,17 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
     let timeout = Duration::from_secs(360);
     let start = Instant::now();
     let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
-    let scale_output = Command::new("kubectl")
-        .args([
+    run_command(
+        "kubectl",
+        vec![
             "patch",
             "zk",
             "zookeeper",
             "--type=json",
             "-p",
             "[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 2}]",
-        ])
-        .output()
-        .expect("failed to scale zk");
-    println!(
-        "cmd output: {}",
-        String::from_utf8_lossy(&scale_output.stdout)
-    );
-    println!(
-        "cmd error: {}",
-        String::from_utf8_lossy(&scale_output.stderr)
+        ],
+        "failed to scale zk",
     );
 
     loop {
@@ -228,24 +220,17 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
         };
     }
 
-    Command::new("kubectl")
-        .args([
+    run_command(
+        "kubectl",
+        vec![
             "patch",
             "zk",
             "zookeeper",
             "--type=json",
             "-p",
             "[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 3}]",
-        ])
-        .output()
-        .expect("failed to scale zk");
-    println!(
-        "cmd output: {}",
-        String::from_utf8_lossy(&scale_output.stdout)
-    );
-    println!(
-        "cmd error: {}",
-        String::from_utf8_lossy(&scale_output.stderr)
+        ],
+        "failed to scale zk",
     );
 
     loop {
