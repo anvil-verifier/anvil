@@ -166,16 +166,16 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
             "zookeeper",
             "--type=json",
             "-p",
-            "'[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 2}]'",
+            "[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 2}]",
         ])
         .output()
         .expect("failed to scale zk");
     println!(
-        "scale output: {}",
+        "cmd output: {}",
         String::from_utf8_lossy(&scale_output.stdout)
     );
     println!(
-        "scale error: {}",
+        "cmd error: {}",
         String::from_utf8_lossy(&scale_output.stderr)
     );
 
@@ -235,10 +235,18 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
             "zookeeper",
             "--type=json",
             "-p",
-            "'[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 3}]'",
+            "[{\"op\": \"replace\", \"path\": \"/spec/replicas\", \"value\": 3}]",
         ])
         .output()
         .expect("failed to scale zk");
+    println!(
+        "cmd output: {}",
+        String::from_utf8_lossy(&scale_output.stdout)
+    );
+    println!(
+        "cmd error: {}",
+        String::from_utf8_lossy(&scale_output.stderr)
+    );
 
     loop {
         sleep(Duration::from_secs(5)).await;
