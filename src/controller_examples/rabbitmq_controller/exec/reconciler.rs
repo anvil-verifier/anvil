@@ -1232,6 +1232,14 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         });
         volume
     });
+    if rabbitmq.spec().persistence().storage().Cmp(new_strlit("0Gi").to_string()) == 0 {
+        volumes.push({
+            let mut volume = Volume::default();
+            volume.set_name(new_strlit("persistence").to_string());
+            volume.set_empty_dir();
+            volume
+        });
+    }
     proof {
         assert_seqs_equal!(
             volumes@.map_values(|vol: Volume| vol@),

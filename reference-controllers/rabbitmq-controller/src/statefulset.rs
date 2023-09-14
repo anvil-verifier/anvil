@@ -86,8 +86,6 @@ fn persistent_volume_claim(rabbitmq: &RabbitmqCluster) ->Vec<corev1::PersistentV
     pvc
 }
 
-
-
 fn pod_template_spec(rabbitmq: &RabbitmqCluster, configmap_rv: String) -> corev1::PodTemplateSpec{
     let readiness_probe_port = "amqp".to_string(); // default one
     let volumes = vec![

@@ -34,6 +34,15 @@ spec:
                       nullable: true
                       type: string
                   type: object
+                persistence:
+                  nullable: true
+                  properties:
+                    storageClassName:
+                      nullable: true
+                      type: string
+                    storage:
+                      nullable: true
+                      type: string
                 replicas:
                   format: int32
                   type: integer

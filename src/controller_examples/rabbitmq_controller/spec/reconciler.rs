@@ -755,6 +755,9 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                 ])
             ),
     ];
+    if rabbitmq.spec.persistence.storage.Cmp(new_strlit("0Gi")@) == 0 {
+        volumes.push(VolumeView::default().set_name(new_strlit("persistence")@).set_empty_dir());
+    }
 
     PodSpecView::default()
         .set_service_account_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)

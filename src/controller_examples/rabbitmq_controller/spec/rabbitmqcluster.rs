@@ -3,7 +3,7 @@
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*,
-    resource::*,
+    quantity::*, resource::*,
 };
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -116,6 +116,7 @@ impl ResourceView for RabbitmqClusterView {
 
 pub struct RabbitmqClusterSpecView {
     pub replicas: int,
+    pub persistence: Option<RabbitmqClusterPersistenceSpecView>,
     pub rabbitmq_config: Option<RabbitmqConfigView>,
 }
 
@@ -137,6 +138,11 @@ pub struct RabbitmqConfigView {
     pub additional_config: Option<StringView>,
     pub advanced_config: Option<StringView>,
     pub env_config: Option<StringView>,
+}
+
+pub struct RabbitmqClusterPersistenceSpecView {
+    pub storage_class_name: Option<String>,
+    pub storage: Option<QuantityView>,
 }
 
 

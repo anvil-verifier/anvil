@@ -3,7 +3,7 @@
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*,
-    resource::*,
+    quantity::*, resource::*,
 };
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::spec::rabbitmqcluster::*;
@@ -147,6 +147,18 @@ impl RabbitmqClusterSpec {
             None => None,
         }
     }
+
+    #[verifier(external_body)]
+    pub fn persistence(&self) -> (persistence: Option<RabbitmqClusterPersistenceSpec>)
+        ensures
+            self@.persistence.is_Some() == persistence.is_Some(),
+            persistence.is_Some() ==> persistence.get_Some_0()@ == self@.persistence.get_Some_0(),
+    {
+        match &self.inner.persistence {
+            Some(n) => Some(RabbitmqClusterPersistenceSpec { inner: n.clone() }),
+            None => None,
+        }
+    }
 }
 
 
@@ -171,5 +183,25 @@ impl RabbitmqConfig {
     }
 }
 
+#[verifier(external_body)]
+pub struct RabbitmqClusterPersistenceSpec {
+    inner: deps_hack::RabbitmqClusterPersistenceSpec,
+}
+
+impl RabbitmqClusterPersistenceSpec {
+    pub spec fn view(&self) -> RabbitmqClusterPersistenceSpecView;
+
+    #[verifier(external_body)]
+    pub fn storage(&self) -> (storage: Option<Quantity>)
+        ensures
+            self@.storage.is_Some() == storage.is_Some(),
+            storage.is_Some() ==> storage.get_Some_0()@ == self@.storage.get_Some_0(),
+    {
+        match &self.inner.storage {
+            Some(n) => Some(Quantity::from_kube(n.clone())),
+            None => None,
+        }
+    }
+}
 
 }
