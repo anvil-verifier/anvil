@@ -47,6 +47,8 @@ pub struct ZookeeperClusterSpec {
     pub resources: k8s_openapi::api::core::v1::ResourceRequirements,
     pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
     pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
+    #[serde(default)]
+    pub labels: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]

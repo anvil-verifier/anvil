@@ -7,8 +7,7 @@ use crate::kubernetes_api_objects::{
     object_meta::*, owner_reference::*, persistent_volume_claim::*, pod::*, pod_template_spec::*,
     resource::*, resource_requirements::*, service::*, stateful_set::*, volume::*,
 };
-use crate::pervasive_ext::string_map::StringMap;
-use crate::pervasive_ext::{string_view::*, to_view::*};
+use crate::pervasive_ext::{string_map::*, string_view::*, to_view::*};
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::exec::{types::*, zookeeper_api::*};
@@ -752,6 +751,18 @@ fn zk_node_data(zk: &ZookeeperCluster) -> (data: String)
     new_strlit("CLUSTER_SIZE=").to_string().concat(i32_to_string(zk.spec().replicas()).as_str())
 }
 
+fn make_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
+    requires
+        zk@.well_formed(),
+    ensures
+        labels@ == zk_spec::make_labels(zk@),
+{
+    let mut labels = StringMap::empty();
+    labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
+    labels.extend(zk.spec().labels());
+    labels
+}
+
 fn make_headless_service_name(zk: &ZookeeperCluster) -> (name: String)
     requires
         zk@.well_formed(),
@@ -923,11 +934,7 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
     service.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(name);
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(zk));
         metadata.set_owner_references({
             let mut owner_references = Vec::new();
             owner_references.push(zk.controller_owner_ref());
@@ -996,11 +1003,7 @@ fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
     config_map.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_config_map_name(zk));
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(zk));
         metadata.set_owner_references({
             let mut owner_references = Vec::new();
             owner_references.push(zk.controller_owner_ref());
@@ -1151,11 +1154,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
     stateful_set.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_stateful_set_name(zk));
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(zk));
         metadata.set_owner_references({
             let mut owner_references = Vec::new();
             owner_references.push(zk.controller_owner_ref());
@@ -1178,11 +1177,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
         // Set the selector used for querying pods of this stateful set
         stateful_set_spec.set_selector({
             let mut selector = LabelSelector::default();
-            selector.set_match_labels({
-                let mut match_labels = StringMap::empty();
-                match_labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-                match_labels
-            });
+            selector.set_match_labels(make_labels(zk));
             selector
         });
         stateful_set_spec.set_pvc_retention_policy({
@@ -1197,12 +1192,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
             pod_template_spec.set_metadata({
                 let mut metadata = ObjectMeta::default();
                 metadata.set_generate_name(zk.metadata().name().unwrap());
-                metadata.set_labels({
-                    let mut labels = StringMap::empty();
-                    labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-                    labels.insert(new_strlit("kind").to_string(), new_strlit("ZookeeperMember").to_string());
-                    labels
-                });
+                metadata.set_labels(make_labels(zk));
                 metadata.set_annotations({
                     let mut annotations = StringMap::empty();
                     annotations.insert(new_strlit("config").to_string(), rv.clone());
@@ -1221,11 +1211,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
                 pvc.set_metadata({
                     let mut metadata = ObjectMeta::default();
                     metadata.set_name(new_strlit("data").to_string());
-                    metadata.set_labels({
-                        let mut labels = StringMap::empty();
-                        labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-                        labels
-                    });
+                    metadata.set_labels(make_labels(zk));
                     metadata
                 });
                 pvc.set_spec({
