@@ -192,6 +192,14 @@ impl RabbitmqClusterPersistenceSpec {
     {
         String::from_rust_string(self.inner.storage.clone().0)
     }
+
+    #[verifier(external_body)]
+    pub fn storage_class_name(&self) -> (storage_class_name: String)
+        ensures
+            storage_class_name@ == self@.storage_class_name,
+    {
+        String::from_rust_string(self.inner.storage_class_name.clone())
+    }
 }
 
 }
