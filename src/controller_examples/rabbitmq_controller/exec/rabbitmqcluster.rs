@@ -3,7 +3,7 @@
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*,
-    quantity::*, resource::*,
+    resource::*,
 };
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::spec::rabbitmqcluster::*;
@@ -16,7 +16,6 @@ verus! {
 pub struct RabbitmqCluster {
     inner: deps_hack::RabbitmqCluster
 }
-
 
 impl RabbitmqCluster {
     pub spec fn view(&self) -> RabbitmqClusterView;
@@ -150,10 +149,9 @@ impl RabbitmqClusterSpec {
     #[verifier(external_body)]
     pub fn persistence(&self) -> (persistence: RabbitmqClusterPersistenceSpec)
         ensures
-            self@.persistence.is_Some() == persistence.is_Some(),
-            persistence.is_Some() ==> persistence.get_Some_0()@ == self@.persistence.get_Some_0(),
+            persistence@ == self@.persistence,
     {
-        RabbitmqClusterPersistenceSpec { self.inner.persistence.clone() }
+        RabbitmqClusterPersistenceSpec { inner: self.inner.persistence.clone() }
     }
 }
 
@@ -188,11 +186,11 @@ impl RabbitmqClusterPersistenceSpec {
     pub spec fn view(&self) -> RabbitmqClusterPersistenceSpecView;
 
     #[verifier(external_body)]
-    pub fn storage(&self) -> (storage: Quantity)
+    pub fn storage(&self) -> (storage: String)
         ensures
             storage@ == self@.storage,
     {
-        Quantity::from_kube(self.inner.storage.clone())
+        String::from_rust_string(self.inner.storage.clone().0)
     }
 }
 

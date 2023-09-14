@@ -1010,57 +1010,67 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (sta
         });
         // Set the templates used for creating the persistent volume claims attached to each pod
         stateful_set_spec.set_volume_claim_templates({ // TODO: Add PodManagementPolicy
-            let mut volume_claim_templates = Vec::new();
-            volume_claim_templates.push({
-                let mut pvc = PersistentVolumeClaim::default();
-                pvc.set_metadata({
-                    let mut metadata = ObjectMeta::default();
-                    metadata.set_name(new_strlit("persistence").to_string());
-                    metadata.set_namespace(rabbitmq.namespace().unwrap());
-                    metadata.set_labels({
-                        let mut labels = StringMap::empty();
-                        labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-                        labels
-                    });
-                    metadata
-                });
-                pvc.set_spec({
-                    let mut pvc_spec = PersistentVolumeClaimSpec::default();
-                    pvc_spec.set_access_modes({
-                        let mut access_modes = Vec::new();
-                        access_modes.push(new_strlit("ReadWriteOnce").to_string());
-
-                        proof {
-                            assert_seqs_equal!(
-                                access_modes@.map_values(|mode: String| mode@),
-                                rabbitmq_spec::make_stateful_set(rabbitmq@, config_map_rv@)
-                                    .spec.get_Some_0().volume_claim_templates.get_Some_0()[0]
-                                    .spec.get_Some_0().access_modes.get_Some_0()
-                            );
-                        }
-
-                        access_modes
-                    });
-                    pvc_spec.set_resources({
-                        let mut resources = ResourceRequirements::default();
-                        resources.set_requests({
-                            let mut requests = StringMap::empty();
-                            requests.insert(new_strlit("storage").to_string(), new_strlit("10Gi").to_string());
-                            requests
+            if rabbitmq.spec().persistence().storage().eq(&new_strlit("0Gi").to_string()) {
+                let empty_pvc = Vec::<PersistentVolumeClaim>::new();
+                proof {
+                    assert_seqs_equal!(
+                        empty_pvc@.map_values(|pvc: PersistentVolumeClaim| pvc@),
+                        rabbitmq_spec::make_stateful_set(rabbitmq@, config_map_rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+                    );
+                }
+                empty_pvc
+            } else {
+                let mut volume_claim_templates = Vec::new();
+                volume_claim_templates.push({
+                    let mut pvc = PersistentVolumeClaim::default();
+                    pvc.set_metadata({
+                        let mut metadata = ObjectMeta::default();
+                        metadata.set_name(new_strlit("persistence").to_string());
+                        metadata.set_namespace(rabbitmq.namespace().unwrap());
+                        metadata.set_labels({
+                            let mut labels = StringMap::empty();
+                            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+                            labels
                         });
-                        resources
+                        metadata
                     });
-                    pvc_spec
+                    pvc.set_spec({
+                        let mut pvc_spec = PersistentVolumeClaimSpec::default();
+                        pvc_spec.set_access_modes({
+                            let mut access_modes = Vec::new();
+                            access_modes.push(new_strlit("ReadWriteOnce").to_string());
+                            proof {
+                                assert_seqs_equal!(
+                                    access_modes@.map_values(|mode: String| mode@),
+                                    rabbitmq_spec::make_stateful_set(rabbitmq@, config_map_rv@)
+                                        .spec.get_Some_0().volume_claim_templates.get_Some_0()[0]
+                                        .spec.get_Some_0().access_modes.get_Some_0()
+                                );
+                            }
+    
+                            access_modes
+                        });
+                        pvc_spec.set_resources({
+                            let mut resources = ResourceRequirements::default();
+                            resources.set_requests({
+                                let mut requests = StringMap::empty();
+                                requests.insert(new_strlit("storage").to_string(), rabbitmq.spec().persistence().storage());
+                                requests
+                            });
+                            resources
+                        });
+                        pvc_spec
+                    });
+                    pvc
                 });
-                pvc
-            });
-            proof {
-                assert_seqs_equal!(
-                    volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
-                    rabbitmq_spec::make_stateful_set(rabbitmq@, config_map_rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
-                );
+                proof {
+                    assert_seqs_equal!(
+                        volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
+                        rabbitmq_spec::make_stateful_set(rabbitmq@, config_map_rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+                    );
+                }
+                volume_claim_templates
             }
-            volume_claim_templates
         });
         // Set management policy
         stateful_set_spec.set_pod_management_policy(new_strlit("Parallel").to_string());
@@ -1232,8 +1242,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         });
         volume
     });
-    if rabbitmq.spec().persistence().is_some() && rabbitmq.spec().persistence().unwrap().storage().is_some()
-    && rabbitmq.spec().persistence().unwrap().storage().unwrap().eq(new_strlit("0Gi").to_string()) {
+    if rabbitmq.spec().persistence().storage().eq(&new_strlit("0Gi").to_string()) {
         volumes.push({
             let mut volume = Volume::default();
             volume.set_name(new_strlit("persistence").to_string());
