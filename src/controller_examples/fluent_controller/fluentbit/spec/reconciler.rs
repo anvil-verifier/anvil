@@ -341,68 +341,6 @@ pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecVie
         tolerations: fluentbit.spec.tolerations,
         ..PodSpecView::default()
     }
-
-    // PodSpecView::default()
-    //     .set_service_account_name(make_service_account_name(fluentbit.metadata.name.get_Some_0()))
-    //     .set_volumes(seq![
-    //         VolumeView::default()
-    //             .set_name(new_strlit("varlibcontainers")@)
-    //             .set_host_path(HostPathVolumeSourceView::default()
-    //                 .set_path(new_strlit("/containers")@)
-    //             ),
-    //         VolumeView::default()
-    //             .set_name(new_strlit("config")@)
-    //             .set_secret(SecretVolumeSourceView::default()
-    //                 .set_secret_name(fluentbit.spec.fluentbit_config_name)
-    //             ),
-    //         VolumeView::default()
-    //             .set_name(new_strlit("varlogs")@)
-    //             .set_host_path(HostPathVolumeSourceView::default()
-    //                 .set_path(new_strlit("/var/log")@)
-    //             ),
-    //         VolumeView::default()
-    //             .set_name(new_strlit("systemd")@)
-    //             .set_host_path(HostPathVolumeSourceView::default()
-    //                 .set_path(new_strlit("/var/log/journal")@)
-    //             ),
-    //         VolumeView::default()
-    //             .set_name(new_strlit("positions")@)
-    //             .set_host_path(HostPathVolumeSourceView::default()
-    //                 .set_path(new_strlit("/var/lib/fluent-bit/")@)
-    //             ),
-    //     ])
-    //     .set_containers(seq![
-    //         ContainerView::default()
-    //             .set_name(new_strlit("fluent-bit")@)
-    //             .set_image(new_strlit("kubesphere/fluent-bit:v2.1.7")@)
-    //             .set_volume_mounts(seq![
-    //                 VolumeMountView::default()
-    //                     .set_name(new_strlit("varlibcontainers")@)
-    //                     .set_read_only(true)
-    //                     .set_mount_path(new_strlit("/containers")@),
-    //                 VolumeMountView::default()
-    //                     .set_name(new_strlit("config")@)
-    //                     .set_read_only(true)
-    //                     .set_mount_path(new_strlit("/fluent-bit/config")@),
-    //                 VolumeMountView::default()
-    //                     .set_name(new_strlit("varlogs")@)
-    //                     .set_read_only(true)
-    //                     .set_mount_path(new_strlit("/var/log/")@),
-    //                 VolumeMountView::default()
-    //                     .set_name(new_strlit("systemd")@)
-    //                     .set_read_only(true)
-    //                     .set_mount_path(new_strlit("/var/log/journal")@),
-    //                 VolumeMountView::default()
-    //                     .set_name(new_strlit("positions")@)
-    //                     .set_mount_path(new_strlit("/fluent-bit/tail")@),
-    //             ])
-    //             .set_ports(seq![
-    //                 ContainerPortView::default()
-    //                     .set_name(new_strlit("metrics")@)
-    //                     .set_container_port(2020),
-    //             ])
-    //             .set_resources(fluentbit.spec.resources)
-    //     ])
 }
 
 }
