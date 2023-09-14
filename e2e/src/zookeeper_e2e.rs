@@ -38,10 +38,6 @@ pub fn zookeeper_cluster() -> String {
         leaderElection: 3888
         metrics: 7000
         adminServer: 8080
-      resources:
-        requests:
-          memory: \"256Mi\"
-          cpu: \"500m\"
       conf:
         initLimit: 10
         syncLimit: 2

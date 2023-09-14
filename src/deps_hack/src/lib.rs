@@ -43,8 +43,7 @@ pub struct ZookeeperClusterSpec {
     pub image: String,
     pub ports: ZookeeperPorts,
     pub conf: ZookeeperConfig,
-    #[serde(default)]
-    pub resources: k8s_openapi::api::core::v1::ResourceRequirements,
+    pub resources: Option<k8s_openapi::api::core::v1::ResourceRequirements>,
     pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
     pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
     #[serde(default)]

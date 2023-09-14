@@ -28,7 +28,3 @@ spec:
     autoPurgeSnapRetainCount: 3
     autoPurgePurgeInterval: 1
     quorumListenOnAllIps: false
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "500m"
