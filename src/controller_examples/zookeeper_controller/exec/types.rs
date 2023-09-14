@@ -1,8 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::{
-    api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError, marshal::*,
-    object_meta::*, owner_reference::*, resource::*, resource_requirements::*,
+    affinity::*, api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError,
+    marshal::*, object_meta::*, owner_reference::*, resource::*, resource_requirements::*,
+    toleration::*,
 };
 use crate::pervasive_ext::string_view::*;
 use crate::zookeeper_controller::spec::types::*;
@@ -142,6 +143,30 @@ impl ZookeeperClusterSpec {
             resources@ == self@.resources,
     {
         ResourceRequirements::from_kube(self.inner.resources.clone())
+    }
+
+    #[verifier(external_body)]
+    pub fn affinity(&self) -> (affinity: Option<Affinity>)
+        ensures
+            self@.affinity.is_Some() == affinity.is_Some(),
+            affinity.is_Some() ==> affinity.get_Some_0()@ == self@.affinity.get_Some_0(),
+    {
+        match &self.inner.affinity {
+            Some(a) => Some(Affinity::from_kube(a.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn tolerations(&self) -> (tolerations: Option<Vec<Toleration>>)
+        ensures
+            self@.tolerations.is_Some() == tolerations.is_Some(),
+            tolerations.is_Some() ==> tolerations.get_Some_0()@.map_values(|t: Toleration| t@) == self@.tolerations.get_Some_0(),
+    {
+        match &self.inner.tolerations {
+            Some(tols) => Some(tols.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::Toleration| Toleration::from_kube(t)).collect()),
+            None => None,
+        }
     }
 }
 

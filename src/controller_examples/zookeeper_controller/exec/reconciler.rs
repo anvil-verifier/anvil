@@ -1281,6 +1281,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
 {
     let mut pod_spec = PodSpec::default();
 
+    pod_spec.overwrite_affinity(zk.spec().affinity());
     pod_spec.set_containers({
         let mut containers = Vec::new();
         containers.push({
@@ -1446,6 +1447,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
 
         volumes
     });
+    pod_spec.overwrite_tolerations(zk.spec().tolerations());
 
     pod_spec
 }

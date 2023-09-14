@@ -1071,8 +1071,9 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
     recommends
         zk.well_formed(),
 {
-    PodSpecView::default()
-        .set_containers(seq![
+    PodSpecView {
+        affinity: zk.spec.affinity,
+        containers: seq![
             ContainerView::default()
                 .set_name(new_strlit("zookeeper")@)
                 .set_image(zk.spec.image)
@@ -1124,12 +1125,15 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
                         .set_success_threshold(1)
                         .set_timeout_seconds(10)
                 )
-        ])
-        .set_volumes(seq![
+        ],
+        volumes: Some(seq![
             VolumeView::default().set_name(new_strlit("conf")@).set_config_map(
                 ConfigMapVolumeSourceView::default().set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
             )
-        ])
+        ]),
+        tolerations: zk.spec.tolerations,
+        ..PodSpecView::default()
+    }
 }
 
 }

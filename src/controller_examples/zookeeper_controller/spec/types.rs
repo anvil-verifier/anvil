@@ -1,8 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::{
-    api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError, marshal::*,
-    object_meta::*, owner_reference::*, resource::*, resource_requirements::*,
+    affinity::*, api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError,
+    marshal::*, object_meta::*, owner_reference::*, resource::*, resource_requirements::*,
+    toleration::*,
 };
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -110,6 +111,8 @@ pub struct ZookeeperClusterSpecView {
     pub ports: ZookeeperPortsView,
     pub conf: ZookeeperConfigView,
     pub resources: ResourceRequirementsView,
+    pub affinity: Option<AffinityView>,
+    pub tolerations: Option<Seq<TolerationView>>,
 }
 
 impl ZookeeperClusterSpecView {}
