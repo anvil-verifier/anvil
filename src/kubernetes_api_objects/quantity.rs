@@ -30,11 +30,11 @@ impl Quantity {
     pub spec fn view(&self) -> QuantityView;
 
     #[verifier(external_body)]
-    pub fn Cmp(quantity: String) -> (res: int)
+    pub fn eq(&self, quantity: String) -> (res: bool)
         ensures
-            res == self@.Cmp(quantity@),
+            res == self@.eq(quantity@),
     {
-        return self.inner.0.Cmp(quantity.into_rust_string());
+        return self.inner.0 == quantity.into_rust_string();
     }
 }
 
@@ -60,7 +60,9 @@ pub struct QuantityView {
 }
 
 impl QuantityView {
-    pub closed spec fn Cmp(quantity: StringView) -> int;
+    pub open spec fn eq(self, quantity: StringView) -> bool {
+        self.quantity == quantity
+    }
 }
 
 }

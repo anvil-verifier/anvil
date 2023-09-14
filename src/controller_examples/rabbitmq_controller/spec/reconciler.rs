@@ -755,9 +755,6 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                 ])
             ),
     ];
-    if rabbitmq.spec.persistence.storage.Cmp(new_strlit("0Gi")@) == 0 {
-        volumes.push(VolumeView::default().set_name(new_strlit("persistence")@).set_empty_dir());
-    }
 
     PodSpecView::default()
         .set_service_account_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
@@ -835,7 +832,14 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                         .set_tcp_socket(TCPSocketActionView::default().set_port(5672))
                 )
         ])
-        .set_volumes(volumes)
+        .set_volumes({
+            if rabbitmq.spec.persistence.is_Some() && rabbitmq.spec.persistence.get_Some_0().storage.is_Some()
+            && rabbitmq.spec.persistence.get_Some_0().storage.get_Some_0().eq(new_strlit("0Gi")@) {
+                volumes.push(VolumeView::default().set_name(new_strlit("persistence")@))
+            } else {
+                volumes
+            }
+        })
 }
 
 }

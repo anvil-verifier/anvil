@@ -116,7 +116,7 @@ impl ResourceView for RabbitmqClusterView {
 
 pub struct RabbitmqClusterSpecView {
     pub replicas: int,
-    pub persistence: Option<RabbitmqClusterPersistenceSpecView>,
+    pub persistence: RabbitmqClusterPersistenceSpecView,
     pub rabbitmq_config: Option<RabbitmqConfigView>,
 }
 
@@ -141,8 +141,8 @@ pub struct RabbitmqConfigView {
 }
 
 pub struct RabbitmqClusterPersistenceSpecView {
-    pub storage_class_name: Option<String>,
-    pub storage: Option<QuantityView>,
+    pub storage_class_name: String,
+    pub storage: QuantityView,
 }
 
 

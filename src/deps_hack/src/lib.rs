@@ -103,7 +103,7 @@ pub struct ZookeeperConfig {
 pub struct RabbitmqClusterSpec {
     pub replicas: i32,
     #[serde(rename = "persistence")]
-    pub persistence: Option<RabbitmqClusterPersistenceSpec>,
+    pub persistence: RabbitmqClusterPersistenceSpec,
     #[serde(rename = "rabbitmqConfig")]
     pub rabbitmq_config: Option<RabbitmqConfig>,
 }
@@ -121,9 +121,9 @@ pub struct RabbitmqConfig {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct RabbitmqClusterPersistenceSpec {
 	#[serde(rename = "storageClassName")]
-	pub storage_class_name: Option<String>,
+	pub storage_class_name: String,
 	#[serde(rename = "storage")]
-    pub storage: Option<k8s_openapi::apimachinery::pkg::api::resource::Quantity>,
+    pub storage: k8s_openapi::apimachinery::pkg::api::resource::Quantity,
 }
 
 #[derive(

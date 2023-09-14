@@ -35,13 +35,13 @@ spec:
                       type: string
                   type: object
                 persistence:
-                  nullable: true
+                  x-kubernetes-validations:
+                    - rule: "self == oldSelf"
+                      message: storage should not be changed
                   properties:
                     storageClassName:
-                      nullable: true
                       type: string
                     storage:
-                      nullable: true
                       type: string
                 replicas:
                   format: int32

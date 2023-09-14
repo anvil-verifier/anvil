@@ -1232,7 +1232,8 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         });
         volume
     });
-    if rabbitmq.spec().persistence().storage().Cmp(new_strlit("0Gi").to_string()) == 0 {
+    if rabbitmq.spec().persistence().is_some() && rabbitmq.spec().persistence().unwrap().storage().is_some()
+    && rabbitmq.spec().persistence().unwrap().storage().unwrap().eq(new_strlit("0Gi").to_string()) {
         volumes.push({
             let mut volume = Volume::default();
             volume.set_name(new_strlit("persistence").to_string());

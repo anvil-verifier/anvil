@@ -124,7 +124,6 @@ pub struct RabbitmqClusterSpec {
     inner: deps_hack::RabbitmqClusterSpec,
 }
 
-
 impl RabbitmqClusterSpec {
     pub spec fn view(&self) -> RabbitmqClusterSpecView;
 
@@ -149,15 +148,12 @@ impl RabbitmqClusterSpec {
     }
 
     #[verifier(external_body)]
-    pub fn persistence(&self) -> (persistence: Option<RabbitmqClusterPersistenceSpec>)
+    pub fn persistence(&self) -> (persistence: RabbitmqClusterPersistenceSpec)
         ensures
             self@.persistence.is_Some() == persistence.is_Some(),
             persistence.is_Some() ==> persistence.get_Some_0()@ == self@.persistence.get_Some_0(),
     {
-        match &self.inner.persistence {
-            Some(n) => Some(RabbitmqClusterPersistenceSpec { inner: n.clone() }),
-            None => None,
-        }
+        RabbitmqClusterPersistenceSpec { self.inner.persistence.clone() }
     }
 }
 
@@ -192,15 +188,11 @@ impl RabbitmqClusterPersistenceSpec {
     pub spec fn view(&self) -> RabbitmqClusterPersistenceSpecView;
 
     #[verifier(external_body)]
-    pub fn storage(&self) -> (storage: Option<Quantity>)
+    pub fn storage(&self) -> (storage: Quantity)
         ensures
-            self@.storage.is_Some() == storage.is_Some(),
-            storage.is_Some() ==> storage.get_Some_0()@ == self@.storage.get_Some_0(),
+            storage@ == self@.storage,
     {
-        match &self.inner.storage {
-            Some(n) => Some(Quantity::from_kube(n.clone())),
-            None => None,
-        }
+        Quantity::from_kube(self.inner.storage.clone())
     }
 }
 
