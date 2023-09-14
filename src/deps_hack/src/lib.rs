@@ -45,6 +45,8 @@ pub struct ZookeeperClusterSpec {
     pub conf: ZookeeperConfig,
     #[serde(default)]
     pub resources: k8s_openapi::api::core::v1::ResourceRequirements,
+    pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
+    pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
@@ -126,6 +128,7 @@ pub struct FluentBitSpec {
     pub fluentbit_config_name: String,
     #[serde(default)]
     pub resources: k8s_openapi::api::core::v1::ResourceRequirements,
+    pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
 }
 
 #[derive(

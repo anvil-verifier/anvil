@@ -31,6 +31,8 @@ pub fn fluent_bit() -> String {
         namespace: default
     spec:
         fluentBitConfigName: fluent-bit-config
+        tolerations:
+            - operator: Exists
     "
     .to_string()
 }

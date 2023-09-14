@@ -5,6 +5,8 @@ metadata:
     namespace: default
 spec:
     fluentBitConfigName: fluent-bit-config
+    tolerations:
+        - operator: Exists
 ---
 apiVersion: anvil.dev/v1
 kind: FluentBitConfig

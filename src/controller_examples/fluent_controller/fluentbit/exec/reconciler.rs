@@ -555,7 +555,7 @@ fn make_fluentbit_pod_spec(fluentbit: &FluentBit) -> (pod_spec: PodSpec)
         }
         volumes
     });
-    pod_spec.set_tolerations(make_tolerations(&fluentbit));
+    pod_spec.overwrite_tolerations(fluentbit.spec().tolerations());
     pod_spec
 }
 
@@ -593,20 +593,6 @@ fn make_env(fluentbit: &FluentBit) -> Vec<EnvVar> {
         )
     );
     env_vars
-}
-
-#[verifier(external_body)]
-fn make_tolerations(fluentbit: &FluentBit) -> Vec<Toleration> {
-    let mut tolerations = Vec::new();
-    tolerations.push(
-        Toleration::from_kube(
-            deps_hack::k8s_openapi::api::core::v1::Toleration {
-                operator: Some("Exists".to_string()),
-                ..deps_hack::k8s_openapi::api::core::v1::Toleration::default()
-            }
-        )
-    );
-    tolerations
 }
 
 }

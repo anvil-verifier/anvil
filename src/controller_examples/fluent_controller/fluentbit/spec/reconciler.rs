@@ -277,9 +277,9 @@ pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecVie
         fluentbit.metadata.name.is_Some(),
         fluentbit.metadata.namespace.is_Some(),
 {
-    PodSpecView::default()
-        .set_service_account_name(make_service_account_name(fluentbit.metadata.name.get_Some_0()))
-        .set_volumes(seq![
+    PodSpecView {
+        service_account_name: Some(make_service_account_name(fluentbit.metadata.name.get_Some_0())),
+        volumes: Some(seq![
             VolumeView::default()
                 .set_name(new_strlit("varlibcontainers")@)
                 .set_host_path(HostPathVolumeSourceView::default()
@@ -305,8 +305,8 @@ pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecVie
                 .set_host_path(HostPathVolumeSourceView::default()
                     .set_path(new_strlit("/var/lib/fluent-bit/")@)
                 ),
-        ])
-        .set_containers(seq![
+        ]),
+        containers: seq![
             ContainerView::default()
                 .set_name(new_strlit("fluent-bit")@)
                 .set_image(new_strlit("kubesphere/fluent-bit:v2.1.7")@)
@@ -337,7 +337,10 @@ pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecVie
                         .set_container_port(2020),
                 ])
                 .set_resources(fluentbit.spec.resources)
-        ])
+        ],
+        tolerations: fluentbit.spec.tolerations,
+        ..PodSpecView::default()
+    }
 }
 
 }
