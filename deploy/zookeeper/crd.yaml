@@ -548,6 +548,11 @@ spec:
                   type: object
                 image:
                   type: string
+                labels:
+                  additionalProperties:
+                    type: string
+                  default: {}
+                  type: object
                 ports:
                   properties:
                     adminServer:

@@ -7,6 +7,7 @@ use crate::kubernetes_api_objects::{
     resource_requirements::*, service::*, stateful_set::*, volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
+use crate::pervasive_ext::string_map::*;
 use crate::pervasive_ext::string_view::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::{action::*, state_machine::*};
@@ -717,6 +718,10 @@ pub open spec fn zk_node_data(zk: ZookeeperClusterView) -> StringView
     new_strlit("CLUSTER_SIZE=")@ + int_to_string_view(zk.spec.replicas)
 }
 
+pub open spec fn make_labels(zk: ZookeeperClusterView) -> Map<StringView, StringView> {
+    Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()).union_prefer_right(zk.spec.labels)
+}
+
 pub open spec fn make_headless_service_key(key: ObjectRef) -> ObjectRef
     recommends
         key.kind.is_CustomResourceKind(),
@@ -849,7 +854,7 @@ pub open spec fn make_service(
     ServiceView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(name)
-            .set_labels(Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()))
+            .set_labels(make_labels(zk))
             .set_owner_references(seq![zk.controller_owner_ref()])
         ).set_spec({
             let spec = ServiceSpecView::default()
@@ -887,7 +892,7 @@ pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
     ConfigMapView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(make_config_map_name(zk.metadata.name.get_Some_0()))
-            .set_labels(Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()))
+            .set_labels(make_labels(zk))
             .set_owner_references(seq![zk.controller_owner_ref()])
         )
         .set_data(Map::empty()
@@ -1019,24 +1024,19 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
     let name = make_stateful_set_name(zk.metadata.name.get_Some_0());
     let namespace = zk.metadata.namespace.get_Some_0();
 
-    let labels = Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0());
     let metadata = ObjectMetaView::default()
         .set_name(name)
-        .set_labels(labels)
+        .set_labels(make_labels(zk))
         .set_owner_references(seq![zk.controller_owner_ref()]);
 
     let spec = StatefulSetSpecView::default()
         .set_replicas(zk.spec.replicas)
         .set_service_name(name + new_strlit("-headless")@)
-        .set_selector(LabelSelectorView::default().set_match_labels(labels))
+        .set_selector(LabelSelectorView::default().set_match_labels(make_labels(zk)))
         .set_template(PodTemplateSpecView::default()
             .set_metadata(ObjectMetaView::default()
                 .set_generate_name(name)
-                .set_labels(
-                    Map::empty()
-                        .insert(new_strlit("app")@, zk.metadata.name.get_Some_0())
-                        .insert(new_strlit("kind")@, new_strlit("ZookeeperMember")@)
-                )
+                .set_labels(make_labels(zk))
                 .set_annotations(
                     Map::empty()
                         .insert(new_strlit("config")@, rv)
@@ -1052,7 +1052,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
             PersistentVolumeClaimView::default()
                 .set_metadata(ObjectMetaView::default()
                     .set_name(new_strlit("data")@)
-                    .set_labels(labels)
+                    .set_labels(make_labels(zk))
                 )
                 .set_spec(PersistentVolumeClaimSpecView::default()
                     .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
