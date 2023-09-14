@@ -307,10 +307,10 @@ pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecVie
                 ),
         ]),
         containers: seq![
-            ContainerView::default()
-                .set_name(new_strlit("fluent-bit")@)
-                .set_image(new_strlit("kubesphere/fluent-bit:v2.1.7")@)
-                .set_volume_mounts(seq![
+            ContainerView {
+                name: new_strlit("fluent-bit")@,
+                image: Some(new_strlit("kubesphere/fluent-bit:v2.1.7")@),
+                volume_mounts: Some(seq![
                     VolumeMountView::default()
                         .set_name(new_strlit("varlibcontainers")@)
                         .set_read_only(true)
@@ -330,13 +330,15 @@ pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecVie
                     VolumeMountView::default()
                         .set_name(new_strlit("positions")@)
                         .set_mount_path(new_strlit("/fluent-bit/tail")@),
-                ])
-                .set_ports(seq![
+                ]),
+                ports: Some(seq![
                     ContainerPortView::default()
                         .set_name(new_strlit("metrics")@)
                         .set_container_port(2020),
-                ])
-                .set_resources(fluentbit.spec.resources)
+                ]),
+                resources: fluentbit.spec.resources,
+                ..ContainerView::default()
+            }
         ],
         tolerations: fluentbit.spec.tolerations,
         ..PodSpecView::default()

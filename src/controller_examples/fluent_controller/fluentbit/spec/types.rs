@@ -105,7 +105,7 @@ impl ResourceView for FluentBitView {
 
 pub struct FluentBitSpecView {
     pub fluentbit_config_name: StringView,
-    pub resources: ResourceRequirementsView,
+    pub resources: Option<ResourceRequirementsView>,
     pub tolerations: Option<Seq<TolerationView>>,
 }
 
