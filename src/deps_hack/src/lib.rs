@@ -102,6 +102,8 @@ pub struct ZookeeperConfig {
 #[kube(shortname = "rbmq", namespaced)]
 pub struct RabbitmqClusterSpec {
     pub replicas: i32,
+    #[serde(rename = "persistence")]
+    pub persistence: Option<RabbitmqClusterPersistenceSpec>,
     #[serde(rename = "rabbitmqConfig")]
     pub rabbitmq_config: Option<RabbitmqConfig>,
 }
@@ -114,6 +116,14 @@ pub struct RabbitmqConfig {
     pub advanced_config: Option<String>,
     #[serde(rename = "envConfig")]
     pub env_config: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+pub struct RabbitmqClusterPersistenceSpec {
+	#[serde(rename = "storageClassName")]
+	pub storage_class_name: Option<String>,
+	#[serde(rename = "storage")]
+    pub storage: Option<k8s_openapi::apimachinery::pkg::api::resource::Quantity>,
 }
 
 #[derive(
