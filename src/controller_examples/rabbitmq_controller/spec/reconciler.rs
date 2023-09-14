@@ -676,9 +676,9 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
             .set_spec(make_rabbitmq_pod_spec(rabbitmq))
         )
         .set_volume_claim_templates({
-            if rabbitmq.spec.persistence.storage == new_strlit("0Gi")@ {
-                seq![]
-            } else {
+            // if rabbitmq.spec.persistence.storage == new_strlit("0Gi")@ {
+            //     seq![]
+            // } else {
                 seq![
                     PersistentVolumeClaimView::default()
                         .set_metadata(ObjectMetaView::default()
@@ -693,10 +693,10 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
                                     .insert(new_strlit("storage")@, rabbitmq.spec.persistence.storage)
                                 )
                             )
-                            .set_storage_class_name(rabbitmq.spec.persistence.storage_class_name)
+                            // .set_storage_class_name(rabbitmq.spec.persistence.storage_class_name)
                         )
                 ]
-            }
+            // }
         })
         .set_pod_management_policy(new_strlit("Parallel")@);
 

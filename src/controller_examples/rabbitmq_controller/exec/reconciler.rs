@@ -1010,16 +1010,16 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (sta
         });
         // Set the templates used for creating the persistent volume claims attached to each pod
         stateful_set_spec.set_volume_claim_templates({ // TODO: Add PodManagementPolicy
-            if rabbitmq.spec().persistence().storage().eq(&new_strlit("0Gi").to_string()) {
-                let empty_pvc = Vec::<PersistentVolumeClaim>::new();
-                proof {
-                    assert_seqs_equal!(
-                        empty_pvc@.map_values(|pvc: PersistentVolumeClaim| pvc@),
-                        rabbitmq_spec::make_stateful_set(rabbitmq@, config_map_rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
-                    );
-                }
-                empty_pvc
-            } else {
+            // if rabbitmq.spec().persistence().storage().eq(&new_strlit("0Gi").to_string()) {
+            //     let empty_pvc = Vec::<PersistentVolumeClaim>::new();
+            //     proof {
+            //         assert_seqs_equal!(
+            //             empty_pvc@.map_values(|pvc: PersistentVolumeClaim| pvc@),
+            //             rabbitmq_spec::make_stateful_set(rabbitmq@, config_map_rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+            //         );
+            //     }
+            //     empty_pvc
+            // } else {
                 let mut volume_claim_templates = Vec::new();
                 volume_claim_templates.push({
                     let mut pvc = PersistentVolumeClaim::default();
@@ -1059,7 +1059,7 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (sta
                             });
                             resources
                         });
-                        pvc_spec.set_storage_class_name(rabbitmq.spec().persistence().storage_class_name());
+                        // pvc_spec.set_storage_class_name(rabbitmq.spec().persistence().storage_class_name());
                         pvc_spec
                     });
                     pvc
@@ -1071,7 +1071,7 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (sta
                     );
                 }
                 volume_claim_templates
-            }
+            // }
         });
         // Set management policy
         stateful_set_spec.set_pod_management_policy(new_strlit("Parallel").to_string());
