@@ -675,22 +675,29 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
             )
             .set_spec(make_rabbitmq_pod_spec(rabbitmq))
         )
-        .set_volume_claim_templates(seq![
-            PersistentVolumeClaimView::default()
-                .set_metadata(ObjectMetaView::default()
-                    .set_name(new_strlit("persistence")@)
-                    .set_namespace(namespace)
-                    .set_labels(labels)
-                )
-                .set_spec(PersistentVolumeClaimSpecView::default()
-                    .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
-                    .set_resources(ResourceRequirementsView::default()
-                        .set_requests(Map::empty()
-                            .insert(new_strlit("storage")@, new_strlit("10Gi")@)
+        .set_volume_claim_templates({
+            if rabbitmq.spec.persistence.storage == new_strlit("0Gi")@ {
+                seq![]
+            } else {
+                seq![
+                    PersistentVolumeClaimView::default()
+                        .set_metadata(ObjectMetaView::default()
+                            .set_name(new_strlit("persistence")@)
+                            .set_namespace(namespace)
+                            .set_labels(labels)
                         )
-                    )
-                )
-        ])
+                        .set_spec(PersistentVolumeClaimSpecView::default()
+                            .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
+                            .set_resources(ResourceRequirementsView::default()
+                                .set_requests(Map::empty()
+                                    .insert(new_strlit("storage")@, rabbitmq.spec.persistence.storage)
+                                )
+                            )
+                            .overwrite_storage_class_name(rabbitmq.spec.persistence.storage_class_name)
+                        )
+                ]
+            }
+        })
         .set_pod_management_policy(new_strlit("Parallel")@);
 
     StatefulSetView::default().set_metadata(metadata).set_spec(spec)
@@ -832,7 +839,13 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                         .set_tcp_socket(TCPSocketActionView::default().set_port(5672))
                 )
         ])
-        .set_volumes(volumes)
+        .set_volumes({
+            if rabbitmq.spec.persistence.storage == new_strlit("0Gi")@ {
+                volumes.push(VolumeView::default().set_name(new_strlit("persistence")@))
+            } else {
+                volumes
+            }
+        })
 }
 
 }

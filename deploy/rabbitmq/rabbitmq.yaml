@@ -8,3 +8,6 @@ spec:
   rabbitmqConfig:
     additionalConfig: |
       log.console.level = debug
+  persistence:
+    storage: 10Gi
+    storageClassName:

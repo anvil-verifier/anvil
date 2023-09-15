@@ -17,7 +17,6 @@ pub struct RabbitmqCluster {
     inner: deps_hack::RabbitmqCluster
 }
 
-
 impl RabbitmqCluster {
     pub spec fn view(&self) -> RabbitmqClusterView;
 
@@ -124,7 +123,6 @@ pub struct RabbitmqClusterSpec {
     inner: deps_hack::RabbitmqClusterSpec,
 }
 
-
 impl RabbitmqClusterSpec {
     pub spec fn view(&self) -> RabbitmqClusterSpecView;
 
@@ -146,6 +144,14 @@ impl RabbitmqClusterSpec {
             Some(n) => Some(RabbitmqConfig { inner: n.clone()}),
             None => None,
         }
+    }
+
+    #[verifier(external_body)]
+    pub fn persistence(&self) -> (persistence: RabbitmqClusterPersistenceSpec)
+        ensures
+            persistence@ == self@.persistence,
+    {
+        RabbitmqClusterPersistenceSpec { inner: self.inner.persistence.clone() }
     }
 }
 
@@ -171,5 +177,33 @@ impl RabbitmqConfig {
     }
 }
 
+#[verifier(external_body)]
+pub struct RabbitmqClusterPersistenceSpec {
+    inner: deps_hack::RabbitmqClusterPersistenceSpec,
+}
+
+impl RabbitmqClusterPersistenceSpec {
+    pub spec fn view(&self) -> RabbitmqClusterPersistenceSpecView;
+
+    #[verifier(external_body)]
+    pub fn storage(&self) -> (storage: String)
+        ensures
+            storage@ == self@.storage,
+    {
+        String::from_rust_string(self.inner.storage.clone().0)
+    }
+
+    #[verifier(external_body)]
+    pub fn storage_class_name(&self) -> (storage_class_name: Option<String>)
+        ensures
+            storage_class_name.is_Some() == self@.storage_class_name.is_Some(),
+            storage_class_name.is_Some() ==> storage_class_name.get_Some_0()@ == self@.storage_class_name.get_Some_0(),
+    {
+        match &self.inner.storage_class_name {
+            Some(n) => Some(String::from_rust_string(n.clone())),
+            None => None,
+        }
+    }
+}
 
 }

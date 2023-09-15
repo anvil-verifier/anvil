@@ -110,12 +110,15 @@ impl ResourceView for RabbitmqClusterView {
 
     open spec fn transition_rule(new_obj: RabbitmqClusterView, old_obj: RabbitmqClusterView) -> bool {
         new_obj.spec.replicas >= old_obj.spec.replicas
+        && new_obj.spec.persistence.storage == old_obj.spec.persistence.storage
+        && new_obj.spec.persistence.storage_class_name == old_obj.spec.persistence.storage_class_name
     }
 
 }
 
 pub struct RabbitmqClusterSpecView {
     pub replicas: int,
+    pub persistence: RabbitmqClusterPersistenceSpecView,
     pub rabbitmq_config: Option<RabbitmqConfigView>,
 }
 
@@ -137,6 +140,11 @@ pub struct RabbitmqConfigView {
     pub additional_config: Option<StringView>,
     pub advanced_config: Option<StringView>,
     pub env_config: Option<StringView>,
+}
+
+pub struct RabbitmqClusterPersistenceSpecView {
+    pub storage_class_name: Option<StringView>,
+    pub storage: StringView,
 }
 
 
