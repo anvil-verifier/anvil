@@ -142,7 +142,7 @@ pub struct RabbitmqConfigView {
 }
 
 pub struct RabbitmqClusterPersistenceSpecView {
-    pub storage_class_name: StringView,
+    pub storage_class_name: Option<StringView>,
     pub storage: StringView,
 }
 

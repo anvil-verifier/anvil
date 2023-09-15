@@ -129,14 +129,14 @@ pub fn default_storage() -> k8s_openapi::apimachinery::pkg::api::resource::Quant
     k8s_openapi::apimachinery::pkg::api::resource::Quantity("10Gi".to_string())
 }
 
-pub fn default_storage_class_name() -> String {
-    "".to_string()
+pub fn default_storage_class_name() -> Option<String> {
+    None
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct RabbitmqClusterPersistenceSpec {
 	#[serde(rename = "storageClassName", default = "default_storage_class_name")]
-	pub storage_class_name: String,
+	pub storage_class_name: Option<String>,
 	#[serde(default = "default_storage")]
     pub storage: k8s_openapi::apimachinery::pkg::api::resource::Quantity,
 }

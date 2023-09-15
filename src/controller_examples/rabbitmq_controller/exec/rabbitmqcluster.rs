@@ -194,11 +194,15 @@ impl RabbitmqClusterPersistenceSpec {
     }
 
     #[verifier(external_body)]
-    pub fn storage_class_name(&self) -> (storage_class_name: String)
+    pub fn storage_class_name(&self) -> (storage_class_name: Option<String>)
         ensures
-            storage_class_name@ == self@.storage_class_name,
+            storage_class_name.is_Some() == self@.storage_class_name.is_Some(),
+            storage_class_name.is_Some() ==> storage_class_name.get_Some_0()@ == self@.storage_class_name.get_Some_0(),
     {
-        String::from_rust_string(self.inner.storage_class_name.clone())
+        match &self.inner.storage_class_name {
+            Some(n) => Some(String::from_rust_string(n.clone())),
+            None => None,
+        }
     }
 }
 
