@@ -676,7 +676,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
             .set_spec(make_rabbitmq_pod_spec(rabbitmq))
         )
         .set_volume_claim_templates({
-            if rabbitmq.spec.persistence.storage_size == new_strlit("0Gi")@ {
+            if rabbitmq.spec.persistence.storage == new_strlit("0Gi")@ {
                 seq![]
             } else {
                 seq![
@@ -690,7 +690,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
                             .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
                             .set_resources(ResourceRequirementsView::default()
                                 .set_requests(Map::empty()
-                                    .insert(new_strlit("storage")@, rabbitmq.spec.persistence.storage_size)
+                                    .insert(new_strlit("storage")@, rabbitmq.spec.persistence.storage)
                                 )
                             )
                             .overwrite_storage_class_name(rabbitmq.spec.persistence.storage_class_name)
@@ -840,7 +840,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                 )
         ])
         .set_volumes({
-            if rabbitmq.spec.persistence.storage_size == new_strlit("0Gi")@ {
+            if rabbitmq.spec.persistence.storage == new_strlit("0Gi")@ {
                 volumes.push(VolumeView::default().set_name(new_strlit("persistence")@))
             } else {
                 volumes

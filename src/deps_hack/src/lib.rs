@@ -110,7 +110,7 @@ pub struct RabbitmqClusterSpec {
 
 pub fn default_persistence() -> RabbitmqClusterPersistenceSpec {
     RabbitmqClusterPersistenceSpec {
-        storage_size: default_storage(),
+        storage: default_storage(),
         storage_class_name: default_storage_class_name(),
     }
 }
@@ -137,8 +137,8 @@ pub fn default_storage_class_name() -> Option<String> {
 pub struct RabbitmqClusterPersistenceSpec {
     #[serde(rename = "storageClassName", default = "default_storage_class_name")]
     pub storage_class_name: Option<String>,
-    #[serde(rename = "storage", default = "default_storage")]
-    pub storage_size: k8s_openapi::apimachinery::pkg::api::resource::Quantity,
+    #[serde(default = "default_storage")]
+    pub storage: k8s_openapi::apimachinery::pkg::api::resource::Quantity,
 }
 
 #[derive(

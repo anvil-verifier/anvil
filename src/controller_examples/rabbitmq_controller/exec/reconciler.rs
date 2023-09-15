@@ -1010,7 +1010,7 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (sta
         });
         // Set the templates used for creating the persistent volume claims attached to each pod
         stateful_set_spec.set_volume_claim_templates({ // TODO: Add PodManagementPolicy
-            if rabbitmq.spec().persistence().storage_size().eq(&new_strlit("0Gi").to_string()) {
+            if rabbitmq.spec().persistence().storage().eq(&new_strlit("0Gi").to_string()) {
                 let empty_pvc = Vec::<PersistentVolumeClaim>::new();
                 proof {
                     assert_seqs_equal!(
@@ -1054,7 +1054,7 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (sta
                             let mut resources = ResourceRequirements::default();
                             resources.set_requests({
                                 let mut requests = StringMap::empty();
-                                requests.insert(new_strlit("storage").to_string(), rabbitmq.spec().persistence().storage_size());
+                                requests.insert(new_strlit("storage").to_string(), rabbitmq.spec().persistence().storage());
                                 requests
                             });
                             resources
@@ -1243,7 +1243,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         });
         volume
     });
-    if rabbitmq.spec().persistence().storage_size().eq(&new_strlit("0Gi").to_string()) {
+    if rabbitmq.spec().persistence().storage().eq(&new_strlit("0Gi").to_string()) {
         volumes.push({
             let mut volume = Volume::default();
             volume.set_name(new_strlit("persistence").to_string());
