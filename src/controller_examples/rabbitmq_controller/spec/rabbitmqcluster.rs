@@ -3,7 +3,7 @@
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
     affinity::*, api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*,
-    owner_reference::*, resource::*, resource_requirements::*, toleration::*,
+    owner_reference::*, resource::*, resource_requirements::*, stateful_set::*, toleration::*,
 };
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -123,6 +123,7 @@ pub struct RabbitmqClusterSpecView {
     pub affinity: Option<AffinityView>,
     pub tolerations: Option<Seq<TolerationView>>,
     pub resources: Option<ResourceRequirementsView>,
+    pub override_: RabbitmqClusterOverrideSpecView,
 }
 
 impl RabbitmqClusterSpecView {}
@@ -148,6 +149,19 @@ pub struct RabbitmqConfigView {
 pub struct RabbitmqClusterPersistenceSpecView {
     pub storage_class_name: Option<StringView>,
     pub storage: StringView,
+}
+
+pub struct RabbitmqClusterOverrideSpecView {
+    pub stateful_set: Option<RabbitmqOverrideStatefulSetView>,
+}
+
+pub struct RabbitmqOverrideStatefulSetView {
+    pub spec: Option<RabbitmqOverrideStatefulSetSpecView>,
+}
+
+pub struct RabbitmqOverrideStatefulSetSpecView {
+    pub pod_management_policy: Option<StringView>,
+    pub persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicyView>,
 }
 
 
