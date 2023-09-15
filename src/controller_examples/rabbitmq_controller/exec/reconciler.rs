@@ -1340,6 +1340,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         let mut containers = Vec::new();
         containers.push({
             let mut rabbitmq_container = Container::default();
+            rabbitmq_container.overwrite_resources(rabbitmq.spec().resources());
             rabbitmq_container.set_name(new_strlit("rabbitmq").to_string());
             rabbitmq_container.set_image(new_strlit("rabbitmq:3.11.10-management").to_string());
             rabbitmq_container.set_env(make_env_vars(&rabbitmq));

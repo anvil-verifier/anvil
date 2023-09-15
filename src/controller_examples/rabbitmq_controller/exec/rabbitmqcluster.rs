@@ -3,7 +3,7 @@
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
     affinity::*, api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*,
-    owner_reference::*, resource::*, toleration::*,
+    owner_reference::*, resource::*, resource_requirements::*, toleration::*,
 };
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::spec::rabbitmqcluster::*;
@@ -174,6 +174,18 @@ impl RabbitmqClusterSpec {
     {
         match &self.inner.tolerations {
             Some(tols) => Some(tols.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::Toleration| Toleration::from_kube(t)).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn resources(&self) -> (resources: Option<ResourceRequirements>)
+        ensures
+            self@.resources.is_Some() == resources.is_Some(),
+            resources.is_Some() ==> resources.get_Some_0()@ == self@.resources.get_Some_0(),
+    {
+        match &self.inner.resources {
+            Some(res) => Some(ResourceRequirements::from_kube(res.clone())),
             None => None,
         }
     }

@@ -113,6 +113,7 @@ pub struct RabbitmqClusterSpec {
     pub rabbitmq_config: Option<RabbitmqConfig>,
     pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
     pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
+    pub resources: Option<k8s_openapi::api::core::v1::ResourceRequirements>,
 }
 
 pub fn default_persistence() -> RabbitmqClusterPersistenceSpec {

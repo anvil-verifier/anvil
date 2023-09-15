@@ -797,49 +797,52 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
             ]
         ),
         containers: seq![
-            ContainerView::default()
-            .set_name(new_strlit("rabbitmq")@)
-            .set_image(new_strlit("rabbitmq:3.11.10-management")@)
-            .set_volume_mounts(seq![
-                VolumeMountView::default()
-                    .set_name(new_strlit("rabbitmq-erlang-cookie")@)
-                    .set_mount_path(new_strlit("/var/lib/rabbitmq/")@),
-                VolumeMountView::default()
-                    .set_name(new_strlit("persistence")@)
-                    .set_mount_path(new_strlit("/var/lib/rabbitmq/mnesia/")@),
-                VolumeMountView::default()
-                    .set_name(new_strlit("rabbitmq-plugins")@)
-                    .set_mount_path(new_strlit("/operator")@),
-                VolumeMountView::default()
-                    .set_name(new_strlit("rabbitmq-confd")@)
-                    .set_mount_path(new_strlit("/etc/rabbitmq/conf.d/10-operatorDefaults.conf")@)
-                    .set_sub_path(new_strlit("operatorDefaults.conf")@),
-                VolumeMountView::default()
-                    .set_name(new_strlit("rabbitmq-confd")@)
-                    .set_mount_path(new_strlit("/etc/rabbitmq/conf.d/90-userDefinedConfiguration.conf")@)
-                    .set_sub_path(new_strlit("userDefinedConfiguration.conf")@),
-                VolumeMountView::default()
-                    .set_name(new_strlit("pod-info")@)
-                    .set_mount_path(new_strlit("/etc/pod-info/")@),
-                VolumeMountView::default()
-                    .set_name(new_strlit("rabbitmq-confd")@)
-                    .set_mount_path(new_strlit("/etc/rabbitmq/conf.d/11-default_user.conf")@)
-                    .set_sub_path(new_strlit("default_user.conf")@),
-            ])
-            .set_ports(seq![
-                ContainerPortView::default().set_name(new_strlit("epmd")@).set_container_port(4369),
-                ContainerPortView::default().set_name(new_strlit("amqp")@).set_container_port(5672),
-                ContainerPortView::default().set_name(new_strlit("management")@).set_container_port(15672),
-            ])
-            .set_readiness_probe(
-                ProbeView::default()
-                    .set_failure_threshold(3)
-                    .set_initial_delay_seconds(50)
-                    .set_period_seconds(10)
-                    .set_success_threshold(1)
-                    .set_timeout_seconds(5)
-                    .set_tcp_socket(TCPSocketActionView::default().set_port(5672))
-            )
+            ContainerView {
+                name: new_strlit("rabbitmq")@,
+                image: Some(new_strlit("rabbitmq:3.11.10-management")@),
+                volume_mounts: Some(seq![
+                    VolumeMountView::default()
+                        .set_name(new_strlit("rabbitmq-erlang-cookie")@)
+                        .set_mount_path(new_strlit("/var/lib/rabbitmq/")@),
+                    VolumeMountView::default()
+                        .set_name(new_strlit("persistence")@)
+                        .set_mount_path(new_strlit("/var/lib/rabbitmq/mnesia/")@),
+                    VolumeMountView::default()
+                        .set_name(new_strlit("rabbitmq-plugins")@)
+                        .set_mount_path(new_strlit("/operator")@),
+                    VolumeMountView::default()
+                        .set_name(new_strlit("rabbitmq-confd")@)
+                        .set_mount_path(new_strlit("/etc/rabbitmq/conf.d/10-operatorDefaults.conf")@)
+                        .set_sub_path(new_strlit("operatorDefaults.conf")@),
+                    VolumeMountView::default()
+                        .set_name(new_strlit("rabbitmq-confd")@)
+                        .set_mount_path(new_strlit("/etc/rabbitmq/conf.d/90-userDefinedConfiguration.conf")@)
+                        .set_sub_path(new_strlit("userDefinedConfiguration.conf")@),
+                    VolumeMountView::default()
+                        .set_name(new_strlit("pod-info")@)
+                        .set_mount_path(new_strlit("/etc/pod-info/")@),
+                    VolumeMountView::default()
+                        .set_name(new_strlit("rabbitmq-confd")@)
+                        .set_mount_path(new_strlit("/etc/rabbitmq/conf.d/11-default_user.conf")@)
+                        .set_sub_path(new_strlit("default_user.conf")@),
+                ]),
+                ports: Some(seq![
+                    ContainerPortView::default().set_name(new_strlit("epmd")@).set_container_port(4369),
+                    ContainerPortView::default().set_name(new_strlit("amqp")@).set_container_port(5672),
+                    ContainerPortView::default().set_name(new_strlit("management")@).set_container_port(15672),
+                ]),
+                readiness_probe: Some(
+                    ProbeView::default()
+                        .set_failure_threshold(3)
+                        .set_initial_delay_seconds(50)
+                        .set_period_seconds(10)
+                        .set_success_threshold(1)
+                        .set_timeout_seconds(5)
+                        .set_tcp_socket(TCPSocketActionView::default().set_port(5672))
+                ),
+                resources: rabbitmq.spec.resources,
+                ..ContainerView::default()
+            }
         ],
         volumes: Some({
             if rabbitmq.spec.persistence.storage == new_strlit("0Gi")@ {
