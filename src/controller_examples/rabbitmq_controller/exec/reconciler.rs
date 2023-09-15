@@ -1438,6 +1438,8 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         containers
     });
     pod_spec.set_volumes(volumes);
+    pod_spec.overwrite_affinity(rabbitmq.spec().affinity());
+    pod_spec.overwrite_tolerations(rabbitmq.spec().tolerations());
     pod_spec
 }
 

@@ -111,6 +111,8 @@ pub struct RabbitmqClusterSpec {
     pub persistence: RabbitmqClusterPersistenceSpec,
     #[serde(rename = "rabbitmqConfig")]
     pub rabbitmq_config: Option<RabbitmqConfig>,
+    pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
+    pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
 }
 
 pub fn default_persistence() -> RabbitmqClusterPersistenceSpec {
