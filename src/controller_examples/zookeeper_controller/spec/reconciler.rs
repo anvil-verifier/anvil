@@ -1074,57 +1074,57 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
     PodSpecView {
         affinity: zk.spec.affinity,
         containers: seq![
-            ContainerView::default()
-                .set_name(new_strlit("zookeeper")@)
-                .set_image(zk.spec.image)
-                .set_lifecycle(LifecycleView::default()
+            ContainerView {
+                name: new_strlit("zookeeper")@,
+                image: Some(zk.spec.image),
+                lifecycle: Some(LifecycleView::default()
                     .set_pre_stop(LifecycleHandlerView::default()
                         .set_exec(
                             ExecActionView::default()
                                 .set_command(seq![new_strlit("zookeeperTeardown.sh")@])
                         )
                     )
-                )
-                .set_resources(zk.spec.resources)
-                .set_volume_mounts(seq![
+                ),
+                resources: zk.spec.resources,
+                volume_mounts: Some(seq![
                     VolumeMountView::default()
                         .set_name(new_strlit("data")@)
                         .set_mount_path(new_strlit("/data")@),
                     VolumeMountView::default()
                         .set_name(new_strlit("conf")@)
                         .set_mount_path(new_strlit("/conf")@),
-                ])
-                .set_ports(seq![
+                ]),
+                ports: Some(seq![
                     ContainerPortView::default().set_name(new_strlit("client")@).set_container_port(zk.spec.ports.client),
                     ContainerPortView::default().set_name(new_strlit("quorum")@).set_container_port(zk.spec.ports.quorum),
                     ContainerPortView::default().set_name(new_strlit("leader-election")@).set_container_port(zk.spec.ports.leader_election),
                     ContainerPortView::default().set_name(new_strlit("metrics")@).set_container_port(zk.spec.ports.metrics),
                     ContainerPortView::default().set_name(new_strlit("admin-server")@).set_container_port(zk.spec.ports.admin_server)
-                ])
-                .set_readiness_probe(
-                    ProbeView::default()
-                        .set_exec(
-                            ExecActionView::default()
-                                .set_command(seq![new_strlit("zookeeperReady.sh")@])
-                        )
-                        .set_failure_threshold(3)
-                        .set_initial_delay_seconds(10)
-                        .set_period_seconds(10)
-                        .set_success_threshold(1)
-                        .set_timeout_seconds(10)
-                )
-                .set_liveness_probe(
-                    ProbeView::default()
-                        .set_exec(
-                            ExecActionView::default()
-                                .set_command(seq![new_strlit("zookeeperLive.sh")@])
-                        )
-                        .set_failure_threshold(3)
-                        .set_initial_delay_seconds(10)
-                        .set_period_seconds(10)
-                        .set_success_threshold(1)
-                        .set_timeout_seconds(10)
-                )
+                ]),
+                readiness_probe: Some(ProbeView::default()
+                    .set_exec(
+                        ExecActionView::default()
+                            .set_command(seq![new_strlit("zookeeperReady.sh")@])
+                    )
+                    .set_failure_threshold(3)
+                    .set_initial_delay_seconds(10)
+                    .set_period_seconds(10)
+                    .set_success_threshold(1)
+                    .set_timeout_seconds(10)
+                ),
+                liveness_probe: Some(ProbeView::default()
+                    .set_exec(
+                        ExecActionView::default()
+                            .set_command(seq![new_strlit("zookeeperLive.sh")@])
+                    )
+                    .set_failure_threshold(3)
+                    .set_initial_delay_seconds(10)
+                    .set_period_seconds(10)
+                    .set_success_threshold(1)
+                    .set_timeout_seconds(10)
+                ),
+                ..ContainerView::default()
+            }
         ],
         volumes: Some(seq![
             VolumeView::default().set_name(new_strlit("conf")@).set_config_map(

@@ -1305,7 +1305,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                 lifecycle
             });
             zk_container.set_image_pull_policy(new_strlit("Always").to_string());
-            zk_container.set_resources(zk.spec().resources());
+            zk_container.overwrite_resources(zk.spec().resources());
             zk_container.set_volume_mounts({
                 let mut volume_mounts = Vec::new();
                 volume_mounts.push({

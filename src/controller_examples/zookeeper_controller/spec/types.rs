@@ -110,7 +110,7 @@ pub struct ZookeeperClusterSpecView {
     pub image: StringView,
     pub ports: ZookeeperPortsView,
     pub conf: ZookeeperConfigView,
-    pub resources: ResourceRequirementsView,
+    pub resources: Option<ResourceRequirementsView>,
     pub affinity: Option<AffinityView>,
     pub tolerations: Option<Seq<TolerationView>>,
     pub labels: Map<StringView, StringView>,

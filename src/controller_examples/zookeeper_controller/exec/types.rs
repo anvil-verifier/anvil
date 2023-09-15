@@ -138,11 +138,15 @@ impl ZookeeperClusterSpec {
     }
 
     #[verifier(external_body)]
-    pub fn resources(&self) -> (resources: ResourceRequirements)
+    pub fn resources(&self) -> (resources: Option<ResourceRequirements>)
         ensures
-            resources@ == self@.resources,
+            self@.resources.is_Some() == resources.is_Some(),
+            resources.is_Some() ==> resources.get_Some_0()@ == self@.resources.get_Some_0(),
     {
-        ResourceRequirements::from_kube(self.inner.resources.clone())
+        match &self.inner.resources {
+            Some(r) => Some(ResourceRequirements::from_kube(r.clone())),
+            None => None,
+        }
     }
 
     #[verifier(external_body)]

@@ -84,6 +84,22 @@ impl Container {
     }
 
     #[verifier(external_body)]
+    pub fn overwrite_resources(&mut self, resources: Option<ResourceRequirements>)
+        ensures
+            resources.is_None() ==> self@ == old(self)@.unset_resources(),
+            resources.is_Some() ==> self@ == old(self)@.set_resources(resources.get_Some_0()@),
+    {
+        match resources {
+            Some(r) => {
+                self.inner.resources = Some(r.into_kube())
+            },
+            None => {
+                self.inner.resources = None
+            }
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn set_liveness_probe(&mut self, liveness_probe: Probe)
         ensures
             self@ == old(self)@.set_liveness_probe(liveness_probe@),
@@ -564,6 +580,13 @@ impl ContainerView {
     pub open spec fn set_resources(self, resources: ResourceRequirementsView) -> ContainerView {
         ContainerView {
             resources: Some(resources),
+            ..self
+        }
+    }
+
+    pub open spec fn unset_resources(self) -> ContainerView {
+        ContainerView {
+            resources: None,
             ..self
         }
     }
