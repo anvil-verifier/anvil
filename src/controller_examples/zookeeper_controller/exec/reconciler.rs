@@ -784,6 +784,7 @@ fn update_headless_service(zk: &ZookeeperCluster, found_headless_service: &Servi
     headless_service.set_metadata({
         let mut metadata = found_headless_service.metadata();
         metadata.set_labels(made_headless_service.metadata().labels().unwrap());
+        metadata.set_annotations(made_headless_service.metadata().annotations().unwrap());
         metadata
     });
     headless_service.set_spec({
@@ -840,6 +841,7 @@ fn update_client_service(zk: &ZookeeperCluster, found_client_service: &Service) 
     client_service.set_metadata({
         let mut metadata = found_client_service.metadata();
         metadata.set_labels(made_client_service.metadata().labels().unwrap());
+        metadata.set_annotations(made_client_service.metadata().annotations().unwrap());
         metadata
     });
     client_service.set_spec({
@@ -892,6 +894,7 @@ fn update_admin_server_service(zk: &ZookeeperCluster, found_admin_server_service
     admin_server_service.set_metadata({
         let mut metadata = found_admin_server_service.metadata();
         metadata.set_labels(made_admin_server_service.metadata().labels().unwrap());
+        metadata.set_annotations(made_admin_server_service.metadata().annotations().unwrap());
         metadata
     });
     admin_server_service.set_spec({
@@ -935,6 +938,7 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
         let mut metadata = ObjectMeta::default();
         metadata.set_name(name);
         metadata.set_labels(make_labels(zk));
+        metadata.set_annotations(zk.spec().annotations());
         metadata.set_owner_references({
             let mut owner_references = Vec::new();
             owner_references.push(zk.controller_owner_ref());
@@ -985,6 +989,7 @@ fn update_config_map(zk: &ZookeeperCluster, found_config_map: &ConfigMap) -> (co
     config_map.set_metadata({
         let mut metadata = found_config_map.metadata();
         metadata.set_labels(made_config_map.metadata().labels().unwrap());
+        metadata.set_annotations(made_config_map.metadata().annotations().unwrap());
         metadata
     });
     config_map.set_data(made_config_map.data().unwrap());
@@ -1004,6 +1009,7 @@ fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_config_map_name(zk));
         metadata.set_labels(make_labels(zk));
+        metadata.set_annotations(zk.spec().annotations());
         metadata.set_owner_references({
             let mut owner_references = Vec::new();
             owner_references.push(zk.controller_owner_ref());
@@ -1136,6 +1142,7 @@ fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulSet, 
     stateful_set.set_metadata({
         let mut metadata = found_stateful_set.metadata();
         metadata.set_labels(made_stateful_set.metadata().labels().unwrap());
+        metadata.set_annotations(made_stateful_set.metadata().annotations().unwrap());
         metadata
     });
     stateful_set.set_spec(made_stateful_set.spec().unwrap());
@@ -1155,6 +1162,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_stateful_set_name(zk));
         metadata.set_labels(make_labels(zk));
+        metadata.set_annotations(zk.spec().annotations());
         metadata.set_owner_references({
             let mut owner_references = Vec::new();
             owner_references.push(zk.controller_owner_ref());
@@ -1194,7 +1202,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
                 metadata.set_generate_name(zk.metadata().name().unwrap());
                 metadata.set_labels(make_labels(zk));
                 metadata.set_annotations({
-                    let mut annotations = StringMap::empty();
+                    let mut annotations = zk.spec().annotations();
                     annotations.insert(new_strlit("config").to_string(), rv.clone());
                     annotations
                 });
@@ -1212,6 +1220,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
                     let mut metadata = ObjectMeta::default();
                     metadata.set_name(new_strlit("data").to_string());
                     metadata.set_labels(make_labels(zk));
+                    metadata.set_annotations(zk.spec().annotations());
                     metadata
                 });
                 pvc.set_spec({

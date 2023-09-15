@@ -745,6 +745,7 @@ pub open spec fn update_headless_service(zk: ZookeeperClusterView, found_headles
         .set_metadata(
             found_headless_service.metadata
                 .set_labels(make_headless_service(zk).metadata.labels.get_Some_0())
+                .set_annotations(make_headless_service(zk).metadata.annotations.get_Some_0())
         )
         .set_spec(
             found_headless_service.spec.get_Some_0()
@@ -790,6 +791,7 @@ pub open spec fn update_client_service(zk: ZookeeperClusterView, found_client_se
         .set_metadata(
             found_client_service.metadata
                 .set_labels(make_client_service(zk).metadata.labels.get_Some_0())
+                .set_annotations(make_client_service(zk).metadata.annotations.get_Some_0())
         )
         .set_spec(
             found_client_service.spec.get_Some_0()
@@ -829,6 +831,7 @@ pub open spec fn update_admin_server_service(zk: ZookeeperClusterView, found_adm
         .set_metadata(
             found_admin_server_service.metadata
                 .set_labels(make_admin_server_service(zk).metadata.labels.get_Some_0())
+                .set_annotations(make_admin_server_service(zk).metadata.annotations.get_Some_0())
         )
         .set_spec(
             found_admin_server_service.spec.get_Some_0()
@@ -855,6 +858,7 @@ pub open spec fn make_service(
         .set_metadata(ObjectMetaView::default()
             .set_name(name)
             .set_labels(make_labels(zk))
+            .set_annotations(zk.spec.annotations)
             .set_owner_references(seq![zk.controller_owner_ref()])
         ).set_spec({
             let spec = ServiceSpecView::default()
@@ -893,6 +897,7 @@ pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
         .set_metadata(ObjectMetaView::default()
             .set_name(make_config_map_name(zk.metadata.name.get_Some_0()))
             .set_labels(make_labels(zk))
+            .set_annotations(zk.spec.annotations)
             .set_owner_references(seq![zk.controller_owner_ref()])
         )
         .set_data(Map::empty()
@@ -911,6 +916,7 @@ pub open spec fn update_config_map(zk: ZookeeperClusterView, found_config_map: C
         .set_metadata(
             found_config_map.metadata
                 .set_labels(make_config_map(zk).metadata.labels.get_Some_0())
+                .set_annotations(make_config_map(zk).metadata.annotations.get_Some_0())
         )
         .set_data(make_config_map(zk).data.get_Some_0())
 }
@@ -1013,6 +1019,7 @@ pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_se
         .set_metadata(
             found_stateful_set.metadata
                 .set_labels(make_stateful_set(zk, rv).metadata.labels.get_Some_0())
+                .set_annotations(make_stateful_set(zk, rv).metadata.annotations.get_Some_0())
         )
         .set_spec(make_stateful_set(zk, rv).spec.get_Some_0())
 }
@@ -1027,6 +1034,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
     let metadata = ObjectMetaView::default()
         .set_name(name)
         .set_labels(make_labels(zk))
+        .set_annotations(zk.spec.annotations)
         .set_owner_references(seq![zk.controller_owner_ref()]);
 
     let spec = StatefulSetSpecView::default()
@@ -1037,10 +1045,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
             .set_metadata(ObjectMetaView::default()
                 .set_generate_name(name)
                 .set_labels(make_labels(zk))
-                .set_annotations(
-                    Map::empty()
-                        .insert(new_strlit("config")@, rv)
-                )
+                .set_annotations(zk.spec.annotations.insert(new_strlit("config")@, rv))
             )
             .set_spec(make_zk_pod_spec(zk))
         )
@@ -1053,6 +1058,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
                 .set_metadata(ObjectMetaView::default()
                     .set_name(new_strlit("data")@)
                     .set_labels(make_labels(zk))
+                    .set_annotations(zk.spec.annotations)
                 )
                 .set_spec(PersistentVolumeClaimSpecView::default()
                     .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
