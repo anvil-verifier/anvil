@@ -180,6 +180,14 @@ impl ZookeeperClusterSpec {
     {
         StringMap::from_rust_map(self.inner.labels.clone())
     }
+
+    #[verifier(external_body)]
+    pub fn annotations(&self) -> (annotations: StringMap)
+        ensures
+            annotations@ == self@.annotations,
+    {
+        StringMap::from_rust_map(self.inner.annotations.clone())
+    }
 }
 
 impl ResourceWrapper<deps_hack::ZookeeperClusterSpec> for ZookeeperClusterSpec {

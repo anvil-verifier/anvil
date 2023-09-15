@@ -483,6 +483,11 @@ spec:
                           type: array
                       type: object
                   type: object
+                annotations:
+                  additionalProperties:
+                    type: string
+                  default: {}
+                  type: object
                 conf:
                   properties:
                     autoPurgePurgeInterval:

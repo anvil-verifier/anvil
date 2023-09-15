@@ -114,6 +114,7 @@ pub struct ZookeeperClusterSpecView {
     pub affinity: Option<AffinityView>,
     pub tolerations: Option<Seq<TolerationView>>,
     pub labels: Map<StringView, StringView>,
+    pub annotations: Map<StringView, StringView>,
 }
 
 impl ZookeeperClusterSpecView {}
