@@ -159,10 +159,10 @@ impl PersistentVolumeClaimSpec {
     }
 
     #[verifier(external_body)]
-    pub fn set_storage_class_name(&mut self, storage_class_name: Option<String>)
+    pub fn overwrite_storage_class_name(&mut self, storage_class_name: Option<String>)
         ensures
-            storage_class_name.is_None() ==> self@ == old(self)@.set_storage_class_name(None),
-            storage_class_name.is_Some() ==> self@ == old(self)@.set_storage_class_name(Some(storage_class_name.get_Some_0()@)),
+            storage_class_name.is_None() ==> self@ == old(self)@.overwrite_storage_class_name(None),
+            storage_class_name.is_Some() ==> self@ == old(self)@.overwrite_storage_class_name(Some(storage_class_name.get_Some_0()@)),
     {
         match storage_class_name {
             Some(n) => {
@@ -333,7 +333,7 @@ impl PersistentVolumeClaimSpecView {
         }
     }
 
-    pub open spec fn set_storage_class_name(self, storage_class_name: Option<StringView>) -> PersistentVolumeClaimSpecView {
+    pub open spec fn overwrite_storage_class_name(self, storage_class_name: Option<StringView>) -> PersistentVolumeClaimSpecView {
         PersistentVolumeClaimSpecView {
             storage_class_name: storage_class_name,
             ..self

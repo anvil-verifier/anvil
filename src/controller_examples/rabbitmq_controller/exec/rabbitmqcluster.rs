@@ -186,11 +186,11 @@ impl RabbitmqClusterPersistenceSpec {
     pub spec fn view(&self) -> RabbitmqClusterPersistenceSpecView;
 
     #[verifier(external_body)]
-    pub fn storage(&self) -> (storage: String)
+    pub fn storage_size(&self) -> (storage: String)
         ensures
-            storage@ == self@.storage,
+            storage@ == self@.storage_size,
     {
-        String::from_rust_string(self.inner.storage.clone().0)
+        String::from_rust_string(self.inner.storage_size.clone().0)
     }
 
     #[verifier(external_body)]
