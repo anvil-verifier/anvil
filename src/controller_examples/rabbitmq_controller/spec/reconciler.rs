@@ -763,10 +763,11 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
             ),
     ];
 
-    PodSpecView::default()
-        .set_service_account_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
-        .set_init_containers(seq![
-            ContainerView::default()
+    PodSpecView {
+        service_account_name: Some(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@),
+        init_containers: Some(
+            seq![
+                ContainerView::default()
                 .set_name(new_strlit("setup-container")@)
                 .set_image(new_strlit("rabbitmq:3.11.10-management")@)
                 .set_volume_mounts(seq![
@@ -793,12 +794,13 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                         .set_mount_path(new_strlit("/tmp/default_user.conf")@)
                         .set_sub_path(new_strlit("default_user.conf")@),
                 ])
-        ])
-        .set_containers(seq![
-            ContainerView::default()
-                .set_name(new_strlit("rabbitmq")@)
-                .set_image(new_strlit("rabbitmq:3.11.10-management")@)
-                .set_volume_mounts(seq![
+            ]
+        ),
+        containers: seq![
+            ContainerView {
+                name: new_strlit("rabbitmq")@,
+                image: Some(new_strlit("rabbitmq:3.11.10-management")@),
+                volume_mounts: Some(seq![
                     VolumeMountView::default()
                         .set_name(new_strlit("rabbitmq-erlang-cookie")@)
                         .set_mount_path(new_strlit("/var/lib/rabbitmq/")@),
@@ -823,13 +825,13 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                         .set_name(new_strlit("rabbitmq-confd")@)
                         .set_mount_path(new_strlit("/etc/rabbitmq/conf.d/11-default_user.conf")@)
                         .set_sub_path(new_strlit("default_user.conf")@),
-                ])
-                .set_ports(seq![
+                ]),
+                ports: Some(seq![
                     ContainerPortView::default().set_name(new_strlit("epmd")@).set_container_port(4369),
                     ContainerPortView::default().set_name(new_strlit("amqp")@).set_container_port(5672),
                     ContainerPortView::default().set_name(new_strlit("management")@).set_container_port(15672),
-                ])
-                .set_readiness_probe(
+                ]),
+                readiness_probe: Some(
                     ProbeView::default()
                         .set_failure_threshold(3)
                         .set_initial_delay_seconds(50)
@@ -837,15 +839,22 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                         .set_success_threshold(1)
                         .set_timeout_seconds(5)
                         .set_tcp_socket(TCPSocketActionView::default().set_port(5672))
-                )
-        ])
-        .set_volumes({
+                ),
+                resources: rabbitmq.spec.resources,
+                ..ContainerView::default()
+            }
+        ],
+        volumes: Some({
             if rabbitmq.spec.persistence.storage == new_strlit("0Gi")@ {
                 volumes.push(VolumeView::default().set_name(new_strlit("persistence")@))
             } else {
                 volumes
             }
-        })
+        }),
+        affinity: rabbitmq.spec.affinity,
+        tolerations: rabbitmq.spec.tolerations,
+        ..PodSpecView::default()
+    }
 }
 
 }
