@@ -1213,56 +1213,63 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
         });
         // Set the templates used for creating the persistent volume claims attached to each pod
         stateful_set_spec.set_volume_claim_templates({
-            let mut volume_claim_templates = Vec::new();
-            volume_claim_templates.push({
-                let mut pvc = PersistentVolumeClaim::default();
-                pvc.set_metadata({
-                    let mut metadata = ObjectMeta::default();
-                    metadata.set_name(new_strlit("data").to_string());
-                    metadata.set_labels(make_labels(zk));
-                    metadata.set_annotations(zk.spec().annotations());
-                    metadata
-                });
-                pvc.set_spec({
-                    let mut pvc_spec = PersistentVolumeClaimSpec::default();
-                    pvc_spec.set_access_modes({
-                        let mut access_modes = Vec::new();
-                        access_modes.push(new_strlit("ReadWriteOnce").to_string());
-
-                        proof {
-                            assert_seqs_equal!(
-                                access_modes@.map_values(|mode: String| mode@),
-                                zk_spec::make_stateful_set(zk@, rv@)
-                                    .spec.get_Some_0().volume_claim_templates.get_Some_0()[0]
-                                    .spec.get_Some_0().access_modes.get_Some_0()
-                            );
-                        }
-
-                        access_modes
+            if zk.spec().persistence().enabled() {
+                let mut volume_claim_templates = Vec::new();
+                volume_claim_templates.push({
+                    let mut pvc = PersistentVolumeClaim::default();
+                    pvc.set_metadata({
+                        let mut metadata = ObjectMeta::default();
+                        metadata.set_name(new_strlit("data").to_string());
+                        metadata.set_labels(make_labels(zk));
+                        metadata.set_annotations(zk.spec().annotations());
+                        metadata
                     });
-                    pvc_spec.set_resources({
-                        let mut resources = ResourceRequirements::default();
-                        resources.set_requests({
-                            let mut requests = StringMap::empty();
-                            requests.insert(new_strlit("storage").to_string(), zk.spec().persistence().storage_size());
-                            requests
+                    pvc.set_spec({
+                        let mut pvc_spec = PersistentVolumeClaimSpec::default();
+                        pvc_spec.set_access_modes({
+                            let mut access_modes = Vec::new();
+                            access_modes.push(new_strlit("ReadWriteOnce").to_string());
+                            proof {
+                                assert_seqs_equal!(
+                                    access_modes@.map_values(|mode: String| mode@),
+                                    zk_spec::make_stateful_set(zk@, rv@)
+                                        .spec.get_Some_0().volume_claim_templates.get_Some_0()[0]
+                                        .spec.get_Some_0().access_modes.get_Some_0()
+                                );
+                            }
+                            access_modes
                         });
-                        resources
+                        pvc_spec.set_resources({
+                            let mut resources = ResourceRequirements::default();
+                            resources.set_requests({
+                                let mut requests = StringMap::empty();
+                                requests.insert(new_strlit("storage").to_string(), zk.spec().persistence().storage_size());
+                                requests
+                            });
+                            resources
+                        });
+                        pvc_spec.overwrite_storage_class_name(zk.spec().persistence().storage_class_name());
+                        pvc_spec
                     });
-                    pvc_spec.overwrite_storage_class_name(zk.spec().persistence().storage_class_name());
-                    pvc_spec
+                    pvc
                 });
-                pvc
-            });
-
-            proof {
-                assert_seqs_equal!(
-                    volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
-                    zk_spec::make_stateful_set(zk@, rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
-                );
+                proof {
+                    assert_seqs_equal!(
+                        volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
+                        zk_spec::make_stateful_set(zk@, rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+                    );
+                }
+                volume_claim_templates
+            } else {
+                let empty_templates = Vec::<PersistentVolumeClaim>::new();
+                proof {
+                    assert_seqs_equal!(
+                        empty_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
+                        zk_spec::make_stateful_set(zk@, rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+                    );
+                }
+                empty_templates
             }
-
-            volume_claim_templates
         });
         stateful_set_spec
     });
@@ -1433,6 +1440,14 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
             });
             volume
         });
+        if !zk.spec().persistence().enabled() {
+            volumes.push({
+                let mut volume = Volume::default();
+                volume.set_name(new_strlit("data").to_string());
+                volume.set_empty_dir();
+                volume
+            });
+        }
 
         proof {
             assert_seqs_equal!(
