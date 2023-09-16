@@ -1249,6 +1249,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
                         });
                         resources
                     });
+                    pvc_spec.overwrite_storage_class_name(zk.spec().persistence().storage_class_name());
                     pvc_spec
                 });
                 pvc

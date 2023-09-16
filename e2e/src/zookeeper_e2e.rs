@@ -54,6 +54,8 @@ pub fn zookeeper_cluster() -> String {
         autoPurgeSnapRetainCount: 3
         autoPurgePurgeInterval: 1
         quorumListenOnAllIps: false
+      persistence:
+        enabled: true
     "
     .to_string()
 }

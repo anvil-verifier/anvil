@@ -43,6 +43,7 @@ pub struct ZookeeperClusterSpec {
     pub image: String,
     pub ports: ZookeeperPorts,
     pub conf: ZookeeperConfig,
+    pub persistence: ZookeeperPersistence,
     pub resources: Option<k8s_openapi::api::core::v1::ResourceRequirements>,
     pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
     pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
@@ -100,6 +101,13 @@ pub struct ZookeeperConfig {
     pub quorum_listen_on_all_ips: bool,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+pub struct ZookeeperPersistence {
+    pub enabled: bool,
+    #[serde(rename = "storageClassName")]
+    pub storage_class_name: Option<String>,
+}
+
 #[derive(
     kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]
@@ -125,7 +133,8 @@ pub struct RabbitmqClusterSpec {
     #[serde(rename = "podManagementPolicy")]
     pub pod_management_policy: Option<String>,
     #[serde(rename = "persistentVolumeClaimRetentionPolicy")]
-    pub persistent_volume_claim_retention_policy: Option<k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy>,
+    pub persistent_volume_claim_retention_policy:
+        Option<k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy>,
 }
 
 pub fn default_persistence() -> RabbitmqClusterPersistenceSpec {

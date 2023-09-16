@@ -110,6 +110,7 @@ pub struct ZookeeperClusterSpecView {
     pub image: StringView,
     pub ports: ZookeeperPortsView,
     pub conf: ZookeeperConfigView,
+    pub persistence: ZookeeperPersistenceView,
     pub resources: Option<ResourceRequirementsView>,
     pub affinity: Option<AffinityView>,
     pub tolerations: Option<Seq<TolerationView>>,
@@ -143,6 +144,11 @@ pub struct ZookeeperConfigView {
     pub auto_purge_snap_retain_count: int,
     pub auto_purge_purge_interval: int,
     pub quorum_listen_on_all_ips: bool,
+}
+
+pub struct ZookeeperPersistenceView {
+    pub enabled: bool,
+    pub storage_class_name: Option<StringView>,
 }
 
 }

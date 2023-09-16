@@ -1067,6 +1067,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
                             .insert(new_strlit("storage")@, new_strlit("20Gi")@)
                         )
                     )
+                    .overwrite_storage_class_name(zk.spec.persistence.storage_class_name)
                 )
         ]);
 
