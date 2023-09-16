@@ -11,7 +11,7 @@ use crate::kubernetes_api_objects::{
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
-use crate::rabbitmq_controller::spec::rabbitmqcluster::*;
+use crate::rabbitmq_controller::spec::types::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;

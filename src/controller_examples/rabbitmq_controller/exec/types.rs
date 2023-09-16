@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::{
     owner_reference::*, resource::*, resource_requirements::*, stateful_set::*, toleration::*,
 };
 use crate::pervasive_ext::string_view::*;
-use crate::rabbitmq_controller::spec::rabbitmqcluster::*;
+use crate::rabbitmq_controller::spec::types::*;
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
 

@@ -16,7 +16,7 @@ use crate::pervasive_ext::{multiset_lemmas, seq_lemmas, string_view::*};
 use crate::rabbitmq_controller::{
     common::*,
     proof::common::*,
-    spec::{rabbitmqcluster::*, reconciler::*},
+    spec::{reconciler::*, types::*},
 };
 use crate::reconciler::spec::reconciler::*;
 use crate::temporal_logic::{defs::*, rules::*};
