@@ -698,19 +698,13 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
             }
         }),
         pod_management_policy: Some({
-            if rabbitmq.spec.override_.stateful_set.is_Some() && rabbitmq.spec.override_.stateful_set.get_Some_0().spec.is_Some()
-            && rabbitmq.spec.override_.stateful_set.get_Some_0().spec.get_Some_0().pod_management_policy.is_Some() {
-                rabbitmq.spec.override_.stateful_set.get_Some_0().spec.get_Some_0().pod_management_policy.get_Some_0()
+            if rabbitmq.spec.pod_management_policy.is_Some() {
+                rabbitmq.spec.pod_management_policy.get_Some_0()
             } else {
                 new_strlit("Parallel")@
             }
         }),
-        persistent_volume_claim_retention_policy:
-            if rabbitmq.spec.override_.stateful_set.is_Some() && rabbitmq.spec.override_.stateful_set.get_Some_0().spec.is_Some() {
-                rabbitmq.spec.override_.stateful_set.get_Some_0().spec.get_Some_0().persistent_volume_claim_retention_policy
-            } else {
-                None
-            },
+        persistent_volume_claim_retention_policy: rabbitmq.spec.persistent_volume_claim_retention_policy,
         ..StatefulSetSpecView::default()
 
     };

@@ -114,8 +114,18 @@ pub struct RabbitmqClusterSpec {
     pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
     pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
     pub resources: Option<k8s_openapi::api::core::v1::ResourceRequirements>,
-    #[serde(default, rename = "override")]
-    pub override_: RabbitmqClusterOverrideSpec,
+    /// podManagementPolicy controls how pods are created during initial scale up,
+	/// when replacing pods on nodes, or when scaling down. The default policy is
+	/// `OrderedReady`, where pods are created in increasing order (pod-0, then
+	/// pod-1, etc) and the controller will wait until each pod is ready before
+	/// continuing. When scaling down, the pods are removed in the opposite order.
+	/// The alternative policy is `Parallel` which will create pods in parallel
+	/// to match the desired scale without waiting, and on scale down will delete
+	/// all pods at once.
+    #[serde(rename = "podManagementPolicy")]
+	pub pod_management_policy: Option<String>,
+    #[serde(rename = "persistentVolumeClaimRetentionPolicy")]
+	pub persistent_volume_claim_retention_policy: Option<k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy>,
 }
 
 pub fn default_persistence() -> RabbitmqClusterPersistenceSpec {
@@ -145,39 +155,6 @@ pub struct RabbitmqClusterPersistenceSpec {
     pub storage_class_name: Option<String>,
     #[serde(default = "default_storage")]
     pub storage: k8s_openapi::apimachinery::pkg::api::resource::Quantity,
-}
-
-/// Provides the ability to override the generated manifest of several child resources.
-#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
-pub struct RabbitmqClusterOverrideSpec {
-	/// Override configuration for the RabbitMQ StatefulSet.
-    #[serde(rename = "statefulSet")]
-	pub stateful_set: Option<RabbitmqOverrideStatefulSet>,
-}
-
-/// Allows for the manifest of the created StatefulSet to be overwritten with custom configuration.
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
-pub struct RabbitmqOverrideStatefulSet {
-	pub spec: Option<RabbitmqOverrideStatefulSetSpec>,
-}
-
-/// StatefulSetSpec contains a subset of the fields included in k8s.io/api/apps/v1.StatefulSetSpec.
-/// Every field is made optional.
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
-pub struct RabbitmqOverrideStatefulSetSpec {
-
-	/// podManagementPolicy controls how pods are created during initial scale up,
-	/// when replacing pods on nodes, or when scaling down. The default policy is
-	/// `OrderedReady`, where pods are created in increasing order (pod-0, then
-	/// pod-1, etc) and the controller will wait until each pod is ready before
-	/// continuing. When scaling down, the pods are removed in the opposite order.
-	/// The alternative policy is `Parallel` which will create pods in parallel
-	/// to match the desired scale without waiting, and on scale down will delete
-	/// all pods at once.
-    #[serde(rename = "podManagementPolicy")]
-	pub pod_management_policy: Option<String>,
-    #[serde(rename = "persistentVolumeClaimRetentionPolicy")]
-	pub persistent_volume_claim_retention_policy: Option<k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy>,
 }
 
 #[derive(

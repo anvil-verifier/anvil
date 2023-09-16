@@ -191,14 +191,29 @@ impl RabbitmqClusterSpec {
     }
 
     #[verifier(external_body)]
-    pub fn override_(&self) -> (override_: RabbitmqClusterOverrideSpec)
+    pub fn pod_management_policy(&self) -> (policy: Option<String>)
         ensures
-            override_@ == self@.override_,
+            policy.is_Some() == self@.pod_management_policy.is_Some(),
+            policy.is_Some() ==> policy.get_Some_0()@ == self@.pod_management_policy.get_Some_0(),
     {
-        RabbitmqClusterOverrideSpec { inner: self.inner.override_.clone() }
+        match &self.inner.pod_management_policy {
+            Some(s) => Some(String::from_rust_string(s.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn persistent_volume_claim_retention_policy(&self) -> (policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicy>)
+        ensures
+            policy.is_Some() == self@.persistent_volume_claim_retention_policy.is_Some(),
+            policy.is_Some() ==> policy.get_Some_0()@ == self@.persistent_volume_claim_retention_policy.get_Some_0(),
+    {
+        match &self.inner.persistent_volume_claim_retention_policy {
+            Some(n) => Some(StatefulSetPersistentVolumeClaimRetentionPolicy::from_kube(n.clone())),
+            None => None,
+        }
     }
 }
-
 
 #[verifier(external_body)]
 pub struct RabbitmqConfig {
@@ -245,81 +260,6 @@ impl RabbitmqClusterPersistenceSpec {
     {
         match &self.inner.storage_class_name {
             Some(n) => Some(String::from_rust_string(n.clone())),
-            None => None,
-        }
-    }
-}
-
-#[verifier(external_body)]
-pub struct RabbitmqClusterOverrideSpec {
-    inner: deps_hack::RabbitmqClusterOverrideSpec,
-}
-
-impl RabbitmqClusterOverrideSpec {
-    pub spec fn view(&self) -> RabbitmqClusterOverrideSpecView;
-
-    #[verifier(external_body)]
-    pub fn stateful_set(&self) -> (stateful_set: Option<RabbitmqOverrideStatefulSet>)
-        ensures
-            stateful_set.is_Some() == self@.stateful_set.is_Some(),
-            stateful_set.is_Some() ==> stateful_set.get_Some_0()@ == self@.stateful_set.get_Some_0(),
-    {
-        match &self.inner.stateful_set {
-            Some(sts) => Some(RabbitmqOverrideStatefulSet { inner: sts.clone() }),
-            None => None,
-        }
-    }
-}
-
-#[verifier(external_body)]
-pub struct RabbitmqOverrideStatefulSet {
-    inner: deps_hack::RabbitmqOverrideStatefulSet,
-}
-
-impl RabbitmqOverrideStatefulSet {
-    pub spec fn view(&self) -> RabbitmqOverrideStatefulSetView;
-
-    #[verifier(external_body)]
-    pub fn spec(&self) -> (spec: Option<RabbitmqOverrideStatefulSetSpec>)
-        ensures
-            spec.is_Some() == self@.spec.is_Some(),
-            spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
-    {
-        match &self.inner.spec {
-            Some(s) => Some(RabbitmqOverrideStatefulSetSpec { inner: s.clone() }),
-            None => None,
-        }
-    }
-}
-
-#[verifier(external_body)]
-pub struct RabbitmqOverrideStatefulSetSpec {
-    inner: deps_hack::RabbitmqOverrideStatefulSetSpec,
-}
-
-impl RabbitmqOverrideStatefulSetSpec {
-    pub spec fn view(&self) -> RabbitmqOverrideStatefulSetSpecView;
-
-    #[verifier(external_body)]
-    pub fn pod_management_policy(&self) -> (policy: Option<String>)
-        ensures
-            policy.is_Some() == self@.pod_management_policy.is_Some(),
-            policy.is_Some() ==> policy.get_Some_0()@ == self@.pod_management_policy.get_Some_0(),
-    {
-        match &self.inner.pod_management_policy {
-            Some(s) => Some(String::from_rust_string(s.clone())),
-            None => None,
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn persistent_volume_claim_retention_policy(&self) -> (policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicy>)
-        ensures
-            policy.is_Some() == self@.persistent_volume_claim_retention_policy.is_Some(),
-            policy.is_Some() ==> policy.get_Some_0()@ == self@.persistent_volume_claim_retention_policy.get_Some_0(),
-    {
-        match &self.inner.persistent_volume_claim_retention_policy {
-            Some(n) => Some(StatefulSetPersistentVolumeClaimRetentionPolicy::from_kube(n.clone())),
             None => None,
         }
     }

@@ -123,22 +123,11 @@ pub struct RabbitmqClusterSpecView {
     pub affinity: Option<AffinityView>,
     pub tolerations: Option<Seq<TolerationView>>,
     pub resources: Option<ResourceRequirementsView>,
-    pub override_: RabbitmqClusterOverrideSpecView,
+    pub pod_management_policy: Option<StringView>,
+    pub persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicyView>,
 }
 
 impl RabbitmqClusterSpecView {}
-
-impl Marshalable for RabbitmqClusterSpecView {
-    spec fn marshal(self) -> Value;
-
-    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_returns_non_null() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_preserves_integrity() {}
-}
 
 pub struct RabbitmqConfigView {
     pub additional_config: Option<StringView>,
@@ -150,19 +139,5 @@ pub struct RabbitmqClusterPersistenceSpecView {
     pub storage_class_name: Option<StringView>,
     pub storage: StringView,
 }
-
-pub struct RabbitmqClusterOverrideSpecView {
-    pub stateful_set: Option<RabbitmqOverrideStatefulSetView>,
-}
-
-pub struct RabbitmqOverrideStatefulSetView {
-    pub spec: Option<RabbitmqOverrideStatefulSetSpecView>,
-}
-
-pub struct RabbitmqOverrideStatefulSetSpecView {
-    pub pod_management_policy: Option<StringView>,
-    pub persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicyView>,
-}
-
 
 }

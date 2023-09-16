@@ -1090,17 +1090,14 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (sta
             pod_template_spec
         });
         // Set management policy
-        stateful_set_spec.set_pod_management_policy(new_strlit("Parallel").to_string());
-        let override_sts_opt = rabbitmq.spec().override_().stateful_set();
-        if rabbitmq.spec().override_().stateful_set().is_some()
-        && rabbitmq.spec().override_().stateful_set().unwrap().spec().is_some() {
-            let sts_spec = rabbitmq.spec().override_().stateful_set().unwrap().spec().unwrap();
-            if sts_spec.pod_management_policy().is_some() {
-                stateful_set_spec.set_pod_management_policy(sts_spec.pod_management_policy().unwrap());
-            }
-            if sts_spec.persistent_volume_claim_retention_policy().is_some() {
-                stateful_set_spec.set_pvc_retention_policy(sts_spec.persistent_volume_claim_retention_policy().unwrap());
-            }
+        if rabbitmq.spec().pod_management_policy().is_some() {
+            stateful_set_spec.set_pod_management_policy(rabbitmq.spec().pod_management_policy().unwrap());
+        } else {
+            stateful_set_spec.set_pod_management_policy(new_strlit("Parallel").to_string());
+        }
+
+        if rabbitmq.spec().persistent_volume_claim_retention_policy().is_some() {
+            stateful_set_spec.set_pvc_retention_policy(rabbitmq.spec().persistent_volume_claim_retention_policy().unwrap());
         }
         stateful_set_spec
     });
