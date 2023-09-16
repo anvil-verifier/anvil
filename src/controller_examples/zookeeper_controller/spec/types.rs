@@ -97,7 +97,7 @@ impl ResourceView for ZookeeperClusterView {
     proof fn from_dynamic_object_result_determined_by_unmarshal() {}
 
     open spec fn rule(obj: ZookeeperClusterView) -> bool {
-        true
+        obj.spec.replicas > 0
     }
 
     open spec fn transition_rule(new_obj: ZookeeperClusterView, old_obj: ZookeeperClusterView) -> bool {
