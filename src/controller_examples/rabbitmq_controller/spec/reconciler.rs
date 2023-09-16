@@ -778,7 +778,13 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
             seq![
                 ContainerView::default()
                 .set_name(new_strlit("setup-container")@)
-                .set_image(new_strlit("rabbitmq:3.11.10-management")@)
+                .set_image(rabbitmq.spec.image)
+                .set_resources(
+                    ResourceRequirementsView {
+                        limits: Some(Map::empty().insert(new_strlit("cpu")@, new_strlit("100m")@).insert(new_strlit("memory")@, new_strlit("500Mi")@)),
+                        requests: Some(Map::empty().insert(new_strlit("cpu")@, new_strlit("100m")@).insert(new_strlit("memory")@, new_strlit("500Mi")@)),
+                    }
+                )
                 .set_volume_mounts(seq![
                     VolumeMountView::default()
                         .set_name(new_strlit("plugins-conf")@)
@@ -808,7 +814,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
         containers: seq![
             ContainerView {
                 name: new_strlit("rabbitmq")@,
-                image: Some(new_strlit("rabbitmq:3.11.10-management")@),
+                image: Some(rabbitmq.spec.image),
                 volume_mounts: Some(seq![
                     VolumeMountView::default()
                         .set_name(new_strlit("rabbitmq-erlang-cookie")@)

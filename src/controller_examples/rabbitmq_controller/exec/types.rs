@@ -135,6 +135,14 @@ impl RabbitmqClusterSpec {
     }
 
     #[verifier(external_body)]
+    pub fn image(&self) -> (image: String)
+        ensures
+            image@ == self@.image,
+    {
+        String::from_rust_string(self.inner.image.clone())
+    }
+
+    #[verifier(external_body)]
     pub fn rabbitmq_config(&self) -> (rabbitmq_config: Option<RabbitmqConfig>)
         ensures
             self@.rabbitmq_config.is_Some() == rabbitmq_config.is_Some(),

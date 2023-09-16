@@ -1272,13 +1272,29 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         containers.push({
             let mut rabbitmq_container = Container::default();
             rabbitmq_container.set_name(new_strlit("setup-container").to_string());
-            rabbitmq_container.set_image(new_strlit("rabbitmq:3.11.10-management").to_string());
+            rabbitmq_container.set_image(rabbitmq.spec().image());
             rabbitmq_container.set_command({
                 let mut command = Vec::new();
                 command.push(new_strlit("sh").to_string());
                 command.push(new_strlit("-c").to_string());
                 command.push(new_strlit("cp /tmp/erlang-cookie-secret/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie && chmod 600 /var/lib/rabbitmq/.erlang.cookie ; cp /tmp/rabbitmq-plugins/enabled_plugins /operator/enabled_plugins ; echo '[default]' > /var/lib/rabbitmq/.rabbitmqadmin.conf && sed -e 's/default_user/username/' -e 's/default_pass/password/' /tmp/default_user.conf >> /var/lib/rabbitmq/.rabbitmqadmin.conf && chmod 600 /var/lib/rabbitmq/.rabbitmqadmin.conf ; sleep 30").to_string());
                 command
+            });
+            rabbitmq_container.set_resources({
+                let mut resources = ResourceRequirements::default();
+                resources.set_limits({
+                    let mut limits = StringMap::empty();
+                    limits.insert(new_strlit("cpu").to_string(), new_strlit("100m").to_string());
+                    limits.insert(new_strlit("memory").to_string(), new_strlit("500Mi").to_string());
+                    limits
+                });
+                resources.set_requests({
+                    let mut requests = StringMap::empty();
+                    requests.insert(new_strlit("cpu").to_string(), new_strlit("100m").to_string());
+                    requests.insert(new_strlit("memory").to_string(), new_strlit("500Mi").to_string());
+                    requests
+                });
+                resources
             });
             rabbitmq_container.set_volume_mounts({
                 let mut volume_mounts = Vec::new();
@@ -1350,7 +1366,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
             let mut rabbitmq_container = Container::default();
             rabbitmq_container.overwrite_resources(rabbitmq.spec().resources());
             rabbitmq_container.set_name(new_strlit("rabbitmq").to_string());
-            rabbitmq_container.set_image(new_strlit("rabbitmq:3.11.10-management").to_string());
+            rabbitmq_container.set_image(rabbitmq.spec().image());
             rabbitmq_container.set_env(make_env_vars(&rabbitmq));
             rabbitmq_container.set_volume_mounts({
                 let mut volume_mounts = Vec::new();

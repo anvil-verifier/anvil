@@ -32,6 +32,7 @@ pub fn rabbitmq_cluster() -> String {
       namespace: default
     spec:
       replicas: 3
+      image: rabbitmq:3.11.10-management
       rabbitmqConfig:
         additionalConfig: |
           default_user = new_user
