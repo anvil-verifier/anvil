@@ -101,7 +101,10 @@ impl ResourceView for ZookeeperClusterView {
     }
 
     open spec fn transition_rule(new_obj: ZookeeperClusterView, old_obj: ZookeeperClusterView) -> bool {
-        new_obj.spec.ports == old_obj.spec.ports
+        &&& new_obj.spec.ports == old_obj.spec.ports
+        &&& new_obj.spec.persistence.enabled == old_obj.spec.persistence.enabled
+        &&& new_obj.spec.persistence.storage_size == old_obj.spec.persistence.storage_size
+        &&& new_obj.spec.persistence.storage_class_name == old_obj.spec.persistence.storage_class_name
     }
 }
 
