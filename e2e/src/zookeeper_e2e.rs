@@ -56,6 +56,7 @@ pub fn zookeeper_cluster() -> String {
         quorumListenOnAllIps: false
       persistence:
         enabled: true
+        storageSize: 20Gi
     "
     .to_string()
 }

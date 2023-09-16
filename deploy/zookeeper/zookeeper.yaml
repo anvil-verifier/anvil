@@ -30,3 +30,4 @@ spec:
     quorumListenOnAllIps: false
   persistence:
     enabled: true
+    storageSize: 20Gi

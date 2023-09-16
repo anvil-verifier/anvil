@@ -104,6 +104,8 @@ pub struct ZookeeperConfig {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct ZookeeperPersistence {
     pub enabled: bool,
+    #[serde(rename = "storageSize")]
+    pub storage_size: k8s_openapi::apimachinery::pkg::api::resource::Quantity,
     #[serde(rename = "storageClassName")]
     pub storage_class_name: Option<String>,
 }

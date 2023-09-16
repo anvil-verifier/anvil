@@ -1064,7 +1064,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
                     .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
                     .set_resources(ResourceRequirementsView::default()
                         .set_requests(Map::empty()
-                            .insert(new_strlit("storage")@, new_strlit("20Gi")@)
+                            .insert(new_strlit("storage")@, zk.spec.persistence.storage_size)
                         )
                     )
                     .overwrite_storage_class_name(zk.spec.persistence.storage_class_name)

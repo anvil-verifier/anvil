@@ -435,6 +435,14 @@ impl ZookeeperPersistence {
     }
 
     #[verifier(external_body)]
+    pub fn storage_size(&self) -> (storage_size: String)
+        ensures
+            storage_size@ == self@.storage_size,
+    {
+        String::from_rust_string(self.inner.storage_size.clone().0)
+    }
+
+    #[verifier(external_body)]
     pub fn storage_class_name(&self) -> (storage_class_name: Option<String>)
         ensures
             self@.storage_class_name.is_Some() == storage_class_name.is_Some(),

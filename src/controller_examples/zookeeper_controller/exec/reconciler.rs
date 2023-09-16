@@ -1244,7 +1244,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
                         let mut resources = ResourceRequirements::default();
                         resources.set_requests({
                             let mut requests = StringMap::empty();
-                            requests.insert(new_strlit("storage").to_string(), new_strlit("20Gi").to_string());
+                            requests.insert(new_strlit("storage").to_string(), zk.spec().persistence().storage_size());
                             requests
                         });
                         resources
