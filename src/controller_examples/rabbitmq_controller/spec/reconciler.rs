@@ -660,22 +660,21 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
         .set_owner_references(seq![rabbitmq.controller_owner_ref()])
         .set_labels(labels);
 
-    let spec = StatefulSetSpecView::default()
-        .set_replicas(rabbitmq.spec.replicas)
-        .set_service_name(name + new_strlit("-nodes")@)
-        .set_selector(LabelSelectorView::default().set_match_labels(labels))
-        .set_template(PodTemplateSpecView::default()
-            .set_metadata(
-                ObjectMetaView::default().set_labels(
-                    Map::empty()
-                        .insert(new_strlit("app")@, name)
-                ).add_annotation(
-                    sts_restart_annotation(), config_map_rv
-                )
-            )
-            .set_spec(make_rabbitmq_pod_spec(rabbitmq))
-        )
-        .set_volume_claim_templates({
+    let spec = StatefulSetSpecView {
+        replicas: Some(rabbitmq.spec.replicas),
+        service_name: name + new_strlit("-nodes")@,
+        selector: LabelSelectorView::default().set_match_labels(labels),
+        template: PodTemplateSpecView::default()
+                    .set_metadata(
+                        ObjectMetaView::default().set_labels(
+                            Map::empty()
+                                .insert(new_strlit("app")@, name)
+                        ).add_annotation(
+                            sts_restart_annotation(), config_map_rv
+                        )
+                    )
+                    .set_spec(make_rabbitmq_pod_spec(rabbitmq)),
+        volume_claim_templates: Some({
             if rabbitmq.spec.persistence.storage == new_strlit("0Gi")@ {
                 seq![]
             } else {
@@ -697,8 +696,18 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
                         )
                 ]
             }
-        })
-        .set_pod_management_policy(new_strlit("Parallel")@);
+        }),
+        pod_management_policy: Some({
+            if rabbitmq.spec.pod_management_policy.is_Some() {
+                rabbitmq.spec.pod_management_policy.get_Some_0()
+            } else {
+                new_strlit("Parallel")@
+            }
+        }),
+        persistent_volume_claim_retention_policy: rabbitmq.spec.persistent_volume_claim_retention_policy,
+        ..StatefulSetSpecView::default()
+
+    };
 
     StatefulSetView::default().set_metadata(metadata).set_spec(spec)
 }

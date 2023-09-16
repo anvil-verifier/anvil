@@ -3,7 +3,7 @@
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
     affinity::*, api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*,
-    owner_reference::*, resource::*, resource_requirements::*, toleration::*,
+    owner_reference::*, resource::*, resource_requirements::*, stateful_set::*, toleration::*,
 };
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::spec::rabbitmqcluster::*;
@@ -189,8 +189,31 @@ impl RabbitmqClusterSpec {
             None => None,
         }
     }
-}
 
+    #[verifier(external_body)]
+    pub fn pod_management_policy(&self) -> (policy: Option<String>)
+        ensures
+            policy.is_Some() == self@.pod_management_policy.is_Some(),
+            policy.is_Some() ==> policy.get_Some_0()@ == self@.pod_management_policy.get_Some_0(),
+    {
+        match &self.inner.pod_management_policy {
+            Some(s) => Some(String::from_rust_string(s.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn persistent_volume_claim_retention_policy(&self) -> (policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicy>)
+        ensures
+            policy.is_Some() == self@.persistent_volume_claim_retention_policy.is_Some(),
+            policy.is_Some() ==> policy.get_Some_0()@ == self@.persistent_volume_claim_retention_policy.get_Some_0(),
+    {
+        match &self.inner.persistent_volume_claim_retention_policy {
+            Some(n) => Some(StatefulSetPersistentVolumeClaimRetentionPolicy::from_kube(n.clone())),
+            None => None,
+        }
+    }
+}
 
 #[verifier(external_body)]
 pub struct RabbitmqConfig {
