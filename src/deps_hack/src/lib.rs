@@ -115,17 +115,17 @@ pub struct RabbitmqClusterSpec {
     pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
     pub resources: Option<k8s_openapi::api::core::v1::ResourceRequirements>,
     /// podManagementPolicy controls how pods are created during initial scale up,
-	/// when replacing pods on nodes, or when scaling down. The default policy is
-	/// `OrderedReady`, where pods are created in increasing order (pod-0, then
-	/// pod-1, etc) and the controller will wait until each pod is ready before
-	/// continuing. When scaling down, the pods are removed in the opposite order.
-	/// The alternative policy is `Parallel` which will create pods in parallel
-	/// to match the desired scale without waiting, and on scale down will delete
-	/// all pods at once.
+    /// when replacing pods on nodes, or when scaling down. The default policy is
+    /// `OrderedReady`, where pods are created in increasing order (pod-0, then
+    /// pod-1, etc) and the controller will wait until each pod is ready before
+    /// continuing. When scaling down, the pods are removed in the opposite order.
+    /// The alternative policy is `Parallel` which will create pods in parallel
+    /// to match the desired scale without waiting, and on scale down will delete
+    /// all pods at once.
     #[serde(rename = "podManagementPolicy")]
-	pub pod_management_policy: Option<String>,
+    pub pod_management_policy: Option<String>,
     #[serde(rename = "persistentVolumeClaimRetentionPolicy")]
-	pub persistent_volume_claim_retention_policy: Option<k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy>,
+    pub persistent_volume_claim_retention_policy: Option<k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy>,
 }
 
 pub fn default_persistence() -> RabbitmqClusterPersistenceSpec {
