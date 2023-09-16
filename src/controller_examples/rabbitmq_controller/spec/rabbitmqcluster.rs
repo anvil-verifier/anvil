@@ -129,6 +129,18 @@ pub struct RabbitmqClusterSpecView {
 
 impl RabbitmqClusterSpecView {}
 
+impl Marshalable for RabbitmqClusterSpecView {
+    spec fn marshal(self) -> Value;
+
+    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
+
+    #[verifier(external_body)]
+    proof fn marshal_returns_non_null() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_preserves_integrity() {}
+}
+
 pub struct RabbitmqConfigView {
     pub additional_config: Option<StringView>,
     pub advanced_config: Option<StringView>,
