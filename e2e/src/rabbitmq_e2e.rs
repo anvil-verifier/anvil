@@ -206,7 +206,7 @@ pub async fn upgrading_test(client: Client, rabbitmq_name: String) -> Result<(),
             "-p",
             "[{\"op\": \"replace\", \"path\": \"/spec/image\", \"value\": \"rabbitmq:3.11.20-management\"}]",
         ],
-        "failed to upgrade rabbitmq",
+        "failed to upgrade rbmq",
     );
 
     // Sleep for extra 5 seconds to ensure the upgrading has started
