@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::external_api::spec::*;
-use crate::kubernetes_api_objects::{common::*, dynamic::*};
+use crate::kubernetes_api_objects::{common::*, dynamic::*, resource::*, stateful_set::*};
 use crate::pervasive_ext::string_view::*;
 use crate::zookeeper_controller::common::*;
 use vstd::{prelude::*, string::*};
@@ -134,7 +134,13 @@ pub open spec fn validate(name: StringView, namespace: StringView, port: int, pa
         name: name,
     };
     &&& path.len() > 0
+    // The stateful set object exists
     &&& resources.contains_key(key)
+    &&& StatefulSetView::from_dynamic_object(resources[key]).is_Ok()
+    &&& StatefulSetView::from_dynamic_object(resources[key]).get_Ok_0().spec.is_Some()
+    &&& StatefulSetView::from_dynamic_object(resources[key]).get_Ok_0().spec.get_Some_0().replicas.is_Some()
+    // and it has at least one replica to handle the request
+    &&& StatefulSetView::from_dynamic_object(resources[key]).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() > 0
 }
 
 // handle_exists models the behavior of the zookeeper server handling the exists request.
