@@ -215,7 +215,7 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
     let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
     let attached = pod_api
         .exec(
-            pod_name.as_str(),
+            pod_name_0.as_str(),
             vec!["cat", "/etc/rabbitmq/conf.d/90-userDefinedConfiguration.conf"],
             &AttachParams::default().stderr(true),
         )
