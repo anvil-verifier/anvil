@@ -3,8 +3,8 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, container::*, label_selector::*, object_meta::*,
-    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
+    api_method::*, common::*, config_map::*, container::*, dynamic::*, label_selector::*,
+    object_meta::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
     resource_requirements::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
     stateful_set::*, volume::*,
 };
@@ -46,6 +46,10 @@ impl Reconciler<RabbitmqClusterView, EmptyAPI> for RabbitmqReconciler {
 
     open spec fn reconcile_error(state: RabbitmqReconcileState) -> bool {
         reconcile_error(state)
+    }
+
+    open spec fn expect_from_user(obj: DynamicObjectView) -> bool {
+        false // Don't expect anything from the user except the cr object
     }
 }
 
