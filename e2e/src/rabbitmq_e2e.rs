@@ -147,7 +147,7 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
         }
 
         // Check stateful set
-        let sts = sts_api.get(&rabbitmq_name).await;
+        let sts = sts_api.get(&rabbitmq_sts_name).await;
         match sts {
             Err(e) => {
                 println!("Get stateful set failed with error {}.", e);
