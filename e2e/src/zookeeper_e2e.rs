@@ -61,6 +61,45 @@ pub fn zookeeper_cluster() -> String {
     .to_string()
 }
 
+pub fn zookeeper_cluster_ephemeral() -> String {
+    "
+    apiVersion: anvil.dev/v1
+    kind: ZookeeperCluster
+    metadata:
+      name: zookeeper
+      namespace: default
+    spec:
+      replicas: 3
+      image: pravega/zookeeper:0.2.14
+      ports:
+        client: 2181
+        quorum: 2888
+        leaderElection: 3888
+        metrics: 7000
+        adminServer: 8080
+      conf:
+        initLimit: 10
+        syncLimit: 2
+        tickTime: 2000
+        globalOutstandingLimit: 1000
+        preAllocSize: 65536
+        snapCount: 10000
+        commitLogCount: 500
+        snapSizeLimitInKb: 4194304
+        maxCnxns: 0
+        maxClientCnxns: 60
+        minSessionTimeout: 4000
+        maxSessionTimeout: 40000
+        autoPurgeSnapRetainCount: 3
+        autoPurgePurgeInterval: 1
+        quorumListenOnAllIps: false
+      persistence:
+        enabled: false
+        storageSize: 20Gi
+    "
+    .to_string()
+}
+
 pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), Error> {
     let timeout = Duration::from_secs(360);
     let start = Instant::now();
@@ -625,6 +664,36 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     // create a zookeeper cluster
     let discovery = Discovery::new(client.clone()).run().await?;
     let zk_name = apply(zookeeper_cluster(), client.clone(), &discovery).await?;
+
+    desired_state_test(client.clone(), zk_name.clone()).await?;
+    scaling_test(client.clone(), zk_name.clone()).await?;
+    reconfiguration_test(client.clone(), zk_name.clone()).await?;
+    zk_workload_test(client.clone(), zk_name.clone()).await?;
+    upgrading_test(client.clone(), zk_name.clone()).await?;
+    zk_workload_test2(client.clone(), zk_name.clone()).await?; // Test if the data is still there after upgrading
+
+    println!("E2e test passed.");
+    Ok(())
+}
+
+pub async fn zookeeper_ephemeral_e2e_test() -> Result<(), Error> {
+    // check if the CRD is already registered
+    let client = Client::try_default().await?;
+    let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
+    let zk_crd = crd_api.get("zookeeperclusters.anvil.dev").await;
+    match zk_crd {
+        Err(e) => {
+            println!("No CRD found, create one before run the e2e test.");
+            return Err(Error::CRDGetFailed(e));
+        }
+        Ok(crd) => {
+            println!("CRD found, continue to run the e2e test.");
+        }
+    }
+
+    // create a zookeeper cluster
+    let discovery = Discovery::new(client.clone()).run().await?;
+    let zk_name = apply(zookeeper_cluster_ephemeral(), client.clone(), &discovery).await?;
 
     desired_state_test(client.clone(), zk_name.clone()).await?;
     scaling_test(client.clone(), zk_name.clone()).await?;
