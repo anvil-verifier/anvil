@@ -15,16 +15,17 @@ verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
-pub open spec fn create_custom_resource() -> ClientAction<K, E::Input, E::Output> {
+pub open spec fn create_custom_resource() -> ClientAction<E::Input, E::Output> {
     Action {
-        precondition: |input: ClientActionInput<K>, s: ClientState| {
-            &&& input.cr.metadata().name.is_Some()
-            &&& input.cr.metadata().namespace.is_Some()
+        precondition: |input: ClientActionInput, s: ClientState| {
+            &&& input.obj.metadata.name.is_Some()
+            &&& input.obj.metadata.namespace.is_Some()
+            &&& (input.obj.kind == K::kind() || R::expect_from_user(input.obj))
         },
-        transition: |input: ClientActionInput<K>, s: ClientState| {
+        transition: |input: ClientActionInput, s: ClientState| {
             let create_req_msg = Message::client_req_msg(Message::create_req_msg_content(
-                input.cr.metadata().namespace.get_Some_0(),
-                input.cr.to_dynamic_object(),
+                input.obj.metadata.namespace.get_Some_0(),
+                input.obj,
                 input.rest_id_allocator.allocate().1
             ));
 
@@ -38,15 +39,16 @@ pub open spec fn create_custom_resource() -> ClientAction<K, E::Input, E::Output
     }
 }
 
-pub open spec fn delete_custom_resource() -> ClientAction<K, E::Input, E::Output> {
+pub open spec fn delete_custom_resource() -> ClientAction<E::Input, E::Output> {
     Action {
-        precondition: |input: ClientActionInput<K>, s: ClientState| {
-            &&& input.cr.metadata().name.is_Some()
-            &&& input.cr.metadata().namespace.is_Some()
+        precondition: |input: ClientActionInput, s: ClientState| {
+            &&& input.obj.metadata.name.is_Some()
+            &&& input.obj.metadata.namespace.is_Some()
+            &&& (input.obj.kind == K::kind() || R::expect_from_user(input.obj))
         },
-        transition: |input: ClientActionInput<K>, s: ClientState| {
+        transition: |input: ClientActionInput, s: ClientState| {
             let delete_req_msg = Message::client_req_msg(Message::delete_req_msg_content(
-                input.cr.object_ref(), input.rest_id_allocator.allocate().1
+                input.obj.object_ref(), input.rest_id_allocator.allocate().1
             ));
 
             let s_prime = s;
@@ -59,15 +61,16 @@ pub open spec fn delete_custom_resource() -> ClientAction<K, E::Input, E::Output
     }
 }
 
-pub open spec fn update_custom_resource() -> ClientAction<K, E::Input, E::Output> {
+pub open spec fn update_custom_resource() -> ClientAction<E::Input, E::Output> {
     Action {
-        precondition: |input: ClientActionInput<K>, s: ClientState| {
-            &&& input.cr.metadata().name.is_Some()
-            &&& input.cr.metadata().namespace.is_Some()
+        precondition: |input: ClientActionInput, s: ClientState| {
+            &&& input.obj.metadata.name.is_Some()
+            &&& input.obj.metadata.namespace.is_Some()
+            &&& (input.obj.kind == K::kind() || R::expect_from_user(input.obj))
         },
-        transition: |input: ClientActionInput<K>, s: ClientState| {
+        transition: |input: ClientActionInput, s: ClientState| {
             let update_req_msg = Message::client_req_msg(Message::update_req_msg_content(
-                input.cr.object_ref(), input.cr.to_dynamic_object(), input.rest_id_allocator.allocate().1
+                input.obj.object_ref(), input.obj, input.rest_id_allocator.allocate().1
             ));
 
             let s_prime = s;
@@ -80,24 +83,24 @@ pub open spec fn update_custom_resource() -> ClientAction<K, E::Input, E::Output
     }
 }
 
-pub open spec fn client() -> ClientStateMachine<K, E::Input, E::Output> {
+pub open spec fn client() -> ClientStateMachine<E::Input, E::Output> {
     StateMachine {
         init: |s: ClientState| {
             true
         },
         actions: set![Self::create_custom_resource(), Self::delete_custom_resource(), Self::update_custom_resource()],
-        step_to_action: |step: Step<K>| {
+        step_to_action: |step: Step| {
             match step {
                 Step::CreateCustomResource(_) => Self::create_custom_resource(),
                 Step::UpdateCustomResource(_) => Self::update_custom_resource(),
                 Step::DeleteCustomResource(_) => Self::delete_custom_resource(),
             }
         },
-        action_input: |step: Step<K>, input: RestIdAllocator| {
+        action_input: |step: Step, input: RestIdAllocator| {
             match step {
-                Step::CreateCustomResource(obj) => ClientActionInput{ cr: obj, rest_id_allocator: input },
-                Step::UpdateCustomResource(obj) => ClientActionInput{ cr: obj, rest_id_allocator: input },
-                Step::DeleteCustomResource(obj) => ClientActionInput{ cr: obj, rest_id_allocator: input },
+                Step::CreateCustomResource(obj) => ClientActionInput{ obj: obj, rest_id_allocator: input },
+                Step::UpdateCustomResource(obj) => ClientActionInput{ obj: obj, rest_id_allocator: input },
+                Step::DeleteCustomResource(obj) => ClientActionInput{ obj: obj, rest_id_allocator: input },
             }
         }
     }

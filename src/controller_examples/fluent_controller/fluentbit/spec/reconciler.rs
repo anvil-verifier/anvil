@@ -5,9 +5,9 @@ use crate::external_api::spec::*;
 use crate::fluent_controller::fluentbit::common::*;
 use crate::fluent_controller::fluentbit::spec::types::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, container::*, daemon_set::*, label_selector::*,
-    object_meta::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, role::*,
-    role_binding::*, secret::*, service::*, service_account::*, volume::*,
+    api_method::*, common::*, config_map::*, container::*, daemon_set::*, dynamic::*,
+    label_selector::*, object_meta::*, persistent_volume_claim::*, pod::*, pod_template_spec::*,
+    resource::*, role::*, role_binding::*, secret::*, service::*, service_account::*, volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
@@ -44,6 +44,10 @@ impl Reconciler<FluentBitView, EmptyAPI> for FluentBitReconciler {
 
     open spec fn reconcile_error(state: FluentBitReconcileState) -> bool {
         reconcile_error(state)
+    }
+
+    open spec fn expect_from_user(obj: DynamicObjectView) -> bool {
+        obj.kind == SecretView::kind() // expect the user might create some secret object
     }
 }
 

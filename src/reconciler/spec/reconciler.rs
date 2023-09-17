@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
-use crate::kubernetes_api_objects::{api_method::*, common::*, resource::*};
+use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, resource::*};
 use crate::kubernetes_cluster::spec::message::*;
 use crate::reconciler::spec::io::*;
 use vstd::prelude::*;
@@ -36,6 +36,10 @@ pub trait Reconciler<#[verifier(maybe_negative)] K: ResourceView, #[verifier(may
     // reconcile_error is used to tell the controller_runtime whether this reconcile round returns with error.
     // If it is true, controller_runtime will requeue the reconcile.
     spec fn reconcile_error(state: Self::T) -> bool;
+
+    // expect_from_user describes the objects (besides the cr object) that the controller expect to be created by the user,
+    // such as a secret object for storing credentials.
+    spec fn expect_from_user(obj: DynamicObjectView) -> bool;
 }
 
 }
