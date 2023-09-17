@@ -101,7 +101,10 @@ impl ResourceView for ZookeeperClusterView {
     }
 
     open spec fn transition_rule(new_obj: ZookeeperClusterView, old_obj: ZookeeperClusterView) -> bool {
-        new_obj.spec.ports == old_obj.spec.ports
+        &&& new_obj.spec.ports == old_obj.spec.ports
+        &&& new_obj.spec.persistence.enabled == old_obj.spec.persistence.enabled
+        &&& new_obj.spec.persistence.storage_size == old_obj.spec.persistence.storage_size
+        &&& new_obj.spec.persistence.storage_class_name == old_obj.spec.persistence.storage_class_name
     }
 }
 
@@ -110,6 +113,7 @@ pub struct ZookeeperClusterSpecView {
     pub image: StringView,
     pub ports: ZookeeperPortsView,
     pub conf: ZookeeperConfigView,
+    pub persistence: ZookeeperPersistenceView,
     pub resources: Option<ResourceRequirementsView>,
     pub affinity: Option<AffinityView>,
     pub tolerations: Option<Seq<TolerationView>>,
@@ -143,6 +147,12 @@ pub struct ZookeeperConfigView {
     pub auto_purge_snap_retain_count: int,
     pub auto_purge_purge_interval: int,
     pub quorum_listen_on_all_ips: bool,
+}
+
+pub struct ZookeeperPersistenceView {
+    pub enabled: bool,
+    pub storage_size: StringView,
+    pub storage_class_name: Option<StringView>,
 }
 
 }

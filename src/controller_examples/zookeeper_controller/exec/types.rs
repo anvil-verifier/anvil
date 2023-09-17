@@ -138,6 +138,14 @@ impl ZookeeperClusterSpec {
     }
 
     #[verifier(external_body)]
+    pub fn persistence(&self) -> (persistence: ZookeeperPersistence)
+        ensures
+            persistence@ == self@.persistence,
+    {
+        ZookeeperPersistence::from_kube(self.inner.persistence.clone())
+    }
+
+    #[verifier(external_body)]
     pub fn resources(&self) -> (resources: Option<ResourceRequirements>)
         ensures
             self@.resources.is_Some() == resources.is_Some(),
@@ -406,6 +414,57 @@ impl ResourceWrapper<deps_hack::ZookeeperConfig> for ZookeeperConfig {
 
     #[verifier(external)]
     fn into_kube(self) -> deps_hack::ZookeeperConfig {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct ZookeeperPersistence {
+    inner: deps_hack::ZookeeperPersistence,
+}
+
+impl ZookeeperPersistence {
+    pub spec fn view(&self) -> ZookeeperPersistenceView;
+
+    #[verifier(external_body)]
+    pub fn enabled(&self) -> (enabled: bool)
+        ensures
+            enabled == self@.enabled,
+    {
+        self.inner.enabled
+    }
+
+    #[verifier(external_body)]
+    pub fn storage_size(&self) -> (storage_size: String)
+        ensures
+            storage_size@ == self@.storage_size,
+    {
+        String::from_rust_string(self.inner.storage_size.clone().0)
+    }
+
+    #[verifier(external_body)]
+    pub fn storage_class_name(&self) -> (storage_class_name: Option<String>)
+        ensures
+            self@.storage_class_name.is_Some() == storage_class_name.is_Some(),
+            storage_class_name.is_Some() ==> storage_class_name.get_Some_0()@ == self@.storage_class_name.get_Some_0(),
+    {
+        match &self.inner.storage_class_name {
+            Some(s) => Some(String::from_rust_string(s.clone())),
+            None => None,
+        }
+    }
+}
+
+impl ResourceWrapper<deps_hack::ZookeeperPersistence> for ZookeeperPersistence {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::ZookeeperPersistence) -> ZookeeperPersistence {
+        ZookeeperPersistence {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::ZookeeperPersistence {
         self.inner
     }
 }

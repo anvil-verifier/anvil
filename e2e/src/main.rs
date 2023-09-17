@@ -10,7 +10,7 @@ use fluent_e2e::fluent_e2e_test;
 use rabbitmq_e2e::rabbitmq_e2e_test;
 use std::str::FromStr;
 use std::{env, sync::Arc};
-use zookeeper_e2e::zookeeper_e2e_test;
+use zookeeper_e2e::{zookeeper_e2e_test, zookeeper_ephemeral_e2e_test};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -20,6 +20,10 @@ async fn main() -> Result<(), Error> {
         "zookeeper" => {
             println!("Running zookeeper end-to-end test");
             return zookeeper_e2e_test().await;
+        }
+        "zookeeper-ephemeral" => {
+            println!("Running zookeeper end-to-end test");
+            return zookeeper_ephemeral_e2e_test().await;
         }
         "rabbitmq" => {
             println!("Running rabbitmq end-to-end test");

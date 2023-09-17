@@ -28,3 +28,6 @@ spec:
     autoPurgeSnapRetainCount: 3
     autoPurgePurgeInterval: 1
     quorumListenOnAllIps: false
+  persistence:
+    enabled: true
+    storageSize: 20Gi

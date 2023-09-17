@@ -1053,22 +1053,29 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
             .set_when_deleted(new_strlit("Delete")@)
             .set_when_scaled(new_strlit("Delete")@)
         )
-        .set_volume_claim_templates(seq![
-            PersistentVolumeClaimView::default()
-                .set_metadata(ObjectMetaView::default()
-                    .set_name(new_strlit("data")@)
-                    .set_labels(make_labels(zk))
-                    .set_annotations(zk.spec.annotations)
-                )
-                .set_spec(PersistentVolumeClaimSpecView::default()
-                    .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
-                    .set_resources(ResourceRequirementsView::default()
-                        .set_requests(Map::empty()
-                            .insert(new_strlit("storage")@, new_strlit("20Gi")@)
-                        )
+        .set_volume_claim_templates({
+            if zk.spec.persistence.enabled {
+                seq![
+                    PersistentVolumeClaimView::default()
+                    .set_metadata(ObjectMetaView::default()
+                        .set_name(new_strlit("data")@)
+                        .set_labels(make_labels(zk))
+                        .set_annotations(zk.spec.annotations)
                     )
-                )
-        ]);
+                    .set_spec(PersistentVolumeClaimSpecView::default()
+                        .set_access_modes(seq![new_strlit("ReadWriteOnce")@])
+                        .set_resources(ResourceRequirementsView::default()
+                            .set_requests(Map::empty()
+                                .insert(new_strlit("storage")@, zk.spec.persistence.storage_size)
+                            )
+                        )
+                        .overwrite_storage_class_name(zk.spec.persistence.storage_class_name)
+                    )
+                ]
+            } else {
+                seq![]
+            }
+        });
 
     StatefulSetView::default().set_metadata(metadata).set_spec(spec)
 }
@@ -1132,11 +1139,18 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
                 ..ContainerView::default()
             }
         ],
-        volumes: Some(seq![
-            VolumeView::default().set_name(new_strlit("conf")@).set_config_map(
-                ConfigMapVolumeSourceView::default().set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
-            )
-        ]),
+        volumes: Some({
+            let volumes = seq![
+                VolumeView::default().set_name(new_strlit("conf")@).set_config_map(
+                    ConfigMapVolumeSourceView::default().set_name(zk.metadata.name.get_Some_0() + new_strlit("-configmap")@)
+                )
+            ];
+            if zk.spec.persistence.enabled {
+                volumes
+            } else {
+                volumes.push(VolumeView::default().set_name(new_strlit("data")@))
+            }
+        }),
         tolerations: zk.spec.tolerations,
         ..PodSpecView::default()
     }
