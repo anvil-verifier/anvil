@@ -497,6 +497,9 @@ pub async fn zk_workload_test(client: Client, zk_name: String) -> Result<(), Err
     let pod_name_0 = zk_name.clone() + "-0";
     let pod_name_1 = zk_name.clone() + "-1";
 
+    // Sleep for extra 10 seconds to ensure the cluster is stable now
+    sleep(Duration::from_secs(10)).await;
+
     let mut attached = pod_api
         .exec(
             pod_name_0.as_str(),
@@ -580,6 +583,9 @@ pub async fn zk_workload_test(client: Client, zk_name: String) -> Result<(), Err
 pub async fn zk_workload_test2(client: Client, zk_name: String) -> Result<(), Error> {
     let pod_api: Api<Pod> = Api::default_namespaced(client.clone());
     let pod_name_0 = zk_name.clone() + "-0";
+
+    // Sleep for extra 10 seconds to ensure the cluster is stable now
+    sleep(Duration::from_secs(10)).await;
 
     let attached = pod_api
         .exec(
