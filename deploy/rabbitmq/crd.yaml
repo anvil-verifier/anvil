@@ -484,7 +484,7 @@ spec:
                       type: object
                   type: object
                 image:
-                  description: Image is the name of the RabbitMQ docker image to use for RabbitMQ nodes in the RabbitmqCluster. Must be provided together with ImagePullSecrets in order to use an image in a private registry.
+                  description: Image is the name of the RabbitMQ docker image to use for RabbitMQ nodes in the RabbitmqCluster.
                   type: string
                 persistence:
                   default:
