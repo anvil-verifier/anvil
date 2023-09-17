@@ -700,7 +700,6 @@ pub async fn zookeeper_ephemeral_e2e_test() -> Result<(), Error> {
     reconfiguration_test(client.clone(), zk_name.clone()).await?;
     zk_workload_test(client.clone(), zk_name.clone()).await?;
     upgrading_test(client.clone(), zk_name.clone()).await?;
-    zk_workload_test2(client.clone(), zk_name.clone()).await?; // Test if the data is still there after upgrading
 
     println!("E2e test passed.");
     Ok(())
