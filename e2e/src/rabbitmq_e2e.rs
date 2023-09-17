@@ -196,6 +196,7 @@ pub async fn upgrading_test(client: Client, rabbitmq_name: String) -> Result<(),
     let timeout = Duration::from_secs(360);
     let start = Instant::now();
     let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
+    let rabbitmq_sts_name = format!("{}-server", &rabbitmq_name);
     run_command(
         "kubectl",
         vec![
@@ -218,7 +219,7 @@ pub async fn upgrading_test(client: Client, rabbitmq_name: String) -> Result<(),
         }
 
         // Check stateful set
-        let sts = sts_api.get(&rabbitmq_name).await;
+        let sts = sts_api.get(&rabbitmq_sts_name).await;
         match sts {
             Err(e) => {
                 println!("Get stateful set failed with error {}.", e);
