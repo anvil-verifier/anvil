@@ -3,7 +3,7 @@
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*,
-    resource::*, resource_requirements::*,
+    resource::*, resource_requirements::*, toleration::*,
 };
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -105,7 +105,8 @@ impl ResourceView for FluentBitView {
 
 pub struct FluentBitSpecView {
     pub fluentbit_config_name: StringView,
-    pub resources: ResourceRequirementsView,
+    pub resources: Option<ResourceRequirementsView>,
+    pub tolerations: Option<Seq<TolerationView>>,
 }
 
 impl FluentBitSpecView {}

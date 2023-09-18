@@ -13,7 +13,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::rabbitmq_controller::{
     common::RabbitmqReconcileStep,
     proof::common::*,
-    spec::{rabbitmqcluster::*, reconciler::*},
+    spec::{reconciler::*, types::*},
 };
 use crate::reconciler::spec::reconciler::*;
 use crate::temporal_logic::{defs::*, rules::*};

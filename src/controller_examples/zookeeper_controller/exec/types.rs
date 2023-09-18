@@ -1,10 +1,11 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::{
-    api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError, marshal::*,
-    object_meta::*, owner_reference::*, resource::*, resource_requirements::*,
+    affinity::*, api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError,
+    marshal::*, object_meta::*, owner_reference::*, resource::*, resource_requirements::*,
+    toleration::*,
 };
-use crate::pervasive_ext::string_view::*;
+use crate::pervasive_ext::{string_map::*, string_view::*};
 use crate::zookeeper_controller::spec::types::*;
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
@@ -121,6 +122,14 @@ impl ZookeeperClusterSpec {
     }
 
     #[verifier(external_body)]
+    pub fn ports(&self) -> (ports: ZookeeperPorts)
+        ensures
+            ports@ == self@.ports,
+    {
+        ZookeeperPorts::from_kube(self.inner.ports.clone())
+    }
+
+    #[verifier(external_body)]
     pub fn conf(&self) -> (conf: ZookeeperConfig)
         ensures
             conf@ == self@.conf,
@@ -129,11 +138,63 @@ impl ZookeeperClusterSpec {
     }
 
     #[verifier(external_body)]
-    pub fn resources(&self) -> (resources: ResourceRequirements)
+    pub fn persistence(&self) -> (persistence: ZookeeperPersistence)
         ensures
-            resources@ == self@.resources,
+            persistence@ == self@.persistence,
     {
-        ResourceRequirements::from_kube(self.inner.resources.clone())
+        ZookeeperPersistence::from_kube(self.inner.persistence.clone())
+    }
+
+    #[verifier(external_body)]
+    pub fn resources(&self) -> (resources: Option<ResourceRequirements>)
+        ensures
+            self@.resources.is_Some() == resources.is_Some(),
+            resources.is_Some() ==> resources.get_Some_0()@ == self@.resources.get_Some_0(),
+    {
+        match &self.inner.resources {
+            Some(r) => Some(ResourceRequirements::from_kube(r.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn affinity(&self) -> (affinity: Option<Affinity>)
+        ensures
+            self@.affinity.is_Some() == affinity.is_Some(),
+            affinity.is_Some() ==> affinity.get_Some_0()@ == self@.affinity.get_Some_0(),
+    {
+        match &self.inner.affinity {
+            Some(a) => Some(Affinity::from_kube(a.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn tolerations(&self) -> (tolerations: Option<Vec<Toleration>>)
+        ensures
+            self@.tolerations.is_Some() == tolerations.is_Some(),
+            tolerations.is_Some() ==> tolerations.get_Some_0()@.map_values(|t: Toleration| t@) == self@.tolerations.get_Some_0(),
+    {
+        match &self.inner.tolerations {
+            Some(tols) => Some(tols.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::Toleration| Toleration::from_kube(t)).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn labels(&self) -> (labels: StringMap)
+        ensures
+            labels@ == self@.labels,
+    {
+        StringMap::from_rust_map(self.inner.labels.clone())
+    }
+
+    #[verifier(external_body)]
+    pub fn annotations(&self) -> (annotations: StringMap)
+        ensures
+            annotations@ == self@.annotations,
+    {
+        StringMap::from_rust_map(self.inner.annotations.clone())
     }
 }
 
@@ -147,6 +208,69 @@ impl ResourceWrapper<deps_hack::ZookeeperClusterSpec> for ZookeeperClusterSpec {
 
     #[verifier(external)]
     fn into_kube(self) -> deps_hack::ZookeeperClusterSpec {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct ZookeeperPorts {
+    inner: deps_hack::ZookeeperPorts,
+}
+
+impl ZookeeperPorts {
+    pub spec fn view(&self) -> ZookeeperPortsView;
+
+    #[verifier(external_body)]
+    pub fn client(&self) -> (client: i32)
+        ensures
+            client as int == self@.client,
+    {
+        self.inner.client
+    }
+
+    #[verifier(external_body)]
+    pub fn quorum(&self) -> (quorum: i32)
+        ensures
+            quorum as int == self@.quorum,
+    {
+        self.inner.quorum
+    }
+
+    #[verifier(external_body)]
+    pub fn leader_election(&self) -> (leader_election: i32)
+        ensures
+            leader_election as int == self@.leader_election,
+    {
+        self.inner.leader_election
+    }
+
+    #[verifier(external_body)]
+    pub fn metrics(&self) -> (metrics: i32)
+        ensures
+            metrics as int == self@.metrics,
+    {
+        self.inner.metrics
+    }
+
+    #[verifier(external_body)]
+    pub fn admin_server(&self) -> (admin_server: i32)
+        ensures
+            admin_server as int == self@.admin_server,
+    {
+        self.inner.admin_server
+    }
+}
+
+impl ResourceWrapper<deps_hack::ZookeeperPorts> for ZookeeperPorts {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::ZookeeperPorts) -> ZookeeperPorts {
+        ZookeeperPorts {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::ZookeeperPorts {
         self.inner
     }
 }
@@ -290,6 +414,57 @@ impl ResourceWrapper<deps_hack::ZookeeperConfig> for ZookeeperConfig {
 
     #[verifier(external)]
     fn into_kube(self) -> deps_hack::ZookeeperConfig {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct ZookeeperPersistence {
+    inner: deps_hack::ZookeeperPersistence,
+}
+
+impl ZookeeperPersistence {
+    pub spec fn view(&self) -> ZookeeperPersistenceView;
+
+    #[verifier(external_body)]
+    pub fn enabled(&self) -> (enabled: bool)
+        ensures
+            enabled == self@.enabled,
+    {
+        self.inner.enabled
+    }
+
+    #[verifier(external_body)]
+    pub fn storage_size(&self) -> (storage_size: String)
+        ensures
+            storage_size@ == self@.storage_size,
+    {
+        String::from_rust_string(self.inner.storage_size.clone().0)
+    }
+
+    #[verifier(external_body)]
+    pub fn storage_class_name(&self) -> (storage_class_name: Option<String>)
+        ensures
+            self@.storage_class_name.is_Some() == storage_class_name.is_Some(),
+            storage_class_name.is_Some() ==> storage_class_name.get_Some_0()@ == self@.storage_class_name.get_Some_0(),
+    {
+        match &self.inner.storage_class_name {
+            Some(s) => Some(String::from_rust_string(s.clone())),
+            None => None,
+        }
+    }
+}
+
+impl ResourceWrapper<deps_hack::ZookeeperPersistence> for ZookeeperPersistence {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::ZookeeperPersistence) -> ZookeeperPersistence {
+        ZookeeperPersistence {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::ZookeeperPersistence {
         self.inner
     }
 }

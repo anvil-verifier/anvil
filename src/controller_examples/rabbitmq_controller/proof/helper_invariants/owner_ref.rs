@@ -17,7 +17,7 @@ use crate::kubernetes_cluster::spec::{
 use crate::rabbitmq_controller::{
     common::*,
     proof::common::*,
-    spec::{rabbitmqcluster::*, reconciler::*},
+    spec::{reconciler::*, types::*},
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;

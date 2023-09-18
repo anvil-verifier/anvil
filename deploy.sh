@@ -33,4 +33,5 @@ else
     echo ""
     echo -e "${RED}Cannot deploy the controller."
     echo -e "${YELLOW}Please ensure kubectl can connect to a Kubernetes cluster.${NC}"
+    exit 3
 fi

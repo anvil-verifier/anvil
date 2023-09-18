@@ -5,8 +5,8 @@ use crate::external_api::spec::*;
 use crate::fluent_controller::fluentbit_config::common::*;
 use crate::fluent_controller::fluentbit_config::spec::types::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, daemon_set::*, label_selector::*, object_meta::*,
-    persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, role::*,
+    api_method::*, common::*, config_map::*, daemon_set::*, dynamic::*, label_selector::*,
+    object_meta::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, role::*,
     role_binding::*, secret::*, service::*, service_account::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
@@ -44,6 +44,10 @@ impl Reconciler<FluentBitConfigView, EmptyAPI> for FluentBitConfigReconciler {
 
     open spec fn reconcile_error(state: FluentBitConfigReconcileState) -> bool {
         reconcile_error(state)
+    }
+
+    open spec fn expect_from_user(obj: DynamicObjectView) -> bool {
+        false // Don't expect anything from the user except the cr object
     }
 }
 

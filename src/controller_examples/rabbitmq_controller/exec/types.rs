@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
-    api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*,
-    resource::*,
+    affinity::*, api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*,
+    owner_reference::*, resource::*, resource_requirements::*, stateful_set::*, toleration::*,
 };
 use crate::pervasive_ext::string_view::*;
-use crate::rabbitmq_controller::spec::rabbitmqcluster::*;
+use crate::rabbitmq_controller::spec::types::*;
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
 
@@ -16,7 +16,6 @@ verus! {
 pub struct RabbitmqCluster {
     inner: deps_hack::RabbitmqCluster
 }
-
 
 impl RabbitmqCluster {
     pub spec fn view(&self) -> RabbitmqClusterView;
@@ -124,7 +123,6 @@ pub struct RabbitmqClusterSpec {
     inner: deps_hack::RabbitmqClusterSpec,
 }
 
-
 impl RabbitmqClusterSpec {
     pub spec fn view(&self) -> RabbitmqClusterSpecView;
 
@@ -134,6 +132,14 @@ impl RabbitmqClusterSpec {
             replicas as int == self@.replicas,
     {
         self.inner.replicas
+    }
+
+    #[verifier(external_body)]
+    pub fn image(&self) -> (image: String)
+        ensures
+            image@ == self@.image,
+    {
+        String::from_rust_string(self.inner.image.clone())
     }
 
     #[verifier(external_body)]
@@ -147,8 +153,75 @@ impl RabbitmqClusterSpec {
             None => None,
         }
     }
-}
 
+    #[verifier(external_body)]
+    pub fn persistence(&self) -> (persistence: RabbitmqClusterPersistenceSpec)
+        ensures
+            persistence@ == self@.persistence,
+    {
+        RabbitmqClusterPersistenceSpec { inner: self.inner.persistence.clone() }
+    }
+
+    #[verifier(external_body)]
+    pub fn affinity(&self) -> (affinity: Option<Affinity>)
+        ensures
+            self@.affinity.is_Some() == affinity.is_Some(),
+            affinity.is_Some() ==> affinity.get_Some_0()@ == self@.affinity.get_Some_0(),
+    {
+        match &self.inner.affinity {
+            Some(a) => Some(Affinity::from_kube(a.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn tolerations(&self) -> (tolerations: Option<Vec<Toleration>>)
+        ensures
+            self@.tolerations.is_Some() == tolerations.is_Some(),
+            tolerations.is_Some() ==> tolerations.get_Some_0()@.map_values(|t: Toleration| t@) == self@.tolerations.get_Some_0(),
+    {
+        match &self.inner.tolerations {
+            Some(tols) => Some(tols.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::Toleration| Toleration::from_kube(t)).collect()),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn resources(&self) -> (resources: Option<ResourceRequirements>)
+        ensures
+            self@.resources.is_Some() == resources.is_Some(),
+            resources.is_Some() ==> resources.get_Some_0()@ == self@.resources.get_Some_0(),
+    {
+        match &self.inner.resources {
+            Some(res) => Some(ResourceRequirements::from_kube(res.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn pod_management_policy(&self) -> (policy: Option<String>)
+        ensures
+            policy.is_Some() == self@.pod_management_policy.is_Some(),
+            policy.is_Some() ==> policy.get_Some_0()@ == self@.pod_management_policy.get_Some_0(),
+    {
+        match &self.inner.pod_management_policy {
+            Some(s) => Some(String::from_rust_string(s.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn persistent_volume_claim_retention_policy(&self) -> (policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicy>)
+        ensures
+            policy.is_Some() == self@.persistent_volume_claim_retention_policy.is_Some(),
+            policy.is_Some() ==> policy.get_Some_0()@ == self@.persistent_volume_claim_retention_policy.get_Some_0(),
+    {
+        match &self.inner.persistent_volume_claim_retention_policy {
+            Some(n) => Some(StatefulSetPersistentVolumeClaimRetentionPolicy::from_kube(n.clone())),
+            None => None,
+        }
+    }
+}
 
 #[verifier(external_body)]
 pub struct RabbitmqConfig {
@@ -171,5 +244,33 @@ impl RabbitmqConfig {
     }
 }
 
+#[verifier(external_body)]
+pub struct RabbitmqClusterPersistenceSpec {
+    inner: deps_hack::RabbitmqClusterPersistenceSpec,
+}
+
+impl RabbitmqClusterPersistenceSpec {
+    pub spec fn view(&self) -> RabbitmqClusterPersistenceSpecView;
+
+    #[verifier(external_body)]
+    pub fn storage(&self) -> (storage: String)
+        ensures
+            storage@ == self@.storage,
+    {
+        String::from_rust_string(self.inner.storage.clone().0)
+    }
+
+    #[verifier(external_body)]
+    pub fn storage_class_name(&self) -> (storage_class_name: Option<String>)
+        ensures
+            storage_class_name.is_Some() == self@.storage_class_name.is_Some(),
+            storage_class_name.is_Some() ==> storage_class_name.get_Some_0()@ == self@.storage_class_name.get_Some_0(),
+    {
+        match &self.inner.storage_class_name {
+            Some(n) => Some(String::from_rust_string(n.clone())),
+            None => None,
+        }
+    }
+}
 
 }

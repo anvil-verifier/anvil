@@ -1,8 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::{
-    api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError, marshal::*,
-    object_meta::*, owner_reference::*, resource::*, resource_requirements::*,
+    affinity::*, api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError,
+    marshal::*, object_meta::*, owner_reference::*, resource::*, resource_requirements::*,
+    toleration::*,
 };
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -96,22 +97,39 @@ impl ResourceView for ZookeeperClusterView {
     proof fn from_dynamic_object_result_determined_by_unmarshal() {}
 
     open spec fn rule(obj: ZookeeperClusterView) -> bool {
-        true
+        obj.spec.replicas > 0
     }
 
     open spec fn transition_rule(new_obj: ZookeeperClusterView, old_obj: ZookeeperClusterView) -> bool {
-        true
+        &&& new_obj.spec.ports == old_obj.spec.ports
+        &&& new_obj.spec.persistence.enabled == old_obj.spec.persistence.enabled
+        &&& new_obj.spec.persistence.storage_size == old_obj.spec.persistence.storage_size
+        &&& new_obj.spec.persistence.storage_class_name == old_obj.spec.persistence.storage_class_name
     }
 }
 
 pub struct ZookeeperClusterSpecView {
     pub replicas: int,
     pub image: StringView,
+    pub ports: ZookeeperPortsView,
     pub conf: ZookeeperConfigView,
-    pub resources: ResourceRequirementsView,
+    pub persistence: ZookeeperPersistenceView,
+    pub resources: Option<ResourceRequirementsView>,
+    pub affinity: Option<AffinityView>,
+    pub tolerations: Option<Seq<TolerationView>>,
+    pub labels: Map<StringView, StringView>,
+    pub annotations: Map<StringView, StringView>,
 }
 
 impl ZookeeperClusterSpecView {}
+
+pub struct ZookeeperPortsView {
+    pub client: int,
+    pub quorum: int,
+    pub leader_election: int,
+    pub metrics: int,
+    pub admin_server: int,
+}
 
 pub struct ZookeeperConfigView {
     pub init_limit: int,
@@ -131,16 +149,10 @@ pub struct ZookeeperConfigView {
     pub quorum_listen_on_all_ips: bool,
 }
 
-impl Marshalable for ZookeeperClusterSpecView {
-    spec fn marshal(self) -> Value;
-
-    spec fn unmarshal(value: Value) -> Result<Self, ParseDynamicObjectError>;
-
-    #[verifier(external_body)]
-    proof fn marshal_returns_non_null() {}
-
-    #[verifier(external_body)]
-    proof fn marshal_preserves_integrity() {}
+pub struct ZookeeperPersistenceView {
+    pub enabled: bool,
+    pub storage_size: StringView,
+    pub storage_class_name: Option<StringView>,
 }
 
 }

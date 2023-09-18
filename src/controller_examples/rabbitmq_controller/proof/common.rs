@@ -13,7 +13,7 @@ use crate::kubernetes_cluster::spec::{
     message::*,
 };
 use crate::rabbitmq_controller::common::*;
-use crate::rabbitmq_controller::spec::{rabbitmqcluster::*, reconciler::*};
+use crate::rabbitmq_controller::spec::{reconciler::*, types::*};
 use crate::temporal_logic::defs::*;
 use vstd::prelude::*;
 

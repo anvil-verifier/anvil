@@ -41,9 +41,30 @@ pub struct SimpleCRSpec {
 pub struct ZookeeperClusterSpec {
     pub replicas: i32,
     pub image: String,
+    pub ports: ZookeeperPorts,
     pub conf: ZookeeperConfig,
+    pub persistence: ZookeeperPersistence,
+    pub resources: Option<k8s_openapi::api::core::v1::ResourceRequirements>,
+    pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
+    pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
     #[serde(default)]
-    pub resources: k8s_openapi::api::core::v1::ResourceRequirements,
+    pub labels: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
+    pub annotations: std::collections::BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+pub struct ZookeeperPorts {
+    #[serde(rename = "client")]
+    pub client: i32,
+    #[serde(rename = "quorum")]
+    pub quorum: i32,
+    #[serde(rename = "leaderElection")]
+    pub leader_election: i32,
+    #[serde(rename = "metrics")]
+    pub metrics: i32,
+    #[serde(rename = "adminServer")]
+    pub admin_server: i32,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
@@ -80,6 +101,15 @@ pub struct ZookeeperConfig {
     pub quorum_listen_on_all_ips: bool,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+pub struct ZookeeperPersistence {
+    pub enabled: bool,
+    #[serde(rename = "storageSize")]
+    pub storage_size: k8s_openapi::apimachinery::pkg::api::resource::Quantity,
+    #[serde(rename = "storageClassName")]
+    pub storage_class_name: Option<String>,
+}
+
 #[derive(
     kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]
@@ -87,8 +117,35 @@ pub struct ZookeeperConfig {
 #[kube(shortname = "rbmq", namespaced)]
 pub struct RabbitmqClusterSpec {
     pub replicas: i32,
+    /// Image is the name of the RabbitMQ docker image to use for RabbitMQ nodes in the RabbitmqCluster.
+    pub image: String,
+    #[serde(default = "default_persistence")]
+    pub persistence: RabbitmqClusterPersistenceSpec,
     #[serde(rename = "rabbitmqConfig")]
     pub rabbitmq_config: Option<RabbitmqConfig>,
+    pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
+    pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
+    pub resources: Option<k8s_openapi::api::core::v1::ResourceRequirements>,
+    /// podManagementPolicy controls how pods are created during initial scale up,
+    /// when replacing pods on nodes, or when scaling down. The default policy is
+    /// `OrderedReady`, where pods are created in increasing order (pod-0, then
+    /// pod-1, etc) and the controller will wait until each pod is ready before
+    /// continuing. When scaling down, the pods are removed in the opposite order.
+    /// The alternative policy is `Parallel` which will create pods in parallel
+    /// to match the desired scale without waiting, and on scale down will delete
+    /// all pods at once.
+    #[serde(rename = "podManagementPolicy")]
+    pub pod_management_policy: Option<String>,
+    #[serde(rename = "persistentVolumeClaimRetentionPolicy")]
+    pub persistent_volume_claim_retention_policy:
+        Option<k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy>,
+}
+
+pub fn default_persistence() -> RabbitmqClusterPersistenceSpec {
+    RabbitmqClusterPersistenceSpec {
+        storage: default_storage(),
+        storage_class_name: None,
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
@@ -101,6 +158,18 @@ pub struct RabbitmqConfig {
     pub env_config: Option<String>,
 }
 
+pub fn default_storage() -> k8s_openapi::apimachinery::pkg::api::resource::Quantity {
+    k8s_openapi::apimachinery::pkg::api::resource::Quantity("10Gi".to_string())
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+pub struct RabbitmqClusterPersistenceSpec {
+    #[serde(rename = "storageClassName", default)]
+    pub storage_class_name: Option<String>,
+    #[serde(default = "default_storage")]
+    pub storage: k8s_openapi::apimachinery::pkg::api::resource::Quantity,
+}
+
 #[derive(
     kube::CustomResource, Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
 )]
@@ -110,7 +179,8 @@ pub struct FluentBitSpec {
     #[serde(rename = "fluentBitConfigName")]
     pub fluentbit_config_name: String,
     #[serde(default)]
-    pub resources: k8s_openapi::api::core::v1::ResourceRequirements,
+    pub resources: Option<k8s_openapi::api::core::v1::ResourceRequirements>,
+    pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
 }
 
 #[derive(

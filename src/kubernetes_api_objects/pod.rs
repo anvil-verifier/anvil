@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::kubernetes_api_objects::affinity::*;
 use crate::kubernetes_api_objects::api_resource::*;
 use crate::kubernetes_api_objects::common::*;
 use crate::kubernetes_api_objects::container::*;
@@ -9,6 +10,7 @@ use crate::kubernetes_api_objects::marshal::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
 use crate::kubernetes_api_objects::resource_requirements::*;
+use crate::kubernetes_api_objects::toleration::*;
 use crate::kubernetes_api_objects::volume::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -140,6 +142,30 @@ impl PodSpec {
     }
 
     #[verifier(external_body)]
+    pub fn set_affinity(&mut self, affinity: Affinity)
+        ensures
+            self@ == old(self)@.set_affinity(affinity@),
+    {
+        self.inner.affinity = Some(affinity.into_kube())
+    }
+
+    #[verifier(external_body)]
+    pub fn overwrite_affinity(&mut self, affinity: Option<Affinity>)
+        ensures
+            affinity.is_None() ==> self@ == old(self)@.unset_affinity(),
+            affinity.is_Some() ==> self@ == old(self)@.set_affinity(affinity.get_Some_0()@),
+    {
+        match affinity {
+            Some(a) => {
+                self.inner.affinity = Some(a.into_kube())
+            },
+            None => {
+                self.inner.affinity = None
+            }
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn set_containers(&mut self, containers: Vec<Container>)
         ensures
             self@ == old(self)@.set_containers(containers@.map_values(|container: Container| container@)),
@@ -174,32 +200,29 @@ impl PodSpec {
     #[verifier(external_body)]
     pub fn set_tolerations(&mut self, tolerations: Vec<Toleration>)
         ensures
-            self@ == old(self)@,
+            self@ == old(self)@.set_tolerations(tolerations@.map_values(|toleration: Toleration| toleration@)),
     {
-        self.inner.tolerations = Some(
-            tolerations.into_iter().map(|t: Toleration| t.into_kube()).collect()
-        )
+        self.inner.tolerations = Some(tolerations.into_iter().map(|toleration: Toleration| toleration.into_kube()).collect())
+    }
+
+    #[verifier(external_body)]
+    pub fn overwrite_tolerations(&mut self, tolerations: Option<Vec<Toleration>>)
+        ensures
+            tolerations.is_None() ==> self@ == old(self)@.unset_tolerations(),
+            tolerations.is_Some() ==> self@ == old(self)@.set_tolerations(tolerations.get_Some_0()@.map_values(|toleration: Toleration| toleration@)),
+    {
+        match tolerations {
+            Some(t) => {
+                self.inner.tolerations = Some(t.into_iter().map(|toleration: Toleration| toleration.into_kube()).collect())
+            },
+            None => {
+                self.inner.tolerations = None
+            }
+        }
     }
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSpec {
-        self.inner
-    }
-}
-
-#[verifier(external_body)]
-pub struct Toleration {
-    inner: deps_hack::k8s_openapi::api::core::v1::Toleration,
-}
-
-impl Toleration {
-    #[verifier(external)]
-    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Toleration) -> Toleration {
-        Toleration { inner: inner }
-    }
-
-    #[verifier(external)]
-    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Toleration {
         self.inner
     }
 }
@@ -308,19 +331,37 @@ impl ResourceView for PodView {
 }
 
 pub struct PodSpecView {
+    pub affinity: Option<AffinityView>,
     pub containers: Seq<ContainerView>,
     pub volumes: Option<Seq<VolumeView>>,
     pub init_containers: Option<Seq<ContainerView>>,
     pub service_account_name: Option<StringView>,
+    pub tolerations: Option<Seq<TolerationView>>,
 }
 
 impl PodSpecView {
     pub open spec fn default() -> PodSpecView {
         PodSpecView {
+            affinity: None,
             containers: Seq::empty(),
             volumes: None,
             init_containers: None,
             service_account_name: None,
+            tolerations: None,
+        }
+    }
+
+    pub open spec fn set_affinity(self, affinity: AffinityView) -> PodSpecView {
+        PodSpecView {
+            affinity: Some(affinity),
+            ..self
+        }
+    }
+
+    pub open spec fn unset_affinity(self) -> PodSpecView {
+        PodSpecView {
+            affinity: None,
+            ..self
         }
     }
 
@@ -348,6 +389,20 @@ impl PodSpecView {
     pub open spec fn set_service_account_name(self, service_account_name: StringView) -> PodSpecView {
         PodSpecView {
             service_account_name: Some(service_account_name),
+            ..self
+        }
+    }
+
+    pub open spec fn set_tolerations(self, tolerations: Seq<TolerationView>) -> PodSpecView {
+        PodSpecView {
+            tolerations: Some(tolerations),
+            ..self
+        }
+    }
+
+    pub open spec fn unset_tolerations(self) -> PodSpecView {
+        PodSpecView {
+            tolerations: None,
             ..self
         }
     }

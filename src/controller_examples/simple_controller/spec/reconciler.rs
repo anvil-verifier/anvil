@@ -3,8 +3,8 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, dynamic::DynamicObjectView, object_meta::*,
-    resource::*,
+    api_method::*, common::*, config_map::*, dynamic::DynamicObjectView, dynamic::*,
+    object_meta::*, resource::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
@@ -47,6 +47,10 @@ impl Reconciler<SimpleCRView, EmptyAPI> for SimpleReconciler {
 
     open spec fn reconcile_error(state: SimpleReconcileState) -> bool {
         reconcile_error(state)
+    }
+
+    open spec fn expect_from_user(obj: DynamicObjectView) -> bool {
+        false // Don't expect anything from the user except the cr object
     }
 }
 

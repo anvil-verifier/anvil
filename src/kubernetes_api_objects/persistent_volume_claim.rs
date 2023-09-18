@@ -147,7 +147,7 @@ impl PersistentVolumeClaimSpec {
     {
         self.inner.access_modes = Some(
             access_modes.into_iter().map(|mode: String| mode.into_rust_string()).collect()
-        )
+        );
     }
 
     #[verifier(external_body)]
@@ -155,7 +155,23 @@ impl PersistentVolumeClaimSpec {
         ensures
             self@ == old(self)@.set_resources(resources@),
     {
-        self.inner.resources = Some(resources.into_kube())
+        self.inner.resources = Some(resources.into_kube());
+    }
+
+    #[verifier(external_body)]
+    pub fn overwrite_storage_class_name(&mut self, storage_class_name: Option<String>)
+        ensures
+            storage_class_name.is_None() ==> self@ == old(self)@.overwrite_storage_class_name(None),
+            storage_class_name.is_Some() ==> self@ == old(self)@.overwrite_storage_class_name(Some(storage_class_name.get_Some_0()@)),
+    {
+        match storage_class_name {
+            Some(n) => {
+                self.inner.storage_class_name = Some(n.into_rust_string());
+            },
+            None => {
+                self.inner.storage_class_name = None;
+            }
+        }
     }
 }
 
@@ -289,6 +305,7 @@ impl Marshalable for PersistentVolumeClaimView {
 }
 
 pub struct PersistentVolumeClaimSpecView {
+    pub storage_class_name: Option<StringView>,
     pub access_modes: Option<Seq<StringView>>,
     pub resources: Option<ResourceRequirementsView>,
 }
@@ -296,6 +313,7 @@ pub struct PersistentVolumeClaimSpecView {
 impl PersistentVolumeClaimSpecView {
     pub open spec fn default() -> PersistentVolumeClaimSpecView {
         PersistentVolumeClaimSpecView {
+            storage_class_name: None,
             access_modes: None,
             resources: None,
         }
@@ -311,6 +329,13 @@ impl PersistentVolumeClaimSpecView {
     pub open spec fn set_resources(self, resources: ResourceRequirementsView) -> PersistentVolumeClaimSpecView {
         PersistentVolumeClaimSpecView {
             resources: Some(resources),
+            ..self
+        }
+    }
+
+    pub open spec fn overwrite_storage_class_name(self, storage_class_name: Option<StringView>) -> PersistentVolumeClaimSpecView {
+        PersistentVolumeClaimSpecView {
+            storage_class_name: storage_class_name,
             ..self
         }
     }

@@ -26,6 +26,19 @@ impl ResourceRequirements {
     }
 
     #[verifier(external_body)]
+    pub fn set_limits(&mut self, limits: StringMap)
+        ensures
+            self@ == old(self)@.set_limits(limits@),
+    {
+        self.inner.limits = Some(
+            limits.into_rust_map()
+                .into_iter()
+                .map(|(k, v)| (k, deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity(v)))
+                .collect()
+        );
+    }
+
+    #[verifier(external_body)]
     pub fn set_requests(&mut self, requests: StringMap)
         ensures
             self@ == old(self)@.set_requests(requests@),
@@ -50,13 +63,22 @@ impl ResourceRequirements {
 }
 
 pub struct ResourceRequirementsView {
+    pub limits: Option<Map<StringView, StringView>>,
     pub requests: Option<Map<StringView, StringView>>,
 }
 
 impl ResourceRequirementsView {
     pub open spec fn default() -> ResourceRequirementsView {
         ResourceRequirementsView {
+            limits: None,
             requests: None,
+        }
+    }
+
+    pub open spec fn set_limits(self, limits: Map<StringView, StringView>) -> ResourceRequirementsView {
+        ResourceRequirementsView {
+            limits: Some(limits),
+            ..self
         }
     }
 

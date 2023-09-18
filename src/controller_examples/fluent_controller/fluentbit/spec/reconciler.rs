@@ -5,9 +5,9 @@ use crate::external_api::spec::*;
 use crate::fluent_controller::fluentbit::common::*;
 use crate::fluent_controller::fluentbit::spec::types::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, container::*, daemon_set::*, label_selector::*,
-    object_meta::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*, role::*,
-    role_binding::*, secret::*, service::*, service_account::*, volume::*,
+    api_method::*, common::*, config_map::*, container::*, daemon_set::*, dynamic::*,
+    label_selector::*, object_meta::*, persistent_volume_claim::*, pod::*, pod_template_spec::*,
+    resource::*, role::*, role_binding::*, secret::*, service::*, service_account::*, volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
@@ -44,6 +44,10 @@ impl Reconciler<FluentBitView, EmptyAPI> for FluentBitReconciler {
 
     open spec fn reconcile_error(state: FluentBitReconcileState) -> bool {
         reconcile_error(state)
+    }
+
+    open spec fn expect_from_user(obj: DynamicObjectView) -> bool {
+        obj.kind == SecretView::kind() // expect the user might create some secret object
     }
 }
 
@@ -277,9 +281,9 @@ pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecVie
         fluentbit.metadata.name.is_Some(),
         fluentbit.metadata.namespace.is_Some(),
 {
-    PodSpecView::default()
-        .set_service_account_name(make_service_account_name(fluentbit.metadata.name.get_Some_0()))
-        .set_volumes(seq![
+    PodSpecView {
+        service_account_name: Some(make_service_account_name(fluentbit.metadata.name.get_Some_0())),
+        volumes: Some(seq![
             VolumeView::default()
                 .set_name(new_strlit("varlibcontainers")@)
                 .set_host_path(HostPathVolumeSourceView::default()
@@ -305,12 +309,12 @@ pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecVie
                 .set_host_path(HostPathVolumeSourceView::default()
                     .set_path(new_strlit("/var/lib/fluent-bit/")@)
                 ),
-        ])
-        .set_containers(seq![
-            ContainerView::default()
-                .set_name(new_strlit("fluent-bit")@)
-                .set_image(new_strlit("kubesphere/fluent-bit:v2.1.7")@)
-                .set_volume_mounts(seq![
+        ]),
+        containers: seq![
+            ContainerView {
+                name: new_strlit("fluent-bit")@,
+                image: Some(new_strlit("kubesphere/fluent-bit:v2.1.7")@),
+                volume_mounts: Some(seq![
                     VolumeMountView::default()
                         .set_name(new_strlit("varlibcontainers")@)
                         .set_read_only(true)
@@ -330,14 +334,19 @@ pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecVie
                     VolumeMountView::default()
                         .set_name(new_strlit("positions")@)
                         .set_mount_path(new_strlit("/fluent-bit/tail")@),
-                ])
-                .set_ports(seq![
+                ]),
+                ports: Some(seq![
                     ContainerPortView::default()
                         .set_name(new_strlit("metrics")@)
                         .set_container_port(2020),
-                ])
-                .set_resources(fluentbit.spec.resources)
-        ])
+                ]),
+                resources: fluentbit.spec.resources,
+                ..ContainerView::default()
+            }
+        ],
+        tolerations: fluentbit.spec.tolerations,
+        ..PodSpecView::default()
+    }
 }
 
 }

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
-    api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*,
-    resource::*,
+    affinity::*, api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*,
+    owner_reference::*, resource::*, resource_requirements::*, stateful_set::*, toleration::*,
 };
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -110,13 +110,22 @@ impl ResourceView for RabbitmqClusterView {
 
     open spec fn transition_rule(new_obj: RabbitmqClusterView, old_obj: RabbitmqClusterView) -> bool {
         new_obj.spec.replicas >= old_obj.spec.replicas
+        && new_obj.spec.persistence.storage == old_obj.spec.persistence.storage
+        && new_obj.spec.persistence.storage_class_name == old_obj.spec.persistence.storage_class_name
     }
 
 }
 
 pub struct RabbitmqClusterSpecView {
     pub replicas: int,
+    pub image: StringView,
+    pub persistence: RabbitmqClusterPersistenceSpecView,
     pub rabbitmq_config: Option<RabbitmqConfigView>,
+    pub affinity: Option<AffinityView>,
+    pub tolerations: Option<Seq<TolerationView>>,
+    pub resources: Option<ResourceRequirementsView>,
+    pub pod_management_policy: Option<StringView>,
+    pub persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicyView>,
 }
 
 impl RabbitmqClusterSpecView {}
@@ -139,5 +148,9 @@ pub struct RabbitmqConfigView {
     pub env_config: Option<StringView>,
 }
 
+pub struct RabbitmqClusterPersistenceSpecView {
+    pub storage_class_name: Option<StringView>,
+    pub storage: StringView,
+}
 
 }

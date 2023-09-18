@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+pub mod affinity;
 pub mod api_method;
 pub mod api_resource;
 pub mod cluster_role;
@@ -25,4 +26,5 @@ pub mod secret;
 pub mod service;
 pub mod service_account;
 pub mod stateful_set;
+pub mod toleration;
 pub mod volume;

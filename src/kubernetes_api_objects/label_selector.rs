@@ -29,9 +29,9 @@ impl LabelSelector {
     pub spec fn view(&self) -> LabelSelectorView;
 
     #[verifier(external_body)]
-    pub fn default() -> (object_meta: LabelSelector)
+    pub fn default() -> (label_selector: LabelSelector)
         ensures
-            object_meta@ == LabelSelectorView::default(),
+            label_selector@ == LabelSelectorView::default(),
     {
         LabelSelector {
             inner: deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector::default(),

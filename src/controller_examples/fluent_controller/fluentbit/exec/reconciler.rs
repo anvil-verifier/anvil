@@ -10,7 +10,7 @@ use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, container::*, daemon_set::*, label_selector::*,
     object_meta::*, owner_reference::*, persistent_volume_claim::*, pod::*, pod_template_spec::*,
     resource::*, resource_requirements::*, role::*, role_binding::*, secret::*, service::*,
-    service_account::*, volume::*,
+    service_account::*, toleration::*, volume::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
@@ -484,7 +484,7 @@ fn make_fluentbit_pod_spec(fluentbit: &FluentBit) -> (pod_spec: PodSpec)
                 }
                 ports
             });
-            fluentbit_container.set_resources(fluentbit.spec().resources());
+            fluentbit_container.overwrite_resources(fluentbit.spec().resources());
             fluentbit_container
         });
         proof {
@@ -555,7 +555,7 @@ fn make_fluentbit_pod_spec(fluentbit: &FluentBit) -> (pod_spec: PodSpec)
         }
         volumes
     });
-    pod_spec.set_tolerations(make_tolerations(&fluentbit));
+    pod_spec.overwrite_tolerations(fluentbit.spec().tolerations());
     pod_spec
 }
 
@@ -593,20 +593,6 @@ fn make_env(fluentbit: &FluentBit) -> Vec<EnvVar> {
         )
     );
     env_vars
-}
-
-#[verifier(external_body)]
-fn make_tolerations(fluentbit: &FluentBit) -> Vec<Toleration> {
-    let mut tolerations = Vec::new();
-    tolerations.push(
-        Toleration::from_kube(
-            deps_hack::k8s_openapi::api::core::v1::Toleration {
-                operator: Some("Exists".to_string()),
-                ..deps_hack::k8s_openapi::api::core::v1::Toleration::default()
-            }
-        )
-    );
-    tolerations
 }
 
 }

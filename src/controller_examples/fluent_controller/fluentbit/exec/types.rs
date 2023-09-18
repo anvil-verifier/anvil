@@ -4,7 +4,7 @@ use crate::fluent_controller::fluentbit::spec::types::*;
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*,
-    resource::*, resource_requirements::*,
+    resource::*, resource_requirements::*, toleration::*,
 };
 use crate::pervasive_ext::string_view::*;
 use deps_hack::kube::Resource;
@@ -119,11 +119,27 @@ impl FluentBitSpec {
     }
 
     #[verifier(external_body)]
-    pub fn resources(&self) -> (resources: ResourceRequirements)
+    pub fn resources(&self) -> (resources: Option<ResourceRequirements>)
         ensures
-            resources@ == self@.resources,
+            self@.resources.is_Some() == resources.is_Some(),
+            resources.is_Some() ==> resources.get_Some_0()@ == self@.resources.get_Some_0(),
     {
-        ResourceRequirements::from_kube(self.inner.resources.clone())
+        match &self.inner.resources {
+            Some(r) => Some(ResourceRequirements::from_kube(r.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn tolerations(&self) -> (tolerations: Option<Vec<Toleration>>)
+        ensures
+            self@.tolerations.is_Some() == tolerations.is_Some(),
+            tolerations.is_Some() ==> tolerations.get_Some_0()@.map_values(|t: Toleration| t@) == self@.tolerations.get_Some_0(),
+    {
+        match &self.inner.tolerations {
+            Some(tols) => Some(tols.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::Toleration| Toleration::from_kube(t)).collect()),
+            None => None,
+        }
     }
 }
 

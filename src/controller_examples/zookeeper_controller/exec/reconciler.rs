@@ -7,8 +7,7 @@ use crate::kubernetes_api_objects::{
     object_meta::*, owner_reference::*, persistent_volume_claim::*, pod::*, pod_template_spec::*,
     resource::*, resource_requirements::*, service::*, stateful_set::*, volume::*,
 };
-use crate::pervasive_ext::string_map::StringMap;
-use crate::pervasive_ext::{string_view::*, to_view::*};
+use crate::pervasive_ext::{string_map::*, string_view::*, to_view::*};
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::exec::{types::*, zookeeper_api::*};
@@ -114,65 +113,317 @@ pub fn reconcile_core(
     let step = state.reconcile_step;
     match step {
         ZookeeperReconcileStep::Init => {
-            let headless_service = make_headless_service(&zk);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+            let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                 api_resource: Service::api_resource(),
+                name: make_headless_service_name(zk),
                 namespace: zk.metadata().namespace().unwrap(),
-                obj: headless_service.to_dynamic_object(),
             });
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterCreateHeadlessService,
+                reconcile_step: ZookeeperReconcileStep::AfterGetHeadlessService,
                 ..state
             };
             return (state_prime, Some(Request::KRequest(req_o)));
+        },
+        ZookeeperReconcileStep::AfterGetHeadlessService => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                let get_headless_service_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_headless_service_resp.is_ok() {
+                    let unmarshal_headless_service_result = Service::from_dynamic_object(get_headless_service_resp.unwrap());
+                    if unmarshal_headless_service_result.is_ok() {
+                        // Update the headless service with the new port.
+                        let found_headless_service = unmarshal_headless_service_result.unwrap();
+                        if found_headless_service.spec().is_some() {
+                            let new_headless_service = update_headless_service(zk, &found_headless_service);
+                            let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                                api_resource: Service::api_resource(),
+                                name: make_headless_service_name(zk),
+                                namespace: zk.metadata().namespace().unwrap(),
+                                obj: new_headless_service.to_dynamic_object(),
+                            });
+                            let state_prime = ZookeeperReconcileState {
+                                reconcile_step: ZookeeperReconcileStep::AfterUpdateHeadlessService,
+                                ..state
+                            };
+                            return (state_prime, Some(Request::KRequest(req_o)));
+                        }
+                    }
+                } else if get_headless_service_resp.unwrap_err().is_object_not_found() {
+                    // Create the headless service since it doesn't exist yet.
+                    let headless_service = make_headless_service(zk);
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: Service::api_resource(),
+                        namespace: zk.metadata().namespace().unwrap(),
+                        obj: headless_service.to_dynamic_object(),
+                    });
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterCreateHeadlessService,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
         },
         ZookeeperReconcileStep::AfterCreateHeadlessService => {
-            let client_service = make_client_service(zk);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: Service::api_resource(),
-                namespace: zk.metadata().namespace().unwrap(),
-                obj: client_service.to_dynamic_object(),
-            });
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response() {
+                let create_headless_service_resp = resp_o.unwrap().into_k_response().into_create_response().res;
+                if create_headless_service_resp.is_ok() {
+                    let unmarshal_headless_service_result = Service::from_dynamic_object(create_headless_service_resp.unwrap());
+                    if unmarshal_headless_service_result.is_ok() {
+                        let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                            api_resource: Service::api_resource(),
+                            name: make_client_service_name(zk),
+                            namespace: zk.metadata().namespace().unwrap(),
+                        });
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterGetClientService,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                }
+            }
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterCreateClientService,
+                reconcile_step: ZookeeperReconcileStep::Error,
                 ..state
             };
-            return (state_prime, Some(Request::KRequest(req_o)));
+            return (state_prime, None);
+        },
+        ZookeeperReconcileStep::AfterUpdateHeadlessService => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response() {
+                let update_headless_service_resp = resp_o.unwrap().into_k_response().into_update_response().res;
+                if update_headless_service_resp.is_ok() {
+                    let unmarshal_headless_service_result = Service::from_dynamic_object(update_headless_service_resp.unwrap());
+                    if unmarshal_headless_service_result.is_ok() {
+                        let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                            api_resource: Service::api_resource(),
+                            name: make_client_service_name(zk),
+                            namespace: zk.metadata().namespace().unwrap(),
+                        });
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterGetClientService,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                }
+            }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
+        },
+        ZookeeperReconcileStep::AfterGetClientService => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                let get_client_service_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_client_service_resp.is_ok() {
+                    let unmarshal_client_service_result = Service::from_dynamic_object(get_client_service_resp.unwrap());
+                    if unmarshal_client_service_result.is_ok() {
+                        // Update the client service with the new port.
+                        let found_client_service = unmarshal_client_service_result.unwrap();
+                        if found_client_service.spec().is_some() {
+                            let new_client_service = update_client_service(zk, &found_client_service);
+                            let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                                api_resource: Service::api_resource(),
+                                name: make_client_service_name(zk),
+                                namespace: zk.metadata().namespace().unwrap(),
+                                obj: new_client_service.to_dynamic_object(),
+                            });
+                            let state_prime = ZookeeperReconcileState {
+                                reconcile_step: ZookeeperReconcileStep::AfterUpdateClientService,
+                                ..state
+                            };
+                            return (state_prime, Some(Request::KRequest(req_o)));
+                        }
+                    }
+                } else if get_client_service_resp.unwrap_err().is_object_not_found() {
+                    // Create the client service since it doesn't exist yet.
+                    let client_service = make_client_service(zk);
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: Service::api_resource(),
+                        namespace: zk.metadata().namespace().unwrap(),
+                        obj: client_service.to_dynamic_object(),
+                    });
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterCreateClientService,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
         },
         ZookeeperReconcileStep::AfterCreateClientService => {
-            let admin_server_service = make_admin_server_service(zk);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: Service::api_resource(),
-                namespace: zk.metadata().namespace().unwrap(),
-                obj: admin_server_service.to_dynamic_object(),
-            });
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response() {
+                let create_client_service_resp = resp_o.unwrap().into_k_response().into_create_response().res;
+                if create_client_service_resp.is_ok() {
+                    let unmarshal_client_service_result = Service::from_dynamic_object(create_client_service_resp.unwrap());
+                    if unmarshal_client_service_result.is_ok() {
+                        let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                            api_resource: Service::api_resource(),
+                            name: make_admin_server_service_name(zk),
+                            namespace: zk.metadata().namespace().unwrap(),
+                        });
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterGetAdminServerService,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                }
+            }
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterCreateAdminServerService,
+                reconcile_step: ZookeeperReconcileStep::Error,
                 ..state
             };
-            return (state_prime, Some(Request::KRequest(req_o)));
+            return (state_prime, None);
+        },
+        ZookeeperReconcileStep::AfterUpdateClientService => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response() {
+                let update_client_service_resp = resp_o.unwrap().into_k_response().into_update_response().res;
+                if update_client_service_resp.is_ok() {
+                    let unmarshal_client_service_result = Service::from_dynamic_object(update_client_service_resp.unwrap());
+                    if unmarshal_client_service_result.is_ok() {
+                        let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                            api_resource: Service::api_resource(),
+                            name: make_admin_server_service_name(zk),
+                            namespace: zk.metadata().namespace().unwrap(),
+                        });
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterGetAdminServerService,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                }
+            }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
+        },
+        ZookeeperReconcileStep::AfterGetAdminServerService => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                let get_admin_server_service_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_admin_server_service_resp.is_ok() {
+                    let unmarshal_admin_server_service_result = Service::from_dynamic_object(get_admin_server_service_resp.unwrap());
+                    if unmarshal_admin_server_service_result.is_ok() {
+                        // Update the admin_server service with the new port.
+                        let found_admin_server_service = unmarshal_admin_server_service_result.unwrap();
+                        if found_admin_server_service.spec().is_some() {
+                            let new_admin_server_service = update_admin_server_service(zk, &found_admin_server_service);
+                            let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                                api_resource: Service::api_resource(),
+                                name: make_admin_server_service_name(zk),
+                                namespace: zk.metadata().namespace().unwrap(),
+                                obj: new_admin_server_service.to_dynamic_object(),
+                            });
+                            let state_prime = ZookeeperReconcileState {
+                                reconcile_step: ZookeeperReconcileStep::AfterUpdateAdminServerService,
+                                ..state
+                            };
+                            return (state_prime, Some(Request::KRequest(req_o)));
+                        }
+                    }
+                } else if get_admin_server_service_resp.unwrap_err().is_object_not_found() {
+                    // Create the admin_server service since it doesn't exist yet.
+                    let admin_server_service = make_admin_server_service(zk);
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: Service::api_resource(),
+                        namespace: zk.metadata().namespace().unwrap(),
+                        obj: admin_server_service.to_dynamic_object(),
+                    });
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterCreateAdminServerService,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
         },
         ZookeeperReconcileStep::AfterCreateAdminServerService => {
-            let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
-                api_resource: ConfigMap::api_resource(),
-                name: make_config_map_name(zk),
-                namespace: zk.metadata().namespace().unwrap(),
-            });
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response() {
+                let create_admin_server_service_resp = resp_o.unwrap().into_k_response().into_create_response().res;
+                if create_admin_server_service_resp.is_ok() {
+                    let unmarshal_admin_server_service_result = Service::from_dynamic_object(create_admin_server_service_resp.unwrap());
+                    if unmarshal_admin_server_service_result.is_ok() {
+                        let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                            api_resource: ConfigMap::api_resource(),
+                            name: make_config_map_name(zk),
+                            namespace: zk.metadata().namespace().unwrap(),
+                        });
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterGetConfigMap,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                }
+            }
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterGetConfigMap,
+                reconcile_step: ZookeeperReconcileStep::Error,
                 ..state
             };
-            return (state_prime, Some(Request::KRequest(req_o)));
+            return (state_prime, None);
+        },
+        ZookeeperReconcileStep::AfterUpdateAdminServerService => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response() {
+                let update_admin_server_service_resp = resp_o.unwrap().into_k_response().into_update_response().res;
+                if update_admin_server_service_resp.is_ok() {
+                    let unmarshal_admin_server_service_result = Service::from_dynamic_object(update_admin_server_service_resp.unwrap());
+                    if unmarshal_admin_server_service_result.is_ok() {
+                        let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                            api_resource: ConfigMap::api_resource(),
+                            name: make_config_map_name(zk),
+                            namespace: zk.metadata().namespace().unwrap(),
+                        });
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterGetConfigMap,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                }
+            }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
         },
         ZookeeperReconcileStep::AfterGetConfigMap => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
-                let get_cm_resp = resp_o.unwrap().into_k_response().into_get_response().res;
-                if get_cm_resp.is_ok() {
-                    let get_cm_result = ConfigMap::from_dynamic_object(get_cm_resp.unwrap());
-                    if get_cm_result.is_ok() {
+                let get_config_map_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_config_map_resp.is_ok() {
+                    let unmarshal_config_map_result = ConfigMap::from_dynamic_object(get_config_map_resp.unwrap());
+                    if unmarshal_config_map_result.is_ok() {
                         // Update the config map with the new configuration data
-                        let found_config_map = get_cm_result.unwrap();
+                        let found_config_map = unmarshal_config_map_result.unwrap();
                         let new_config_map = update_config_map(zk, &found_config_map);
                         let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                             api_resource: ConfigMap::api_resource(),
@@ -186,7 +437,7 @@ pub fn reconcile_core(
                         };
                         return (state_prime, Some(Request::KRequest(req_o)));
                     }
-                } else if get_cm_resp.unwrap_err().is_object_not_found() {
+                } else if get_config_map_resp.unwrap_err().is_object_not_found() {
                     // Create the config map since it doesn't exist yet.
                     let config_map = make_config_map(zk);
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
@@ -210,11 +461,11 @@ pub fn reconcile_core(
         ZookeeperReconcileStep::AfterCreateConfigMap => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response() {
-                let create_cm_resp = resp_o.unwrap().into_k_response().into_create_response().res;
-                if create_cm_resp.is_ok() {
-                    let create_cm_result = ConfigMap::from_dynamic_object(create_cm_resp.unwrap());
-                    if create_cm_result.is_ok() {
-                        let latest_config_map = create_cm_result.unwrap();
+                let create_config_map_resp = resp_o.unwrap().into_k_response().into_create_response().res;
+                if create_config_map_resp.is_ok() {
+                    let unmarshal_config_map_result = ConfigMap::from_dynamic_object(create_config_map_resp.unwrap());
+                    if unmarshal_config_map_result.is_ok() {
+                        let latest_config_map = unmarshal_config_map_result.unwrap();
                         if latest_config_map.metadata().resource_version().is_some() {
                             let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                                 api_resource: StatefulSet::api_resource(),
@@ -240,11 +491,11 @@ pub fn reconcile_core(
         ZookeeperReconcileStep::AfterUpdateConfigMap => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response() {
-                let update_cm_resp = resp_o.unwrap().into_k_response().into_update_response().res;
-                if update_cm_resp.is_ok() {
-                    let update_cm_result = ConfigMap::from_dynamic_object(update_cm_resp.unwrap());
-                    if update_cm_result.is_ok() {
-                        let latest_config_map = update_cm_result.unwrap();
+                let update_config_map_resp = resp_o.unwrap().into_k_response().into_update_response().res;
+                if update_config_map_resp.is_ok() {
+                    let unmarshal_config_map_result = ConfigMap::from_dynamic_object(update_config_map_resp.unwrap());
+                    if unmarshal_config_map_result.is_ok() {
+                        let latest_config_map = unmarshal_config_map_result.unwrap();
                         if latest_config_map.metadata().resource_version().is_some() {
                             let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                                 api_resource: StatefulSet::api_resource(),
@@ -270,11 +521,11 @@ pub fn reconcile_core(
         ZookeeperReconcileStep::AfterGetStatefulSet => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
-                let get_sts_resp = resp_o.unwrap().into_k_response().into_get_response().res;
-                if get_sts_resp.is_ok() {
-                    let get_sts_result = StatefulSet::from_dynamic_object(get_sts_resp.unwrap());
-                    if get_sts_result.is_ok() {
-                        let found_stateful_set = get_sts_result.unwrap();
+                let get_stateful_set_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_stateful_set_resp.is_ok() {
+                    let unmarshal_stateful_set_result = StatefulSet::from_dynamic_object(get_stateful_set_resp.unwrap());
+                    if unmarshal_stateful_set_result.is_ok() {
+                        let found_stateful_set = unmarshal_stateful_set_result.unwrap();
                         // Updating the stateful set can lead to downscale,
                         // which also requires to remove the zookeeper replica from the membership list explicitly.
                         // If the zookeeper replica is deleted without being removed from the membership,
@@ -292,11 +543,11 @@ pub fn reconcile_core(
                         };
                         let node_path = zk_node_path(zk);
                         let ext_req = ZKAPIInput::ExistsRequest(
-                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), node_path
+                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().ports().client(), node_path
                         );
                         return (state_prime, Some(Request::ExternalRequest(ext_req)));
                     }
-                } else if get_sts_resp.unwrap_err().is_object_not_found() && state.latest_config_map_rv_opt.is_some() {
+                } else if get_stateful_set_resp.unwrap_err().is_object_not_found() && state.latest_config_map_rv_opt.is_some() {
                     // Create the stateful set since it doesn't exist yet.
                     let stateful_set = make_stateful_set(zk, state.latest_config_map_rv_opt.as_ref().unwrap());
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
@@ -328,7 +579,7 @@ pub fn reconcile_core(
                         let node_path = zk_node_path(zk);
                         let data = zk_node_data(zk);
                         let ext_req = ZKAPIInput::SetDataRequest(
-                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), node_path, data, version
+                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().ports().client(), node_path, data, version
                         );
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::AfterUpdateZKNode,
@@ -339,7 +590,7 @@ pub fn reconcile_core(
                         let node_path = zk_parent_node_path(zk);
                         let data = new_strlit("").to_string();
                         let ext_req = ZKAPIInput::CreateRequest(
-                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), node_path, data
+                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().ports().client(), node_path, data
                         );
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::AfterCreateZKParentNode,
@@ -363,7 +614,7 @@ pub fn reconcile_core(
                     let node_path = zk_node_path(zk);
                     let data = zk_node_data(zk);
                     let ext_req = ZKAPIInput::CreateRequest(
-                        zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), node_path, data
+                        zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().ports().client(), node_path, data
                     );
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::AfterCreateZKNode,
@@ -439,15 +690,43 @@ pub fn reconcile_core(
             }
         },
         ZookeeperReconcileStep::AfterCreateStatefulSet => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response() {
+                let create_stateful_set_resp = resp_o.unwrap().into_k_response().into_create_response().res;
+                if create_stateful_set_resp.is_ok() {
+                    let unmarshal_stateful_set_result = StatefulSet::from_dynamic_object(create_stateful_set_resp.unwrap());
+                    if unmarshal_stateful_set_result.is_ok() {
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::Done,
+                            ..state
+                        };
+                        return (state_prime, None);
+                    }
+                }
+            }
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::Done,
+                reconcile_step: ZookeeperReconcileStep::Error,
                 ..state
             };
             return (state_prime, None);
         },
         ZookeeperReconcileStep::AfterUpdateStatefulSet => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response() {
+                let update_stateful_set_resp = resp_o.unwrap().into_k_response().into_update_response().res;
+                if update_stateful_set_resp.is_ok() {
+                    let unmarshal_stateful_set_result = StatefulSet::from_dynamic_object(update_stateful_set_resp.unwrap());
+                    if unmarshal_stateful_set_result.is_ok() {
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::Done,
+                            ..state
+                        };
+                        return (state_prime, None);
+                    }
+                }
+            }
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::Done,
+                reconcile_step: ZookeeperReconcileStep::Error,
                 ..state
             };
             return (state_prime, None);
@@ -500,6 +779,50 @@ fn zk_node_data(zk: &ZookeeperCluster) -> (data: String)
     new_strlit("CLUSTER_SIZE=").to_string().concat(i32_to_string(zk.spec().replicas()).as_str())
 }
 
+fn make_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
+    requires
+        zk@.well_formed(),
+    ensures
+        labels@ == zk_spec::make_labels(zk@),
+{
+    let mut labels = StringMap::empty();
+    labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
+    labels.extend(zk.spec().labels());
+    labels
+}
+
+fn make_headless_service_name(zk: &ZookeeperCluster) -> (name: String)
+    requires
+        zk@.well_formed(),
+    ensures
+        name@ == zk_spec::make_headless_service_name(zk@.metadata.name.get_Some_0()),
+{
+    zk.metadata().name().unwrap().concat(new_strlit("-headless"))
+}
+
+fn update_headless_service(zk: &ZookeeperCluster, found_headless_service: &Service) -> (headless_service: Service)
+    requires
+        zk@.well_formed(),
+        found_headless_service@.spec.is_Some(),
+    ensures
+        headless_service@ == zk_spec::update_headless_service(zk@, found_headless_service@),
+{
+    let mut headless_service = found_headless_service.clone();
+    let made_headless_service = make_headless_service(zk);
+    headless_service.set_metadata({
+        let mut metadata = found_headless_service.metadata();
+        metadata.set_labels(made_headless_service.metadata().labels().unwrap());
+        metadata.set_annotations(made_headless_service.metadata().annotations().unwrap());
+        metadata
+    });
+    headless_service.set_spec({
+        let mut spec = found_headless_service.spec().unwrap();
+        spec.set_ports(made_headless_service.spec().unwrap().ports().unwrap());
+        spec
+    });
+    headless_service
+}
+
 /// Headless Service is used to assign DNS entry to each zookeeper server Pod
 fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
@@ -509,11 +832,11 @@ fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
 {
     let mut ports = Vec::new();
 
-    ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), 2181));
-    ports.push(ServicePort::new_with(new_strlit("tcp-quorum").to_string(), 2888));
-    ports.push(ServicePort::new_with(new_strlit("tcp-leader-election").to_string(), 3888));
-    ports.push(ServicePort::new_with(new_strlit("tcp-metrics").to_string(), 7000));
-    ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), 8080));
+    ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), zk.spec().ports().client()));
+    ports.push(ServicePort::new_with(new_strlit("tcp-quorum").to_string(), zk.spec().ports().quorum()));
+    ports.push(ServicePort::new_with(new_strlit("tcp-leader-election").to_string(), zk.spec().ports().leader_election()));
+    ports.push(ServicePort::new_with(new_strlit("tcp-metrics").to_string(), zk.spec().ports().metrics()));
+    ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), zk.spec().ports().admin_server()));
 
     proof {
         assert_seqs_equal!(
@@ -522,7 +845,39 @@ fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
         );
     }
 
-    make_service(zk, zk.metadata().name().unwrap().concat(new_strlit("-headless")), ports, false)
+    make_service(zk, make_headless_service_name(zk), ports, false)
+}
+
+fn make_client_service_name(zk: &ZookeeperCluster) -> (name: String)
+    requires
+        zk@.well_formed(),
+    ensures
+        name@ == zk_spec::make_client_service_name(zk@.metadata.name.get_Some_0()),
+{
+    zk.metadata().name().unwrap().concat(new_strlit("-client"))
+}
+
+fn update_client_service(zk: &ZookeeperCluster, found_client_service: &Service) -> (client_service: Service)
+    requires
+        zk@.well_formed(),
+        found_client_service@.spec.is_Some(),
+    ensures
+        client_service@ == zk_spec::update_client_service(zk@, found_client_service@),
+{
+    let mut client_service = found_client_service.clone();
+    let made_client_service = make_client_service(zk);
+    client_service.set_metadata({
+        let mut metadata = found_client_service.metadata();
+        metadata.set_labels(made_client_service.metadata().labels().unwrap());
+        metadata.set_annotations(made_client_service.metadata().annotations().unwrap());
+        metadata
+    });
+    client_service.set_spec({
+        let mut spec = found_client_service.spec().unwrap();
+        spec.set_ports(made_client_service.spec().unwrap().ports().unwrap());
+        spec
+    });
+    client_service
 }
 
 /// Client Service is used for any client to connect to the zookeeper server
@@ -534,7 +889,7 @@ fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
 {
     let mut ports = Vec::new();
 
-    ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), 2181));
+    ports.push(ServicePort::new_with(new_strlit("tcp-client").to_string(), zk.spec().ports().client()));
 
     proof {
         assert_seqs_equal!(
@@ -543,7 +898,39 @@ fn make_client_service(zk: &ZookeeperCluster) -> (service: Service)
         );
     }
 
-    make_service(zk, zk.metadata().name().unwrap().concat(new_strlit("-client")), ports, true)
+    make_service(zk, make_client_service_name(zk), ports, true)
+}
+
+fn make_admin_server_service_name(zk: &ZookeeperCluster) -> (name: String)
+    requires
+        zk@.well_formed(),
+    ensures
+        name@ == zk_spec::make_admin_server_service_name(zk@.metadata.name.get_Some_0()),
+{
+    zk.metadata().name().unwrap().concat(new_strlit("-admin-server"))
+}
+
+fn update_admin_server_service(zk: &ZookeeperCluster, found_admin_server_service: &Service) -> (admin_server_service: Service)
+    requires
+        zk@.well_formed(),
+        found_admin_server_service@.spec.is_Some(),
+    ensures
+        admin_server_service@ == zk_spec::update_admin_server_service(zk@, found_admin_server_service@),
+{
+    let mut admin_server_service = found_admin_server_service.clone();
+    let made_admin_server_service = make_admin_server_service(zk);
+    admin_server_service.set_metadata({
+        let mut metadata = found_admin_server_service.metadata();
+        metadata.set_labels(made_admin_server_service.metadata().labels().unwrap());
+        metadata.set_annotations(made_admin_server_service.metadata().annotations().unwrap());
+        metadata
+    });
+    admin_server_service.set_spec({
+        let mut spec = found_admin_server_service.spec().unwrap();
+        spec.set_ports(made_admin_server_service.spec().unwrap().ports().unwrap());
+        spec
+    });
+    admin_server_service
 }
 
 /// Admin-server Service is used for client to connect to admin server
@@ -555,7 +942,7 @@ fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
 {
     let mut ports = Vec::new();
 
-    ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), 8080));
+    ports.push(ServicePort::new_with(new_strlit("tcp-admin-server").to_string(), zk.spec().ports().admin_server()));
 
     proof {
         assert_seqs_equal!(
@@ -564,7 +951,7 @@ fn make_admin_server_service(zk: &ZookeeperCluster) -> (service: Service)
         );
     }
 
-    make_service(zk, zk.metadata().name().unwrap().concat(new_strlit("-admin-server")), ports, true)
+    make_service(zk, make_admin_server_service_name(zk), ports, true)
 }
 
 /// make_service constructs the Service object given the name, ports and cluster_ip
@@ -578,11 +965,8 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
     service.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(name);
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(zk));
+        metadata.set_annotations(zk.spec().annotations());
         metadata.set_owner_references({
             let mut owner_references = Vec::new();
             owner_references.push(zk.controller_owner_ref());
@@ -633,6 +1017,7 @@ fn update_config_map(zk: &ZookeeperCluster, found_config_map: &ConfigMap) -> (co
     config_map.set_metadata({
         let mut metadata = found_config_map.metadata();
         metadata.set_labels(made_config_map.metadata().labels().unwrap());
+        metadata.set_annotations(made_config_map.metadata().annotations().unwrap());
         metadata
     });
     config_map.set_data(made_config_map.data().unwrap());
@@ -651,11 +1036,8 @@ fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
     config_map.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_config_map_name(zk));
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(zk));
+        metadata.set_annotations(zk.spec().annotations());
         metadata.set_owner_references({
             let mut owner_references = Vec::new();
             owner_references.push(zk.controller_owner_ref());
@@ -692,9 +1074,9 @@ fn make_zk_config(zk: &ZookeeperCluster) -> (s: String)
         reconfigEnabled=true\n\
         skipACL=yes\n\
         metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider\n\
-        metricsProvider.httpPort=7000\n\
+        metricsProvider.httpPort=").to_string().concat(i32_to_string(zk.spec().ports().metrics()).as_str()).concat(new_strlit("\n\
         metricsProvider.exportJvmInfo=true\n\
-        initLimit=").to_string().concat(i32_to_string(zk.spec().conf().init_limit()).as_str()).concat(new_strlit("\n\
+        initLimit=")).concat(i32_to_string(zk.spec().conf().init_limit()).as_str()).concat(new_strlit("\n\
         syncLimit=")).concat(i32_to_string(zk.spec().conf().sync_limit()).as_str()).concat(new_strlit("\n\
         tickTime=")).concat(i32_to_string(zk.spec().conf().tick_time()).as_str()).concat(new_strlit("\n\
         globalOutstandingLimit=")).concat(i32_to_string(zk.spec().conf().global_outstanding_limit()).as_str()).concat(new_strlit("\n\
@@ -709,7 +1091,7 @@ fn make_zk_config(zk: &ZookeeperCluster) -> (s: String)
         autopurge.snapRetainCount=")).concat(i32_to_string(zk.spec().conf().auto_purge_snap_retain_count()).as_str()).concat(new_strlit("\n\
         autopurge.purgeInterval=")).concat(i32_to_string(zk.spec().conf().auto_purge_purge_interval()).as_str()).concat(new_strlit("\n\
         quorumListenOnAllIPs=")).concat(bool_to_string(zk.spec().conf().quorum_listen_on_all_ips()).as_str()).concat(new_strlit("\n\
-        admin.serverPort=8080\n\
+        admin.serverPort=")).concat(i32_to_string(zk.spec().ports().admin_server()).as_str()).concat(new_strlit("\n\
         dynamicConfigFile=/data/zoo.cfg.dynamic\n"
     ))
 }
@@ -750,19 +1132,22 @@ fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
 {
     let name = zk.metadata().name().unwrap();
     let namespace = zk.metadata().namespace().unwrap();
+    let client_port = i32_to_string(zk.spec().ports().client());
+    let quorum_port = i32_to_string(zk.spec().ports().quorum());
+    let leader_election_port = i32_to_string(zk.spec().ports().leader_election());
+    let admin_server_port = i32_to_string(zk.spec().ports().admin_server());
 
     new_strlit(
         "#!/usr/bin/env bash\n\n\
         DOMAIN=").to_string().concat(name.as_str()).concat(new_strlit("-headless.")).concat(namespace.as_str())
             .concat(new_strlit(".svc.cluster.local\n\
-        QUORUM_PORT=2888\n\
-        LEADER_PORT=3888\n\
+        QUORUM_PORT=")).concat(quorum_port.as_str()).concat(new_strlit("\n\
+        LEADER_PORT=")).concat(leader_election_port.as_str()).concat(new_strlit("\n\
         CLIENT_HOST=")).concat(name.as_str()).concat(new_strlit("-client\n\
-        CLIENT_PORT=2181\n\
+        CLIENT_PORT=")).concat(client_port.as_str()).concat(new_strlit("\n\
         ADMIN_SERVER_HOST=")).concat(name.as_str()).concat(new_strlit("-admin-server\n\
-        ADMIN_SERVER_PORT=8080\n\
-        CLUSTER_NAME=")).concat(name.as_str()).concat(new_strlit("\n\
-        CLUSTER_SIZE=")).concat(i32_to_string(zk.spec().replicas()).as_str()).concat(new_strlit("\n"))
+        ADMIN_SERVER_PORT=")).concat(admin_server_port.as_str()).concat(new_strlit("\n\
+        CLUSTER_NAME=")).concat(name.as_str()).concat(new_strlit("\n"))
 }
 
 fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
@@ -785,6 +1170,7 @@ fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulSet, 
     stateful_set.set_metadata({
         let mut metadata = found_stateful_set.metadata();
         metadata.set_labels(made_stateful_set.metadata().labels().unwrap());
+        metadata.set_annotations(made_stateful_set.metadata().annotations().unwrap());
         metadata
     });
     stateful_set.set_spec(made_stateful_set.spec().unwrap());
@@ -803,11 +1189,8 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
     stateful_set.set_metadata({
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_stateful_set_name(zk));
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(zk));
+        metadata.set_annotations(zk.spec().annotations());
         metadata.set_owner_references({
             let mut owner_references = Vec::new();
             owner_references.push(zk.controller_owner_ref());
@@ -830,11 +1213,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
         // Set the selector used for querying pods of this stateful set
         stateful_set_spec.set_selector({
             let mut selector = LabelSelector::default();
-            selector.set_match_labels({
-                let mut match_labels = StringMap::empty();
-                match_labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-                match_labels
-            });
+            selector.set_match_labels(make_labels(zk));
             selector
         });
         stateful_set_spec.set_pvc_retention_policy({
@@ -849,14 +1228,9 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
             pod_template_spec.set_metadata({
                 let mut metadata = ObjectMeta::default();
                 metadata.set_generate_name(zk.metadata().name().unwrap());
-                metadata.set_labels({
-                    let mut labels = StringMap::empty();
-                    labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-                    labels.insert(new_strlit("kind").to_string(), new_strlit("ZookeeperMember").to_string());
-                    labels
-                });
+                metadata.set_labels(make_labels(zk));
                 metadata.set_annotations({
-                    let mut annotations = StringMap::empty();
+                    let mut annotations = zk.spec().annotations();
                     annotations.insert(new_strlit("config").to_string(), rv.clone());
                     annotations
                 });
@@ -867,58 +1241,63 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
         });
         // Set the templates used for creating the persistent volume claims attached to each pod
         stateful_set_spec.set_volume_claim_templates({
-            let mut volume_claim_templates = Vec::new();
-            volume_claim_templates.push({
-                let mut pvc = PersistentVolumeClaim::default();
-                pvc.set_metadata({
-                    let mut metadata = ObjectMeta::default();
-                    metadata.set_name(new_strlit("data").to_string());
-                    metadata.set_labels({
-                        let mut labels = StringMap::empty();
-                        labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-                        labels
+            if zk.spec().persistence().enabled() {
+                let mut volume_claim_templates = Vec::new();
+                volume_claim_templates.push({
+                    let mut pvc = PersistentVolumeClaim::default();
+                    pvc.set_metadata({
+                        let mut metadata = ObjectMeta::default();
+                        metadata.set_name(new_strlit("data").to_string());
+                        metadata.set_labels(make_labels(zk));
+                        metadata.set_annotations(zk.spec().annotations());
+                        metadata
                     });
-                    metadata
-                });
-                pvc.set_spec({
-                    let mut pvc_spec = PersistentVolumeClaimSpec::default();
-                    pvc_spec.set_access_modes({
-                        let mut access_modes = Vec::new();
-                        access_modes.push(new_strlit("ReadWriteOnce").to_string());
-
-                        proof {
-                            assert_seqs_equal!(
-                                access_modes@.map_values(|mode: String| mode@),
-                                zk_spec::make_stateful_set(zk@, rv@)
-                                    .spec.get_Some_0().volume_claim_templates.get_Some_0()[0]
-                                    .spec.get_Some_0().access_modes.get_Some_0()
-                            );
-                        }
-
-                        access_modes
-                    });
-                    pvc_spec.set_resources({
-                        let mut resources = ResourceRequirements::default();
-                        resources.set_requests({
-                            let mut requests = StringMap::empty();
-                            requests.insert(new_strlit("storage").to_string(), new_strlit("20Gi").to_string());
-                            requests
+                    pvc.set_spec({
+                        let mut pvc_spec = PersistentVolumeClaimSpec::default();
+                        pvc_spec.set_access_modes({
+                            let mut access_modes = Vec::new();
+                            access_modes.push(new_strlit("ReadWriteOnce").to_string());
+                            proof {
+                                assert_seqs_equal!(
+                                    access_modes@.map_values(|mode: String| mode@),
+                                    zk_spec::make_stateful_set(zk@, rv@)
+                                        .spec.get_Some_0().volume_claim_templates.get_Some_0()[0]
+                                        .spec.get_Some_0().access_modes.get_Some_0()
+                                );
+                            }
+                            access_modes
                         });
-                        resources
+                        pvc_spec.set_resources({
+                            let mut resources = ResourceRequirements::default();
+                            resources.set_requests({
+                                let mut requests = StringMap::empty();
+                                requests.insert(new_strlit("storage").to_string(), zk.spec().persistence().storage_size());
+                                requests
+                            });
+                            resources
+                        });
+                        pvc_spec.overwrite_storage_class_name(zk.spec().persistence().storage_class_name());
+                        pvc_spec
                     });
-                    pvc_spec
+                    pvc
                 });
-                pvc
-            });
-
-            proof {
-                assert_seqs_equal!(
-                    volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
-                    zk_spec::make_stateful_set(zk@, rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
-                );
+                proof {
+                    assert_seqs_equal!(
+                        volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
+                        zk_spec::make_stateful_set(zk@, rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+                    );
+                }
+                volume_claim_templates
+            } else {
+                let empty_templates = Vec::<PersistentVolumeClaim>::new();
+                proof {
+                    assert_seqs_equal!(
+                        empty_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
+                        zk_spec::make_stateful_set(zk@, rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+                    );
+                }
+                empty_templates
             }
-
-            volume_claim_templates
         });
         stateful_set_spec
     });
@@ -933,6 +1312,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
 {
     let mut pod_spec = PodSpec::default();
 
+    pod_spec.overwrite_affinity(zk.spec().affinity());
     pod_spec.set_containers({
         let mut containers = Vec::new();
         containers.push({
@@ -970,7 +1350,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                 lifecycle
             });
             zk_container.set_image_pull_policy(new_strlit("Always").to_string());
-            zk_container.set_resources(zk.spec().resources());
+            zk_container.overwrite_resources(zk.spec().resources());
             zk_container.set_volume_mounts({
                 let mut volume_mounts = Vec::new();
                 volume_mounts.push({
@@ -997,11 +1377,11 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
             });
             zk_container.set_ports({
                 let mut ports = Vec::new();
-                ports.push(ContainerPort::new_with(new_strlit("client").to_string(), 2181));
-                ports.push(ContainerPort::new_with(new_strlit("quorum").to_string(), 2888));
-                ports.push(ContainerPort::new_with(new_strlit("leader-election").to_string(), 3888));
-                ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), 7000));
-                ports.push(ContainerPort::new_with(new_strlit("admin-server").to_string(), 8080));
+                ports.push(ContainerPort::new_with(new_strlit("client").to_string(), zk.spec().ports().client()));
+                ports.push(ContainerPort::new_with(new_strlit("quorum").to_string(), zk.spec().ports().quorum()));
+                ports.push(ContainerPort::new_with(new_strlit("leader-election").to_string(), zk.spec().ports().leader_election()));
+                ports.push(ContainerPort::new_with(new_strlit("metrics").to_string(), zk.spec().ports().metrics()));
+                ports.push(ContainerPort::new_with(new_strlit("admin-server").to_string(), zk.spec().ports().admin_server()));
 
                 proof {
                     assert_seqs_equal!(
@@ -1088,6 +1468,14 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
             });
             volume
         });
+        if !zk.spec().persistence().enabled() {
+            volumes.push({
+                let mut volume = Volume::default();
+                volume.set_name(new_strlit("data").to_string());
+                volume.set_empty_dir();
+                volume
+            });
+        }
 
         proof {
             assert_seqs_equal!(
@@ -1098,6 +1486,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
 
         volumes
     });
+    pod_spec.overwrite_tolerations(zk.spec().tolerations());
 
     pod_spec
 }

@@ -1,14 +1,20 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
+use futures::{StreamExt, TryStreamExt};
 use kube::{
-    api::{Api, DeleteParams, DynamicObject, ListParams, Patch, PatchParams, ResourceExt},
+    api::{
+        Api, AttachedProcess, DeleteParams, DynamicObject, ListParams, Patch, PatchParams,
+        ResourceExt,
+    },
     core::crd::CustomResourceExt,
     core::GroupVersionKind,
     discovery::{ApiCapabilities, ApiResource, Discovery, Scope},
     Client, CustomResource,
 };
+use std::process::Command;
 use thiserror::Error;
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("Failed to get kube client: {0}")]
@@ -34,6 +40,9 @@ pub enum Error {
 
     #[error("Statefulset is not consistent with zookeeper cluster spec!")]
     ZookeeperStsFailed,
+
+    #[error("Failed to set/get data to/from the zookeeper cluster!")]
+    ZookeeperWorkloadFailed,
 
     #[error("Statefulset is not consistent with rabbitmq cluster spec!")]
     RabbitmqStsFailed,
@@ -95,4 +104,27 @@ fn dynamic_api(
     } else {
         Api::default_namespaced_with(client, &ar)
     }
+}
+
+pub async fn get_output_and_err(mut attached: AttachedProcess) -> (String, String) {
+    let stdout = tokio_util::io::ReaderStream::new(attached.stdout().unwrap());
+    let out = stdout
+        .filter_map(|r| async { r.ok().and_then(|v| String::from_utf8(v.to_vec()).ok()) })
+        .collect::<Vec<_>>()
+        .await
+        .join("");
+    let stderr = tokio_util::io::ReaderStream::new(attached.stderr().unwrap());
+    let err = stderr
+        .filter_map(|r| async { r.ok().and_then(|v| String::from_utf8(v.to_vec()).ok()) })
+        .collect::<Vec<_>>()
+        .await
+        .join("");
+    attached.join().await.unwrap();
+    (out, err)
+}
+
+pub fn run_command(program: &str, args: Vec<&str>, err_msg: &str) {
+    let cmd = Command::new(program).args(args).output().expect(err_msg);
+    println!("cmd output: {}", String::from_utf8_lossy(&cmd.stdout));
+    println!("cmd error: {}", String::from_utf8_lossy(&cmd.stderr));
 }

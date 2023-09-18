@@ -9,131 +9,66 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
-    app.kubernetes.io/component: operator
-    app.kubernetes.io/name: fluent-operator
-  name: fluent-operator
+    app.kubernetes.io/name: fluent-controller
+  name: fluent-controller
   namespace: fluent
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
-    app.kubernetes.io/component: controller
-    app.kubernetes.io/name: fluent-operator
-  name: fluent-operator
+    app.kubernetes.io/name: fluent-controller
+  name: fluent-controller-role
 rules:
   - apiGroups:
-      - apps
+      - anvil.dev
     resources:
-      - daemonsets
-      - statefulsets
+      - "*"
     verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
+      - "*"
   - apiGroups:
       - ""
     resources:
       - pods
-    verbs:
-      - get
-  - apiGroups:
-      - ""
-    resources:
-      - secrets
-      - configmaps
-      - serviceaccounts
-      - configmaps
       - services
-      - namespaces
+      - endpoints
+      - persistentvolumeclaims
+      - events
+      - configmaps
+      - secrets
+      - serviceaccounts
     verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
+      - "*"
   - apiGroups:
-      - fluentbit.fluent.io
+      - apps
     resources:
-      - collectors
-      - fluentbits
-      - clusterfluentbitconfigs
-      - clusterfilters
-      - clusterinputs
-      - clusteroutputs
-      - clusterparsers
-      - fluentbitconfigs
-      - filters
-      - outputs
-      - parsers
+      - deployments
+      - daemonsets
+      - replicasets
+      - statefulsets
     verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - fluentd.fluent.io
-    resources:
-      - fluentds
-      - fluentds/status
-      - clusterfluentdconfigs
-      - clusterfluentdconfigs/status
-      - fluentdconfigs
-      - fluentdconfigs/status
-      - clusterfilters
-      - filters
-      - clusteroutputs
-      - outputs
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
+      - "*"
   - apiGroups:
       - rbac.authorization.k8s.io
     resources:
+      - rolebindings
+      - roles
       - clusterrolebindings
-    verbs:
-      - create
-      - list
-      - get
-      - watch
-      - patch
-  - apiGroups:
-      - rbac.authorization.k8s.io
-    resources:
       - clusterroles
     verbs:
-      - create
-      - list
-      - get
-      - watch
-      - patch
+      - "*"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    app.kubernetes.io/component: controller
-    app.kubernetes.io/name: fluent-operator
-  name: fluent-operator
+    app.kubernetes.io/name: fluent-controller
+  name: fluent-controller-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: fluent-operator
+  name: fluent-controller-role
 subjects:
   - kind: ServiceAccount
-    name: fluent-operator
+    name: fluent-controller
     namespace: fluent

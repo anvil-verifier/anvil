@@ -11,3 +11,4 @@ reference-controllers/*-controller/target/
 e2e/target/
 /target
 /Cargo.lock
+src/liblib.rlib
