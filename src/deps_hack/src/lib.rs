@@ -48,6 +48,8 @@ pub struct ZookeeperClusterSpec {
     pub affinity: Option<k8s_openapi::api::core::v1::Affinity>,
     pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
     #[serde(default)]
+    pub node_selector: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
     pub labels: std::collections::BTreeMap<String, String>,
     #[serde(default)]
     pub annotations: std::collections::BTreeMap<String, String>,

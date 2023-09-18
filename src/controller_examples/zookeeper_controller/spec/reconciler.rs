@@ -1178,6 +1178,7 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
             }
         }),
         tolerations: zk.spec.tolerations,
+        node_selector: Some(zk.spec.node_selector),
         ..PodSpecView::default()
     }
 }

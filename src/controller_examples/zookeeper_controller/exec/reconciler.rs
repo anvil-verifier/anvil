@@ -1487,6 +1487,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
         volumes
     });
     pod_spec.overwrite_tolerations(zk.spec().tolerations());
+    pod_spec.set_node_selector(zk.spec().node_selector());
 
     pod_spec
 }
