@@ -670,18 +670,40 @@ pub open spec fn reconcile_core(
             }
         },
         ZookeeperReconcileStep::AfterCreateStatefulSet => {
-            let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::Done,
-                ..state
-            };
-            (state_prime, None)
+            let create_stateful_set_resp = resp.get_KResponse_0().get_CreateResponse_0().res;
+            let unmarshal_stateful_set_result = StatefulSetView::from_dynamic_object(create_stateful_set_resp.get_Ok_0());
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
+            && create_stateful_set_resp.is_Ok() && unmarshal_stateful_set_result.is_Ok() {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Done,
+                    ..state
+                };
+                (state_prime, None)
+            } else {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         ZookeeperReconcileStep::AfterUpdateStatefulSet => {
-            let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::Done,
-                ..state
-            };
-            (state_prime, None)
+            let update_stateful_set_resp = resp.get_KResponse_0().get_UpdateResponse_0().res;
+            let unmarshal_stateful_set_result = StatefulSetView::from_dynamic_object(update_stateful_set_resp.get_Ok_0());
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
+            && update_stateful_set_resp.is_Ok() && unmarshal_stateful_set_result.is_Ok() {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Done,
+                    ..state
+                };
+                (state_prime, None)
+            } else {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         _ => {
             let state_prime = ZookeeperReconcileState {
