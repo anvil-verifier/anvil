@@ -13,7 +13,7 @@ pub fn test_extend() {
     m.insert(new_strlit("key1").to_string(), new_strlit("val1").to_string());
     m.insert(new_strlit("key2").to_string(), new_strlit("val2").to_string());
 
-    let mut m2 = StringMap::empty();
+    let m2 = StringMap::empty();
     m.insert(new_strlit("key1").to_string(), new_strlit("new_val1").to_string());
     m.insert(new_strlit("key3").to_string(), new_strlit("val3").to_string());
 
