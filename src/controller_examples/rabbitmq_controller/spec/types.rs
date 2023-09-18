@@ -118,6 +118,7 @@ impl ResourceView for RabbitmqClusterView {
 
 pub struct RabbitmqClusterSpecView {
     pub replicas: int,
+    pub image: StringView,
     pub persistence: RabbitmqClusterPersistenceSpecView,
     pub rabbitmq_config: Option<RabbitmqConfigView>,
     pub affinity: Option<AffinityView>,

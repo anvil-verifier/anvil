@@ -483,6 +483,9 @@ spec:
                           type: array
                       type: object
                   type: object
+                image:
+                  description: Image is the name of the RabbitMQ docker image to use for RabbitMQ nodes in the RabbitmqCluster.
+                  type: string
                 persistence:
                   default:
                     storageClassName: ~

@@ -117,6 +117,8 @@ pub struct ZookeeperPersistence {
 #[kube(shortname = "rbmq", namespaced)]
 pub struct RabbitmqClusterSpec {
     pub replicas: i32,
+    /// Image is the name of the RabbitMQ docker image to use for RabbitMQ nodes in the RabbitmqCluster.
+    pub image: String,
     #[serde(default = "default_persistence")]
     pub persistence: RabbitmqClusterPersistenceSpec,
     #[serde(rename = "rabbitmqConfig")]

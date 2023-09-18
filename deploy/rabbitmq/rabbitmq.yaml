@@ -5,6 +5,7 @@ metadata:
   namespace: default
 spec:
   replicas: 3
+  image: rabbitmq:3.11.10-management
   rabbitmqConfig:
     additionalConfig: |
       log.console.level = debug
