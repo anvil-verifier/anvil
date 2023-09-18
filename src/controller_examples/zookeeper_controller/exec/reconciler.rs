@@ -986,11 +986,7 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
             service_spec.set_cluster_ip(new_strlit("None").to_string());
         }
         service_spec.set_ports(ports);
-        service_spec.set_selector({
-            let mut selector = StringMap::empty();
-            selector.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-            selector
-        });
+        service_spec.set_selector(make_labels(zk));
         service_spec
     });
 

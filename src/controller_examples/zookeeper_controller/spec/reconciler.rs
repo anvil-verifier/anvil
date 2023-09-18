@@ -889,9 +889,7 @@ pub open spec fn make_service(
         ).set_spec({
             let spec = ServiceSpecView::default()
                 .set_ports(ports)
-                .set_selector(Map::empty()
-                    .insert(new_strlit("app")@, zk.metadata.name.get_Some_0())
-                );
+                .set_selector(make_labels(zk));
             if !cluster_ip {
                 spec.set_cluster_ip(new_strlit("None")@)
             } else {
