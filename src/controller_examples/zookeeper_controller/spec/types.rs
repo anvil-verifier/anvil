@@ -117,6 +117,7 @@ pub struct ZookeeperClusterSpecView {
     pub resources: Option<ResourceRequirementsView>,
     pub affinity: Option<AffinityView>,
     pub tolerations: Option<Seq<TolerationView>>,
+    pub node_selector: Map<StringView, StringView>,
     pub labels: Map<StringView, StringView>,
     pub annotations: Map<StringView, StringView>,
 }

@@ -558,6 +558,11 @@ spec:
                     type: string
                   default: {}
                   type: object
+                node_selector:
+                  additionalProperties:
+                    type: string
+                  default: {}
+                  type: object
                 persistence:
                   properties:
                     enabled:

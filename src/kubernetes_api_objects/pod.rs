@@ -12,7 +12,7 @@ use crate::kubernetes_api_objects::resource::*;
 use crate::kubernetes_api_objects::resource_requirements::*;
 use crate::kubernetes_api_objects::toleration::*;
 use crate::kubernetes_api_objects::volume::*;
-use crate::pervasive_ext::string_view::*;
+use crate::pervasive_ext::{string_map::*, string_view::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
@@ -221,6 +221,14 @@ impl PodSpec {
         }
     }
 
+    #[verifier(external_body)]
+    pub fn set_node_selector(&mut self, node_selector: StringMap)
+        ensures
+            self@ == old(self)@.set_node_selector(node_selector@),
+    {
+        self.inner.node_selector = Some(node_selector.into_rust_map())
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodSpec {
         self.inner
@@ -337,6 +345,7 @@ pub struct PodSpecView {
     pub init_containers: Option<Seq<ContainerView>>,
     pub service_account_name: Option<StringView>,
     pub tolerations: Option<Seq<TolerationView>>,
+    pub node_selector: Option<Map<StringView, StringView>>,
 }
 
 impl PodSpecView {
@@ -348,6 +357,7 @@ impl PodSpecView {
             init_containers: None,
             service_account_name: None,
             tolerations: None,
+            node_selector: None,
         }
     }
 
@@ -403,6 +413,13 @@ impl PodSpecView {
     pub open spec fn unset_tolerations(self) -> PodSpecView {
         PodSpecView {
             tolerations: None,
+            ..self
+        }
+    }
+
+    pub open spec fn set_node_selector(self, node_selector: Map<StringView, StringView>) -> PodSpecView {
+        PodSpecView {
+            node_selector: Some(node_selector),
             ..self
         }
     }
