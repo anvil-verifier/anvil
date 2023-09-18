@@ -526,26 +526,30 @@ pub fn reconcile_core(
                     let unmarshal_stateful_set_result = StatefulSet::from_dynamic_object(get_stateful_set_resp.unwrap());
                     if unmarshal_stateful_set_result.is_ok() {
                         let found_stateful_set = unmarshal_stateful_set_result.unwrap();
-                        // Updating the stateful set can lead to downscale,
-                        // which also requires to remove the zookeeper replica from the membership list explicitly.
-                        // If the zookeeper replica is deleted without being removed from the membership,
-                        // the zookeeper cluster might be unavailable because of losing the quorum.
-                        // So the controller needs to correctly prompt membership change before reducing the replica
-                        // size of the stateful set, by writing the new replica size into the zookeeper API.
-                        // Details can be found in https://github.com/vmware-research/verifiable-controllers/issues/174.
-                        let state_prime = ZookeeperReconcileState {
-                            reconcile_step: ZookeeperReconcileStep::AfterExistsZKNode,
-                            // Save the stateful set found by the get request.
-                            // Later when we want to update sts, we can use the old sts as the base
-                            // and we do not need to call GetRequest again.
-                            found_stateful_set_opt: Some(found_stateful_set),
-                            ..state
-                        };
-                        let node_path = zk_node_path(zk);
-                        let ext_req = ZKAPIInput::ExistsRequest(
-                            zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().ports().client(), node_path
-                        );
-                        return (state_prime, Some(Request::ExternalRequest(ext_req)));
+                        // Only proceed if the stateful set is owned by the current cr
+                        // so that we won't accidentally update ports or some other mutable fields.
+                        if found_stateful_set.metadata().owner_references_only_contains(zk.controller_owner_ref()) {
+                            // Updating the stateful set can lead to downscale,
+                            // which also requires to remove the zookeeper replica from the membership list explicitly.
+                            // If the zookeeper replica is deleted without being removed from the membership,
+                            // the zookeeper cluster might be unavailable because of losing the quorum.
+                            // So the controller needs to correctly prompt membership change before reducing the replica
+                            // size of the stateful set, by writing the new replica size into the zookeeper API.
+                            // Details can be found in https://github.com/vmware-research/verifiable-controllers/issues/174.
+                            let state_prime = ZookeeperReconcileState {
+                                reconcile_step: ZookeeperReconcileStep::AfterExistsZKNode,
+                                // Save the stateful set found by the get request.
+                                // Later when we want to update sts, we can use the old sts as the base
+                                // and we do not need to call GetRequest again.
+                                found_stateful_set_opt: Some(found_stateful_set),
+                                ..state
+                            };
+                            let node_path = zk_node_path(zk);
+                            let ext_req = ZKAPIInput::ExistsRequest(
+                                zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().ports().client(), node_path
+                            );
+                            return (state_prime, Some(Request::ExternalRequest(ext_req)));
+                        }
                     }
                 } else if get_stateful_set_resp.unwrap_err().is_object_not_found() && state.latest_config_map_rv_opt.is_some() {
                     // Create the stateful set since it doesn't exist yet.

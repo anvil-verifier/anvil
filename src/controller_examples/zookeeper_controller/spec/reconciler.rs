@@ -514,17 +514,25 @@ pub open spec fn reconcile_core(
                 if get_stateful_set_resp.is_Ok() {
                     if unmarshal_stateful_set_result.is_Ok() {
                         let found_stateful_set = unmarshal_stateful_set_result.get_Ok_0();
-                        // update
-                        let state_prime = ZookeeperReconcileState {
-                            reconcile_step: ZookeeperReconcileStep::AfterExistsZKNode,
-                            found_stateful_set_opt: Some(found_stateful_set),
-                            ..state
-                        };
-                        let node_path = seq![new_strlit("zookeeper-operator")@, zk_name];
-                        let ext_req = ZKAPIInputView::ExistsRequest(
-                            zk_name, zk_namespace, client_port, node_path
-                        );
-                        (state_prime, Some(RequestView::ExternalRequest(ext_req)))
+                        if found_stateful_set.metadata.owner_references_only_contains(zk.controller_owner_ref()) {
+                            // update
+                            let state_prime = ZookeeperReconcileState {
+                                reconcile_step: ZookeeperReconcileStep::AfterExistsZKNode,
+                                found_stateful_set_opt: Some(found_stateful_set),
+                                ..state
+                            };
+                            let node_path = seq![new_strlit("zookeeper-operator")@, zk_name];
+                            let ext_req = ZKAPIInputView::ExistsRequest(
+                                zk_name, zk_namespace, client_port, node_path
+                            );
+                            (state_prime, Some(RequestView::ExternalRequest(ext_req)))
+                        } else {
+                            let state_prime = ZookeeperReconcileState {
+                                reconcile_step: ZookeeperReconcileStep::Error,
+                                ..state
+                            };
+                            (state_prime, None)
+                        }
                     } else {
                         let state_prime = ZookeeperReconcileState {
                             reconcile_step: ZookeeperReconcileStep::Error,
