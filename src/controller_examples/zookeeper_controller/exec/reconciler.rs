@@ -641,27 +641,28 @@ pub fn reconcile_core(
                 // Update the stateful set only after we ensure
                 // that the ZK node has been set correctly.
                 let found_stateful_set = state.found_stateful_set_opt.as_ref().unwrap();
-                let latest_config_map_rv = state.latest_config_map_rv_opt.as_ref().unwrap();
-                let new_stateful_set = update_stateful_set(zk, found_stateful_set, latest_config_map_rv);
-                let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
-                    api_resource: StatefulSet::api_resource(),
-                    name: make_stateful_set_name(zk),
-                    namespace: zk.metadata().namespace().unwrap(),
-                    obj: new_stateful_set.to_dynamic_object(),
-                });
-                let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
-                    found_stateful_set_opt: None,
-                    ..state
-                };
-                return (state_prime, Some(Request::KRequest(req_o)));
-            } else {
-                let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::Error,
-                    ..state
-                };
-                return (state_prime, None);
+                if found_stateful_set.spec().is_some() {
+                    let latest_config_map_rv = state.latest_config_map_rv_opt.as_ref().unwrap();
+                    let new_stateful_set = update_stateful_set(zk, found_stateful_set, latest_config_map_rv);
+                    let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                        api_resource: StatefulSet::api_resource(),
+                        name: make_stateful_set_name(zk),
+                        namespace: zk.metadata().namespace().unwrap(),
+                        obj: new_stateful_set.to_dynamic_object(),
+                    });
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
+                        found_stateful_set_opt: None,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
             }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
         },
         ZookeeperReconcileStep::AfterUpdateZKNode => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
@@ -671,27 +672,28 @@ pub fn reconcile_core(
                 // Update the stateful set only after we ensure
                 // that the ZK node has been set correctly.
                 let found_stateful_set = state.found_stateful_set_opt.as_ref().unwrap();
-                let latest_config_map_rv = state.latest_config_map_rv_opt.as_ref().unwrap();
-                let new_stateful_set = update_stateful_set(zk, found_stateful_set, latest_config_map_rv);
-                let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
-                    api_resource: StatefulSet::api_resource(),
-                    name: make_stateful_set_name(zk),
-                    namespace: zk.metadata().namespace().unwrap(),
-                    obj: new_stateful_set.to_dynamic_object(),
-                });
-                let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
-                    found_stateful_set_opt: None,
-                    ..state
-                };
-                return (state_prime, Some(Request::KRequest(req_o)));
-            } else {
-                let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::Error,
-                    ..state
-                };
-                return (state_prime, None);
+                if found_stateful_set.spec().is_some() {
+                    let latest_config_map_rv = state.latest_config_map_rv_opt.as_ref().unwrap();
+                    let new_stateful_set = update_stateful_set(zk, found_stateful_set, latest_config_map_rv);
+                    let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                        api_resource: StatefulSet::api_resource(),
+                        name: make_stateful_set_name(zk),
+                        namespace: zk.metadata().namespace().unwrap(),
+                        obj: new_stateful_set.to_dynamic_object(),
+                    });
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
+                        found_stateful_set_opt: None,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
             }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
         },
         ZookeeperReconcileStep::AfterCreateStatefulSet => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
@@ -783,15 +785,25 @@ fn zk_node_data(zk: &ZookeeperCluster) -> (data: String)
     new_strlit("CLUSTER_SIZE=").to_string().concat(i32_to_string(zk.spec().replicas()).as_str())
 }
 
+fn make_base_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
+    requires
+        zk@.well_formed(),
+    ensures
+        labels@ == zk_spec::make_base_labels(zk@),
+{
+    let mut labels = StringMap::empty();
+    labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
+    labels
+}
+
 fn make_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
     requires
         zk@.well_formed(),
     ensures
         labels@ == zk_spec::make_labels(zk@),
 {
-    let mut labels = StringMap::empty();
-    labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-    labels.extend(zk.spec().labels());
+    let mut labels = zk.spec().labels();
+    labels.extend(make_base_labels(zk));
     labels
 }
 
@@ -822,6 +834,7 @@ fn update_headless_service(zk: &ZookeeperCluster, found_headless_service: &Servi
     headless_service.set_spec({
         let mut spec = found_headless_service.spec().unwrap();
         spec.set_ports(made_headless_service.spec().unwrap().ports().unwrap());
+        spec.set_selector(made_headless_service.spec().unwrap().selector().unwrap());
         spec
     });
     headless_service
@@ -879,6 +892,7 @@ fn update_client_service(zk: &ZookeeperCluster, found_client_service: &Service) 
     client_service.set_spec({
         let mut spec = found_client_service.spec().unwrap();
         spec.set_ports(made_client_service.spec().unwrap().ports().unwrap());
+        spec.set_selector(made_client_service.spec().unwrap().selector().unwrap());
         spec
     });
     client_service
@@ -932,6 +946,7 @@ fn update_admin_server_service(zk: &ZookeeperCluster, found_admin_server_service
     admin_server_service.set_spec({
         let mut spec = found_admin_server_service.spec().unwrap();
         spec.set_ports(made_admin_server_service.spec().unwrap().ports().unwrap());
+        spec.set_selector(made_admin_server_service.spec().unwrap().selector().unwrap());
         spec
     });
     admin_server_service
@@ -990,11 +1005,7 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
             service_spec.set_cluster_ip(new_strlit("None").to_string());
         }
         service_spec.set_ports(ports);
-        service_spec.set_selector({
-            let mut selector = StringMap::empty();
-            selector.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-            selector
-        });
+        service_spec.set_selector(make_base_labels(zk));
         service_spec
     });
 
@@ -1166,6 +1177,7 @@ fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
 fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulSet, rv: &String) -> (stateful_set: StatefulSet)
     requires
         zk@.well_formed(),
+        found_stateful_set@.spec.is_Some(),
     ensures
         stateful_set@ == zk_spec::update_stateful_set(zk@, found_stateful_set@, rv@),
 {
@@ -1177,7 +1189,13 @@ fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulSet, 
         metadata.set_annotations(made_stateful_set.metadata().annotations().unwrap());
         metadata
     });
-    stateful_set.set_spec(made_stateful_set.spec().unwrap());
+    stateful_set.set_spec({
+        let mut spec = found_stateful_set.spec().unwrap();
+        spec.set_replicas(made_stateful_set.spec().unwrap().replicas().unwrap());
+        spec.set_template(made_stateful_set.spec().unwrap().template());
+        spec.set_pvc_retention_policy(made_stateful_set.spec().unwrap().persistent_volume_claim_retention_policy().unwrap());
+        spec
+    });
     stateful_set
 }
 
@@ -1217,7 +1235,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
         // Set the selector used for querying pods of this stateful set
         stateful_set_spec.set_selector({
             let mut selector = LabelSelector::default();
-            selector.set_match_labels(make_labels(zk));
+            selector.set_match_labels(make_base_labels(zk));
             selector
         });
         stateful_set_spec.set_pvc_retention_policy({
@@ -1252,8 +1270,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
                     pvc.set_metadata({
                         let mut metadata = ObjectMeta::default();
                         metadata.set_name(new_strlit("data").to_string());
-                        metadata.set_labels(make_labels(zk));
-                        metadata.set_annotations(zk.spec().annotations());
+                        metadata.set_labels(make_base_labels(zk));
                         metadata
                     });
                     pvc.set_spec({

@@ -626,12 +626,13 @@ pub open spec fn reconcile_core(
             }
         },
         ZookeeperReconcileStep::AfterCreateZKNode => {
+            let found_stateful_set = state.found_stateful_set_opt.get_Some_0();
             if resp_o.is_Some() && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_CreateResponse()
             && resp.get_ExternalResponse_0().get_CreateResponse_0().res.is_Ok()
-            && state.found_stateful_set_opt.is_Some() && state.latest_config_map_rv_opt.is_Some() {
+            && state.found_stateful_set_opt.is_Some() && found_stateful_set.spec.is_Some()
+            && state.latest_config_map_rv_opt.is_Some() {
                 // Only proceed to update the stateful set when zk node is set successfully,
                 // otherwise it might cause unsafe downscale.
-                let found_stateful_set = state.found_stateful_set_opt.get_Some_0();
                 let latest_config_map_rv = state.latest_config_map_rv_opt.get_Some_0();
                 let req_o = APIRequest::UpdateRequest(UpdateRequest {
                     key: make_stateful_set_key(zk.object_ref()),
@@ -652,12 +653,13 @@ pub open spec fn reconcile_core(
             }
         },
         ZookeeperReconcileStep::AfterUpdateZKNode => {
+            let found_stateful_set = state.found_stateful_set_opt.get_Some_0();
             if resp_o.is_Some() && resp.is_ExternalResponse() && resp.get_ExternalResponse_0().is_SetDataResponse()
             && resp.get_ExternalResponse_0().get_SetDataResponse_0().res.is_Ok()
-            && state.found_stateful_set_opt.is_Some() && state.latest_config_map_rv_opt.is_Some() {
+            && state.found_stateful_set_opt.is_Some() && found_stateful_set.spec.is_Some()
+            && state.latest_config_map_rv_opt.is_Some() {
                 // Only proceed to update the stateful set when zk node is set successfully,
                 // otherwise it might cause unsafe downscale.
-                let found_stateful_set = state.found_stateful_set_opt.get_Some_0();
                 let latest_config_map_rv = state.latest_config_map_rv_opt.get_Some_0();
                 let req_o = APIRequest::UpdateRequest(UpdateRequest {
                     key: make_stateful_set_key(zk.object_ref()),
@@ -752,8 +754,12 @@ pub open spec fn zk_node_data(zk: ZookeeperClusterView) -> StringView
     new_strlit("CLUSTER_SIZE=")@ + int_to_string_view(zk.spec.replicas)
 }
 
+pub open spec fn make_base_labels(zk: ZookeeperClusterView) -> Map<StringView, StringView> {
+    map![new_strlit("app")@ => zk.metadata.name.get_Some_0()]
+}
+
 pub open spec fn make_labels(zk: ZookeeperClusterView) -> Map<StringView, StringView> {
-    Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()).union_prefer_right(zk.spec.labels)
+    zk.spec.labels.union_prefer_right(make_base_labels(zk))
 }
 
 pub open spec fn make_headless_service_key(key: ObjectRef) -> ObjectRef
@@ -775,16 +781,19 @@ pub open spec fn update_headless_service(zk: ZookeeperClusterView, found_headles
     recommends
         zk.well_formed(),
 {
-    found_headless_service
-        .set_metadata(
-            found_headless_service.metadata
-                .set_labels(make_headless_service(zk).metadata.labels.get_Some_0())
-                .set_annotations(make_headless_service(zk).metadata.annotations.get_Some_0())
-        )
-        .set_spec(
-            found_headless_service.spec.get_Some_0()
-                .set_ports(make_headless_service(zk).spec.get_Some_0().ports.get_Some_0())
-        )
+    ServiceView {
+        metadata: ObjectMetaView {
+            labels: make_headless_service(zk).metadata.labels,
+            annotations: make_headless_service(zk).metadata.annotations,
+            ..found_headless_service.metadata
+        },
+        spec: Some(ServiceSpecView {
+            ports: make_headless_service(zk).spec.get_Some_0().ports,
+            selector: make_headless_service(zk).spec.get_Some_0().selector,
+            ..found_headless_service.spec.get_Some_0()
+        }),
+        ..found_headless_service
+    }
 }
 
 pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView
@@ -821,16 +830,19 @@ pub open spec fn update_client_service(zk: ZookeeperClusterView, found_client_se
     recommends
         zk.well_formed(),
 {
-    found_client_service
-        .set_metadata(
-            found_client_service.metadata
-                .set_labels(make_client_service(zk).metadata.labels.get_Some_0())
-                .set_annotations(make_client_service(zk).metadata.annotations.get_Some_0())
-        )
-        .set_spec(
-            found_client_service.spec.get_Some_0()
-                .set_ports(make_client_service(zk).spec.get_Some_0().ports.get_Some_0())
-        )
+    ServiceView {
+        metadata: ObjectMetaView {
+            labels: make_client_service(zk).metadata.labels,
+            annotations: make_client_service(zk).metadata.annotations,
+            ..found_client_service.metadata
+        },
+        spec: Some(ServiceSpecView {
+            ports: make_client_service(zk).spec.get_Some_0().ports,
+            selector: make_client_service(zk).spec.get_Some_0().selector,
+            ..found_client_service.spec.get_Some_0()
+        }),
+        ..found_client_service
+    }
 }
 
 pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView
@@ -861,16 +873,19 @@ pub open spec fn update_admin_server_service(zk: ZookeeperClusterView, found_adm
     recommends
         zk.well_formed(),
 {
-    found_admin_server_service
-        .set_metadata(
-            found_admin_server_service.metadata
-                .set_labels(make_admin_server_service(zk).metadata.labels.get_Some_0())
-                .set_annotations(make_admin_server_service(zk).metadata.annotations.get_Some_0())
-        )
-        .set_spec(
-            found_admin_server_service.spec.get_Some_0()
-                .set_ports(make_admin_server_service(zk).spec.get_Some_0().ports.get_Some_0())
-        )
+    ServiceView {
+        metadata: ObjectMetaView {
+            labels: make_admin_server_service(zk).metadata.labels,
+            annotations: make_admin_server_service(zk).metadata.annotations,
+            ..found_admin_server_service.metadata
+        },
+        spec: Some(ServiceSpecView {
+            ports: make_admin_server_service(zk).spec.get_Some_0().ports,
+            selector: make_admin_server_service(zk).spec.get_Some_0().selector,
+            ..found_admin_server_service.spec.get_Some_0()
+        }),
+        ..found_admin_server_service
+    }
 }
 
 pub open spec fn make_admin_server_service(zk: ZookeeperClusterView) -> ServiceView
@@ -888,24 +903,22 @@ pub open spec fn make_service(
     recommends
         zk.well_formed(),
 {
-    ServiceView::default()
-        .set_metadata(ObjectMetaView::default()
-            .set_name(name)
-            .set_labels(make_labels(zk))
-            .set_annotations(zk.spec.annotations)
-            .set_owner_references(seq![zk.controller_owner_ref()])
-        ).set_spec({
-            let spec = ServiceSpecView::default()
-                .set_ports(ports)
-                .set_selector(Map::empty()
-                    .insert(new_strlit("app")@, zk.metadata.name.get_Some_0())
-                );
-            if !cluster_ip {
-                spec.set_cluster_ip(new_strlit("None")@)
-            } else {
-                spec
-            }
-        })
+    ServiceView {
+        metadata: ObjectMetaView {
+            name: Some(name),
+            labels: Some(make_labels(zk)),
+            annotations: Some(zk.spec.annotations),
+            owner_references: Some(seq![zk.controller_owner_ref()]),
+            ..ObjectMetaView::default()
+        },
+        spec: Some(ServiceSpecView {
+            ports: Some(ports),
+            selector: Some(make_base_labels(zk)),
+            cluster_ip: if !cluster_ip { Some(new_strlit("None")@) } else { None },
+            ..ServiceSpecView::default()
+        }),
+        ..ServiceView::default()
+    }
 }
 
 pub open spec fn make_config_map_key(key: ObjectRef) -> ObjectRef
@@ -1049,13 +1062,20 @@ pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_se
     recommends
         zk.well_formed(),
 {
-    found_stateful_set
-        .set_metadata(
-            found_stateful_set.metadata
-                .set_labels(make_stateful_set(zk, rv).metadata.labels.get_Some_0())
-                .set_annotations(make_stateful_set(zk, rv).metadata.annotations.get_Some_0())
-        )
-        .set_spec(make_stateful_set(zk, rv).spec.get_Some_0())
+    StatefulSetView {
+        metadata: ObjectMetaView {
+            labels: make_stateful_set(zk, rv).metadata.labels,
+            annotations: make_stateful_set(zk, rv).metadata.annotations,
+            ..found_stateful_set.metadata
+        },
+        spec: Some(StatefulSetSpecView {
+            replicas: make_stateful_set(zk, rv).spec.get_Some_0().replicas,
+            template: make_stateful_set(zk, rv).spec.get_Some_0().template,
+            persistent_volume_claim_retention_policy: make_stateful_set(zk, rv).spec.get_Some_0().persistent_volume_claim_retention_policy,
+            ..found_stateful_set.spec.get_Some_0()
+        }),
+        ..found_stateful_set
+    }
 }
 
 pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> StatefulSetView
@@ -1074,7 +1094,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
     let spec = StatefulSetSpecView::default()
         .set_replicas(zk.spec.replicas)
         .set_service_name(name + new_strlit("-headless")@)
-        .set_selector(LabelSelectorView::default().set_match_labels(make_labels(zk)))
+        .set_selector(LabelSelectorView::default().set_match_labels(make_base_labels(zk)))
         .set_template(PodTemplateSpecView::default()
             .set_metadata(ObjectMetaView::default()
                 .set_generate_name(name)
@@ -1093,8 +1113,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
                     PersistentVolumeClaimView::default()
                     .set_metadata(ObjectMetaView::default()
                         .set_name(new_strlit("data")@)
-                        .set_labels(make_labels(zk))
-                        .set_annotations(zk.spec.annotations)
+                        .set_labels(make_base_labels(zk))
                     )
                     .set_spec(PersistentVolumeClaimSpecView::default()
                         .set_access_modes(seq![new_strlit("ReadWriteOnce")@])

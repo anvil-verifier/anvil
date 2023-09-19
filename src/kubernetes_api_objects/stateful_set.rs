@@ -225,10 +225,26 @@ impl StatefulSetSpec {
             self@.replicas.is_Some() == replicas.is_Some(),
             replicas.is_Some() ==> replicas.get_Some_0() == self@.replicas.get_Some_0(),
     {
-        if self.inner.replicas.is_none() {
-            None
-        } else {
-            Some(self.inner.replicas.clone().unwrap())
+        self.inner.replicas.clone()
+    }
+
+    #[verifier(external_body)]
+    pub fn template(&self) -> (template: PodTemplateSpec)
+        ensures
+            template@ == self@.template,
+    {
+        PodTemplateSpec::from_kube(self.inner.template.clone())
+    }
+
+    #[verifier(external_body)]
+    pub fn persistent_volume_claim_retention_policy(&self) -> (persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicy>)
+        ensures
+            self@.persistent_volume_claim_retention_policy.is_Some() == persistent_volume_claim_retention_policy.is_Some(),
+            persistent_volume_claim_retention_policy.is_Some() ==> persistent_volume_claim_retention_policy.get_Some_0()@ == self@.persistent_volume_claim_retention_policy.get_Some_0(),
+    {
+        match &self.inner.persistent_volume_claim_retention_policy {
+            Some(p) => Some(StatefulSetPersistentVolumeClaimRetentionPolicy::from_kube(p.clone())),
+            None => None,
         }
     }
 

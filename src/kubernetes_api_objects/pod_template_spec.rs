@@ -50,6 +50,11 @@ impl PodTemplateSpec {
     }
 
     #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec) -> PodTemplateSpec {
+        PodTemplateSpec { inner: inner }
+    }
+
+    #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::PodTemplateSpec {
         self.inner
     }
