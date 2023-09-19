@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, dynamic::*, error::*, object_meta::*,
+    api_method::*, common::*, config_map::*, daemon_set::*, dynamic::*, error::*, object_meta::*,
     persistent_volume_claim::*, pod::*, resource::*, role::*, role_binding::*, secret::*,
     service::*, service_account::*, stateful_set::*,
 };
@@ -36,8 +36,9 @@ verus! {
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 // TODO: maybe make it a method of DynamicObjectView?
-pub open spec fn object_has_well_formed_spec(obj: DynamicObjectView) -> bool {
+pub open spec fn spec_integrity_check(obj: DynamicObjectView) -> bool {
     &&& obj.kind == ConfigMapView::kind() ==> ConfigMapView::unmarshal_spec(obj.spec).is_Ok()
+    &&& obj.kind == DaemonSetView::kind() ==> DaemonSetView::unmarshal_spec(obj.spec).is_Ok()
     &&& obj.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok()
     &&& obj.kind == PodView::kind() ==> PodView::unmarshal_spec(obj.spec).is_Ok()
     &&& obj.kind == RoleBindingView::kind() ==> RoleBindingView::unmarshal_spec(obj.spec).is_Ok()
@@ -47,6 +48,34 @@ pub open spec fn object_has_well_formed_spec(obj: DynamicObjectView) -> bool {
     &&& obj.kind == StatefulSetView::kind() ==> StatefulSetView::unmarshal_spec(obj.spec).is_Ok()
     &&& obj.kind == ServiceAccountView::kind() ==> ServiceAccountView::unmarshal_spec(obj.spec).is_Ok()
     &&& obj.kind == K::kind() ==> K::unmarshal_spec(obj.spec).is_Ok()
+}
+
+pub open spec fn state_validity_check(obj: DynamicObjectView) -> bool {
+    &&& obj.kind == ConfigMapView::kind() ==> ConfigMapView::unmarshal(obj).get_Ok_0().state_validation()
+    &&& obj.kind == DaemonSetView::kind() ==> DaemonSetView::unmarshal(obj).get_Ok_0().state_validation()
+    &&& obj.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::unmarshal(obj).get_Ok_0().state_validation()
+    &&& obj.kind == PodView::kind() ==> PodView::unmarshal(obj).get_Ok_0().state_validation()
+    &&& obj.kind == RoleBindingView::kind() ==> RoleBindingView::unmarshal(obj).get_Ok_0().state_validation()
+    &&& obj.kind == RoleView::kind() ==> RoleView::unmarshal(obj).get_Ok_0().state_validation()
+    &&& obj.kind == SecretView::kind() ==> SecretView::unmarshal(obj).get_Ok_0().state_validation()
+    &&& obj.kind == ServiceView::kind() ==> ServiceView::unmarshal(obj).get_Ok_0().state_validation()
+    &&& obj.kind == StatefulSetView::kind() ==> StatefulSetView::unmarshal(obj).get_Ok_0().state_validation()
+    &&& obj.kind == ServiceAccountView::kind() ==> ServiceAccountView::unmarshal(obj).get_Ok_0().state_validation()
+    &&& obj.kind == K::kind() ==> K::unmarshal(obj).get_Ok_0().state_validation()
+}
+
+pub open spec fn transition_validity_check(obj: DynamicObjectView, old_obj: DynamicObjectView) -> bool {
+    &&& obj.kind == ConfigMapView::kind() ==> ConfigMapView::unmarshal(obj).get_Ok_0().transition_validation(ConfigMapView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == DaemonSetView::kind() ==> DaemonSetView::unmarshal(obj).get_Ok_0().transition_validation(DaemonSetView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::unmarshal(obj).get_Ok_0().transition_validation(PersistentVolumeClaimView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == PodView::kind() ==> PodView::unmarshal(obj).get_Ok_0().transition_validation(PodView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == RoleBindingView::kind() ==> RoleBindingView::unmarshal(obj).get_Ok_0().transition_validation(RoleBindingView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == RoleView::kind() ==> RoleView::unmarshal(obj).get_Ok_0().transition_validation(RoleView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == SecretView::kind() ==> SecretView::unmarshal(obj).get_Ok_0().transition_validation(SecretView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == ServiceView::kind() ==> ServiceView::unmarshal(obj).get_Ok_0().transition_validation(ServiceView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == StatefulSetView::kind() ==> StatefulSetView::unmarshal(obj).get_Ok_0().transition_validation(StatefulSetView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == ServiceAccountView::kind() ==> ServiceAccountView::unmarshal(obj).get_Ok_0().transition_validation(ServiceAccountView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == K::kind() ==> K::unmarshal(obj).get_Ok_0().transition_validation(K::unmarshal(old_obj).get_Ok_0())
 }
 
 pub open spec fn handle_get_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
@@ -89,7 +118,7 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
     } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Creation fails because the namespace of the provided object does not match the namespace sent on the request
         Some(APIError::BadRequest)
-    } else if !Self::object_has_well_formed_spec(req.obj) {
+    } else if !Self::spec_integrity_check(req.obj) {
         // Creation fails because the spec of the provided object is not well formed
         Some(APIError::BadRequest) // TODO: should the error be BadRequest?
     } else if s.resources.contains_key(req.obj.set_namespace(req.namespace).object_ref()) {
@@ -106,7 +135,7 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
         ) {
         // Creation fails because the object has multiple controller owner references
         Some(APIError::Invalid)
-    } else if req.obj.kind == K::kind() && !K::rule(K::from_dynamic_object(req.obj).get_Ok_0()) {
+    } else if !Self::state_validity_check(req.obj) {
         Some(APIError::Invalid)
     } else {
         None
@@ -220,7 +249,7 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         // Update fails because the kind of the provided object
         // does not match the kind sent on the request
         Some(APIError::BadRequest)
-    } else if !Self::object_has_well_formed_spec(req.obj) {
+    } else if !Self::spec_integrity_check(req.obj) {
         // Update fails because the spec of the provided object is not well formed
         // TODO: should the error be BadRequest?
         Some(APIError::BadRequest)
@@ -257,10 +286,9 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         && !req.obj.metadata.finalizers_as_set().subset_of(s.resources[req.key].metadata.finalizers_as_set()) {
         // Update fails because the object is marked to be deleted but the update tries to add more finalizers
         Some(APIError::Forbidden)
-    } else if req.obj.kind == K::kind() && !(
-        K::rule(K::from_dynamic_object(req.obj).get_Ok_0())
-        && K::transition_rule(K::from_dynamic_object(req.obj).get_Ok_0(), K::from_dynamic_object(s.resources[req.key]).get_Ok_0())
-    ) {
+    } else if !Self::state_validity_check(req.obj) {
+        Some(APIError::Invalid)
+    } else if !Self::transition_validity_check(req.obj, s.resources[req.key]) {
         Some(APIError::Invalid)
     } else {
         None

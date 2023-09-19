@@ -56,7 +56,7 @@ impl ResourceView for FluentBitConfigView {
         self.spec
     }
 
-    open spec fn to_dynamic_object(self) -> DynamicObjectView {
+    open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
@@ -64,7 +64,7 @@ impl ResourceView for FluentBitConfigView {
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<FluentBitConfigView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<FluentBitConfigView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !FluentBitConfigView::unmarshal_spec(obj.spec).is_Ok() {
@@ -77,28 +77,28 @@ impl ResourceView for FluentBitConfigView {
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {
-        FluentBitConfigView::spec_integrity_is_preserved_by_marshal();
+    proof fn marshal_preserves_integrity() {
+        FluentBitConfigView::marshal_spec_preserves_integrity();
     }
 
-    proof fn from_dynamic_preserves_metadata() {}
+    proof fn marshal_preserves_metadata() {}
 
-    proof fn from_dynamic_preserves_kind() {}
+    proof fn marshal_preserves_kind() {}
 
     closed spec fn marshal_spec(s: FluentBitConfigSpecView) -> Value;
 
     closed spec fn unmarshal_spec(v: Value) -> Result<FluentBitConfigSpecView, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
-    proof fn spec_integrity_is_preserved_by_marshal() {}
+    proof fn marshal_spec_preserves_integrity() {}
 
-    proof fn from_dynamic_object_result_determined_by_unmarshal() {}
+    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn rule(obj: FluentBitConfigView) -> bool {
+    open spec fn state_validation(self) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_obj: FluentBitConfigView, old_obj: FluentBitConfigView) -> bool {
+    open spec fn transition_validation(self, old_obj: FluentBitConfigView) -> bool {
         true
     }
 }

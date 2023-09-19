@@ -84,7 +84,7 @@ pub open spec fn reconcile_core(
             let secret = make_secret(fluentbit_config);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: fluentbit_config.metadata.namespace.get_Some_0(),
-                obj: secret.to_dynamic_object(),
+                obj: secret.marshal(),
             });
             let state_prime = FluentBitConfigReconcileState {
                 reconcile_step: FluentBitConfigReconcileStep::AfterCreateSecret,

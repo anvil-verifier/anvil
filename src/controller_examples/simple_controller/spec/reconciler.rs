@@ -124,7 +124,7 @@ pub open spec fn create_cm_req(cr: SimpleCRView) -> APIRequest
 {
     APIRequest::CreateRequest(CreateRequest{
         namespace: cr.metadata.namespace.get_Some_0(),
-        obj: make_config_map(cr).to_dynamic_object(),
+        obj: make_config_map(cr).marshal(),
     })
 }
 

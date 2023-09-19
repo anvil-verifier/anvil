@@ -56,7 +56,7 @@ impl ResourceView for FluentBitView {
         self.spec
     }
 
-    open spec fn to_dynamic_object(self) -> DynamicObjectView {
+    open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
@@ -64,7 +64,7 @@ impl ResourceView for FluentBitView {
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<FluentBitView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<FluentBitView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !FluentBitView::unmarshal_spec(obj.spec).is_Ok() {
@@ -77,28 +77,28 @@ impl ResourceView for FluentBitView {
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {
-        FluentBitView::spec_integrity_is_preserved_by_marshal();
+    proof fn marshal_preserves_integrity() {
+        FluentBitView::marshal_spec_preserves_integrity();
     }
 
-    proof fn from_dynamic_preserves_metadata() {}
+    proof fn marshal_preserves_metadata() {}
 
-    proof fn from_dynamic_preserves_kind() {}
+    proof fn marshal_preserves_kind() {}
 
     closed spec fn marshal_spec(s: FluentBitSpecView) -> Value;
 
     closed spec fn unmarshal_spec(v: Value) -> Result<FluentBitSpecView, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
-    proof fn spec_integrity_is_preserved_by_marshal() {}
+    proof fn marshal_spec_preserves_integrity() {}
 
-    proof fn from_dynamic_object_result_determined_by_unmarshal() {}
+    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn rule(obj: FluentBitView) -> bool {
+    open spec fn state_validation(self) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_obj: FluentBitView, old_obj: FluentBitView) -> bool {
+    open spec fn transition_validation(self, old_obj: FluentBitView) -> bool {
         true
     }
 }

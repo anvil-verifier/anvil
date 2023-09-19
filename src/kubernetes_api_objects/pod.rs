@@ -97,9 +97,9 @@ impl Pod {
 
     // NOTE: This function assumes serde_json::to_string won't fail!
     #[verifier(external_body)]
-    pub fn to_dynamic_object(self) -> (obj: DynamicObject)
+    pub fn marshal(self) -> (obj: DynamicObject)
         ensures
-            obj@ == self@.to_dynamic_object(),
+            obj@ == self@.marshal(),
     {
         DynamicObject::from_kube(
             deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
@@ -108,10 +108,10 @@ impl Pod {
 
     /// Convert a DynamicObject to a Pod
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<Pod, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<Pod, ParseDynamicObjectError>)
         ensures
-            res.is_Ok() == PodView::from_dynamic_object(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == PodView::from_dynamic_object(obj@).get_Ok_0(),
+            res.is_Ok() == PodView::unmarshal(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == PodView::unmarshal(obj@).get_Ok_0(),
     {
         let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::Pod>();
         if parse_result.is_ok() {
@@ -291,7 +291,7 @@ impl ResourceView for PodView {
         self.spec
     }
 
-    open spec fn to_dynamic_object(self) -> DynamicObjectView {
+    open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
@@ -299,7 +299,7 @@ impl ResourceView for PodView {
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<PodView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<PodView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !PodView::unmarshal_spec(obj.spec).is_Ok() {
@@ -312,28 +312,28 @@ impl ResourceView for PodView {
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {
-        PodView::spec_integrity_is_preserved_by_marshal();
+    proof fn marshal_preserves_integrity() {
+        PodView::marshal_spec_preserves_integrity();
     }
 
-    proof fn from_dynamic_preserves_metadata() {}
+    proof fn marshal_preserves_metadata() {}
 
-    proof fn from_dynamic_preserves_kind() {}
+    proof fn marshal_preserves_kind() {}
 
     closed spec fn marshal_spec(s: Option<PodSpecView>) -> Value;
 
     closed spec fn unmarshal_spec(v: Value) -> Result<Option<PodSpecView>, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
-    proof fn spec_integrity_is_preserved_by_marshal(){}
+    proof fn marshal_spec_preserves_integrity(){}
 
-    proof fn from_dynamic_object_result_determined_by_unmarshal() {}
+    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn rule(obj: PodView) -> bool {
-        true
+    open spec fn state_validation(self) -> bool {
+        &&& self.spec.is_Some()
     }
 
-    open spec fn transition_rule(new_obj: PodView, old_obj: PodView) -> bool {
+    open spec fn transition_validation(self, old_obj: PodView) -> bool {
         true
     }
 }

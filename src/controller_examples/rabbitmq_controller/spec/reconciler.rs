@@ -87,7 +87,7 @@ pub open spec fn reconcile_core(
             let headless_service = make_headless_service(rabbitmq);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: headless_service.to_dynamic_object(),
+                obj: headless_service.marshal(),
             });
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterCreateHeadlessService,
@@ -99,7 +99,7 @@ pub open spec fn reconcile_core(
             let main_service = make_main_service(rabbitmq);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: main_service.to_dynamic_object(),
+                obj: main_service.marshal(),
             });
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterCreateService,
@@ -111,7 +111,7 @@ pub open spec fn reconcile_core(
             let erlang_secret = make_erlang_secret(rabbitmq);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: erlang_secret.to_dynamic_object(),
+                obj: erlang_secret.marshal(),
             });
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterCreateErlangCookieSecret,
@@ -123,7 +123,7 @@ pub open spec fn reconcile_core(
             let default_user_secret = make_default_user_secret(rabbitmq);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: default_user_secret.to_dynamic_object(),
+                obj: default_user_secret.marshal(),
             });
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterCreateDefaultUserSecret,
@@ -135,7 +135,7 @@ pub open spec fn reconcile_core(
             let plugins_config_map = make_plugins_config_map(rabbitmq);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: plugins_config_map.to_dynamic_object(),
+                obj: plugins_config_map.marshal(),
             });
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterCreatePluginsConfigMap,
@@ -159,12 +159,12 @@ pub open spec fn reconcile_core(
                 let get_config_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
                 if get_config_resp.is_Ok() {
                     // update
-                    if ConfigMapView::from_dynamic_object(get_config_resp.get_Ok_0()).is_Ok()
+                    if ConfigMapView::unmarshal(get_config_resp.get_Ok_0()).is_Ok()
                     {
-                        let found_config_map = ConfigMapView::from_dynamic_object(get_config_resp.get_Ok_0()).get_Ok_0();
+                        let found_config_map = ConfigMapView::unmarshal(get_config_resp.get_Ok_0()).get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
                             key: make_server_config_map_key(rabbitmq.object_ref()),
-                            obj: update_server_config_map(rabbitmq, found_config_map).to_dynamic_object(),
+                            obj: update_server_config_map(rabbitmq, found_config_map).marshal(),
                         });
                         let state_prime = RabbitmqReconcileState {
                             reconcile_step: RabbitmqReconcileStep::AfterUpdateServerConfigMap,
@@ -182,7 +182,7 @@ pub open spec fn reconcile_core(
                     // create
                     let req_o = APIRequest::CreateRequest(CreateRequest {
                         namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                        obj: config_map.to_dynamic_object(),
+                        obj: config_map.marshal(),
                     });
                     let state_prime = RabbitmqReconcileState {
                         reconcile_step: RabbitmqReconcileStep::AfterCreateServerConfigMap,
@@ -207,13 +207,13 @@ pub open spec fn reconcile_core(
         },
         RabbitmqReconcileStep::AfterUpdateServerConfigMap => {
             let update_cm_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
-            let latest_cm = ConfigMapView::from_dynamic_object(update_cm_resp.get_Ok_0());
+            let latest_cm = ConfigMapView::unmarshal(update_cm_resp.get_Ok_0());
             if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
             && update_cm_resp.is_Ok() && latest_cm.is_Ok() && latest_cm.get_Ok_0().metadata.resource_version.is_Some() {
                 let service_account = make_service_account(rabbitmq);
                 let req_o = APIRequest::CreateRequest(CreateRequest{
                     namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                    obj: service_account.to_dynamic_object(),
+                    obj: service_account.marshal(),
                 });
                 let state_prime = RabbitmqReconcileState {
                     reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
@@ -231,13 +231,13 @@ pub open spec fn reconcile_core(
         },
         RabbitmqReconcileStep::AfterCreateServerConfigMap => {
             let create_cm_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
-            let latest_cm = ConfigMapView::from_dynamic_object(create_cm_resp.get_Ok_0());
+            let latest_cm = ConfigMapView::unmarshal(create_cm_resp.get_Ok_0());
             if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
             && create_cm_resp.is_Ok() && latest_cm.is_Ok() && latest_cm.get_Ok_0().metadata.resource_version.is_Some() {
                 let service_account = make_service_account(rabbitmq);
                 let req_o = APIRequest::CreateRequest(CreateRequest{
                     namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                    obj: service_account.to_dynamic_object(),
+                    obj: service_account.marshal(),
                 });
                 let state_prime = RabbitmqReconcileState {
                     reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
@@ -257,7 +257,7 @@ pub open spec fn reconcile_core(
             let role = make_role(rabbitmq);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: role.to_dynamic_object(),
+                obj: role.marshal(),
             });
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterCreateRole,
@@ -269,7 +269,7 @@ pub open spec fn reconcile_core(
             let role_binding = make_role_binding(rabbitmq);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: role_binding.to_dynamic_object(),
+                obj: role_binding.marshal(),
             });
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::AfterCreateRoleBinding,
@@ -293,15 +293,15 @@ pub open spec fn reconcile_core(
                 let get_sts_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
                 if get_sts_resp.is_Ok() {
                     // update
-                    if StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).is_Ok() {
-                        let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).get_Ok_0();
+                    if StatefulSetView::unmarshal(get_sts_resp.get_Ok_0()).is_Ok() {
+                        let found_stateful_set = StatefulSetView::unmarshal(get_sts_resp.get_Ok_0()).get_Ok_0();
                         if found_stateful_set.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref()) {
                             let req_o = APIRequest::UpdateRequest(UpdateRequest {
                                 key: make_stateful_set_key(rabbitmq.object_ref()),
                                 obj: update_stateful_set(
                                     rabbitmq, found_stateful_set,
                                     state.latest_config_map_rv_opt.get_Some_0()
-                                ).to_dynamic_object(),
+                                ).marshal(),
                             });
                             let state_prime = RabbitmqReconcileState {
                                 reconcile_step: RabbitmqReconcileStep::AfterUpdateStatefulSet,
@@ -327,7 +327,7 @@ pub open spec fn reconcile_core(
                     // create
                     let req_o = APIRequest::CreateRequest(CreateRequest {
                         namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                        obj: stateful_set.to_dynamic_object(),
+                        obj: stateful_set.marshal(),
                     });
                     let state_prime = RabbitmqReconcileState {
                         reconcile_step: RabbitmqReconcileStep::AfterCreateStatefulSet,

@@ -190,57 +190,6 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp
     );
 }
 
-pub proof fn lemma_create_req_leads_to_res_exists(spec: TempPred<Self>, msg: MsgType<E>)
-    requires
-        spec.entails(always(lift_state(Self::busy_disabled()))),
-        spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
-    ensures
-        spec.entails(
-            lift_state(|s: Self| {
-                &&& s.in_flight().contains(msg)
-                &&& msg.dst == HostId::KubernetesAPI
-                &&& msg.content.is_create_request()
-                &&& msg.content.get_create_request().obj.metadata.name.is_Some()
-                &&& msg.content.get_create_request().obj.metadata.namespace.is_None()
-                &&& Self::object_has_well_formed_spec(msg.content.get_create_request().obj)
-                &&& msg.content.get_create_request().obj.metadata.owner_references.is_Some()
-                &&& msg.content.get_create_request().obj.metadata.owner_references.get_Some_0().len() == 1
-                &&& msg.content.get_create_request().obj.kind == K::kind() ==> K::rule(K::from_dynamic_object(msg.content.get_create_request().obj).get_Ok_0())
-            })
-                .leads_to(lift_state(|s: Self|
-                    s.resources().contains_key(
-                        msg.content.get_create_request().obj.set_namespace(
-                            msg.content.get_create_request().namespace
-                        ).object_ref()
-                    )
-                ))
-        ),
-{
-    let obj = msg.content.get_create_request().obj;
-    let pre = |s: Self| {
-        &&& s.in_flight().contains(msg)
-        &&& msg.dst == HostId::KubernetesAPI
-        &&& msg.content.is_create_request()
-        &&& obj.metadata.name.is_Some()
-        &&& obj.metadata.namespace.is_None()
-        &&& Self::object_has_well_formed_spec(obj)
-        &&& msg.content.get_create_request().obj.metadata.owner_references.is_Some()
-        &&& msg.content.get_create_request().obj.metadata.owner_references.get_Some_0().len() == 1
-        &&& obj.kind == K::kind() ==> K::rule(K::from_dynamic_object(obj).get_Ok_0())
-    };
-    let post = |s: Self|
-        s.resources().contains_key(
-            msg.content.get_create_request().obj.set_namespace(msg.content.get_create_request().namespace).object_ref()
-        );
-    let stronger_next = |s, s_prime: Self| {
-        Self::next()(s, s_prime)
-        && !s.busy_enabled
-    };
-    strengthen_next::<Self>(spec, Self::next(), Self::busy_disabled(), stronger_next);
-    Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Some(msg), stronger_next, Self::handle_request(), pre, post);
-}
-
 pub open spec fn no_req_before_rest_id_is_in_flight(rest_id: RestId) -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>| !{

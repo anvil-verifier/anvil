@@ -81,7 +81,7 @@ proof fn lemma_stateful_set_never_scaled_down_for_rabbitmq(spec: TempPred<RMQClu
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 let input = step.get_KubernetesAPIStep_0().get_Some_0();
                 if input.content.is_delete_request() {
-                    assert(StatefulSetView::from_dynamic_object(s.resources()[sts_key]).get_Ok_0().spec == StatefulSetView::from_dynamic_object(s_prime.resources()[sts_key]).get_Ok_0().spec);
+                    assert(StatefulSetView::unmarshal(s.resources()[sts_key]).get_Ok_0().spec == StatefulSetView::unmarshal(s_prime.resources()[sts_key]).get_Ok_0().spec);
                 } else {
                     assert(input.content.is_update_request());
                     assert(s.resources()[sts_key].metadata.resource_version.get_Some_0() == input.content.get_update_request().obj.metadata.resource_version.get_Some_0());
@@ -103,14 +103,14 @@ spec fn replicas_of_rabbitmq(obj: DynamicObjectView) -> int
     recommends
         obj.kind.is_CustomResourceKind(),
 {
-    RabbitmqClusterView::from_dynamic_object(obj).get_Ok_0().spec.replicas
+    RabbitmqClusterView::unmarshal(obj).get_Ok_0().spec.replicas
 }
 
 spec fn replicas_of_stateful_set(obj: DynamicObjectView) -> int
     recommends
         obj.kind.is_StatefulSetKind(),
 {
-    StatefulSetView::from_dynamic_object(obj).get_Ok_0().spec.get_Some_0().replicas.get_Some_0()
+    StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().replicas.get_Some_0()
 }
 
 spec fn object_in_sts_update_request_has_smaller_rv_than_etcd(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
@@ -253,7 +253,7 @@ proof fn replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd_ind
     let sts_key = make_stateful_set_key(key);
     assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && sts_update_request_msg(rabbitmq.object_ref())(msg)
     && s_prime.resources().contains_key(sts_key)
-    && s_prime.resources()[sts_key].metadata.resource_version.get_Some_0() == msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() implies StatefulSetView::from_dynamic_object(s_prime.resources()[sts_key]).get_Ok_0().spec.get_Some_0().replicas.get_Some_0()
+    && s_prime.resources()[sts_key].metadata.resource_version.get_Some_0() == msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() implies StatefulSetView::unmarshal(s_prime.resources()[sts_key]).get_Ok_0().spec.get_Some_0().replicas.get_Some_0()
     <= replicas_of_stateful_set(msg.content.get_update_request().obj) by {
         let step = choose |step| RMQCluster::next_step(s, s_prime, step);
         if s.in_flight().contains(msg) {
@@ -262,16 +262,16 @@ proof fn replicas_of_stateful_set_update_request_msg_is_no_smaller_than_etcd_ind
                 assert(msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter);
                 assert(false);
             } else {
-                assert(StatefulSetView::from_dynamic_object(s_prime.resources()[sts_key]).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() <= replicas_of_stateful_set(msg.content.get_update_request().obj));
+                assert(StatefulSetView::unmarshal(s_prime.resources()[sts_key]).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() <= replicas_of_stateful_set(msg.content.get_update_request().obj));
             }
         } else {
             lemma_stateful_set_update_request_msg_implies_key_in_reconcile_equals(key, s, s_prime, msg, step);
-            StatefulSetView::spec_integrity_is_preserved_by_marshal();
+            StatefulSetView::marshal_spec_preserves_integrity();
             assert(s_prime.resources()[sts_key] == s.resources()[sts_key]);
             assert(replicas_of_stateful_set(msg.content.get_update_request().obj) == s.ongoing_reconciles()[key].triggering_cr.spec.replicas);
             assert(s.ongoing_reconciles()[key].triggering_cr == s_prime.ongoing_reconciles()[key].triggering_cr);
             assert(s_prime.resources()[sts_key].metadata.owner_references_only_contains(s.ongoing_reconciles()[key].triggering_cr.controller_owner_ref()));
-            assert(StatefulSetView::from_dynamic_object(s_prime.resources()[sts_key]).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() <= replicas_of_stateful_set(msg.content.get_update_request().obj));
+            assert(StatefulSetView::unmarshal(s_prime.resources()[sts_key]).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() <= replicas_of_stateful_set(msg.content.get_update_request().obj));
         }
     }
 }
@@ -291,7 +291,7 @@ spec fn replicas_satisfies_order(obj: DynamicObjectView, rabbitmq: RabbitmqClust
         let key = rabbitmq.object_ref();
         let sts_replicas = replicas_of_stateful_set(obj);
         &&& s.resources().contains_key(key)
-            && obj.metadata.owner_references_only_contains(RabbitmqClusterView::from_dynamic_object(s.resources()[key]).get_Ok_0().controller_owner_ref())
+            && obj.metadata.owner_references_only_contains(RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0().controller_owner_ref())
             ==> sts_replicas <= replicas_of_rabbitmq(s.resources()[key])
         &&& s.scheduled_reconciles().contains_key(key)
             && obj.metadata.owner_references_only_contains(s.scheduled_reconciles()[key].controller_owner_ref())
@@ -365,19 +365,19 @@ proof fn replicas_of_etcd_stateful_set_satisfies_order_induction(rabbitmq: Rabbi
                     let owner_refs = s.resources()[sts_key].metadata.owner_references;
                     if owner_refs.is_Some() && owner_refs.get_Some_0().len() == 1 {
                         assert(owner_refs.get_Some_0()[0].uid != s.kubernetes_api_state.uid_counter);
-                        assert(owner_refs.get_Some_0()[0] != RabbitmqClusterView::from_dynamic_object(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
+                        assert(owner_refs.get_Some_0()[0] != RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
                     }
                 } else if s.resources()[key] != s_prime.resources()[key] {
                     assert(s.resources()[key].metadata.uid == s_prime.resources()[key].metadata.uid);
-                    assert(RabbitmqClusterView::from_dynamic_object(s.resources()[key]).is_Ok());
-                    assert(RabbitmqClusterView::from_dynamic_object(s_prime.resources()[key]).is_Ok());
-                    assert(RabbitmqClusterView::from_dynamic_object(s.resources()[key]).get_Ok_0().controller_owner_ref() == RabbitmqClusterView::from_dynamic_object(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
+                    assert(RabbitmqClusterView::unmarshal(s.resources()[key]).is_Ok());
+                    assert(RabbitmqClusterView::unmarshal(s_prime.resources()[key]).is_Ok());
+                    assert(RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0().controller_owner_ref() == RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
                     assert(replicas_of_rabbitmq(s.resources()[key]) <= replicas_of_rabbitmq(s_prime.resources()[key]));
                 }
             }
             if s_prime.scheduled_reconciles().contains_key(key) {
                 if !s.scheduled_reconciles().contains_key(key) || s.scheduled_reconciles()[key] != s_prime.scheduled_reconciles()[key] {
-                    assert(s_prime.scheduled_reconciles()[key] == RabbitmqClusterView::from_dynamic_object(s.resources()[key]).get_Ok_0());
+                    assert(s_prime.scheduled_reconciles()[key] == RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0());
                 }
             }
             if s_prime.ongoing_reconciles().contains_key(key) {
@@ -487,7 +487,7 @@ proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
                     let owner_refs = msg.content.get_create_request().obj.metadata.owner_references;
                     if owner_refs.is_Some() && owner_refs.get_Some_0().len() == 1 {
                         assert(owner_refs.get_Some_0()[0].uid != s.kubernetes_api_state.uid_counter);
-                        assert(owner_refs.get_Some_0()[0] != RabbitmqClusterView::from_dynamic_object(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
+                        assert(owner_refs.get_Some_0()[0] != RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
                     }
                 }
             }
@@ -495,9 +495,9 @@ proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
         },
         Step::ControllerStep(input) => {
             if !s.in_flight().contains(msg) {
-                StatefulSetView::spec_integrity_is_preserved_by_marshal();
+                StatefulSetView::marshal_spec_preserves_integrity();
                 lemma_stateful_set_create_request_msg_implies_key_in_reconcile_equals(key, s, s_prime, msg, step);
-                assert(StatefulSetView::from_dynamic_object(msg.content.get_create_request().obj).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() <= s.ongoing_reconciles()[key].triggering_cr.spec.replicas);
+                assert(StatefulSetView::unmarshal(msg.content.get_create_request().obj).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() <= s.ongoing_reconciles()[key].triggering_cr.spec.replicas);
             }
             assert(replicas_satisfies_order(msg.content.get_create_request().obj, rabbitmq)(s_prime));
         },
@@ -552,7 +552,7 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
                     let owner_refs = msg.content.get_update_request().obj.metadata.owner_references;
                     if owner_refs.is_Some() && owner_refs.get_Some_0().len() == 1 {
                         assert(owner_refs.get_Some_0()[0].uid < s.kubernetes_api_state.uid_counter);
-                        assert(owner_refs.get_Some_0()[0] != RabbitmqClusterView::from_dynamic_object(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
+                        assert(owner_refs.get_Some_0()[0] != RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
                     }
                 }
             }
@@ -560,9 +560,9 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
         },
         Step::ControllerStep(input) => {
             if !s.in_flight().contains(msg) {
-                StatefulSetView::spec_integrity_is_preserved_by_marshal();
+                StatefulSetView::marshal_spec_preserves_integrity();
                 lemma_stateful_set_update_request_msg_implies_key_in_reconcile_equals(key, s, s_prime, msg, step);
-                assert(StatefulSetView::from_dynamic_object(msg.content.get_update_request().obj).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() <= s.ongoing_reconciles()[key].triggering_cr.spec.replicas);
+                assert(StatefulSetView::unmarshal(msg.content.get_update_request().obj).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() <= s.ongoing_reconciles()[key].triggering_cr.spec.replicas);
             }
             assert(replicas_satisfies_order(msg.content.get_update_request().obj, rabbitmq)(s_prime));
         },

@@ -55,9 +55,9 @@ impl SimpleCR {
 
     // NOTE: This function assumes serde_json::to_string won't fail!
     #[verifier(external_body)]
-    fn to_dynamic_object(self) -> (obj: DynamicObject)
+    fn marshal(self) -> (obj: DynamicObject)
         ensures
-            obj@ == self@.to_dynamic_object(),
+            obj@ == self@.marshal(),
     {
         // TODO: this might be unnecessarily slow
         DynamicObject::from_kube(
@@ -68,10 +68,10 @@ impl SimpleCR {
     /// Convert a DynamicObject to a SimpleCR
     // NOTE: This function assumes try_parse won't fail!
     #[verifier(external_body)]
-    fn from_dynamic_object(obj: DynamicObject) -> (res: Result<SimpleCR, ParseDynamicObjectError>)
+    fn unmarshal(obj: DynamicObject) -> (res: Result<SimpleCR, ParseDynamicObjectError>)
         ensures
-            res.is_Ok() == SimpleCRView::from_dynamic_object(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == SimpleCRView::from_dynamic_object(obj@).get_Ok_0(),
+            res.is_Ok() == SimpleCRView::unmarshal(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == SimpleCRView::unmarshal(obj@).get_Ok_0(),
     {
         let parse_result = obj.into_kube().try_parse::<deps_hack::SimpleCR>();
         if parse_result.is_ok() {
@@ -120,7 +120,7 @@ impl ResourceView for SimpleCRView {
 
     proof fn object_ref_is_well_formed() {}
 
-    open spec fn to_dynamic_object(self) -> DynamicObjectView {
+    open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
@@ -132,7 +132,7 @@ impl ResourceView for SimpleCRView {
         self.spec
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<SimpleCRView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<SimpleCRView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !SimpleCRView::unmarshal_spec(obj.spec).is_Ok() {
@@ -145,28 +145,28 @@ impl ResourceView for SimpleCRView {
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {
-        SimpleCRView::spec_integrity_is_preserved_by_marshal();
+    proof fn marshal_preserves_integrity() {
+        SimpleCRView::marshal_spec_preserves_integrity();
     }
 
-    proof fn from_dynamic_preserves_metadata() {}
+    proof fn marshal_preserves_metadata() {}
 
-    proof fn from_dynamic_preserves_kind() {}
+    proof fn marshal_preserves_kind() {}
 
     closed spec fn marshal_spec(s: SimpleCRSpecView) -> Value;
 
     closed spec fn unmarshal_spec(v: Value) -> Result<SimpleCRSpecView, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
-    proof fn spec_integrity_is_preserved_by_marshal() {}
+    proof fn marshal_spec_preserves_integrity() {}
 
-    proof fn from_dynamic_object_result_determined_by_unmarshal() {}
+    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn rule(obj: SimpleCRView) -> bool {
+    open spec fn state_validation(self) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_obj: SimpleCRView, old_obj: SimpleCRView) -> bool {
+    open spec fn transition_validation(self, old_obj: SimpleCRView) -> bool {
         true
     }
 }

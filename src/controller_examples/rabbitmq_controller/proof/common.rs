@@ -183,61 +183,61 @@ pub open spec fn is_correct_pending_request_with_object_at_rabbitmq_step(
 pub open spec fn is_create_headless_service_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool {
     &&& request.is_CreateRequest()
     &&& request.get_CreateRequest_0().namespace == rabbitmq.metadata.namespace.get_Some_0()
-    &&& request.get_CreateRequest_0().obj == make_headless_service(rabbitmq).to_dynamic_object()
+    &&& request.get_CreateRequest_0().obj == make_headless_service(rabbitmq).marshal()
 }
 
 pub open spec fn is_create_service_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool {
     &&& request.is_CreateRequest()
     &&& request.get_CreateRequest_0().namespace == rabbitmq.metadata.namespace.get_Some_0()
-    &&& request.get_CreateRequest_0().obj == make_main_service(rabbitmq).to_dynamic_object()
+    &&& request.get_CreateRequest_0().obj == make_main_service(rabbitmq).marshal()
 }
 
 pub open spec fn is_create_erlang_secret_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool {
     &&& request.is_CreateRequest()
     &&& request.get_CreateRequest_0().namespace == rabbitmq.metadata.namespace.get_Some_0()
-    &&& request.get_CreateRequest_0().obj == make_erlang_secret(rabbitmq).to_dynamic_object()
+    &&& request.get_CreateRequest_0().obj == make_erlang_secret(rabbitmq).marshal()
 }
 
 pub open spec fn is_create_default_user_secret_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool {
     &&& request.is_CreateRequest()
     &&& request.get_CreateRequest_0().namespace == rabbitmq.metadata.namespace.get_Some_0()
-    &&& request.get_CreateRequest_0().obj == make_default_user_secret(rabbitmq).to_dynamic_object()
+    &&& request.get_CreateRequest_0().obj == make_default_user_secret(rabbitmq).marshal()
 }
 
 pub open spec fn is_create_plugins_config_map_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool {
     &&& request.is_CreateRequest()
     &&& request.get_CreateRequest_0().namespace == rabbitmq.metadata.namespace.get_Some_0()
-    &&& request.get_CreateRequest_0().obj == make_plugins_config_map(rabbitmq).to_dynamic_object()
+    &&& request.get_CreateRequest_0().obj == make_plugins_config_map(rabbitmq).marshal()
 }
 
 pub open spec fn is_create_server_config_map_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool {
     &&& request.is_CreateRequest()
     &&& request.get_CreateRequest_0().namespace == rabbitmq.metadata.namespace.get_Some_0()
-    &&& request.get_CreateRequest_0().obj == make_server_config_map(rabbitmq).to_dynamic_object()
+    &&& request.get_CreateRequest_0().obj == make_server_config_map(rabbitmq).marshal()
 }
 
 pub open spec fn is_create_service_account_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool {
     &&& request.is_CreateRequest()
     &&& request.get_CreateRequest_0().namespace == rabbitmq.metadata.namespace.get_Some_0()
-    &&& request.get_CreateRequest_0().obj == make_service_account(rabbitmq).to_dynamic_object()
+    &&& request.get_CreateRequest_0().obj == make_service_account(rabbitmq).marshal()
 }
 
 pub open spec fn is_create_role_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool {
     &&& request.is_CreateRequest()
     &&& request.get_CreateRequest_0().namespace == rabbitmq.metadata.namespace.get_Some_0()
-    &&& request.get_CreateRequest_0().obj == make_role(rabbitmq).to_dynamic_object()
+    &&& request.get_CreateRequest_0().obj == make_role(rabbitmq).marshal()
 }
 
 pub open spec fn is_create_role_binding_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool {
     &&& request.is_CreateRequest()
     &&& request.get_CreateRequest_0().namespace == rabbitmq.metadata.namespace.get_Some_0()
-    &&& request.get_CreateRequest_0().obj == make_role_binding(rabbitmq).to_dynamic_object()
+    &&& request.get_CreateRequest_0().obj == make_role_binding(rabbitmq).marshal()
 }
 
 pub open spec fn is_create_stateful_set_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool {
     &&& request.is_CreateRequest()
     &&& request.get_CreateRequest_0().namespace == rabbitmq.metadata.namespace.get_Some_0()
-    &&& request.get_CreateRequest_0().obj == make_stateful_set(rabbitmq).to_dynamic_object()
+    &&& request.get_CreateRequest_0().obj == make_stateful_set(rabbitmq).marshal()
 }
 
 pub open spec fn is_get_server_config_map_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool
@@ -255,8 +255,8 @@ pub open spec fn is_update_stateful_set_request(request: APIRequest, rabbitmq: R
     &&& request.is_UpdateRequest()
     &&& request.get_UpdateRequest_0().key == make_stateful_set_key(rabbitmq.object_ref())
     &&& request.get_UpdateRequest_0().obj == update_stateful_set(
-        rabbitmq, StatefulSetView::from_dynamic_object(object).get_Ok_0()
-    ).to_dynamic_object()
+        rabbitmq, StatefulSetView::unmarshal(object).get_Ok_0()
+    ).marshal()
 }
 
 pub open spec fn is_get_stateful_set_request(request: APIRequest, rabbitmq: RabbitmqClusterView) -> bool
@@ -274,8 +274,8 @@ pub open spec fn is_update_server_config_map_request(request: APIRequest, rabbit
     &&& request.is_UpdateRequest()
     &&& request.get_UpdateRequest_0().key == make_server_config_map_key(rabbitmq.object_ref())
     &&& request.get_UpdateRequest_0().obj == update_server_config_map(
-        rabbitmq, ConfigMapView::from_dynamic_object(object).get_Ok_0()
-    ).to_dynamic_object()
+        rabbitmq, ConfigMapView::unmarshal(object).get_Ok_0()
+    ).marshal()
 }
 
 pub open spec fn at_after_get_server_config_map_step_with_rabbitmq_and_exists_ok_resp_in_flight(

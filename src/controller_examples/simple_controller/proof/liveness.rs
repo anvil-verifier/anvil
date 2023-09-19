@@ -28,7 +28,7 @@ use vstd::prelude::*;
 verus! {
 
 spec fn cr_exists(cr: SimpleCRView) -> TempPred<State<SimpleReconcileState>> {
-    lift_state(|s: State<SimpleReconcileState>| s.resource_obj_exists(cr.to_dynamic_object()) && cr.metadata.name.is_Some() && cr.metadata.namespace.is_Some())
+    lift_state(|s: State<SimpleReconcileState>| s.resource_obj_exists(cr.marshal()) && cr.metadata.name.is_Some() && cr.metadata.namespace.is_Some())
 }
 
 spec fn cr_matched(cr: SimpleCRView) -> TempPred<State<SimpleReconcileState>> {
@@ -538,11 +538,11 @@ proof fn lemma_after_get_cr_pc_and_pending_req_in_flight_and_no_resp_in_flight_l
     let stronger_next = |s, s_prime: State<SimpleReconcileState>| {
         next(simple_reconciler())(s, s_prime)
         && !s.crash_enabled
-        && s.resource_obj_exists(cr.to_dynamic_object()) && cr.metadata.name.is_Some() && cr.metadata.namespace.is_Some()
+        && s.resource_obj_exists(cr.marshal()) && cr.metadata.name.is_Some() && cr.metadata.namespace.is_Some()
         && every_in_flight_msg_has_unique_id::<SimpleReconcileState>()(s)
     };
-    implies_preserved_by_always_temp(cr_exists(cr), lift_state(|s: State<SimpleReconcileState>| s.resource_obj_exists(cr.to_dynamic_object())));
-    entails_trans(partial_spec_with_invariants_and_assumptions(cr), always(cr_exists(cr)), always(lift_state(|s: State<SimpleReconcileState>| s.resource_obj_exists(cr.to_dynamic_object()))));
+    implies_preserved_by_always_temp(cr_exists(cr), lift_state(|s: State<SimpleReconcileState>| s.resource_obj_exists(cr.marshal())));
+    entails_trans(partial_spec_with_invariants_and_assumptions(cr), always(cr_exists(cr)), always(lift_state(|s: State<SimpleReconcileState>| s.resource_obj_exists(cr.marshal()))));
     entails_always_and_n!(partial_spec_with_invariants_and_assumptions(cr),
         lift_action(next(simple_reconciler())), lift_state(crash_disabled::<SimpleReconcileState>()),
         cr_exists(cr),
@@ -564,7 +564,7 @@ proof fn lemma_after_get_cr_pc_and_ok_resp_in_flight_leads_to_cm_exists(req_msg:
                 .leads_to(lift_state(cm_exists(cr)))
         ),
 {
-    let resp_msg = Message::form_get_resp_msg(req_msg, Ok(cr.to_dynamic_object()));
+    let resp_msg = Message::form_get_resp_msg(req_msg, Ok(cr.marshal()));
     let input = (Some(resp_msg), Some(cr.object_ref()));
     let pre = reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespace_in_flight(req_msg, cr);
     let spec = partial_spec_with_invariants_and_assumptions(cr);
@@ -592,13 +592,13 @@ proof fn lemma_after_get_cr_pc_and_ok_resp_in_flight_leads_to_cm_exists(req_msg:
                 s.in_flight().contains(msg)
                 && msg.dst == HostId::KubernetesAPI
                 && #[trigger] msg.content.is_create_request()
-                && msg.content.get_create_request().obj == reconciler::make_config_map(cr).to_dynamic_object()
+                && msg.content.get_create_request().obj == reconciler::make_config_map(cr).marshal()
             };
             let kube_pre = |s: State<SimpleReconcileState>| {
                 &&& s.in_flight().contains(req_msg)
                 &&& req_msg.dst == HostId::KubernetesAPI
                 &&& req_msg.content.is_create_request()
-                &&& req_msg.content.get_create_request().obj == reconciler::make_config_map(cr).to_dynamic_object()
+                &&& req_msg.content.get_create_request().obj == reconciler::make_config_map(cr).marshal()
             };
             kubernetes_api_liveness::lemma_pre_leads_to_post_by_kubernetes_api(spec, simple_reconciler(), Some(req_msg), next(simple_reconciler()), handle_request(), kube_pre, cm_exists(cr));
             instantiate_entailed_leads_to(ex, i, spec, lift_state(kube_pre), lift_state(cm_exists(cr)));

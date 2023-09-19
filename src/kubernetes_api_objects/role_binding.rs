@@ -48,7 +48,6 @@ impl RoleBinding {
         todo!()
     }
 
-
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
         ensures
@@ -75,7 +74,6 @@ impl RoleBinding {
         );
     }
 
-
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::RoleBinding {
         self.inner
@@ -90,9 +88,9 @@ impl RoleBinding {
     }
 
     #[verifier(external_body)]
-    pub fn to_dynamic_object(self) -> (obj: DynamicObject)
+    pub fn marshal(self) -> (obj: DynamicObject)
         ensures
-            obj@ == self@.to_dynamic_object(),
+            obj@ == self@.marshal(),
     {
         DynamicObject::from_kube(
             deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
@@ -100,10 +98,10 @@ impl RoleBinding {
     }
 
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<RoleBinding, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<RoleBinding, ParseDynamicObjectError>)
         ensures
-            res.is_Ok() == RoleBindingView::from_dynamic_object(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == RoleBindingView::from_dynamic_object(obj@).get_Ok_0(),
+            res.is_Ok() == RoleBindingView::unmarshal(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == RoleBindingView::unmarshal(obj@).get_Ok_0(),
     {
         let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::rbac::v1::RoleBinding>();
         if parse_result.is_ok() {
@@ -157,14 +155,11 @@ impl RoleRef {
         self.inner.name = name.into_rust_string();
     }
 
-
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::RoleRef {
         self.inner
     }
 }
-
-
 
 #[verifier(external_body)]
 pub struct Subject {
@@ -281,7 +276,7 @@ impl ResourceView for RoleBindingView {
         (self.role_ref, self.subjects)
     }
 
-    open spec fn to_dynamic_object(self) -> DynamicObjectView {
+    open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
@@ -289,7 +284,7 @@ impl ResourceView for RoleBindingView {
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<RoleBindingView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<RoleBindingView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !RoleBindingView::unmarshal_spec(obj.spec).is_Ok() {
@@ -303,29 +298,33 @@ impl ResourceView for RoleBindingView {
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {
-        RoleBindingView::spec_integrity_is_preserved_by_marshal();
+    proof fn marshal_preserves_integrity() {
+        RoleBindingView::marshal_spec_preserves_integrity();
     }
 
-    proof fn from_dynamic_preserves_metadata() {}
+    proof fn marshal_preserves_metadata() {}
 
-    proof fn from_dynamic_preserves_kind() {}
+    proof fn marshal_preserves_kind() {}
 
     closed spec fn marshal_spec(s: RoleBindingSpecView) -> Value;
 
     closed spec fn unmarshal_spec(v: Value) -> Result<RoleBindingSpecView, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
-    proof fn spec_integrity_is_preserved_by_marshal() {}
+    proof fn marshal_spec_preserves_integrity() {}
 
-    proof fn from_dynamic_object_result_determined_by_unmarshal() {}
+    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn rule(obj: RoleBindingView) -> bool {
-        true
+    open spec fn state_validation(self) -> bool {
+        &&& self.role_ref.api_group == new_strlit("rbac.authorization.k8s.io")@
+        &&& (self.role_ref.kind == new_strlit("Role")@ || self.role_ref.kind == new_strlit("ClusterRole")@)
+        &&& self.role_ref.name.len() > 0
+        &&& self.subjects.is_Some()
+            ==> forall |i| 0 <= i < self.subjects.get_Some_0().len() ==> #[trigger] self.subjects.get_Some_0()[i].state_validation(true)
     }
 
-    open spec fn transition_rule(new_obj: RoleBindingView, old_obj: RoleBindingView) -> bool {
-        true
+    open spec fn transition_validation(self, old_obj: RoleBindingView) -> bool {
+        &&& old_obj.role_ref == self.role_ref // role_ref is immutable
     }
 }
 
@@ -378,14 +377,11 @@ impl Marshalable for RoleRefView {
     proof fn marshal_preserves_integrity() {}
 }
 
-
-
 pub struct SubjectView {
     pub kind: StringView,
     pub name: StringView,
     pub namespace: Option<StringView>,
 }
-
 
 impl SubjectView {
     pub open spec fn default() -> SubjectView {
@@ -394,6 +390,11 @@ impl SubjectView {
             name: new_strlit("")@,
             namespace: None,
         }
+    }
+
+    pub open spec fn state_validation(self, is_namespaced: bool) -> bool {
+        &&& self.kind == new_strlit("ServiceAccount")@ // TODO: support User and Group as kind here
+        &&& is_namespaced ==> self.namespace.is_Some() && self.namespace.get_Some_0().len() > 0
     }
 
     pub open spec fn set_kind(self, kind: StringView) -> SubjectView {
@@ -429,6 +430,5 @@ impl Marshalable for SubjectView {
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
-
 
 }

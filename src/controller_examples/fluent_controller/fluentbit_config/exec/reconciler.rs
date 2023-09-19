@@ -107,7 +107,7 @@ pub fn reconcile_core(fluentbit: &FluentBitConfig, resp_o: Option<Response<Empty
             let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                 api_resource: Secret::api_resource(),
                 namespace: fluentbit.metadata().namespace().unwrap(),
-                obj: secret.to_dynamic_object(),
+                obj: secret.marshal(),
             });
             let state_prime = FluentBitConfigReconcileState {
                 reconcile_step: FluentBitConfigReconcileStep::AfterCreateSecret,

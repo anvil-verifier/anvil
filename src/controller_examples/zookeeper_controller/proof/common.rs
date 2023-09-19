@@ -192,25 +192,25 @@ pub open spec fn is_correct_pending_request_at_zookeeper_step(
 pub open spec fn is_create_headless_service_request(request: APIRequest, zk: ZookeeperClusterView) -> bool {
     &&& request.is_CreateRequest()
     &&& request.get_CreateRequest_0().namespace == zk.metadata.namespace.get_Some_0()
-    &&& request.get_CreateRequest_0().obj == make_headless_service(zk).to_dynamic_object()
+    &&& request.get_CreateRequest_0().obj == make_headless_service(zk).marshal()
 }
 
 pub open spec fn is_create_client_service_request(request: APIRequest, zk: ZookeeperClusterView) -> bool {
     &&& request.is_CreateRequest()
     &&& request.get_CreateRequest_0().namespace == zk.metadata.namespace.get_Some_0()
-    &&& request.get_CreateRequest_0().obj == make_client_service(zk).to_dynamic_object()
+    &&& request.get_CreateRequest_0().obj == make_client_service(zk).marshal()
 }
 
 pub open spec fn is_create_admin_server_service_request(request: APIRequest, zk: ZookeeperClusterView) -> bool {
     &&& request.is_CreateRequest()
     &&& request.get_CreateRequest_0().namespace == zk.metadata.namespace.get_Some_0()
-    &&& request.get_CreateRequest_0().obj == make_admin_server_service(zk).to_dynamic_object()
+    &&& request.get_CreateRequest_0().obj == make_admin_server_service(zk).marshal()
 }
 
 pub open spec fn is_create_config_map_request(request: APIRequest, zk: ZookeeperClusterView) -> bool {
     &&& request.is_CreateRequest()
     &&& request.get_CreateRequest_0().namespace == zk.metadata.namespace.get_Some_0()
-    &&& request.get_CreateRequest_0().obj == make_config_map(zk).to_dynamic_object()
+    &&& request.get_CreateRequest_0().obj == make_config_map(zk).marshal()
 }
 
 pub open spec fn is_get_stateful_set_request(request: APIRequest, zk: ZookeeperClusterView) -> bool
@@ -231,7 +231,7 @@ pub open spec fn is_create_stateful_set_request(request: APIRequest, zk: Zookeep
 {
     &&& request.is_CreateRequest()
     &&& request.get_CreateRequest_0().namespace == zk.metadata.namespace.get_Some_0()
-    &&& request.get_CreateRequest_0().obj == make_stateful_set(zk).to_dynamic_object()
+    &&& request.get_CreateRequest_0().obj == make_stateful_set(zk).marshal()
 }
 
 pub open spec fn is_update_stateful_set_request(request: APIRequest, zk: ZookeeperClusterView, object: DynamicObjectView) -> bool
@@ -241,8 +241,8 @@ pub open spec fn is_update_stateful_set_request(request: APIRequest, zk: Zookeep
     &&& request.is_UpdateRequest()
     &&& request.get_UpdateRequest_0().key == make_stateful_set_key(zk.object_ref())
     &&& request.get_UpdateRequest_0().obj == update_stateful_set(
-        zk, StatefulSetView::from_dynamic_object(object).get_Ok_0()
-    ).to_dynamic_object()
+        zk, StatefulSetView::unmarshal(object).get_Ok_0()
+    ).marshal()
 }
 
 }

@@ -109,9 +109,9 @@ impl Secret {
     }
 
     #[verifier(external_body)]
-    pub fn to_dynamic_object(self) -> (obj: DynamicObject)
+    pub fn marshal(self) -> (obj: DynamicObject)
         ensures
-            obj@ == self@.to_dynamic_object(),
+            obj@ == self@.marshal(),
     {
         DynamicObject::from_kube(
             deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
@@ -119,10 +119,10 @@ impl Secret {
     }
 
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<Secret, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<Secret, ParseDynamicObjectError>)
         ensures
-            res.is_Ok() == SecretView::from_dynamic_object(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == SecretView::from_dynamic_object(obj@).get_Ok_0(),
+            res.is_Ok() == SecretView::unmarshal(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == SecretView::unmarshal(obj@).get_Ok_0(),
     {
         let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::core::v1::Secret>();
         if parse_result.is_ok() {
@@ -201,7 +201,7 @@ impl ResourceView for SecretView {
 
     proof fn object_ref_is_well_formed() {}
 
-    open spec fn to_dynamic_object(self) -> DynamicObjectView {
+    open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
@@ -209,7 +209,7 @@ impl ResourceView for SecretView {
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<SecretView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<SecretView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !SecretView::unmarshal_spec(obj.spec).is_Ok() {
@@ -223,28 +223,28 @@ impl ResourceView for SecretView {
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {
-        SecretView::spec_integrity_is_preserved_by_marshal();
+    proof fn marshal_preserves_integrity() {
+        SecretView::marshal_spec_preserves_integrity();
     }
 
-    proof fn from_dynamic_preserves_metadata() {}
+    proof fn marshal_preserves_metadata() {}
 
-    proof fn from_dynamic_preserves_kind() {}
+    proof fn marshal_preserves_kind() {}
 
     open spec fn marshal_spec(s: SecretSpecView) -> Value;
 
     open spec fn unmarshal_spec(v: Value) -> Result<SecretSpecView, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
-    proof fn spec_integrity_is_preserved_by_marshal() {}
+    proof fn marshal_spec_preserves_integrity() {}
 
-    proof fn from_dynamic_object_result_determined_by_unmarshal() {}
+    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn rule(obj: SecretView) -> bool {
+    open spec fn state_validation(self) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_obj: SecretView, old_obj: SecretView) -> bool {
+    open spec fn transition_validation(self, old_obj: SecretView) -> bool {
         true
     }
 }
