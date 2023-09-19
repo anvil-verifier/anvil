@@ -50,6 +50,34 @@ pub open spec fn spec_integrity_check(obj: DynamicObjectView) -> bool {
     &&& obj.kind == K::kind() ==> K::unmarshal_spec(obj.spec).is_Ok()
 }
 
+pub open spec fn state_validity_check(obj: DynamicObjectView) -> bool {
+    &&& obj.kind == ConfigMapView::kind() ==> ConfigMapView::rule(ConfigMapView::unmarshal(obj).get_Ok_0())
+    &&& obj.kind == DaemonSetView::kind() ==> DaemonSetView::rule(DaemonSetView::unmarshal(obj).get_Ok_0())
+    &&& obj.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::rule(PersistentVolumeClaimView::unmarshal(obj).get_Ok_0())
+    &&& obj.kind == PodView::kind() ==> PodView::rule(PodView::unmarshal(obj).get_Ok_0())
+    &&& obj.kind == RoleBindingView::kind() ==> RoleBindingView::rule(RoleBindingView::unmarshal(obj).get_Ok_0())
+    &&& obj.kind == RoleView::kind() ==> RoleView::rule(RoleView::unmarshal(obj).get_Ok_0())
+    &&& obj.kind == SecretView::kind() ==> SecretView::rule(SecretView::unmarshal(obj).get_Ok_0())
+    &&& obj.kind == ServiceView::kind() ==> ServiceView::rule(ServiceView::unmarshal(obj).get_Ok_0())
+    &&& obj.kind == StatefulSetView::kind() ==> StatefulSetView::rule(StatefulSetView::unmarshal(obj).get_Ok_0())
+    &&& obj.kind == ServiceAccountView::kind() ==> ServiceAccountView::rule(ServiceAccountView::unmarshal(obj).get_Ok_0())
+    &&& obj.kind == K::kind() ==> K::rule(K::unmarshal(obj).get_Ok_0())
+}
+
+pub open spec fn transition_validity_check(obj: DynamicObjectView, old_obj: DynamicObjectView) -> bool {
+    &&& obj.kind == ConfigMapView::kind() ==> ConfigMapView::transition_rule(ConfigMapView::unmarshal(obj).get_Ok_0(), ConfigMapView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == DaemonSetView::kind() ==> DaemonSetView::transition_rule(DaemonSetView::unmarshal(obj).get_Ok_0(), DaemonSetView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::transition_rule(PersistentVolumeClaimView::unmarshal(obj).get_Ok_0(), PersistentVolumeClaimView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == PodView::kind() ==> PodView::transition_rule(PodView::unmarshal(obj).get_Ok_0(), PodView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == RoleBindingView::kind() ==> RoleBindingView::transition_rule(RoleBindingView::unmarshal(obj).get_Ok_0(), RoleBindingView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == RoleView::kind() ==> RoleView::transition_rule(RoleView::unmarshal(obj).get_Ok_0(), RoleView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == SecretView::kind() ==> SecretView::transition_rule(SecretView::unmarshal(obj).get_Ok_0(), SecretView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == ServiceView::kind() ==> ServiceView::transition_rule(ServiceView::unmarshal(obj).get_Ok_0(), ServiceView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == StatefulSetView::kind() ==> StatefulSetView::transition_rule(StatefulSetView::unmarshal(obj).get_Ok_0(), StatefulSetView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == ServiceAccountView::kind() ==> ServiceAccountView::transition_rule(ServiceAccountView::unmarshal(obj).get_Ok_0(), ServiceAccountView::unmarshal(old_obj).get_Ok_0())
+    &&& obj.kind == K::kind() ==> K::transition_rule(K::unmarshal(obj).get_Ok_0(), K::unmarshal(old_obj).get_Ok_0())
+}
+
 pub open spec fn handle_get_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
     recommends
         msg.content.is_get_request(),
@@ -107,7 +135,7 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
         ) {
         // Creation fails because the object has multiple controller owner references
         Some(APIError::Invalid)
-    } else if req.obj.kind == K::kind() && !K::rule(K::unmarshal(req.obj).get_Ok_0()) {
+    } else if !Self::state_validity_check(req.obj) {
         Some(APIError::Invalid)
     } else {
         None
@@ -258,10 +286,9 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         && !req.obj.metadata.finalizers_as_set().subset_of(s.resources[req.key].metadata.finalizers_as_set()) {
         // Update fails because the object is marked to be deleted but the update tries to add more finalizers
         Some(APIError::Forbidden)
-    } else if req.obj.kind == K::kind() && !(
-        K::rule(K::unmarshal(req.obj).get_Ok_0())
-        && K::transition_rule(K::unmarshal(req.obj).get_Ok_0(), K::unmarshal(s.resources[req.key]).get_Ok_0())
-    ) {
+    } else if !Self::state_validity_check(req.obj) {
+        Some(APIError::Invalid)
+    } else if !Self::transition_validity_check(req.obj, s.resources[req.key]) {
         Some(APIError::Invalid)
     } else {
         None
