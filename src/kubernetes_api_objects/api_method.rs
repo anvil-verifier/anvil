@@ -1,9 +1,11 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::api_resource::*;
-use crate::kubernetes_api_objects::common::{Kind, ObjectRef};
-use crate::kubernetes_api_objects::dynamic::*;
-use crate::kubernetes_api_objects::error::*;
+use crate::kubernetes_api_objects::{
+    api_resource::*,
+    common::{Kind, ObjectRef},
+    dynamic::*,
+    error::*,
+};
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::string::*;

@@ -1,14 +1,9 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::api_resource::*;
-use crate::kubernetes_api_objects::common::*;
-use crate::kubernetes_api_objects::dynamic::*;
-use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
-use crate::kubernetes_api_objects::label_selector::*;
-use crate::kubernetes_api_objects::marshal::*;
-use crate::kubernetes_api_objects::object_meta::*;
-use crate::kubernetes_api_objects::pod_template_spec::*;
-use crate::kubernetes_api_objects::resource::*;
+use crate::kubernetes_api_objects::{
+    api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError, label_selector::*,
+    marshal::*, object_meta::*, pod_template_spec::*, resource::*,
+};
 use crate::pervasive_ext::string_map::*;
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
