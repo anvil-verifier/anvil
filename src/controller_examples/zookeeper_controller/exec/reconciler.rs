@@ -779,6 +779,17 @@ fn zk_node_data(zk: &ZookeeperCluster) -> (data: String)
     new_strlit("CLUSTER_SIZE=").to_string().concat(i32_to_string(zk.spec().replicas()).as_str())
 }
 
+fn make_base_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
+    requires
+        zk@.well_formed(),
+    ensures
+        labels@ == zk_spec::make_base_labels(zk@),
+{
+    let mut labels = StringMap::empty();
+    labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
+    labels
+}
+
 fn make_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
     requires
         zk@.well_formed(),
@@ -786,11 +797,7 @@ fn make_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
         labels@ == zk_spec::make_labels(zk@),
 {
     let mut labels = zk.spec().labels();
-    labels.extend({
-        let mut m = StringMap::empty();
-        m.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-        m
-    });
+    labels.extend(make_base_labels(zk));
     labels
 }
 
@@ -992,7 +999,7 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
             service_spec.set_cluster_ip(new_strlit("None").to_string());
         }
         service_spec.set_ports(ports);
-        service_spec.set_selector(make_labels(zk));
+        service_spec.set_selector(make_base_labels(zk));
         service_spec
     });
 
@@ -1215,7 +1222,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
         // Set the selector used for querying pods of this stateful set
         stateful_set_spec.set_selector({
             let mut selector = LabelSelector::default();
-            selector.set_match_labels(make_labels(zk));
+            selector.set_match_labels(make_base_labels(zk));
             selector
         });
         stateful_set_spec.set_pvc_retention_policy({

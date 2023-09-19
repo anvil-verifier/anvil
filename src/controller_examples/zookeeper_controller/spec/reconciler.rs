@@ -744,8 +744,12 @@ pub open spec fn zk_node_data(zk: ZookeeperClusterView) -> StringView
     new_strlit("CLUSTER_SIZE=")@ + int_to_string_view(zk.spec.replicas)
 }
 
+pub open spec fn make_base_labels(zk: ZookeeperClusterView) -> Map<StringView, StringView> {
+    map![new_strlit("app")@ => zk.metadata.name.get_Some_0()]
+}
+
 pub open spec fn make_labels(zk: ZookeeperClusterView) -> Map<StringView, StringView> {
-    zk.spec.labels.union_prefer_right(map![new_strlit("app")@ => zk.metadata.name.get_Some_0()])
+    zk.spec.labels.union_prefer_right(make_base_labels(zk))
 }
 
 pub open spec fn make_headless_service_key(key: ObjectRef) -> ObjectRef
@@ -899,7 +903,7 @@ pub open spec fn make_service(
         },
         spec: Some(ServiceSpecView {
             ports: Some(ports),
-            selector: Some(make_labels(zk)),
+            selector: Some(make_base_labels(zk)),
             cluster_ip: if !cluster_ip { Some(new_strlit("None")@) } else { None },
             ..ServiceSpecView::default()
         }),
@@ -1073,7 +1077,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
     let spec = StatefulSetSpecView::default()
         .set_replicas(zk.spec.replicas)
         .set_service_name(name + new_strlit("-headless")@)
-        .set_selector(LabelSelectorView::default().set_match_labels(make_labels(zk)))
+        .set_selector(LabelSelectorView::default().set_match_labels(make_base_labels(zk)))
         .set_template(PodTemplateSpecView::default()
             .set_metadata(ObjectMetaView::default()
                 .set_generate_name(name)
