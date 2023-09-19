@@ -48,7 +48,6 @@ impl RoleBinding {
         todo!()
     }
 
-
     #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
         ensures
@@ -74,7 +73,6 @@ impl RoleBinding {
             subjects.into_iter().map(|s: Subject| s.into_kube()).collect()
         );
     }
-
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::RoleBinding {
@@ -157,14 +155,11 @@ impl RoleRef {
         self.inner.name = name.into_rust_string();
     }
 
-
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::RoleRef {
         self.inner
     }
 }
-
-
 
 #[verifier(external_body)]
 pub struct Subject {
@@ -321,11 +316,15 @@ impl ResourceView for RoleBindingView {
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
     open spec fn rule(obj: RoleBindingView) -> bool {
-        true
+        &&& obj.role_ref.api_group == new_strlit("rbac.authorization.k8s.io")@
+        &&& (obj.role_ref.kind == new_strlit("Role")@ || obj.role_ref.kind == new_strlit("ClusterRole")@)
+        &&& obj.role_ref.name.len() > 0
+        &&& obj.subjects.is_Some()
+            ==> forall |i| 0 <= i < obj.subjects.get_Some_0().len() ==> #[trigger] obj.subjects.get_Some_0()[i].rule(true)
     }
 
     open spec fn transition_rule(new_obj: RoleBindingView, old_obj: RoleBindingView) -> bool {
-        true
+        &&& old_obj.role_ref == new_obj.role_ref // role_ref is immutable
     }
 }
 
@@ -378,14 +377,11 @@ impl Marshalable for RoleRefView {
     proof fn marshal_preserves_integrity() {}
 }
 
-
-
 pub struct SubjectView {
     pub kind: StringView,
     pub name: StringView,
     pub namespace: Option<StringView>,
 }
-
 
 impl SubjectView {
     pub open spec fn default() -> SubjectView {
@@ -394,6 +390,11 @@ impl SubjectView {
             name: new_strlit("")@,
             namespace: None,
         }
+    }
+
+    pub open spec fn rule(self, is_namespaced: bool) -> bool {
+        &&& self.kind == new_strlit("ServiceAccount")@ // TODO: support User and Group as kind here
+        &&& is_namespaced ==> self.namespace.is_Some() && self.namespace.get_Some_0().len() > 0
     }
 
     pub open spec fn set_kind(self, kind: StringView) -> SubjectView {
@@ -429,6 +430,5 @@ impl Marshalable for SubjectView {
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
 }
-
 
 }

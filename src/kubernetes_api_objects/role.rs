@@ -255,7 +255,8 @@ impl ResourceView for RoleView {
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
     open spec fn rule(obj: RoleView) -> bool {
-        true
+        &&& obj.policy_rules.is_Some()
+            ==> forall |i| 0 <= i < obj.policy_rules.get_Some_0().len() ==> #[trigger] obj.policy_rules.get_Some_0()[i].rule()
     }
 
     open spec fn transition_rule(new_obj: RoleView, old_obj: RoleView) -> bool {
@@ -278,6 +279,14 @@ impl PolicyRuleView {
         }
     }
 
+    pub open spec fn rule(self) -> bool {
+        &&& self.api_groups.is_Some()
+        &&& self.api_groups.get_Some_0().len() > 0
+        &&& self.resources.is_Some()
+        &&& self.resources.get_Some_0().len() > 0
+        &&& self.verbs.len() > 0
+    }
+
     pub open spec fn set_api_groups(self, api_groups: Seq<StringView>) -> PolicyRuleView {
         PolicyRuleView {
             api_groups: Some(api_groups),
@@ -298,7 +307,6 @@ impl PolicyRuleView {
             ..self
         }
     }
-
 }
 
 impl Marshalable for PolicyRuleView {
