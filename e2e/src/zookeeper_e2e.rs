@@ -326,6 +326,99 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
     Ok(())
 }
 
+pub async fn relabel_test(client: Client, zk_name: String) -> Result<(), Error> {
+    let timeout = Duration::from_secs(360);
+    let start = Instant::now();
+    let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
+    run_command(
+        "kubectl",
+        vec![
+            "patch",
+            "zk",
+            "zookeeper",
+            "--type=json",
+            "-p",
+            "[{\"op\": \"add\", \"path\": \"/spec/labels/key\", \"value\": \"val\"}]",
+        ],
+        "failed to relabel zk",
+    );
+
+    // Sleep for extra 5 seconds to ensure the upgrading has started
+    sleep(Duration::from_secs(5)).await;
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            return Err(Error::Timeout);
+        }
+
+        // Check stateful set
+        let sts = sts_api.get(&zk_name).await;
+        match sts {
+            Err(e) => {
+                println!("Get stateful set failed with error {}.", e);
+                continue;
+            }
+            Ok(sts) => {
+                if sts.status.as_ref().unwrap().updated_replicas.is_none() {
+                    println!("No stateful set pod is updated yet.");
+                    continue;
+                } else if *sts
+                    .status
+                    .as_ref()
+                    .unwrap()
+                    .updated_replicas
+                    .as_ref()
+                    .unwrap()
+                    == 3
+                {
+                    println!("Relabel is done.");
+                } else {
+                    println!(
+                        "Relabel is in progress. {} pods are updated now.",
+                        sts.status
+                            .as_ref()
+                            .unwrap()
+                            .updated_replicas
+                            .as_ref()
+                            .unwrap()
+                    );
+                    continue;
+                }
+
+                if sts.status.as_ref().unwrap().ready_replicas.is_none() {
+                    println!("No stateful set pod is ready.");
+                    continue;
+                } else if *sts
+                    .status
+                    .as_ref()
+                    .unwrap()
+                    .ready_replicas
+                    .as_ref()
+                    .unwrap()
+                    == 3
+                {
+                    println!("All stateful set pods are ready.");
+                    break;
+                } else {
+                    println!(
+                        "Only {} pods are ready now.",
+                        sts.status
+                            .as_ref()
+                            .unwrap()
+                            .ready_replicas
+                            .as_ref()
+                            .unwrap()
+                    );
+                    continue;
+                }
+            }
+        };
+    }
+
+    println!("Relabel test passed.");
+    Ok(())
+}
+
 pub async fn upgrading_test(client: Client, zk_name: String) -> Result<(), Error> {
     let timeout = Duration::from_secs(360);
     let start = Instant::now();
@@ -673,6 +766,7 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
 
     desired_state_test(client.clone(), zk_name.clone()).await?;
     scaling_test(client.clone(), zk_name.clone()).await?;
+    relabel_test(client.clone(), zk_name.clone()).await?;
     reconfiguration_test(client.clone(), zk_name.clone()).await?;
     zk_workload_test(client.clone(), zk_name.clone()).await?;
     upgrading_test(client.clone(), zk_name.clone()).await?;
@@ -703,6 +797,7 @@ pub async fn zookeeper_ephemeral_e2e_test() -> Result<(), Error> {
 
     desired_state_test(client.clone(), zk_name.clone()).await?;
     scaling_test(client.clone(), zk_name.clone()).await?;
+    relabel_test(client.clone(), zk_name.clone()).await?;
     reconfiguration_test(client.clone(), zk_name.clone()).await?;
     zk_workload_test(client.clone(), zk_name.clone()).await?;
     upgrading_test(client.clone(), zk_name.clone()).await?;
