@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, dynamic::*, error::*, object_meta::*,
+    api_method::*, common::*, config_map::*, daemon_set::*, dynamic::*, error::*, object_meta::*,
     persistent_volume_claim::*, pod::*, resource::*, role::*, role_binding::*, secret::*,
     service::*, service_account::*, stateful_set::*,
 };
@@ -36,8 +36,9 @@ verus! {
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 // TODO: maybe make it a method of DynamicObjectView?
-pub open spec fn integrity_check(obj: DynamicObjectView) -> bool {
+pub open spec fn spec_integrity_check(obj: DynamicObjectView) -> bool {
     &&& obj.kind == ConfigMapView::kind() ==> ConfigMapView::unmarshal_spec(obj.spec).is_Ok()
+    &&& obj.kind == DaemonSetView::kind() ==> DaemonSetView::unmarshal_spec(obj.spec).is_Ok()
     &&& obj.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok()
     &&& obj.kind == PodView::kind() ==> PodView::unmarshal_spec(obj.spec).is_Ok()
     &&& obj.kind == RoleBindingView::kind() ==> RoleBindingView::unmarshal_spec(obj.spec).is_Ok()
@@ -89,7 +90,7 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
     } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Creation fails because the namespace of the provided object does not match the namespace sent on the request
         Some(APIError::BadRequest)
-    } else if !Self::integrity_check(req.obj) {
+    } else if !Self::spec_integrity_check(req.obj) {
         // Creation fails because the spec of the provided object is not well formed
         Some(APIError::BadRequest) // TODO: should the error be BadRequest?
     } else if s.resources.contains_key(req.obj.set_namespace(req.namespace).object_ref()) {
@@ -220,7 +221,7 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         // Update fails because the kind of the provided object
         // does not match the kind sent on the request
         Some(APIError::BadRequest)
-    } else if !Self::integrity_check(req.obj) {
+    } else if !Self::spec_integrity_check(req.obj) {
         // Update fails because the spec of the provided object is not well formed
         // TODO: should the error be BadRequest?
         Some(APIError::BadRequest)

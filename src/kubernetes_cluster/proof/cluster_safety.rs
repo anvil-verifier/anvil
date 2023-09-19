@@ -3,9 +3,9 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::ExternalAPI;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, object_meta::*, persistent_volume_claim::*, pod::*,
-    resource::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
-    stateful_set::*,
+    api_method::*, common::*, config_map::*, daemon_set::*, object_meta::*,
+    persistent_volume_claim::*, pod::*, resource::*, role::*, role_binding::*, secret::*,
+    service::*, service_account::*, stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{cluster::*, cluster_state_machine::Step, message::*};
 use crate::reconciler::spec::reconciler::Reconciler;
@@ -36,6 +36,7 @@ pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
         &&& s.resources()[key].metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
         &&& {
             &&& key.kind == ConfigMapView::kind() ==> ConfigMapView::unmarshal(s.resources()[key]).is_Ok()
+            &&& key.kind == DaemonSetView::kind() ==> DaemonSetView::unmarshal(s.resources()[key]).is_Ok()
             &&& key.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::unmarshal(s.resources()[key]).is_Ok()
             &&& key.kind == PodView::kind() ==> PodView::unmarshal(s.resources()[key]).is_Ok()
             &&& key.kind == RoleBindingView::kind() ==> RoleBindingView::unmarshal(s.resources()[key]).is_Ok()
