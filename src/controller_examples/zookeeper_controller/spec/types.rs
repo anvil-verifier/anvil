@@ -58,7 +58,7 @@ impl ResourceView for ZookeeperClusterView {
         self.spec
     }
 
-    open spec fn to_dynamic_object(self) -> DynamicObjectView {
+    open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
@@ -66,7 +66,7 @@ impl ResourceView for ZookeeperClusterView {
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<ZookeeperClusterView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<ZookeeperClusterView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !ZookeeperClusterView::unmarshal_spec(obj.spec).is_Ok() {
@@ -79,22 +79,22 @@ impl ResourceView for ZookeeperClusterView {
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {
-        ZookeeperClusterView::spec_integrity_is_preserved_by_marshal();
+    proof fn marshal_preserves_integrity() {
+        ZookeeperClusterView::marshal_spec_preserves_integrity();
     }
 
-    proof fn from_dynamic_preserves_metadata() {}
+    proof fn marshal_preserves_metadata() {}
 
-    proof fn from_dynamic_preserves_kind() {}
+    proof fn marshal_preserves_kind() {}
 
     closed spec fn marshal_spec(s: ZookeeperClusterSpecView) -> Value;
 
     closed spec fn unmarshal_spec(v: Value) -> Result<ZookeeperClusterSpecView, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
-    proof fn spec_integrity_is_preserved_by_marshal() {}
+    proof fn marshal_spec_preserves_integrity() {}
 
-    proof fn from_dynamic_object_result_determined_by_unmarshal() {}
+    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
     open spec fn rule(obj: ZookeeperClusterView) -> bool {
         obj.spec.replicas > 0

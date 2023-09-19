@@ -90,9 +90,9 @@ impl RoleBinding {
     }
 
     #[verifier(external_body)]
-    pub fn to_dynamic_object(self) -> (obj: DynamicObject)
+    pub fn marshal(self) -> (obj: DynamicObject)
         ensures
-            obj@ == self@.to_dynamic_object(),
+            obj@ == self@.marshal(),
     {
         DynamicObject::from_kube(
             deps_hack::k8s_openapi::serde_json::from_str(&deps_hack::k8s_openapi::serde_json::to_string(&self.inner).unwrap()).unwrap()
@@ -100,10 +100,10 @@ impl RoleBinding {
     }
 
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<RoleBinding, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<RoleBinding, ParseDynamicObjectError>)
         ensures
-            res.is_Ok() == RoleBindingView::from_dynamic_object(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == RoleBindingView::from_dynamic_object(obj@).get_Ok_0(),
+            res.is_Ok() == RoleBindingView::unmarshal(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == RoleBindingView::unmarshal(obj@).get_Ok_0(),
     {
         let parse_result = obj.into_kube().try_parse::<deps_hack::k8s_openapi::api::rbac::v1::RoleBinding>();
         if parse_result.is_ok() {
@@ -281,7 +281,7 @@ impl ResourceView for RoleBindingView {
         (self.role_ref, self.subjects)
     }
 
-    open spec fn to_dynamic_object(self) -> DynamicObjectView {
+    open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
@@ -289,7 +289,7 @@ impl ResourceView for RoleBindingView {
         }
     }
 
-    open spec fn from_dynamic_object(obj: DynamicObjectView) -> Result<RoleBindingView, ParseDynamicObjectError> {
+    open spec fn unmarshal(obj: DynamicObjectView) -> Result<RoleBindingView, ParseDynamicObjectError> {
         if obj.kind != Self::kind() {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !RoleBindingView::unmarshal_spec(obj.spec).is_Ok() {
@@ -303,22 +303,22 @@ impl ResourceView for RoleBindingView {
         }
     }
 
-    proof fn to_dynamic_preserves_integrity() {
-        RoleBindingView::spec_integrity_is_preserved_by_marshal();
+    proof fn marshal_preserves_integrity() {
+        RoleBindingView::marshal_spec_preserves_integrity();
     }
 
-    proof fn from_dynamic_preserves_metadata() {}
+    proof fn marshal_preserves_metadata() {}
 
-    proof fn from_dynamic_preserves_kind() {}
+    proof fn marshal_preserves_kind() {}
 
     closed spec fn marshal_spec(s: RoleBindingSpecView) -> Value;
 
     closed spec fn unmarshal_spec(v: Value) -> Result<RoleBindingSpecView, ParseDynamicObjectError>;
 
     #[verifier(external_body)]
-    proof fn spec_integrity_is_preserved_by_marshal() {}
+    proof fn marshal_spec_preserves_integrity() {}
 
-    proof fn from_dynamic_object_result_determined_by_unmarshal() {}
+    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
     open spec fn rule(obj: RoleBindingView) -> bool {
         true

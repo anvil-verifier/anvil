@@ -29,8 +29,8 @@ verus! {
 spec fn current_config_map_matches(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
-        &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
-        &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
+        &&& ConfigMapView::unmarshal(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
+        &&& ConfigMapView::unmarshal(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
     }
 }
 
@@ -39,8 +39,8 @@ spec fn current_config_map_matches(rabbitmq: RabbitmqClusterView) -> StatePred<R
 spec fn current_stateful_set_matches(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
-        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
-        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
+        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
+        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
     }
 }
 
@@ -1520,8 +1520,8 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_rabbitmq(
             ).leads_to(lift_state(
                 |s: RMQCluster| {
                     &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
-                    &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
-                    &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
+                    &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
+                    &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
                 }
             ))
         ),
@@ -1533,8 +1533,8 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_rabbitmq(
     };
     let post = |s: RMQCluster| {
         &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
-        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
-        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
+        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
+        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
     };
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
@@ -1565,7 +1565,7 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_rabbitmq(
         let step = choose |step| RMQCluster::next_step(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
-                StatefulSetView::spec_integrity_is_preserved_by_marshal();
+                StatefulSetView::marshal_spec_preserves_integrity();
             },
             _ => {}
         }
@@ -1573,7 +1573,7 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_rabbitmq(
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        StatefulSetView::spec_integrity_is_preserved_by_marshal();
+        StatefulSetView::marshal_spec_preserves_integrity();
     }
 
     RMQCluster::lemma_pre_leads_to_post_by_kubernetes_api(spec, input, stronger_next, RMQCluster::handle_request(), pre, post);
@@ -1868,8 +1868,8 @@ proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitm
             ).leads_to(lift_state(
                 |s: RMQCluster| {
                     &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
-                    &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
-                    &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
+                    &&& ConfigMapView::unmarshal(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
+                    &&& ConfigMapView::unmarshal(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
                 }
             ))
         ),
@@ -1880,8 +1880,8 @@ proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitm
     };
     let post = |s: RMQCluster| {
         &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
-        &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
-        &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
+        &&& ConfigMapView::unmarshal(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
+        &&& ConfigMapView::unmarshal(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
     };
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
@@ -1904,7 +1904,7 @@ proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitm
         let step = choose |step| RMQCluster::next_step(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
-                ConfigMapView::spec_integrity_is_preserved_by_marshal();
+                ConfigMapView::marshal_spec_preserves_integrity();
             },
             _ => {}
         }
@@ -1912,7 +1912,7 @@ proof fn lemma_cm_is_created_at_after_create_server_config_map_step_with_rabbitm
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        ConfigMapView::spec_integrity_is_preserved_by_marshal();
+        ConfigMapView::marshal_spec_preserves_integrity();
     }
 
     RMQCluster::lemma_pre_leads_to_post_by_kubernetes_api(
@@ -2087,8 +2087,8 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_rabbitmq(
             ).leads_to(lift_state(
                 |s: RMQCluster| {
                     &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
-                    &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
-                    &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
+                    &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
+                    &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
                 }
             ))
         ),
@@ -2099,8 +2099,8 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_rabbitmq(
     };
     let post = |s: RMQCluster| {
         &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
-        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
-        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
+        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
+        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
     };
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
@@ -2123,7 +2123,7 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_rabbitmq(
         let step = choose |step| RMQCluster::next_step(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
-                StatefulSetView::spec_integrity_is_preserved_by_marshal();
+                StatefulSetView::marshal_spec_preserves_integrity();
             },
             _ => {}
         }
@@ -2131,7 +2131,7 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_rabbitmq(
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        StatefulSetView::spec_integrity_is_preserved_by_marshal();
+        StatefulSetView::marshal_spec_preserves_integrity();
     }
 
     RMQCluster::lemma_pre_leads_to_post_by_kubernetes_api(
@@ -2435,8 +2435,8 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
             .leads_to(lift_state(
                 |s: RMQCluster| {
                     &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
-                    &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
-                    &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
+                    &&& ConfigMapView::unmarshal(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
+                    &&& ConfigMapView::unmarshal(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
                 }
             ))
         ),
@@ -2448,8 +2448,8 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
     };
     let post = |s: RMQCluster| {
         &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
-        &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
-        &&& ConfigMapView::from_dynamic_object(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
+        &&& ConfigMapView::unmarshal(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
+        &&& ConfigMapView::unmarshal(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
     };
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
@@ -2480,7 +2480,7 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
         let step = choose |step| RMQCluster::next_step(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
-                ConfigMapView::spec_integrity_is_preserved_by_marshal();
+                ConfigMapView::marshal_spec_preserves_integrity();
             },
             _ => {}
         }
@@ -2488,7 +2488,7 @@ proof fn lemma_cm_is_updated_at_after_update_server_config_map_step_with_rabbitm
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        ConfigMapView::spec_integrity_is_preserved_by_marshal();
+        ConfigMapView::marshal_spec_preserves_integrity();
     }
 
     RMQCluster::lemma_pre_leads_to_post_by_kubernetes_api(
@@ -2600,7 +2600,7 @@ proof fn lemma_server_config_map_is_stable(
     );
 
     assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
-        ConfigMapView::spec_integrity_is_preserved_by_marshal();
+        ConfigMapView::marshal_spec_preserves_integrity();
     }
 
     leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));
@@ -2634,7 +2634,7 @@ proof fn lemma_stateful_set_is_stable(
     );
 
     assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
-        StatefulSetView::spec_integrity_is_preserved_by_marshal();
+        StatefulSetView::marshal_spec_preserves_integrity();
     }
 
     leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));

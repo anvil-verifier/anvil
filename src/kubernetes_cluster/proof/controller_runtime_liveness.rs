@@ -21,7 +21,7 @@ pub open spec fn partial_spec_with_always_cr_key_exists_and_crash_disabled(cr_ke
     Self::sm_partial_spec()
     .and(always(lift_state(|s: Self| {
         &&& s.resources().contains_key(cr_key)
-        &&& K::from_dynamic_object(s.resources()[cr_key]).is_Ok()
+        &&& K::unmarshal(s.resources()[cr_key]).is_Ok()
     })))
     .and(always(lift_state(Self::crash_disabled())))
 }
@@ -184,7 +184,7 @@ pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption(
         cr_key.kind.is_CustomResourceKind(),
         spec.entails(always(lift_state(|s: Self| {
             &&& s.resources().contains_key(cr_key)
-            &&& K::from_dynamic_object(s.resources()[cr_key]).is_Ok()
+            &&& K::unmarshal(s.resources()[cr_key]).is_Ok()
         }))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|input| Self::schedule_controller_reconcile().weak_fairness(input))),
@@ -195,7 +195,7 @@ pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption(
 {
     let cr_key_exists = |s: Self| {
         &&& s.resources().contains_key(cr_key)
-        &&& K::from_dynamic_object(s.resources()[cr_key]).is_Ok()
+        &&& K::unmarshal(s.resources()[cr_key]).is_Ok()
     };
     let pre = |s: Self| true;
     let post = |s: Self| s.scheduled_reconciles().contains_key(cr_key);
@@ -209,15 +209,15 @@ pub proof fn lemma_true_leads_to_reconcile_scheduled_by_assumption(
 
     entails_and_temp(spec, always(lift_state(|s: Self| {
         &&& s.resources().contains_key(cr_key)
-        &&& K::from_dynamic_object(s.resources()[cr_key]).is_Ok()
+        &&& K::unmarshal(s.resources()[cr_key]).is_Ok()
     })), always(lift_state(|s: Self| { cr_key.kind.is_CustomResourceKind() })));
     always_and_equality(lift_state(|s: Self| {
         &&& s.resources().contains_key(cr_key)
-        &&& K::from_dynamic_object(s.resources()[cr_key]).is_Ok()
+        &&& K::unmarshal(s.resources()[cr_key]).is_Ok()
     }), lift_state(|s: Self| { cr_key.kind.is_CustomResourceKind() }));
     temp_pred_equality(lift_state(|s: Self| {
         &&& s.resources().contains_key(cr_key)
-        &&& K::from_dynamic_object(s.resources()[cr_key]).is_Ok()
+        &&& K::unmarshal(s.resources()[cr_key]).is_Ok()
     }).and(lift_state(|s: Self| { cr_key.kind.is_CustomResourceKind() })), lift_state(pre).implies(lift_state(Self::schedule_controller_reconcile().pre(cr_key))));
 
     Self::schedule_controller_reconcile().wf1(cr_key, spec, next_and_cr_exists, pre, post);

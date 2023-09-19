@@ -19,10 +19,10 @@ verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
-pub open spec fn from_dynamic_preserves_spec() -> bool {
+pub open spec fn marshal_preserves_spec() -> bool {
     forall |d: DynamicObjectView|
-        #[trigger] K::from_dynamic_object(d).is_Ok()
-            ==> K::unmarshal_spec(d.spec).get_Ok_0() == K::from_dynamic_object(d).get_Ok_0().spec()
+        #[trigger] K::unmarshal(d).is_Ok()
+            ==> K::unmarshal_spec(d.spec).get_Ok_0() == K::unmarshal(d).get_Ok_0().spec()
 }
 
 /// The relexitivity allows the metadata to be different.
@@ -48,7 +48,7 @@ pub open spec fn transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr
 pub proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(spec: TempPred<Self>, cr: K)
     requires
         K::kind() == Kind::CustomResourceKind,
-        Self::from_dynamic_preserves_spec(),
+        Self::marshal_preserves_spec(),
         Self::is_reflexive_and_transitive(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
@@ -71,7 +71,7 @@ pub open spec fn transition_rule_applies_to_etcd_and_scheduled_cr(cr: K) -> Stat
         s.scheduled_reconciles().contains_key(key)
         && s.resources().contains_key(key)
         && s.resources()[key].metadata.uid.get_Some_0() == s.scheduled_reconciles()[key].metadata().uid.get_Some_0()
-        ==> K::transition_rule(K::from_dynamic_object(s.resources()[key]).get_Ok_0(), s.scheduled_reconciles()[key])
+        ==> K::transition_rule(K::unmarshal(s.resources()[key]).get_Ok_0(), s.scheduled_reconciles()[key])
     }
 }
 
@@ -79,7 +79,7 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: Tem
     requires
         K::kind() == Kind::CustomResourceKind,
         Self::is_reflexive_and_transitive(),
-        Self::from_dynamic_preserves_spec(),
+        Self::marshal_preserves_spec(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
@@ -101,7 +101,7 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: Tem
     );
     let key = cr.object_ref();
     K::object_ref_is_well_formed();
-    K::from_dynamic_object_result_determined_by_unmarshal();
+    K::unmarshal_result_determined_by_unmarshal_spec();
     assert forall |s, s_prime: Self| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         if s_prime.scheduled_reconciles().contains_key(key) && s_prime.resources().contains_key(key)
         && s_prime.resources()[key].metadata.uid.get_Some_0() == s_prime.scheduled_reconciles()[key].metadata().uid.get_Some_0() {
@@ -116,16 +116,16 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: Tem
                         if input.get_Some_0().content.is_delete_request() {
                             assert(s_prime.resources()[key].spec == s.resources()[key].spec);
                             assert(K::transition_rule(
-                                K::from_dynamic_object(s_prime.resources()[key]).get_Ok_0(),
-                                K::from_dynamic_object(s.resources()[key]).get_Ok_0()
+                                K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
+                                K::unmarshal(s.resources()[key]).get_Ok_0()
                             ));
                         } else {
                             assert(input.get_Some_0().content.is_update_request());
-                            assert(K::from_dynamic_object(input.get_Some_0().content.get_update_request().obj).is_Ok());
+                            assert(K::unmarshal(input.get_Some_0().content.get_update_request().obj).is_Ok());
                             assert(input.get_Some_0().content.get_update_request().obj.spec == s_prime.resources()[key].spec);
                             assert(K::transition_rule(
-                                K::from_dynamic_object(s_prime.resources()[key]).get_Ok_0(),
-                                K::from_dynamic_object(input.get_Some_0().content.get_update_request().obj).get_Ok_0()
+                                K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
+                                K::unmarshal(input.get_Some_0().content.get_update_request().obj).get_Ok_0()
                             ));
                         }
                     }
@@ -133,7 +133,7 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: Tem
                 Step::ScheduleControllerReconcileStep(input) => {
                     assert(s.resources().contains_key(key) && s.resources()[key] == s_prime.resources()[key]);
                     if !s.scheduled_reconciles().contains_key(key) || s.scheduled_reconciles()[key] != s_prime.scheduled_reconciles()[key] {
-                        assert(s_prime.scheduled_reconciles()[key] == K::from_dynamic_object(s_prime.resources()[key]).get_Ok_0());
+                        assert(s_prime.scheduled_reconciles()[key] == K::unmarshal(s_prime.resources()[key]).get_Ok_0());
                     }
                 },
                 _ => {}
@@ -149,7 +149,7 @@ pub open spec fn transition_rule_applies_to_etcd_and_triggering_cr(cr: K) -> Sta
         s.ongoing_reconciles().contains_key(key)
         && s.resources().contains_key(key)
         && s.resources()[key].metadata.uid.get_Some_0() == s.ongoing_reconciles()[key].triggering_cr.metadata().uid.get_Some_0()
-        ==> K::transition_rule(K::from_dynamic_object(s.resources()[key]).get_Ok_0(), s.ongoing_reconciles()[key].triggering_cr)
+        ==> K::transition_rule(K::unmarshal(s.resources()[key]).get_Ok_0(), s.ongoing_reconciles()[key].triggering_cr)
     }
 }
 
@@ -166,7 +166,7 @@ pub open spec fn transition_rule_applies_to_scheduled_and_triggering_cr(cr: K) -
 proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr: K)
     requires
         K::kind() == Kind::CustomResourceKind,
-        Self::from_dynamic_preserves_spec(),
+        Self::marshal_preserves_spec(),
         Self::is_reflexive_and_transitive(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
@@ -199,8 +199,8 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = cr.object_ref();
         K::object_ref_is_well_formed();
-        K::from_dynamic_preserves_metadata();
-        K::from_dynamic_object_result_determined_by_unmarshal();
+        K::marshal_preserves_metadata();
+        K::unmarshal_result_determined_by_unmarshal_spec();
         let step = choose |step| Self::next_step(s, s_prime, step);
         if s_prime.ongoing_reconciles().contains_key(key) && s_prime.resources().contains_key(key)
         && s_prime.resources()[key].metadata.uid.get_Some_0() == s_prime.ongoing_reconciles()[key].triggering_cr.metadata().uid.get_Some_0() {
@@ -214,16 +214,16 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
                         if input.get_Some_0().content.is_delete_request() {
                             assert(s_prime.resources()[key].spec == s.resources()[key].spec);
                             assert(K::transition_rule(
-                                K::from_dynamic_object(s_prime.resources()[key]).get_Ok_0(),
-                                K::from_dynamic_object(s.resources()[key]).get_Ok_0()
+                                K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
+                                K::unmarshal(s.resources()[key]).get_Ok_0()
                             ));
                         } else {
                             assert(input.get_Some_0().content.is_update_request());
-                            assert(K::from_dynamic_object(input.get_Some_0().content.get_update_request().obj).is_Ok());
+                            assert(K::unmarshal(input.get_Some_0().content.get_update_request().obj).is_Ok());
                             assert(input.get_Some_0().content.get_update_request().obj.spec == s_prime.resources()[key].spec);
                             assert(K::transition_rule(
-                                K::from_dynamic_object(s_prime.resources()[key]).get_Ok_0(),
-                                K::from_dynamic_object(input.get_Some_0().content.get_update_request().obj).get_Ok_0()
+                                K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
+                                K::unmarshal(input.get_Some_0().content.get_update_request().obj).get_Ok_0()
                             ));
                         }
                     }
@@ -242,8 +242,8 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
             match step {
                 Step::ScheduleControllerReconcileStep(_) => {
                     if !s.scheduled_reconciles().contains_key(key) || s.scheduled_reconciles()[key] != s_prime.scheduled_reconciles()[key] {
-                        assert(K::transition_rule(s_prime.scheduled_reconciles()[key], K::from_dynamic_object(s.resources()[key]).get_Ok_0()));
-                        assert(K::transition_rule(K::from_dynamic_object(s.resources()[key]).get_Ok_0(), s.ongoing_reconciles()[key].triggering_cr));
+                        assert(K::transition_rule(s_prime.scheduled_reconciles()[key], K::unmarshal(s.resources()[key]).get_Ok_0()));
+                        assert(K::transition_rule(K::unmarshal(s.resources()[key]).get_Ok_0(), s.ongoing_reconciles()[key].triggering_cr));
                     }
                     assert(Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)(s_prime));
                 },

@@ -36,7 +36,7 @@ verus! {
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 // TODO: maybe make it a method of DynamicObjectView?
-pub open spec fn object_has_well_formed_spec(obj: DynamicObjectView) -> bool {
+pub open spec fn integrity_check(obj: DynamicObjectView) -> bool {
     &&& obj.kind == ConfigMapView::kind() ==> ConfigMapView::unmarshal_spec(obj.spec).is_Ok()
     &&& obj.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok()
     &&& obj.kind == PodView::kind() ==> PodView::unmarshal_spec(obj.spec).is_Ok()
@@ -89,7 +89,7 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
     } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Creation fails because the namespace of the provided object does not match the namespace sent on the request
         Some(APIError::BadRequest)
-    } else if !Self::object_has_well_formed_spec(req.obj) {
+    } else if !Self::integrity_check(req.obj) {
         // Creation fails because the spec of the provided object is not well formed
         Some(APIError::BadRequest) // TODO: should the error be BadRequest?
     } else if s.resources.contains_key(req.obj.set_namespace(req.namespace).object_ref()) {
@@ -106,7 +106,7 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
         ) {
         // Creation fails because the object has multiple controller owner references
         Some(APIError::Invalid)
-    } else if req.obj.kind == K::kind() && !K::rule(K::from_dynamic_object(req.obj).get_Ok_0()) {
+    } else if req.obj.kind == K::kind() && !K::rule(K::unmarshal(req.obj).get_Ok_0()) {
         Some(APIError::Invalid)
     } else {
         None
@@ -220,7 +220,7 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         // Update fails because the kind of the provided object
         // does not match the kind sent on the request
         Some(APIError::BadRequest)
-    } else if !Self::object_has_well_formed_spec(req.obj) {
+    } else if !Self::integrity_check(req.obj) {
         // Update fails because the spec of the provided object is not well formed
         // TODO: should the error be BadRequest?
         Some(APIError::BadRequest)
@@ -258,8 +258,8 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         // Update fails because the object is marked to be deleted but the update tries to add more finalizers
         Some(APIError::Forbidden)
     } else if req.obj.kind == K::kind() && !(
-        K::rule(K::from_dynamic_object(req.obj).get_Ok_0())
-        && K::transition_rule(K::from_dynamic_object(req.obj).get_Ok_0(), K::from_dynamic_object(s.resources[req.key]).get_Ok_0())
+        K::rule(K::unmarshal(req.obj).get_Ok_0())
+        && K::transition_rule(K::unmarshal(req.obj).get_Ok_0(), K::unmarshal(s.resources[req.key]).get_Ok_0())
     ) {
         Some(APIError::Invalid)
     } else {

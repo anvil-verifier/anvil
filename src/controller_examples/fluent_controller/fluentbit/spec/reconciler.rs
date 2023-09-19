@@ -102,7 +102,7 @@ pub open spec fn reconcile_core(
                     let role = make_role(fluentbit);
                     let req_o = APIRequest::CreateRequest(CreateRequest{
                         namespace: fluentbit.metadata.namespace.get_Some_0(),
-                        obj: role.to_dynamic_object(),
+                        obj: role.marshal(),
                     });
                     let state_prime = FluentBitReconcileState {
                         reconcile_step: FluentBitReconcileStep::AfterCreateRole,
@@ -128,7 +128,7 @@ pub open spec fn reconcile_core(
             let service_account = make_service_account(fluentbit);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: fluentbit.metadata.namespace.get_Some_0(),
-                obj: service_account.to_dynamic_object(),
+                obj: service_account.marshal(),
             });
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::AfterCreateServiceAccount,
@@ -140,7 +140,7 @@ pub open spec fn reconcile_core(
             let role_binding = make_role_binding(fluentbit);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: fluentbit.metadata.namespace.get_Some_0(),
-                obj: role_binding.to_dynamic_object(),
+                obj: role_binding.marshal(),
             });
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::AfterCreateRoleBinding,
@@ -152,7 +152,7 @@ pub open spec fn reconcile_core(
             let daemon_set = make_daemon_set(fluentbit);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: fluentbit.metadata.namespace.get_Some_0(),
-                obj: daemon_set.to_dynamic_object(),
+                obj: daemon_set.marshal(),
             });
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::AfterCreateDaemonSet,

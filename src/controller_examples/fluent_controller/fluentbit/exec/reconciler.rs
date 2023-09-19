@@ -124,7 +124,7 @@ pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyType>>
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: Role::api_resource(),
                         namespace: fluentbit.metadata().namespace().unwrap(),
-                        obj: role.to_dynamic_object(),
+                        obj: role.marshal(),
                     });
                     let state_prime = FluentBitReconcileState {
                         reconcile_step: FluentBitReconcileStep::AfterCreateRole,
@@ -145,7 +145,7 @@ pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyType>>
             let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                 api_resource: ServiceAccount::api_resource(),
                 namespace: fluentbit.metadata().namespace().unwrap(),
-                obj: service_account.to_dynamic_object(),
+                obj: service_account.marshal(),
             });
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::AfterCreateServiceAccount,
@@ -158,7 +158,7 @@ pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyType>>
             let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                 api_resource: RoleBinding::api_resource(),
                 namespace: fluentbit.metadata().namespace().unwrap(),
-                obj: role_binding.to_dynamic_object(),
+                obj: role_binding.marshal(),
             });
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::AfterCreateRoleBinding,
@@ -171,7 +171,7 @@ pub fn reconcile_core(fluentbit: &FluentBit, resp_o: Option<Response<EmptyType>>
             let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                 api_resource: DaemonSet::api_resource(),
                 namespace: fluentbit.metadata().namespace().unwrap(),
-                obj: daemon_set.to_dynamic_object(),
+                obj: daemon_set.marshal(),
             });
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::AfterCreateDaemonSet,

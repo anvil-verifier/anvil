@@ -224,12 +224,12 @@ pub open spec fn schedule_controller_reconcile() -> Action<Self, ObjectRef, ()> 
         precondition: |input: ObjectRef, s: Self| {
             &&& s.resources().contains_key(input)
             &&& input.kind.is_CustomResourceKind()
-            &&& K::from_dynamic_object(s.resources()[input]).is_Ok()
+            &&& K::unmarshal(s.resources()[input]).is_Ok()
         },
         transition: |input: ObjectRef, s: Self| {
             (Self {
                 controller_state: ControllerState {
-                    scheduled_reconciles: s.controller_state.scheduled_reconciles.insert(input, K::from_dynamic_object(s.resources()[input]).get_Ok_0()),
+                    scheduled_reconciles: s.controller_state.scheduled_reconciles.insert(input, K::unmarshal(s.resources()[input]).get_Ok_0()),
                     ..s.controller_state
                 },
                 ..s

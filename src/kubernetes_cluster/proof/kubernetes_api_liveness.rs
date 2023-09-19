@@ -203,10 +203,10 @@ pub proof fn lemma_create_req_leads_to_res_exists(spec: TempPred<Self>, msg: Msg
                 &&& msg.content.is_create_request()
                 &&& msg.content.get_create_request().obj.metadata.name.is_Some()
                 &&& msg.content.get_create_request().obj.metadata.namespace.is_None()
-                &&& Self::object_has_well_formed_spec(msg.content.get_create_request().obj)
+                &&& Self::integrity_check(msg.content.get_create_request().obj)
                 &&& msg.content.get_create_request().obj.metadata.owner_references.is_Some()
                 &&& msg.content.get_create_request().obj.metadata.owner_references.get_Some_0().len() == 1
-                &&& msg.content.get_create_request().obj.kind == K::kind() ==> K::rule(K::from_dynamic_object(msg.content.get_create_request().obj).get_Ok_0())
+                &&& msg.content.get_create_request().obj.kind == K::kind() ==> K::rule(K::unmarshal(msg.content.get_create_request().obj).get_Ok_0())
             })
                 .leads_to(lift_state(|s: Self|
                     s.resources().contains_key(
@@ -224,10 +224,10 @@ pub proof fn lemma_create_req_leads_to_res_exists(spec: TempPred<Self>, msg: Msg
         &&& msg.content.is_create_request()
         &&& obj.metadata.name.is_Some()
         &&& obj.metadata.namespace.is_None()
-        &&& Self::object_has_well_formed_spec(obj)
+        &&& Self::integrity_check(obj)
         &&& msg.content.get_create_request().obj.metadata.owner_references.is_Some()
         &&& msg.content.get_create_request().obj.metadata.owner_references.get_Some_0().len() == 1
-        &&& obj.kind == K::kind() ==> K::rule(K::from_dynamic_object(obj).get_Ok_0())
+        &&& obj.kind == K::kind() ==> K::rule(K::unmarshal(obj).get_Ok_0())
     };
     let post = |s: Self|
         s.resources().contains_key(

@@ -35,15 +35,15 @@ pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
         &&& s.resources()[key].metadata.well_formed()
         &&& s.resources()[key].metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
         &&& {
-            &&& key.kind == ConfigMapView::kind() ==> ConfigMapView::from_dynamic_object(s.resources()[key]).is_Ok()
-            &&& key.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::from_dynamic_object(s.resources()[key]).is_Ok()
-            &&& key.kind == PodView::kind() ==> PodView::from_dynamic_object(s.resources()[key]).is_Ok()
-            &&& key.kind == RoleBindingView::kind() ==> RoleBindingView::from_dynamic_object(s.resources()[key]).is_Ok()
-            &&& key.kind == RoleView::kind() ==> RoleView::from_dynamic_object(s.resources()[key]).is_Ok()
-            &&& key.kind == SecretView::kind() ==> SecretView::from_dynamic_object(s.resources()[key]).is_Ok()
-            &&& key.kind == ServiceView::kind() ==> ServiceView::from_dynamic_object(s.resources()[key]).is_Ok()
-            &&& key.kind == StatefulSetView::kind() ==> StatefulSetView::from_dynamic_object(s.resources()[key]).is_Ok()
-            &&& key.kind == K::kind() ==> K::from_dynamic_object(s.resources()[key]).is_Ok()
+            &&& key.kind == ConfigMapView::kind() ==> ConfigMapView::unmarshal(s.resources()[key]).is_Ok()
+            &&& key.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::unmarshal(s.resources()[key]).is_Ok()
+            &&& key.kind == PodView::kind() ==> PodView::unmarshal(s.resources()[key]).is_Ok()
+            &&& key.kind == RoleBindingView::kind() ==> RoleBindingView::unmarshal(s.resources()[key]).is_Ok()
+            &&& key.kind == RoleView::kind() ==> RoleView::unmarshal(s.resources()[key]).is_Ok()
+            &&& key.kind == SecretView::kind() ==> SecretView::unmarshal(s.resources()[key]).is_Ok()
+            &&& key.kind == ServiceView::kind() ==> ServiceView::unmarshal(s.resources()[key]).is_Ok()
+            &&& key.kind == StatefulSetView::kind() ==> StatefulSetView::unmarshal(s.resources()[key]).is_Ok()
+            &&& key.kind == K::kind() ==> K::unmarshal(s.resources()[key]).is_Ok()
         }
     }
 }
@@ -69,7 +69,7 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(spec: TempPred<Self
     implies invariant(s_prime) by {
         assert forall |key: ObjectRef| #[trigger] s_prime.resources().contains_key(key)
         implies Self::etcd_object_is_well_formed(key)(s_prime) by {
-            K::from_dynamic_object_result_determined_by_unmarshal();
+            K::unmarshal_result_determined_by_unmarshal_spec();
             if s.resources().contains_key(key) {} else {}
         }
     }
@@ -116,8 +116,8 @@ pub proof fn lemma_always_each_scheduled_object_has_consistent_key_and_valid_met
                 Step::ScheduleControllerReconcileStep(input) => {
 
                         if input == key {
-                            K::from_dynamic_preserves_metadata();
-                            K::from_dynamic_preserves_kind();
+                            K::marshal_preserves_metadata();
+                            K::marshal_preserves_kind();
                             K::object_ref_is_well_formed();
                         } else {
                             assert(s.scheduled_reconciles().contains_key(key));

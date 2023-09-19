@@ -59,7 +59,7 @@ pub open spec fn reconciler_at_after_get_cr_pc_and_ok_resp_with_name_and_namespa
         &&& s.ongoing_reconciles()[cr.object_ref()].local_state.reconcile_pc == reconciler::after_get_cr_pc()
         &&& is_controller_get_cr_request_msg(req_msg, cr)
         &&& s.ongoing_reconciles()[cr.object_ref()].pending_req_msg == Some(req_msg)
-        &&& s.in_flight().contains(Message::form_get_resp_msg(req_msg, Ok(cr.to_dynamic_object())))
+        &&& s.in_flight().contains(Message::form_get_resp_msg(req_msg, Ok(cr.marshal())))
         &&& (cr.metadata.name.is_Some() && cr.metadata.namespace.is_Some())
     }
 }
@@ -138,7 +138,7 @@ pub open spec fn reconciler_at_after_create_cm_pc_and_req_in_flight_and_cm_creat
             s.in_flight().contains(req_msg)
             && req_msg.dst == HostId::KubernetesAPI
             && req_msg.content.is_create_request()
-            && req_msg.content.get_create_request().obj == reconciler::make_config_map(cr).to_dynamic_object()
+            && req_msg.content.get_create_request().obj == reconciler::make_config_map(cr).marshal()
     }
 }
 
@@ -186,7 +186,7 @@ pub open spec fn is_controller_create_cm_request_msg(msg: SimpleMessage, cr: Sim
     &&& msg.src == HostId::CustomController
     &&& msg.dst == HostId::KubernetesAPI
     &&& msg.content.is_create_request()
-    &&& msg.content.get_create_request().obj == reconciler::make_config_map(cr).to_dynamic_object()
+    &&& msg.content.get_create_request().obj == reconciler::make_config_map(cr).marshal()
 }
 
 }

@@ -62,9 +62,9 @@ impl FluentBitConfig {
 
     // NOTE: This function assumes serde_json::to_string won't fail!
     #[verifier(external_body)]
-    pub fn to_dynamic_object(self) -> (obj: DynamicObject)
+    pub fn marshal(self) -> (obj: DynamicObject)
         ensures
-            obj@ == self@.to_dynamic_object(),
+            obj@ == self@.marshal(),
     {
         // TODO: this might be unnecessarily slow
         DynamicObject::from_kube(
@@ -73,10 +73,10 @@ impl FluentBitConfig {
     }
 
     #[verifier(external_body)]
-    pub fn from_dynamic_object(obj: DynamicObject) -> (res: Result<FluentBitConfig, ParseDynamicObjectError>)
+    pub fn unmarshal(obj: DynamicObject) -> (res: Result<FluentBitConfig, ParseDynamicObjectError>)
         ensures
-            res.is_Ok() == FluentBitConfigView::from_dynamic_object(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == FluentBitConfigView::from_dynamic_object(obj@).get_Ok_0(),
+            res.is_Ok() == FluentBitConfigView::unmarshal(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == FluentBitConfigView::unmarshal(obj@).get_Ok_0(),
     {
         let parse_result = obj.into_kube().try_parse::<deps_hack::FluentBitConfig>();
         if parse_result.is_ok() {

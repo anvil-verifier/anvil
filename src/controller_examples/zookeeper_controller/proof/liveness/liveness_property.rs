@@ -26,8 +26,8 @@ verus! {
 spec fn current_state_matches(zk: ZookeeperClusterView) -> StatePred<ZKCluster> {
     |s: ZKCluster| {
         &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
-        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).is_Ok()
-        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).get_Ok_0().spec == make_stateful_set(zk).spec
+        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(zk.object_ref())]).is_Ok()
+        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(zk.object_ref())]).get_Ok_0().spec == make_stateful_set(zk).spec
     }
 }
 
@@ -1511,8 +1511,8 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
                 .leads_to(lift_state(
                     |s: ZKCluster| {
                         &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
-                        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).is_Ok()
-                        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).get_Ok_0().spec == make_stateful_set(zk).spec
+                        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(zk.object_ref())]).is_Ok()
+                        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(zk.object_ref())]).get_Ok_0().spec == make_stateful_set(zk).spec
                     }
                 ))
         ),
@@ -1524,8 +1524,8 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
     };
     let post = |s: ZKCluster| {
         &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
-        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).is_Ok()
-        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).get_Ok_0().spec == make_stateful_set(zk).spec
+        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(zk.object_ref())]).is_Ok()
+        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(zk.object_ref())]).get_Ok_0().spec == make_stateful_set(zk).spec
     };
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: ZKCluster| {
@@ -1565,7 +1565,7 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
-                StatefulSetView::spec_integrity_is_preserved_by_marshal();
+                StatefulSetView::marshal_spec_preserves_integrity();
             },
             _ => {}
         }
@@ -1573,7 +1573,7 @@ proof fn lemma_sts_is_updated_at_after_update_stateful_set_step_with_zk(
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && ZKCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        StatefulSetView::spec_integrity_is_preserved_by_marshal();
+        StatefulSetView::marshal_spec_preserves_integrity();
     }
 
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(
@@ -1770,8 +1770,8 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_zk(
                 .leads_to(lift_state(
                     |s: ZKCluster| {
                         &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
-                        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).is_Ok()
-                        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).get_Ok_0().spec == make_stateful_set(zk).spec
+                        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(zk.object_ref())]).is_Ok()
+                        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(zk.object_ref())]).get_Ok_0().spec == make_stateful_set(zk).spec
                     }
                 ))
         ),
@@ -1782,8 +1782,8 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_zk(
     };
     let post = |s: ZKCluster| {
         &&& s.resources().contains_key(make_stateful_set_key(zk.object_ref()))
-        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).is_Ok()
-        &&& StatefulSetView::from_dynamic_object(s.resources()[make_stateful_set_key(zk.object_ref())]).get_Ok_0().spec == make_stateful_set(zk).spec
+        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(zk.object_ref())]).is_Ok()
+        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(zk.object_ref())]).get_Ok_0().spec == make_stateful_set(zk).spec
     };
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: ZKCluster| {
@@ -1817,7 +1817,7 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_zk(
         let step = choose |step| ZKCluster::next_step(s, s_prime, step);
         match step {
             Step::KubernetesAPIStep(input) => {
-                StatefulSetView::spec_integrity_is_preserved_by_marshal();
+                StatefulSetView::marshal_spec_preserves_integrity();
             },
             _ => {}
         }
@@ -1825,7 +1825,7 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_zk(
 
     assert forall |s, s_prime| pre(s) && #[trigger] stronger_next(s, s_prime) && ZKCluster::kubernetes_api_next().forward(input)(s, s_prime)
     implies post(s_prime) by {
-        StatefulSetView::spec_integrity_is_preserved_by_marshal();
+        StatefulSetView::marshal_spec_preserves_integrity();
     }
 
     ZKCluster::lemma_pre_leads_to_post_by_kubernetes_api(
@@ -1868,7 +1868,7 @@ proof fn lemma_stateful_set_is_stable(
     );
 
     assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
-        StatefulSetView::spec_integrity_is_preserved_by_marshal();
+        StatefulSetView::marshal_spec_preserves_integrity();
     }
 
     leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));

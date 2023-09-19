@@ -136,11 +136,11 @@ pub open spec fn validate(name: StringView, namespace: StringView, port: int, pa
     &&& path.len() > 0
     // The stateful set object exists
     &&& resources.contains_key(key)
-    &&& StatefulSetView::from_dynamic_object(resources[key]).is_Ok()
-    &&& StatefulSetView::from_dynamic_object(resources[key]).get_Ok_0().spec.is_Some()
-    &&& StatefulSetView::from_dynamic_object(resources[key]).get_Ok_0().spec.get_Some_0().replicas.is_Some()
+    &&& StatefulSetView::unmarshal(resources[key]).is_Ok()
+    &&& StatefulSetView::unmarshal(resources[key]).get_Ok_0().spec.is_Some()
+    &&& StatefulSetView::unmarshal(resources[key]).get_Ok_0().spec.get_Some_0().replicas.is_Some()
     // and it has at least one replica to handle the request
-    &&& StatefulSetView::from_dynamic_object(resources[key]).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() > 0
+    &&& StatefulSetView::unmarshal(resources[key]).get_Ok_0().spec.get_Some_0().replicas.get_Some_0() > 0
 }
 
 // handle_exists models the behavior of the zookeeper server handling the exists request.
