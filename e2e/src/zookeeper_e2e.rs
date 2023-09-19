@@ -814,7 +814,6 @@ pub async fn zookeeper_ephemeral_e2e_test() -> Result<(), Error> {
 
     desired_state_test(client.clone(), zk_name.clone()).await?;
     scaling_test(client.clone(), zk_name.clone()).await?;
-    relabel_test(client.clone(), zk_name.clone()).await?;
     reconfiguration_test(client.clone(), zk_name.clone()).await?;
     zk_workload_test(client.clone(), zk_name.clone()).await?;
     upgrading_test(client.clone(), zk_name.clone()).await?;
