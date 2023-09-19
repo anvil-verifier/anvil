@@ -359,6 +359,23 @@ pub async fn relabel_test(client: Client, zk_name: String) -> Result<(), Error> 
                 continue;
             }
             Ok(sts) => {
+                if !sts
+                    .spec
+                    .as_ref()
+                    .unwrap()
+                    .template
+                    .metadata
+                    .as_ref()
+                    .unwrap()
+                    .labels
+                    .as_ref()
+                    .unwrap()
+                    .contains_key("key")
+                {
+                    println!("Label for pod is not updated yet");
+                    continue;
+                }
+
                 if sts.status.as_ref().unwrap().updated_replicas.is_none() {
                     println!("No stateful set pod is updated yet.");
                     continue;
