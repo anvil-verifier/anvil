@@ -370,11 +370,11 @@ impl ResourceView for ServiceView {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn state_validation(obj: ServiceView) -> bool {
+    open spec fn state_validation(self) -> bool {
         true
     }
 
-    open spec fn transition_validation(new_obj: ServiceView, old_obj: ServiceView) -> bool {
+    open spec fn transition_validation(self, old_obj: ServiceView) -> bool {
         true
     }
 }

@@ -104,14 +104,14 @@ impl ResourceView for RabbitmqClusterView {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn state_validation(obj: RabbitmqClusterView) -> bool {
+    open spec fn state_validation(self) -> bool {
         true
     }
 
-    open spec fn transition_validation(new_obj: RabbitmqClusterView, old_obj: RabbitmqClusterView) -> bool {
-        new_obj.spec.replicas >= old_obj.spec.replicas
-        && new_obj.spec.persistence.storage == old_obj.spec.persistence.storage
-        && new_obj.spec.persistence.storage_class_name == old_obj.spec.persistence.storage_class_name
+    open spec fn transition_validation(self, old_obj: RabbitmqClusterView) -> bool {
+        &&& self.spec.replicas >= old_obj.spec.replicas
+        &&& self.spec.persistence.storage == old_obj.spec.persistence.storage
+        &&& self.spec.persistence.storage_class_name == old_obj.spec.persistence.storage_class_name
     }
 
 }

@@ -283,11 +283,11 @@ impl ResourceView for PersistentVolumeClaimView {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn state_validation(obj: PersistentVolumeClaimView) -> bool {
+    open spec fn state_validation(self) -> bool {
         true
     }
 
-    open spec fn transition_validation(new_obj: PersistentVolumeClaimView, old_obj: PersistentVolumeClaimView) -> bool {
+    open spec fn transition_validation(self, old_obj: PersistentVolumeClaimView) -> bool {
         true
     }
 }

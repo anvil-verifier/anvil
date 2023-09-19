@@ -356,9 +356,9 @@ impl ResourceView for StatefulSetView {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn state_validation(obj: StatefulSetView) -> bool {
-        let new_spec = obj.spec.get_Some_0();
-        &&& obj.spec.is_Some()
+    open spec fn state_validation(self) -> bool {
+        let new_spec = self.spec.get_Some_0();
+        &&& self.spec.is_Some()
         &&& new_spec.replicas.is_Some() ==> new_spec.replicas.get_Some_0() > 0
         &&& new_spec.pod_management_policy.is_Some()
             ==> (new_spec.pod_management_policy.get_Some_0() == new_strlit("OrderedReady")@
@@ -367,9 +367,9 @@ impl ResourceView for StatefulSetView {
             ==> new_spec.persistent_volume_claim_retention_policy.get_Some_0().state_validation()
     }
 
-    open spec fn transition_validation(new_obj: StatefulSetView, old_obj: StatefulSetView) -> bool {
+    open spec fn transition_validation(self, old_obj: StatefulSetView) -> bool {
         let old_spec = old_obj.spec.get_Some_0();
-        let new_spec = new_obj.spec.get_Some_0();
+        let new_spec = self.spec.get_Some_0();
         // Fields other than replicas, template, persistent_volume_claim_retention_policy
         // (and some other unspecified fields) are immutable.
         &&& old_spec == StatefulSetSpecView {

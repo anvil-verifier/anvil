@@ -240,11 +240,11 @@ impl ResourceView for SecretView {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn state_validation(obj: SecretView) -> bool {
+    open spec fn state_validation(self) -> bool {
         true
     }
 
-    open spec fn transition_validation(new_obj: SecretView, old_obj: SecretView) -> bool {
+    open spec fn transition_validation(self, old_obj: SecretView) -> bool {
         true
     }
 }

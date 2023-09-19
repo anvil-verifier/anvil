@@ -254,12 +254,12 @@ impl ResourceView for RoleView {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn state_validation(obj: RoleView) -> bool {
-        &&& obj.policy_rules.is_Some()
-            ==> forall |i| 0 <= i < obj.policy_rules.get_Some_0().len() ==> #[trigger] obj.policy_rules.get_Some_0()[i].state_validation()
+    open spec fn state_validation(self) -> bool {
+        &&& self.policy_rules.is_Some()
+            ==> forall |i| 0 <= i < self.policy_rules.get_Some_0().len() ==> #[trigger] self.policy_rules.get_Some_0()[i].state_validation()
     }
 
-    open spec fn transition_validation(new_obj: RoleView, old_obj: RoleView) -> bool {
+    open spec fn transition_validation(self, old_obj: RoleView) -> bool {
         true
     }
 }

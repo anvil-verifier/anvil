@@ -315,16 +315,16 @@ impl ResourceView for RoleBindingView {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn state_validation(obj: RoleBindingView) -> bool {
-        &&& obj.role_ref.api_group == new_strlit("rbac.authorization.k8s.io")@
-        &&& (obj.role_ref.kind == new_strlit("Role")@ || obj.role_ref.kind == new_strlit("ClusterRole")@)
-        &&& obj.role_ref.name.len() > 0
-        &&& obj.subjects.is_Some()
-            ==> forall |i| 0 <= i < obj.subjects.get_Some_0().len() ==> #[trigger] obj.subjects.get_Some_0()[i].state_validation(true)
+    open spec fn state_validation(self) -> bool {
+        &&& self.role_ref.api_group == new_strlit("rbac.authorization.k8s.io")@
+        &&& (self.role_ref.kind == new_strlit("Role")@ || self.role_ref.kind == new_strlit("ClusterRole")@)
+        &&& self.role_ref.name.len() > 0
+        &&& self.subjects.is_Some()
+            ==> forall |i| 0 <= i < self.subjects.get_Some_0().len() ==> #[trigger] self.subjects.get_Some_0()[i].state_validation(true)
     }
 
-    open spec fn transition_validation(new_obj: RoleBindingView, old_obj: RoleBindingView) -> bool {
-        &&& old_obj.role_ref == new_obj.role_ref // role_ref is immutable
+    open spec fn transition_validation(self, old_obj: RoleBindingView) -> bool {
+        &&& old_obj.role_ref == self.role_ref // role_ref is immutable
     }
 }
 
