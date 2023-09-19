@@ -628,21 +628,30 @@ ensures
             rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
         );
     }
-    let mut metadata = found_config_map.metadata();
+    
+    let mut config_map = found_config_map.clone();
     let made_server_cm = make_server_config_map(rabbitmq);
 
-    // Since we requirement the owner_reference only contains current cr, this set operation won't change anything.
-    // Similarly, we never set finalizers for any stateful set, resetting finalizers won't change anything.
-    // The reason why we add these two operations is that it makes the proof easier.
-    // In this way, we can easily show that what the owner references and finalizers of the object in every update request
-    // for stateful set are.
-    metadata.set_owner_references(owner_references);
-    metadata.unset_finalizers();
-    metadata.set_labels(made_server_cm.metadata().labels().unwrap());
-    metadata.set_annotations(made_server_cm.metadata().annotations().unwrap());
-    found_config_map.set_data(made_server_cm.data().unwrap());
-    found_config_map.set_metadata(metadata);
-    found_config_map
+    config_map.set_data({
+        let old_data_opt = found_config_map.data();
+        let mut old_data = if old_data_opt.is_some() { old_data_opt.unwrap() } else { StringMap::empty() };
+        old_data.extend(made_server_cm.data().unwrap());
+        old_data
+    });
+    config_map.set_metadata({
+        let mut metadata = found_config_map.metadata();
+        // Since we requirement the owner_reference only contains current cr, this set operation won't change anything.
+        // Similarly, we never set finalizers for any stateful set, resetting finalizers won't change anything.
+        // The reason why we add these two operations is that it makes the proof easier.
+        // In this way, we can easily show that what the owner references and finalizers of the object in every update request
+        // for stateful set are.
+        metadata.set_owner_references(owner_references);
+        metadata.unset_finalizers();
+        metadata.set_labels(made_server_cm.metadata().labels().unwrap());
+        metadata.set_annotations(made_server_cm.metadata().annotations().unwrap());
+        metadata
+    });
+    config_map
 }
 
 fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
@@ -686,6 +695,14 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
         }
         rmq_conf_buff
     });
+    if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().is_some() 
+    && !rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap().eq(&new_strlit("").to_string()) {
+        data.insert(new_strlit("advanced.config").to_string(), rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap());
+    }
+    if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().env_config().is_some() 
+    && !rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap().eq(&new_strlit("").to_string()) {
+        data.insert(new_strlit("rabbitmq-env.conf").to_string(), rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap());
+    }
     config_map.set_data(data);
     config_map
 }
@@ -926,28 +943,33 @@ fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: State
             rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
         );
     }
-    let mut metadata = found_stateful_set.metadata();
     let made_sts = make_stateful_set(rabbitmq, config_map_rv);
 
-    // Since we requirement the owner_reference only contains current cr, this set operation won't change anything.
-    // Similarly, we never set finalizers for any stateful set, resetting finalizers won't change anything.
-    // The reason why we add these two operations is that it makes the proof easier.
-    // In this way, we can easily show that what the owner references and finalizers of the object in every update request
-    // for stateful set are.
-    metadata.set_owner_references(owner_references);
-    metadata.unset_finalizers();
-    metadata.set_labels(made_sts.metadata().labels().unwrap());
-    metadata.set_annotations(made_sts.metadata().annotations().unwrap());
-    found_stateful_set.set_spec({
+    
+
+    let mut stateful_set = found_stateful_set.clone();
+    stateful_set.set_spec({
         let mut sts_spec = found_stateful_set.spec().unwrap();
         let made_spec = made_sts.spec().unwrap();
         sts_spec.set_replicas(made_spec.replicas().unwrap());
-        sts_spec.set_template(made_sts.spec().template());
-        sts_spec.set_pvc_retention_policy(made_sts.spec().pvc_retention_policy().unwrap());
+        sts_spec.set_template(made_spec.template());
+        sts_spec.set_pvc_retention_policy(made_spec.persistent_volume_claim_retention_policy().unwrap());
         sts_spec
     });
-    found_stateful_set.set_metadata(metadata);
-    found_stateful_set
+    stateful_set.set_metadata({
+        let mut metadata = found_stateful_set.metadata();
+        // Since we requirement the owner_reference only contains current cr, this set operation won't change anything.
+        // Similarly, we never set finalizers for any stateful set, resetting finalizers won't change anything.
+        // The reason why we add these two operations is that it makes the proof easier.
+        // In this way, we can easily show that what the owner references and finalizers of the object in every update request
+        // for stateful set are.
+        metadata.set_owner_references(owner_references);
+        metadata.unset_finalizers();
+        metadata.set_labels(made_sts.metadata().labels().unwrap());
+        metadata.set_annotations(made_sts.metadata().annotations().unwrap());
+        metadata
+    });
+    stateful_set
 }
 
 fn sts_restart_annotation() -> (anno: String)

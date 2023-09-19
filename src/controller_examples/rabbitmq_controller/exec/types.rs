@@ -258,6 +258,30 @@ impl RabbitmqConfig {
             None => None,
         }
     }
+
+    #[verifier(external_body)]
+    pub fn advanced_config(&self) -> (advanced_config: Option<String>)
+        ensures
+            self@.advanced_config.is_Some() == advanced_config.is_Some(),
+            advanced_config.is_Some() ==> advanced_config.get_Some_0()@ == self@.advanced_config.get_Some_0(),
+    {
+        match &self.inner.advanced_config {
+            Some(n) => Some(String::from_rust_string(n.to_string())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn env_config(&self) -> (env_config: Option<String>)
+        ensures
+            self@.env_config.is_Some() == env_config.is_Some(),
+            env_config.is_Some() ==> env_config.get_Some_0()@ == self@.env_config.get_Some_0(),
+    {
+        match &self.inner.env_config {
+            Some(n) => Some(String::from_rust_string(n.to_string())),
+            None => None,
+        }
+    }
 }
 
 #[verifier(external_body)]

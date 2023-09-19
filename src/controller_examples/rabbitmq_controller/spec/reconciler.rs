@@ -510,7 +510,10 @@ pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_c
     let metadata = found_config_map.metadata.set_owner_references(seq![rabbitmq.controller_owner_ref()]).unset_finalizers()
                 .set_labels(make_server_config_map(rabbitmq).metadata.labels.get_Some_0())
                 .set_annotations(make_server_config_map(rabbitmq).metadata.annotations.get_Some_0());
-    found_config_map.set_data(make_server_config_map(rabbitmq).data.get_Some_0()).set_metadata(metadata)
+    found_config_map.set_data({
+        let old_data = if found_config_map.data.is_Some() { found_config_map.data.get_Some_0() } else { Map::empty() };
+        old_data.union_prefer_right(make_server_config_map(rabbitmq).data.get_Some_0())
+    }).set_metadata(metadata)
 }
 
 pub open spec fn make_server_config_map_name(rabbitmq_name: StringView) -> StringView {
@@ -541,19 +544,46 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
             .set_labels(make_labels(rabbitmq))
             .set_annotations(rabbitmq.spec.annotations)
         )
-        .set_data(Map::empty()
-            .insert(new_strlit("operatorDefaults.conf")@, default_rbmq_config(rabbitmq))
-            .insert(new_strlit("userDefinedConfiguration.conf")@,
-            {
-                if rabbitmq.spec.rabbitmq_config.is_Some()
-                && rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.is_Some()
-                {   // check if there are rabbitmq-related customized configurations
-                    new_strlit("total_memory_available_override_value = 1717986919\n")@ + rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.get_Some_0()
-                } else {
-                    new_strlit("total_memory_available_override_value = 1717986919\n")@
-                }
-            })
-        )
+        .set_data({
+            let data = Map::empty()
+                        .insert(new_strlit("operatorDefaults.conf")@, default_rbmq_config(rabbitmq))
+                        .insert(new_strlit("userDefinedConfiguration.conf")@,
+                        {
+                            if rabbitmq.spec.rabbitmq_config.is_Some()
+                            && rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.is_Some()
+                            {   // check if there are rabbitmq-related customized configurations
+                                new_strlit("total_memory_available_override_value = 1717986919\n")@ + rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.get_Some_0()
+                            } else {
+                                new_strlit("total_memory_available_override_value = 1717986919\n")@
+                            }
+                        })
+                        .insert(new_strlit("operatorDefaults.conf")@, default_rbmq_config(rabbitmq))
+                        .insert(new_strlit("userDefinedConfiguration.conf")@,
+                        {
+                            if rabbitmq.spec.rabbitmq_config.is_Some()
+                            && rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.is_Some()
+                            {   // check if there are rabbitmq-related customized configurations
+                                new_strlit("total_memory_available_override_value = 1717986919\n")@ + rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.get_Some_0()
+                            } else {
+                                new_strlit("total_memory_available_override_value = 1717986919\n")@
+                            }
+                        });
+            if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some() 
+            && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != new_strlit("")@
+            && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some() 
+            && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != new_strlit("")@ {
+                data.insert(new_strlit("advanced.config")@, rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0())
+                    .insert(new_strlit("rabbitmq-env.conf")@, rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0())
+            } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some() 
+            && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != new_strlit("")@ {
+                data.insert(new_strlit("advanced.config")@, rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0())
+            } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some() 
+            && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != new_strlit("")@ {
+                data.insert(new_strlit("rabbitmq-env.conf")@, rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0())
+            } else {
+                data
+            }
+        })
 }
 
 pub open spec fn default_rbmq_config(rabbitmq: RabbitmqClusterView) -> StringView
@@ -661,8 +691,8 @@ pub open spec fn update_stateful_set(
         let made_spec = make_stateful_set(rabbitmq, config_map_rv).spec.get_Some_0();
         found_stateful_set.spec.get_Some_0()
             .set_replicas(made_spec.replicas.get_Some_0())
-            .set_template(made_spec.template.get_Some_0())
-            .set_pvc_retention_policy(made_spec.pvc_retention_policy().get_Some_0())
+            .set_template(made_spec.template)
+            .set_pvc_retention_policy(made_spec.persistent_volume_claim_retention_policy.get_Some_0())
     }).set_metadata(metadata)
 }
 
