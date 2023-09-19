@@ -402,6 +402,18 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
     }
 }
 
+fn make_labels(rabbitmq: &RabbitmqCluster) -> (labels: StringMap)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+    ensures
+        labels@ == rabbitmq_spec::make_labels(rabbitmq@),
+{
+    let mut labels = StringMap::empty();
+    labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+    labels.extend(rabbitmq.spec().labels());
+    labels
+}
+
 pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     requires
         rabbitmq@.metadata.name.is_Some(),
@@ -472,11 +484,7 @@ pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServiceP
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
         metadata
     });
     service.set_spec({
@@ -561,11 +569,7 @@ pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) ->
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
         metadata
     });
     secret.set_data(data);
@@ -595,11 +599,7 @@ fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
         metadata
     });
     let mut data = StringMap::empty();
@@ -661,11 +661,7 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
         metadata
     });
     let mut data = StringMap::empty();
@@ -732,11 +728,7 @@ fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: Service
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
         metadata
     });
     service_account
@@ -765,11 +757,7 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
         metadata
     });
     role.set_policy_rules({
@@ -882,11 +870,7 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
         metadata
     });
     role_binding.set_role_ref({
@@ -985,11 +969,7 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (sta
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
         metadata
     });
     stateful_set.set_spec({

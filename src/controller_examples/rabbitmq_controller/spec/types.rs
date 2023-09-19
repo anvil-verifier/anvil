@@ -123,6 +123,8 @@ pub struct RabbitmqClusterSpecView {
     pub rabbitmq_config: Option<RabbitmqConfigView>,
     pub affinity: Option<AffinityView>,
     pub tolerations: Option<Seq<TolerationView>>,
+    pub labels: Map<StringView, StringView>,
+    pub annotations: Map<StringView, StringView>,
     pub resources: Option<ResourceRequirementsView>,
     pub pod_management_policy: Option<StringView>,
     pub persistent_volume_claim_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicyView>,

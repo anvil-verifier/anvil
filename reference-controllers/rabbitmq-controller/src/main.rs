@@ -24,7 +24,7 @@ use kube::{
     Client, CustomResourceExt,
 };
 use kube_core::{self, ResourceExt};
-use std::{env, sync::Arc};
+use std::{env, sync::Arc, string::String};
 use thiserror::Error;
 use tokio::time::Duration;
 use tracing::*;
