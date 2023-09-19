@@ -1257,8 +1257,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
                     pvc.set_metadata({
                         let mut metadata = ObjectMeta::default();
                         metadata.set_name(new_strlit("data").to_string());
-                        metadata.set_labels(make_labels(zk));
-                        metadata.set_annotations(zk.spec().annotations());
+                        metadata.set_labels(make_base_labels(zk));
                         metadata
                     });
                     pvc.set_spec({
