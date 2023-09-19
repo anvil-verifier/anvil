@@ -485,6 +485,7 @@ pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServiceP
             owner_references
         });
         metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     service.set_spec({
@@ -570,6 +571,7 @@ pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) ->
             owner_references
         });
         metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     secret.set_data(data);
@@ -600,6 +602,7 @@ fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap
             owner_references
         });
         metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     let mut data = StringMap::empty();
@@ -625,6 +628,7 @@ ensures
         );
     }
     let mut metadata = found_config_map.metadata();
+    let made_server_cm = make_server_config_map(rabbitmq);
 
     // Since we requirement the owner_reference only contains current cr, this set operation won't change anything.
     // Similarly, we never set finalizers for any stateful set, resetting finalizers won't change anything.
@@ -633,7 +637,9 @@ ensures
     // for stateful set are.
     metadata.set_owner_references(owner_references);
     metadata.unset_finalizers();
-    found_config_map.set_data(make_server_config_map(rabbitmq).data().unwrap());
+    metadata.set_labels(made_server_cm.metadata().labels().unwrap());
+    metadata.set_annotations(made_server_cm.metadata().annotations().unwrap());
+    found_config_map.set_data(made_server_cm.data().unwrap());
     found_config_map.set_metadata(metadata);
     found_config_map
 }
@@ -662,6 +668,7 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
             owner_references
         });
         metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     let mut data = StringMap::empty();
@@ -729,6 +736,7 @@ fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: Service
             owner_references
         });
         metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     service_account
@@ -758,6 +766,7 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
             owner_references
         });
         metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     role.set_policy_rules({
@@ -871,6 +880,7 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
             owner_references
         });
         metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     role_binding.set_role_ref({
@@ -916,6 +926,7 @@ fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: State
         );
     }
     let mut metadata = found_stateful_set.metadata();
+    let made_sts = make_stateful_set(rabbitmq, config_map_rv);
 
     // Since we requirement the owner_reference only contains current cr, this set operation won't change anything.
     // Similarly, we never set finalizers for any stateful set, resetting finalizers won't change anything.
@@ -924,7 +935,9 @@ fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: State
     // for stateful set are.
     metadata.set_owner_references(owner_references);
     metadata.unset_finalizers();
-    found_stateful_set.set_spec(make_stateful_set(rabbitmq, config_map_rv).spec().unwrap());
+    metadata.set_labels(made_sts.metadata().labels().unwrap());
+    metadata.set_annotations(made_sts.metadata().annotations().unwrap());
+    found_stateful_set.set_spec(made_sts.spec().unwrap());
     found_stateful_set.set_metadata(metadata);
     found_stateful_set
 }
@@ -970,6 +983,7 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (sta
             owner_references
         });
         metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     stateful_set.set_spec({
