@@ -294,8 +294,9 @@ pub open spec fn reconcile_core(
                 if get_sts_resp.is_Ok() {
                     // update
                     if StatefulSetView::unmarshal(get_sts_resp.get_Ok_0()).is_Ok() {
-                        let found_stateful_set = StatefulSetView::unmarshal(get_sts_resp.get_Ok_0()).get_Ok_0();
-                        if found_stateful_set.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref()) {
+                        let found_stateful_set = StatefulSetView::from_dynamic_object(get_sts_resp.get_Ok_0()).get_Ok_0();
+                        if found_stateful_set.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref()) 
+                        && found_stateful_set.spec.is_Some() {
                             let req_o = APIRequest::UpdateRequest(UpdateRequest {
                                 key: make_stateful_set_key(rabbitmq.object_ref()),
                                 obj: update_stateful_set(
@@ -656,7 +657,13 @@ pub open spec fn update_stateful_set(
     let metadata = found_stateful_set.metadata.set_owner_references(seq![rabbitmq.controller_owner_ref()]).unset_finalizers()
                 .set_labels(make_stateful_set(rabbitmq, config_map_rv).metadata.labels.get_Some_0())
                 .set_annotations(make_stateful_set(rabbitmq, config_map_rv).metadata.annotations.get_Some_0());
-    found_stateful_set.set_spec(make_stateful_set(rabbitmq, config_map_rv).spec.get_Some_0()).set_metadata(metadata)
+    found_stateful_set.set_spec( {
+        let made_spec = make_stateful_set(rabbitmq, config_map_rv).spec.get_Some_0();
+        found_stateful_set.spec.get_Some_0()
+            .set_replicas(made_spec.replicas.get_Some_0())
+            .set_template(made_spec.template.get_Some_0())
+            .set_pvc_retention_policy(made_spec.pvc_retention_policy().get_Some_0())
+    }).set_metadata(metadata)
 }
 
 pub open spec fn sts_restart_annotation() -> StringView {

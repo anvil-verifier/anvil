@@ -337,7 +337,8 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                         // just let the reconciler enter the error state and wait for the garbage collector to delete it. So
                         // after that, when a new round of reconcile starts, there is no stateful set in etcd, the reconciler
                         // will go to create a new one.
-                        if found_stateful_set.metadata().owner_references_only_contains(rabbitmq.controller_owner_ref()) {
+                        if found_stateful_set.metadata().owner_references_only_contains(rabbitmq.controller_owner_ref()) 
+                        && found_stateful_set.spec().is_some() {
                             let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                                 api_resource: StatefulSet::api_resource(),
                                 name: make_stateful_set_name(rabbitmq),
@@ -937,7 +938,14 @@ fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: State
     metadata.unset_finalizers();
     metadata.set_labels(made_sts.metadata().labels().unwrap());
     metadata.set_annotations(made_sts.metadata().annotations().unwrap());
-    found_stateful_set.set_spec(made_sts.spec().unwrap());
+    found_stateful_set.set_spec({
+        let mut sts_spec = found_stateful_set.spec().unwrap();
+        let made_spec = made_sts.spec().unwrap();
+        sts_spec.set_replicas(made_spec.replicas().unwrap());
+        sts_spec.set_template(made_sts.spec().template());
+        sts_spec.set_pvc_retention_policy(made_sts.spec().pvc_retention_policy().unwrap());
+        sts_spec
+    });
     found_stateful_set.set_metadata(metadata);
     found_stateful_set
 }
