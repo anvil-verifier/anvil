@@ -235,11 +235,11 @@ impl ResourceView for ConfigMapView {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn rule(obj: ConfigMapView) -> bool {
+    open spec fn state_validation(obj: ConfigMapView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_obj: ConfigMapView, old_obj: ConfigMapView) -> bool {
+    open spec fn transition_validation(new_obj: ConfigMapView, old_obj: ConfigMapView) -> bool {
         true
     }
 }

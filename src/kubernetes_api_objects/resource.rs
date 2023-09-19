@@ -94,10 +94,10 @@ pub trait ResourceView: Sized {
                 obj.kind == Self::kind() ==> Self::unmarshal_spec(obj.spec).is_Ok() == #[trigger] Self::unmarshal(obj).is_Ok();
 
     /// This method specifies the validation rule that only checks the new object.
-    spec fn rule(obj: Self) -> bool;
+    spec fn state_validation(obj: Self) -> bool;
 
     /// This method specifies the validation rule that checks the relations between the new and old object.
-    spec fn transition_rule(new_obj: Self, old_obj: Self) -> bool;
+    spec fn transition_validation(new_obj: Self, old_obj: Self) -> bool;
 
 }
 

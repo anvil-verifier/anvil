@@ -27,9 +27,9 @@ pub open spec fn marshal_preserves_spec() -> bool {
 
 /// The relexitivity allows the metadata to be different.
 pub open spec fn is_reflexive_and_transitive() -> bool {
-    &&& forall |x: K, y: K|  x.spec() == y.spec() ==> #[trigger] K::transition_rule(x, y)
-    &&& forall |x: K, y: K, z: K| #![trigger K::transition_rule(x, y), K::transition_rule(y, z)]
-        K::transition_rule(x, y) && K::transition_rule(y, z) ==> K::transition_rule(x, z)
+    &&& forall |x: K, y: K|  x.spec() == y.spec() ==> #[trigger] K::transition_validation(x, y)
+    &&& forall |x: K, y: K, z: K| #![trigger K::transition_validation(x, y), K::transition_validation(y, z)]
+        K::transition_validation(x, y) && K::transition_validation(y, z) ==> K::transition_validation(x, z)
 }
 
 /// This spec and also this module are targeted at the relations of the three versions of custom resource object. We know that
@@ -71,7 +71,7 @@ pub open spec fn transition_rule_applies_to_etcd_and_scheduled_cr(cr: K) -> Stat
         s.scheduled_reconciles().contains_key(key)
         && s.resources().contains_key(key)
         && s.resources()[key].metadata.uid.get_Some_0() == s.scheduled_reconciles()[key].metadata().uid.get_Some_0()
-        ==> K::transition_rule(K::unmarshal(s.resources()[key]).get_Ok_0(), s.scheduled_reconciles()[key])
+        ==> K::transition_validation(K::unmarshal(s.resources()[key]).get_Ok_0(), s.scheduled_reconciles()[key])
     }
 }
 
@@ -115,7 +115,7 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: Tem
                     } else if s.resources()[key] != s_prime.resources()[key] {
                         if input.get_Some_0().content.is_delete_request() {
                             assert(s_prime.resources()[key].spec == s.resources()[key].spec);
-                            assert(K::transition_rule(
+                            assert(K::transition_validation(
                                 K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
                                 K::unmarshal(s.resources()[key]).get_Ok_0()
                             ));
@@ -123,7 +123,7 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: Tem
                             assert(input.get_Some_0().content.is_update_request());
                             assert(K::unmarshal(input.get_Some_0().content.get_update_request().obj).is_Ok());
                             assert(input.get_Some_0().content.get_update_request().obj.spec == s_prime.resources()[key].spec);
-                            assert(K::transition_rule(
+                            assert(K::transition_validation(
                                 K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
                                 K::unmarshal(input.get_Some_0().content.get_update_request().obj).get_Ok_0()
                             ));
@@ -149,7 +149,7 @@ pub open spec fn transition_rule_applies_to_etcd_and_triggering_cr(cr: K) -> Sta
         s.ongoing_reconciles().contains_key(key)
         && s.resources().contains_key(key)
         && s.resources()[key].metadata.uid.get_Some_0() == s.ongoing_reconciles()[key].triggering_cr.metadata().uid.get_Some_0()
-        ==> K::transition_rule(K::unmarshal(s.resources()[key]).get_Ok_0(), s.ongoing_reconciles()[key].triggering_cr)
+        ==> K::transition_validation(K::unmarshal(s.resources()[key]).get_Ok_0(), s.ongoing_reconciles()[key].triggering_cr)
     }
 }
 
@@ -159,7 +159,7 @@ pub open spec fn transition_rule_applies_to_scheduled_and_triggering_cr(cr: K) -
         s.ongoing_reconciles().contains_key(key)
         && s.scheduled_reconciles().contains_key(key)
         && s.ongoing_reconciles()[key].triggering_cr.metadata().uid.get_Some_0() == s.scheduled_reconciles()[key].metadata().uid.get_Some_0()
-        ==> K::transition_rule(s.scheduled_reconciles()[key], s.ongoing_reconciles()[key].triggering_cr)
+        ==> K::transition_validation(s.scheduled_reconciles()[key], s.ongoing_reconciles()[key].triggering_cr)
     }
 }
 
@@ -213,7 +213,7 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
                     } else if s.resources()[key] != s_prime.resources()[key] {
                         if input.get_Some_0().content.is_delete_request() {
                             assert(s_prime.resources()[key].spec == s.resources()[key].spec);
-                            assert(K::transition_rule(
+                            assert(K::transition_validation(
                                 K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
                                 K::unmarshal(s.resources()[key]).get_Ok_0()
                             ));
@@ -221,7 +221,7 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
                             assert(input.get_Some_0().content.is_update_request());
                             assert(K::unmarshal(input.get_Some_0().content.get_update_request().obj).is_Ok());
                             assert(input.get_Some_0().content.get_update_request().obj.spec == s_prime.resources()[key].spec);
-                            assert(K::transition_rule(
+                            assert(K::transition_validation(
                                 K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
                                 K::unmarshal(input.get_Some_0().content.get_update_request().obj).get_Ok_0()
                             ));
@@ -242,8 +242,8 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
             match step {
                 Step::ScheduleControllerReconcileStep(_) => {
                     if !s.scheduled_reconciles().contains_key(key) || s.scheduled_reconciles()[key] != s_prime.scheduled_reconciles()[key] {
-                        assert(K::transition_rule(s_prime.scheduled_reconciles()[key], K::unmarshal(s.resources()[key]).get_Ok_0()));
-                        assert(K::transition_rule(K::unmarshal(s.resources()[key]).get_Ok_0(), s.ongoing_reconciles()[key].triggering_cr));
+                        assert(K::transition_validation(s_prime.scheduled_reconciles()[key], K::unmarshal(s.resources()[key]).get_Ok_0()));
+                        assert(K::transition_validation(K::unmarshal(s.resources()[key]).get_Ok_0(), s.ongoing_reconciles()[key].triggering_cr));
                     }
                     assert(Self::transition_rule_applies_to_scheduled_and_triggering_cr(cr)(s_prime));
                 },

@@ -220,11 +220,11 @@ impl ResourceView for ClusterRoleBindingView {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn rule(obj: ClusterRoleBindingView) -> bool {
+    open spec fn state_validation(obj: ClusterRoleBindingView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_obj: ClusterRoleBindingView, old_obj: ClusterRoleBindingView) -> bool {
+    open spec fn transition_validation(new_obj: ClusterRoleBindingView, old_obj: ClusterRoleBindingView) -> bool {
         true
     }
 }

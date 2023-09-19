@@ -162,11 +162,11 @@ impl ResourceView for SimpleCRView {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn rule(obj: SimpleCRView) -> bool {
+    open spec fn state_validation(obj: SimpleCRView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_obj: SimpleCRView, old_obj: SimpleCRView) -> bool {
+    open spec fn transition_validation(new_obj: SimpleCRView, old_obj: SimpleCRView) -> bool {
         true
     }
 }

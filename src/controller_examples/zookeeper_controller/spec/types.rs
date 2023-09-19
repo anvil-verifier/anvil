@@ -96,11 +96,11 @@ impl ResourceView for ZookeeperClusterView {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn rule(obj: ZookeeperClusterView) -> bool {
+    open spec fn state_validation(obj: ZookeeperClusterView) -> bool {
         obj.spec.replicas > 0
     }
 
-    open spec fn transition_rule(new_obj: ZookeeperClusterView, old_obj: ZookeeperClusterView) -> bool {
+    open spec fn transition_validation(new_obj: ZookeeperClusterView, old_obj: ZookeeperClusterView) -> bool {
         &&& new_obj.spec.ports == old_obj.spec.ports
         &&& new_obj.spec.persistence.enabled == old_obj.spec.persistence.enabled
         &&& new_obj.spec.persistence.storage_size == old_obj.spec.persistence.storage_size

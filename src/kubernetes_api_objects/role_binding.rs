@@ -315,15 +315,15 @@ impl ResourceView for RoleBindingView {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn rule(obj: RoleBindingView) -> bool {
+    open spec fn state_validation(obj: RoleBindingView) -> bool {
         &&& obj.role_ref.api_group == new_strlit("rbac.authorization.k8s.io")@
         &&& (obj.role_ref.kind == new_strlit("Role")@ || obj.role_ref.kind == new_strlit("ClusterRole")@)
         &&& obj.role_ref.name.len() > 0
         &&& obj.subjects.is_Some()
-            ==> forall |i| 0 <= i < obj.subjects.get_Some_0().len() ==> #[trigger] obj.subjects.get_Some_0()[i].rule(true)
+            ==> forall |i| 0 <= i < obj.subjects.get_Some_0().len() ==> #[trigger] obj.subjects.get_Some_0()[i].state_validation(true)
     }
 
-    open spec fn transition_rule(new_obj: RoleBindingView, old_obj: RoleBindingView) -> bool {
+    open spec fn transition_validation(new_obj: RoleBindingView, old_obj: RoleBindingView) -> bool {
         &&& old_obj.role_ref == new_obj.role_ref // role_ref is immutable
     }
 }
@@ -392,7 +392,7 @@ impl SubjectView {
         }
     }
 
-    pub open spec fn rule(self, is_namespaced: bool) -> bool {
+    pub open spec fn state_validation(self, is_namespaced: bool) -> bool {
         &&& self.kind == new_strlit("ServiceAccount")@ // TODO: support User and Group as kind here
         &&& is_namespaced ==> self.namespace.is_Some() && self.namespace.get_Some_0().len() > 0
     }

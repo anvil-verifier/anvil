@@ -94,11 +94,11 @@ impl ResourceView for FluentBitConfigView {
 
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
-    open spec fn rule(obj: FluentBitConfigView) -> bool {
+    open spec fn state_validation(obj: FluentBitConfigView) -> bool {
         true
     }
 
-    open spec fn transition_rule(new_obj: FluentBitConfigView, old_obj: FluentBitConfigView) -> bool {
+    open spec fn transition_validation(new_obj: FluentBitConfigView, old_obj: FluentBitConfigView) -> bool {
         true
     }
 }
