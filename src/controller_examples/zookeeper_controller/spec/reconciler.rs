@@ -767,16 +767,19 @@ pub open spec fn update_headless_service(zk: ZookeeperClusterView, found_headles
     recommends
         zk.well_formed(),
 {
-    found_headless_service
-        .set_metadata(
-            found_headless_service.metadata
-                .set_labels(make_headless_service(zk).metadata.labels.get_Some_0())
-                .set_annotations(make_headless_service(zk).metadata.annotations.get_Some_0())
-        )
-        .set_spec(
-            found_headless_service.spec.get_Some_0()
-                .set_ports(make_headless_service(zk).spec.get_Some_0().ports.get_Some_0())
-        )
+    ServiceView {
+        metadata: ObjectMetaView {
+            labels: make_headless_service(zk).metadata.labels,
+            annotations: make_headless_service(zk).metadata.annotations,
+            ..found_headless_service.metadata
+        },
+        spec: Some(ServiceSpecView {
+            ports: make_headless_service(zk).spec.get_Some_0().ports,
+            selector: make_headless_service(zk).spec.get_Some_0().selector,
+            ..found_headless_service.spec.get_Some_0()
+        }),
+        ..found_headless_service
+    }
 }
 
 pub open spec fn make_headless_service(zk: ZookeeperClusterView) -> ServiceView
@@ -813,16 +816,19 @@ pub open spec fn update_client_service(zk: ZookeeperClusterView, found_client_se
     recommends
         zk.well_formed(),
 {
-    found_client_service
-        .set_metadata(
-            found_client_service.metadata
-                .set_labels(make_client_service(zk).metadata.labels.get_Some_0())
-                .set_annotations(make_client_service(zk).metadata.annotations.get_Some_0())
-        )
-        .set_spec(
-            found_client_service.spec.get_Some_0()
-                .set_ports(make_client_service(zk).spec.get_Some_0().ports.get_Some_0())
-        )
+    ServiceView {
+        metadata: ObjectMetaView {
+            labels: make_client_service(zk).metadata.labels,
+            annotations: make_client_service(zk).metadata.annotations,
+            ..found_client_service.metadata
+        },
+        spec: Some(ServiceSpecView {
+            ports: make_client_service(zk).spec.get_Some_0().ports,
+            selector: make_client_service(zk).spec.get_Some_0().selector,
+            ..found_client_service.spec.get_Some_0()
+        }),
+        ..found_client_service
+    }
 }
 
 pub open spec fn make_client_service(zk: ZookeeperClusterView) -> ServiceView
@@ -853,16 +859,19 @@ pub open spec fn update_admin_server_service(zk: ZookeeperClusterView, found_adm
     recommends
         zk.well_formed(),
 {
-    found_admin_server_service
-        .set_metadata(
-            found_admin_server_service.metadata
-                .set_labels(make_admin_server_service(zk).metadata.labels.get_Some_0())
-                .set_annotations(make_admin_server_service(zk).metadata.annotations.get_Some_0())
-        )
-        .set_spec(
-            found_admin_server_service.spec.get_Some_0()
-                .set_ports(make_admin_server_service(zk).spec.get_Some_0().ports.get_Some_0())
-        )
+    ServiceView {
+        metadata: ObjectMetaView {
+            labels: make_admin_server_service(zk).metadata.labels,
+            annotations: make_admin_server_service(zk).metadata.annotations,
+            ..found_admin_server_service.metadata
+        },
+        spec: Some(ServiceSpecView {
+            ports: make_admin_server_service(zk).spec.get_Some_0().ports,
+            selector: make_admin_server_service(zk).spec.get_Some_0().selector,
+            ..found_admin_server_service.spec.get_Some_0()
+        }),
+        ..found_admin_server_service
+    }
 }
 
 pub open spec fn make_admin_server_service(zk: ZookeeperClusterView) -> ServiceView

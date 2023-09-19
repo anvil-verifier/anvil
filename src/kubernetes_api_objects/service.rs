@@ -174,6 +174,18 @@ impl ServiceSpec {
     }
 
     #[verifier(external_body)]
+    pub fn selector(&self) -> (selector: Option<StringMap>)
+        ensures
+            self@.selector.is_Some() == selector.is_Some(),
+            selector.is_Some() ==> selector.get_Some_0()@ == self@.selector.get_Some_0(),
+    {
+        match &self.inner.selector {
+            Some(s) => Some(StringMap::from_rust_map(s.clone())),
+            None => None,
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn set_selector(&mut self, selector: StringMap)
         ensures
             self@ == old(self)@.set_selector(selector@),

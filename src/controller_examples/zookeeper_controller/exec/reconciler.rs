@@ -818,6 +818,7 @@ fn update_headless_service(zk: &ZookeeperCluster, found_headless_service: &Servi
     headless_service.set_spec({
         let mut spec = found_headless_service.spec().unwrap();
         spec.set_ports(made_headless_service.spec().unwrap().ports().unwrap());
+        spec.set_selector(made_headless_service.spec().unwrap().selector().unwrap());
         spec
     });
     headless_service
@@ -875,6 +876,7 @@ fn update_client_service(zk: &ZookeeperCluster, found_client_service: &Service) 
     client_service.set_spec({
         let mut spec = found_client_service.spec().unwrap();
         spec.set_ports(made_client_service.spec().unwrap().ports().unwrap());
+        spec.set_selector(made_client_service.spec().unwrap().selector().unwrap());
         spec
     });
     client_service
@@ -928,6 +930,7 @@ fn update_admin_server_service(zk: &ZookeeperCluster, found_admin_server_service
     admin_server_service.set_spec({
         let mut spec = found_admin_server_service.spec().unwrap();
         spec.set_ports(made_admin_server_service.spec().unwrap().ports().unwrap());
+        spec.set_selector(made_admin_server_service.spec().unwrap().selector().unwrap());
         spec
     });
     admin_server_service
