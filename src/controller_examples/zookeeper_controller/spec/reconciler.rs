@@ -745,7 +745,7 @@ pub open spec fn zk_node_data(zk: ZookeeperClusterView) -> StringView
 }
 
 pub open spec fn make_labels(zk: ZookeeperClusterView) -> Map<StringView, StringView> {
-    Map::empty().insert(new_strlit("app")@, zk.metadata.name.get_Some_0()).union_prefer_right(zk.spec.labels)
+    zk.spec.labels.union_prefer_right(map![new_strlit("app")@ => zk.metadata.name.get_Some_0()])
 }
 
 pub open spec fn make_headless_service_key(key: ObjectRef) -> ObjectRef
@@ -889,22 +889,22 @@ pub open spec fn make_service(
     recommends
         zk.well_formed(),
 {
-    ServiceView::default()
-        .set_metadata(ObjectMetaView::default()
-            .set_name(name)
-            .set_labels(make_labels(zk))
-            .set_annotations(zk.spec.annotations)
-            .set_owner_references(seq![zk.controller_owner_ref()])
-        ).set_spec({
-            let spec = ServiceSpecView::default()
-                .set_ports(ports)
-                .set_selector(make_labels(zk));
-            if !cluster_ip {
-                spec.set_cluster_ip(new_strlit("None")@)
-            } else {
-                spec
-            }
-        })
+    ServiceView {
+        metadata: ObjectMetaView {
+            name: Some(name),
+            labels: Some(make_labels(zk)),
+            annotations: Some(zk.spec.annotations),
+            owner_references: Some(seq![zk.controller_owner_ref()]),
+            ..ObjectMetaView::default()
+        },
+        spec: Some(ServiceSpecView {
+            ports: Some(ports),
+            selector: Some(make_labels(zk)),
+            cluster_ip: if !cluster_ip { Some(new_strlit("None")@) } else { None },
+            ..ServiceSpecView::default()
+        }),
+        ..ServiceView::default()
+    }
 }
 
 pub open spec fn make_config_map_key(key: ObjectRef) -> ObjectRef

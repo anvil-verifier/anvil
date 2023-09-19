@@ -785,9 +785,12 @@ fn make_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
     ensures
         labels@ == zk_spec::make_labels(zk@),
 {
-    let mut labels = StringMap::empty();
-    labels.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
-    labels.extend(zk.spec().labels());
+    let mut labels = zk.spec().labels();
+    labels.extend({
+        let mut m = StringMap::empty();
+        m.insert(new_strlit("app").to_string(), zk.metadata().name().unwrap());
+        m
+    });
     labels
 }
 
