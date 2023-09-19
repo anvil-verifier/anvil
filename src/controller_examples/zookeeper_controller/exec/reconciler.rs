@@ -637,27 +637,28 @@ pub fn reconcile_core(
                 // Update the stateful set only after we ensure
                 // that the ZK node has been set correctly.
                 let found_stateful_set = state.found_stateful_set_opt.as_ref().unwrap();
-                let latest_config_map_rv = state.latest_config_map_rv_opt.as_ref().unwrap();
-                let new_stateful_set = update_stateful_set(zk, found_stateful_set, latest_config_map_rv);
-                let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
-                    api_resource: StatefulSet::api_resource(),
-                    name: make_stateful_set_name(zk),
-                    namespace: zk.metadata().namespace().unwrap(),
-                    obj: new_stateful_set.to_dynamic_object(),
-                });
-                let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
-                    found_stateful_set_opt: None,
-                    ..state
-                };
-                return (state_prime, Some(Request::KRequest(req_o)));
-            } else {
-                let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::Error,
-                    ..state
-                };
-                return (state_prime, None);
+                if found_stateful_set.spec().is_some() {
+                    let latest_config_map_rv = state.latest_config_map_rv_opt.as_ref().unwrap();
+                    let new_stateful_set = update_stateful_set(zk, found_stateful_set, latest_config_map_rv);
+                    let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                        api_resource: StatefulSet::api_resource(),
+                        name: make_stateful_set_name(zk),
+                        namespace: zk.metadata().namespace().unwrap(),
+                        obj: new_stateful_set.to_dynamic_object(),
+                    });
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
+                        found_stateful_set_opt: None,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
             }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
         },
         ZookeeperReconcileStep::AfterUpdateZKNode => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
@@ -667,27 +668,28 @@ pub fn reconcile_core(
                 // Update the stateful set only after we ensure
                 // that the ZK node has been set correctly.
                 let found_stateful_set = state.found_stateful_set_opt.as_ref().unwrap();
-                let latest_config_map_rv = state.latest_config_map_rv_opt.as_ref().unwrap();
-                let new_stateful_set = update_stateful_set(zk, found_stateful_set, latest_config_map_rv);
-                let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
-                    api_resource: StatefulSet::api_resource(),
-                    name: make_stateful_set_name(zk),
-                    namespace: zk.metadata().namespace().unwrap(),
-                    obj: new_stateful_set.to_dynamic_object(),
-                });
-                let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
-                    found_stateful_set_opt: None,
-                    ..state
-                };
-                return (state_prime, Some(Request::KRequest(req_o)));
-            } else {
-                let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::Error,
-                    ..state
-                };
-                return (state_prime, None);
+                if found_stateful_set.spec().is_some() {
+                    let latest_config_map_rv = state.latest_config_map_rv_opt.as_ref().unwrap();
+                    let new_stateful_set = update_stateful_set(zk, found_stateful_set, latest_config_map_rv);
+                    let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                        api_resource: StatefulSet::api_resource(),
+                        name: make_stateful_set_name(zk),
+                        namespace: zk.metadata().namespace().unwrap(),
+                        obj: new_stateful_set.to_dynamic_object(),
+                    });
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
+                        found_stateful_set_opt: None,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
             }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
         },
         ZookeeperReconcileStep::AfterCreateStatefulSet => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
@@ -1171,6 +1173,7 @@ fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
 fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulSet, rv: &String) -> (stateful_set: StatefulSet)
     requires
         zk@.well_formed(),
+        found_stateful_set@.spec.is_Some(),
     ensures
         stateful_set@ == zk_spec::update_stateful_set(zk@, found_stateful_set@, rv@),
 {
@@ -1182,7 +1185,13 @@ fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulSet, 
         metadata.set_annotations(made_stateful_set.metadata().annotations().unwrap());
         metadata
     });
-    stateful_set.set_spec(made_stateful_set.spec().unwrap());
+    stateful_set.set_spec({
+        let mut spec = found_stateful_set.spec().unwrap();
+        spec.set_replicas(made_stateful_set.spec().unwrap().replicas().unwrap());
+        spec.set_template(made_stateful_set.spec().unwrap().template());
+        spec.set_pvc_retention_policy(made_stateful_set.spec().unwrap().persistent_volume_claim_retention_policy().unwrap());
+        spec
+    });
     stateful_set
 }
 
