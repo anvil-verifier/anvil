@@ -619,16 +619,7 @@ requires
     rabbitmq@.metadata.namespace.is_Some(),
 ensures
     config_map@ == rabbitmq_spec::update_server_config_map(rabbitmq@, found_config_map@),
-{
-    let mut owner_references = Vec::new();
-    owner_references.push(rabbitmq.controller_owner_ref());
-    proof {
-        assert_seqs_equal!(
-            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-            rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
-        );
-    }
-    
+{    
     let mut config_map = found_config_map.clone();
     let made_server_cm = make_server_config_map(rabbitmq);
 
@@ -645,6 +636,14 @@ ensures
         // The reason why we add these two operations is that it makes the proof easier.
         // In this way, we can easily show that what the owner references and finalizers of the object in every update request
         // for stateful set are.
+        let mut owner_references = Vec::new();
+        owner_references.push(rabbitmq.controller_owner_ref());
+        proof {
+            assert_seqs_equal!(
+                owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                rabbitmq_spec::update_server_config_map(rabbitmq@, found_config_map@).metadata.owner_references.get_Some_0()
+            );
+        }
         metadata.set_owner_references(owner_references);
         metadata.unset_finalizers();
         metadata.set_labels(made_server_cm.metadata().labels().unwrap());
@@ -672,7 +671,7 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
             proof {
                 assert_seqs_equal!(
                     owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                    rabbitmq_spec::make_server_config_map(rabbitmq@).metadata.owner_references.get_Some_0()
                 );
             }
             owner_references
@@ -695,14 +694,14 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
         }
         rmq_conf_buff
     });
-    if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().is_some() 
-    && !rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap().eq(&new_strlit("").to_string()) {
-        data.insert(new_strlit("advanced.config").to_string(), rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap());
-    }
-    if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().env_config().is_some() 
-    && !rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap().eq(&new_strlit("").to_string()) {
-        data.insert(new_strlit("rabbitmq-env.conf").to_string(), rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap());
-    }
+    // if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().is_some() 
+    // && !rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap().eq(&new_strlit("").to_string()) {
+    //     data.insert(new_strlit("advanced.config").to_string(), rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap());
+    // }
+    // if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().env_config().is_some() 
+    // && !rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap().eq(&new_strlit("").to_string()) {
+    //     data.insert(new_strlit("rabbitmq-env.conf").to_string(), rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap());
+    // }
     config_map.set_data(data);
     config_map
 }
@@ -932,20 +931,11 @@ fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: State
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        found_stateful_set@.spec.is_Some(),
     ensures
         stateful_set@ == rabbitmq_spec::update_stateful_set(rabbitmq@, found_stateful_set@, config_map_rv@),
 {
-    let mut owner_references = Vec::new();
-    owner_references.push(rabbitmq.controller_owner_ref());
-    proof {
-        assert_seqs_equal!(
-            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-            rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
-        );
-    }
     let made_sts = make_stateful_set(rabbitmq, config_map_rv);
-
-    
 
     let mut stateful_set = found_stateful_set.clone();
     stateful_set.set_spec({
@@ -953,7 +943,7 @@ fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: State
         let made_spec = made_sts.spec().unwrap();
         sts_spec.set_replicas(made_spec.replicas().unwrap());
         sts_spec.set_template(made_spec.template());
-        sts_spec.set_pvc_retention_policy(made_spec.persistent_volume_claim_retention_policy().unwrap());
+        sts_spec.overwrite_pvc_retention_policy(made_spec.persistent_volume_claim_retention_policy());
         sts_spec
     });
     stateful_set.set_metadata({
@@ -963,6 +953,14 @@ fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: State
         // The reason why we add these two operations is that it makes the proof easier.
         // In this way, we can easily show that what the owner references and finalizers of the object in every update request
         // for stateful set are.
+        let mut owner_references = Vec::new();
+        owner_references.push(rabbitmq.controller_owner_ref());
+        proof {
+            assert_seqs_equal!(
+                owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+            );
+        }
         metadata.set_owner_references(owner_references);
         metadata.unset_finalizers();
         metadata.set_labels(made_sts.metadata().labels().unwrap());
