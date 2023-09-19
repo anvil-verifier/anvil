@@ -370,13 +370,13 @@ impl ResourceView for StatefulSetView {
     open spec fn transition_rule(new_obj: StatefulSetView, old_obj: StatefulSetView) -> bool {
         let old_spec = old_obj.spec.get_Some_0();
         let new_spec = new_obj.spec.get_Some_0();
-        // Fields other than replicas, template, persistent_volume_claim_retention_policy (and some other unspecified fields)
-        // are immutable.
+        // Fields other than replicas, template, persistent_volume_claim_retention_policy
+        // (and some other unspecified fields) are immutable.
         &&& old_spec == StatefulSetSpecView {
-            replicas: new_spec.replicas,
-            template: new_spec.template,
-            persistent_volume_claim_retention_policy: new_spec.persistent_volume_claim_retention_policy,
-            ..old_spec
+            replicas: old_spec.replicas,
+            template: old_spec.template,
+            persistent_volume_claim_retention_policy: old_spec.persistent_volume_claim_retention_policy,
+            ..new_spec
         }
     }
 }
