@@ -53,6 +53,18 @@ impl Role {
     }
 
     #[verifier(external_body)]
+    pub take_policy_rules(&mut self, other_role: Role)
+        requires
+            other_role@.policy_rules.is_Some(),
+        ensures
+            self@ == old(self)@.set_policy_rules(other_role@.policy_rules.get_Some_0()),
+    {
+        self.inner.rules = Some(
+            other_role.inner.rules
+        )
+    }
+
+    #[verifier(external_body)]
     pub fn set_policy_rules(&mut self, policy_rules: Vec<PolicyRule>)
         ensures
             self@ == old(self)@.set_policy_rules(policy_rules@.map_values(|policy_rule: PolicyRule| policy_rule@)),
