@@ -124,6 +124,7 @@ pub async fn get_output_and_err(mut attached: AttachedProcess) -> (String, Strin
 }
 
 pub fn run_command(program: &str, args: Vec<&str>, err_msg: &str) {
+    println!("{} {}", program, args.join(" "));
     let cmd = Command::new(program).args(args).output().expect(err_msg);
     println!("cmd output: {}", String::from_utf8_lossy(&cmd.stdout));
     println!("cmd error: {}", String::from_utf8_lossy(&cmd.stderr));
