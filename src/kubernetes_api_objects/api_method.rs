@@ -90,6 +90,13 @@ pub struct KubeGetRequest {
     pub namespace: String,
 }
 
+impl KubeGetRequest {
+    #[verifier(external)]
+    pub fn key(&self) -> std::string::String {
+        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref(), self.name.as_rust_string_ref())
+    }
+}
+
 /// KubeListRequest has the namespace to instantiate an Api.
 ///
 /// Note that the kind is indicated by the upper layer Kube{ObjectKind}Request.
@@ -107,12 +114,26 @@ pub struct KubeCreateRequest {
     pub obj: DynamicObject,
 }
 
+impl KubeCreateRequest {
+    #[verifier(external)]
+    pub fn key(&self) -> std::string::String {
+        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref(), self.obj.kube_metadata_ref().name.as_ref().unwrap_or(&"".to_string()))
+    }
+}
+
 /// KubeDeleteRequest has the name as the parameter of Api.delete(), and namespace to instantiate an Api.
 
 pub struct KubeDeleteRequest {
     pub api_resource: ApiResource,
     pub name: String,
     pub namespace: String,
+}
+
+impl KubeDeleteRequest {
+    #[verifier(external)]
+    pub fn key(&self) -> std::string::String {
+        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref(), self.name.as_rust_string_ref())
+    }
 }
 
 /// KubeUpdateRequest has the obj as the parameter of Api.replace().
@@ -122,6 +143,13 @@ pub struct KubeUpdateRequest {
     pub name: String,
     pub namespace: String,
     pub obj: DynamicObject,
+}
+
+impl KubeUpdateRequest {
+    #[verifier(external)]
+    pub fn key(&self) -> std::string::String {
+        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref(), self.name.as_rust_string_ref())
+    }
 }
 
 impl KubeAPIRequest {
