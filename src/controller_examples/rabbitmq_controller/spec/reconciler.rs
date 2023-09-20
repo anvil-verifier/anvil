@@ -416,6 +416,24 @@ pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, S
     rabbitmq.spec.labels.insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0())
 }
 
+pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> StringView 
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-nodes")@
+}
+
+pub open spec fn make_headless_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: ServiceView::kind(),
+        name: make_headless_service_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
 
 pub open spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> ServiceView
     recommends
@@ -426,7 +444,26 @@ pub open spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> Service
         ServicePortView::default().set_name(new_strlit("epmd")@).set_port(4369),
         ServicePortView::default().set_name(new_strlit("cluster-rpc")@).set_port(25672)
     ];
-    make_service(rabbitmq, rabbitmq.metadata.name.get_Some_0() + new_strlit("-nodes")@, ports, false)
+    make_service(rabbitmq, make_headless_service_name(rabbitmq), ports, false)
+}
+
+pub open spec fn make_main_service_name(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0()
+}
+
+pub open spec fn make_main_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: ServiceView::kind(),
+        name: make_main_service_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
 }
 
 pub open spec fn make_main_service(rabbitmq: RabbitmqClusterView) -> ServiceView
@@ -438,7 +475,7 @@ pub open spec fn make_main_service(rabbitmq: RabbitmqClusterView) -> ServiceView
         ServicePortView::default().set_name(new_strlit("amqp")@).set_port(5672).set_app_protocol(new_strlit("amqp")@),
         ServicePortView::default().set_name(new_strlit("management")@).set_port(15672).set_app_protocol(new_strlit("http")@),
     ];
-    make_service(rabbitmq, rabbitmq.metadata.name.get_Some_0(), ports, true)
+    make_service(rabbitmq, make_main_service_name(rabbitmq), ports, true)
 }
 
 pub open spec fn make_service(
@@ -469,6 +506,25 @@ pub open spec fn make_service(
         })
 }
 
+pub open spec fn make_erlang_secret_name(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-erlang-cookie")@
+}
+
+pub open spec fn make_erlang_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef 
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: SecretView::kind(),
+        name: make_erlang_secret_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
 pub open spec fn make_erlang_secret(rabbitmq: RabbitmqClusterView) -> SecretView
     recommends
         rabbitmq.metadata.name.is_Some(),
@@ -477,10 +533,29 @@ pub open spec fn make_erlang_secret(rabbitmq: RabbitmqClusterView) -> SecretView
     let cookie = random_encoded_string(24);
     let data = Map::empty()
         .insert(new_strlit(".erlang.cookie")@, cookie);
-    make_secret(rabbitmq, rabbitmq.metadata.name.get_Some_0() + new_strlit("-erlang-cookie")@, data)
+    make_secret(rabbitmq, make_erlang_secret_name(rabbitmq), data)
 }
 
 pub closed spec fn random_encoded_string(length: usize) -> StringView;
+
+pub open spec fn make_default_user_secret_name(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-default-user")@
+}
+
+pub open spec fn make_default_user_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: SecretView::kind(),
+        name: make_default_user_secret_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
 
 pub open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> SecretView
     recommends
@@ -497,7 +572,7 @@ pub open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> Secr
         .insert(new_strlit("provider")@, new_strlit("rabbitmq")@)
         .insert(new_strlit("default_user.conf")@, new_strlit("default_user = user\ndefault_pass = changeme")@)
         .insert(new_strlit("port")@, new_strlit("5672")@);
-    make_secret(rabbitmq, rabbitmq.metadata.name.get_Some_0() + new_strlit("-default-user")@, data)
+    make_secret(rabbitmq, make_default_user_secret_name(rabbitmq), data)
 }
 
 pub open spec fn make_secret(
@@ -517,6 +592,25 @@ pub open spec fn make_secret(
         ).set_data(data)
 }
 
+pub open spec fn make_plugins_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-plugins-conf")@
+}
+
+pub open spec fn make_plugins_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: ConfigMapView::kind(),
+        name: make_plugins_config_map_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
 pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> ConfigMapView
     recommends
         rabbitmq.metadata.name.is_Some(),
@@ -524,14 +618,14 @@ pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> Confi
 {
     ConfigMapView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-plugins-conf")@)
+            .set_name(make_plugins_config_map_name(rabbitmq))
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_owner_references(seq![rabbitmq.controller_owner_ref()])
             .set_labels(make_labels(rabbitmq))
             .set_annotations(rabbitmq.spec.annotations)
         )
         .set_data(Map::empty()
-            .insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_management].")@)
+            .insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].")@)
         )
 }
 
@@ -632,6 +726,25 @@ pub open spec fn default_rbmq_config(rabbitmq: RabbitmqClusterView) -> StringVie
     + new_strlit("cluster_name = ")@ + name + new_strlit("\n")@
 }
 
+pub open spec fn make_service_account_name(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@
+}
+
+pub open spec fn make_plugins_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: ServiceAccountView::kind(),
+        name: make_service_account_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
 pub open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceAccountView
     recommends
         rabbitmq.metadata.name.is_Some(),
@@ -639,12 +752,31 @@ pub open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceA
 {
     ServiceAccountView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
+            .set_name(make_service_account(rabbitmq))
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_owner_references(seq![rabbitmq.controller_owner_ref()])
             .set_labels(make_labels(rabbitmq))
             .set_annotations(rabbitmq.spec.annotations)
         )
+}
+
+pub open spec fn make_role_name(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-peer-discovery")@
+}
+
+pub open spec fn make_role_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: RoleView::kind(),
+        name: make_role_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
 }
 
 pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView
@@ -654,7 +786,7 @@ pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView
 {
     RoleView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-peer-discovery")@)
+            .set_name(make_role_name(rabbitmq))
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_owner_references(seq![rabbitmq.controller_owner_ref()])
             .set_labels(make_labels(rabbitmq))
@@ -667,6 +799,25 @@ pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView
         )
 }
 
+pub open spec fn make_role_binding_name(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@
+}
+
+pub open spec fn make_role_binding_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: RoleView::kind(),
+        name: make_role_binding_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
 pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBindingView
     recommends
         rabbitmq.metadata.name.is_Some(),
@@ -674,7 +825,7 @@ pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBinding
 {
     RoleBindingView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
+            .set_name(make_role_binding(rabbitmq))
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_owner_references(seq![rabbitmq.controller_owner_ref()])
             .set_labels(make_labels(rabbitmq))
