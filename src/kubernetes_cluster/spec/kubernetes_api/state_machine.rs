@@ -2,11 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
-use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, daemon_set::*, dynamic::*, error::*, object_meta::*,
-    persistent_volume_claim::*, pod::*, resource::*, role::*, role_binding::*, secret::*,
-    service::*, service_account::*, stateful_set::*,
-};
+use crate::kubernetes_api_objects::{error::*, prelude::*};
 use crate::kubernetes_cluster::spec::{cluster::Cluster, kubernetes_api::common::*, message::*};
 use crate::pervasive_ext::string_view::*;
 use crate::reconciler::spec::reconciler::Reconciler;

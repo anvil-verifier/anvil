@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, container::*, dynamic::*, error::*, label_selector::*,
-    object_meta::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
-    resource_requirements::*, service::*, stateful_set::*, volume::*,
+    container::*, error::*, label_selector::*, pod_template_spec::*, prelude::*,
+    resource_requirements::*, volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_map::*;
