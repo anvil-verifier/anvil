@@ -120,7 +120,7 @@ pub proof fn lemma_get_req_leads_to_some_resp
             },
             Step::KubernetesBusy(input) => {
                 if input.get_Some_0() == msg {
-                    let resp = Message::form_matched_resp_msg(msg, Err(APIError::ServerTimeout));
+                    let resp = Message::form_matched_err_resp_msg(msg, APIError::ServerTimeout);
                     assert(s_prime.in_flight().contains(resp));
                     assert(Message::resp_msg_matches_req_msg(resp, msg));
                     assert(post(s_prime));
