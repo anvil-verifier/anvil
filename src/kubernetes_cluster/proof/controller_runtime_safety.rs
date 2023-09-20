@@ -362,7 +362,7 @@ pub proof fn lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_s
                 }
                 Step::KubernetesBusy(input) => {
                     if input == Some(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
-                        let resp_msg = Message::form_matched_resp_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), Err(APIError::ServerTimeout));
+                        let resp_msg = Message::form_matched_err_resp_msg(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0(), APIError::ServerTimeout);
                         assert(s_prime.in_flight().contains(resp_msg));
                     } else {
                         if !s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()) {
