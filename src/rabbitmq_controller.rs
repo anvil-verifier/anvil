@@ -23,7 +23,7 @@ use deps_hack::anyhow::Result;
 use deps_hack::kube::CustomResourceExt;
 use deps_hack::serde_yaml;
 use deps_hack::tokio;
-use shim_layer::run_controller;
+use shim_layer::controller_runtime::run_controller;
 use std::env;
 
 verus! {
