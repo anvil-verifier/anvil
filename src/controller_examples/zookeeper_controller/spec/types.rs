@@ -97,7 +97,7 @@ impl ResourceView for ZookeeperClusterView {
     proof fn unmarshal_result_determined_by_unmarshal_spec() {}
 
     open spec fn state_validation(self) -> bool {
-        &&& self.spec.replicas > 0
+        &&& self.spec.replicas >= 3
     }
 
     open spec fn transition_validation(self, old_obj: ZookeeperClusterView) -> bool {
