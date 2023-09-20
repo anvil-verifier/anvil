@@ -146,7 +146,7 @@ where
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
                                 client.clone(), get_req.namespace.as_rust_string_ref(), get_req.api_resource.as_kube_ref()
                             );
-                            let key = get_req.object_key();
+                            let key = get_req.key();
                             match api.get(get_req.name.as_rust_string_ref()).await {
                                 std::result::Result::Err(err) => {
                                     kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse{
@@ -167,7 +167,7 @@ where
                                 client.clone(), create_req.namespace.as_rust_string_ref(), create_req.api_resource.as_kube_ref()
                             );
                             let pp = PostParams::default();
-                            let key = create_req.object_key();
+                            let key = create_req.key();
                             let obj_to_create = create_req.obj.into_kube();
                             match api.create(&pp, &obj_to_create).await {
                                 std::result::Result::Err(err) => {
@@ -189,7 +189,7 @@ where
                                 client.clone(), update_req.namespace.as_rust_string_ref(), update_req.api_resource.as_kube_ref()
                             );
                             let pp = PostParams::default();
-                            let key = update_req.object_key();
+                            let key = update_req.key();
                             let obj_to_update = update_req.obj.into_kube();
                             match api.replace(update_req.name.as_rust_string_ref(), &pp, &obj_to_update).await {
                                 std::result::Result::Err(err) => {
