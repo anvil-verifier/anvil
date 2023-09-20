@@ -106,92 +106,452 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
     let step = state.reconcile_step;
     match step{
         RabbitmqReconcileStep::Init => {
-            let headless_service = make_headless_service(&rabbitmq);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: Service::api_resource(),
-                namespace: rabbitmq.namespace().unwrap(),
-                obj: headless_service.marshal(),
-            });
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateHeadlessService,
-                ..state
-            };
-            return (state_prime, Some(Request::KRequest(req_o)));
-        },
-        RabbitmqReconcileStep::AfterGetHeadlessService => {},
-        RabbitmqReconcileStep::AfterCreateHeadlessService => {
-            let main_service = make_main_service(rabbitmq);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: Service::api_resource(),
-                namespace: rabbitmq.namespace().unwrap(),
-                obj: main_service.marshal(),
-            });
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateService,
-                ..state
-            };
-            return (state_prime, Some(Request::KRequest(req_o)));
-        },
-        RabbitmqReconcileStep::AfterUpdateHeadlessService => {},
-        RabbitmqReconcileStep::AfterGetService => {},
-        RabbitmqReconcileStep::AfterCreateService => {
-            let erlang_secret = make_erlang_secret(rabbitmq);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: Secret::api_resource(),
-                namespace: rabbitmq.namespace().unwrap(),
-                obj: erlang_secret.marshal(),
-            });
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateErlangCookieSecret,
-                ..state
-            };
-            return (state_prime, Some(Request::KRequest(req_o)));
-        },
-        RabbitmqReconcileStep::AfterUpdateService => {},
-        RabbitmqReconcileStep::AfterGetErlangCookieSecret => {},
-        RabbitmqReconcileStep::AfterCreateErlangCookieSecret => {
-            let default_user_secret = make_default_user_secret(rabbitmq);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: Secret::api_resource(),
-                namespace: rabbitmq.namespace().unwrap(),
-                obj: default_user_secret.marshal(),
-            });
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateDefaultUserSecret,
-                ..state
-            };
-            return (state_prime, Some(Request::KRequest(req_o)));
-        },
-        RabbitmqReconcileStep::AfterUpdateErlangCookieSecret => {},
-        RabbitmqReconcileStep::AfterGetDefaultUserSecret => {},
-        RabbitmqReconcileStep::AfterCreateDefaultUserSecret => {
-            let plugins_config_map = make_plugins_config_map(rabbitmq);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: ConfigMap::api_resource(),
-                namespace: rabbitmq.namespace().unwrap(),
-                obj: plugins_config_map.marshal(),
-            });
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreatePluginsConfigMap,
-                ..state
-            };
-            return (state_prime, Some(Request::KRequest(req_o)));
-        },
-        RabbitmqReconcileStep::AfterUpdateDefaultUserSecret => {},
-        RabbitmqReconcileStep::AfterGetPluginsConfigMap => {},
-        RabbitmqReconcileStep::AfterCreatePluginsConfigMap => {
             let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                api_resource: Service::api_resource(),
+                name: rabbitmq.name().unwrap().concat(new_strlit("-nodes")),
+                namespace: rabbitmq.namespace().unwrap(),
+            });
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterGetHeadlessService,
+                ..state
+            };
+            return (state_prime, Some(Request::KRequest(req_o)));
+        },
+        RabbitmqReconcileStep::AfterGetHeadlessService => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                let headless_service = make_headless_service(&rabbitmq);
+                let get_service_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_service_resp.is_ok() {
+                    // update
+                    let found_headless_service = Service::unmarshal(get_service_resp.unwrap());
+                    if found_headless_service.is_ok(){
+                        let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                            api_resource: Service::api_resource(),
+                            name: headless_service.name().unwrap(),
+                            namespace: rabbitmq.namespace().unwrap(),
+                            obj: update_headless_service(rabbitmq, found_headless_service.unwrap()).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateHeadlessService,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                    // create
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: Service::api_resource(),
+                        namespace: rabbitmq.namespace().unwrap(),
+                        obj: headless_service.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateHeadlessService,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
+            // return error state
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterCreateHeadlessService => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: Service::api_resource(),
+                    name: rabbitmq.name().unwrap(),
+                    namespace: rabbitmq.namespace().unwrap(),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetService,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterUpdateHeadlessService => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: Service::api_resource(),
+                    name: rabbitmq.name().unwrap(),
+                    namespace: rabbitmq.namespace().unwrap(),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetService,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterGetService => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                let main_service = make_main_service(rabbitmq);
+                let get_service_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_service_resp.is_ok() {
+                    // update
+                    let found_main_service = Service::unmarshal(get_service_resp.unwrap());
+                    if found_main_service.is_ok(){
+                        let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                            api_resource: Service::api_resource(),
+                            name: main_service.metadata().name().unwrap(),
+                            namespace: rabbitmq.namespace().unwrap(),
+                            obj: update_main_service(rabbitmq, found_main_service.unwrap()).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateService,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                    // create
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: Service::api_resource(),
+                        namespace: rabbitmq.namespace().unwrap(),
+                        obj: headless_service.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateService,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
+            // return error state
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterCreateService => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: Secret::api_resource(),
+                    name: rabbitmq.name().unwrap(),
+                    namespace: rabbitmq.namespace().unwrap(),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetErlangCookieSecret,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterUpdateService => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: Secret::api_resource(),
+                    name: rabbitmq.name().unwrap(),
+                    namespace: rabbitmq.namespace().unwrap(),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetErlangCookieSecret,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterGetErlangCookieSecret => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                let erlang_secret = make_erlang_secret(rabbitmq);
+                let get_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_resp.is_ok() {
+                    // update
+                    let found_erlang_secret = Secret::unmarshal(get_resp.unwrap());
+                    if found_erlang_secret.is_ok(){
+                        let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                            api_resource: Secret::api_resource(),
+                            name: erlang_secret.metadata().name().unwrap(),
+                            namespace: rabbitmq.namespace().unwrap(),
+                            obj: update_erlang_secret(rabbitmq, found_erlang_secret.unwrap()).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateErlangCookieSecret,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                    // create
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: Secret::api_resource(),
+                        namespace: rabbitmq.namespace().unwrap(),
+                        obj: erlang_secret.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateErlangCookieSecret,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
+            // return error state
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterCreateErlangCookieSecret => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: Secret::api_resource(),
+                    name: rabbitmq.name().unwrap().concat(new_strlit("-default-user")),
+                    namespace: rabbitmq.namespace().unwrap(),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetDefaultUserSecret,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterUpdateErlangCookieSecret => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: Secret::api_resource(),
+                    name: rabbitmq.name().unwrap().concat(new_strlit("-default-user")),
+                    namespace: rabbitmq.namespace().unwrap(),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetDefaultUserSecret,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterGetDefaultUserSecret => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                let default_user_secret = make_default_user_secret(rabbitmq);
+                let get_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_resp.is_ok() {
+                    // update
+                    let found_user_secret = Secret::unmarshal(get_resp.unwrap());
+                    if found_user_secret.is_ok(){
+                        let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                            api_resource: Secret::api_resource(),
+                            name: default_user_secret.metadata().name().unwrap(),
+                            namespace: rabbitmq.namespace().unwrap(),
+                            obj: update_erlang_secret(rabbitmq, found_user_secret.unwrap()).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateDefaultUserSecret,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                    // create
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: Secret::api_resource(),
+                        namespace: rabbitmq.namespace().unwrap(),
+                        obj: default_user_secret.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateDefaultUserSecret,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
+            // return error state
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterCreateDefaultUserSecret => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: ConfigMap::api_resource(),
+                    name: rabbitmq.name().unwrap().concat(new_strlit("-plugins-conf")),
+                    namespace: rabbitmq.namespace().unwrap(),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetPluginsConfigMap,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterUpdateDefaultUserSecret => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: ConfigMap::api_resource(),
+                    name: rabbitmq.name().unwrap().concat(new_strlit("-plugins-conf")),
+                    namespace: rabbitmq.namespace().unwrap(),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetPluginsConfigMap,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterGetPluginsConfigMap => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                let plugins_config_map = make_plugins_config_map(rabbitmq);
+                let get_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_resp.is_ok() {
+                    // update
+                    let found_config_map = ConfigMap::unmarshal(get_resp.unwrap());
+                    if found_config_map.is_ok(){
+                        let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                            api_resource: ConfigMap::api_resource(),
+                            name: plugins_config_map.metadata().name().unwrap(),
+                            namespace: rabbitmq.namespace().unwrap(),
+                            obj: update_plugins_config_map(rabbitmq, found_config_map.unwrap()).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdatePluginsConfigMap,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                    // create
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: ConfigMap::api_resource(),
+                        namespace: rabbitmq.namespace().unwrap(),
+                        obj: plugins_config_map.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreatePluginsConfigMap,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
+            // return error state
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterCreatePluginsConfigMap => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: ConfigMap::api_resource(),
                     name: rabbitmq.name().unwrap().concat(new_strlit("-server-conf")),
                     namespace: rabbitmq.namespace().unwrap(),
-            });
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetServerConfigMap,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterGetServerConfigMap,
+                reconcile_step: RabbitmqReconcileStep::Error,
                 ..state
             };
-            return (state_prime, Some(Request::KRequest(req_o)));
+            let req_o = None;
+            return (state_prime, req_o);
         },
-        RabbitmqReconcileStep::AfterUpdatePluginsConfigMap => {},
+        RabbitmqReconcileStep::AfterUpdatePluginsConfigMap => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: ConfigMap::api_resource(),
+                    name: rabbitmq.name().unwrap().concat(new_strlit("-server-conf")),
+                    namespace: rabbitmq.namespace().unwrap(),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetServerConfigMap,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
         RabbitmqReconcileStep::AfterGetServerConfigMap => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
@@ -215,11 +575,10 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                     }
                 } else if get_config_resp.unwrap_err().is_object_not_found() {
                     // create
-                    let server_config_map = make_server_config_map(rabbitmq);
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: ConfigMap::api_resource(),
                         namespace: rabbitmq.namespace().unwrap(),
-                        obj: server_config_map.marshal(),
+                        obj: config_map.marshal(),
                     });
                     let state_prime = RabbitmqReconcileState {
                         reconcile_step: RabbitmqReconcileStep::AfterCreateServerConfigMap,
@@ -227,37 +586,8 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                     };
                     return (state_prime, Some(Request::KRequest(req_o)));
                 }
-
             }
             // return error state
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::Error,
-                ..state
-            };
-            let req_o = None;
-            return (state_prime, req_o);
-        },
-        RabbitmqReconcileStep::AfterUpdateServerConfigMap => {
-            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
-                let update_config_resp = resp_o.unwrap().into_k_response().into_update_response().res;
-                let updated_config_map = ConfigMap::unmarshal(update_config_resp.unwrap());
-                if updated_config_map.is_ok() && updated_config_map.as_ref().unwrap().metadata().resource_version().is_some() {
-                    let service_account = make_service_account(rabbitmq);
-                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                        api_resource: ServiceAccount::api_resource(),
-                        namespace: rabbitmq.namespace().unwrap(),
-                        obj: service_account.marshal(),
-                    });
-                    let state_prime = RabbitmqReconcileState {
-                        reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
-                        latest_config_map_rv_opt: updated_config_map.unwrap().metadata().resource_version(),
-                        ..state
-                    };
-                    return (state_prime, Some(Request::KRequest(req_o)));
-                }
-            }
             let state_prime = RabbitmqReconcileState {
                 reconcile_step: RabbitmqReconcileStep::Error,
                 ..state
@@ -272,15 +602,14 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 let create_config_resp = resp_o.unwrap().into_k_response().into_create_response().res;
                 let created_config_map = ConfigMap::unmarshal(create_config_resp.unwrap());
                 if created_config_map.is_ok() && created_config_map.as_ref().unwrap().metadata().resource_version().is_some() {
-                    let service_account = make_service_account(rabbitmq);
-                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                    let req_o = KubeAPIRequest::CreateRequest(KubeGetRequest {
                         api_resource: ServiceAccount::api_resource(),
+                        name: rabbitmq.name().unwrap().concat(new_strlit("-server")),
                         namespace: rabbitmq.namespace().unwrap(),
-                        obj: service_account.marshal(),
                     });
                     let state_prime = RabbitmqReconcileState {
-                        reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
-                        latest_config_map_rv_opt: created_config_map.unwrap().metadata().resource_version(),
+                        reconcile_step: RabbitmqReconcileStep::AfterGetServiceAccount,
+                        latest_config_map_rv_opt: updated_config_map.unwrap().metadata().resource_version(),
                         ..state
                     };
                     return (state_prime, Some(Request::KRequest(req_o)));
@@ -293,50 +622,294 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             let req_o = None;
             return (state_prime, req_o);
         },
-        RabbitmqReconcileStep::AfterGetServiceAccount => {},
+        RabbitmqReconcileStep::AfterUpdateServerConfigMap => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
+                let update_config_resp = resp_o.unwrap().into_k_response().into_update_response().res;
+                let updated_config_map = ConfigMap::unmarshal(update_config_resp.unwrap());
+                if updated_config_map.is_ok() && updated_config_map.as_ref().unwrap().metadata().resource_version().is_some() {
+                    let req_o = KubeAPIRequest::CreateRequest(KubeGetRequest {
+                        api_resource: ServiceAccount::api_resource(),
+                        name: rabbitmq.name().unwrap().concat(new_strlit("-server")),
+                        namespace: rabbitmq.namespace().unwrap(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterGetServiceAccount,
+                        latest_config_map_rv_opt: updated_config_map.unwrap().metadata().resource_version(),
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterGetServiceAccount => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                let service_account = make_service_account(rabbitmq);
+                let get_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_resp.is_ok() {
+                    // update
+                    let found_service_account = ServiceAccount::unmarshal(get_config_resp.unwrap());
+                    if found_service_account.is_ok(){
+                        let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                            api_resource: ServiceAccount::api_resource(),
+                            name: service_account.metadata().name().unwrap(),
+                            namespace: rabbitmq.namespace().unwrap(),
+                            obj: update_service_account(rabbitmq, found_service_account.unwrap()).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateServiceAccount,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                    // create
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: ServiceAccount::api_resource(),
+                        namespace: rabbitmq.namespace().unwrap(),
+                        obj: service_account.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
+            // return error state
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
         RabbitmqReconcileStep::AfterCreateServiceAccount => {
-            let role = make_role(rabbitmq);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: Role::api_resource(),
-                namespace: rabbitmq.namespace().unwrap(),
-                obj: role.marshal(),
-            });
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: Role::api_resource(),
+                    name: rabbitmq.name().unwrap().concat(new_strlit("-peer-discovery")),
+                    namespace: rabbitmq.namespace().unwrap(),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetRole,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateRole,
+                reconcile_step: RabbitmqReconcileStep::Error,
                 ..state
             };
-            return (state_prime, Some(Request::KRequest(req_o)));
+            let req_o = None;
+            return (state_prime, req_o);
         },
-        RabbitmqReconcileStep::AfterUpdateServiceAccount => {},
-        RabbitmqReconcileStep::AfterGetRole => {},
+        RabbitmqReconcileStep::AfterUpdateServiceAccount => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: Role::api_resource(),
+                    name: rabbitmq.name().unwrap().concat(new_strlit("-peer-discovery")),
+                    namespace: rabbitmq.namespace().unwrap(),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetRole,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterGetRole => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                let role = make_role(rabbitmq);
+                let get_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_resp.is_ok() {
+                    // update
+                    let found_role = Role::unmarshal(get_resp.unwrap());
+                    if found_role.is_ok(){
+                        let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                            api_resource: Role::api_resource(),
+                            name: role.metadata().name().unwrap(),
+                            namespace: rabbitmq.namespace().unwrap(),
+                            obj: update_role(rabbitmq, found_role.unwrap()).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateRole,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                    // create
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: Role::api_resource(),
+                        namespace: rabbitmq.namespace().unwrap(),
+                        obj: role.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateRole,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
+            // return error state
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
         RabbitmqReconcileStep::AfterCreateRole => {
-            let role_binding = make_role_binding(rabbitmq);
-            let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                api_resource: RoleBinding::api_resource(),
-                namespace: rabbitmq.namespace().unwrap(),
-                obj: role_binding.marshal(),
-            });
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: RoleBinding::api_resource(),
+                    name: rabbitmq.name().unwrap().concat(new_strlit("-server")),
+                    namespace: rabbitmq.namespace().unwrap(),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetRoleBinding,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateRoleBinding,
+                reconcile_step: RabbitmqReconcileStep::Error,
                 ..state
             };
-            return (state_prime, Some(Request::KRequest(req_o)));
+            let req_o = None;
+            return (state_prime, req_o);
         },
-        RabbitmqReconcileStep::AfterUpdateRole => {},
-        RabbitmqReconcileStep::AfterGetRoleBinding => {},
+        RabbitmqReconcileStep::AfterUpdateRole => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: RoleBinding::api_resource(),
+                    name: rabbitmq.name().unwrap().concat(new_strlit("-server")),
+                    namespace: rabbitmq.namespace().unwrap(),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetRoleBinding,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
+        RabbitmqReconcileStep::AfterGetRoleBinding => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                let role_binding = make_role_binding(rabbitmq);
+                let get_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_resp.is_ok() {
+                    // update
+                    let found_role_binding = RoleBinding::unmarshal(get_resp.unwrap());
+                    if found_role_binding.is_ok(){
+                        let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                            api_resource: RoleBinding::api_resource(),
+                            name: role_binding.metadata().name().unwrap(),
+                            namespace: rabbitmq.namespace().unwrap(),
+                            obj: update_role_binding(rabbitmq, found_role_binding.unwrap()).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateRoleBinding,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                    // create
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                        api_resource: RoleBinding::api_resource(),
+                        namespace: rabbitmq.namespace().unwrap(),
+                        obj: role_binding.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateRoleBinding,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
+            // return error state
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
         RabbitmqReconcileStep::AfterCreateRoleBinding => {
-            let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
-                api_resource: StatefulSet::api_resource(),
-                name: rabbitmq.name().unwrap().concat(new_strlit("-server")),
-                namespace: rabbitmq.namespace().unwrap(),
-            });
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: StatefulSet::api_resource(),
+                    name: rabbitmq.name().unwrap().concat(new_strlit("-server")),
+                    namespace: rabbitmq.namespace().unwrap(),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetStatefulSet,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterGetStatefulSet,
+                reconcile_step: RabbitmqReconcileStep::Error,
                 ..state
             };
-            return (state_prime, Some(Request::KRequest(req_o)));
+            let req_o = None;
+            return (state_prime, req_o);
         },
-        RabbitmqReconcileStep::AfterUpdateRoleBinding => {},
+        RabbitmqReconcileStep::AfterUpdateRoleBinding => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: StatefulSet::api_resource(),
+                    name: rabbitmq.name().unwrap().concat(new_strlit("-server")),
+                    namespace: rabbitmq.namespace().unwrap(),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetStatefulSet,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Error,
+                ..state
+            };
+            let req_o = None;
+            return (state_prime, req_o);
+        },
         RabbitmqReconcileStep::AfterGetStatefulSet => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() && state.latest_config_map_rv_opt.is_some() {
@@ -760,6 +1333,7 @@ fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: Service
             proof {
                 assert_seqs_equal!(
                     owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                    // TODO: change make_role
                     rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
                 );
             }

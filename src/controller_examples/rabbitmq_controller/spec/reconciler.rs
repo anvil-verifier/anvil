@@ -84,6 +84,17 @@ pub open spec fn reconcile_core(
     let step = state.reconcile_step;
     match step{
         RabbitmqReconcileStep::Init => {
+            // get headless service
+            let req_o = APIRequest::GetRequest(GetRequest{
+                key: make_server_config_map_key(rabbitmq.object_ref())
+            });
+            let state_prime = RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterGetServerConfigMap,
+                ..state
+            };
+            (state_prime, Some(RequestView::KRequest(req_o)))
+        },
+        RabbitmqReconcileStep::AfterGetHeadlessService => {
             let headless_service = make_headless_service(rabbitmq);
             let req_o = APIRequest::CreateRequest(CreateRequest{
                 namespace: rabbitmq.metadata.namespace.get_Some_0(),
@@ -95,7 +106,6 @@ pub open spec fn reconcile_core(
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
-        RabbitmqReconcileStep::AfterGetHeadlessService => {},
         RabbitmqReconcileStep::AfterCreateHeadlessService => {
             let main_service = make_main_service(rabbitmq);
             let req_o = APIRequest::CreateRequest(CreateRequest{
@@ -405,6 +415,7 @@ pub open spec fn reconcile_error_result(state: RabbitmqReconcileState) -> (Rabbi
 pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView> {
     rabbitmq.spec.labels.insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0())
 }
+
 
 pub open spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> ServiceView
     recommends
