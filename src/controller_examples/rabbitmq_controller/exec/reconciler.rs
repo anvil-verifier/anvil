@@ -409,9 +409,8 @@ fn make_labels(rabbitmq: &RabbitmqCluster) -> (labels: StringMap)
     ensures
         labels@ == rabbitmq_spec::make_labels(rabbitmq@),
 {
-    let mut labels = StringMap::empty();
+    let mut labels = rabbitmq.spec().labels();
     labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-    labels.extend(rabbitmq.spec().labels());
     labels
 }
 

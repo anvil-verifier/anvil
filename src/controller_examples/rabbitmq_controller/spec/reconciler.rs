@@ -385,7 +385,7 @@ pub open spec fn reconcile_error_result(state: RabbitmqReconcileState) -> (Rabbi
 }
 
 pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView> {
-    Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()).union_prefer_right(rabbitmq.spec.labels)
+    rabbitmq.spec.labels.insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0())
 }
 
 pub open spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> ServiceView
