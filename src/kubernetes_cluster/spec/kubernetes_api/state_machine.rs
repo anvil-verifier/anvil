@@ -232,37 +232,33 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
     if req.obj.metadata.name.is_None() {
         // Update fails because the name of the object is not provided
         Some(APIError::BadRequest)
-    } else if req.key.name != req.obj.metadata.name.get_Some_0() {
+    } else if req.name != req.obj.metadata.name.get_Some_0() {
         // Update fails because the name of the provided object
         // does not match the name sent on the request
         Some(APIError::BadRequest)
     } else if req.obj.metadata.namespace.is_Some()
-        && req.key.namespace != req.obj.metadata.namespace.get_Some_0() {
+        && req.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Update fails because the namespace of the provided object
         // does not match the namespace sent on the request
-        Some(APIError::BadRequest)
-    } else if req.obj.kind != req.key.kind {
-        // Update fails because the kind of the provided object
-        // does not match the kind sent on the request
         Some(APIError::BadRequest)
     } else if !Self::spec_integrity_check(req.obj) {
         // Update fails because the spec of the provided object is not well formed
         // TODO: should the error be BadRequest?
         Some(APIError::BadRequest)
-    } else if !s.resources.contains_key(req.key) {
+    } else if !s.resources.contains_key(req.key()) {
         // Update fails because the object does not exist
         // TODO: check AllowCreateOnUpdate() to see whether to support create-on-update
         Some(APIError::ObjectNotFound)
     } else if req.obj.metadata.resource_version.is_None()
-        && !Self::allow_unconditional_update(req.key.kind) {
+        && !Self::allow_unconditional_update(req.key().kind) {
         // Update fails because the object does not provide a rv and unconditional update is not supported
         Some(APIError::Invalid)
     } else if req.obj.metadata.resource_version.is_Some()
-        && req.obj.metadata.resource_version != s.resources[req.key].metadata.resource_version {
+        && req.obj.metadata.resource_version != s.resources[req.key()].metadata.resource_version {
         // Update fails because the object has a wrong rv
         Some(APIError::Conflict)
     } else if req.obj.metadata.uid.is_Some()
-        && req.obj.metadata.uid != s.resources[req.key].metadata.uid {
+        && req.obj.metadata.uid != s.resources[req.key()].metadata.uid {
         // Update fails because the object has a wrong uid
         // TODO: double check the Error type
         Some(APIError::InternalError)
@@ -277,14 +273,14 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         ) {
         // Update fails because the object has multiple controller owner references
         Some(APIError::Invalid)
-    } else if s.resources[req.key].metadata.deletion_timestamp.is_Some()
+    } else if s.resources[req.key()].metadata.deletion_timestamp.is_Some()
         && req.obj.metadata.finalizers.is_Some() // Short circuit: we don't need to reason about the set difference if the finalizers is None
-        && !req.obj.metadata.finalizers_as_set().subset_of(s.resources[req.key].metadata.finalizers_as_set()) {
+        && !req.obj.metadata.finalizers_as_set().subset_of(s.resources[req.key()].metadata.finalizers_as_set()) {
         // Update fails because the object is marked to be deleted but the update tries to add more finalizers
         Some(APIError::Forbidden)
     } else if !Self::state_validity_check(req.obj) {
         Some(APIError::Invalid)
-    } else if !Self::transition_validity_check(req.obj, s.resources[req.key]) {
+    } else if !Self::transition_validity_check(req.obj, s.resources[req.key()]) {
         Some(APIError::Invalid)
     } else {
         None
@@ -292,8 +288,8 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
 }
 
 pub open spec fn updated_object(req: UpdateRequest, s: KubernetesAPIState) -> DynamicObjectView {
-    let old_obj = s.resources[req.key];
-    let updated_obj = req.obj.set_namespace(req.key.namespace)
+    let old_obj = s.resources[req.key()];
+    let updated_obj = req.obj.set_namespace(req.namespace)
                         // Update cannot change the rv; if rv is provided and inconsistent, validation fails.
                         .set_resource_version(old_obj.metadata.resource_version.get_Some_0())
                         // Update cannot change the uid; if uid is provided and inconsistent, validation fails.
@@ -318,11 +314,11 @@ pub open spec fn handle_update_request(msg: MsgType<E>, s: KubernetesAPIState) -
     } else {
         // Update succeeds.
         let updated_obj = Self::updated_object(req, s);
-        if updated_obj == s.resources[req.key] {
+        if updated_obj == s.resources[req.key()] {
             // Update is a noop because there is nothing to update
             // so the resource version counter does not increase here,
             // and the resource version of this object remains the same.
-            let result = Ok(s.resources[req.key]);
+            let result = Ok(s.resources[req.key()]);
             let resp = Message::form_update_resp_msg(msg, result);
             (s, resp)
         } else {

@@ -163,7 +163,8 @@ pub open spec fn reconcile_core(
                     {
                         let found_config_map = ConfigMapView::unmarshal(get_config_resp.get_Ok_0()).get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                            key: make_server_config_map_key(rabbitmq.object_ref()),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                            name: make_server_config_map_name(rabbitmq.metadata.name.get_Some_0()),
                             obj: update_server_config_map(rabbitmq, found_config_map).marshal(),
                         });
                         let state_prime = RabbitmqReconcileState {
@@ -295,10 +296,11 @@ pub open spec fn reconcile_core(
                     // update
                     if StatefulSetView::unmarshal(get_sts_resp.get_Ok_0()).is_Ok() {
                         let found_stateful_set = StatefulSetView::unmarshal(get_sts_resp.get_Ok_0()).get_Ok_0();
-                        if found_stateful_set.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref()) 
+                        if found_stateful_set.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
                         && found_stateful_set.spec.is_Some() {
                             let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                                key: make_stateful_set_key(rabbitmq.object_ref()),
+                                namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                                name: make_stateful_set_name(rabbitmq.metadata.name.get_Some_0()),
                                 obj: update_stateful_set(
                                     rabbitmq, found_stateful_set,
                                     state.latest_config_map_rv_opt.get_Some_0()
@@ -565,16 +567,16 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
                                 new_strlit("total_memory_available_override_value = 1717986919\n")@
                             }
                         });
-            if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some() 
+            if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some()
             && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != new_strlit("")@
-            && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some() 
+            && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some()
             && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != new_strlit("")@ {
                 data.insert(new_strlit("advanced.config")@, rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0())
                     .insert(new_strlit("rabbitmq-env.conf")@, rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0())
-            } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some() 
+            } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some()
             && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != new_strlit("")@ {
                 data.insert(new_strlit("advanced.config")@, rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0())
-            } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some() 
+            } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some()
             && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != new_strlit("")@ {
                 data.insert(new_strlit("rabbitmq-env.conf")@, rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0())
             } else {

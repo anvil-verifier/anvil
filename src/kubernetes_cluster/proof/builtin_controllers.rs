@@ -31,7 +31,7 @@ pub open spec fn every_update_msg_sets_owner_references_as(
             #[trigger] s.in_flight().contains(msg)
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_update_request()
-            && msg.content.get_update_request().key == key
+            && msg.content.get_update_request().key() == key
             && msg.content.get_update_request().obj.kind == key.kind
             ==> requirements(msg.content.get_update_request().obj.metadata.owner_references)
     }

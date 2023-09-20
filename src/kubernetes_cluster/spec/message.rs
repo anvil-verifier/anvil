@@ -131,7 +131,7 @@ impl<I, O> MessageContent<I, O> {
     pub open spec fn is_update_request_with_key(self, key: ObjectRef) -> bool {
         &&& self.is_APIRequest()
         &&& self.get_APIRequest_0().is_UpdateRequest()
-        &&& self.get_APIRequest_0().get_UpdateRequest_0().key == key
+        &&& self.get_APIRequest_0().get_UpdateRequest_0().key() == key
     }
 
     pub open spec fn get_update_request(self) -> UpdateRequest
@@ -335,9 +335,10 @@ pub open spec fn delete_req_msg_content(key: ObjectRef, req_id: RestId) -> Messa
     }), req_id)
 }
 
-pub open spec fn update_req_msg_content(key: ObjectRef, obj: DynamicObjectView, req_id: RestId) -> MessageContent<I, O> {
+pub open spec fn update_req_msg_content(namespace: StringView, name: StringView, obj: DynamicObjectView, req_id: RestId) -> MessageContent<I, O> {
     MessageContent::APIRequest(APIRequest::UpdateRequest(UpdateRequest{
-        key: key,
+        namespace: namespace,
+        name: name,
         obj: obj,
     }), req_id)
 }
