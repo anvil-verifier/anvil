@@ -630,8 +630,6 @@ ensures
     });
     config_map.set_metadata({
         let mut metadata = found_config_map.metadata();
-        // Since we requirement the owner_reference only contains current cr, this set operation won't change anything.
-        // Similarly, we never set finalizers for any stateful set, resetting finalizers won't change anything.
         // The reason why we add these two operations is that it makes the proof easier.
         // In this way, we can easily show that what the owner references and finalizers of the object in every update request
         // for stateful set are.
