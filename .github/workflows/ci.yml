@@ -1,13 +1,13 @@
 name: Continuous integration
 run-name: Regression tests run by ${{ github.actor }}
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - "README.md"
-      - ".gitignore"
-      - "doc/**"
+  # push:
+  #   branches:
+  #     - main
+  #   paths-ignore:
+  #     - "README.md"
+  #     - ".gitignore"
+  #     - "doc/**"
   pull_request:
   merge_group:
   workflow_dispatch:
