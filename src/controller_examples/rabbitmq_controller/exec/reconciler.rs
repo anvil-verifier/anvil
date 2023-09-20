@@ -694,14 +694,14 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
         }
         rmq_conf_buff
     });
-    // if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().is_some() 
-    // && !rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap().eq(&new_strlit("").to_string()) {
-    //     data.insert(new_strlit("advanced.config").to_string(), rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap());
-    // }
-    // if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().env_config().is_some() 
-    // && !rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap().eq(&new_strlit("").to_string()) {
-    //     data.insert(new_strlit("rabbitmq-env.conf").to_string(), rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap());
-    // }
+    if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().is_some() 
+    && !rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap().eq(&new_strlit("").to_string()) {
+        data.insert(new_strlit("advanced.config").to_string(), rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap());
+    }
+    if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().env_config().is_some() 
+    && !rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap().eq(&new_strlit("").to_string()) {
+        data.insert(new_strlit("rabbitmq-env.conf").to_string(), rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap());
+    }
     config_map.set_data(data);
     config_map
 }
@@ -1100,12 +1100,12 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (sta
             let mut pod_template_spec = PodTemplateSpec::default();
             pod_template_spec.set_metadata({
                 let mut metadata = ObjectMeta::default();
-                metadata.set_labels({
-                    let mut labels = StringMap::empty();
-                    labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-                    labels
+                metadata.set_labels(make_labels(rabbitmq));
+                metadata.set_annotations({
+                    let mut anno = rabbitmq.spec().annotations();
+                    anno.insert(sts_restart_annotation(), config_map_rv.clone());
+                    anno
                 });
-                metadata.add_annotation(sts_restart_annotation(), config_map_rv.clone());
                 metadata
             });
             pod_template_spec.set_spec(make_rabbitmq_pod_spec(rabbitmq));
