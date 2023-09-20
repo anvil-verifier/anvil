@@ -337,7 +337,8 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                         // just let the reconciler enter the error state and wait for the garbage collector to delete it. So
                         // after that, when a new round of reconcile starts, there is no stateful set in etcd, the reconciler
                         // will go to create a new one.
-                        if found_stateful_set.metadata().owner_references_only_contains(rabbitmq.controller_owner_ref()) {
+                        if found_stateful_set.metadata().owner_references_only_contains(rabbitmq.controller_owner_ref()) 
+                        && found_stateful_set.spec().is_some() {
                             let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                                 api_resource: StatefulSet::api_resource(),
                                 name: make_stateful_set_name(rabbitmq),
@@ -400,6 +401,17 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             return (state_prime, req_o);
         }
     }
+}
+
+fn make_labels(rabbitmq: &RabbitmqCluster) -> (labels: StringMap)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+    ensures
+        labels@ == rabbitmq_spec::make_labels(rabbitmq@),
+{
+    let mut labels = rabbitmq.spec().labels();
+    labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
+    labels
 }
 
 pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
@@ -472,11 +484,8 @@ pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServiceP
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     service.set_spec({
@@ -561,11 +570,8 @@ pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) ->
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     secret.set_data(data);
@@ -595,11 +601,8 @@ fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     let mut data = StringMap::empty();
@@ -615,27 +618,36 @@ requires
     rabbitmq@.metadata.namespace.is_Some(),
 ensures
     config_map@ == rabbitmq_spec::update_server_config_map(rabbitmq@, found_config_map@),
-{
-    let mut owner_references = Vec::new();
-    owner_references.push(rabbitmq.controller_owner_ref());
-    proof {
-        assert_seqs_equal!(
-            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-            rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
-        );
-    }
-    let mut metadata = found_config_map.metadata();
+{    
+    let mut config_map = found_config_map.clone();
+    let made_server_cm = make_server_config_map(rabbitmq);
 
-    // Since we requirement the owner_reference only contains current cr, this set operation won't change anything.
-    // Similarly, we never set finalizers for any stateful set, resetting finalizers won't change anything.
-    // The reason why we add these two operations is that it makes the proof easier.
-    // In this way, we can easily show that what the owner references and finalizers of the object in every update request
-    // for stateful set are.
-    metadata.set_owner_references(owner_references);
-    metadata.unset_finalizers();
-    found_config_map.set_data(make_server_config_map(rabbitmq).data().unwrap());
-    found_config_map.set_metadata(metadata);
-    found_config_map
+    config_map.set_data({
+        let old_data_opt = found_config_map.data();
+        let mut old_data = if old_data_opt.is_some() { old_data_opt.unwrap() } else { StringMap::empty() };
+        old_data.extend(made_server_cm.data().unwrap());
+        old_data
+    });
+    config_map.set_metadata({
+        let mut metadata = found_config_map.metadata();
+        // The reason why we add these two operations is that it makes the proof easier.
+        // In this way, we can easily show that what the owner references and finalizers of the object in every update request
+        // for stateful set are.
+        let mut owner_references = Vec::new();
+        owner_references.push(rabbitmq.controller_owner_ref());
+        proof {
+            assert_seqs_equal!(
+                owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                rabbitmq_spec::update_server_config_map(rabbitmq@, found_config_map@).metadata.owner_references.get_Some_0()
+            );
+        }
+        metadata.set_owner_references(owner_references);
+        metadata.unset_finalizers();
+        metadata.set_labels(made_server_cm.metadata().labels().unwrap());
+        metadata.set_annotations(made_server_cm.metadata().annotations().unwrap());
+        metadata
+    });
+    config_map
 }
 
 fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
@@ -656,16 +668,13 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
             proof {
                 assert_seqs_equal!(
                     owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+                    rabbitmq_spec::make_server_config_map(rabbitmq@).metadata.owner_references.get_Some_0()
                 );
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     let mut data = StringMap::empty();
@@ -682,6 +691,14 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
         }
         rmq_conf_buff
     });
+    if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().is_some() 
+    && !rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap().eq(&new_strlit("").to_string()) {
+        data.insert(new_strlit("advanced.config").to_string(), rabbitmq.spec().rabbitmq_config().unwrap().advanced_config().unwrap());
+    }
+    if rabbitmq.spec().rabbitmq_config().is_some() && rabbitmq.spec().rabbitmq_config().unwrap().env_config().is_some() 
+    && !rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap().eq(&new_strlit("").to_string()) {
+        data.insert(new_strlit("rabbitmq-env.conf").to_string(), rabbitmq.spec().rabbitmq_config().unwrap().env_config().unwrap());
+    }
     config_map.set_data(data);
     config_map
 }
@@ -732,11 +749,8 @@ fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: Service
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     service_account
@@ -765,11 +779,8 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     role.set_policy_rules({
@@ -882,11 +893,8 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     role_binding.set_role_ref({
@@ -920,29 +928,43 @@ fn update_stateful_set(rabbitmq: &RabbitmqCluster, mut found_stateful_set: State
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        found_stateful_set@.spec.is_Some(),
     ensures
         stateful_set@ == rabbitmq_spec::update_stateful_set(rabbitmq@, found_stateful_set@, config_map_rv@),
 {
-    let mut owner_references = Vec::new();
-    owner_references.push(rabbitmq.controller_owner_ref());
-    proof {
-        assert_seqs_equal!(
-            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-            rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
-        );
-    }
-    let mut metadata = found_stateful_set.metadata();
+    let made_sts = make_stateful_set(rabbitmq, config_map_rv);
 
-    // Since we requirement the owner_reference only contains current cr, this set operation won't change anything.
-    // Similarly, we never set finalizers for any stateful set, resetting finalizers won't change anything.
-    // The reason why we add these two operations is that it makes the proof easier.
-    // In this way, we can easily show that what the owner references and finalizers of the object in every update request
-    // for stateful set are.
-    metadata.set_owner_references(owner_references);
-    metadata.unset_finalizers();
-    found_stateful_set.set_spec(make_stateful_set(rabbitmq, config_map_rv).spec().unwrap());
-    found_stateful_set.set_metadata(metadata);
-    found_stateful_set
+    let mut stateful_set = found_stateful_set.clone();
+    stateful_set.set_spec({
+        let mut sts_spec = found_stateful_set.spec().unwrap();
+        let made_spec = made_sts.spec().unwrap();
+        sts_spec.set_replicas(made_spec.replicas().unwrap());
+        sts_spec.set_template(made_spec.template());
+        sts_spec.overwrite_pvc_retention_policy(made_spec.persistent_volume_claim_retention_policy());
+        sts_spec
+    });
+    stateful_set.set_metadata({
+        let mut metadata = found_stateful_set.metadata();
+        // Since we requirement the owner_reference only contains current cr, this set operation won't change anything.
+        // Similarly, we never set finalizers for any stateful set, resetting finalizers won't change anything.
+        // The reason why we add these two operations is that it makes the proof easier.
+        // In this way, we can easily show that what the owner references and finalizers of the object in every update request
+        // for stateful set are.
+        let mut owner_references = Vec::new();
+        owner_references.push(rabbitmq.controller_owner_ref());
+        proof {
+            assert_seqs_equal!(
+                owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+                rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
+            );
+        }
+        metadata.set_owner_references(owner_references);
+        metadata.unset_finalizers();
+        metadata.set_labels(made_sts.metadata().labels().unwrap());
+        metadata.set_annotations(made_sts.metadata().annotations().unwrap());
+        metadata
+    });
+    stateful_set
 }
 
 fn sts_restart_annotation() -> (anno: String)
@@ -985,11 +1007,8 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (sta
             }
             owner_references
         });
-        metadata.set_labels({
-            let mut labels = StringMap::empty();
-            labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-            labels
-        });
+        metadata.set_labels(make_labels(rabbitmq));
+        metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
     stateful_set.set_spec({
@@ -1078,12 +1097,12 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (sta
             let mut pod_template_spec = PodTemplateSpec::default();
             pod_template_spec.set_metadata({
                 let mut metadata = ObjectMeta::default();
-                metadata.set_labels({
-                    let mut labels = StringMap::empty();
-                    labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
-                    labels
+                metadata.set_labels(make_labels(rabbitmq));
+                metadata.set_annotations({
+                    let mut anno = rabbitmq.spec().annotations();
+                    anno.insert(sts_restart_annotation(), config_map_rv.clone());
+                    anno
                 });
-                metadata.add_annotation(sts_restart_annotation(), config_map_rv.clone());
                 metadata
             });
             pod_template_spec.set_spec(make_rabbitmq_pod_spec(rabbitmq));

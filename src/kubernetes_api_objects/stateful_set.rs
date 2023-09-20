@@ -220,6 +220,23 @@ impl StatefulSetSpec {
     }
 
     #[verifier(external_body)]
+    pub fn overwrite_pvc_retention_policy(&mut self, pvc_retention_policy: Option<StatefulSetPersistentVolumeClaimRetentionPolicy>)
+        ensures
+            pvc_retention_policy.is_None() ==> self@ == old(self)@.unset_pvc_retention_policy(),
+            pvc_retention_policy.is_Some() ==> self@ == old(self)@.set_pvc_retention_policy(pvc_retention_policy.get_Some_0()@),
+    {
+        match pvc_retention_policy {
+            Some(pvc) => {
+                self.inner.persistent_volume_claim_retention_policy = Some(pvc.into_kube());
+            },
+            None => {
+                self.inner.persistent_volume_claim_retention_policy = None;
+            },
+        }
+        
+    }
+
+    #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: Option<i32>)
         ensures
             self@.replicas.is_Some() == replicas.is_Some(),
@@ -449,6 +466,13 @@ impl StatefulSetSpecView {
     pub open spec fn set_pvc_retention_policy(self, pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicyView) -> StatefulSetSpecView {
         StatefulSetSpecView {
             persistent_volume_claim_retention_policy: Some(pvc_retention_policy),
+            ..self
+        }
+    }
+
+    pub open spec fn unset_pvc_retention_policy(self) -> StatefulSetSpecView {
+        StatefulSetSpecView {
+            persistent_volume_claim_retention_policy: None,
             ..self
         }
     }

@@ -295,7 +295,8 @@ pub open spec fn reconcile_core(
                     // update
                     if StatefulSetView::unmarshal(get_sts_resp.get_Ok_0()).is_Ok() {
                         let found_stateful_set = StatefulSetView::unmarshal(get_sts_resp.get_Ok_0()).get_Ok_0();
-                        if found_stateful_set.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref()) {
+                        if found_stateful_set.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref()) 
+                        && found_stateful_set.spec.is_Some() {
                             let req_o = APIRequest::UpdateRequest(UpdateRequest {
                                 key: make_stateful_set_key(rabbitmq.object_ref()),
                                 obj: update_stateful_set(
@@ -383,6 +384,10 @@ pub open spec fn reconcile_error_result(state: RabbitmqReconcileState) -> (Rabbi
     (state_prime, req_o)
 }
 
+pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView> {
+    rabbitmq.spec.labels.insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0())
+}
+
 pub open spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> ServiceView
     recommends
         rabbitmq.metadata.name.is_Some(),
@@ -419,7 +424,8 @@ pub open spec fn make_service(
             .set_name(name)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_owner_references(seq![rabbitmq.controller_owner_ref()])
-            .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+            .set_labels(make_labels(rabbitmq))
+            .set_annotations(rabbitmq.spec.annotations)
         ).set_spec({
             let spec = ServiceSpecView::default()
                 .set_ports(ports)
@@ -477,7 +483,8 @@ pub open spec fn make_secret(
             .set_name(name)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_owner_references(seq![rabbitmq.controller_owner_ref()])
-            .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+            .set_labels(make_labels(rabbitmq))
+            .set_annotations(rabbitmq.spec.annotations)
         ).set_data(data)
 }
 
@@ -491,7 +498,8 @@ pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> Confi
             .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-plugins-conf")@)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_owner_references(seq![rabbitmq.controller_owner_ref()])
-            .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+            .set_labels(make_labels(rabbitmq))
+            .set_annotations(rabbitmq.spec.annotations)
         )
         .set_data(Map::empty()
             .insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_management].")@)
@@ -499,8 +507,20 @@ pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> Confi
 }
 
 pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_config_map: ConfigMapView) -> ConfigMapView {
-    let metadata = found_config_map.metadata.set_owner_references(seq![rabbitmq.controller_owner_ref()]).unset_finalizers();
-    found_config_map.set_data(make_server_config_map(rabbitmq).data.get_Some_0()).set_metadata(metadata)
+    ConfigMapView {
+        metadata: ObjectMetaView {
+            owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
+            finalizers: None,
+            labels: make_server_config_map(rabbitmq).metadata.labels,
+            annotations: make_server_config_map(rabbitmq).metadata.annotations,
+            ..found_config_map.metadata
+        },
+        data: Some({
+            let old_data = if found_config_map.data.is_Some() { found_config_map.data.get_Some_0() } else { Map::empty() };
+            old_data.union_prefer_right(make_server_config_map(rabbitmq).data.get_Some_0())
+        }),
+        ..found_config_map
+    }
 }
 
 pub open spec fn make_server_config_map_name(rabbitmq_name: StringView) -> StringView {
@@ -523,26 +543,46 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
         rabbitmq.metadata.name.is_Some(),
         rabbitmq.metadata.namespace.is_Some(),
 {
-    ConfigMapView::default()
-        .set_metadata(ObjectMetaView::default()
-            .set_name(make_server_config_map_name(rabbitmq.metadata.name.get_Some_0()))
-            .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
-            .set_owner_references(seq![rabbitmq.controller_owner_ref()])
-            .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
-        )
-        .set_data(Map::empty()
-            .insert(new_strlit("operatorDefaults.conf")@, default_rbmq_config(rabbitmq))
-            .insert(new_strlit("userDefinedConfiguration.conf")@,
-            {
-                if rabbitmq.spec.rabbitmq_config.is_Some()
-                && rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.is_Some()
-                {   // check if there are rabbitmq-related customized configurations
-                    new_strlit("total_memory_available_override_value = 1717986919\n")@ + rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.get_Some_0()
-                } else {
-                    new_strlit("total_memory_available_override_value = 1717986919\n")@
-                }
-            })
-        )
+    ConfigMapView {
+        metadata: ObjectMetaView {
+            name: Some(make_server_config_map_name(rabbitmq.metadata.name.get_Some_0())),
+            namespace: rabbitmq.metadata.namespace,
+            owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
+            labels: Some(make_labels(rabbitmq)),
+            annotations: Some(rabbitmq.spec.annotations),
+            ..ObjectMetaView::default()
+        },
+        data: Some({
+            let data = Map::empty()
+                        .insert(new_strlit("operatorDefaults.conf")@, default_rbmq_config(rabbitmq))
+                        .insert(new_strlit("userDefinedConfiguration.conf")@,
+                        {
+                            if rabbitmq.spec.rabbitmq_config.is_Some()
+                            && rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.is_Some()
+                            {   // check if there are rabbitmq-related customized configurations
+                                new_strlit("total_memory_available_override_value = 1717986919\n")@ + rabbitmq.spec.rabbitmq_config.get_Some_0().additional_config.get_Some_0()
+                            } else {
+                                new_strlit("total_memory_available_override_value = 1717986919\n")@
+                            }
+                        });
+            if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some() 
+            && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != new_strlit("")@
+            && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some() 
+            && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != new_strlit("")@ {
+                data.insert(new_strlit("advanced.config")@, rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0())
+                    .insert(new_strlit("rabbitmq-env.conf")@, rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0())
+            } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.is_Some() 
+            && rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0() != new_strlit("")@ {
+                data.insert(new_strlit("advanced.config")@, rabbitmq.spec.rabbitmq_config.get_Some_0().advanced_config.get_Some_0())
+            } else if rabbitmq.spec.rabbitmq_config.is_Some() && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.is_Some() 
+            && rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0() != new_strlit("")@ {
+                data.insert(new_strlit("rabbitmq-env.conf")@, rabbitmq.spec.rabbitmq_config.get_Some_0().env_config.get_Some_0())
+            } else {
+                data
+            }
+        }),
+        ..ConfigMapView::default()
+    }
 }
 
 pub open spec fn default_rbmq_config(rabbitmq: RabbitmqClusterView) -> StringView
@@ -573,7 +613,8 @@ pub open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceA
             .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_owner_references(seq![rabbitmq.controller_owner_ref()])
-            .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+            .set_labels(make_labels(rabbitmq))
+            .set_annotations(rabbitmq.spec.annotations)
         )
 }
 
@@ -587,7 +628,8 @@ pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView
             .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-peer-discovery")@)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_owner_references(seq![rabbitmq.controller_owner_ref()])
-            .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+            .set_labels(make_labels(rabbitmq))
+            .set_annotations(rabbitmq.spec.annotations)
         ).set_policy_rules(
             seq![
                 PolicyRuleView::default().set_api_groups(seq![new_strlit("")@]).set_resources(seq![new_strlit("endpoints")@]).set_verbs(seq![new_strlit("get")@]),
@@ -606,7 +648,8 @@ pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBinding
             .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_owner_references(seq![rabbitmq.controller_owner_ref()])
-            .set_labels(Map::empty().insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0()))
+            .set_labels(make_labels(rabbitmq))
+            .set_annotations(rabbitmq.spec.annotations)
         ).set_role_ref(RoleRefView::default()
             .set_api_group(new_strlit("rbac.authorization.k8s.io")@)
             .set_kind(new_strlit("Role")@)
@@ -639,9 +682,25 @@ pub open spec fn update_stateful_set(
     recommends
         rabbitmq.metadata.name.is_Some(),
         rabbitmq.metadata.namespace.is_Some(),
+        found_stateful_set.spec.is_Some(),
 {
-    let metadata = found_stateful_set.metadata.set_owner_references(seq![rabbitmq.controller_owner_ref()]).unset_finalizers();
-    found_stateful_set.set_spec(make_stateful_set(rabbitmq, config_map_rv).spec.get_Some_0()).set_metadata(metadata)
+    let made_spec = make_stateful_set(rabbitmq, config_map_rv).spec.get_Some_0();
+    StatefulSetView {
+        metadata: ObjectMetaView {
+            owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
+            finalizers: None,
+            labels: make_stateful_set(rabbitmq, config_map_rv).metadata.labels,
+            annotations: make_stateful_set(rabbitmq, config_map_rv).metadata.annotations,
+            ..found_stateful_set.metadata
+        },
+        spec: Some(StatefulSetSpecView {
+            replicas: made_spec.replicas,
+            template: made_spec.template,
+            persistent_volume_claim_retention_policy: made_spec.persistent_volume_claim_retention_policy,
+            ..found_stateful_set.spec.get_Some_0()
+        }),
+        ..found_stateful_set
+    }
 }
 
 pub open spec fn sts_restart_annotation() -> StringView {
@@ -662,7 +721,8 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
         .set_name(sts_name)
         .set_namespace(namespace)
         .set_owner_references(seq![rabbitmq.controller_owner_ref()])
-        .set_labels(labels);
+        .set_labels(make_labels(rabbitmq))
+        .set_annotations(rabbitmq.spec.annotations);
 
     let spec = StatefulSetSpecView {
         replicas: Some(rabbitmq.spec.replicas),
@@ -671,10 +731,9 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
         template: PodTemplateSpecView::default()
                     .set_metadata(
                         ObjectMetaView::default().set_labels(
-                            Map::empty()
-                                .insert(new_strlit("app")@, name)
-                        ).add_annotation(
-                            sts_restart_annotation(), config_map_rv
+                            make_labels(rabbitmq)
+                        ).set_annotations(
+                            rabbitmq.spec.annotations.insert(sts_restart_annotation(), config_map_rv)
                         )
                     )
                     .set_spec(make_rabbitmq_pod_spec(rabbitmq)),
