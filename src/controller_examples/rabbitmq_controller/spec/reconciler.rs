@@ -95,6 +95,7 @@ pub open spec fn reconcile_core(
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
+        RabbitmqReconcileStep::AfterGetHeadlessService => {},
         RabbitmqReconcileStep::AfterCreateHeadlessService => {
             let main_service = make_main_service(rabbitmq);
             let req_o = APIRequest::CreateRequest(CreateRequest{
@@ -107,6 +108,8 @@ pub open spec fn reconcile_core(
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
+        RabbitmqReconcileStep::AfterUpdateHeadlessService => {},
+        RabbitmqReconcileStep::AfterGetService => {},
         RabbitmqReconcileStep::AfterCreateService => {
             let erlang_secret = make_erlang_secret(rabbitmq);
             let req_o = APIRequest::CreateRequest(CreateRequest{
@@ -119,6 +122,8 @@ pub open spec fn reconcile_core(
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
+        RabbitmqReconcileStep::AfterUpdateService => {},
+        RabbitmqReconcileStep::AfterGetErlangCookieSecret => {},
         RabbitmqReconcileStep::AfterCreateErlangCookieSecret => {
             let default_user_secret = make_default_user_secret(rabbitmq);
             let req_o = APIRequest::CreateRequest(CreateRequest{
@@ -131,6 +136,8 @@ pub open spec fn reconcile_core(
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
+        RabbitmqReconcileStep::AfterUpdateErlangCookieSecret => {},
+        RabbitmqReconcileStep::AfterGetDefaultUserSecret => {},
         RabbitmqReconcileStep::AfterCreateDefaultUserSecret => {
             let plugins_config_map = make_plugins_config_map(rabbitmq);
             let req_o = APIRequest::CreateRequest(CreateRequest{
@@ -143,6 +150,8 @@ pub open spec fn reconcile_core(
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
+        RabbitmqReconcileStep::AfterUpdateDefaultUserSecret => {},
+        RabbitmqReconcileStep::AfterGetPluginsConfigMap => {},
         RabbitmqReconcileStep::AfterCreatePluginsConfigMap => {
             let req_o = APIRequest::GetRequest(GetRequest{
                 key: make_server_config_map_key(rabbitmq.object_ref())
@@ -153,6 +162,7 @@ pub open spec fn reconcile_core(
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
+        RabbitmqReconcileStep::AfterUpdatePluginsConfigMap => {},
         RabbitmqReconcileStep::AfterGetServerConfigMap => {
             if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
                 let config_map = make_server_config_map(rabbitmq);
@@ -254,6 +264,7 @@ pub open spec fn reconcile_core(
                 (state_prime, None)
             }
         },
+        RabbitmqReconcileStep::AfterGetServiceAccount => {},
         RabbitmqReconcileStep::AfterCreateServiceAccount => {
             let role = make_role(rabbitmq);
             let req_o = APIRequest::CreateRequest(CreateRequest{
@@ -266,6 +277,8 @@ pub open spec fn reconcile_core(
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
+        RabbitmqReconcileStep::AfterUpdateServiceAccount => {},
+        RabbitmqReconcileStep::AfterGetRole => {},
         RabbitmqReconcileStep::AfterCreateRole => {
             let role_binding = make_role_binding(rabbitmq);
             let req_o = APIRequest::CreateRequest(CreateRequest{
@@ -278,6 +291,8 @@ pub open spec fn reconcile_core(
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
+        RabbitmqReconcileStep::AfterUpdateRole => {},
+        RabbitmqReconcileStep::AfterGetRoleBinding => {},
         RabbitmqReconcileStep::AfterCreateRoleBinding => {
             let req_o = APIRequest::GetRequest(GetRequest{
                 key: make_stateful_set_key(rabbitmq.object_ref()),
@@ -288,6 +303,7 @@ pub open spec fn reconcile_core(
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
+        RabbitmqReconcileStep::AfterUpdateRoleBinding => {},
         RabbitmqReconcileStep::AfterGetStatefulSet => {
             if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse()
             && state.latest_config_map_rv_opt.is_Some() {

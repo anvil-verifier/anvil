@@ -118,6 +118,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             };
             return (state_prime, Some(Request::KRequest(req_o)));
         },
+        RabbitmqReconcileStep::AfterGetHeadlessService => {},
         RabbitmqReconcileStep::AfterCreateHeadlessService => {
             let main_service = make_main_service(rabbitmq);
             let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
@@ -131,6 +132,8 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             };
             return (state_prime, Some(Request::KRequest(req_o)));
         },
+        RabbitmqReconcileStep::AfterUpdateHeadlessService => {},
+        RabbitmqReconcileStep::AfterGetService => {},
         RabbitmqReconcileStep::AfterCreateService => {
             let erlang_secret = make_erlang_secret(rabbitmq);
             let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
@@ -144,6 +147,8 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             };
             return (state_prime, Some(Request::KRequest(req_o)));
         },
+        RabbitmqReconcileStep::AfterUpdateService => {},
+        RabbitmqReconcileStep::AfterGetErlangCookieSecret => {},
         RabbitmqReconcileStep::AfterCreateErlangCookieSecret => {
             let default_user_secret = make_default_user_secret(rabbitmq);
             let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
@@ -157,6 +162,8 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             };
             return (state_prime, Some(Request::KRequest(req_o)));
         },
+        RabbitmqReconcileStep::AfterUpdateErlangCookieSecret => {},
+        RabbitmqReconcileStep::AfterGetDefaultUserSecret => {},
         RabbitmqReconcileStep::AfterCreateDefaultUserSecret => {
             let plugins_config_map = make_plugins_config_map(rabbitmq);
             let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
@@ -170,6 +177,8 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             };
             return (state_prime, Some(Request::KRequest(req_o)));
         },
+        RabbitmqReconcileStep::AfterUpdateDefaultUserSecret => {},
+        RabbitmqReconcileStep::AfterGetPluginsConfigMap => {},
         RabbitmqReconcileStep::AfterCreatePluginsConfigMap => {
             let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: ConfigMap::api_resource(),
@@ -182,6 +191,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             };
             return (state_prime, Some(Request::KRequest(req_o)));
         },
+        RabbitmqReconcileStep::AfterUpdatePluginsConfigMap => {},
         RabbitmqReconcileStep::AfterGetServerConfigMap => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
@@ -283,6 +293,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             let req_o = None;
             return (state_prime, req_o);
         },
+        RabbitmqReconcileStep::AfterGetServiceAccount => {},
         RabbitmqReconcileStep::AfterCreateServiceAccount => {
             let role = make_role(rabbitmq);
             let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
@@ -296,6 +307,8 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             };
             return (state_prime, Some(Request::KRequest(req_o)));
         },
+        RabbitmqReconcileStep::AfterUpdateServiceAccount => {},
+        RabbitmqReconcileStep::AfterGetRole => {},
         RabbitmqReconcileStep::AfterCreateRole => {
             let role_binding = make_role_binding(rabbitmq);
             let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
@@ -309,6 +322,8 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             };
             return (state_prime, Some(Request::KRequest(req_o)));
         },
+        RabbitmqReconcileStep::AfterUpdateRole => {},
+        RabbitmqReconcileStep::AfterGetRoleBinding => {},
         RabbitmqReconcileStep::AfterCreateRoleBinding => {
             let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                 api_resource: StatefulSet::api_resource(),
@@ -321,6 +336,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             };
             return (state_prime, Some(Request::KRequest(req_o)));
         },
+        RabbitmqReconcileStep::AfterUpdateRoleBinding => {},
         RabbitmqReconcileStep::AfterGetStatefulSet => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() && state.latest_config_map_rv_opt.is_some() {
