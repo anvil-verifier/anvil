@@ -146,18 +146,19 @@ where
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
                                 client.clone(), get_req.namespace.as_rust_string_ref(), get_req.api_resource.as_kube_ref()
                             );
+                            let key = get_req.object_key();
                             match api.get(get_req.name.as_rust_string_ref()).await {
                                 std::result::Result::Err(err) => {
                                     kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse{
                                         res: std::result::Result::Err(kube_error_to_ghost(&err)),
                                     });
-                                    println!("Get failed with error: {}", err);
+                                    println!("Get {} failed with error: {}", key, err);
                                 },
                                 std::result::Result::Ok(obj) => {
                                     kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse{
                                         res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
                                     });
-                                    println!("Get {} done", get_req.name.into_rust_string());
+                                    println!("Get {} done", key);
                                 },
                             }
                         },
@@ -166,19 +167,20 @@ where
                                 client.clone(), create_req.namespace.as_rust_string_ref(), create_req.api_resource.as_kube_ref()
                             );
                             let pp = PostParams::default();
+                            let key = create_req.object_key();
                             let obj_to_create = create_req.obj.into_kube();
                             match api.create(&pp, &obj_to_create).await {
                                 std::result::Result::Err(err) => {
                                     kube_resp = KubeAPIResponse::CreateResponse(KubeCreateResponse{
                                         res: std::result::Result::Err(kube_error_to_ghost(&err)),
                                     });
-                                    println!("Create failed with error: {}", err);
+                                    println!("Create {} failed with error: {}", key, err);
                                 },
                                 std::result::Result::Ok(obj) => {
                                     kube_resp = KubeAPIResponse::CreateResponse(KubeCreateResponse{
                                         res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
                                     });
-                                    println!("Create done");
+                                    println!("Create {} done", key);
                                 },
                             }
                         },
@@ -187,19 +189,20 @@ where
                                 client.clone(), update_req.namespace.as_rust_string_ref(), update_req.api_resource.as_kube_ref()
                             );
                             let pp = PostParams::default();
+                            let key = update_req.object_key();
                             let obj_to_update = update_req.obj.into_kube();
                             match api.replace(update_req.name.as_rust_string_ref(), &pp, &obj_to_update).await {
                                 std::result::Result::Err(err) => {
                                     kube_resp = KubeAPIResponse::UpdateResponse(KubeUpdateResponse{
                                         res: std::result::Result::Err(kube_error_to_ghost(&err)),
                                     });
-                                    println!("Update failed with error: {}", err);
+                                    println!("Update {} failed with error: {}", key, err);
                                 },
                                 std::result::Result::Ok(obj) => {
                                     kube_resp = KubeAPIResponse::UpdateResponse(KubeUpdateResponse{
                                         res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
                                     });
-                                    println!("Update done");
+                                    println!("Update {} done", key);
                                 },
                             }
                         },
