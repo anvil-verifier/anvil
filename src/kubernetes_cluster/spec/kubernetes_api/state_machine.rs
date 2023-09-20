@@ -19,11 +19,7 @@ verus! {
 //
 // + Create and update should ignore the status fields provided by the object
 //
-// + Make Create/Update/DeleteRequest consistent on whether to carry kind or not
-//
 // + Support more operations like List
-//
-// + Validation on uid, owner_references, finalizers
 //
 // + Check kind-specific strategy like AllowUnconditionalUpdate() and AllowCreateOnUpdate()
 //
