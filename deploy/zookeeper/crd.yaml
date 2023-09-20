@@ -617,8 +617,8 @@ spec:
                   format: int32
                   type: integer
                   x-kubernetes-validations:
-                    - rule: "self > 0"
-                      message: replicas should be larger than 0
+                    - rule: "self >= 3"
+                      message: replicas should be at least 3
                 resources:
                   description: ResourceRequirements describes the compute resource requirements.
                   nullable: true
