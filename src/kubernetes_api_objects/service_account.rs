@@ -43,7 +43,7 @@ impl ServiceAccount {
         ensures
             metadata@ == self@.metadata,
     {
-        todo!()
+        ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
@@ -52,6 +52,14 @@ impl ServiceAccount {
             self@ == old(self)@.set_metadata(metadata@),
     {
         self.inner.metadata = metadata.into_kube();
+    }
+
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (c: Self)
+        ensures
+            c@ == self@,
+    {
+        ServiceAccount { inner: self.inner.clone() }
     }
 
     #[verifier(external)]

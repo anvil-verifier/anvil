@@ -42,7 +42,7 @@ impl RoleBinding {
         ensures
             metadata@ == self@.metadata,
     {
-        todo!()
+        ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
@@ -69,6 +69,14 @@ impl RoleBinding {
         self.inner.subjects = Some(
             subjects.into_iter().map(|s: Subject| s.into_kube()).collect()
         );
+    }
+
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (c: Self)
+        ensures
+            c@ == self@,
+    {
+        RoleBinding { inner: self.inner.clone() }
     }
 
     #[verifier(external)]

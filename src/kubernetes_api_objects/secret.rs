@@ -43,7 +43,7 @@ impl Secret {
         ensures
             metadata@ == self@.metadata,
     {
-        todo!()
+        ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
@@ -83,6 +83,14 @@ impl Secret {
             self@ == old(self)@.set_type(type_@),
     {
         self.inner.type_ = Some(type_.into_rust_string())
+    }
+
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (c: Self)
+        ensures
+            c@ == self@,
+    {
+        Secret { inner: self.inner.clone() }
     }
 
     #[verifier(external)]

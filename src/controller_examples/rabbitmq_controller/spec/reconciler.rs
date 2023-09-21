@@ -3,10 +3,8 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, container::*, dynamic::*, label_selector::*,
-    object_meta::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
-    resource_requirements::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
-    stateful_set::*, volume::*,
+    container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
+    volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
@@ -84,74 +82,490 @@ pub open spec fn reconcile_core(
     let step = state.reconcile_step;
     match step{
         RabbitmqReconcileStep::Init => {
-            let headless_service = make_headless_service(rabbitmq);
-            let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: headless_service.marshal(),
+            // get headless service
+            let req_o = APIRequest::GetRequest(GetRequest{
+                key: make_headless_service_key(rabbitmq)
             });
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateHeadlessService,
+                reconcile_step: RabbitmqReconcileStep::AfterGetHeadlessService,
                 ..state
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
+        },
+        RabbitmqReconcileStep::AfterGetHeadlessService => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
+                let made_obj = make_headless_service(rabbitmq);
+                let get_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
+                if get_resp.is_Ok() {
+                    // update
+                    if ServiceView::unmarshal(get_resp.get_Ok_0()).is_Ok()
+                    {
+                        let found_obj = ServiceView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
+                        let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                            name: make_headless_service_name(rabbitmq),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                            obj: update_headless_service(rabbitmq, found_obj).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateHeadlessService,
+                            ..state
+                        };
+                        (state_prime, Some(RequestView::KRequest(req_o)))
+                    } else {
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = APIRequest::CreateRequest(CreateRequest {
+                        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                        obj: made_obj.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateHeadlessService,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::KRequest(req_o)))
+                } else {
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                // return error state
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         RabbitmqReconcileStep::AfterCreateHeadlessService => {
-            let main_service = make_main_service(rabbitmq);
-            let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: main_service.marshal(),
-            });
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateService,
-                ..state
-            };
-            (state_prime, Some(RequestView::KRequest(req_o)))
+            let create_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
+            let latest_obj = ServiceView::unmarshal(create_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
+            && create_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_main_service_key(rabbitmq),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetService,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        RabbitmqReconcileStep::AfterUpdateHeadlessService => {
+            let update_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
+            let latest_obj = ServiceView::unmarshal(update_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
+            && update_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_main_service_key(rabbitmq),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetService,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        RabbitmqReconcileStep::AfterGetService => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
+                let made_obj = make_main_service(rabbitmq);
+                let get_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
+                if get_resp.is_Ok() {
+                    // update
+                    if ServiceView::unmarshal(get_resp.get_Ok_0()).is_Ok()
+                    {
+                        let found_obj = ServiceView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
+                        let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                            name: make_main_service_name(rabbitmq),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                            obj: update_main_service(rabbitmq, found_obj).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateService,
+                            ..state
+                        };
+                        (state_prime, Some(RequestView::KRequest(req_o)))
+                    } else {
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = APIRequest::CreateRequest(CreateRequest {
+                        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                        obj: made_obj.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateService,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::KRequest(req_o)))
+                } else {
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                // return error state
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         RabbitmqReconcileStep::AfterCreateService => {
-            let erlang_secret = make_erlang_secret(rabbitmq);
-            let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: erlang_secret.marshal(),
-            });
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateErlangCookieSecret,
-                ..state
-            };
-            (state_prime, Some(RequestView::KRequest(req_o)))
+            let create_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
+            let latest_obj = ServiceView::unmarshal(create_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
+            && create_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_erlang_secret_key(rabbitmq),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetErlangCookieSecret,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        RabbitmqReconcileStep::AfterUpdateService => {
+            let update_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
+            let latest_obj = ServiceView::unmarshal(update_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
+            && update_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_erlang_secret_key(rabbitmq),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetErlangCookieSecret,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        RabbitmqReconcileStep::AfterGetErlangCookieSecret => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
+                let made_obj = make_erlang_secret(rabbitmq);
+                let get_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
+                if get_resp.is_Ok() {
+                    // update
+                    if SecretView::unmarshal(get_resp.get_Ok_0()).is_Ok()
+                    {
+                        let found_obj = SecretView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
+                        let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                            name: make_erlang_secret_name(rabbitmq),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                            obj: update_erlang_secret(rabbitmq, found_obj).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateErlangCookieSecret,
+                            ..state
+                        };
+                        (state_prime, Some(RequestView::KRequest(req_o)))
+                    } else {
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = APIRequest::CreateRequest(CreateRequest {
+                        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                        obj: made_obj.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateErlangCookieSecret,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::KRequest(req_o)))
+                } else {
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                // return error state
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         RabbitmqReconcileStep::AfterCreateErlangCookieSecret => {
-            let default_user_secret = make_default_user_secret(rabbitmq);
-            let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: default_user_secret.marshal(),
-            });
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateDefaultUserSecret,
-                ..state
-            };
-            (state_prime, Some(RequestView::KRequest(req_o)))
+            let create_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
+            let latest_obj = SecretView::unmarshal(create_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
+            && create_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_default_user_secret_key(rabbitmq),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetDefaultUserSecret,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        RabbitmqReconcileStep::AfterUpdateErlangCookieSecret => {
+            let update_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
+            let latest_obj = SecretView::unmarshal(update_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
+            && update_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_default_user_secret_key(rabbitmq),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetDefaultUserSecret,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        RabbitmqReconcileStep::AfterGetDefaultUserSecret => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
+                let made_obj = make_default_user_secret(rabbitmq);
+                let get_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
+                if get_resp.is_Ok() {
+                    // update
+                    if SecretView::unmarshal(get_resp.get_Ok_0()).is_Ok()
+                    {
+                        let found_obj = SecretView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
+                        let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                            name: make_default_user_secret_name(rabbitmq),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                            obj: update_default_user_secret(rabbitmq, found_obj).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateDefaultUserSecret,
+                            ..state
+                        };
+                        (state_prime, Some(RequestView::KRequest(req_o)))
+                    } else {
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = APIRequest::CreateRequest(CreateRequest {
+                        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                        obj: made_obj.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateDefaultUserSecret,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::KRequest(req_o)))
+                } else {
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                // return error state
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         RabbitmqReconcileStep::AfterCreateDefaultUserSecret => {
-            let plugins_config_map = make_plugins_config_map(rabbitmq);
-            let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: plugins_config_map.marshal(),
-            });
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreatePluginsConfigMap,
-                ..state
-            };
-            (state_prime, Some(RequestView::KRequest(req_o)))
+            let create_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
+            let latest_obj = SecretView::unmarshal(create_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
+            && create_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_plugins_config_map_key(rabbitmq),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetPluginsConfigMap,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        RabbitmqReconcileStep::AfterUpdateDefaultUserSecret => {
+            let update_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
+            let latest_obj = SecretView::unmarshal(update_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
+            && update_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_plugins_config_map_key(rabbitmq),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetPluginsConfigMap,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        RabbitmqReconcileStep::AfterGetPluginsConfigMap => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
+                let made_obj = make_plugins_config_map(rabbitmq);
+                let get_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
+                if get_resp.is_Ok() {
+                    // update
+                    if ConfigMapView::unmarshal(get_resp.get_Ok_0()).is_Ok()
+                    {
+                        let found_obj = ConfigMapView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
+                        let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                            name: make_plugins_config_map_name(rabbitmq),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                            obj: update_plugins_config_map(rabbitmq, found_obj).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdatePluginsConfigMap,
+                            ..state
+                        };
+                        (state_prime, Some(RequestView::KRequest(req_o)))
+                    } else {
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = APIRequest::CreateRequest(CreateRequest {
+                        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                        obj: made_obj.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreatePluginsConfigMap,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::KRequest(req_o)))
+                } else {
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                // return error state
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         RabbitmqReconcileStep::AfterCreatePluginsConfigMap => {
-            let req_o = APIRequest::GetRequest(GetRequest{
-                key: make_server_config_map_key(rabbitmq.object_ref())
-            });
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterGetServerConfigMap,
-                ..state
-            };
-            (state_prime, Some(RequestView::KRequest(req_o)))
+            let create_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
+            let latest_obj = ConfigMapView::unmarshal(create_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
+            && create_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_server_config_map_key(rabbitmq.object_ref()),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetServerConfigMap,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        RabbitmqReconcileStep::AfterUpdatePluginsConfigMap => {
+            let update_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
+            let latest_obj = ConfigMapView::unmarshal(update_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
+            && update_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_server_config_map_key(rabbitmq.object_ref()),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetServerConfigMap,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         RabbitmqReconcileStep::AfterGetServerConfigMap => {
             if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
@@ -163,8 +577,8 @@ pub open spec fn reconcile_core(
                     {
                         let found_config_map = ConfigMapView::unmarshal(get_config_resp.get_Ok_0()).get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
                             name: make_server_config_map_name(rabbitmq.metadata.name.get_Some_0()),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
                             obj: update_server_config_map(rabbitmq, found_config_map).marshal(),
                         });
                         let state_prime = RabbitmqReconcileState {
@@ -206,18 +620,16 @@ pub open spec fn reconcile_core(
                 (state_prime, None)
             }
         },
-        RabbitmqReconcileStep::AfterUpdateServerConfigMap => {
-            let update_cm_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
-            let latest_cm = ConfigMapView::unmarshal(update_cm_resp.get_Ok_0());
-            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
-            && update_cm_resp.is_Ok() && latest_cm.is_Ok() && latest_cm.get_Ok_0().metadata.resource_version.is_Some() {
-                let service_account = make_service_account(rabbitmq);
-                let req_o = APIRequest::CreateRequest(CreateRequest{
-                    namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                    obj: service_account.marshal(),
+        RabbitmqReconcileStep::AfterCreateServerConfigMap => {
+            let create_cm_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
+            let latest_cm = ConfigMapView::unmarshal(create_cm_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
+            && create_cm_resp.is_Ok() && latest_cm.is_Ok() && latest_cm.get_Ok_0().metadata.resource_version.is_Some() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_service_account_key(rabbitmq),
                 });
                 let state_prime = RabbitmqReconcileState {
-                    reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
+                    reconcile_step: RabbitmqReconcileStep::AfterGetServiceAccount,
                     latest_config_map_rv_opt: Some(int_to_string_view(latest_cm.get_Ok_0().metadata.resource_version.get_Some_0())),
                     ..state
                 };
@@ -230,23 +642,74 @@ pub open spec fn reconcile_core(
                 (state_prime, None)
             }
         },
-        RabbitmqReconcileStep::AfterCreateServerConfigMap => {
-            let create_cm_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
-            let latest_cm = ConfigMapView::unmarshal(create_cm_resp.get_Ok_0());
-            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
-            && create_cm_resp.is_Ok() && latest_cm.is_Ok() && latest_cm.get_Ok_0().metadata.resource_version.is_Some() {
-                let service_account = make_service_account(rabbitmq);
-                let req_o = APIRequest::CreateRequest(CreateRequest{
-                    namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                    obj: service_account.marshal(),
+        RabbitmqReconcileStep::AfterUpdateServerConfigMap => {
+            let update_cm_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
+            let latest_cm = ConfigMapView::unmarshal(update_cm_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
+            && update_cm_resp.is_Ok() && latest_cm.is_Ok() && latest_cm.get_Ok_0().metadata.resource_version.is_Some() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_service_account_key(rabbitmq),
                 });
                 let state_prime = RabbitmqReconcileState {
-                    reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
+                    reconcile_step: RabbitmqReconcileStep::AfterGetServiceAccount,
                     latest_config_map_rv_opt: Some(int_to_string_view(latest_cm.get_Ok_0().metadata.resource_version.get_Some_0())),
                     ..state
                 };
                 (state_prime, Some(RequestView::KRequest(req_o)))
             } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        RabbitmqReconcileStep::AfterGetServiceAccount => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
+                let made_obj = make_service_account(rabbitmq);
+                let get_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
+                if get_resp.is_Ok() {
+                    // update
+                    if ServiceAccountView::unmarshal(get_resp.get_Ok_0()).is_Ok()
+                    {
+                        let found_obj = ServiceAccountView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
+                        let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                            name: make_service_account_name(rabbitmq),
+                            obj: update_service_account(rabbitmq, found_obj).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateServiceAccount,
+                            ..state
+                        };
+                        (state_prime, Some(RequestView::KRequest(req_o)))
+                    } else {
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = APIRequest::CreateRequest(CreateRequest {
+                        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                        obj: made_obj.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateServiceAccount,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::KRequest(req_o)))
+                } else {
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                // return error state
                 let state_prime = RabbitmqReconcileState {
                     reconcile_step: RabbitmqReconcileStep::Error,
                     ..state
@@ -255,38 +718,236 @@ pub open spec fn reconcile_core(
             }
         },
         RabbitmqReconcileStep::AfterCreateServiceAccount => {
-            let role = make_role(rabbitmq);
-            let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: role.marshal(),
-            });
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateRole,
-                ..state
-            };
-            (state_prime, Some(RequestView::KRequest(req_o)))
+            let create_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
+            let latest_obj = ServiceAccountView::unmarshal(create_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
+            && create_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_role_key(rabbitmq),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetRole,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        RabbitmqReconcileStep::AfterUpdateServiceAccount => {
+            let update_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
+            let latest_obj = ServiceAccountView::unmarshal(update_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
+            && update_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_role_key(rabbitmq),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetRole,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        RabbitmqReconcileStep::AfterGetRole => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
+                let made_obj = make_role(rabbitmq);
+                let get_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
+                if get_resp.is_Ok() {
+                    // update
+                    if RoleView::unmarshal(get_resp.get_Ok_0()).is_Ok()
+                    {
+                        let found_obj = RoleView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
+                        let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                            name: make_role_name(rabbitmq),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                            obj: update_role(rabbitmq, found_obj).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateRole,
+                            ..state
+                        };
+                        (state_prime, Some(RequestView::KRequest(req_o)))
+                    } else {
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = APIRequest::CreateRequest(CreateRequest {
+                        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                        obj: made_obj.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateRole,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::KRequest(req_o)))
+                } else {
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                // return error state
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         RabbitmqReconcileStep::AfterCreateRole => {
-            let role_binding = make_role_binding(rabbitmq);
-            let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                obj: role_binding.marshal(),
-            });
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterCreateRoleBinding,
-                ..state
-            };
-            (state_prime, Some(RequestView::KRequest(req_o)))
+            let create_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
+            let latest_obj = RoleView::unmarshal(create_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
+            && create_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_role_binding_key(rabbitmq),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetRoleBinding,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        RabbitmqReconcileStep::AfterUpdateRole => {
+            let update_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
+            let latest_obj = RoleView::unmarshal(update_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
+            && update_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_role_binding_key(rabbitmq),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetRoleBinding,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        RabbitmqReconcileStep::AfterGetRoleBinding => {
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
+                let made_obj = make_role_binding(rabbitmq);
+                let get_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
+                if get_resp.is_Ok() {
+                    // update
+                    if RoleBindingView::unmarshal(get_resp.get_Ok_0()).is_Ok()
+                    {
+                        let found_obj = RoleBindingView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
+                        let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                            name: make_role_binding_name(rabbitmq),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                            obj: update_role_binding(rabbitmq, found_obj).marshal(),
+                        });
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::AfterUpdateRoleBinding,
+                            ..state
+                        };
+                        (state_prime, Some(RequestView::KRequest(req_o)))
+                    } else {
+                        let state_prime = RabbitmqReconcileState {
+                            reconcile_step: RabbitmqReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = APIRequest::CreateRequest(CreateRequest {
+                        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                        obj: made_obj.marshal(),
+                    });
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::AfterCreateRoleBinding,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::KRequest(req_o)))
+                } else {
+                    let state_prime = RabbitmqReconcileState {
+                        reconcile_step: RabbitmqReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                // return error state
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         RabbitmqReconcileStep::AfterCreateRoleBinding => {
-            let req_o = APIRequest::GetRequest(GetRequest{
-                key: make_stateful_set_key(rabbitmq.object_ref()),
-            });
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterGetStatefulSet,
-                ..state
-            };
-            (state_prime, Some(RequestView::KRequest(req_o)))
+            let create_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
+            let latest_obj = RoleBindingView::unmarshal(create_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
+            && create_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_stateful_set_key(rabbitmq.object_ref()),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetStatefulSet,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        RabbitmqReconcileStep::AfterUpdateRoleBinding => {
+            let update_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
+            let latest_obj = RoleBindingView::unmarshal(update_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
+            && update_resp.is_Ok() && latest_obj.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest{
+                    key: make_stateful_set_key(rabbitmq.object_ref()),
+                });
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::AfterGetStatefulSet,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         RabbitmqReconcileStep::AfterGetStatefulSet => {
             if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse()
@@ -354,18 +1015,42 @@ pub open spec fn reconcile_core(
             }
         },
         RabbitmqReconcileStep::AfterCreateStatefulSet => {
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::Done,
-                ..state
-            };
-            (state_prime, None)
+            let create_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
+            let latest_obj = StatefulSetView::unmarshal(create_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
+            && create_resp.is_Ok() && latest_obj.is_Ok() {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Done,
+                    ..state
+                };
+                (state_prime, None)
+            } else {
+                // return error state
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         RabbitmqReconcileStep::AfterUpdateStatefulSet => {
-            let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::Done,
-                ..state
-            };
-            (state_prime, None)
+            let update_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
+            let latest_obj = StatefulSetView::unmarshal(update_resp.get_Ok_0());
+            if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
+            && update_resp.is_Ok() && latest_obj.is_Ok() {
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Done,
+                    ..state
+                };
+                (state_prime, None)
+            } else {
+                // return error state
+                let state_prime = RabbitmqReconcileState {
+                    reconcile_step: RabbitmqReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         _ => {
             let state_prime = RabbitmqReconcileState {
@@ -386,8 +1071,53 @@ pub open spec fn reconcile_error_result(state: RabbitmqReconcileState) -> (Rabbi
     (state_prime, req_o)
 }
 
-pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView> {
+pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView>
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
     rabbitmq.spec.labels.insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0())
+}
+
+pub open spec fn make_owner_references(rabbitmq: RabbitmqClusterView) -> Seq<OwnerReferenceView> {
+    seq![rabbitmq.controller_owner_ref()]
+}
+
+pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-nodes")@
+}
+
+pub open spec fn make_headless_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: ServiceView::kind(),
+        name: make_headless_service_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
+pub open spec fn update_headless_service(rabbitmq: RabbitmqClusterView, found_headless_service: ServiceView) -> ServiceView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_service = make_headless_service(rabbitmq);
+    ServiceView {
+        metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(rabbitmq)),
+            finalizers: None,
+            labels: made_service.metadata.labels,
+            annotations: made_service.metadata.annotations,
+            ..found_headless_service.metadata
+        },
+        spec: made_service.spec,
+        ..found_headless_service
+    }
 }
 
 pub open spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> ServiceView
@@ -399,7 +1129,44 @@ pub open spec fn make_headless_service(rabbitmq: RabbitmqClusterView) -> Service
         ServicePortView::default().set_name(new_strlit("epmd")@).set_port(4369),
         ServicePortView::default().set_name(new_strlit("cluster-rpc")@).set_port(25672)
     ];
-    make_service(rabbitmq, rabbitmq.metadata.name.get_Some_0() + new_strlit("-nodes")@, ports, false)
+    make_service(rabbitmq, make_headless_service_name(rabbitmq), ports, false)
+}
+
+pub open spec fn make_main_service_name(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0()
+}
+
+pub open spec fn make_main_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: ServiceView::kind(),
+        name: make_main_service_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
+pub open spec fn update_main_service(rabbitmq: RabbitmqClusterView, found_main_service: ServiceView) -> ServiceView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_main_service = make_main_service(rabbitmq);
+    ServiceView {
+        metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(rabbitmq)),
+            finalizers: None,
+            labels: made_main_service.metadata.labels,
+            annotations: made_main_service.metadata.annotations,
+            ..found_main_service.metadata
+        },
+        ..found_main_service
+    }
 }
 
 pub open spec fn make_main_service(rabbitmq: RabbitmqClusterView) -> ServiceView
@@ -410,8 +1177,9 @@ pub open spec fn make_main_service(rabbitmq: RabbitmqClusterView) -> ServiceView
     let ports = seq![
         ServicePortView::default().set_name(new_strlit("amqp")@).set_port(5672).set_app_protocol(new_strlit("amqp")@),
         ServicePortView::default().set_name(new_strlit("management")@).set_port(15672).set_app_protocol(new_strlit("http")@),
+        ServicePortView::default().set_name(new_strlit("prometheus")@).set_port(15692).set_app_protocol(new_strlit("prometheus.io/metrics")@),
     ];
-    make_service(rabbitmq, rabbitmq.metadata.name.get_Some_0(), ports, true)
+    make_service(rabbitmq, make_main_service_name(rabbitmq), ports, true)
 }
 
 pub open spec fn make_service(
@@ -425,7 +1193,7 @@ pub open spec fn make_service(
         .set_metadata(ObjectMetaView::default()
             .set_name(name)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
-            .set_owner_references(seq![rabbitmq.controller_owner_ref()])
+            .set_owner_references(make_owner_references(rabbitmq))
             .set_labels(make_labels(rabbitmq))
             .set_annotations(rabbitmq.spec.annotations)
         ).set_spec({
@@ -442,6 +1210,43 @@ pub open spec fn make_service(
         })
 }
 
+pub open spec fn make_erlang_secret_name(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-erlang-cookie")@
+}
+
+pub open spec fn make_erlang_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: SecretView::kind(),
+        name: make_erlang_secret_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
+pub open spec fn update_erlang_secret(rabbitmq: RabbitmqClusterView, found_erlang_secret: SecretView) -> SecretView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_erlang_secret = make_erlang_secret(rabbitmq);
+    SecretView {
+        metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(rabbitmq)),
+            finalizers: None,
+            labels: made_erlang_secret.metadata.labels,
+            annotations: made_erlang_secret.metadata.annotations,
+            ..found_erlang_secret.metadata
+        },
+        ..found_erlang_secret
+    }
+}
+
 pub open spec fn make_erlang_secret(rabbitmq: RabbitmqClusterView) -> SecretView
     recommends
         rabbitmq.metadata.name.is_Some(),
@@ -450,10 +1255,47 @@ pub open spec fn make_erlang_secret(rabbitmq: RabbitmqClusterView) -> SecretView
     let cookie = random_encoded_string(24);
     let data = Map::empty()
         .insert(new_strlit(".erlang.cookie")@, cookie);
-    make_secret(rabbitmq, rabbitmq.metadata.name.get_Some_0() + new_strlit("-erlang-cookie")@, data)
+    make_secret(rabbitmq, make_erlang_secret_name(rabbitmq), data)
 }
 
 pub closed spec fn random_encoded_string(length: usize) -> StringView;
+
+pub open spec fn make_default_user_secret_name(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-default-user")@
+}
+
+pub open spec fn make_default_user_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: SecretView::kind(),
+        name: make_default_user_secret_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
+pub open spec fn update_default_user_secret(rabbitmq: RabbitmqClusterView, found_secret: SecretView) -> SecretView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_secret = make_default_user_secret(rabbitmq);
+    SecretView {
+        metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(rabbitmq)),
+            finalizers: None,
+            labels: made_secret.metadata.labels,
+            annotations: made_secret.metadata.annotations,
+            ..found_secret.metadata
+        },
+        ..found_secret
+    }
+}
 
 pub open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> SecretView
     recommends
@@ -470,7 +1312,7 @@ pub open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> Secr
         .insert(new_strlit("provider")@, new_strlit("rabbitmq")@)
         .insert(new_strlit("default_user.conf")@, new_strlit("default_user = user\ndefault_pass = changeme")@)
         .insert(new_strlit("port")@, new_strlit("5672")@);
-    make_secret(rabbitmq, rabbitmq.metadata.name.get_Some_0() + new_strlit("-default-user")@, data)
+    make_secret(rabbitmq, make_default_user_secret_name(rabbitmq), data)
 }
 
 pub open spec fn make_secret(
@@ -484,10 +1326,58 @@ pub open spec fn make_secret(
         .set_metadata(ObjectMetaView::default()
             .set_name(name)
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
-            .set_owner_references(seq![rabbitmq.controller_owner_ref()])
+            .set_owner_references(make_owner_references(rabbitmq))
             .set_labels(make_labels(rabbitmq))
             .set_annotations(rabbitmq.spec.annotations)
         ).set_data(data)
+}
+
+pub open spec fn make_plugins_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-plugins-conf")@
+}
+
+pub open spec fn make_plugins_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: ConfigMapView::kind(),
+        name: make_plugins_config_map_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
+pub open spec fn update_plugins_config_map(rabbitmq: RabbitmqClusterView, found_config_map: ConfigMapView) -> ConfigMapView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_config_map = make_plugins_config_map(rabbitmq);
+    ConfigMapView {
+        data: Some({
+            if found_config_map.data.is_Some() {
+                found_config_map.data.get_Some_0()
+                    .insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].")@)
+            } else {
+                Map::empty().insert(
+                    new_strlit("enabled_plugins")@,
+                    new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].")@
+                )
+            }
+        }),
+        metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(rabbitmq)),
+            finalizers: None,
+            labels: made_config_map.metadata.labels,
+            annotations: made_config_map.metadata.annotations,
+            ..found_config_map.metadata
+        },
+        ..found_config_map
+    }
 }
 
 pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> ConfigMapView
@@ -497,21 +1387,21 @@ pub open spec fn make_plugins_config_map(rabbitmq: RabbitmqClusterView) -> Confi
 {
     ConfigMapView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-plugins-conf")@)
+            .set_name(make_plugins_config_map_name(rabbitmq))
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
-            .set_owner_references(seq![rabbitmq.controller_owner_ref()])
+            .set_owner_references(make_owner_references(rabbitmq))
             .set_labels(make_labels(rabbitmq))
             .set_annotations(rabbitmq.spec.annotations)
         )
         .set_data(Map::empty()
-            .insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_management].")@)
+            .insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].")@)
         )
 }
 
 pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_config_map: ConfigMapView) -> ConfigMapView {
     ConfigMapView {
         metadata: ObjectMetaView {
-            owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
+            owner_references: Some(make_owner_references(rabbitmq)),
             finalizers: None,
             labels: make_server_config_map(rabbitmq).metadata.labels,
             annotations: make_server_config_map(rabbitmq).metadata.annotations,
@@ -549,7 +1439,7 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
         metadata: ObjectMetaView {
             name: Some(make_server_config_map_name(rabbitmq.metadata.name.get_Some_0())),
             namespace: rabbitmq.metadata.namespace,
-            owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
+            owner_references: Some(make_owner_references(rabbitmq)),
             labels: Some(make_labels(rabbitmq)),
             annotations: Some(rabbitmq.spec.annotations),
             ..ObjectMetaView::default()
@@ -605,19 +1495,97 @@ pub open spec fn default_rbmq_config(rabbitmq: RabbitmqClusterView) -> StringVie
     + new_strlit("cluster_name = ")@ + name + new_strlit("\n")@
 }
 
+pub open spec fn make_service_account_name(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@
+}
+
+pub open spec fn make_service_account_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: ServiceAccountView::kind(),
+        name: make_service_account_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
+pub open spec fn update_service_account(rabbitmq: RabbitmqClusterView, found_service_account: ServiceAccountView) -> ServiceAccountView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_service_account = make_service_account(rabbitmq);
+    ServiceAccountView {
+        metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(rabbitmq)),
+            finalizers: None,
+            labels: made_service_account.metadata.labels,
+            annotations: made_service_account.metadata.annotations,
+            ..found_service_account.metadata
+        },
+        ..found_service_account
+    }
+}
+
 pub open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceAccountView
     recommends
         rabbitmq.metadata.name.is_Some(),
         rabbitmq.metadata.namespace.is_Some(),
 {
-    ServiceAccountView::default()
-        .set_metadata(ObjectMetaView::default()
-            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
-            .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
-            .set_owner_references(seq![rabbitmq.controller_owner_ref()])
-            .set_labels(make_labels(rabbitmq))
-            .set_annotations(rabbitmq.spec.annotations)
-        )
+    ServiceAccountView {
+        metadata: ObjectMetaView {
+            name: Some(make_service_account_name(rabbitmq)),
+            namespace: rabbitmq.metadata.namespace,
+            owner_references: Some(make_owner_references(rabbitmq)),
+            labels: Some(make_labels(rabbitmq)),
+            annotations: Some(rabbitmq.spec.annotations),
+            ..ObjectMetaView::default()
+        },
+        ..ServiceAccountView::default()
+    }
+}
+
+pub open spec fn make_role_name(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-peer-discovery")@
+}
+
+pub open spec fn make_role_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: RoleView::kind(),
+        name: make_role_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
+pub open spec fn update_role(rabbitmq: RabbitmqClusterView, found_role: RoleView) -> RoleView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_role = make_role(rabbitmq);
+    RoleView {
+        policy_rules: made_role.policy_rules,
+        metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(rabbitmq)),
+            finalizers: None,
+            labels: made_role.metadata.labels,
+            annotations: made_role.metadata.annotations,
+            ..found_role.metadata
+        },
+        ..found_role
+    }
 }
 
 pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView
@@ -627,9 +1595,9 @@ pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView
 {
     RoleView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-peer-discovery")@)
+            .set_name(make_role_name(rabbitmq))
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
-            .set_owner_references(seq![rabbitmq.controller_owner_ref()])
+            .set_owner_references(make_owner_references(rabbitmq))
             .set_labels(make_labels(rabbitmq))
             .set_annotations(rabbitmq.spec.annotations)
         ).set_policy_rules(
@@ -640,6 +1608,45 @@ pub open spec fn make_role(rabbitmq: RabbitmqClusterView) -> RoleView
         )
 }
 
+pub open spec fn make_role_binding_name(rabbitmq: RabbitmqClusterView) -> StringView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@
+}
+
+pub open spec fn make_role_binding_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    ObjectRef {
+        kind: RoleBindingView::kind(),
+        name: make_role_binding_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
+pub open spec fn update_role_binding(rabbitmq: RabbitmqClusterView, found_role_binding: RoleBindingView) -> RoleBindingView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_role_binding = make_role_binding(rabbitmq);
+    RoleBindingView {
+        metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(rabbitmq)),
+            finalizers: None,
+            labels: made_role_binding.metadata.labels,
+            annotations: made_role_binding.metadata.annotations,
+            ..found_role_binding.metadata
+        },
+        role_ref: made_role_binding.role_ref,
+        subjects: made_role_binding.subjects,
+        ..found_role_binding
+    }
+}
+
 pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBindingView
     recommends
         rabbitmq.metadata.name.is_Some(),
@@ -647,9 +1654,9 @@ pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBinding
 {
     RoleBindingView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@)
+            .set_name(make_role_binding_name(rabbitmq))
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
-            .set_owner_references(seq![rabbitmq.controller_owner_ref()])
+            .set_owner_references(make_owner_references(rabbitmq))
             .set_labels(make_labels(rabbitmq))
             .set_annotations(rabbitmq.spec.annotations)
         ).set_role_ref(RoleRefView::default()
@@ -689,7 +1696,7 @@ pub open spec fn update_stateful_set(
     let made_spec = make_stateful_set(rabbitmq, config_map_rv).spec.get_Some_0();
     StatefulSetView {
         metadata: ObjectMetaView {
-            owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
+            owner_references: Some(make_owner_references(rabbitmq)),
             finalizers: None,
             labels: make_stateful_set(rabbitmq, config_map_rv).metadata.labels,
             annotations: make_stateful_set(rabbitmq, config_map_rv).metadata.annotations,
@@ -722,7 +1729,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
     let metadata = ObjectMetaView::default()
         .set_name(sts_name)
         .set_namespace(namespace)
-        .set_owner_references(seq![rabbitmq.controller_owner_ref()])
+        .set_owner_references(make_owner_references(rabbitmq))
         .set_labels(make_labels(rabbitmq))
         .set_annotations(rabbitmq.spec.annotations);
 

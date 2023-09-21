@@ -40,7 +40,7 @@ impl Role {
         ensures
             metadata@ == self@.metadata,
     {
-        todo!()
+        ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
 
@@ -60,6 +60,14 @@ impl Role {
         self.inner.rules = Some(
             policy_rules.into_iter().map(|p| p.into_kube()).collect()
         )
+    }
+
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (c: Self)
+        ensures
+            c@ == self@,
+    {
+        Role { inner: self.inner.clone() }
     }
 
     #[verifier(external)]
