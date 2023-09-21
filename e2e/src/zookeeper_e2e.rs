@@ -196,7 +196,7 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
 
 pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> {
     let timeout = Duration::from_secs(360);
-    let start = Instant::now();
+    let mut start = Instant::now();
     let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
     let pvc_api: Api<PersistentVolumeClaim> = Api::default_namespaced(client.clone());
 
@@ -263,7 +263,7 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
         };
     }
 
-    sleep(Duration::from_secs(5)).await;
+    start = Instant::now();
     run_command(
         "kubectl",
         vec![
@@ -335,7 +335,7 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
         }
     }
 
-    sleep(Duration::from_secs(5)).await;
+    start = Instant::now();
     run_command(
         "kubectl",
         vec![
