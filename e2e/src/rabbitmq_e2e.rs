@@ -276,7 +276,7 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
                     .updated_replicas
                     .as_ref()
                     .unwrap()
-                    == 3
+                    == 4
                 {
                     println!("Reconfiguration is done.");
                 } else {
@@ -302,7 +302,7 @@ pub async fn reconfiguration_test(client: Client, rabbitmq_name: String) -> Resu
                     .ready_replicas
                     .as_ref()
                     .unwrap()
-                    == 3
+                    == 4
                 {
                     println!("All stateful set pods are ready.");
                     break;
