@@ -22,6 +22,8 @@ pub enum Error {
     MissingObjectKey(&'static str),
     #[error("APIError")]
     APIError,
+    #[error("FaultInjectionError: {0}")]
+    FaultInjectionError(&'static str),
 }
 
 #[derive(

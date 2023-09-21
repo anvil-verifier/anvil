@@ -5,6 +5,7 @@ use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
 use crate::pervasive_ext::to_view::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
+use crate::shim_layer::fault_injection::*;
 use builtin::*;
 use builtin_macros::*;
 use core::fmt::Debug;
@@ -39,7 +40,7 @@ verus! {
 // ReconcilerType: the reconciler type
 // ReconcileStateType: the local state of the reconciler
 #[verifier(external)]
-pub async fn run_controller<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ExternalAPIInputType, ExternalAPIOutputType, ExternalAPIShimLayerType>() -> Result<()>
+pub async fn run_controller<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ExternalAPIInputType, ExternalAPIOutputType, ExternalAPIShimLayerType>(fault_injection: bool) -> Result<()>
 where
     K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Send + Serialize + Sync + 'static,
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
@@ -56,7 +57,7 @@ where
     // Build the async closure on top of reconcile_with
     let reconcile = |cr: Arc<K>, ctx: Arc<Data>| async move {
         return reconcile_with::<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ExternalAPIInputType, ExternalAPIOutputType, ExternalAPIShimLayerType>(
-            &ReconcilerType::default(), cr, ctx
+            &ReconcilerType::default(), cr, ctx, fault_injection
         ).await;
     };
 
@@ -86,7 +87,7 @@ where
 // or encounters error (reconciler.reconcile_error).
 #[verifier(external)]
 pub async fn reconcile_with<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ExternalAPIInputType, ExternalAPIOutputType, ExternalAPIShimLayerType>(
-    reconciler: &ReconcilerType, cr: Arc<K>, ctx: Arc<Data>
+    reconciler: &ReconcilerType, cr: Arc<K>, ctx: Arc<Data>, fault_injection: bool
 ) -> Result<Action, Error>
 where
     K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Serialize,
@@ -122,9 +123,11 @@ where
     let cr_wrapper = ResourceWrapperType::from_kube(cr);
     let mut state = reconciler.reconcile_init_state();
     let mut resp_option: Option<Response<ExternalAPIOutputType>> = None;
+    let mut check_fault_timing: bool;
 
     // Call reconcile_core in a loop
     loop {
+        check_fault_timing = false;
         // If reconcile core is done, then breaks the loop
         if reconciler.reconcile_done(&state) {
             println!("reconcile done");
@@ -163,6 +166,7 @@ where
                             }
                         },
                         KubeAPIRequest::CreateRequest(create_req) => {
+                            check_fault_timing = true;
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
                                 client.clone(), create_req.namespace.as_rust_string_ref(), create_req.api_resource.as_kube_ref()
                             );
@@ -185,6 +189,7 @@ where
                             }
                         },
                         KubeAPIRequest::UpdateRequest(update_req) => {
+                            check_fault_timing = true;
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
                                 client.clone(), update_req.namespace.as_rust_string_ref(), update_req.api_resource.as_kube_ref()
                             );
@@ -213,11 +218,15 @@ where
                     resp_option = Some(Response::KResponse(kube_resp));
                 },
                 Request::ExternalRequest(req) => {
+                    check_fault_timing = true;
                     let external_resp = ExternalAPIShimLayerType::call_external_api(req);
                     resp_option = Some(Response::ExternalResponse(external_resp));
                 },
             },
             _ => resp_option = None,
+        }
+        if check_fault_timing && fault_injection {
+            crash_or_continue(client).await;
         }
         state = state_prime;
     }
