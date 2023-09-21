@@ -226,7 +226,10 @@ where
             _ => resp_option = None,
         }
         if check_fault_timing && fault_injection {
-            crash_or_continue(client).await;
+            let result = crash_or_continue(client).await;
+            if result.is_err() {
+                println!("crash_or_continue fails due to {}", result.unwrap_err());
+            }
         }
         state = state_prime;
     }
