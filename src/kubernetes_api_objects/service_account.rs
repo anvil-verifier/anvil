@@ -54,6 +54,14 @@ impl ServiceAccount {
         self.inner.metadata = metadata.into_kube();
     }
 
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (c: Self)
+        ensures
+            c@ == self@,
+    {
+        ServiceAccount { inner: self.inner.clone() }
+    }
+
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::ServiceAccount) -> ServiceAccount {
         ServiceAccount {

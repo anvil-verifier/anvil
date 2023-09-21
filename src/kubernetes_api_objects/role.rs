@@ -53,15 +53,14 @@ impl Role {
     }
 
     #[verifier(external_body)]
-    pub take_policy_rules(&mut self, other_role: Role)
+    pub fn take_policy_rules(&mut self, other_role: Role)
         requires
             other_role@.policy_rules.is_Some(),
         ensures
             self@ == old(self)@.set_policy_rules(other_role@.policy_rules.get_Some_0()),
     {
-        self.inner.rules = Some(
-            other_role.inner.rules
-        )
+        self.inner.rules = other_role.inner.rules;
+
     }
 
     #[verifier(external_body)]
@@ -72,6 +71,14 @@ impl Role {
         self.inner.rules = Some(
             policy_rules.into_iter().map(|p| p.into_kube()).collect()
         )
+    }
+
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (c: Self)
+        ensures
+            c@ == self@,
+    {
+        Role { inner: self.inner.clone() }
     }
 
     #[verifier(external)]

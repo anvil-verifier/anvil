@@ -128,7 +128,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                     if found_headless_service.is_ok(){
                         let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                             api_resource: Service::api_resource(),
-                            name: headless_service.name().unwrap(),
+                            name: headless_service.metadata().name().unwrap(),
                             namespace: rabbitmq.namespace().unwrap(),
                             obj: update_headless_service(rabbitmq, found_headless_service.unwrap()).marshal(),
                         });
@@ -138,7 +138,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                         };
                         return (state_prime, Some(Request::KRequest(req_o)));
                     }
-                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                } else if get_service_resp.unwrap_err().is_object_not_found() {
                     // create
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: Service::api_resource(),
@@ -164,7 +164,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
-            && Service::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_Ok() {
+            && Service::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Service::api_resource(),
                     name: rabbitmq.name().unwrap(),
@@ -187,7 +187,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok()
-            && Service::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_Ok() {
+            && Service::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Service::api_resource(),
                     name: rabbitmq.name().unwrap(),
@@ -227,12 +227,12 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                         };
                         return (state_prime, Some(Request::KRequest(req_o)));
                     }
-                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                } else if get_service_resp.unwrap_err().is_object_not_found() {
                     // create
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: Service::api_resource(),
                         namespace: rabbitmq.namespace().unwrap(),
-                        obj: headless_service.marshal(),
+                        obj: main_service.marshal(),
                     });
                     let state_prime = RabbitmqReconcileState {
                         reconcile_step: RabbitmqReconcileStep::AfterCreateService,
@@ -253,7 +253,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
-            && Secret::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_Ok() {
+            && Secret::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Secret::api_resource(),
                     name: rabbitmq.name().unwrap(),
@@ -276,7 +276,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok()
-            && Service::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_Ok() {
+            && Service::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Secret::api_resource(),
                     name: rabbitmq.name().unwrap(),
@@ -316,7 +316,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                         };
                         return (state_prime, Some(Request::KRequest(req_o)));
                     }
-                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                } else if get_resp.unwrap_err().is_object_not_found() {
                     // create
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: Secret::api_resource(),
@@ -342,7 +342,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
-            && Secret::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_Ok() {
+            && Secret::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Secret::api_resource(),
                     name: rabbitmq.name().unwrap().concat(new_strlit("-default-user")),
@@ -365,7 +365,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() 
-            && Secret::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_Ok() {
+            && Secret::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Secret::api_resource(),
                     name: rabbitmq.name().unwrap().concat(new_strlit("-default-user")),
@@ -405,7 +405,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                         };
                         return (state_prime, Some(Request::KRequest(req_o)));
                     }
-                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                } else if get_resp.unwrap_err().is_object_not_found() {
                     // create
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: Secret::api_resource(),
@@ -431,7 +431,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
-            && Secret::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_Ok() {
+            && Secret::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: ConfigMap::api_resource(),
                     name: rabbitmq.name().unwrap().concat(new_strlit("-plugins-conf")),
@@ -454,7 +454,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() 
-            && Secret::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_Ok() {
+            && Secret::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: ConfigMap::api_resource(),
                     name: rabbitmq.name().unwrap().concat(new_strlit("-plugins-conf")),
@@ -494,7 +494,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                         };
                         return (state_prime, Some(Request::KRequest(req_o)));
                     }
-                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                } else if get_resp.unwrap_err().is_object_not_found() {
                     // create
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: ConfigMap::api_resource(),
@@ -520,7 +520,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
-            && ConfigMap::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_Ok() {
+            && ConfigMap::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: ConfigMap::api_resource(),
                     name: rabbitmq.name().unwrap().concat(new_strlit("-server-conf")),
@@ -543,7 +543,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() 
-            && ConfigMap::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_Ok() {
+            && ConfigMap::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: ConfigMap::api_resource(),
                     name: rabbitmq.name().unwrap().concat(new_strlit("-server-conf")),
@@ -608,19 +608,18 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterCreateServerConfigMap => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
-            && ConfigMap::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_Ok() {
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() {
                 let create_config_resp = resp_o.unwrap().into_k_response().into_create_response().res;
                 let created_config_map = ConfigMap::unmarshal(create_config_resp.unwrap());
                 if created_config_map.is_ok() && created_config_map.as_ref().unwrap().metadata().resource_version().is_some() {
-                    let req_o = KubeAPIRequest::CreateRequest(KubeGetRequest {
+                    let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                         api_resource: ServiceAccount::api_resource(),
                         name: rabbitmq.name().unwrap().concat(new_strlit("-server")),
                         namespace: rabbitmq.namespace().unwrap(),
                     });
                     let state_prime = RabbitmqReconcileState {
                         reconcile_step: RabbitmqReconcileStep::AfterGetServiceAccount,
-                        latest_config_map_rv_opt: updated_config_map.unwrap().metadata().resource_version(),
+                        latest_config_map_rv_opt: created_config_map.unwrap().metadata().resource_version(),
                         ..state
                     };
                     return (state_prime, Some(Request::KRequest(req_o)));
@@ -636,12 +635,11 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterUpdateServerConfigMap => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() 
-            && ConfigMap::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_Ok() {
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
                 let update_config_resp = resp_o.unwrap().into_k_response().into_update_response().res;
                 let updated_config_map = ConfigMap::unmarshal(update_config_resp.unwrap());
                 if updated_config_map.is_ok() && updated_config_map.as_ref().unwrap().metadata().resource_version().is_some() {
-                    let req_o = KubeAPIRequest::CreateRequest(KubeGetRequest {
+                    let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                         api_resource: ServiceAccount::api_resource(),
                         name: rabbitmq.name().unwrap().concat(new_strlit("-server")),
                         namespace: rabbitmq.namespace().unwrap(),
@@ -668,7 +666,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                 let get_resp = resp_o.unwrap().into_k_response().into_get_response().res;
                 if get_resp.is_ok() {
                     // update
-                    let found_service_account = ServiceAccount::unmarshal(get_config_resp.unwrap());
+                    let found_service_account = ServiceAccount::unmarshal(get_resp.unwrap());
                     if found_service_account.is_ok(){
                         let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                             api_resource: ServiceAccount::api_resource(),
@@ -682,7 +680,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                         };
                         return (state_prime, Some(Request::KRequest(req_o)));
                     }
-                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                } else if get_resp.unwrap_err().is_object_not_found() {
                     // create
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: ServiceAccount::api_resource(),
@@ -708,7 +706,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
-            && ServiceAccount::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_Ok() {
+            && ServiceAccount::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Role::api_resource(),
                     name: rabbitmq.name().unwrap().concat(new_strlit("-peer-discovery")),
@@ -731,7 +729,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() 
-            && ServiceAccount::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_Ok() {
+            && ServiceAccount::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Role::api_resource(),
                     name: rabbitmq.name().unwrap().concat(new_strlit("-peer-discovery")),
@@ -771,7 +769,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                         };
                         return (state_prime, Some(Request::KRequest(req_o)));
                     }
-                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                } else if get_resp.unwrap_err().is_object_not_found() {
                     // create
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: Role::api_resource(),
@@ -797,7 +795,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
-            && Role::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_Ok() {
+            && Role::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: RoleBinding::api_resource(),
                     name: rabbitmq.name().unwrap().concat(new_strlit("-server")),
@@ -820,7 +818,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() 
-            && Role::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_Ok() {
+            && Role::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: RoleBinding::api_resource(),
                     name: rabbitmq.name().unwrap().concat(new_strlit("-server")),
@@ -860,7 +858,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
                         };
                         return (state_prime, Some(Request::KRequest(req_o)));
                     }
-                } else if get_config_resp.unwrap_err().is_object_not_found() {
+                } else if get_resp.unwrap_err().is_object_not_found() {
                     // create
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: RoleBinding::api_resource(),
@@ -886,7 +884,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
-            && RoleBinding::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_Ok() {
+            && RoleBinding::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: StatefulSet::api_resource(),
                     name: rabbitmq.name().unwrap().concat(new_strlit("-server")),
@@ -909,7 +907,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() 
-            && RoleBinding::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_Ok() {
+            && RoleBinding::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: StatefulSet::api_resource(),
                     name: rabbitmq.name().unwrap().concat(new_strlit("-server")),
@@ -987,7 +985,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
-            && StatefulSet::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_Ok() {
+            && StatefulSet::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = None;
                 let state_prime = RabbitmqReconcileState {
                     reconcile_step: RabbitmqReconcileStep::Done,
@@ -1007,7 +1005,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() 
-            && StatefulSet::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_Ok() {
+            && StatefulSet::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = None;
                 let state_prime = RabbitmqReconcileState {
                     reconcile_step: RabbitmqReconcileStep::Done,
@@ -1055,7 +1053,7 @@ pub fn update_headless_service(rabbitmq: &RabbitmqCluster, found_headless_servic
     let made_service = make_headless_service(rabbitmq);
 
     let mut headless_service = found_headless_service.clone();
-    headless.set_spec(made_service.spec().unwrap());
+    headless_service.set_spec(made_service.spec().unwrap());
     headless_service.set_metadata({
         let mut metadata = found_headless_service.metadata();
         let mut owner_references = Vec::new();
@@ -1178,7 +1176,7 @@ pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServiceP
             proof {
                 assert_seqs_equal!(
                     owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    rabbitmq_spec::make_service(rabbitmq@).metadata.owner_references.get_Some_0()
+                    rabbitmq_spec::make_service(rabbitmq@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip).metadata.owner_references.get_Some_0()
                 );
             }
             owner_references
@@ -1254,7 +1252,7 @@ fn random_encoded_string(data_len: usize) -> (cookie: String)
     String::from_rust_string(deps_hack::base64::encode(random_bytes))
 }
 
-fn update_default_user_secret(rabbitmq: &RabbitmqCluster, found_secret: Service) -> (secret: Secret)
+fn update_default_user_secret(rabbitmq: &RabbitmqCluster, found_secret: Secret) -> (secret: Secret)
 requires
     rabbitmq@.metadata.name.is_Some(),
     rabbitmq@.metadata.namespace.is_Some(),
@@ -1345,7 +1343,7 @@ ensures
     let mut config_map = found_config_map.clone();
     let made_config_map = make_plugins_config_map(rabbitmq);
     config_map.set_data({
-        let mut data = if found_config_map.data.is_some() { found_config_map.data().unwrap() } else { StringMap::empty() };
+        let mut data = if found_config_map.data().is_some() { found_config_map.data().unwrap() } else { StringMap::empty() };
         data.insert(new_strlit("enabled_plugins").to_string(),
                 new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].").to_string());
         data
@@ -1525,7 +1523,7 @@ ensures
     service_account@ == rabbitmq_spec::update_service_account(rabbitmq@, found_service_account@),
 {
     let mut service_account = found_service_account.clone();
-    let made_service_account = make_server_service_account(rabbitmq);
+    let made_service_account = make_service_account(rabbitmq);
     service_account.set_metadata({
         let mut metadata = found_service_account.metadata();
         let mut owner_references = Vec::new();
@@ -1533,7 +1531,7 @@ ensures
         proof {
             assert_seqs_equal!(
                 owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                rabbitmq_spec::update_server_service_account(rabbitmq@, found_service_account@).metadata.owner_references.get_Some_0()
+                rabbitmq_spec::update_service_account(rabbitmq@, found_service_account@).metadata.owner_references.get_Some_0()
             );
         }
         metadata.set_owner_references(owner_references);
@@ -1576,7 +1574,7 @@ fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: Service
     service_account
 }
 
-fn update_role(rabbitmq: &RabbitmqCluster, found_role: ServiceAccount) -> (role: ServiceAccount)
+fn update_role(rabbitmq: &RabbitmqCluster, found_role: Role) -> (role: Role)
 requires
     rabbitmq@.metadata.name.is_Some(),
     rabbitmq@.metadata.namespace.is_Some(),
@@ -1584,8 +1582,8 @@ ensures
     role@ == rabbitmq_spec::update_role(rabbitmq@, found_role@),
 {
     let mut role = found_role.clone();
-    let made_role = make_server_role(rabbitmq);
-    role.take_policy_rules(make_server_role(rabbitmq));
+    let made_role = make_role(rabbitmq);
+    role.take_policy_rules(make_role(rabbitmq));
     role.set_metadata({
         let mut metadata = found_role.metadata();
         let mut owner_references = Vec::new();
@@ -1593,7 +1591,7 @@ ensures
         proof {
             assert_seqs_equal!(
                 owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                rabbitmq_spec::update_server_role(rabbitmq@, found_role@).metadata.owner_references.get_Some_0()
+                rabbitmq_spec::update_role(rabbitmq@, found_role@).metadata.owner_references.get_Some_0()
             );
         }
         metadata.set_owner_references(owner_references);
@@ -1719,7 +1717,7 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
     role
 }
 
-fn update_role_binding(rabbitmq: &RabbitmqCluster, found_role_binding: ServiceAccount) -> (role_binding: ServiceAccount)
+fn update_role_binding(rabbitmq: &RabbitmqCluster, found_role_binding: RoleBinding) -> (role_binding: RoleBinding)
 requires
     rabbitmq@.metadata.name.is_Some(),
     rabbitmq@.metadata.namespace.is_Some(),
@@ -1727,9 +1725,9 @@ ensures
     role_binding@ == rabbitmq_spec::update_role_binding(rabbitmq@, found_role_binding@),
 {
     let mut role_binding = found_role_binding.clone();
-    let made_role_binding = make_server_role_binding(rabbitmq);
-    role_binding.take_role_ref(make_server_role_binding(rabbitmq));
-    role_binding.take_subjects(make_server_role_binding(rabbitmq));
+    let made_role_binding = make_role_binding(rabbitmq);
+    role_binding.take_role_ref(make_role_binding(rabbitmq));
+    role_binding.take_subjects(make_role_binding(rabbitmq));
     role_binding.set_metadata({
         let mut metadata = found_role_binding.metadata();
         let mut owner_references = Vec::new();
@@ -1737,7 +1735,7 @@ ensures
         proof {
             assert_seqs_equal!(
                 owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                rabbitmq_spec::update_server_role_binding(rabbitmq@, found_role_binding@).metadata.owner_references.get_Some_0()
+                rabbitmq_spec::update_role_binding(rabbitmq@, found_role_binding@).metadata.owner_references.get_Some_0()
             );
         }
         metadata.set_owner_references(owner_references);

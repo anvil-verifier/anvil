@@ -85,6 +85,14 @@ impl Secret {
         self.inner.type_ = Some(type_.into_rust_string())
     }
 
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (c: Self)
+        ensures
+            c@ == self@,
+    {
+        Secret { inner: self.inner.clone() }
+    }
+
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::Secret) -> Secret {
         Secret {

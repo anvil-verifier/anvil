@@ -119,7 +119,7 @@ pub open spec fn reconcile_core(
                         };
                         (state_prime, None)
                     }
-                } else if get_config_resp.get_Err_0().is_ObjectNotFound() {
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
                     // create
                     let req_o = APIRequest::CreateRequest(CreateRequest {
                         namespace: rabbitmq.metadata.namespace.get_Some_0(),
@@ -213,7 +213,7 @@ pub open spec fn reconcile_core(
                         };
                         (state_prime, None)
                     }
-                } else if get_config_resp.get_Err_0().is_ObjectNotFound() {
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
                     // create
                     let req_o = APIRequest::CreateRequest(CreateRequest {
                         namespace: rabbitmq.metadata.namespace.get_Some_0(),
@@ -307,7 +307,7 @@ pub open spec fn reconcile_core(
                         };
                         (state_prime, None)
                     }
-                } else if get_config_resp.get_Err_0().is_ObjectNotFound() {
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
                     // create
                     let req_o = APIRequest::CreateRequest(CreateRequest {
                         namespace: rabbitmq.metadata.namespace.get_Some_0(),
@@ -401,7 +401,7 @@ pub open spec fn reconcile_core(
                         };
                         (state_prime, None)
                     }
-                } else if get_config_resp.get_Err_0().is_ObjectNotFound() {
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
                     // create
                     let req_o = APIRequest::CreateRequest(CreateRequest {
                         namespace: rabbitmq.metadata.namespace.get_Some_0(),
@@ -495,7 +495,7 @@ pub open spec fn reconcile_core(
                         };
                         (state_prime, None)
                     }
-                } else if get_config_resp.get_Err_0().is_ObjectNotFound() {
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
                     // create
                     let req_o = APIRequest::CreateRequest(CreateRequest {
                         namespace: rabbitmq.metadata.namespace.get_Some_0(),
@@ -686,7 +686,7 @@ pub open spec fn reconcile_core(
                         };
                         (state_prime, None)
                     }
-                } else if get_config_resp.get_Err_0().is_ObjectNotFound() {
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
                     // create
                     let req_o = APIRequest::CreateRequest(CreateRequest {
                         namespace: rabbitmq.metadata.namespace.get_Some_0(),
@@ -780,7 +780,7 @@ pub open spec fn reconcile_core(
                         };
                         (state_prime, None)
                     }
-                } else if get_config_resp.get_Err_0().is_ObjectNotFound() {
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
                     // create
                     let req_o = APIRequest::CreateRequest(CreateRequest {
                         namespace: rabbitmq.metadata.namespace.get_Some_0(),
@@ -874,7 +874,7 @@ pub open spec fn reconcile_core(
                         };
                         (state_prime, None)
                     }
-                } else if get_config_resp.get_Err_0().is_ObjectNotFound() {
+                } else if get_resp.get_Err_0().is_ObjectNotFound() {
                     // create
                     let req_o = APIRequest::CreateRequest(CreateRequest {
                         namespace: rabbitmq.metadata.namespace.get_Some_0(),
@@ -1098,8 +1098,8 @@ pub open spec fn update_headless_service(rabbitmq: RabbitmqClusterView, found_he
         metadata: ObjectMetaView {
             owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
             finalizers: None,
-            labels: made_service.labels,
-            annotations: made_service.annotations,
+            labels: made_service.metadata.labels,
+            annotations: made_service.metadata.annotations,
             ..found_headless_service.metadata
         },
         spec: made_service.spec,
@@ -1149,9 +1149,9 @@ pub open spec fn update_main_service(rabbitmq: RabbitmqClusterView, found_main_s
             owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
             finalizers: None,
             labels: made_main_service.metadata.labels,
-            annotations: made_main_service.metadata.labels,
+            annotations: made_main_service.metadata.annotations,
             ..found_main_service.metadata
-        }
+        },
         ..found_main_service
     }
 }
@@ -1523,14 +1523,17 @@ pub open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceA
         rabbitmq.metadata.name.is_Some(),
         rabbitmq.metadata.namespace.is_Some(),
 {
-    ServiceAccountView::default()
-        .set_metadata(ObjectMetaView::default()
-            .set_name(make_service_account(rabbitmq))
-            .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
-            .set_owner_references(seq![rabbitmq.controller_owner_ref()])
-            .set_labels(make_labels(rabbitmq))
-            .set_annotations(rabbitmq.spec.annotations)
-        )
+    ServiceAccountView {
+        metadata: ObjectMetaView {
+            name: Some(make_service_account_name(rabbitmq)),
+            namespace: rabbitmq.metadata.namespace,
+            owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
+            labels: Some(make_labels(rabbitmq)),
+            annotations: Some(rabbitmq.spec.annotations),
+            ..ObjectMetaView::default()
+        },
+        ..ServiceAccountView::default()
+    }
 }
 
 pub open spec fn make_role_name(rabbitmq: RabbitmqClusterView) -> StringView
@@ -1557,9 +1560,9 @@ pub open spec fn update_role(rabbitmq: RabbitmqClusterView, found_role: RoleView
         rabbitmq.metadata.name.is_Some(),
         rabbitmq.metadata.namespace.is_Some(),
 {
-    let made_role = made_role(rabbitmq);
+    let made_role = make_role(rabbitmq);
     RoleView {
-        rules: made_role.rules,
+        policy_rules: made_role.policy_rules,
         metadata: ObjectMetaView {
             owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
             finalizers: None,
@@ -1637,7 +1640,7 @@ pub open spec fn make_role_binding(rabbitmq: RabbitmqClusterView) -> RoleBinding
 {
     RoleBindingView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(make_role_binding(rabbitmq))
+            .set_name(make_role_binding_name(rabbitmq))
             .set_namespace(rabbitmq.metadata.namespace.get_Some_0())
             .set_owner_references(seq![rabbitmq.controller_owner_ref()])
             .set_labels(make_labels(rabbitmq))

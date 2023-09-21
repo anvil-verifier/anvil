@@ -89,6 +89,14 @@ impl RoleBinding {
         );
     }
 
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (c: Self)
+        ensures
+            c@ == self@,
+    {
+        RoleBinding { inner: self.inner.clone() }
+    }
+
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::rbac::v1::RoleBinding {
         self.inner
