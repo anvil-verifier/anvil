@@ -38,6 +38,14 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (s: Self)
+        ensures
+            s@ == self@,
+    {
+        ObjectMeta { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn name(&self) -> (name: Option<String>)
         ensures
             self@.name.is_Some() == name.is_Some(),

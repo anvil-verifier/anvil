@@ -26,6 +26,14 @@ impl ResourceRequirements {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (s: Self)
+        ensures
+            s@ == self@,
+    {
+        ResourceRequirements { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn set_limits(&mut self, limits: StringMap)
         ensures
             self@ == old(self)@.set_limits(limits@),
