@@ -47,9 +47,7 @@ impl StatefulSet {
         ensures
             s@ == self@,
     {
-        StatefulSet {
-            inner: self.inner.clone(),
-        }
+        StatefulSet { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
@@ -227,7 +225,7 @@ impl StatefulSetSpec {
                 self.inner.persistent_volume_claim_retention_policy = None;
             },
         }
-        
+
     }
 
     #[verifier(external_body)]

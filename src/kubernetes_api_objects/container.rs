@@ -29,6 +29,14 @@ impl Container {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (s: Self)
+        ensures
+            s@ == self@,
+    {
+        Container { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn set_image(&mut self, image: String)
         ensures
             self@ == old(self)@.set_image(image@),
@@ -285,6 +293,14 @@ impl Probe {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (s: Self)
+        ensures
+            s@ == self@,
+    {
+        Probe { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn set_exec(&mut self, exec: ExecAction)
         ensures
             self@ == old(self)@.set_exec(exec@),
@@ -370,6 +386,14 @@ impl ExecAction {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (s: Self)
+        ensures
+            s@ == self@,
+    {
+        ExecAction { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn set_command(&mut self, command: Vec<String>)
         ensures
             self@ == old(self)@.set_command(command@.map_values(|s: String| s@)),
@@ -404,6 +428,14 @@ impl TCPSocketAction {
         TCPSocketAction {
             inner: deps_hack::k8s_openapi::api::core::v1::TCPSocketAction::default(),
         }
+    }
+
+    #[verifier(external_body)]
+    pub fn clone(&self) -> (s: Self)
+        ensures
+            s@ == self@,
+    {
+        TCPSocketAction { inner: self.inner.clone() }
     }
 
     #[verifier(external_body)]
@@ -452,6 +484,14 @@ impl Lifecycle {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (s: Self)
+        ensures
+            s@ == self@,
+    {
+        Lifecycle { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn set_pre_stop(&mut self, handler: LifecycleHandler)
         ensures
             self@ == old(self)@.set_pre_stop(handler@),
@@ -484,6 +524,14 @@ impl LifecycleHandler {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (s: Self)
+        ensures
+            s@ == self@,
+    {
+        LifecycleHandler { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn set_exec(&mut self, exec: ExecAction)
         ensures
             self@ == old(self)@.set_exec(exec@),
@@ -503,6 +551,11 @@ pub struct EnvVar {
 }
 
 impl EnvVar {
+    #[verifier(external)]
+    pub fn clone(&self) -> (s: Self) {
+        EnvVar { inner: self.inner.clone() }
+    }
+
     #[verifier(external)]
     pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::EnvVar) -> EnvVar {
         EnvVar { inner: inner }
