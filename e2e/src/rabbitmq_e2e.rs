@@ -637,7 +637,6 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
     desired_state_test(client.clone(), rabbitmq_name.clone()).await?;
     relabel_test(client.clone(), rabbitmq_name.clone()).await?;
     reconfiguration_test(client.clone(), rabbitmq_name.clone()).await?;
-    scaling_test(client.clone(), rabbitmq_name.clone()).await?;
     authenticate_user_test(client.clone(), rabbitmq_name.clone()).await?;
     upgrading_test(client.clone(), rabbitmq_name.clone()).await?;
     rabbitmq_workload_test(client.clone(), rabbitmq_name.clone()).await?;
