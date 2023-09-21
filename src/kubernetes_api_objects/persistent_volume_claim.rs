@@ -51,7 +51,10 @@ impl PersistentVolumeClaim {
             self@.spec.is_Some() == spec.is_Some(),
             spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
     {
-        todo!()
+        match &self.inner.spec {
+            Some(s) => Some(PersistentVolumeClaimSpec::from_kube(s.clone())),
+            None => None,
+        }
     }
 
     #[verifier(external_body)]

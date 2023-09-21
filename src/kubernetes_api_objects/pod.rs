@@ -56,7 +56,10 @@ impl Pod {
             self@.spec.is_Some() == spec.is_Some(),
             spec.is_Some() ==> spec.get_Some_0()@ == self@.spec.get_Some_0(),
     {
-        todo!()
+        match &self.inner.spec {
+            Some(s) => Some(PodSpec::from_kube(s.clone())),
+            None => None,
+        }
     }
 
     #[verifier(external_body)]
@@ -220,6 +223,11 @@ impl PodSpec {
             self@ == old(self)@.set_node_selector(node_selector@),
     {
         self.inner.node_selector = Some(node_selector.into_rust_map())
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::PodSpec) -> PodSpec {
+        PodSpec { inner: inner }
     }
 
     #[verifier(external)]

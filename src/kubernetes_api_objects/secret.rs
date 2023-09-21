@@ -43,7 +43,7 @@ impl Secret {
         ensures
             metadata@ == self@.metadata,
     {
-        todo!()
+        ObjectMeta::from_kube(self.inner.metadata.clone())
     }
 
     #[verifier(external_body)]
