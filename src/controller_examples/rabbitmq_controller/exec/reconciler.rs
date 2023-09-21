@@ -253,10 +253,10 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
-            && Secret::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
+            && Service::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Secret::api_resource(),
-                    name: rabbitmq.name().unwrap(),
+                    name: rabbitmq.name().unwrap().concat(new_strlit("-erlang-cookie")),
                     namespace: rabbitmq.namespace().unwrap(),
                 });
                 let state_prime = RabbitmqReconcileState {
@@ -279,7 +279,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
             && Service::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Secret::api_resource(),
-                    name: rabbitmq.name().unwrap(),
+                    name: rabbitmq.name().unwrap().concat(new_strlit("-erlang-cookie")),
                     namespace: rabbitmq.namespace().unwrap(),
                 });
                 let state_prime = RabbitmqReconcileState {

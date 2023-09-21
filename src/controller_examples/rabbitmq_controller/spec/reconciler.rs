@@ -1227,7 +1227,7 @@ pub open spec fn update_erlang_secret(rabbitmq: RabbitmqClusterView, found_erlan
             owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
             finalizers: None,
             labels: made_erlang_secret.metadata.labels,
-            annotations: made_erlang_secret.metadata.labels,
+            annotations: made_erlang_secret.metadata.annotations,
             ..found_erlang_secret.metadata
         },
         ..found_erlang_secret
@@ -1277,7 +1277,7 @@ pub open spec fn update_default_user_secret(rabbitmq: RabbitmqClusterView, found
             owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
             finalizers: None,
             labels: made_secret.metadata.labels,
-            annotations: made_secret.metadata.labels,
+            annotations: made_secret.metadata.annotations,
             ..found_secret.metadata
         },
         ..found_secret
@@ -1360,7 +1360,7 @@ pub open spec fn update_plugins_config_map(rabbitmq: RabbitmqClusterView, found_
             owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
             finalizers: None,
             labels: made_config_map.metadata.labels,
-            annotations: made_config_map.metadata.labels,
+            annotations: made_config_map.metadata.annotations,
             ..found_config_map.metadata
         },
         ..found_config_map
@@ -1608,7 +1608,7 @@ pub open spec fn make_role_binding_key(rabbitmq: RabbitmqClusterView) -> ObjectR
         rabbitmq.metadata.namespace.is_Some(),
 {
     ObjectRef {
-        kind: RoleView::kind(),
+        kind: RoleBindingView::kind(),
         name: make_role_binding_name(rabbitmq),
         namespace: rabbitmq.metadata.namespace.get_Some_0(),
     }
