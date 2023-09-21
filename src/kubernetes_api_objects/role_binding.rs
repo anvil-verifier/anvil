@@ -54,29 +54,11 @@ impl RoleBinding {
     }
 
     #[verifier(external_body)]
-    pub fn take_role_ref(&mut self, role_binding: RoleBinding)
-        ensures
-            self@ == old(self)@.set_role_ref(role_binding@.role_ref),
-    {
-        self.inner.role_ref = role_binding.inner.role_ref;
-    }
-
-    #[verifier(external_body)]
     pub fn set_role_ref(&mut self, role_ref: RoleRef)
         ensures
             self@ == old(self)@.set_role_ref(role_ref@),
     {
         self.inner.role_ref = role_ref.into_kube();
-    }
-
-    #[verifier(external_body)]
-    pub fn take_subjects(&mut self, role_binding: RoleBinding)
-        requires
-            role_binding@.subjects.is_Some(),
-        ensures
-            self@ == old(self)@.set_subjects(role_binding@.subjects.get_Some_0()),
-    {
-        self.inner.subjects = role_binding.inner.subjects;
     }
 
     #[verifier(external_body)]

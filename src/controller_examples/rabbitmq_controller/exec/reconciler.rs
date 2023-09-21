@@ -1583,7 +1583,7 @@ ensures
 {
     let mut role = found_role.clone();
     let made_role = make_role(rabbitmq);
-    role.take_policy_rules(make_role(rabbitmq));
+    role.set_policy_rules(make_policy_rules(rabbitmq));
     role.set_metadata({
         let mut metadata = found_role.metadata();
         let mut owner_references = Vec::new();
@@ -1601,6 +1601,97 @@ ensures
         metadata
     });
     role
+}
+
+fn make_policy_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        rules@.map_values(|r: PolicyRule| r@) == rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0(),
+{
+    let mut rules = Vec::new();
+    rules.push({
+        let mut rule = PolicyRule::default();
+        rule.set_api_groups({
+            let mut api_groups = Vec::new();
+            api_groups.push(new_strlit("").to_string());
+            proof{
+                assert_seqs_equal!(
+                    api_groups@.map_values(|p: String| p@),
+                    rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[0].api_groups.get_Some_0()
+                );
+            }
+            api_groups
+        });
+        rule.set_resources({
+            let mut resources = Vec::new();
+            resources.push(new_strlit("endpoints").to_string());
+            proof{
+                assert_seqs_equal!(
+                    resources@.map_values(|p: String| p@),
+                    rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[0].resources.get_Some_0()
+                );
+            }
+            resources
+        });
+        rule.set_verbs({
+            let mut verbs = Vec::new();
+            verbs.push(new_strlit("get").to_string());
+            proof{
+                assert_seqs_equal!(
+                    verbs@.map_values(|p: String| p@),
+                    rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[0].verbs
+                );
+            }
+            verbs
+        });
+        rule
+    });
+    rules.push({
+        let mut rule = PolicyRule::default();
+        rule.set_api_groups({
+            let mut api_groups = Vec::new();
+            api_groups.push(new_strlit("").to_string());
+            proof{
+                assert_seqs_equal!(
+                    api_groups@.map_values(|p: String| p@),
+                    rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[1].api_groups.get_Some_0()
+                );
+            }
+            api_groups
+        });
+        rule.set_resources({
+            let mut resources = Vec::new();
+            resources.push(new_strlit("events").to_string());
+            proof{
+                assert_seqs_equal!(
+                    resources@.map_values(|p: String| p@),
+                    rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[1].resources.get_Some_0()
+                );
+            }
+            resources
+        });
+        rule.set_verbs({
+            let mut verbs = Vec::new();
+            verbs.push(new_strlit("create").to_string());
+            proof{
+                assert_seqs_equal!(
+                    verbs@.map_values(|p: String| p@),
+                    rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[1].verbs
+                );
+            }
+            verbs
+        });
+        rule
+    });
+    proof{
+        assert_seqs_equal!(
+            rules@.map_values(|p: PolicyRule| p@),
+            rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()
+        );
+    }
+    rules
 }
 
 fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
@@ -1630,90 +1721,7 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
         metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
-    role.set_policy_rules({
-        let mut rules = Vec::new();
-        rules.push({
-            let mut rule = PolicyRule::default();
-            rule.set_api_groups({
-                let mut api_groups = Vec::new();
-                api_groups.push(new_strlit("").to_string());
-                proof{
-                    assert_seqs_equal!(
-                        api_groups@.map_values(|p: String| p@),
-                        rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[0].api_groups.get_Some_0()
-                    );
-                }
-                api_groups
-            });
-            rule.set_resources({
-                let mut resources = Vec::new();
-                resources.push(new_strlit("endpoints").to_string());
-                proof{
-                    assert_seqs_equal!(
-                        resources@.map_values(|p: String| p@),
-                        rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[0].resources.get_Some_0()
-                    );
-                }
-                resources
-            });
-            rule.set_verbs({
-                let mut verbs = Vec::new();
-                verbs.push(new_strlit("get").to_string());
-                proof{
-                    assert_seqs_equal!(
-                        verbs@.map_values(|p: String| p@),
-                        rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[0].verbs
-                    );
-                }
-                verbs
-            });
-            rule
-        });
-        rules.push({
-            let mut rule = PolicyRule::default();
-            rule.set_api_groups({
-                let mut api_groups = Vec::new();
-                api_groups.push(new_strlit("").to_string());
-                proof{
-                    assert_seqs_equal!(
-                        api_groups@.map_values(|p: String| p@),
-                        rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[1].api_groups.get_Some_0()
-                    );
-                }
-                api_groups
-            });
-            rule.set_resources({
-                let mut resources = Vec::new();
-                resources.push(new_strlit("events").to_string());
-                proof{
-                    assert_seqs_equal!(
-                        resources@.map_values(|p: String| p@),
-                        rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[1].resources.get_Some_0()
-                    );
-                }
-                resources
-            });
-            rule.set_verbs({
-                let mut verbs = Vec::new();
-                verbs.push(new_strlit("create").to_string());
-                proof{
-                    assert_seqs_equal!(
-                        verbs@.map_values(|p: String| p@),
-                        rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()[1].verbs
-                    );
-                }
-                verbs
-            });
-            rule
-        });
-        proof{
-            assert_seqs_equal!(
-                rules@.map_values(|p: PolicyRule| p@),
-                rabbitmq_spec::make_role(rabbitmq@).policy_rules.get_Some_0()
-            );
-        }
-        rules
-    });
+    role.set_policy_rules(make_policy_rules(rabbitmq));
     role
 }
 
@@ -1726,8 +1734,8 @@ ensures
 {
     let mut role_binding = found_role_binding.clone();
     let made_role_binding = make_role_binding(rabbitmq);
-    role_binding.take_role_ref(make_role_binding(rabbitmq));
-    role_binding.take_subjects(make_role_binding(rabbitmq));
+    role_binding.set_role_ref(make_role_ref(rabbitmq));
+    role_binding.set_subjects(make_subjects(rabbitmq));
     role_binding.set_metadata({
         let mut metadata = found_role_binding.metadata();
         let mut owner_references = Vec::new();
@@ -1745,6 +1753,43 @@ ensures
         metadata
     });
     role_binding
+}
+
+fn make_role_ref(rabbitmq: &RabbitmqCluster) -> (role_ref: RoleRef)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+    ensures
+        role_ref@ == rabbitmq_spec::make_role_binding(rabbitmq@).role_ref
+{
+    let mut role_ref = RoleRef::default();
+    role_ref.set_api_group(new_strlit("rbac.authorization.k8s.io").to_string());
+    role_ref.set_kind(new_strlit("Role").to_string());
+    role_ref.set_name(rabbitmq.name().unwrap().concat(new_strlit("-peer-discovery")));
+    role_ref
+}
+
+fn make_subjects(rabbitmq: &RabbitmqCluster) -> (subjects: Vec<Subject>)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        subjects@.map_values(|s: Subject| s@) == rabbitmq_spec::make_role_binding(rabbitmq@).subjects.get_Some_0(),
+{
+    let mut subjects = Vec::new();
+    subjects.push({
+        let mut subject = Subject::default();
+        subject.set_kind(new_strlit("ServiceAccount").to_string());
+        subject.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
+        subject.set_namespace(rabbitmq.namespace().unwrap());
+        subject
+    });
+    proof{
+        assert_seqs_equal!(
+            subjects@.map_values(|p: Subject| p@),
+            rabbitmq_spec::make_role_binding(rabbitmq@).subjects.get_Some_0()
+        );
+    }
+    subjects
 }
 
 fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
@@ -1774,30 +1819,8 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
         metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
     });
-    role_binding.set_role_ref({
-        let mut role_ref = RoleRef::default();
-        role_ref.set_api_group(new_strlit("rbac.authorization.k8s.io").to_string());
-        role_ref.set_kind(new_strlit("Role").to_string());
-        role_ref.set_name(rabbitmq.name().unwrap().concat(new_strlit("-peer-discovery")));
-        role_ref
-    });
-    role_binding.set_subjects({
-        let mut subjects = Vec::new();
-        subjects.push({
-            let mut subject = Subject::default();
-            subject.set_kind(new_strlit("ServiceAccount").to_string());
-            subject.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
-            subject.set_namespace(rabbitmq.namespace().unwrap());
-            subject
-        });
-        proof{
-            assert_seqs_equal!(
-                subjects@.map_values(|p: Subject| p@),
-                rabbitmq_spec::make_role_binding(rabbitmq@).subjects.get_Some_0()
-            );
-        }
-        subjects
-    });
+    role_binding.set_role_ref(make_role_ref(rabbitmq));
+    role_binding.set_subjects(make_subjects(rabbitmq));
     role_binding
 }
 
