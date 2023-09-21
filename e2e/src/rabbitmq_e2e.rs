@@ -41,6 +41,26 @@ pub fn rabbitmq_cluster() -> String {
     .to_string()
 }
 
+pub fn rabbitmq_cluster_ephemeral() -> String {
+    "
+    apiVersion: anvil.dev/v1
+    kind: RabbitmqCluster
+    metadata:
+      name: rabbitmq
+      namespace: default
+    spec:
+      replicas: 3
+      image: rabbitmq:3.11.10-management
+      persistence:
+        storage: 0Gi
+      rabbitmqConfig:
+        additionalConfig: |
+          default_user = new_user
+          default_pass = new_pass
+    "
+    .to_string()
+}
+
 pub async fn desired_state_test(client: Client, rabbitmq_name: String) -> Result<(), Error> {
     let rabbitmq_sts_name = format!("{}-server", &rabbitmq_name);
     let rabbitmq_cm_name = format!("{}-server-conf", &rabbitmq_name);
@@ -626,7 +646,7 @@ pub async fn rabbitmq_e2e_test() -> Result<(), Error> {
     Ok(())
 }
 
-pub asyn fn rabbitmq_scaling_e2e_test() -> Result<(), Error> {
+pub async fn rabbitmq_scaling_e2e_test() -> Result<(), Error> {
     // check if the CRD is already registered
     let client = Client::try_default().await?;
     let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
@@ -644,6 +664,33 @@ pub asyn fn rabbitmq_scaling_e2e_test() -> Result<(), Error> {
     // create a rabbitmq cluster
     let discovery = Discovery::new(client.clone()).run().await?;
     let rabbitmq_name = apply(rabbitmq_cluster(), client.clone(), &discovery).await?;
+
+    desired_state_test(client.clone(), rabbitmq_name.clone()).await?;
+    scaling_test(client.clone(), rabbitmq_name.clone()).await?;
+    rabbitmq_workload_test(client.clone(), rabbitmq_name.clone()).await?;
+
+    println!("E2e test passed.");
+    Ok(())
+}
+
+pub async fn rabbitmq_ephemeral_e2e_test() -> Result<(), Error> {
+    // check if the CRD is already registered
+    let client = Client::try_default().await?;
+    let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
+    let rabbitmq_crd = crd_api.get("rabbitmqclusters.anvil.dev").await;
+    match rabbitmq_crd {
+        Err(e) => {
+            println!("No CRD found, create one before run the e2e test.");
+            return Err(Error::CRDGetFailed(e));
+        }
+        Ok(crd) => {
+            println!("CRD found, continue to run the e2e test.");
+        }
+    }
+
+    // create a rabbitmq cluster
+    let discovery = Discovery::new(client.clone()).run().await?;
+    let rabbitmq_name = apply(rabbitmq_cluster_ephemeral(), client.clone(), &discovery).await?;
 
     desired_state_test(client.clone(), rabbitmq_name.clone()).await?;
     scaling_test(client.clone(), rabbitmq_name.clone()).await?;

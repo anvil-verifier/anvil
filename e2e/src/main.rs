@@ -7,7 +7,7 @@ pub mod zookeeper_e2e;
 
 use common::Error;
 use fluent_e2e::fluent_e2e_test;
-use rabbitmq_e2e::rabbitmq_e2e_test;
+use rabbitmq_e2e::{rabbitmq_e2e_test, rabbitmq_scaling_e2e_test, rabbitmq_ephemeral_e2e_test};
 use std::str::FromStr;
 use std::{env, sync::Arc};
 use zookeeper_e2e::{zookeeper_e2e_test, zookeeper_ephemeral_e2e_test, zookeeper_scaling_e2e_test};
@@ -36,6 +36,10 @@ async fn main() -> Result<(), Error> {
         "rabbitmq-scaling" => {
             println!("Running rabbitmq end-to-end test for scaling");
             return rabbitmq_scaling_e2e_test().await;
+        }
+        "rabbitmq-ephemeral" => {
+            println!("Running rabbitmq end-to-end test for ephemeral storage");
+            return rabbitmq_ephemeral_e2e_test().await;
         }
         "fluent" => {
             println!("Running fluent end-to-end test");
