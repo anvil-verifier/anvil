@@ -114,7 +114,7 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
                 continue;
             }
             Ok(ds) => {
-                if ds.status.as_ref().unwrap().number_ready == 4 {
+                if ds.status.as_ref().unwrap().number_ready == 6 {
                     // this number depends on the number of nodes
                     println!("All daemons are ready now.");
                     break;

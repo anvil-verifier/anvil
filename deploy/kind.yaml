@@ -5,5 +5,7 @@ nodes:
   - role: worker
   - role: worker
   - role: worker
+  - role: worker
+  - role: worker
 featureGates:
   "StatefulSetAutoDeletePVC": true
