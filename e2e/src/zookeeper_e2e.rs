@@ -194,7 +194,7 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
     Ok(())
 }
 
-pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> {
+pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> Result<(), Error> {
     let timeout = Duration::from_secs(360);
     let mut start = Instant::now();
     let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
@@ -309,7 +309,7 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
                     .unwrap()
                     == 3
                 {
-                    println!("Scale down is almost done with 3 pods ready.");
+                    println!("Scale down is done with 3 pods ready.");
                 } else {
                     println!(
                         "Scale down is in progress. {} pods are ready now.",
@@ -324,14 +324,16 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
                 }
             }
         };
-        let pvcs = pvc_api.list(&ListParams::default()).await;
-        let pvc_num = pvcs.unwrap().items.len();
-        if pvc_num == 3 {
-            println!("Scale down is done with 3 pods ready and 3 pvcs.");
-            break;
-        } else {
-            println!("Scale down is in progress. {} pvcs exist", pvc_num);
-            continue;
+        if persistent {
+            let pvcs = pvc_api.list(&ListParams::default()).await;
+            let pvc_num = pvcs.unwrap().items.len();
+            if pvc_num == 3 {
+                println!("Scale down is done with 3 pods ready and 3 pvcs.");
+                break;
+            } else {
+                println!("Scale down is in progress. {} pvcs exist", pvc_num);
+                continue;
+            }
         }
     }
 
@@ -888,7 +890,7 @@ pub async fn zookeeper_scaling_e2e_test() -> Result<(), Error> {
     let zk_name = apply(zookeeper_cluster(), client.clone(), &discovery).await?;
 
     desired_state_test(client.clone(), zk_name.clone()).await?;
-    scaling_test(client.clone(), zk_name.clone()).await?;
+    scaling_test(client.clone(), zk_name.clone(), true).await?;
     zk_workload_test(client.clone(), zk_name.clone()).await?;
 
     println!("E2e test passed.");
@@ -915,7 +917,7 @@ pub async fn zookeeper_ephemeral_e2e_test() -> Result<(), Error> {
     let zk_name = apply(zookeeper_cluster_ephemeral(), client.clone(), &discovery).await?;
 
     desired_state_test(client.clone(), zk_name.clone()).await?;
-    scaling_test(client.clone(), zk_name.clone()).await?;
+    scaling_test(client.clone(), zk_name.clone(), false).await?;
     zk_workload_test(client.clone(), zk_name.clone()).await?;
 
     println!("E2e test passed.");
