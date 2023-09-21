@@ -33,6 +33,10 @@ async fn main() -> Result<(), Error> {
             println!("Running rabbitmq end-to-end test");
             return rabbitmq_e2e_test().await;
         }
+        "rabbitmq-scaling" => {
+            println!("Running rabbitmq end-to-end test for scaling");
+            return rabbitmq_scaling_e2e_test().await;
+        }
         "fluent" => {
             println!("Running fluent end-to-end test");
             return fluent_e2e_test().await;
