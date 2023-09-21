@@ -1164,6 +1164,7 @@ pub open spec fn make_main_service(rabbitmq: RabbitmqClusterView) -> ServiceView
     let ports = seq![
         ServicePortView::default().set_name(new_strlit("amqp")@).set_port(5672).set_app_protocol(new_strlit("amqp")@),
         ServicePortView::default().set_name(new_strlit("management")@).set_port(15672).set_app_protocol(new_strlit("http")@),
+        ServicePortView::default().set_name(new_strlit("prometheus")@).set_port(15692).set_app_protocol(new_strlit("prometheus.io/metrics")@),
     ];
     make_service(rabbitmq, make_main_service_name(rabbitmq), ports, true)
 }
