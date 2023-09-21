@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 use k8s_openapi::api::apps::v1::StatefulSet;
-use k8s_openapi::api::core::v1::{ConfigMap, Pod, Service};
+use k8s_openapi::api::core::v1::{ConfigMap, PersistentVolumeClaim, Pod, Service};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use kube::{
     api::{
@@ -195,9 +195,10 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
 }
 
 pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> {
-    let timeout = Duration::from_secs(600);
+    let timeout = Duration::from_secs(360);
     let start = Instant::now();
     let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
+    let pvc_api: Api<PersistentVolumeClaim> = Api::default_namespaced(client.clone());
 
     run_command(
         "kubectl",
@@ -262,6 +263,7 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
         };
     }
 
+    sleep(Duration::from_secs(5)).await;
     run_command(
         "kubectl",
         vec![
@@ -307,8 +309,7 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
                     .unwrap()
                     == 3
                 {
-                    println!("Scale down is done with 3 replicas ready.");
-                    break;
+                    println!("Scale down is almost done with 3 pods ready.");
                 } else {
                     println!(
                         "Scale down is in progress. {} pods are ready now.",
@@ -323,8 +324,18 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
                 }
             }
         };
+        let pvcs = pvc_api.list(&ListParams::default()).await;
+        let pvc_num = pvcs.unwrap().items.len();
+        if pvc_num == 3 {
+            println!("Scale down is done with 3 pods ready and 3 pvcs.");
+            break;
+        } else {
+            println!("Scale down is in progress. {} pvcs exist", pvc_num);
+            continue;
+        }
     }
 
+    sleep(Duration::from_secs(5)).await;
     run_command(
         "kubectl",
         vec![
