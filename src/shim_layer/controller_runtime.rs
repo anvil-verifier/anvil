@@ -102,24 +102,28 @@ where
 
     let cr_name = cr.meta().name.as_ref().ok_or_else(|| Error::ShimLayerError("Custom resource misses \".metadata.name\"".to_string()))?;
     let cr_namespace = cr.meta().namespace.as_ref().ok_or_else(|| Error::ShimLayerError("Custom resources misses \".metadata.namespace\"".to_string()))?;
+    let cr_kind = K::kind(&K::DynamicType::default()).to_string();
+
+    let cr_key = format!("{}/{}/{}", cr_kind, cr_namespace, cr_name);
+    let log_prefix = format!("Reconciling {}:", cr_key);
 
     let cr_api = Api::<K>::namespaced(client.clone(), &cr_namespace);
     // Get the custom resource by a quorum read to Kubernetes' storage (etcd) to get the most updated custom resource
     let get_cr_resp = cr_api.get(&cr_name).await;
     match get_cr_resp {
         Err(deps_hack::kube_client::error::Error::Api(ErrorResponse { reason, .. })) if &reason == "NotFound" => {
-            println!("Custom resource {} not found, end reconcile", cr_name);
+            println!("{} Custom resource {} not found, end reconcile", log_prefix, cr_name);
             return Ok(Action::await_change());
         },
         Err(err) => {
-            println!("Get custom resource {} failed with error: {}, will retry reconcile", cr_name, err);
+            println!("{} Get custom resource {} failed with error: {}, will retry reconcile", log_prefix, cr_name, err);
             return Ok(Action::requeue(Duration::from_secs(60)));
         },
         _ => {},
     }
     // Wrap the custom resource with Verus-friendly wrapper type (which has a ghost version, i.e., view)
     let cr = get_cr_resp.unwrap();
-    println!("Get cr {}", deps_hack::k8s_openapi::serde_json::to_string(&cr).unwrap());
+    println!("{} Get cr {}", log_prefix, deps_hack::k8s_openapi::serde_json::to_string(&cr).unwrap());
 
     let cr_wrapper = ResourceWrapperType::from_kube(cr);
     let mut state = reconciler.reconcile_init_state();
@@ -133,11 +137,11 @@ where
         check_fault_timing = false;
         // If reconcile core is done, then breaks the loop
         if reconciler.reconcile_done(&state) {
-            println!("reconcile done");
+            println!("{} done", log_prefix);
             break;
         }
         if reconciler.reconcile_error(&state) {
-            println!("reconcile error");
+            println!("{} error", log_prefix);
             return Err(Error::ReconcileCoreError);
         }
         // Feed the current reconcile state and get the new state and the pending request
@@ -158,13 +162,13 @@ where
                                     kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse{
                                         res: std::result::Result::Err(kube_error_to_ghost(&err)),
                                     });
-                                    println!("Get {} failed with error: {}", key, err);
+                                    println!("{} Get {} failed with error: {}", log_prefix, key, err);
                                 },
                                 std::result::Result::Ok(obj) => {
                                     kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse{
                                         res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
                                     });
-                                    println!("Get {} done", key);
+                                    println!("{} Get {} done", log_prefix, key);
                                 },
                             }
                         },
@@ -181,13 +185,13 @@ where
                                     kube_resp = KubeAPIResponse::CreateResponse(KubeCreateResponse{
                                         res: std::result::Result::Err(kube_error_to_ghost(&err)),
                                     });
-                                    println!("Create {} failed with error: {}", key, err);
+                                    println!("{} Create {} failed with error: {}", log_prefix, key, err);
                                 },
                                 std::result::Result::Ok(obj) => {
                                     kube_resp = KubeAPIResponse::CreateResponse(KubeCreateResponse{
                                         res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
                                     });
-                                    println!("Create {} done", key);
+                                    println!("{} Create {} done", log_prefix, key);
                                 },
                             }
                         },
@@ -204,13 +208,13 @@ where
                                     kube_resp = KubeAPIResponse::UpdateResponse(KubeUpdateResponse{
                                         res: std::result::Result::Err(kube_error_to_ghost(&err)),
                                     });
-                                    println!("Update {} failed with error: {}", key, err);
+                                    println!("{} Update {} failed with error: {}", log_prefix, key, err);
                                 },
                                 std::result::Result::Ok(obj) => {
                                     kube_resp = KubeAPIResponse::UpdateResponse(KubeUpdateResponse{
                                         res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
                                     });
-                                    println!("Update {} done", key);
+                                    println!("{} Update {} done", log_prefix, key);
                                 },
                             }
                         },
@@ -231,9 +235,9 @@ where
         if check_fault_timing && fault_injection {
             // If the controller just issues create, update, delete or external request,
             // and fault injection option is on, then check whether to crash at this point
-            let result = crash_or_continue(client).await;
+            let result = crash_or_continue(client, &cr_key, &log_prefix).await;
             if result.is_err() {
-                println!("crash_or_continue fails due to {}", result.unwrap_err());
+                println!("{} crash_or_continue fails due to {}", log_prefix, result.unwrap_err());
             }
         }
         state = state_prime;
