@@ -309,7 +309,20 @@ pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> 
                     .unwrap()
                     == 3
                 {
-                    println!("Scale down is done with 3 pods ready.");
+                    if !persistent {
+                        println!("Scale down is done with 3 pods ready.");
+                        break;
+                    } else {
+                        let pvcs = pvc_api.list(&ListParams::default()).await;
+                        let pvc_num = pvcs.unwrap().items.len();
+                        if pvc_num == 3 {
+                            println!("Scale down is done with 3 pods ready and 3 pvcs.");
+                            break;
+                        } else {
+                            println!("Scale down is in progress. {} pvcs exist", pvc_num);
+                            continue;
+                        }
+                    }
                 } else {
                     println!(
                         "Scale down is in progress. {} pods are ready now.",
@@ -324,17 +337,6 @@ pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> 
                 }
             }
         };
-        if persistent {
-            let pvcs = pvc_api.list(&ListParams::default()).await;
-            let pvc_num = pvcs.unwrap().items.len();
-            if pvc_num == 3 {
-                println!("Scale down is done with 3 pods ready and 3 pvcs.");
-                break;
-            } else {
-                println!("Scale down is in progress. {} pvcs exist", pvc_num);
-                continue;
-            }
-        }
     }
 
     start = Instant::now();
