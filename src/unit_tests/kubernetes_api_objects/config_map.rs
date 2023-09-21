@@ -12,21 +12,17 @@ verus! {
 #[test]
 #[verifier(external)]
 pub fn test_set_metadata() {
-    println!("Testing set_metadata()...");
-    let object_meta_gen = || {
-        let mut object_meta = ObjectMeta::default();
-        object_meta.set_name(new_strlit("name").to_string());
-        object_meta
-    };
+    let mut object_meta = ObjectMeta::default();
+    object_meta.set_name(new_strlit("name").to_string());
+
     let mut config_map = ConfigMap::default();
-    config_map.set_metadata(object_meta_gen());
-    assert_eq!(object_meta_gen().into_kube(), config_map.into_kube().metadata);
+    config_map.set_metadata(object_meta.clone());
+    assert_eq!(object_meta.into_kube(), config_map.into_kube().metadata);
 }
 
 #[test]
 #[verifier(external)]
 pub fn test_set_data(){
-    println!("Testing set_data()...");
     let mut config_map = ConfigMap::default();
     let mut data = StringMap::new();
     data.insert(new_strlit("key").to_string(), new_strlit("value").to_string());

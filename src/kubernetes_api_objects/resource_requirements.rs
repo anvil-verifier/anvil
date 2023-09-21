@@ -60,6 +60,13 @@ impl ResourceRequirements {
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ResourceRequirements {
         self.inner
     }
+
+    #[verifier(external)]
+    pub fn clone(&self) -> ResourceRequirements {
+        ResourceRequirements {
+            inner: self.inner.clone(),
+        }
+    }
 }
 
 pub struct ResourceRequirementsView {

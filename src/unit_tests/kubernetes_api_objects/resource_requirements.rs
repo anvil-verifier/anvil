@@ -11,7 +11,6 @@ verus! {
 #[test]
 #[verifier(external)]
 pub fn test_set_reuests(){
-    println!("Testing set_requests()...");
     let mut resource_requirements = ResourceRequirements::default();
     let mut requests = StringMap::new();
     requests.insert(new_strlit("cpu").to_string(), new_strlit("100m").to_string());

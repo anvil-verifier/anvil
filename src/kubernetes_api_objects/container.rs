@@ -200,6 +200,12 @@ impl ContainerPort {
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ContainerPort {
         self.inner
     }
+
+    #[verifier(external)]
+    pub fn clone(&self) -> ContainerPort {
+        ContainerPort { inner: self.inner.clone() }
+    }
+
 }
 
 #[verifier(external_body)]
@@ -352,6 +358,11 @@ impl Probe {
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Probe {
         self.inner
     }
+
+    #[verifier(external)]
+    pub fn clone(&self) -> Probe {
+        Probe { inner: self.inner.clone() }
+    }
 }
 
 #[verifier(external_body)]
@@ -388,6 +399,11 @@ impl ExecAction {
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::ExecAction {
         self.inner
+    }
+
+    #[verifier(external)]
+    pub fn clone(&self) -> ExecAction {
+        ExecAction { inner: self.inner.clone() }
     }
 }
 
@@ -434,6 +450,12 @@ impl TCPSocketAction {
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::TCPSocketAction {
         self.inner
     }
+
+    #[verifier(external)]
+    pub fn clone(&self) -> TCPSocketAction {
+        TCPSocketAction { inner: self.inner.clone() }
+    }
+
 }
 
 #[verifier(external_body)]
@@ -465,6 +487,11 @@ impl Lifecycle {
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::Lifecycle {
         self.inner
+    }
+
+    #[verifier(external)]
+    pub fn clone(&self) -> Lifecycle {
+        Lifecycle { inner: self.inner.clone() }
     }
 }
 
@@ -498,6 +525,11 @@ impl LifecycleHandler {
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::LifecycleHandler {
         self.inner
     }
+
+    #[verifier(external)]
+    pub fn clone(&self) -> LifecycleHandler {
+        LifecycleHandler { inner: self.inner.clone() }
+    }
 }
 
 #[verifier(external_body)]
@@ -514,6 +546,11 @@ impl EnvVar {
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EnvVar {
         self.inner
+    }
+
+    #[verifier(external)]
+    pub fn clone(&self) -> EnvVar {
+        EnvVar { inner: self.inner.clone() }
     }
 }
 
