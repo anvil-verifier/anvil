@@ -4,10 +4,8 @@
 use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, container::*, label_selector::*, object_meta::*,
-    owner_reference::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
-    resource_requirements::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
-    stateful_set::*, volume::*,
+    container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
+    volume::*,
 };
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
@@ -163,7 +161,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterCreateHeadlessService => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok()
             && Service::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Service::api_resource(),
@@ -252,7 +250,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterCreateService => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok()
             && Service::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Secret::api_resource(),
@@ -341,7 +339,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterCreateErlangCookieSecret => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok()
             && Secret::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Secret::api_resource(),
@@ -364,7 +362,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterUpdateErlangCookieSecret => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok()
             && Secret::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Secret::api_resource(),
@@ -430,7 +428,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterCreateDefaultUserSecret => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok()
             && Secret::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: ConfigMap::api_resource(),
@@ -453,7 +451,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterUpdateDefaultUserSecret => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok()
             && Secret::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: ConfigMap::api_resource(),
@@ -519,7 +517,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterCreatePluginsConfigMap => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok()
             && ConfigMap::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: ConfigMap::api_resource(),
@@ -542,7 +540,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterUpdatePluginsConfigMap => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok()
             && ConfigMap::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: ConfigMap::api_resource(),
@@ -705,7 +703,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterCreateServiceAccount => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok()
             && ServiceAccount::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Role::api_resource(),
@@ -728,7 +726,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterUpdateServiceAccount => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok()
             && ServiceAccount::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: Role::api_resource(),
@@ -794,7 +792,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterCreateRole => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok()
             && Role::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: RoleBinding::api_resource(),
@@ -817,7 +815,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterUpdateRole => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok()
             && Role::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: RoleBinding::api_resource(),
@@ -883,7 +881,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterCreateRoleBinding => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok()
             && RoleBinding::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: StatefulSet::api_resource(),
@@ -906,7 +904,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterUpdateRoleBinding => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok()
             && RoleBinding::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                     api_resource: StatefulSet::api_resource(),
@@ -984,7 +982,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterCreateStatefulSet => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok()
             && StatefulSet::unmarshal(resp_o.unwrap().into_k_response().into_create_response().res.unwrap()).is_ok() {
                 let req_o = None;
                 let state_prime = RabbitmqReconcileState {
@@ -1004,7 +1002,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterUpdateStatefulSet => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() 
+            && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok()
             && StatefulSet::unmarshal(resp_o.unwrap().into_k_response().into_update_response().res.unwrap()).is_ok() {
                 let req_o = None;
                 let state_prime = RabbitmqReconcileState {
@@ -1043,6 +1041,24 @@ fn make_labels(rabbitmq: &RabbitmqCluster) -> (labels: StringMap)
     labels
 }
 
+fn make_owner_references(rabbitmq: &RabbitmqCluster) -> (owner_references: Vec<OwnerReference>)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        owner_references@.map_values(|or: OwnerReference| or@) ==  rabbitmq_spec::make_owner_references(rabbitmq@),
+{
+    let mut owner_references = Vec::new();
+    owner_references.push(rabbitmq.controller_owner_ref());
+    proof {
+        assert_seqs_equal!(
+            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+            rabbitmq_spec::make_owner_references(rabbitmq@)
+        );
+    }
+    owner_references
+}
+
 pub fn update_headless_service(rabbitmq: &RabbitmqCluster, found_headless_service: Service) -> (service: Service)
     requires
         rabbitmq@.metadata.name.is_Some(),
@@ -1056,15 +1072,7 @@ pub fn update_headless_service(rabbitmq: &RabbitmqCluster, found_headless_servic
     headless_service.set_spec(made_service.spec().unwrap());
     headless_service.set_metadata({
         let mut metadata = found_headless_service.metadata();
-        let mut owner_references = Vec::new();
-        owner_references.push(rabbitmq.controller_owner_ref());
-        proof {
-            assert_seqs_equal!(
-                owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                rabbitmq_spec::update_headless_service(rabbitmq@, found_headless_service@).metadata.owner_references.get_Some_0()
-            );
-        }
-        metadata.set_owner_references(owner_references);
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
         metadata.set_labels(made_service.metadata().labels().unwrap());
         metadata.set_annotations(made_service.metadata().annotations().unwrap());
@@ -1107,15 +1115,7 @@ ensures
         // The reason why we add these two operations is that it makes the proof easier.
         // In this way, we can easily show that what the owner references and finalizers of the object in every update request
         // for stateful set are.
-        let mut owner_references = Vec::new();
-        owner_references.push(rabbitmq.controller_owner_ref());
-        proof {
-            assert_seqs_equal!(
-                owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                rabbitmq_spec::update_main_service(rabbitmq@, found_main_service@).metadata.owner_references.get_Some_0()
-            );
-        }
-        metadata.set_owner_references(owner_references);
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
         metadata.set_labels(made_service.metadata().labels().unwrap());
         metadata.set_annotations(made_service.metadata().annotations().unwrap());
@@ -1170,17 +1170,7 @@ pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServiceP
         let mut metadata = ObjectMeta::default();
         metadata.set_name(name);
         metadata.set_namespace(rabbitmq.namespace().unwrap());
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(rabbitmq.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    rabbitmq_spec::make_service(rabbitmq@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
@@ -1221,7 +1211,7 @@ ensures
                 rabbitmq_spec::update_erlang_secret(rabbitmq@, found_erlang_secret@).metadata.owner_references.get_Some_0()
             );
         }
-        metadata.set_owner_references(owner_references);
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
         metadata.set_labels(made_secret.metadata().labels().unwrap());
         metadata.set_annotations(made_secret.metadata().annotations().unwrap());
@@ -1264,15 +1254,7 @@ ensures
     // TODO: whether to update ports
     user_secret.set_metadata({
         let mut metadata = found_secret.metadata();
-        let mut owner_references = Vec::new();
-        owner_references.push(rabbitmq.controller_owner_ref());
-        proof {
-            assert_seqs_equal!(
-                owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                rabbitmq_spec::update_default_user_secret(rabbitmq@, found_secret@).metadata.owner_references.get_Some_0()
-            );
-        }
-        metadata.set_owner_references(owner_references);
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
         metadata.set_labels(made_user_secret.metadata().labels().unwrap());
         metadata.set_annotations(made_user_secret.metadata().annotations().unwrap());
@@ -1314,17 +1296,7 @@ pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) ->
         let mut metadata = ObjectMeta::default();
         metadata.set_name(name);
         metadata.set_namespace(rabbitmq.namespace().unwrap());
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(rabbitmq.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
@@ -1350,15 +1322,7 @@ ensures
     });
     config_map.set_metadata({
         let mut metadata = found_config_map.metadata();
-        let mut owner_references = Vec::new();
-        owner_references.push(rabbitmq.controller_owner_ref());
-        proof {
-            assert_seqs_equal!(
-                owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                rabbitmq_spec::update_plugins_config_map(rabbitmq@, found_config_map@).metadata.owner_references.get_Some_0()
-            );
-        }
-        metadata.set_owner_references(owner_references);
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
         metadata.set_labels(made_config_map.metadata().labels().unwrap());
         metadata.set_annotations(made_config_map.metadata().annotations().unwrap());
@@ -1379,17 +1343,7 @@ fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-plugins-conf")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(rabbitmq.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
@@ -1422,15 +1376,7 @@ ensures
         // The reason why we add these two operations is that it makes the proof easier.
         // In this way, we can easily show that what the owner references and finalizers of the object in every update request
         // for stateful set are.
-        let mut owner_references = Vec::new();
-        owner_references.push(rabbitmq.controller_owner_ref());
-        proof {
-            assert_seqs_equal!(
-                owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                rabbitmq_spec::update_server_config_map(rabbitmq@, found_config_map@).metadata.owner_references.get_Some_0()
-            );
-        }
-        metadata.set_owner_references(owner_references);
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
         metadata.set_labels(made_server_cm.metadata().labels().unwrap());
         metadata.set_annotations(made_server_cm.metadata().annotations().unwrap());
@@ -1451,17 +1397,7 @@ fn make_server_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server-conf")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(rabbitmq.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    rabbitmq_spec::make_server_config_map(rabbitmq@).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
@@ -1526,15 +1462,7 @@ ensures
     let made_service_account = make_service_account(rabbitmq);
     service_account.set_metadata({
         let mut metadata = found_service_account.metadata();
-        let mut owner_references = Vec::new();
-        owner_references.push(rabbitmq.controller_owner_ref());
-        proof {
-            assert_seqs_equal!(
-                owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                rabbitmq_spec::update_service_account(rabbitmq@, found_service_account@).metadata.owner_references.get_Some_0()
-            );
-        }
-        metadata.set_owner_references(owner_references);
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
         metadata.set_labels(made_service_account.metadata().labels().unwrap());
         metadata.set_annotations(made_service_account.metadata().annotations().unwrap());
@@ -1555,18 +1483,7 @@ fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: Service
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(rabbitmq.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    // TODO: change make_role
-                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
@@ -1586,15 +1503,7 @@ ensures
     role.set_policy_rules(make_policy_rules(rabbitmq));
     role.set_metadata({
         let mut metadata = found_role.metadata();
-        let mut owner_references = Vec::new();
-        owner_references.push(rabbitmq.controller_owner_ref());
-        proof {
-            assert_seqs_equal!(
-                owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                rabbitmq_spec::update_role(rabbitmq@, found_role@).metadata.owner_references.get_Some_0()
-            );
-        }
-        metadata.set_owner_references(owner_references);
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
         metadata.set_labels(made_role.metadata().labels().unwrap());
         metadata.set_annotations(made_role.metadata().annotations().unwrap());
@@ -1706,17 +1615,7 @@ fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-peer-discovery")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(rabbitmq.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
@@ -1738,15 +1637,7 @@ ensures
     role_binding.set_subjects(make_subjects(rabbitmq));
     role_binding.set_metadata({
         let mut metadata = found_role_binding.metadata();
-        let mut owner_references = Vec::new();
-        owner_references.push(rabbitmq.controller_owner_ref());
-        proof {
-            assert_seqs_equal!(
-                owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                rabbitmq_spec::update_role_binding(rabbitmq@, found_role_binding@).metadata.owner_references.get_Some_0()
-            );
-        }
-        metadata.set_owner_references(owner_references);
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
         metadata.set_labels(made_role_binding.metadata().labels().unwrap());
         metadata.set_annotations(made_role_binding.metadata().annotations().unwrap());
@@ -1804,17 +1695,7 @@ fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBinding)
         let mut metadata = ObjectMeta::default();
         metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(rabbitmq.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
@@ -1850,15 +1731,7 @@ fn update_stateful_set(rabbitmq: &RabbitmqCluster, found_stateful_set: StatefulS
         // The reason why we add these two operations is that it makes the proof easier.
         // In this way, we can easily show that what the owner references and finalizers of the object in every update request
         // for stateful set are.
-        let mut owner_references = Vec::new();
-        owner_references.push(rabbitmq.controller_owner_ref());
-        proof {
-            assert_seqs_equal!(
-                owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
-            );
-        }
-        metadata.set_owner_references(owner_references);
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.unset_finalizers();
         metadata.set_labels(made_sts.metadata().labels().unwrap());
         metadata.set_annotations(made_sts.metadata().annotations().unwrap());
@@ -1896,17 +1769,7 @@ fn make_stateful_set(rabbitmq: &RabbitmqCluster, config_map_rv: &String) -> (sta
         let mut metadata = ObjectMeta::default();
         metadata.set_name(make_stateful_set_name(rabbitmq));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(rabbitmq.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    rabbitmq_spec::make_role(rabbitmq@).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
+        metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
         metadata.set_annotations(rabbitmq.spec().annotations());
         metadata
