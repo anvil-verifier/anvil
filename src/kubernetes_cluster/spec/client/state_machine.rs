@@ -70,7 +70,7 @@ pub open spec fn update_custom_resource() -> ClientAction<E::Input, E::Output> {
         },
         transition: |input: ClientActionInput, s: ClientState| {
             let update_req_msg = Message::client_req_msg(Message::update_req_msg_content(
-                input.obj.object_ref(), input.obj, input.rest_id_allocator.allocate().1
+                input.obj.metadata.namespace.get_Some_0(), input.obj.metadata.name.get_Some_0(), input.obj, input.rest_id_allocator.allocate().1
             ));
 
             let s_prime = s;

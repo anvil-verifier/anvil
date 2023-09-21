@@ -59,8 +59,19 @@ pub struct DeleteRequest {
 /// UpdateRequest replaces the existing obj with a new one.
 
 pub struct UpdateRequest {
-    pub key: ObjectRef,
+    pub namespace: StringView,
+    pub name: StringView,
     pub obj: DynamicObjectView,
+}
+
+impl UpdateRequest {
+    pub open spec fn key(self) -> ObjectRef {
+        ObjectRef {
+            kind: self.obj.kind,
+            namespace: self.namespace,
+            name: self.name,
+        }
+    }
 }
 
 /// KubeAPIRequest represents API requests used in executable.
@@ -178,11 +189,8 @@ impl KubeAPIRequest {
                 }
             }),
             KubeAPIRequest::UpdateRequest(update_req) => APIRequest::UpdateRequest(UpdateRequest {
-                key: ObjectRef {
-                    kind: update_req.api_resource@.kind,
-                    name: update_req.name@,
-                    namespace: update_req.namespace@,
-                },
+                name: update_req.name@,
+                namespace: update_req.namespace@,
                 obj: update_req.obj@,
             }),
         }

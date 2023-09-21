@@ -109,7 +109,8 @@ pub open spec fn reconcile_core(
                         // update
                         let found_headless_service = unmarshal_headless_service_result.get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                            key: make_headless_service_key(zk.object_ref()),
+                            namespace: zk_namespace,
+                            name: make_headless_service_name(zk_name),
                             obj: update_headless_service(zk, found_headless_service).marshal(),
                         });
                         let state_prime = ZookeeperReconcileState {
@@ -209,7 +210,8 @@ pub open spec fn reconcile_core(
                         // update
                         let found_client_service = unmarshal_client_service_result.get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                            key: make_client_service_key(zk.object_ref()),
+                            namespace: zk_namespace,
+                            name: make_client_service_name(zk_name),
                             obj: update_client_service(zk, found_client_service).marshal(),
                         });
                         let state_prime = ZookeeperReconcileState {
@@ -309,7 +311,8 @@ pub open spec fn reconcile_core(
                         // update
                         let found_admin_server_service = unmarshal_admin_server_service_result.get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                            key: make_admin_server_service_key(zk.object_ref()),
+                            namespace: zk_namespace,
+                            name: make_admin_server_service_name(zk_name),
                             obj: update_admin_server_service(zk, found_admin_server_service).marshal(),
                         });
                         let state_prime = ZookeeperReconcileState {
@@ -409,7 +412,8 @@ pub open spec fn reconcile_core(
                         // update
                         let found_config_map = unmarshal_config_map_result.get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                            key: make_config_map_key(zk.object_ref()),
+                            namespace: zk_namespace,
+                            name: make_config_map_name(zk_name),
                             obj: update_config_map(zk, found_config_map).marshal(),
                         });
                         let state_prime = ZookeeperReconcileState {
@@ -634,7 +638,8 @@ pub open spec fn reconcile_core(
                 // otherwise it might cause unsafe downscale.
                 let latest_config_map_rv = state.latest_config_map_rv_opt.get_Some_0();
                 let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                    key: make_stateful_set_key(zk.object_ref()),
+                    namespace: zk_namespace,
+                    name: make_stateful_set_name(zk_name),
                     obj: update_stateful_set(zk, found_stateful_set, latest_config_map_rv).marshal(),
                 });
                 let state_prime = ZookeeperReconcileState {
@@ -661,7 +666,8 @@ pub open spec fn reconcile_core(
                 // otherwise it might cause unsafe downscale.
                 let latest_config_map_rv = state.latest_config_map_rv_opt.get_Some_0();
                 let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                    key: make_stateful_set_key(zk.object_ref()),
+                    namespace: zk_namespace,
+                    name: make_stateful_set_name(zk_name),
                     obj: update_stateful_set(zk, found_stateful_set, latest_config_map_rv).marshal(),
                 });
                 let state_prime = ZookeeperReconcileState {

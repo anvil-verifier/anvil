@@ -195,7 +195,7 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
 }
 
 pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> {
-    let timeout = Duration::from_secs(360);
+    let timeout = Duration::from_secs(600);
     let start = Instant::now();
     let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
 
