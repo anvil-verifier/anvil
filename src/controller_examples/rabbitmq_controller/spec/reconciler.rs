@@ -1069,7 +1069,7 @@ pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, S
     rabbitmq.spec.labels.insert(new_strlit("app")@, rabbitmq.metadata.name.get_Some_0())
 }
 
-pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> StringView 
+pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> StringView
     recommends
         rabbitmq.metadata.name.is_Some(),
 {
@@ -1085,6 +1085,25 @@ pub open spec fn make_headless_service_key(rabbitmq: RabbitmqClusterView) -> Obj
         kind: ServiceView::kind(),
         name: make_headless_service_name(rabbitmq),
         namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
+pub open spec fn update_headless_service(rabbitmq: RabbitmqClusterView, found_headless_service: ServiceView) -> ServiceView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_service = make_headless_service(rabbitmq);
+    ServiceView {
+        metadata: ObjectMetaView {
+            owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
+            finalizers: None,
+            labels: made_service.labels,
+            annotations: made_service.annotations,
+            ..found_headless_service.metadata
+        },
+        spec: made_service.spec,
+        ..found_headless_service
     }
 }
 
@@ -1116,6 +1135,24 @@ pub open spec fn make_main_service_key(rabbitmq: RabbitmqClusterView) -> ObjectR
         kind: ServiceView::kind(),
         name: make_main_service_name(rabbitmq),
         namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
+pub open spec fn update_main_service(rabbitmq: RabbitmqClusterView, found_main_service: ServiceView) -> ServiceView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_main_service = make_main_service(rabbitmq);
+    ServiceView {
+        metadata: ObjectMetaView {
+            owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
+            finalizers: None,
+            labels: made_main_service.metadata.labels,
+            annotations: made_main_service.metadata.labels,
+            ..found_main_service.metadata
+        }
+        ..found_main_service
     }
 }
 
@@ -1166,7 +1203,7 @@ pub open spec fn make_erlang_secret_name(rabbitmq: RabbitmqClusterView) -> Strin
     rabbitmq.metadata.name.get_Some_0() + new_strlit("-erlang-cookie")@
 }
 
-pub open spec fn make_erlang_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef 
+pub open spec fn make_erlang_secret_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
     recommends
         rabbitmq.metadata.name.is_Some(),
         rabbitmq.metadata.namespace.is_Some(),
@@ -1175,6 +1212,24 @@ pub open spec fn make_erlang_secret_key(rabbitmq: RabbitmqClusterView) -> Object
         kind: SecretView::kind(),
         name: make_erlang_secret_name(rabbitmq),
         namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
+pub open spec fn update_erlang_secret(rabbitmq: RabbitmqClusterView, found_erlang_secret: SecretView) -> SecretView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_erlang_secret = make_erlang_secret(rabbitmq);
+    SecretView {
+        metadata: ObjectMetaView {
+            owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
+            finalizers: None,
+            labels: made_erlang_secret.metadata.labels,
+            annotations: made_erlang_secret.metadata.labels,
+            ..found_erlang_secret.metadata
+        },
+        ..found_erlang_secret
     }
 }
 
@@ -1207,6 +1262,24 @@ pub open spec fn make_default_user_secret_key(rabbitmq: RabbitmqClusterView) -> 
         kind: SecretView::kind(),
         name: make_default_user_secret_name(rabbitmq),
         namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
+pub open spec fn update_default_user_secret(rabbitmq: RabbitmqClusterView, found_secret: SecretView) -> SecretView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_secret = make_default_user_secret(rabbitmq);
+    SecretView {
+        metadata: ObjectMetaView {
+            owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
+            finalizers: None,
+            labels: made_secret.metadata.labels,
+            annotations: made_secret.metadata.labels,
+            ..found_secret.metadata
+        },
+        ..found_secret
     }
 }
 
@@ -1261,6 +1334,35 @@ pub open spec fn make_plugins_config_map_key(rabbitmq: RabbitmqClusterView) -> O
         kind: ConfigMapView::kind(),
         name: make_plugins_config_map_name(rabbitmq),
         namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
+pub open spec fn update_plugins_config_map(rabbitmq: RabbitmqClusterView, found_config_map: ConfigMapView) -> ConfigMapView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_config_map = make_plugins_config_map(rabbitmq);
+    ConfigMapView {
+        data: Some({
+            if found_config_map.data.is_Some() {
+                found_config_map.data.get_Some_0()
+                    .insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].")@)
+            } else {
+                Map::empty().insert(
+                    new_strlit("enabled_plugins")@,
+                    new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].")@
+                )
+            }
+        }),
+        metadata: ObjectMetaView {
+            owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
+            finalizers: None,
+            labels: made_config_map.metadata.labels,
+            annotations: made_config_map.metadata.labels,
+            ..found_config_map.metadata
+        },
+        ..found_config_map
     }
 }
 
@@ -1398,6 +1500,24 @@ pub open spec fn make_service_account_key(rabbitmq: RabbitmqClusterView) -> Obje
     }
 }
 
+pub open spec fn update_service_account(rabbitmq: RabbitmqClusterView, found_service_account: ServiceAccountView) -> ServiceAccountView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_service_account = make_service_account(rabbitmq);
+    ServiceAccountView {
+        metadata: ObjectMetaView {
+            owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
+            finalizers: None,
+            labels: made_service_account.metadata.labels,
+            annotations: made_service_account.metadata.annotations,
+            ..found_service_account.metadata
+        },
+        ..found_service_account
+    }
+}
+
 pub open spec fn make_service_account(rabbitmq: RabbitmqClusterView) -> ServiceAccountView
     recommends
         rabbitmq.metadata.name.is_Some(),
@@ -1429,6 +1549,25 @@ pub open spec fn make_role_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
         kind: RoleView::kind(),
         name: make_role_name(rabbitmq),
         namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
+pub open spec fn update_role(rabbitmq: RabbitmqClusterView, found_role: RoleView) -> RoleView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_role = made_role(rabbitmq);
+    RoleView {
+        rules: made_role.rules,
+        metadata: ObjectMetaView {
+            owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
+            finalizers: None,
+            labels: made_role.metadata.labels,
+            annotations: made_role.metadata.annotations,
+            ..found_role.metadata
+        },
+        ..found_role
     }
 }
 
@@ -1468,6 +1607,26 @@ pub open spec fn make_role_binding_key(rabbitmq: RabbitmqClusterView) -> ObjectR
         kind: RoleView::kind(),
         name: make_role_binding_name(rabbitmq),
         namespace: rabbitmq.metadata.namespace.get_Some_0(),
+    }
+}
+
+pub open spec fn update_role_binding(rabbitmq: RabbitmqClusterView, found_role_binding: RoleBindingView) -> RoleBindingView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    let made_role_binding = make_role_binding(rabbitmq);
+    RoleBindingView {
+        metadata: ObjectMetaView {
+            owner_references: Some(seq![rabbitmq.controller_owner_ref()]),
+            finalizers: None,
+            labels: made_role_binding.metadata.labels,
+            annotations: made_role_binding.metadata.annotations,
+            ..found_role_binding.metadata
+        },
+        role_ref: made_role_binding.role_ref,
+        subjects: made_role_binding.subjects,
+        ..found_role_binding
     }
 }
 
