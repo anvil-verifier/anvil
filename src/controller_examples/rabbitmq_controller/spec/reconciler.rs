@@ -104,7 +104,8 @@ pub open spec fn reconcile_core(
                     {
                         let found_obj = ServiceView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                            key: make_headless_service_key(rabbitmq),
+                            name: make_headless_service_name(rabbitmq),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
                             obj: update_headless_service(rabbitmq, found_obj).marshal(),
                         });
                         let state_prime = RabbitmqReconcileState {
@@ -198,7 +199,8 @@ pub open spec fn reconcile_core(
                     {
                         let found_obj = ServiceView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                            key: make_main_service_key(rabbitmq),
+                            name: make_main_service_name(rabbitmq),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
                             obj: update_main_service(rabbitmq, found_obj).marshal(),
                         });
                         let state_prime = RabbitmqReconcileState {
@@ -292,7 +294,8 @@ pub open spec fn reconcile_core(
                     {
                         let found_obj = SecretView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                            key: make_erlang_secret_key(rabbitmq),
+                            name: make_erlang_secret_name(rabbitmq),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
                             obj: update_erlang_secret(rabbitmq, found_obj).marshal(),
                         });
                         let state_prime = RabbitmqReconcileState {
@@ -386,7 +389,8 @@ pub open spec fn reconcile_core(
                     {
                         let found_obj = SecretView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                            key: make_default_user_secret_key(rabbitmq),
+                            name: make_default_user_secret_name(rabbitmq),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
                             obj: update_default_user_secret(rabbitmq, found_obj).marshal(),
                         });
                         let state_prime = RabbitmqReconcileState {
@@ -480,7 +484,8 @@ pub open spec fn reconcile_core(
                     {
                         let found_obj = ConfigMapView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                            key: make_plugins_config_map_key(rabbitmq),
+                            name: make_plugins_config_map_name(rabbitmq),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
                             obj: update_plugins_config_map(rabbitmq, found_obj).marshal(),
                         });
                         let state_prime = RabbitmqReconcileState {
@@ -574,7 +579,8 @@ pub open spec fn reconcile_core(
                     {
                         let found_config_map = ConfigMapView::unmarshal(get_config_resp.get_Ok_0()).get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                            key: make_server_config_map_key(rabbitmq.object_ref()),
+                            name: make_server_config_map_name(rabbitmq.metadata.name.get_Some_0()),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
                             obj: update_server_config_map(rabbitmq, found_config_map).marshal(),
                         });
                         let state_prime = RabbitmqReconcileState {
@@ -671,8 +677,8 @@ pub open spec fn reconcile_core(
                         let found_obj = ServiceAccountView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
                             namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                            name: make_server_config_map_name(rabbitmq.metadata.name.get_Some_0()),
-                            obj: update_server_config_map(rabbitmq, found_config_map).marshal(),
+                            name: make_service_account_name(rabbitmq),
+                            obj: update_service_account(rabbitmq, found_obj).marshal(),
                         });
                         let state_prime = RabbitmqReconcileState {
                             reconcile_step: RabbitmqReconcileStep::AfterUpdateServiceAccount,
@@ -765,7 +771,8 @@ pub open spec fn reconcile_core(
                     {
                         let found_obj = RoleView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                            key: make_role_key(rabbitmq),
+                            name: make_role_name(rabbitmq),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
                             obj: update_role(rabbitmq, found_obj).marshal(),
                         });
                         let state_prime = RabbitmqReconcileState {
@@ -859,7 +866,8 @@ pub open spec fn reconcile_core(
                     {
                         let found_obj = RoleBindingView::unmarshal(get_resp.get_Ok_0()).get_Ok_0();
                         let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                            key: make_role_binding_key(rabbitmq),
+                            name: make_role_binding_name(rabbitmq),
+                            namespace: rabbitmq.metadata.namespace.get_Some_0(),
                             obj: update_role_binding(rabbitmq, found_obj).marshal(),
                         });
                         let state_prime = RabbitmqReconcileState {
