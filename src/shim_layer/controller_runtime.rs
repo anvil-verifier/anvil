@@ -5,6 +5,7 @@ use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
 use crate::pervasive_ext::to_view::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
+use crate::shim_layer::fault_injection::*;
 use builtin::*;
 use builtin_macros::*;
 use core::fmt::Debug;
@@ -39,7 +40,7 @@ verus! {
 // ReconcilerType: the reconciler type
 // ReconcileStateType: the local state of the reconciler
 #[verifier(external)]
-pub async fn run_controller<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ExternalAPIInputType, ExternalAPIOutputType, ExternalAPIShimLayerType>() -> Result<()>
+pub async fn run_controller<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ExternalAPIInputType, ExternalAPIOutputType, ExternalAPIShimLayerType>(fault_injection: bool) -> Result<()>
 where
     K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Send + Serialize + Sync + 'static,
     K::DynamicType: Default + Eq + Hash + Clone + Debug + Unpin,
@@ -56,7 +57,7 @@ where
     // Build the async closure on top of reconcile_with
     let reconcile = |cr: Arc<K>, ctx: Arc<Data>| async move {
         return reconcile_with::<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ExternalAPIInputType, ExternalAPIOutputType, ExternalAPIShimLayerType>(
-            &ReconcilerType::default(), cr, ctx
+            &ReconcilerType::default(), cr, ctx, fault_injection
         ).await;
     };
 
@@ -86,7 +87,7 @@ where
 // or encounters error (reconciler.reconcile_error).
 #[verifier(external)]
 pub async fn reconcile_with<K, ResourceWrapperType, ReconcilerType, ReconcileStateType, ExternalAPIInputType, ExternalAPIOutputType, ExternalAPIShimLayerType>(
-    reconciler: &ReconcilerType, cr: Arc<K>, ctx: Arc<Data>
+    reconciler: &ReconcilerType, cr: Arc<K>, ctx: Arc<Data>, fault_injection: bool
 ) -> Result<Action, Error>
 where
     K: Clone + Resource<Scope = NamespaceResourceScope> + CustomResourceExt + DeserializeOwned + Debug + Serialize,
@@ -99,32 +100,37 @@ where
 {
     let client = &ctx.client;
 
-    let cr_name = cr.meta().name.as_ref().ok_or_else(|| Error::MissingObjectKey(".metadata.name"))?;
-    let cr_ns = cr.meta().namespace.as_ref().ok_or_else(|| Error::MissingObjectKey(".metadata.namespace"))?;
+    let cr_name = cr.meta().name.as_ref().ok_or_else(|| Error::ShimLayerError("Custom resource misses \".metadata.name\"".to_string()))?;
+    let cr_namespace = cr.meta().namespace.as_ref().ok_or_else(|| Error::ShimLayerError("Custom resources misses \".metadata.namespace\"".to_string()))?;
 
-    // Prepare the input for calling reconcile_core
-    let cr_api = Api::<K>::namespaced(client.clone(), &cr_ns);
+    let cr_api = Api::<K>::namespaced(client.clone(), &cr_namespace);
+    // Get the custom resource by a quorum read to Kubernetes' storage (etcd) to get the most updated custom resource
     let get_cr_resp = cr_api.get(&cr_name).await;
     match get_cr_resp {
         Err(deps_hack::kube_client::error::Error::Api(ErrorResponse { reason, .. })) if &reason == "NotFound" => {
-            println!("{} not found, end reconcile", cr_name);
+            println!("Custom resource {} not found, end reconcile", cr_name);
             return Ok(Action::await_change());
         },
         Err(err) => {
-            println!("Get cr failed with error: {}, will retry reconcile", err);
+            println!("Get custom resource {} failed with error: {}, will retry reconcile", cr_name, err);
             return Ok(Action::requeue(Duration::from_secs(60)));
         },
         _ => {},
     }
+    // Wrap the custom resource with Verus-friendly wrapper type (which has a ghost version, i.e., view)
     let cr = get_cr_resp.unwrap();
     println!("Get cr {}", deps_hack::k8s_openapi::serde_json::to_string(&cr).unwrap());
 
     let cr_wrapper = ResourceWrapperType::from_kube(cr);
     let mut state = reconciler.reconcile_init_state();
     let mut resp_option: Option<Response<ExternalAPIOutputType>> = None;
+    // check_fault_timing is only set to true right after the controller issues any create, update or delete request,
+    // or external request
+    let mut check_fault_timing: bool;
 
     // Call reconcile_core in a loop
     loop {
+        check_fault_timing = false;
         // If reconcile core is done, then breaks the loop
         if reconciler.reconcile_done(&state) {
             println!("reconcile done");
@@ -132,7 +138,7 @@ where
         }
         if reconciler.reconcile_error(&state) {
             println!("reconcile error");
-            return Err(Error::APIError);
+            return Err(Error::ReconcileCoreError);
         }
         // Feed the current reconcile state and get the new state and the pending request
         let (state_prime, request_option) = reconciler.reconcile_core(&cr_wrapper, resp_option, state);
@@ -163,6 +169,7 @@ where
                             }
                         },
                         KubeAPIRequest::CreateRequest(create_req) => {
+                            check_fault_timing = true;
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
                                 client.clone(), create_req.namespace.as_rust_string_ref(), create_req.api_resource.as_kube_ref()
                             );
@@ -185,6 +192,7 @@ where
                             }
                         },
                         KubeAPIRequest::UpdateRequest(update_req) => {
+                            check_fault_timing = true;
                             let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
                                 client.clone(), update_req.namespace.as_rust_string_ref(), update_req.api_resource.as_kube_ref()
                             );
@@ -213,11 +221,20 @@ where
                     resp_option = Some(Response::KResponse(kube_resp));
                 },
                 Request::ExternalRequest(req) => {
+                    check_fault_timing = true;
                     let external_resp = ExternalAPIShimLayerType::call_external_api(req);
                     resp_option = Some(Response::ExternalResponse(external_resp));
                 },
             },
             _ => resp_option = None,
+        }
+        if check_fault_timing && fault_injection {
+            // If the controller just issues create, update, delete or external request,
+            // and fault injection option is on, then check whether to crash at this point
+            let result = crash_or_continue(client).await;
+            if result.is_err() {
+                println!("crash_or_continue fails due to {}", result.unwrap_err());
+            }
         }
         state = state_prime;
     }
@@ -226,7 +243,6 @@ where
 }
 
 // error_policy defines the controller's behavior when the reconcile ends with an error.
-
 #[verifier(external)]
 pub fn error_policy<K>(_object: Arc<K>, _error: &Error, _ctx: Arc<Data>) -> Action
 where

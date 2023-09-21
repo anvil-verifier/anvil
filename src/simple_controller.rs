@@ -39,10 +39,14 @@ async fn main() -> Result<()> {
         println!("{}", serde_yaml::to_string(&deps_hack::SimpleCR::crd())?);
     } else if cmd == String::from("run") {
         println!("running simple-controller");
-        run_controller::<deps_hack::SimpleCR, SimpleCR, SimpleReconciler, SimpleReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer>().await?;
+        run_controller::<deps_hack::SimpleCR, SimpleCR, SimpleReconciler, SimpleReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer>(false).await?;
+        println!("controller terminated");
+    } else if cmd == String::from("crash") {
+        println!("running simple-controller in crash-testing mode");
+        run_controller::<deps_hack::SimpleCR, SimpleCR, SimpleReconciler, SimpleReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer>(true).await?;
         println!("controller terminated");
     } else {
-        println!("wrong command; please use \"export\" or \"run\"");
+        println!("wrong command; please use \"export\", \"run\" or \"crash\"");
     }
     Ok(())
 }

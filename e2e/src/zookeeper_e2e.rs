@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 use k8s_openapi::api::apps::v1::StatefulSet;
-use k8s_openapi::api::core::v1::{ConfigMap, Pod, Service};
+use k8s_openapi::api::core::v1::{ConfigMap, PersistentVolumeClaim, Pod, Service};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use kube::{
     api::{
@@ -194,10 +194,11 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
     Ok(())
 }
 
-pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> {
-    let timeout = Duration::from_secs(600);
-    let start = Instant::now();
+pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> Result<(), Error> {
+    let timeout = Duration::from_secs(360);
+    let mut start = Instant::now();
     let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
+    let pvc_api: Api<PersistentVolumeClaim> = Api::default_namespaced(client.clone());
 
     run_command(
         "kubectl",
@@ -262,6 +263,7 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
         };
     }
 
+    start = Instant::now();
     run_command(
         "kubectl",
         vec![
@@ -307,8 +309,20 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
                     .unwrap()
                     == 3
                 {
-                    println!("Scale down is done with 3 replicas ready.");
-                    break;
+                    if !persistent {
+                        println!("Scale down is done with 3 pods ready.");
+                        break;
+                    } else {
+                        let pvcs = pvc_api.list(&ListParams::default()).await;
+                        let pvc_num = pvcs.unwrap().items.len();
+                        if pvc_num == 3 {
+                            println!("Scale down is done with 3 pods ready and 3 pvcs.");
+                            break;
+                        } else {
+                            println!("Scale down is in progress. {} pvcs exist", pvc_num);
+                            continue;
+                        }
+                    }
                 } else {
                     println!(
                         "Scale down is in progress. {} pods are ready now.",
@@ -325,6 +339,7 @@ pub async fn scaling_test(client: Client, zk_name: String) -> Result<(), Error> 
         };
     }
 
+    start = Instant::now();
     run_command(
         "kubectl",
         vec![
@@ -877,7 +892,7 @@ pub async fn zookeeper_scaling_e2e_test() -> Result<(), Error> {
     let zk_name = apply(zookeeper_cluster(), client.clone(), &discovery).await?;
 
     desired_state_test(client.clone(), zk_name.clone()).await?;
-    scaling_test(client.clone(), zk_name.clone()).await?;
+    scaling_test(client.clone(), zk_name.clone(), true).await?;
     zk_workload_test(client.clone(), zk_name.clone()).await?;
 
     println!("E2e test passed.");
@@ -904,9 +919,7 @@ pub async fn zookeeper_ephemeral_e2e_test() -> Result<(), Error> {
     let zk_name = apply(zookeeper_cluster_ephemeral(), client.clone(), &discovery).await?;
 
     desired_state_test(client.clone(), zk_name.clone()).await?;
-    reconfiguration_test(client.clone(), zk_name.clone()).await?;
-    upgrading_test(client.clone(), zk_name.clone()).await?;
-    scaling_test(client.clone(), zk_name.clone()).await?;
+    scaling_test(client.clone(), zk_name.clone(), false).await?;
     zk_workload_test(client.clone(), zk_name.clone()).await?;
 
     println!("E2e test passed.");

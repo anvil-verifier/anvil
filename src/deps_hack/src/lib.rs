@@ -18,10 +18,10 @@ pub use zookeeper;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("MissingObjectKey: {0}")]
-    MissingObjectKey(&'static str),
-    #[error("APIError")]
-    APIError,
+    #[error("ShimLayerError: {0}")]
+    ShimLayerError(String),
+    #[error("ReconcileCoreError")]
+    ReconcileCoreError,
 }
 
 #[derive(

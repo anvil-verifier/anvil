@@ -49,12 +49,18 @@ async fn main() -> Result<()> {
         println!("{}", serde_yaml::to_string(&deps_hack::FluentBitConfig::crd())?);
     } else if cmd == String::from("run") {
         println!("running fluent-controller");
-        let fluentbit_controller_fut = run_controller::<deps_hack::FluentBit, FluentBit, FluentBitReconciler, FluentBitReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer>();
-        let fluentbit_config_controller_fut = run_controller::<deps_hack::FluentBitConfig, FluentBitConfig, FluentBitConfigReconciler, FluentBitConfigReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer>();
+        let fluentbit_controller_fut = run_controller::<deps_hack::FluentBit, FluentBit, FluentBitReconciler, FluentBitReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer>(false);
+        let fluentbit_config_controller_fut = run_controller::<deps_hack::FluentBitConfig, FluentBitConfig, FluentBitConfigReconciler, FluentBitConfigReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer>(false);
+        futures::try_join!(fluentbit_controller_fut, fluentbit_config_controller_fut)?;
+        println!("controller terminated");
+    } else if cmd == String::from("crash") {
+        println!("running fluent-controller in crash-testing mode");
+        let fluentbit_controller_fut = run_controller::<deps_hack::FluentBit, FluentBit, FluentBitReconciler, FluentBitReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer>(true);
+        let fluentbit_config_controller_fut = run_controller::<deps_hack::FluentBitConfig, FluentBitConfig, FluentBitConfigReconciler, FluentBitConfigReconcileState, EmptyType, EmptyType, EmptyAPIShimLayer>(true);
         futures::try_join!(fluentbit_controller_fut, fluentbit_config_controller_fut)?;
         println!("controller terminated");
     } else {
-        println!("wrong command; please use \"export\" or \"run\"");
+        println!("wrong command; please use \"export\", \"run\" or \"crash\"");
     }
     Ok(())
 }
