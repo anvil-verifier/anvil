@@ -551,9 +551,49 @@ pub struct EnvVar {
 }
 
 impl EnvVar {
+    #[verifier(external_body)]
+    pub fn default() -> (envVar: EnvVar)
+        // ensures
+        //     container@ == ContainerView::default(),
+    {
+        EnvVar {
+            inner: deps_hack::k8s_openapi::api::core::v1::EnvVar::default(),
+        }
+    }
+
     #[verifier(external)]
     pub fn clone(&self) -> (s: Self) {
         EnvVar { inner: self.inner.clone() }
+    }
+
+    pub fn new_with(name: String, value: Option<String>, value_from: Option<ObjectFieldSelector>) -> (envVar: EnvVar)
+    {
+        let envVar = EnvVar::default();
+        envVar.set_name(name);
+        envVar.overwrite_value(value);
+        envVar.overwrite_value_from(value_from);
+    }
+
+    #[verifier(external_body)]
+    pub fn set_name(&mut self, name: String) {
+        self.inner.name = Some(value.into_rust_string());
+    }
+
+    #[verifier(external_body)]
+    pub fn overwrite_value(&mut self, value: Option<String>) {
+        match value {
+            Some(v) => self.inner.value = Some(v.into_rust_string()),
+            None => self.inner.value = None,
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn overwrite_value_from(&mut self, value_from: Option<EnvVarSource>) {
+        match value_from {
+            Some(v) => self.inner.value_from = Some(v.into_kube()),
+            None => None,
+        }
+        
     }
 
     #[verifier(external)]
@@ -563,6 +603,50 @@ impl EnvVar {
 
     #[verifier(external)]
     pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EnvVar {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct EnvVarSource {
+    inner: deps_hack::k8s_openapi::api::core::v1::EnvVarSource,
+}
+
+impl EnvVarSource {
+    #[verifier(external_body)]
+    pub fn default() -> (envVarSource: EnvVarSource)
+        // ensures
+        //     container@ == ContainerView::default(),
+    {
+        EnvVarSource {
+            inner: deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default(),
+        }
+    }
+
+    #[verifier(external)]
+    pub fn clone(&self) -> (s: Self) {
+        EnvVarSource { inner: self.inner.clone() }
+    }
+
+    pub fn new_with_field_ref(field_ref: ObjectFieldSelector) -> (envVarSource: EnvVarSource)
+    {
+        let source = EnvVarSource::default();
+        source.set_field_ref(field_ref);
+        source
+    }
+
+    #[verifier(external_body)]
+    pub fn set_field_ref(&mut self, field_ref: ObjectFieldSelector) {
+        self.inner.field_ref = Some(field_ref.into_kube());
+    }
+
+    #[verifier(external)]
+    pub fn from_kube(inner: deps_hack::k8s_openapi::api::core::v1::EnvVarSource) -> EnvVarSource {
+        EnvVarSource { inner: inner }
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
         self.inner
     }
 }
