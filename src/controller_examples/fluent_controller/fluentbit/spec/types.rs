@@ -107,6 +107,8 @@ pub struct FluentBitSpecView {
     pub fluentbit_config_name: StringView,
     pub resources: Option<ResourceRequirementsView>,
     pub tolerations: Option<Seq<TolerationView>>,
+    pub labels: Map<StringView, StringView>,
+    pub annotations: Map<StringView, StringView>,
 }
 
 impl FluentBitSpecView {}

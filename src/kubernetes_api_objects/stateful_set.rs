@@ -225,7 +225,6 @@ impl StatefulSetSpec {
                 self.inner.persistent_volume_claim_retention_policy = None;
             },
         }
-
     }
 
     #[verifier(external_body)]
@@ -256,7 +255,6 @@ impl StatefulSetSpec {
             None => None,
         }
     }
-
 }
 
 impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec> for StatefulSetSpec {

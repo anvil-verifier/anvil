@@ -12,7 +12,9 @@ pub enum FluentBitReconcileStep {
     AfterCreateRole,
     AfterCreateServiceAccount,
     AfterCreateRoleBinding,
+    AfterGetDaemonSet,
     AfterCreateDaemonSet,
+    AfterUpdateDaemonSet,
     Done,
     Error,
 }

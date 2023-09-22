@@ -33,9 +33,9 @@ impl Reconciler<FluentBitView, EmptyAPI> for FluentBitReconciler {
     }
 
     open spec fn reconcile_core(
-        fluentbit: FluentBitView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitReconcileState
+        fb: FluentBitView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitReconcileState
     ) -> (FluentBitReconcileState, Option<RequestView<EmptyTypeView>>) {
-        reconcile_core(fluentbit, resp_o, state)
+        reconcile_core(fb, resp_o, state)
     }
 
     open spec fn reconcile_done(state: FluentBitReconcileState) -> bool {
@@ -72,20 +72,22 @@ pub open spec fn reconcile_error(state: FluentBitReconcileState) -> bool {
 }
 
 pub open spec fn reconcile_core(
-    fluentbit: FluentBitView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitReconcileState
+    fb: FluentBitView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitReconcileState
 ) -> (FluentBitReconcileState, Option<RequestView<EmptyTypeView>>)
     recommends
-        fluentbit.metadata.name.is_Some(),
-        fluentbit.metadata.namespace.is_Some(),
+        fb.well_formed(),
 {
     let step = state.reconcile_step;
+    let resp = resp_o.get_Some_0();
+    let fb_name = fb.metadata.name.get_Some_0();
+    let fb_namespace = fb.metadata.namespace.get_Some_0();
     match step{
         FluentBitReconcileStep::Init => {
             let req_o = APIRequest::GetRequest(GetRequest{
                 key: ObjectRef {
                     kind: SecretView::kind(),
-                    name: fluentbit.spec.fluentbit_config_name,
-                    namespace: fluentbit.metadata.namespace.get_Some_0(),
+                    name: fb.spec.fluentbit_config_name,
+                    namespace: fb.metadata.namespace.get_Some_0(),
                 }
             });
             let state_prime = FluentBitReconcileState {
@@ -99,9 +101,9 @@ pub open spec fn reconcile_core(
             && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
                 let get_secret_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
                 if get_secret_resp.is_Ok() {
-                    let role = make_role(fluentbit);
+                    let role = make_role(fb);
                     let req_o = APIRequest::CreateRequest(CreateRequest{
-                        namespace: fluentbit.metadata.namespace.get_Some_0(),
+                        namespace: fb.metadata.namespace.get_Some_0(),
                         obj: role.marshal(),
                     });
                     let state_prime = FluentBitReconcileState {
@@ -125,9 +127,9 @@ pub open spec fn reconcile_core(
             }
         },
         FluentBitReconcileStep::AfterCreateRole => {
-            let service_account = make_service_account(fluentbit);
+            let service_account = make_service_account(fb);
             let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: fluentbit.metadata.namespace.get_Some_0(),
+                namespace: fb.metadata.namespace.get_Some_0(),
                 obj: service_account.marshal(),
             });
             let state_prime = FluentBitReconcileState {
@@ -137,9 +139,9 @@ pub open spec fn reconcile_core(
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
         FluentBitReconcileStep::AfterCreateServiceAccount => {
-            let role_binding = make_role_binding(fluentbit);
+            let role_binding = make_role_binding(fb);
             let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: fluentbit.metadata.namespace.get_Some_0(),
+                namespace: fb.metadata.namespace.get_Some_0(),
                 obj: role_binding.marshal(),
             });
             let state_prime = FluentBitReconcileState {
@@ -149,23 +151,100 @@ pub open spec fn reconcile_core(
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
         FluentBitReconcileStep::AfterCreateRoleBinding => {
-            let daemon_set = make_daemon_set(fluentbit);
-            let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: fluentbit.metadata.namespace.get_Some_0(),
-                obj: daemon_set.marshal(),
+            let daemon_set = make_daemon_set(fb);
+            let req_o = APIRequest::GetRequest(GetRequest{
+                key: make_daemon_set_key(fb.object_ref())
             });
             let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterCreateDaemonSet,
+                reconcile_step: FluentBitReconcileStep::AfterGetDaemonSet,
                 ..state
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
+        FluentBitReconcileStep::AfterGetDaemonSet => {
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
+                let get_daemon_set_resp = resp.get_KResponse_0().get_GetResponse_0().res;
+                let unmarshal_daemon_set_result = DaemonSetView::unmarshal(get_daemon_set_resp.get_Ok_0());
+                if get_daemon_set_resp.is_Ok() {
+                    if unmarshal_daemon_set_result.is_Ok() && unmarshal_daemon_set_result.get_Ok_0().spec.is_Some() {
+                        // update
+                        let found_daemon_set = unmarshal_daemon_set_result.get_Ok_0();
+                        let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                            namespace: fb_namespace,
+                            name: make_daemon_set_name(fb_name),
+                            obj: update_daemon_set(fb, found_daemon_set).marshal(),
+                        });
+                        let state_prime = FluentBitReconcileState {
+                            reconcile_step: FluentBitReconcileStep::AfterUpdateDaemonSet,
+                            ..state
+                        };
+                        (state_prime, Some(RequestView::KRequest(req_o)))
+                    } else {
+                        let state_prime = FluentBitReconcileState {
+                            reconcile_step: FluentBitReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                } else if get_daemon_set_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = APIRequest::CreateRequest(CreateRequest {
+                        namespace: fb_namespace,
+                        obj: make_daemon_set(fb).marshal(),
+                    });
+                    let state_prime = FluentBitReconcileState {
+                        reconcile_step: FluentBitReconcileStep::AfterCreateDaemonSet,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::KRequest(req_o)))
+                } else {
+                    let state_prime = FluentBitReconcileState {
+                        reconcile_step: FluentBitReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
         FluentBitReconcileStep::AfterCreateDaemonSet => {
-            let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::Done,
-                ..state
-            };
-            (state_prime, None)
+            let create_stateful_set_resp = resp.get_KResponse_0().get_CreateResponse_0().res;
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
+            && create_stateful_set_resp.is_Ok() {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::Done,
+                    ..state
+                };
+                (state_prime, None)
+            } else {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        FluentBitReconcileStep::AfterUpdateDaemonSet => {
+            let update_stateful_set_resp = resp.get_KResponse_0().get_UpdateResponse_0().res;
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
+            && update_stateful_set_resp.is_Ok() {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::Done,
+                    ..state
+                };
+                (state_prime, None)
+            } else {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         _ => {
             let state_prime = FluentBitReconcileState {
@@ -174,7 +253,6 @@ pub open spec fn reconcile_core(
             };
             (state_prime, None)
         }
-
     }
 }
 
@@ -187,19 +265,26 @@ pub open spec fn reconcile_error_result(state: FluentBitReconcileState) -> (Flue
     (state_prime, req_o)
 }
 
-pub open spec fn make_role_name(fluentbit_name: StringView) -> StringView {
-    fluentbit_name + new_strlit("-role")@
+pub open spec fn make_base_labels(fb: FluentBitView) -> Map<StringView, StringView> {
+    map![new_strlit("app")@ => fb.metadata.name.get_Some_0()]
 }
 
-pub open spec fn make_role(fluentbit: FluentBitView) -> RoleView
+pub open spec fn make_labels(fb: FluentBitView) -> Map<StringView, StringView> {
+    fb.spec.labels.union_prefer_right(make_base_labels(fb))
+}
+
+pub open spec fn make_role_name(fb_name: StringView) -> StringView {
+    fb_name + new_strlit("-role")@
+}
+
+pub open spec fn make_role(fb: FluentBitView) -> RoleView
     recommends
-        fluentbit.metadata.name.is_Some(),
-        fluentbit.metadata.namespace.is_Some(),
+        fb.well_formed(),
 {
     RoleView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(make_role_name(fluentbit.metadata.name.get_Some_0()))
-            .set_owner_references(seq![fluentbit.controller_owner_ref()])
+            .set_name(make_role_name(fb.metadata.name.get_Some_0()))
+            .set_owner_references(seq![fb.controller_owner_ref()])
         ).set_policy_rules(
             seq![
                 PolicyRuleView::default()
@@ -210,79 +295,106 @@ pub open spec fn make_role(fluentbit: FluentBitView) -> RoleView
         )
 }
 
-pub open spec fn make_service_account_name(fluentbit_name: StringView) -> StringView {
-    fluentbit_name
+pub open spec fn make_service_account_name(fb_name: StringView) -> StringView {
+    fb_name
 }
 
-pub open spec fn make_service_account(fluentbit: FluentBitView) -> ServiceAccountView
+pub open spec fn make_service_account(fb: FluentBitView) -> ServiceAccountView
     recommends
-        fluentbit.metadata.name.is_Some(),
-        fluentbit.metadata.namespace.is_Some(),
+        fb.well_formed(),
 {
     ServiceAccountView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(make_service_account_name(fluentbit.metadata.name.get_Some_0()))
-            .set_owner_references(seq![fluentbit.controller_owner_ref()])
+            .set_name(make_service_account_name(fb.metadata.name.get_Some_0()))
+            .set_owner_references(seq![fb.controller_owner_ref()])
         )
 }
 
-pub open spec fn make_role_binding_name(fluentbit_name: StringView) -> StringView {
-    fluentbit_name + new_strlit("-role-binding")@
+pub open spec fn make_role_binding_name(fb_name: StringView) -> StringView {
+    fb_name + new_strlit("-role-binding")@
 }
 
-pub open spec fn make_role_binding(fluentbit: FluentBitView) -> RoleBindingView
+pub open spec fn make_role_binding(fb: FluentBitView) -> RoleBindingView
     recommends
-        fluentbit.metadata.name.is_Some(),
-        fluentbit.metadata.namespace.is_Some(),
+        fb.well_formed(),
 {
     RoleBindingView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(make_role_binding_name(fluentbit.metadata.name.get_Some_0()))
-            .set_owner_references(seq![fluentbit.controller_owner_ref()])
+            .set_name(make_role_binding_name(fb.metadata.name.get_Some_0()))
+            .set_owner_references(seq![fb.controller_owner_ref()])
         ).set_role_ref(RoleRefView::default()
             .set_api_group(new_strlit("rbac.authorization.k8s.io")@)
             .set_kind(new_strlit("Role")@)
-            .set_name(make_role_name(fluentbit.metadata.name.get_Some_0()))
+            .set_name(make_role_name(fb.metadata.name.get_Some_0()))
         ).set_subjects(seq![SubjectView::default()
             .set_kind(new_strlit("ServiceAccount")@)
-            .set_name(make_service_account_name(fluentbit.metadata.name.get_Some_0()))
-            .set_namespace(fluentbit.metadata.namespace.get_Some_0())
+            .set_name(make_service_account_name(fb.metadata.name.get_Some_0()))
+            .set_namespace(fb.metadata.namespace.get_Some_0())
         ])
 }
 
-pub open spec fn make_daemon_set_name(fluentbit_name: StringView) -> StringView {
-    fluentbit_name
+pub open spec fn make_daemon_set_name(fb_name: StringView) -> StringView {
+    fb_name
 }
 
-pub open spec fn make_daemon_set(fluentbit: FluentBitView) -> DaemonSetView
+pub open spec fn make_daemon_set_key(key: ObjectRef) -> ObjectRef
     recommends
-        fluentbit.metadata.name.is_Some(),
-        fluentbit.metadata.namespace.is_Some(),
+        key.kind.is_CustomResourceKind(),
 {
-    let labels = Map::empty().insert(new_strlit("app")@, fluentbit.metadata.name.get_Some_0());
+    ObjectRef {
+        kind: DaemonSetView::kind(),
+        name: make_daemon_set_name(key.name),
+        namespace: key.namespace,
+    }
+}
+
+pub open spec fn update_daemon_set(fb: FluentBitView, found_daemon_set: DaemonSetView) -> DaemonSetView
+    recommends
+        fb.well_formed(),
+{
+    DaemonSetView {
+        metadata: ObjectMetaView {
+            labels: make_daemon_set(fb).metadata.labels,
+            annotations: make_daemon_set(fb).metadata.annotations,
+            ..found_daemon_set.metadata
+        },
+        spec: Some(DaemonSetSpecView {
+            selector: make_daemon_set(fb).spec.get_Some_0().selector,
+            template: make_daemon_set(fb).spec.get_Some_0().template,
+            ..found_daemon_set.spec.get_Some_0()
+        }),
+        ..found_daemon_set
+    }
+}
+
+pub open spec fn make_daemon_set(fb: FluentBitView) -> DaemonSetView
+    recommends
+        fb.well_formed(),
+{
     DaemonSetView::default()
         .set_metadata(ObjectMetaView::default()
-            .set_name(make_daemon_set_name(fluentbit.metadata.name.get_Some_0()))
-            .set_labels(labels)
-            .set_owner_references(seq![fluentbit.controller_owner_ref()])
+            .set_name(make_daemon_set_name(fb.metadata.name.get_Some_0()))
+            .set_labels(make_labels(fb))
+            .set_annotations(fb.spec.annotations)
+            .set_owner_references(seq![fb.controller_owner_ref()])
         ).set_spec(DaemonSetSpecView::default()
-            .set_selector(LabelSelectorView::default().set_match_labels(labels))
+            .set_selector(LabelSelectorView::default().set_match_labels(make_labels(fb)))
             .set_template(PodTemplateSpecView::default()
                 .set_metadata(ObjectMetaView::default()
-                    .set_labels(labels)
+                    .set_labels(make_labels(fb))
+                    .set_annotations(fb.spec.annotations)
                 )
-                .set_spec(make_fluentbit_pod_spec(fluentbit))
+                .set_spec(make_fluentbit_pod_spec(fb))
             )
         )
 }
 
-pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecView
+pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView
     recommends
-        fluentbit.metadata.name.is_Some(),
-        fluentbit.metadata.namespace.is_Some(),
+        fb.well_formed(),
 {
     PodSpecView {
-        service_account_name: Some(make_service_account_name(fluentbit.metadata.name.get_Some_0())),
+        service_account_name: Some(make_service_account_name(fb.metadata.name.get_Some_0())),
         volumes: Some(seq![
             VolumeView::default()
                 .set_name(new_strlit("varlibcontainers")@)
@@ -292,7 +404,7 @@ pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecVie
             VolumeView::default()
                 .set_name(new_strlit("config")@)
                 .set_secret(SecretVolumeSourceView::default()
-                    .set_secret_name(fluentbit.spec.fluentbit_config_name)
+                    .set_secret_name(fb.spec.fluentbit_config_name)
                 ),
             VolumeView::default()
                 .set_name(new_strlit("varlogs")@)
@@ -341,11 +453,11 @@ pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecVie
                         .set_name(new_strlit("metrics")@)
                         .set_container_port(2020),
                 ]),
-                resources: fluentbit.spec.resources,
+                resources: fb.spec.resources,
                 ..ContainerView::default()
             }
         ],
-        tolerations: fluentbit.spec.tolerations,
+        tolerations: fb.spec.tolerations,
         ..PodSpecView::default()
     }
 }

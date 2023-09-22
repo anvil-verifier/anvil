@@ -43,6 +43,14 @@ impl DaemonSet {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (s: Self)
+        ensures
+            s@ == self@,
+    {
+        DaemonSet { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures
             metadata@ == self@.metadata,
@@ -159,6 +167,22 @@ impl DaemonSetSpec {
             self@ == old(self)@.set_template(template@),
     {
         self.inner.template = template.into_kube()
+    }
+
+    #[verifier(external_body)]
+    pub fn selector(&self) -> (selector: LabelSelector)
+        ensures
+            selector@ == self@.selector,
+    {
+        LabelSelector::from_kube(self.inner.selector.clone())
+    }
+
+    #[verifier(external_body)]
+    pub fn template(&self) -> (template: PodTemplateSpec)
+        ensures
+            template@ == self@.template,
+    {
+        PodTemplateSpec::from_kube(self.inner.template.clone())
     }
 }
 
