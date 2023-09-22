@@ -667,7 +667,7 @@ fn make_fluentbit_pod_spec(fb: &FluentBit) -> (pod_spec: PodSpec)
 
 fn make_env(fb: &FluentBit) -> (env_vars: Vec<EnvVar>)
     ensures
-        env_vars@.map_values(|v: EnvVar| v@) == fluent_spec::make_env(fb@),
+        env_vars@.map_values(|v: EnvVar| v@) == fb_spec::make_env(fb@),
 {
     let mut env_vars = Vec::new();
     env_vars.push(EnvVar::new_with(
@@ -687,7 +687,7 @@ fn make_env(fb: &FluentBit) -> (env_vars: Vec<EnvVar>)
     proof {
         assert_seqs_equal!(
             env_vars@.map_values(|v: EnvVar| v@),
-            fluent_spec::make_env(fb@),
+            fb_spec::make_env(fb@),
         );
     }
     env_vars

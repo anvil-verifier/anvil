@@ -426,7 +426,7 @@ pub open spec fn make_fluentbit_pod_spec(fb: FluentBitView) -> PodSpecView
             ContainerView {
                 name: new_strlit("fluent-bit")@,
                 image: Some(new_strlit("kubesphere/fluent-bit:v2.1.7")@),
-                env: Some(make_env(fluentbit)),
+                env: Some(make_env(fb)),
                 volume_mounts: Some(seq![
                     VolumeMountView::default()
                         .set_name(new_strlit("varlibcontainers")@)
