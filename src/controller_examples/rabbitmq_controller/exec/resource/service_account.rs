@@ -30,6 +30,33 @@ impl ResourceBuilder<ServiceAccount, spec_resource::ServiceAccountBuilder> for S
     fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: ServiceAccount) -> Result<ServiceAccount, RabbitmqError> {
         Ok(update_service_account(rabbitmq, found_resource))
     }
+
+    fn get_result_check(obj: DynamicObject) -> Result<ServiceAccount, RabbitmqError> {
+        let sts = ServiceAccount::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.unwrap())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
+
+    fn create_result_check(obj: DynamicObject) -> Result<ServiceAccount, RabbitmqError> {
+        let sts = ServiceAccount::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.unwrap())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
+
+    fn update_result_check(obj: DynamicObject) -> Result<ServiceAccount, RabbitmqError> {
+        let sts = ServiceAccount::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.unwrap())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
 }
 
 pub fn update_service_account(rabbitmq: &RabbitmqCluster, found_service_account: ServiceAccount) -> (service_account: ServiceAccount)

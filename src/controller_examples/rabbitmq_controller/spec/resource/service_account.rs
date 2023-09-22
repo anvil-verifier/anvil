@@ -18,7 +18,7 @@ use vstd::prelude::*;
 use vstd::string::*;
 
 verus! {
-    
+
 pub struct ServiceAccountBuilder {}
 
 impl ResourceBuilder<ServiceAccountView> for ServiceAccountBuilder {
@@ -28,6 +28,33 @@ impl ResourceBuilder<ServiceAccountView> for ServiceAccountBuilder {
 
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: ServiceAccountView) -> Result<ServiceAccountView, RabbitmqError> {
         Ok(update_service_account(rabbitmq, found_resource))
+    }
+
+    open spec fn get_result_check(obj: DynamicObjectView) -> Result<ServiceAccountView, RabbitmqError> {
+        let sts = ServiceAccountView::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.get_Ok_0())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
+
+    open spec fn create_result_check(obj: DynamicObjectView) -> Result<ServiceAccountView, RabbitmqError> {
+        let sts = ServiceAccountView::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.get_Ok_0())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
+
+    open spec fn update_result_check(obj: DynamicObjectView) -> Result<ServiceAccountView, RabbitmqError> {
+        let sts = ServiceAccountView::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.get_Ok_0())
+        } else {
+            Err(RabbitmqError::Error)
+        }
     }
 }
 

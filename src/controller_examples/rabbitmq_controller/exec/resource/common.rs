@@ -33,6 +33,18 @@ pub trait ResourceBuilder<T: View, SpecBuilder: spec_resource::ResourceBuilder<T
             rabbitmq@.metadata.namespace.is_Some(),
         ensures
             resource_res_to_view(res) == SpecBuilder::update(rabbitmq@, state@, found_resource@);
+
+    fn get_result_check(obj: DynamicObject) -> (res: Result<T, RabbitmqError>)
+        ensures
+            resource_res_to_view(res) == SpecBuilder::get_result_check(obj@);
+    
+    fn create_result_check(obj: DynamicObject) -> (res: Result<T, RabbitmqError>)
+        ensures
+            resource_res_to_view(res) == SpecBuilder::create_result_check(obj@);
+    
+    fn update_result_check(obj: DynamicObject) -> (res: Result<T, RabbitmqError>)
+        ensures
+            resource_res_to_view(res) == SpecBuilder::update_result_check(obj@);
 }
 
 pub fn make_labels(rabbitmq: &RabbitmqCluster) -> (labels: StringMap)

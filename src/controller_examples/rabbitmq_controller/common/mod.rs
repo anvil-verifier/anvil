@@ -63,8 +63,7 @@ pub enum ActionKind {
 }
 
 pub enum RabbitmqError {
-    CreateError,
-    UpdateError,
+    Error
 }
 
 pub open spec fn resource_res_to_view<T: View>(res: Result<T, RabbitmqError>) -> Result<T::V, RabbitmqError> {

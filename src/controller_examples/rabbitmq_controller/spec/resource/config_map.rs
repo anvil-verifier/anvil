@@ -29,6 +29,33 @@ impl ResourceBuilder<ConfigMapView> for ServerConfigMapBuilder {
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: ConfigMapView) -> Result<ConfigMapView, RabbitmqError> {
         Ok(update_server_config_map(rabbitmq, found_resource))
     }
+
+    open spec fn get_result_check(obj: DynamicObjectView) -> Result<ConfigMapView, RabbitmqError> {
+        let sts = ConfigMapView::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.get_Ok_0())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
+
+    open spec fn create_result_check(obj: DynamicObjectView) -> Result<ConfigMapView, RabbitmqError> {
+        let sts = ConfigMapView::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.get_Ok_0())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
+
+    open spec fn update_result_check(obj: DynamicObjectView) -> Result<ConfigMapView, RabbitmqError> {
+        let sts = ConfigMapView::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.get_Ok_0())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
 }
 
 pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_config_map: ConfigMapView) -> ConfigMapView {

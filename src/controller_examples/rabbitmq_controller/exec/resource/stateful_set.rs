@@ -27,15 +27,43 @@ impl ResourceBuilder<StatefulSet, spec_resource::StatefulSetBuilder> for Statefu
         if state.latest_config_map_rv_opt.is_some() {
             Ok(make_stateful_set(rabbitmq, state.latest_config_map_rv_opt.as_ref().unwrap()))
         } else {
-            Err(RabbitmqError::CreateError)
+            Err(RabbitmqError::Error)
         }
     }
 
     fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: StatefulSet) -> Result<StatefulSet, RabbitmqError> {
-        if state.latest_config_map_rv_opt.is_some() && found_resource.spec().is_some() {
+        if found_resource.metadata().owner_references_only_contains(rabbitmq.controller_owner_ref())
+        && state.latest_config_map_rv_opt.is_some() && found_resource.spec().is_some() {
             Ok(update_stateful_set(rabbitmq, found_resource, state.latest_config_map_rv_opt.as_ref().unwrap()))
         } else {
-            Err(RabbitmqError::UpdateError)
+            Err(RabbitmqError::Error)
+        }
+    }
+
+    fn get_result_check(obj: DynamicObject) -> Result<StatefulSet, RabbitmqError> {
+        let sts = StatefulSet::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.unwrap())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
+
+    fn create_result_check(obj: DynamicObject) -> Result<StatefulSet, RabbitmqError> {
+        let sts = StatefulSet::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.unwrap())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
+
+    fn update_result_check(obj: DynamicObject) -> Result<StatefulSet, RabbitmqError> {
+        let sts = StatefulSet::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.unwrap())
+        } else {
+            Err(RabbitmqError::Error)
         }
     }
 }

@@ -30,6 +30,33 @@ impl ResourceBuilder<Service, spec_resource::HeadlessServiceBuilder> for Headles
     fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: Service) -> Result<Service, RabbitmqError> {
         Ok(update_headless_service(rabbitmq, found_resource))
     }
+
+    fn get_result_check(obj: DynamicObject) -> Result<Service, RabbitmqError> {
+        let sts = Service::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.unwrap())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
+
+    fn create_result_check(obj: DynamicObject) -> Result<Service, RabbitmqError> {
+        let sts = Service::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.unwrap())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
+
+    fn update_result_check(obj: DynamicObject) -> Result<Service, RabbitmqError> {
+        let sts = Service::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.unwrap())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
 }
 
 pub fn update_headless_service(rabbitmq: &RabbitmqCluster, found_headless_service: Service) -> (service: Service)

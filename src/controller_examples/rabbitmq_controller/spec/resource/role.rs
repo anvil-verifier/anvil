@@ -29,6 +29,33 @@ impl ResourceBuilder<RoleView> for RoleBuilder {
     open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: RoleView) -> Result<RoleView, RabbitmqError> {
         Ok(update_role(rabbitmq, found_resource))
     }
+
+    open spec fn get_result_check(obj: DynamicObjectView) -> Result<RoleView, RabbitmqError> {
+        let sts = RoleView::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.get_Ok_0())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
+
+    open spec fn create_result_check(obj: DynamicObjectView) -> Result<RoleView, RabbitmqError> {
+        let sts = RoleView::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.get_Ok_0())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
+
+    open spec fn update_result_check(obj: DynamicObjectView) -> Result<RoleView, RabbitmqError> {
+        let sts = RoleView::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(sts.get_Ok_0())
+        } else {
+            Err(RabbitmqError::Error)
+        }
+    }
 }
 
 pub open spec fn make_role_name(rabbitmq: RabbitmqClusterView) -> StringView
