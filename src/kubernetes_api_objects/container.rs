@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, marshal::*, resource::*, resource_requirements::*,
+    volume::ObjectFieldSelector,
 };
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -552,7 +553,7 @@ pub struct EnvVar {
 
 impl EnvVar {
     #[verifier(external_body)]
-    pub fn default() -> (envVar: EnvVar)
+    pub fn default() -> (env_var: EnvVar)
         // ensures
         //     container@ == ContainerView::default(),
     {
@@ -566,17 +567,18 @@ impl EnvVar {
         EnvVar { inner: self.inner.clone() }
     }
 
-    pub fn new_with(name: String, value: Option<String>, value_from: Option<ObjectFieldSelector>) -> (envVar: EnvVar)
+    pub fn new_with(name: String, value: Option<String>, value_from: Option<EnvVarSource>) -> (env_var: EnvVar)
     {
-        let envVar = EnvVar::default();
-        envVar.set_name(name);
-        envVar.overwrite_value(value);
-        envVar.overwrite_value_from(value_from);
+        let mut env_var = EnvVar::default();
+        env_var.set_name(name);
+        env_var.overwrite_value(value);
+        env_var.overwrite_value_from(value_from);
+        env_var
     }
 
     #[verifier(external_body)]
     pub fn set_name(&mut self, name: String) {
-        self.inner.name = Some(value.into_rust_string());
+        self.inner.name = name.into_rust_string();
     }
 
     #[verifier(external_body)]
@@ -591,9 +593,9 @@ impl EnvVar {
     pub fn overwrite_value_from(&mut self, value_from: Option<EnvVarSource>) {
         match value_from {
             Some(v) => self.inner.value_from = Some(v.into_kube()),
-            None => None,
+            None => self.inner.value_from = None,
         }
-        
+
     }
 
     #[verifier(external)]
@@ -614,7 +616,7 @@ pub struct EnvVarSource {
 
 impl EnvVarSource {
     #[verifier(external_body)]
-    pub fn default() -> (envVarSource: EnvVarSource)
+    pub fn default() -> (env_var_source: EnvVarSource)
         // ensures
         //     container@ == ContainerView::default(),
     {
@@ -628,9 +630,9 @@ impl EnvVarSource {
         EnvVarSource { inner: self.inner.clone() }
     }
 
-    pub fn new_with_field_ref(field_ref: ObjectFieldSelector) -> (envVarSource: EnvVarSource)
+    pub fn new_with_field_ref(field_ref: ObjectFieldSelector) -> (env_var_source: EnvVarSource)
     {
-        let source = EnvVarSource::default();
+        let mut source = EnvVarSource::default();
         source.set_field_ref(field_ref);
         source
     }

@@ -485,7 +485,7 @@ impl ObjectFieldSelector {
         ensures
             object_field_selector@ == ObjectFieldSelectorView::default().set_api_version(api_version@).set_field_path(field_path@),
     {
-        let selector = ObjectFieldSelector::default();
+        let mut selector = ObjectFieldSelector::default();
         selector.set_api_version(api_version);
         selector.set_field_path(field_path);
         selector
@@ -821,6 +821,7 @@ impl ObjectFieldSelectorView {
     pub open spec fn default() -> ObjectFieldSelectorView {
         ObjectFieldSelectorView {
             field_path: new_strlit("")@,
+            api_version: None,
         }
     }
 

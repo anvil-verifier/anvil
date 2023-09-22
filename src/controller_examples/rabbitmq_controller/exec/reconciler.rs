@@ -2249,7 +2249,10 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     pod_spec
 }
 
-fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> {
+fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> 
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+{
     let mut env_vars = Vec::new();
     env_vars.push(EnvVar::new_with(
         new_strlit("MY_POD_NAME").to_string(), None, Some(EnvVarSource::new_with_field_ref(
