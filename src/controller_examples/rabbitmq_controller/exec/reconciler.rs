@@ -2261,11 +2261,11 @@ fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar>
     ));
     env_vars.push(EnvVar::new_with(
         new_strlit("MY_POD_NAMESPACE").to_string(), None, Some(EnvVarSource::new_with_field_ref(
-            ObjectFieldSelector::new_with(new_strlit("v1").to_string(), new_strlit("metadata.name").to_string())
+            ObjectFieldSelector::new_with(new_strlit("v1").to_string(), new_strlit("metadata.namespace").to_string())
         ))
     ));
     env_vars.push(EnvVar::new_with(
-        new_strlit("MY_POD_NAMESPACE").to_string(), Some(rabbitmq.name().unwrap().concat(new_strlit("-nodes"))), None
+        new_strlit("K8S_SERVICE_NAME").to_string(), Some(rabbitmq.name().unwrap().concat(new_strlit("-nodes"))), None
     ));
     env_vars.push(EnvVar::new_with(
         new_strlit("RABBITMQ_ENABLED_PLUGINS_FILE").to_string(), Some(new_strlit("/operator/enabled_plugins").to_string()), None
