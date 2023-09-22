@@ -17,6 +17,6 @@ jobs:
       - name: Build Verus image
         run: |
           cd docker/verus
-          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/verus:latest .
+          docker build -t ghcr.io/${{ env.IMAGE_NAME }}/verus:latest --build-arg VERUS_VER=69243cb3b7990397c289d8a156576da3675a6b36 .
       - name: Push Verus image
         run: docker push ghcr.io/${{ env.IMAGE_NAME }}/verus:latest
