@@ -2249,9 +2249,11 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     pod_spec
 }
 
-fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> 
+fn make_env_vars(rabbitmq: &RabbitmqCluster) -> (env_vars: Vec<EnvVar>)
     requires
         rabbitmq@.metadata.name.is_Some(),
+    ensures
+        env_vars@.map_values(|v: EnvVar| v@) == rabbitmq_spec::make_env_vars(rabbitmq@)
 {
     let mut env_vars = Vec::new();
     env_vars.push(EnvVar::new_with(
@@ -2279,6 +2281,12 @@ fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar>
     env_vars.push(EnvVar::new_with(
         new_strlit("K8S_HOSTNAME_SUFFIX").to_string(), Some(new_strlit(".$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)").to_string()), None
     ));
+    proof {
+        assert_seqs_equal!(
+            env_vars@.map_values(|v: EnvVar| v@),
+            rabbitmq_spec::make_env_vars(rabbitmq@)
+        );
+    }
     env_vars
 }
 

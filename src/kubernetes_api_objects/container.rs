@@ -144,7 +144,7 @@ impl Container {
     #[verifier(external_body)]
     pub fn set_env(&mut self, env: Vec<EnvVar>)
         ensures
-            self@ == old(self)@,
+            self@ == old(self)@.set_env(env@.map_values(|v: EnvVar| v@)),
     {
         self.inner.env = Some(
             env.into_iter().map(|e: EnvVar| e.into_kube()).collect()
@@ -570,6 +570,12 @@ impl EnvVar {
     }
 
     pub fn new_with(name: String, value: Option<String>, value_from: Option<EnvVarSource>) -> (env_var: EnvVar)
+        ensures
+            env_var@ == EnvVarView::default().set_name(name@).overwrite_value({
+                if value.is_Some() { Some(value.get_Some_0()@) } else { None }
+            }).overwrite_value_from({
+                if value_from.is_Some() { Some(value_from.get_Some_0()@) } else { None }
+            }),
     {
         let mut env_var = EnvVar::default();
         env_var.set_name(name);
@@ -646,6 +652,8 @@ impl EnvVarSource {
     }
 
     pub fn new_with_field_ref(field_ref: ObjectFieldSelector) -> (env_var_source: EnvVarSource)
+        ensures
+            env_var_source@ == EnvVarSourceView::default().set_field_ref(field_ref@)
     {
         let mut source = EnvVarSource::default();
         source.set_field_ref(field_ref);
@@ -672,6 +680,7 @@ impl EnvVarSource {
 }
 
 pub struct ContainerView {
+    pub env: Option<Seq<EnvVarView>>,
     pub image: Option<StringView>,
     pub name: StringView,
     pub ports: Option<Seq<ContainerPortView>>,
@@ -685,6 +694,7 @@ pub struct ContainerView {
 impl ContainerView {
     pub open spec fn default() -> ContainerView {
         ContainerView {
+            env: None,
             image: None,
             name: new_strlit("")@,
             ports: None,
@@ -693,6 +703,13 @@ impl ContainerView {
             resources: None,
             readiness_probe: None,
             liveness_probe: None,
+        }
+    }
+
+    pub open spec fn set_env(self, env: Seq<EnvVarView>) -> ContainerView {
+        ContainerView {
+            env: Some(env),
+            ..self
         }
     }
 
