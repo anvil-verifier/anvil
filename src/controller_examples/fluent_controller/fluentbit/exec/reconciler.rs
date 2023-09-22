@@ -463,7 +463,6 @@ fn update_daemon_set(fb: &FluentBit, found_daemon_set: &DaemonSet) -> (daemon_se
     });
     daemon_set.set_spec({
         let mut spec = found_daemon_set.spec().unwrap();
-        spec.set_selector(made_daemon_set.spec().unwrap().selector());
         spec.set_template(made_daemon_set.spec().unwrap().template());
         spec
     });
@@ -500,7 +499,7 @@ fn make_daemon_set(fb: &FluentBit) -> (daemon_set: DaemonSet)
         // Set the selector used for querying pods of this daemon set
         daemon_set_spec.set_selector({
             let mut selector = LabelSelector::default();
-            selector.set_match_labels(make_labels(fb));
+            selector.set_match_labels(make_base_labels(fb));
             selector
         });
         // Set the template used for creating pods

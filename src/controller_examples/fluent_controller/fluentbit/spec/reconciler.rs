@@ -359,7 +359,6 @@ pub open spec fn update_daemon_set(fb: FluentBitView, found_daemon_set: DaemonSe
             ..found_daemon_set.metadata
         },
         spec: Some(DaemonSetSpecView {
-            selector: make_daemon_set(fb).spec.get_Some_0().selector,
             template: make_daemon_set(fb).spec.get_Some_0().template,
             ..found_daemon_set.spec.get_Some_0()
         }),
@@ -378,7 +377,7 @@ pub open spec fn make_daemon_set(fb: FluentBitView) -> DaemonSetView
             .set_annotations(fb.spec.annotations)
             .set_owner_references(seq![fb.controller_owner_ref()])
         ).set_spec(DaemonSetSpecView::default()
-            .set_selector(LabelSelectorView::default().set_match_labels(make_labels(fb)))
+            .set_selector(LabelSelectorView::default().set_match_labels(make_base_labels(fb)))
             .set_template(PodTemplateSpecView::default()
                 .set_metadata(ObjectMetaView::default()
                     .set_labels(make_labels(fb))
