@@ -40,18 +40,18 @@ impl ResourceBuilder<ConfigMapView> for ServerConfigMapBuilder {
     }
 
     open spec fn create_result_check(obj: DynamicObjectView) -> Result<ConfigMapView, RabbitmqError> {
-        let sts = ConfigMapView::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.get_Ok_0())
+        let cm = ConfigMapView::unmarshal(obj);
+        if cm.is_ok() && cm.get_Ok_0().metadata.resource_version.is_Some() {
+            Ok(cm.get_Ok_0())
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
     open spec fn update_result_check(obj: DynamicObjectView) -> Result<ConfigMapView, RabbitmqError> {
-        let sts = ConfigMapView::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.get_Ok_0())
+        let cm = ConfigMapView::unmarshal(obj);
+        if cm.is_ok() && cm.get_Ok_0().metadata.resource_version.is_Some() {
+            Ok(cm.get_Ok_0())
         } else {
             Err(RabbitmqError::Error)
         }

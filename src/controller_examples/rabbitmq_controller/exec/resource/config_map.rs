@@ -41,18 +41,18 @@ impl ResourceBuilder<ConfigMap, spec_resource::ServerConfigMapBuilder> for Serve
     }
 
     fn create_result_check(obj: DynamicObject) -> Result<ConfigMap, RabbitmqError> {
-        let sts = ConfigMap::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
+        let cm = ConfigMap::unmarshal(obj);
+        if cm.is_ok() && cm.as_ref().unwrap().metadata().resource_version().is_some() {
+            Ok(cm.unwrap())
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
     fn update_result_check(obj: DynamicObject) -> Result<ConfigMap, RabbitmqError> {
-        let sts = ConfigMap::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
+        let cm = ConfigMap::unmarshal(obj);
+        if cm.is_ok() && cm.as_ref().unwrap().metadata().resource_version().is_some() {
+            Ok(cm.unwrap())
         } else {
             Err(RabbitmqError::Error)
         }
