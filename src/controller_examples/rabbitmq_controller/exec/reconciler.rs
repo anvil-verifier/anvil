@@ -1137,8 +1137,7 @@ pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
         let mut port = ServicePort::new_with(new_strlit("amqp").to_string(), 5672);
         port.set_app_protocol(new_strlit("amqp").to_string());
         port
-    }
-    );
+    });
     ports.push({
         let mut port = ServicePort::new_with(new_strlit("management").to_string(), 15672);
         port.set_app_protocol(new_strlit("http").to_string());
@@ -2250,86 +2249,44 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     pod_spec
 }
 
-#[verifier(external_body)]
-fn make_env_vars(rabbitmq: &RabbitmqCluster) -> Vec<EnvVar> {
+fn make_env_vars(rabbitmq: &RabbitmqCluster) -> (env_vars: Vec<EnvVar>)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+    ensures
+        env_vars@.map_values(|v: EnvVar| v@) == rabbitmq_spec::make_env_vars(rabbitmq@)
+{
     let mut env_vars = Vec::new();
-    env_vars.push(
-        EnvVar::from_kube(
-            deps_hack::k8s_openapi::api::core::v1::EnvVar {
-            name: new_strlit("MY_POD_NAME").to_string().into_rust_string(),
-            value_from: Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
-                field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
-                    field_path: new_strlit("metadata.name").to_string().into_rust_string(),
-                    api_version: Some(new_strlit("v1").to_string().into_rust_string()),
-                    ..deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default()
-                }),
-                ..deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default()
-            }),
-            ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
-        }
-        )
-    );
-    env_vars.push(
-        EnvVar::from_kube(
-            deps_hack::k8s_openapi::api::core::v1::EnvVar {
-            name: new_strlit("MY_POD_NAMESPACE").to_string().into_rust_string(),
-            value_from: Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
-                field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
-                    field_path: new_strlit("metadata.namespace").to_string().into_rust_string(),
-                    api_version: Some( new_strlit("v1").to_string().into_rust_string()),
-                    ..deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default()
-                }),
-                ..deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default()
-            }),
-            ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
-            }
-        )
-    );
-    env_vars.push(
-        EnvVar::from_kube(
-            deps_hack::k8s_openapi::api::core::v1::EnvVar {
-            name: new_strlit("K8S_SERVICE_NAME").to_string().into_rust_string(),
-            value: Some(rabbitmq.name().unwrap().concat(new_strlit("-nodes")).into_rust_string() ),
-            ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
-            }
-        )
-    );
-    env_vars.push(
-        EnvVar::from_kube(
-            deps_hack::k8s_openapi::api::core::v1::EnvVar {
-                name: new_strlit("RABBITMQ_ENABLED_PLUGINS_FILE").to_string().into_rust_string(),
-                value: Some(new_strlit("/operator/enabled_plugins").to_string().into_rust_string()),
-                ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
-            },
-        )
-    );
-    env_vars.push(
-        EnvVar::from_kube(
-            deps_hack::k8s_openapi::api::core::v1::EnvVar {
-                name: new_strlit("RABBITMQ_USE_LONGNAME").to_string().into_rust_string(),
-                value: Some(new_strlit("true").to_string().into_rust_string()),
-                ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
-            },
-        )
-    );
-    env_vars.push(
-        EnvVar::from_kube(
-            deps_hack::k8s_openapi::api::core::v1::EnvVar {
-                name: new_strlit("RABBITMQ_NODENAME").to_string().into_rust_string(),
-                value: Some(new_strlit("rabbit@$(MY_POD_NAME).$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)").to_string().into_rust_string()),
-                ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
-            },
-        )
-    );
-    env_vars.push(
-        EnvVar::from_kube(
-            deps_hack::k8s_openapi::api::core::v1::EnvVar {
-                name: new_strlit("K8S_HOSTNAME_SUFFIX").to_string().into_rust_string(),
-                value: Some(new_strlit(".$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)").to_string().into_rust_string()),
-                ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
-            },
-        )
-    );
+    env_vars.push(EnvVar::new_with(
+        new_strlit("MY_POD_NAME").to_string(), None, Some(EnvVarSource::new_with_field_ref(
+            ObjectFieldSelector::new_with(new_strlit("v1").to_string(), new_strlit("metadata.name").to_string())
+        ))
+    ));
+    env_vars.push(EnvVar::new_with(
+        new_strlit("MY_POD_NAMESPACE").to_string(), None, Some(EnvVarSource::new_with_field_ref(
+            ObjectFieldSelector::new_with(new_strlit("v1").to_string(), new_strlit("metadata.namespace").to_string())
+        ))
+    ));
+    env_vars.push(EnvVar::new_with(
+        new_strlit("K8S_SERVICE_NAME").to_string(), Some(rabbitmq.name().unwrap().concat(new_strlit("-nodes"))), None
+    ));
+    env_vars.push(EnvVar::new_with(
+        new_strlit("RABBITMQ_ENABLED_PLUGINS_FILE").to_string(), Some(new_strlit("/operator/enabled_plugins").to_string()), None
+    ));
+    env_vars.push(EnvVar::new_with(
+        new_strlit("RABBITMQ_USE_LONGNAME").to_string(), Some(new_strlit("true").to_string()), None
+    ));
+    env_vars.push(EnvVar::new_with(
+        new_strlit("RABBITMQ_NODENAME").to_string(), Some(new_strlit("rabbit@$(MY_POD_NAME).$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)").to_string()), None
+    ));
+    env_vars.push(EnvVar::new_with(
+        new_strlit("K8S_HOSTNAME_SUFFIX").to_string(), Some(new_strlit(".$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)").to_string()), None
+    ));
+    proof {
+        assert_seqs_equal!(
+            env_vars@.map_values(|v: EnvVar| v@),
+            rabbitmq_spec::make_env_vars(rabbitmq@)
+        );
+    }
     env_vars
 }
 

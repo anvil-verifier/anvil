@@ -1887,6 +1887,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
             ContainerView {
                 name: new_strlit("rabbitmq")@,
                 image: Some(rabbitmq.spec.image),
+                env: Some(make_env_vars(rabbitmq)),
                 volume_mounts: Some(seq![
                     VolumeMountView::default()
                         .set_name(new_strlit("rabbitmq-erlang-cookie")@)
@@ -1942,6 +1943,60 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
         tolerations: rabbitmq.spec.tolerations,
         ..PodSpecView::default()
     }
+}
+
+pub open spec fn make_env_vars(rabbitmq: RabbitmqClusterView) -> Seq<EnvVarView> {
+    seq![
+        EnvVarView {
+            name: new_strlit("MY_POD_NAME")@,
+            value_from: Some(EnvVarSourceView {
+                field_ref: Some(ObjectFieldSelectorView{
+                    api_version: Some(new_strlit("v1")@),
+                    field_path: new_strlit("metadata.name")@,
+                    ..ObjectFieldSelectorView::default()
+                }),
+                ..EnvVarSourceView::default()
+            }),
+            ..EnvVarView::default()
+        },
+        EnvVarView {
+            name: new_strlit("MY_POD_NAMESPACE")@,
+            value_from: Some(EnvVarSourceView {
+                field_ref: Some(ObjectFieldSelectorView{
+                    api_version: Some(new_strlit("v1")@),
+                    field_path: new_strlit("metadata.namespace")@,
+                    ..ObjectFieldSelectorView::default()
+                }),
+                ..EnvVarSourceView::default()
+            }),
+            ..EnvVarView::default()
+        },
+        EnvVarView {
+            name: new_strlit("K8S_SERVICE_NAME")@,
+            value: Some(rabbitmq.metadata.name.get_Some_0() + new_strlit("-nodes")@),
+            ..EnvVarView::default()
+        },
+        EnvVarView {
+            name: new_strlit("RABBITMQ_ENABLED_PLUGINS_FILE")@,
+            value: Some(new_strlit("/operator/enabled_plugins")@),
+            ..EnvVarView::default()
+        },
+        EnvVarView {
+            name: new_strlit("RABBITMQ_USE_LONGNAME")@,
+            value: Some(new_strlit("true")@),
+            ..EnvVarView::default()
+        },
+        EnvVarView {
+            name: new_strlit("RABBITMQ_NODENAME")@,
+            value: Some(new_strlit("rabbit@$(MY_POD_NAME).$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)")@),
+            ..EnvVarView::default()
+        },
+        EnvVarView {
+            name: new_strlit("K8S_HOSTNAME_SUFFIX")@,
+            value: Some(new_strlit(".$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE)")@),
+            ..EnvVarView::default()
+        },
+    ]
 }
 
 }

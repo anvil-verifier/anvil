@@ -481,12 +481,30 @@ impl ObjectFieldSelector {
         }
     }
 
+    pub fn new_with(api_version: String, field_path: String) -> (object_field_selector: ObjectFieldSelector)
+        ensures
+            object_field_selector@ == ObjectFieldSelectorView::default().set_api_version(api_version@).set_field_path(field_path@),
+    {
+        let mut selector = ObjectFieldSelector::default();
+        selector.set_api_version(api_version);
+        selector.set_field_path(field_path);
+        selector
+    }
+
     #[verifier(external_body)]
     pub fn set_field_path(&mut self, field_path: String)
         ensures
             self@ == old(self)@.set_field_path(field_path@),
     {
         self.inner.field_path = field_path.into_rust_string();
+    }
+
+    #[verifier(external_body)]
+    pub fn set_api_version(&mut self, api_version: String)
+        ensures
+            self@ == old(self)@.set_api_version(api_version@),
+    {
+        self.inner.api_version = Some(api_version.into_rust_string());
     }
 
     #[verifier(external)]
@@ -796,18 +814,27 @@ impl DownwardAPIVolumeFileView {
 
 pub struct ObjectFieldSelectorView {
     pub field_path: StringView,
+    pub api_version: Option<StringView>,
 }
 
 impl ObjectFieldSelectorView {
     pub open spec fn default() -> ObjectFieldSelectorView {
         ObjectFieldSelectorView {
             field_path: new_strlit("")@,
+            api_version: None,
         }
     }
 
     pub open spec fn set_field_path(self, field_path: StringView) -> ObjectFieldSelectorView {
         ObjectFieldSelectorView {
-            field_path,
+            field_path: field_path,
+            ..self
+        }
+    }
+
+    pub open spec fn set_api_version(self, api_version: StringView) -> ObjectFieldSelectorView {
+        ObjectFieldSelectorView {
+            api_version: Some(api_version),
             ..self
         }
     }

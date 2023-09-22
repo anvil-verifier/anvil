@@ -314,6 +314,7 @@ pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecVie
             ContainerView {
                 name: new_strlit("fluent-bit")@,
                 image: Some(new_strlit("kubesphere/fluent-bit:v2.1.7")@),
+                env: Some(make_env(fluentbit)),
                 volume_mounts: Some(seq![
                     VolumeMountView::default()
                         .set_name(new_strlit("varlibcontainers")@)
@@ -347,6 +348,33 @@ pub open spec fn make_fluentbit_pod_spec(fluentbit: FluentBitView) -> PodSpecVie
         tolerations: fluentbit.spec.tolerations,
         ..PodSpecView::default()
     }
+}
+
+pub open spec fn make_env(fluentbit: FluentBitView) -> Seq<EnvVarView> {
+    seq![
+        EnvVarView {
+            name: new_strlit("NODE_NAME")@,
+            value_from: Some(EnvVarSourceView {
+                field_ref: Some(ObjectFieldSelectorView {
+                    field_path: new_strlit("spec.nodeName")@,
+                    ..ObjectFieldSelectorView::default()
+                }),
+                ..EnvVarSourceView::default()
+            }),
+            ..EnvVarView::default()
+        },
+        EnvVarView {
+            name: new_strlit("HOST_IP")@,
+            value_from: Some(EnvVarSourceView {
+                field_ref: Some(ObjectFieldSelectorView {
+                    field_path: new_strlit("status.hostIP")@,
+                    ..ObjectFieldSelectorView::default()
+                }),
+                ..EnvVarSourceView::default()
+            }),
+            ..EnvVarView::default()
+        },
+    ]
 }
 
 }
