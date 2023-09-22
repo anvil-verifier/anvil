@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, marshal::*, resource::*, resource_requirements::*,
-    volume::ObjectFieldSelector,
+    volume::*,
 };
 use crate::pervasive_ext::string_view::*;
 use vstd::prelude::*;
@@ -552,10 +552,12 @@ pub struct EnvVar {
 }
 
 impl EnvVar {
+    pub spec fn view(&self) -> EnvVarView;
+
     #[verifier(external_body)]
     pub fn default() -> (env_var: EnvVar)
-        // ensures
-        //     container@ == ContainerView::default(),
+        ensures
+            env_var@ == EnvVarView::default(),
     {
         EnvVar {
             inner: deps_hack::k8s_openapi::api::core::v1::EnvVar::default(),
@@ -577,12 +579,19 @@ impl EnvVar {
     }
 
     #[verifier(external_body)]
-    pub fn set_name(&mut self, name: String) {
+    pub fn set_name(&mut self, name: String)
+        ensures
+            self@ == old(self)@.set_name(name@),
+    {
         self.inner.name = name.into_rust_string();
     }
 
     #[verifier(external_body)]
-    pub fn overwrite_value(&mut self, value: Option<String>) {
+    pub fn overwrite_value(&mut self, value: Option<String>)
+        ensures
+            value.is_Some() ==> self@ == old(self)@.overwrite_value(Some(value.get_Some_0()@)),
+            value.is_None() ==> self@ == old(self)@.overwrite_value(None),
+    {
         match value {
             Some(v) => self.inner.value = Some(v.into_rust_string()),
             None => self.inner.value = None,
@@ -590,7 +599,11 @@ impl EnvVar {
     }
 
     #[verifier(external_body)]
-    pub fn overwrite_value_from(&mut self, value_from: Option<EnvVarSource>) {
+    pub fn overwrite_value_from(&mut self, value_from: Option<EnvVarSource>)
+        ensures
+            value_from.is_Some() ==> self@ == old(self)@.overwrite_value_from(Some(value_from.get_Some_0()@)),
+            value_from.is_None() ==> self@ == old(self)@.overwrite_value_from(None),
+    {
         match value_from {
             Some(v) => self.inner.value_from = Some(v.into_kube()),
             None => self.inner.value_from = None,
@@ -615,10 +628,12 @@ pub struct EnvVarSource {
 }
 
 impl EnvVarSource {
+    pub spec fn view(&self) -> EnvVarSourceView;
+
     #[verifier(external_body)]
     pub fn default() -> (env_var_source: EnvVarSource)
-        // ensures
-        //     container@ == ContainerView::default(),
+        ensures
+            env_var_source@ == EnvVarSourceView::default(),
     {
         EnvVarSource {
             inner: deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default(),
@@ -638,7 +653,10 @@ impl EnvVarSource {
     }
 
     #[verifier(external_body)]
-    pub fn set_field_ref(&mut self, field_ref: ObjectFieldSelector) {
+    pub fn set_field_ref(&mut self, field_ref: ObjectFieldSelector)
+        ensures
+            self@ == old(self)@.set_field_ref(field_ref@),
+    {
         self.inner.field_ref = Some(field_ref.into_kube());
     }
 
@@ -969,6 +987,62 @@ impl TCPSocketActionView {
     pub open spec fn set_port(self, port: int) -> TCPSocketActionView {
         TCPSocketActionView {
             port: port,
+            ..self
+        }
+    }
+}
+
+pub struct EnvVarView {
+    pub name: StringView,
+    pub value: Option<StringView>,
+    pub value_from: Option<EnvVarSourceView>,
+}
+
+impl EnvVarView {
+    pub open spec fn default() -> EnvVarView {
+        EnvVarView {
+            name: new_strlit("")@,
+            value: None,
+            value_from: None,
+        }
+    }
+
+    pub open spec fn set_name(self, name: StringView) -> EnvVarView {
+        EnvVarView {
+            name: name,
+            ..self
+        }
+    }
+
+    pub open spec fn overwrite_value(self, value: Option<StringView>) -> EnvVarView {
+        EnvVarView {
+            value: value,
+            ..self
+        }
+    }
+
+    pub open spec fn overwrite_value_from(self, value_from: Option<EnvVarSourceView>) -> EnvVarView {
+        EnvVarView {
+            value_from: value_from,
+            ..self
+        }
+    }
+}
+
+pub struct EnvVarSourceView {
+    pub field_ref: Option<ObjectFieldSelectorView>,
+}
+
+impl EnvVarSourceView {
+    pub open spec fn default() -> EnvVarSourceView {
+        EnvVarSourceView {
+            field_ref: None,
+        }
+    }
+
+    pub open spec fn set_field_ref(self, field_ref: ObjectFieldSelectorView) -> EnvVarSourceView {
+        EnvVarSourceView {
+            field_ref: Some(field_ref),
             ..self
         }
     }
