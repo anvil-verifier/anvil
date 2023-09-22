@@ -20,6 +20,26 @@ use vstd::string::*;
 
 verus! {
 
+pub struct StatefulSetBuilder {}
+
+impl ResourceBuilder<StatefulSet, spec_resource::StatefulSetBuilder> for StatefulSetBuilder {
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<StatefulSet, RabbitmqError> {
+        if state.latest_config_map_rv_opt.is_some() {
+            Ok(make_stateful_set(rabbitmq, state.latest_config_map_rv_opt.as_ref().unwrap()))
+        } else {
+            Err(RabbitmqError::CreateError)
+        }
+    }
+
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: StatefulSet) -> Result<StatefulSet, RabbitmqError> {
+        if state.latest_config_map_rv_opt.is_some() && found_resource.spec().is_some() {
+            Ok(update_stateful_set(rabbitmq, found_resource, state.latest_config_map_rv_opt.as_ref().unwrap()))
+        } else {
+            Err(RabbitmqError::UpdateError)
+        }
+    }
+}
+
 pub fn update_stateful_set(rabbitmq: &RabbitmqCluster, found_stateful_set: StatefulSet, config_map_rv: &String) -> (stateful_set: StatefulSet)
     requires
         rabbitmq@.metadata.name.is_Some(),

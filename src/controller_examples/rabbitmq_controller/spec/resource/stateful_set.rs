@@ -19,6 +19,26 @@ use vstd::string::*;
 
 verus! {
 
+pub struct StatefulSetBuilder {}
+
+impl ResourceBuilder<StatefulSetView> for StatefulSetBuilder {
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<StatefulSetView, RabbitmqError> {
+        if state.latest_config_map_rv_opt.is_Some() {
+            Ok(make_stateful_set(rabbitmq, state.latest_config_map_rv_opt.get_Some_0()))
+        } else {
+            Err(RabbitmqError::CreateError)
+        }
+    }
+
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: StatefulSetView) -> Result<StatefulSetView, RabbitmqError> {
+        if state.latest_config_map_rv_opt.is_Some() && found_resource.spec.is_Some() {
+            Ok(update_stateful_set(rabbitmq, found_resource, state.latest_config_map_rv_opt.get_Some_0()))
+        } else {
+            Err(RabbitmqError::UpdateError)
+        }
+    }
+}
+
 pub open spec fn make_stateful_set_key(key: ObjectRef) -> ObjectRef
     recommends
         key.kind.is_CustomResourceKind(),

@@ -19,6 +19,22 @@ use vstd::string::*;
 
 verus! {
 
+pub trait ResourceBuilder<T: View, SpecBuilder: spec_resource::ResourceBuilder<T::V>> {
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> (res: Result<T, RabbitmqError>)
+        requires
+            rabbitmq@.metadata.name.is_Some(),
+            rabbitmq@.metadata.namespace.is_Some(),
+        ensures 
+            resource_res_to_view(res) == SpecBuilder::make(rabbitmq@, state@);
+    
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: T) -> (res: Result<T, RabbitmqError>)
+        requires
+            rabbitmq@.metadata.name.is_Some(),
+            rabbitmq@.metadata.namespace.is_Some(),
+        ensures
+            resource_res_to_view(res) == SpecBuilder::update(rabbitmq@, state@, found_resource@);
+}
+
 pub fn make_labels(rabbitmq: &RabbitmqCluster) -> (labels: StringMap)
     requires
         rabbitmq@.metadata.name.is_Some(),

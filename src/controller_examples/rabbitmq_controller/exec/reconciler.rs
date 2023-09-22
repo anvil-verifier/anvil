@@ -20,26 +20,6 @@ use vstd::string::*;
 
 verus! {
 
-/// RabbitmqReconcileState describes the local state with which the reconcile functions makes decisions.
-pub struct RabbitmqReconcileState {
-    // reconcile_step, like a program counter, is used to track the progress of reconcile_core
-    // since reconcile_core is frequently "trapped" into the controller_runtime spec.
-    pub reconcile_step: RabbitmqReconcileStep,
-    pub latest_config_map_rv_opt: Option<String>,
-}
-
-impl RabbitmqReconcileState {
-    pub open spec fn to_view(&self) -> rabbitmq_spec::RabbitmqReconcileState {
-        rabbitmq_spec::RabbitmqReconcileState {
-            reconcile_step: self.reconcile_step,
-            latest_config_map_rv_opt: match &self.latest_config_map_rv_opt {
-                Some(s) => Some(s@),
-                None => None,
-            },
-        }
-    }
-}
-
 pub struct RabbitmqReconciler {}
 
 #[verifier(external)]
@@ -67,7 +47,7 @@ impl Default for RabbitmqReconciler {
 
 pub fn reconcile_init_state() -> (state: RabbitmqReconcileState)
     ensures
-        state.to_view() == rabbitmq_spec::reconcile_init_state(),
+        state@ == rabbitmq_spec::reconcile_init_state(),
 {
     RabbitmqReconcileState {
         reconcile_step: RabbitmqReconcileStep::Init,
@@ -77,7 +57,7 @@ pub fn reconcile_init_state() -> (state: RabbitmqReconcileState)
 
 pub fn reconcile_done(state: &RabbitmqReconcileState) -> (res: bool)
     ensures
-        res == rabbitmq_spec::reconcile_done(state.to_view()),
+        res == rabbitmq_spec::reconcile_done(state@),
 {
     match state.reconcile_step {
         RabbitmqReconcileStep::Done => true,
@@ -87,7 +67,7 @@ pub fn reconcile_done(state: &RabbitmqReconcileState) -> (res: bool)
 
 pub fn reconcile_error(state: &RabbitmqReconcileState) -> (res: bool)
     ensures
-        res == rabbitmq_spec::reconcile_error(state.to_view()),
+        res == rabbitmq_spec::reconcile_error(state@),
 {
     match state.reconcile_step {
         RabbitmqReconcileStep::Error => true,
@@ -100,7 +80,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        (res.0.to_view(), opt_request_to_view(&res.1)) == rabbitmq_spec::reconcile_core(rabbitmq@, opt_response_to_view(&resp_o), state.to_view()),
+        (res.0@, opt_request_to_view(&res.1)) == rabbitmq_spec::reconcile_core(rabbitmq@, opt_response_to_view(&resp_o), state@),
 {
     let step = state.reconcile_step;
     match step{

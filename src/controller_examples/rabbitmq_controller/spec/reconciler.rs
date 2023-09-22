@@ -19,11 +19,6 @@ use vstd::string::*;
 
 verus! {
 
-pub struct RabbitmqReconcileState {
-    pub reconcile_step: RabbitmqReconcileStep,
-    pub latest_config_map_rv_opt: Option<StringView>,
-}
-
 pub struct RabbitmqReconciler {}
 
 impl Reconciler<RabbitmqClusterView, EmptyAPI> for RabbitmqReconciler {

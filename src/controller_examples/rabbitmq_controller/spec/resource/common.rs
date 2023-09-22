@@ -18,6 +18,12 @@ use vstd::string::*;
 
 verus! {
 
+pub trait ResourceBuilder<T> {
+    spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<T, RabbitmqError>;
+
+    spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: T) -> Result<T, RabbitmqError>;
+}
+
 pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView>
     recommends
         rabbitmq.metadata.name.is_Some(),
