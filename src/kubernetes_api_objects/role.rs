@@ -22,9 +22,13 @@ pub struct Role {
     inner: deps_hack::k8s_openapi::api::rbac::v1::Role,
 }
 
-impl Role {
-    pub spec fn view(&self) -> RoleView;
+impl View for Role {
+    type V = RoleView;
 
+    spec fn view(&self) -> RoleView;
+}
+
+impl Role {
     #[verifier(external_body)]
     pub fn default() -> (role: Role)
         ensures

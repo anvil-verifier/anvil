@@ -20,6 +20,18 @@ use vstd::string::*;
 
 verus! {
 
+pub struct ServerConfigMapBuilder {}
+
+impl ResourceBuilder<ConfigMap, spec_resource::ServerConfigMapBuilder> for ServerConfigMapBuilder {
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<ConfigMap, RabbitmqError> {
+        Ok(make_server_config_map(rabbitmq))
+    }
+
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: ConfigMap) -> Result<ConfigMap, RabbitmqError> {
+        Ok(update_server_config_map(rabbitmq, found_resource))
+    }
+}
+
 pub fn update_server_config_map(rabbitmq: &RabbitmqCluster, found_config_map: ConfigMap) -> (config_map: ConfigMap)
     requires
         rabbitmq@.metadata.name.is_Some(),

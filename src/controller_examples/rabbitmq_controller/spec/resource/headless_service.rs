@@ -19,6 +19,18 @@ use vstd::string::*;
 
 verus! {
 
+pub struct HeadlessServiceBuilder {}
+
+impl ResourceBuilder<ServiceView> for HeadlessServiceBuilder {
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<ServiceView, RabbitmqError> {
+        Ok(make_headless_service(rabbitmq))
+    }
+
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: ServiceView) -> Result<ServiceView, RabbitmqError> {
+        Ok(update_headless_service(rabbitmq, found_resource))
+    }
+}
+
 pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> StringView
     recommends
         rabbitmq.metadata.name.is_Some(),

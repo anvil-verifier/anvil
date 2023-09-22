@@ -19,6 +19,18 @@ use vstd::string::*;
 
 verus! {
 
+pub struct DefaultUserSecretBuilder {}
+
+impl ResourceBuilder<SecretView> for DefaultUserSecretBuilder {
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<SecretView, RabbitmqError> {
+        Ok(make_default_user_secret(rabbitmq))
+    }
+
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: SecretView) -> Result<SecretView, RabbitmqError> {
+        Ok(update_default_user_secret(rabbitmq, found_resource))
+    }
+}
+
 pub open spec fn make_default_user_secret_name(rabbitmq: RabbitmqClusterView) -> StringView
     recommends
         rabbitmq.metadata.name.is_Some(),

@@ -19,6 +19,18 @@ use vstd::string::*;
 
 verus! {
 
+pub struct ServerConfigMapBuilder {}
+
+impl ResourceBuilder<ConfigMapView> for ServerConfigMapBuilder {
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<ConfigMapView, RabbitmqError> {
+        Ok(make_server_config_map(rabbitmq))
+    }
+
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: ConfigMapView) -> Result<ConfigMapView, RabbitmqError> {
+        Ok(update_server_config_map(rabbitmq, found_resource))
+    }
+}
+
 pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_config_map: ConfigMapView) -> ConfigMapView {
     ConfigMapView {
         metadata: ObjectMetaView {

@@ -25,9 +25,13 @@ pub struct ServiceAccount {
     inner: deps_hack::k8s_openapi::api::core::v1::ServiceAccount,
 }
 
-impl ServiceAccount {
-    pub spec fn view(&self) -> ServiceAccountView;
+impl View for ServiceAccount {
+    type V = ServiceAccountView;
+    
+    spec fn view(&self) -> ServiceAccountView;
+}
 
+impl ServiceAccount {
     #[verifier(external_body)]
     pub fn default() -> (service_account: ServiceAccount)
         ensures

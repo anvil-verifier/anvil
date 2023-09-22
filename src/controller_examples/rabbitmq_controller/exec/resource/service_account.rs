@@ -20,6 +20,18 @@ use vstd::string::*;
 
 verus! {
 
+pub struct ServiceAccountBuilder {}
+
+impl ResourceBuilder<ServiceAccount, spec_resource::ServiceAccountBuilder> for ServiceAccountBuilder {
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<ServiceAccount, RabbitmqError> {
+        Ok(make_service_account(rabbitmq))
+    }
+
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: ServiceAccount) -> Result<ServiceAccount, RabbitmqError> {
+        Ok(update_service_account(rabbitmq, found_resource))
+    }
+}
+
 pub fn update_service_account(rabbitmq: &RabbitmqCluster, found_service_account: ServiceAccount) -> (service_account: ServiceAccount)
     requires
         rabbitmq@.metadata.name.is_Some(),

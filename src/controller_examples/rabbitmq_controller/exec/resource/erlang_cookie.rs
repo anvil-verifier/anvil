@@ -20,6 +20,18 @@ use vstd::string::*;
 
 verus! {
 
+pub struct ErlangCookieBuilder {}
+
+impl ResourceBuilder<Secret, spec_resource::ErlangCookieBuilder> for ErlangCookieBuilder {
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<Secret, RabbitmqError> {
+        Ok(make_erlang_secret(rabbitmq))
+    }
+
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: Secret) -> Result<Secret, RabbitmqError> {
+        Ok(update_erlang_secret(rabbitmq, found_resource))
+    }
+}
+
 pub fn update_erlang_secret(rabbitmq: &RabbitmqCluster, found_erlang_secret: Secret) -> (secret: Secret)
     requires
         rabbitmq@.metadata.name.is_Some(),

@@ -20,6 +20,18 @@ use vstd::string::*;
 
 verus! {
 
+pub struct HeadlessServiceBuilder {}
+
+impl ResourceBuilder<Service, spec_resource::HeadlessServiceBuilder> for HeadlessServiceBuilder {
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<Service, RabbitmqError> {
+        Ok(make_headless_service(rabbitmq))
+    }
+
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: Service) -> Result<Service, RabbitmqError> {
+        Ok(update_headless_service(rabbitmq, found_resource))
+    }
+}
+
 pub fn update_headless_service(rabbitmq: &RabbitmqCluster, found_headless_service: Service) -> (service: Service)
     requires
         rabbitmq@.metadata.name.is_Some(),

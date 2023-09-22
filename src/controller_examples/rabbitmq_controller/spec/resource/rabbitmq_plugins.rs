@@ -19,6 +19,18 @@ use vstd::string::*;
 
 verus! {
 
+pub struct PluginsConfigMapBuilder {}
+
+impl ResourceBuilder<ConfigMapView> for PluginsConfigMapBuilder {
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<ConfigMapView, RabbitmqError> {
+        Ok(make_plugins_config_map(rabbitmq))
+    }
+
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: ConfigMapView) -> Result<ConfigMapView, RabbitmqError> {
+        Ok(update_plugins_config_map(rabbitmq, found_resource))
+    }
+}
+
 pub open spec fn make_plugins_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView
     recommends
         rabbitmq.metadata.name.is_Some(),

@@ -20,6 +20,18 @@ use vstd::string::*;
 
 verus! {
 
+pub struct DefaultUserSecretBuilder {}
+
+impl ResourceBuilder<Secret, spec_resource::DefaultUserSecretBuilder> for DefaultUserSecretBuilder {
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<Secret, RabbitmqError> {
+        Ok(make_default_user_secret(rabbitmq))
+    }
+
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: Secret) -> Result<Secret, RabbitmqError> {
+        Ok(update_default_user_secret(rabbitmq, found_resource))
+    }
+}
+
 pub fn update_default_user_secret(rabbitmq: &RabbitmqCluster, found_secret: Secret) -> (secret: Secret)
     requires
         rabbitmq@.metadata.name.is_Some(),

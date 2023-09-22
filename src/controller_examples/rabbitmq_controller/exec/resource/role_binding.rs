@@ -20,6 +20,18 @@ use vstd::string::*;
 
 verus! {
 
+pub struct RoleBindingBuilder {}
+
+impl ResourceBuilder<RoleBinding, spec_resource::RoleBindingBuilder> for RoleBindingBuilder {
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<RoleBinding, RabbitmqError> {
+        Ok(make_role_binding(rabbitmq))
+    }
+
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: RoleBinding) -> Result<RoleBinding, RabbitmqError> {
+        Ok(update_role_binding(rabbitmq, found_resource))
+    }
+}
+
 pub fn update_role_binding(rabbitmq: &RabbitmqCluster, found_role_binding: RoleBinding) -> (role_binding: RoleBinding)
     requires
         rabbitmq@.metadata.name.is_Some(),

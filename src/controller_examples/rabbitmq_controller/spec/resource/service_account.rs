@@ -18,6 +18,18 @@ use vstd::prelude::*;
 use vstd::string::*;
 
 verus! {
+    
+pub struct ServiceAccountBuilder {}
+
+impl ResourceBuilder<ServiceAccountView> for ServiceAccountBuilder {
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<ServiceAccountView, RabbitmqError> {
+        Ok(make_service_account(rabbitmq))
+    }
+
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: ServiceAccountView) -> Result<ServiceAccountView, RabbitmqError> {
+        Ok(update_service_account(rabbitmq, found_resource))
+    }
+}
 
 pub open spec fn make_service_account_name(rabbitmq: RabbitmqClusterView) -> StringView
     recommends

@@ -19,6 +19,18 @@ use vstd::string::*;
 
 verus! {
 
+pub struct RoleBindingBuilder {}
+
+impl ResourceBuilder<RoleBindingView> for RoleBindingBuilder {
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<RoleBindingView, RabbitmqError> {
+        Ok(make_role_binding(rabbitmq))
+    }
+
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: RoleBindingView) -> Result<RoleBindingView, RabbitmqError> {
+        Ok(update_role_binding(rabbitmq, found_resource))
+    }
+}
+
 pub open spec fn make_role_binding_name(rabbitmq: RabbitmqClusterView) -> StringView
     recommends
         rabbitmq.metadata.name.is_Some(),
