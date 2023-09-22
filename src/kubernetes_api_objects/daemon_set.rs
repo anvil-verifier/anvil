@@ -297,7 +297,9 @@ impl ResourceView for DaemonSetView {
     }
 
     open spec fn transition_validation(self, old_obj: DaemonSetView) -> bool {
-        true
+        let old_spec = old_obj.spec.get_Some_0();
+        let new_spec = self.spec.get_Some_0();
+        &&& old_spec.selector == new_spec.selector
     }
 }
 
