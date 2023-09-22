@@ -131,6 +131,106 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
     Ok(())
 }
 
+pub async fn relabel_test(client: Client, fb_name: String) -> Result<(), Error> {
+    let timeout = Duration::from_secs(360);
+    let start = Instant::now();
+    let ds_api: Api<DaemonSet> = Api::default_namespaced(client.clone());
+    run_command(
+        "kubectl",
+        vec![
+            "patch",
+            "fb",
+            "fluent-bit",
+            "--type=json",
+            "-p",
+            "[{\"op\": \"add\", \"path\": \"/spec/labels/key\", \"value\": \"val\"}]",
+        ],
+        "failed to relabel fb",
+    );
+
+    // Sleep for extra 5 seconds to ensure the upgrading has started
+    sleep(Duration::from_secs(5)).await;
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            return Err(Error::Timeout);
+        }
+
+        // Check daemon set
+        let ds = ds_api.get(&fb_name).await;
+        match ds {
+            Err(e) => {
+                println!("Get daemon set failed with error {}.", e);
+                continue;
+            }
+            Ok(ds) => {
+                if !ds
+                    .spec
+                    .as_ref()
+                    .unwrap()
+                    .template
+                    .metadata
+                    .as_ref()
+                    .unwrap()
+                    .labels
+                    .as_ref()
+                    .unwrap()
+                    .contains_key("key")
+                {
+                    println!("Label for pod is not updated yet");
+                    continue;
+                }
+
+                if ds
+                    .status
+                    .as_ref()
+                    .unwrap()
+                    .updated_number_scheduled
+                    .is_none()
+                {
+                    println!("No daemon set pod is updated yet.");
+                    continue;
+                } else if *ds
+                    .status
+                    .as_ref()
+                    .unwrap()
+                    .updated_number_scheduled
+                    .as_ref()
+                    .unwrap()
+                    == 6
+                {
+                    println!("Relabel is done.");
+                } else {
+                    println!(
+                        "Relabel is in progress. {} pods are updated now.",
+                        ds.status
+                            .as_ref()
+                            .unwrap()
+                            .updated_number_scheduled
+                            .as_ref()
+                            .unwrap()
+                    );
+                    continue;
+                }
+
+                if ds.status.as_ref().unwrap().number_ready == 6 {
+                    println!("All daemon set pods are ready.");
+                    break;
+                } else {
+                    println!(
+                        "Only {} pods are ready now.",
+                        ds.status.as_ref().unwrap().number_ready
+                    );
+                    continue;
+                }
+            }
+        };
+    }
+
+    println!("Relabel test passed.");
+    Ok(())
+}
+
 pub async fn fluent_e2e_test() -> Result<(), Error> {
     // check if the CRD is already registered
     let client = Client::try_default().await?;
@@ -152,6 +252,7 @@ pub async fn fluent_e2e_test() -> Result<(), Error> {
     let fb_name = apply(fluent_bit(), client.clone(), &discovery).await?;
 
     desired_state_test(client.clone(), fb_name.clone()).await?;
+    relabel_test(client.clone(), fb_name.clone()).await?;
 
     println!("E2e test passed.");
     Ok(())

@@ -43,6 +43,14 @@ impl DaemonSet {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (s: Self)
+        ensures
+            s@ == self@,
+    {
+        DaemonSet { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures
             metadata@ == self@.metadata,
@@ -160,6 +168,22 @@ impl DaemonSetSpec {
     {
         self.inner.template = template.into_kube()
     }
+
+    #[verifier(external_body)]
+    pub fn selector(&self) -> (selector: LabelSelector)
+        ensures
+            selector@ == self@.selector,
+    {
+        LabelSelector::from_kube(self.inner.selector.clone())
+    }
+
+    #[verifier(external_body)]
+    pub fn template(&self) -> (template: PodTemplateSpec)
+        ensures
+            template@ == self@.template,
+    {
+        PodTemplateSpec::from_kube(self.inner.template.clone())
+    }
 }
 
 impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec> for DaemonSetSpec {
@@ -273,7 +297,9 @@ impl ResourceView for DaemonSetView {
     }
 
     open spec fn transition_validation(self, old_obj: DaemonSetView) -> bool {
-        true
+        let old_spec = old_obj.spec.get_Some_0();
+        let new_spec = self.spec.get_Some_0();
+        &&& old_spec.selector == new_spec.selector
     }
 }
 

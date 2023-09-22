@@ -187,6 +187,10 @@ pub struct FluentBitSpec {
     #[serde(default)]
     pub resources: Option<k8s_openapi::api::core::v1::ResourceRequirements>,
     pub tolerations: Option<Vec<k8s_openapi::api::core::v1::Toleration>>,
+    #[serde(default)]
+    pub labels: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
+    pub annotations: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(

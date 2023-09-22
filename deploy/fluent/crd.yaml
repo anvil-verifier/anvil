@@ -21,8 +21,18 @@ spec:
           properties:
             spec:
               properties:
+                annotations:
+                  additionalProperties:
+                    type: string
+                  default: {}
+                  type: object
                 fluentBitConfigName:
                   type: string
+                labels:
+                  additionalProperties:
+                    type: string
+                  default: {}
+                  type: object
                 resources:
                   description: ResourceRequirements describes the compute resource requirements.
                   nullable: true

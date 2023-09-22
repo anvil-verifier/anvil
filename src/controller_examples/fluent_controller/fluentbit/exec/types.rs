@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*,
     resource::*, resource_requirements::*, toleration::*,
 };
-use crate::pervasive_ext::string_view::*;
+use crate::pervasive_ext::{string_map::*, string_view::*};
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
 
@@ -140,6 +140,22 @@ impl FluentBitSpec {
             Some(tols) => Some(tols.clone().into_iter().map(|t: deps_hack::k8s_openapi::api::core::v1::Toleration| Toleration::from_kube(t)).collect()),
             None => None,
         }
+    }
+
+    #[verifier(external_body)]
+    pub fn labels(&self) -> (labels: StringMap)
+        ensures
+            labels@ == self@.labels,
+    {
+        StringMap::from_rust_map(self.inner.labels.clone())
+    }
+
+    #[verifier(external_body)]
+    pub fn annotations(&self) -> (annotations: StringMap)
+        ensures
+            annotations@ == self@.annotations,
+    {
+        StringMap::from_rust_map(self.inner.annotations.clone())
     }
 }
 

@@ -88,11 +88,7 @@ pub open spec fn reconcile_core(
     match step {
         ZookeeperReconcileStep::Init => {
             let req_o = APIRequest::GetRequest(GetRequest{
-                key: ObjectRef {
-                    kind: ServiceView::kind(),
-                    name: make_headless_service_name(zk_name),
-                    namespace: zk_namespace,
-                }
+                key: make_headless_service_key(zk.object_ref()),
             });
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: ZookeeperReconcileStep::AfterGetHeadlessService,
@@ -157,11 +153,7 @@ pub open spec fn reconcile_core(
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
             && create_headless_service_resp.is_Ok() && unmarshal_headless_service_result.is_Ok() {
                 let req_o = APIRequest::GetRequest(GetRequest{
-                    key: ObjectRef {
-                        kind: ServiceView::kind(),
-                        name: make_client_service_name(zk_name),
-                        namespace: zk_namespace,
-                    }
+                    key: make_client_service_key(zk.object_ref()),
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterGetClientService,
@@ -182,11 +174,7 @@ pub open spec fn reconcile_core(
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
             && update_headless_service_resp.is_Ok() && unmarshal_headless_service_result.is_Ok() {
                 let req_o = APIRequest::GetRequest(GetRequest{
-                    key: ObjectRef {
-                        kind: ServiceView::kind(),
-                        name: make_client_service_name(zk_name),
-                        namespace: zk_namespace,
-                    }
+                    key: make_client_service_key(zk.object_ref()),
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterGetClientService,
@@ -258,11 +246,7 @@ pub open spec fn reconcile_core(
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
             && create_client_service_resp.is_Ok() && unmarshal_client_service_result.is_Ok() {
                 let req_o = APIRequest::GetRequest(GetRequest{
-                    key: ObjectRef {
-                        kind: ServiceView::kind(),
-                        name: make_admin_server_service_name(zk_name),
-                        namespace: zk_namespace,
-                    }
+                    key: make_admin_server_service_key(zk.object_ref()),
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterGetAdminServerService,
@@ -283,11 +267,7 @@ pub open spec fn reconcile_core(
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
             && update_client_service_resp.is_Ok() && unmarshal_client_service_result.is_Ok() {
                 let req_o = APIRequest::GetRequest(GetRequest{
-                    key: ObjectRef {
-                        kind: ServiceView::kind(),
-                        name: make_admin_server_service_name(zk_name),
-                        namespace: zk_namespace,
-                    }
+                    key: make_admin_server_service_key(zk.object_ref()),
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterGetAdminServerService,
@@ -359,11 +339,7 @@ pub open spec fn reconcile_core(
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
             && create_admin_server_service_resp.is_Ok() && unmarshal_admin_server_service_result.is_Ok() {
                 let req_o = APIRequest::GetRequest(GetRequest{
-                    key: ObjectRef {
-                        kind: ConfigMapView::kind(),
-                        name: make_config_map_name(zk_name),
-                        namespace: zk_namespace,
-                    }
+                    key: make_config_map_key(zk.object_ref()),
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterGetConfigMap,
@@ -384,11 +360,7 @@ pub open spec fn reconcile_core(
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
             && update_admin_server_service_resp.is_Ok() && unmarshal_admin_server_service_result.is_Ok() {
                 let req_o = APIRequest::GetRequest(GetRequest{
-                    key: ObjectRef {
-                        kind: ConfigMapView::kind(),
-                        name: make_config_map_name(zk_name),
-                        namespace: zk_namespace,
-                    }
+                    key: make_config_map_key(zk.object_ref()),
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterGetConfigMap,
@@ -462,11 +434,7 @@ pub open spec fn reconcile_core(
             && create_config_map_resp.is_Ok() && unmarshal_config_map_result.is_Ok()
             && latest_config_map.metadata.resource_version.is_Some() {
                 let req_o = APIRequest::GetRequest(GetRequest {
-                    key: ObjectRef {
-                        kind: StatefulSetView::kind(),
-                        name: make_stateful_set_name(zk_name),
-                        namespace: zk_namespace,
-                    }
+                    key: make_stateful_set_key(zk.object_ref()),
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
@@ -490,11 +458,7 @@ pub open spec fn reconcile_core(
             && update_config_map_resp.is_Ok() && unmarshal_config_map_result.is_Ok()
             && latest_config_map.metadata.resource_version.is_Some() {
                 let req_o = APIRequest::GetRequest(GetRequest {
-                    key: ObjectRef {
-                        kind: StatefulSetView::kind(),
-                        name: make_stateful_set_name(zk_name),
-                        namespace: zk_namespace,
-                    }
+                    key: make_stateful_set_key(zk.object_ref()),
                 });
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet,
@@ -686,9 +650,8 @@ pub open spec fn reconcile_core(
         },
         ZookeeperReconcileStep::AfterCreateStatefulSet => {
             let create_stateful_set_resp = resp.get_KResponse_0().get_CreateResponse_0().res;
-            let unmarshal_stateful_set_result = StatefulSetView::unmarshal(create_stateful_set_resp.get_Ok_0());
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
-            && create_stateful_set_resp.is_Ok() && unmarshal_stateful_set_result.is_Ok() {
+            && create_stateful_set_resp.is_Ok() {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Done,
                     ..state
@@ -704,9 +667,8 @@ pub open spec fn reconcile_core(
         },
         ZookeeperReconcileStep::AfterUpdateStatefulSet => {
             let update_stateful_set_resp = resp.get_KResponse_0().get_UpdateResponse_0().res;
-            let unmarshal_stateful_set_result = StatefulSetView::unmarshal(update_stateful_set_resp.get_Ok_0());
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
-            && update_stateful_set_resp.is_Ok() && unmarshal_stateful_set_result.is_Ok() {
+            && update_stateful_set_resp.is_Ok() {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Done,
                     ..state
