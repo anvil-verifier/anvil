@@ -559,39 +559,31 @@ fn make_fluentbit_pod_spec(fluentbit: &FluentBit) -> (pod_spec: PodSpec)
     pod_spec
 }
 
-#[verifier(external_body)]
-fn make_env(fluentbit: &FluentBit) -> Vec<EnvVar> {
+fn make_env(fluentbit: &FluentBit) -> (env_vars: Vec<EnvVar>)
+    ensures
+        env_vars@.map_values(|v: EnvVar| v@) == fluent_spec::make_env(fluentbit@),
+{
     let mut env_vars = Vec::new();
-    env_vars.push(
-        EnvVar::from_kube(
-            deps_hack::k8s_openapi::api::core::v1::EnvVar {
-                name: new_strlit("NODE_NAME").to_string().into_rust_string(),
-                value_from: Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
-                    field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
-                        field_path: new_strlit("spec.nodeName").to_string().into_rust_string(),
-                        ..deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default()
-                    }),
-                    ..deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default()
-                }),
-                ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
-            }
-        )
-    );
-    env_vars.push(
-        EnvVar::from_kube(
-            deps_hack::k8s_openapi::api::core::v1::EnvVar {
-                name: new_strlit("HOST_IP").to_string().into_rust_string(),
-                value_from: Some(deps_hack::k8s_openapi::api::core::v1::EnvVarSource {
-                    field_ref: Some(deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector {
-                        field_path: new_strlit("status.hostIP").to_string().into_rust_string(),
-                        ..deps_hack::k8s_openapi::api::core::v1::ObjectFieldSelector::default()
-                    }),
-                    ..deps_hack::k8s_openapi::api::core::v1::EnvVarSource::default()
-                }),
-                ..deps_hack::k8s_openapi::api::core::v1::EnvVar::default()
-            }
-        )
-    );
+    env_vars.push(EnvVar::new_with(
+        new_strlit("NODE_NAME").to_string(), None, Some(EnvVarSource::new_with_field_ref({
+            let mut selector = ObjectFieldSelector::default();
+            selector.set_field_path(new_strlit("spec.nodeName").to_string());
+            selector
+        }))
+    ));
+    env_vars.push(EnvVar::new_with(
+        new_strlit("HOST_IP").to_string(), None, Some(EnvVarSource::new_with_field_ref({
+            let mut selector = ObjectFieldSelector::default();
+            selector.set_field_path(new_strlit("status.hostIP").to_string());
+            selector
+        }))
+    ));
+    proof {
+        assert_seqs_equal!(
+            env_vars@.map_values(|v: EnvVar| v@),
+            fluent_spec::make_env(fluentbit@),
+        );
+    }
     env_vars
 }
 
