@@ -145,7 +145,7 @@ pub async fn relabel_test(client: Client, fb_name: String) -> Result<(), Error> 
             "-p",
             "[{\"op\": \"add\", \"path\": \"/spec/labels/key\", \"value\": \"val\"}]",
         ],
-        "failed to relabel zk",
+        "failed to relabel fb",
     );
 
     // Sleep for extra 5 seconds to ensure the upgrading has started
