@@ -12,7 +12,7 @@ use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::types::*;
-use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
+use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -25,7 +25,7 @@ pub fn update_erlang_secret(rabbitmq: &RabbitmqCluster, found_erlang_secret: Sec
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        secret@ == rabbitmq_spec::update_erlang_secret(rabbitmq@, found_erlang_secret@),
+        secret@ == spec_resource::update_erlang_secret(rabbitmq@, found_erlang_secret@),
 {
     let mut erlang_secret = found_erlang_secret.clone();
     let made_secret = make_erlang_secret(rabbitmq);
@@ -36,7 +36,7 @@ pub fn update_erlang_secret(rabbitmq: &RabbitmqCluster, found_erlang_secret: Sec
         proof {
             assert_seqs_equal!(
                 owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                rabbitmq_spec::update_erlang_secret(rabbitmq@, found_erlang_secret@).metadata.owner_references.get_Some_0()
+                spec_resource::update_erlang_secret(rabbitmq@, found_erlang_secret@).metadata.owner_references.get_Some_0()
             );
         }
         metadata.set_owner_references(make_owner_references(rabbitmq));
@@ -53,7 +53,7 @@ pub fn make_erlang_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        secret@ == rabbitmq_spec::make_erlang_secret(rabbitmq@)
+        secret@ == spec_resource::make_erlang_secret(rabbitmq@)
 {
     let mut data = StringMap::empty();
     let cookie = random_encoded_string(24);
@@ -64,7 +64,7 @@ pub fn make_erlang_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
 #[verifier(external_body)]
 pub fn random_encoded_string(data_len: usize) -> (cookie: String)
     ensures
-        cookie@ == rabbitmq_spec::random_encoded_string(data_len),
+        cookie@ == spec_resource::random_encoded_string(data_len),
 {
     let random_bytes: std::vec::Vec<std::primitive::u8> = (0..data_len).map(|_| deps_hack::rand::random::<std::primitive::u8>()).collect();
     String::from_rust_string(deps_hack::base64::encode(random_bytes))

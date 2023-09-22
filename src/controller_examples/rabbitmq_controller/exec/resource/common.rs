@@ -11,7 +11,7 @@ use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::types::*;
-use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
+use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -23,7 +23,7 @@ pub fn make_labels(rabbitmq: &RabbitmqCluster) -> (labels: StringMap)
     requires
         rabbitmq@.metadata.name.is_Some(),
     ensures
-        labels@ == rabbitmq_spec::make_labels(rabbitmq@),
+        labels@ == spec_resource::make_labels(rabbitmq@),
 {
     let mut labels = rabbitmq.spec().labels();
     labels.insert(new_strlit("app").to_string(), rabbitmq.name().unwrap());
@@ -35,14 +35,14 @@ pub fn make_owner_references(rabbitmq: &RabbitmqCluster) -> (owner_references: V
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        owner_references@.map_values(|or: OwnerReference| or@) ==  rabbitmq_spec::make_owner_references(rabbitmq@),
+        owner_references@.map_values(|or: OwnerReference| or@) ==  spec_resource::make_owner_references(rabbitmq@),
 {
     let mut owner_references = Vec::new();
     owner_references.push(rabbitmq.controller_owner_ref());
     proof {
         assert_seqs_equal!(
             owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-            rabbitmq_spec::make_owner_references(rabbitmq@)
+            spec_resource::make_owner_references(rabbitmq@)
         );
     }
     owner_references
@@ -53,7 +53,7 @@ pub fn make_secret(rabbitmq: &RabbitmqCluster, name:String , data: StringMap) ->
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        secret@ == rabbitmq_spec::make_secret(rabbitmq@, name@, data@)
+        secret@ == spec_resource::make_secret(rabbitmq@, name@, data@)
 {
     let mut secret = Secret::default();
     secret.set_metadata({
@@ -74,7 +74,7 @@ pub fn make_service(rabbitmq: &RabbitmqCluster, name:String, ports: Vec<ServiceP
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        service@ == rabbitmq_spec::make_service(rabbitmq@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip)
+        service@ == spec_resource::make_service(rabbitmq@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip)
 {
     let mut service = Service::default();
     service.set_metadata({

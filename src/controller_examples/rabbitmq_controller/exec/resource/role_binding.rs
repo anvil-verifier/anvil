@@ -12,7 +12,7 @@ use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::types::*;
-use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
+use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -25,7 +25,7 @@ pub fn update_role_binding(rabbitmq: &RabbitmqCluster, found_role_binding: RoleB
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        role_binding@ == rabbitmq_spec::update_role_binding(rabbitmq@, found_role_binding@),
+        role_binding@ == spec_resource::update_role_binding(rabbitmq@, found_role_binding@),
 {
     let mut role_binding = found_role_binding.clone();
     let made_role_binding = make_role_binding(rabbitmq);
@@ -46,7 +46,7 @@ pub fn make_role_ref(rabbitmq: &RabbitmqCluster) -> (role_ref: RoleRef)
     requires
         rabbitmq@.metadata.name.is_Some(),
     ensures
-        role_ref@ == rabbitmq_spec::make_role_binding(rabbitmq@).role_ref
+        role_ref@ == spec_resource::make_role_binding(rabbitmq@).role_ref
 {
     let mut role_ref = RoleRef::default();
     role_ref.set_api_group(new_strlit("rbac.authorization.k8s.io").to_string());
@@ -60,7 +60,7 @@ pub fn make_subjects(rabbitmq: &RabbitmqCluster) -> (subjects: Vec<Subject>)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        subjects@.map_values(|s: Subject| s@) == rabbitmq_spec::make_role_binding(rabbitmq@).subjects.get_Some_0(),
+        subjects@.map_values(|s: Subject| s@) == spec_resource::make_role_binding(rabbitmq@).subjects.get_Some_0(),
 {
     let mut subjects = Vec::new();
     subjects.push({
@@ -73,7 +73,7 @@ pub fn make_subjects(rabbitmq: &RabbitmqCluster) -> (subjects: Vec<Subject>)
     proof{
         assert_seqs_equal!(
             subjects@.map_values(|p: Subject| p@),
-            rabbitmq_spec::make_role_binding(rabbitmq@).subjects.get_Some_0()
+            spec_resource::make_role_binding(rabbitmq@).subjects.get_Some_0()
         );
     }
     subjects
@@ -84,7 +84,7 @@ pub fn make_role_binding(rabbitmq: &RabbitmqCluster) -> (role_binding: RoleBindi
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        role_binding@ == rabbitmq_spec::make_role_binding(rabbitmq@),
+        role_binding@ == spec_resource::make_role_binding(rabbitmq@),
 {
     let mut role_binding = RoleBinding::default();
     role_binding.set_metadata({

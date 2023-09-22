@@ -12,7 +12,7 @@ use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::types::*;
-use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
+use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -25,7 +25,7 @@ pub fn update_default_user_secret(rabbitmq: &RabbitmqCluster, found_secret: Secr
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        secret@ == rabbitmq_spec::update_default_user_secret(rabbitmq@, found_secret@),
+        secret@ == spec_resource::update_default_user_secret(rabbitmq@, found_secret@),
 {
     let mut user_secret = found_secret.clone();
     let made_user_secret = make_default_user_secret(rabbitmq);
@@ -46,7 +46,7 @@ pub fn make_default_user_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        secret@ == rabbitmq_spec::make_default_user_secret(rabbitmq@)
+        secret@ == spec_resource::make_default_user_secret(rabbitmq@)
 {
     let mut data = StringMap::empty();
     data.insert(new_strlit("username").to_string(), new_strlit("user").to_string());

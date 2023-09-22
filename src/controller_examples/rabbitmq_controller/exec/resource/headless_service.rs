@@ -12,7 +12,7 @@ use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::types::*;
-use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
+use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -25,7 +25,7 @@ pub fn update_headless_service(rabbitmq: &RabbitmqCluster, found_headless_servic
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        service@ == rabbitmq_spec::update_headless_service(rabbitmq@, found_headless_service@),
+        service@ == spec_resource::update_headless_service(rabbitmq@, found_headless_service@),
 {
     let made_service = make_headless_service(rabbitmq);
 
@@ -47,7 +47,7 @@ pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        service@ == rabbitmq_spec::make_headless_service(rabbitmq@)
+        service@ == spec_resource::make_headless_service(rabbitmq@)
 {
     let mut ports = Vec::new();
     ports.push(ServicePort::new_with(new_strlit("epmd").to_string(), 4369));
@@ -55,7 +55,7 @@ pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     proof {
         assert_seqs_equal!(
             ports@.map_values(|port: ServicePort| port@),
-            rabbitmq_spec::make_headless_service(rabbitmq@).spec.get_Some_0().ports.get_Some_0()
+            spec_resource::make_headless_service(rabbitmq@).spec.get_Some_0().ports.get_Some_0()
         );
     }
     make_service(rabbitmq, rabbitmq.name().unwrap().concat(new_strlit("-nodes")), ports, false)

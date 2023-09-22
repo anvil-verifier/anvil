@@ -12,7 +12,7 @@ use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::types::*;
-use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
+use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -25,7 +25,7 @@ pub fn update_service_account(rabbitmq: &RabbitmqCluster, found_service_account:
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        service_account@ == rabbitmq_spec::update_service_account(rabbitmq@, found_service_account@),
+        service_account@ == spec_resource::update_service_account(rabbitmq@, found_service_account@),
 {
     let mut service_account = found_service_account.clone();
     let made_service_account = make_service_account(rabbitmq);
@@ -45,7 +45,7 @@ pub fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: Ser
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        service_account@ == rabbitmq_spec::make_service_account(rabbitmq@),
+        service_account@ == spec_resource::make_service_account(rabbitmq@),
 {
     let mut service_account = ServiceAccount::default();
     service_account.set_metadata({

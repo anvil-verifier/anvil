@@ -12,7 +12,7 @@ use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::types::*;
-use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
+use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -25,7 +25,7 @@ pub fn update_main_service(rabbitmq: &RabbitmqCluster, found_main_service: Servi
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        service@ == rabbitmq_spec::update_main_service(rabbitmq@, found_main_service@),
+        service@ == spec_resource::update_main_service(rabbitmq@, found_main_service@),
 {
     let mut main_service = found_main_service.clone();
     let made_service = make_main_service(rabbitmq);
@@ -49,7 +49,7 @@ pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        service@ == rabbitmq_spec::make_main_service(rabbitmq@)
+        service@ == spec_resource::make_main_service(rabbitmq@)
 {
     let mut ports = Vec::new();
     // TODO: check whether the protocols are set to TCP
@@ -71,7 +71,7 @@ pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     proof {
         assert_seqs_equal!(
             ports@.map_values(|port: ServicePort| port@),
-            rabbitmq_spec::make_main_service(rabbitmq@).spec.get_Some_0().ports.get_Some_0()
+            spec_resource::make_main_service(rabbitmq@).spec.get_Some_0().ports.get_Some_0()
         );
     }
     make_service(rabbitmq, rabbitmq.name().unwrap(), ports, true)

@@ -12,7 +12,7 @@ use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::types::*;
-use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
+use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -25,7 +25,7 @@ pub fn update_plugins_config_map(rabbitmq: &RabbitmqCluster, found_config_map: C
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        config_map@ == rabbitmq_spec::update_plugins_config_map(rabbitmq@, found_config_map@),
+        config_map@ == spec_resource::update_plugins_config_map(rabbitmq@, found_config_map@),
 {
     let mut config_map = found_config_map.clone();
     let made_config_map = make_plugins_config_map(rabbitmq);
@@ -51,7 +51,7 @@ pub fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: Confi
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        config_map@ == rabbitmq_spec::make_plugins_config_map(rabbitmq@),
+        config_map@ == spec_resource::make_plugins_config_map(rabbitmq@),
 {
     let mut config_map = ConfigMap::default();
     config_map.set_metadata({
