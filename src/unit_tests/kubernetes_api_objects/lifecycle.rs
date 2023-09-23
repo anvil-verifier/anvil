@@ -3,7 +3,7 @@
 use crate::kubernetes_api_objects::container::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
-use crate::pervasive_ext::string_map::*;
+use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 

@@ -1,6 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::pervasive_ext::string_view::*;
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::string::*;
 

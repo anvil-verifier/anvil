@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*};
-use crate::pervasive_ext::string_view::*;
+use crate::vstd_ext::string_view::*;
 use vstd::{multiset::*, prelude::*};
 
 verus! {

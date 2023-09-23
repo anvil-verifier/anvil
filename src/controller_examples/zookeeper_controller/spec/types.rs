@@ -5,7 +5,7 @@ use crate::kubernetes_api_objects::{
     marshal::*, object_meta::*, owner_reference::*, resource::*, resource_requirements::*,
     toleration::*,
 };
-use crate::pervasive_ext::string_view::*;
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {

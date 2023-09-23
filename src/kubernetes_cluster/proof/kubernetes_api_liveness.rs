@@ -7,10 +7,10 @@ use crate::kubernetes_cluster::spec::{
     builtin_controllers::types::*, cluster::*, cluster_state_machine::Step,
     kubernetes_api::common::KubernetesAPIAction, message::*,
 };
-use crate::pervasive_ext::multiset_lemmas::*;
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
+use crate::vstd_ext::multiset_lib::*;
 use vstd::assert_multisets_equal;
 use vstd::prelude::*;
 

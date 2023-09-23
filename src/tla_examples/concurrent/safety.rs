@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::concurrent::state_machine::*;
-use crate::pervasive_ext::seq_lemmas::*;
 use crate::temporal_logic::defs::*;
 use crate::temporal_logic::rules::*;
+use crate::vstd_ext::seq_lib::*;
 use vstd::prelude::*;
 use vstd::string::*;
 

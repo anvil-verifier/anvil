@@ -3,7 +3,7 @@
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
 use crate::kubernetes_api_objects::resource_requirements::*;
-use crate::pervasive_ext::string_map::*;
+use crate::vstd_ext::string_map::*;
 use deps_hack::k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use std::collections::BTreeMap;
 use vstd::prelude::*;

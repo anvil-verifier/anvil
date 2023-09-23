@@ -5,13 +5,13 @@
 pub mod external_api;
 pub mod kubernetes_api_objects;
 pub mod kubernetes_cluster;
-pub mod pervasive_ext;
 pub mod reconciler;
 pub mod shim_layer;
 #[path = "controller_examples/simple_controller/mod.rs"]
 pub mod simple_controller;
 pub mod state_machine;
 pub mod temporal_logic;
+pub mod vstd_ext;
 
 use builtin::*;
 use builtin_macros::*;

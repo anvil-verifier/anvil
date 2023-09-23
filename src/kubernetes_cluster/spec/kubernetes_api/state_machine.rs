@@ -4,11 +4,11 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{error::*, prelude::*};
 use crate::kubernetes_cluster::spec::{cluster::Cluster, kubernetes_api::common::*, message::*};
-use crate::pervasive_ext::{map::*, string_view::*};
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
 use crate::temporal_logic::defs::*;
+use crate::vstd_ext::{map_lib::*, string_view::*};
 use vstd::{multiset::*, prelude::*};
 
 verus! {

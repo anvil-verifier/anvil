@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::{
     dynamic::*,
     error::*,
 };
-use crate::pervasive_ext::{string_view::*, to_view::*};
+use crate::vstd_ext::{string_view::*, to_view::*};
 use vstd::prelude::*;
 use vstd::string::*;
 

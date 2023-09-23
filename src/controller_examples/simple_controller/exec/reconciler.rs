@@ -5,11 +5,11 @@ use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, object_meta::*, resource::*,
 };
-use crate::pervasive_ext::string_map::StringMap;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::simple_controller::common::*;
 use crate::simple_controller::spec::custom_resource::*;
 use crate::simple_controller::spec::reconciler as simple_spec;
+use crate::vstd_ext::string_map::StringMap;
 use vstd::prelude::*;
 use vstd::string::*;
 

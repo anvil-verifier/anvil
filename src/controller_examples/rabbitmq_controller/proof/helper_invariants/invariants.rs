@@ -12,7 +12,6 @@ use crate::kubernetes_cluster::spec::{
     controller::common::{ControllerActionInput, ControllerStep},
     message::*,
 };
-use crate::pervasive_ext::{multiset_lemmas, seq_lemmas, string_view::*};
 use crate::rabbitmq_controller::{
     common::*,
     proof::common::*,
@@ -20,6 +19,7 @@ use crate::rabbitmq_controller::{
 };
 use crate::reconciler::spec::reconciler::*;
 use crate::temporal_logic::{defs::*, rules::*};
+use crate::vstd_ext::{multiset_lib, seq_lib, string_view::*};
 use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
@@ -109,7 +109,7 @@ proof fn lemma_server_config_map_create_request_msg_implies_key_in_reconcile_equ
         }
     );
     // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
-    seq_lemmas::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server-conf")@);
+    seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server-conf")@);
 }
 
 /// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a server config map
@@ -131,7 +131,7 @@ proof fn lemma_server_config_map_update_request_msg_implies_key_in_reconcile_equ
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime),
 {
     let cr_key = step.get_ControllerStep_0().1.get_Some_0();
-    seq_lemmas::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server-conf")@);
+    seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server-conf")@);
 }
 
 /// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a stateful set
@@ -153,7 +153,7 @@ pub proof fn lemma_stateful_set_create_request_msg_implies_key_in_reconcile_equa
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s_prime),
 {
     let cr_key = step.get_ControllerStep_0().1.get_Some_0();
-    seq_lemmas::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
+    seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
 }
 
 /// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a stateful set
@@ -175,7 +175,7 @@ pub proof fn lemma_stateful_set_update_request_msg_implies_key_in_reconcile_equa
         at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateStatefulSet)(s_prime),
 {
     let cr_key = step.get_ControllerStep_0().1.get_Some_0();
-    seq_lemmas::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
+    seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
 }
 
 

@@ -3,7 +3,7 @@
 use crate::kubernetes_api_objects::{
     common::*, dynamic::*, error::ParseDynamicObjectError, marshal::*, object_meta::*,
 };
-use crate::pervasive_ext::string_view::*;
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 use deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;

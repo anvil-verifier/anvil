@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::external_api::spec::EmptyTypeView;
-use crate::pervasive_ext::to_view::*;
+use crate::vstd_ext::to_view::*;
 use vstd::{prelude::*, view::*};
 
 verus! {

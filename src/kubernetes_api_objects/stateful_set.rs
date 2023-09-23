@@ -4,8 +4,8 @@ use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError, label_selector::*,
     marshal::*, object_meta::*, persistent_volume_claim::*, pod_template_spec::*, resource::*,
 };
-use crate::pervasive_ext::string_map::*;
-use crate::pervasive_ext::string_view::*;
+use crate::vstd_ext::string_map::*;
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;
@@ -31,7 +31,7 @@ pub struct StatefulSet {
 
 impl View for StatefulSet {
     type V = StatefulSetView;
-    
+
     spec fn view(&self) -> StatefulSetView;
 }
 

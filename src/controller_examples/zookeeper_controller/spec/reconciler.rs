@@ -6,11 +6,11 @@ use crate::kubernetes_api_objects::{
     resource_requirements::*, volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
-use crate::pervasive_ext::string_map::*;
-use crate::pervasive_ext::string_view::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
+use crate::vstd_ext::string_map::*;
+use crate::vstd_ext::string_view::*;
 use crate::zookeeper_controller::common::*;
 use crate::zookeeper_controller::spec::{types::*, zookeeper_api::*};
 use vstd::prelude::*;

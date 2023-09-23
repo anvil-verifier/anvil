@@ -4,7 +4,7 @@ use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError, marshal::*,
     object_meta::*, resource::*,
 };
-use crate::pervasive_ext::string_view::*;
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;

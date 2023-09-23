@@ -5,9 +5,9 @@ use crate::kubernetes_api_objects::{
     affinity::*, api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*,
     owner_reference::*, resource::*, resource_requirements::*, stateful_set::*, toleration::*,
 };
-use crate::pervasive_ext::{string_map::*, string_view::*};
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::spec::types as spec_types;
+use crate::vstd_ext::{string_map::*, string_view::*};
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
 
@@ -44,7 +44,7 @@ impl View for RabbitmqReconcileState {
     open spec fn view(&self) -> spec_types::RabbitmqReconcileState {
         spec_types::RabbitmqReconcileState {
             reconcile_step: self.reconcile_step,
-            latest_config_map_rv_opt: 
+            latest_config_map_rv_opt:
                 match self.latest_config_map_rv_opt {
                     Some(s) => Some(s@),
                     None => None,

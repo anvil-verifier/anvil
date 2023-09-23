@@ -3,8 +3,8 @@
 use crate::kubernetes_api_objects::{
     common::*, error::ParseDynamicObjectError, marshal::*, resource::*,
 };
-use crate::pervasive_ext::string_map::*;
-use crate::pervasive_ext::string_view::*;
+use crate::vstd_ext::string_map::*;
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
