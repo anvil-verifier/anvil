@@ -1,7 +1,8 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
-use k8s_openapi::api::apps::v1::DaemonSet;
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::core::v1::{Pod, ServiceAccount};
+use k8s_openapi::api::rbac::v1::RoleBinding;
+use k8s_openapi::api::{apps::v1::DaemonSet, rbac::v1::Role};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use kube::{
     api::{
@@ -110,7 +111,38 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
             return Err(Error::Timeout);
         }
         // Check daemon set
+        let role_api: Api<Role> = Api::default_namespaced(client.clone());
+        let rb_api: Api<RoleBinding> = Api::default_namespaced(client.clone());
+        let sa_api: Api<ServiceAccount> = Api::default_namespaced(client.clone());
         let ds_api: Api<DaemonSet> = Api::default_namespaced(client.clone());
+
+        let role = role_api.get(&(fb_name.clone() + "-role")).await;
+        match role {
+            Err(e) => {
+                println!("Get role failed with error {}.", e);
+                continue;
+            }
+            _ => {}
+        };
+
+        let sa = sa_api.get(&fb_name.clone()).await;
+        match sa {
+            Err(e) => {
+                println!("Get service account failed with error {}.", e);
+                continue;
+            }
+            _ => {}
+        };
+
+        let rb = rb_api.get(&(fb_name.clone() + "-role-binding")).await;
+        match rb {
+            Err(e) => {
+                println!("Get role binding failed with error {}.", e);
+                continue;
+            }
+            _ => {}
+        };
+
         let ds = ds_api.get(&fb_name).await;
         match ds {
             Err(e) => {
