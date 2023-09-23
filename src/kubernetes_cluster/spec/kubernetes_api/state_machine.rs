@@ -4,7 +4,7 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{error::*, prelude::*};
 use crate::kubernetes_cluster::spec::{cluster::Cluster, kubernetes_api::common::*, message::*};
-use crate::pervasive_ext::string_view::*;
+use crate::pervasive_ext::{map::*, string_view::*};
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -18,8 +18,6 @@ verus! {
 //   For example, RoleBinding's roleRef is immutable: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#clusterrolebinding-example
 //
 // + Create and update should ignore the status fields provided by the object
-//
-// + Support more operations like List
 //
 // + Check kind-specific strategy like AllowUnconditionalUpdate() and AllowCreateOnUpdate()
 //
@@ -88,18 +86,16 @@ pub open spec fn handle_get_request(msg: MsgType<E>, s: KubernetesAPIState) -> (
     }
 }
 
-pub open spec fn list_query(list_req: ListRequest, s: KubernetesAPIState) -> Seq<DynamicObjectView> {
-    // TODO: the returned seq should contain all the objects of the resource kind in the resources map
-    Seq::empty()
-}
-
 pub open spec fn handle_list_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
     recommends
         msg.content.is_list_request(),
 {
     let req = msg.content.get_list_request();
-    let result = Ok(Self::list_query(req, s));
+    let result = Ok(select_map_to_seq(
+        s.resources, |key: ObjectRef| req.namespace == key.namespace && req.kind == key.kind
+    ));
     let resp = Message::form_list_resp_msg(msg, result);
+    // TODO: Specify the error conditions
     (s, resp)
 }
 
