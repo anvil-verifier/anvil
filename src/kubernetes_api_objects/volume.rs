@@ -85,13 +85,35 @@ impl Volume {
     /// Methods for the fields that Anvil currently does not reason about
 
     #[verifier(external_body)]
-    pub fn set_empty_dir(&mut self)
+    pub fn set_empty_dir(&mut self, empty_dir: EmptyDirVolumeSource)
         ensures
-            self@ == old(self)@,
+            self@ == old(self)@.set_empty_dir(empty_dir@),
     {
-        self.inner.empty_dir = Some(deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource{
-            ..deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource::default()
-        });
+        self.inner.empty_dir = Some(empty_dir.into_kube());
+    }
+}
+
+#[verifier(external_body)]
+pub struct EmptyDirVolumeSource {
+    inner: deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource,
+}
+
+impl EmptyDirVolumeSource {
+    pub spec fn view(&self) -> EmptyDirVolumeSourceView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (empty_dir_volum_source: EmptyDirVolumeSource)
+        ensures
+            empty_dir_volum_source@ == EmptyDirVolumeSourceView::default(),
+    {
+        EmptyDirVolumeSource {
+            inner: deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource::default(),
+        }
+    }
+
+    #[verifier(external)]
+    pub fn into_kube(self) -> deps_hack::k8s_openapi::api::core::v1::EmptyDirVolumeSource {
+        self.inner
     }
 }
 
@@ -520,6 +542,7 @@ pub struct VolumeView {
     pub projected: Option<ProjectedVolumeSourceView>,
     pub secret: Option<SecretVolumeSourceView>,
     pub downward_api: Option<DownwardAPIVolumeSourceView>,
+    pub empty_dir: Option<EmptyDirVolumeSourceView>,
 }
 
 impl VolumeView {
@@ -531,6 +554,7 @@ impl VolumeView {
             projected: None,
             secret: None,
             downward_api: None,
+            empty_dir: None,
         }
     }
 
@@ -569,10 +593,31 @@ impl VolumeView {
         }
     }
 
+    pub open spec fn set_empty_dir(self, empty_dir: EmptyDirVolumeSourceView) -> VolumeView {
+        VolumeView {
+            empty_dir: Some(empty_dir),
+            ..self
+        }
+    }
+
     pub open spec fn set_downward_api(self, downward_api: DownwardAPIVolumeSourceView) -> VolumeView {
         VolumeView {
             downward_api: Some(downward_api),
             ..self
+        }
+    }
+}
+
+pub struct EmptyDirVolumeSourceView {
+    pub medium: Option<String>,
+    pub size_limit: Option<StringView>,
+}
+
+impl EmptyDirVolumeSourceView {
+    pub open spec fn default() -> EmptyDirVolumeSourceView {
+        EmptyDirVolumeSourceView {
+            medium: None,
+            size_limit: None,
         }
     }
 }
