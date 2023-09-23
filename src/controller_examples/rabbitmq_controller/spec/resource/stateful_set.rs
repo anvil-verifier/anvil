@@ -22,18 +22,22 @@ verus! {
 pub struct StatefulSetBuilder {}
 
 impl ResourceBuilder<StatefulSetView> for StatefulSetBuilder {
-    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<StatefulSetView, RabbitmqError> {
+    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
+        GetRequest { key: make_stateful_set_key(rabbitmq) }
+    }
+
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, RabbitmqError> {
         if state.latest_config_map_rv_opt.is_Some() {
-            Ok(make_stateful_set(rabbitmq, state.latest_config_map_rv_opt.get_Some_0()))
+            Ok(make_stateful_set(rabbitmq, state.latest_config_map_rv_opt.get_Some_0()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: StatefulSetView) -> Result<StatefulSetView, RabbitmqError> {
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: StatefulSetView) -> Result<DynamicObjectView, RabbitmqError> {
         if found_resource.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
         && state.latest_config_map_rv_opt.is_Some() && found_resource.spec.is_Some() {
-            Ok(update_stateful_set(rabbitmq, found_resource, state.latest_config_map_rv_opt.get_Some_0()))
+            Ok(update_stateful_set(rabbitmq, found_resource, state.latest_config_map_rv_opt.get_Some_0()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }
@@ -41,45 +45,47 @@ impl ResourceBuilder<StatefulSetView> for StatefulSetBuilder {
 
     open spec fn get_result_check(obj: DynamicObjectView) -> Result<StatefulSetView, RabbitmqError> {
         let sts = StatefulSetView::unmarshal(obj);
-        if sts.is_ok() {
+        if sts.is_Ok() {
             Ok(sts.get_Ok_0())
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    open spec fn create_result_check(obj: DynamicObjectView) -> Result<StatefulSetView, RabbitmqError> {
+    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
         let sts = StatefulSetView::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.get_Ok_0())
+        if sts.is_Ok() {
+            Ok(RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Done,
+                ..state
+            })
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    open spec fn update_result_check(obj: DynamicObjectView) -> Result<StatefulSetView, RabbitmqError> {
-        let sts = StatefulSetView::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.get_Ok_0())
-        } else {
-            Err(RabbitmqError::Error)
-        }
+    open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest> {
+        None
     }
 }
 
-pub open spec fn make_stateful_set_key(key: ObjectRef) -> ObjectRef
+pub open spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
     recommends
-        key.kind.is_CustomResourceKind(),
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
 {
     ObjectRef {
         kind: StatefulSetView::kind(),
-        name: make_stateful_set_name(key.name),
-        namespace: key.namespace,
+        name: make_stateful_set_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
     }
 }
 
-pub open spec fn make_stateful_set_name(rabbitmq_name: StringView) -> StringView {
-    rabbitmq_name + new_strlit("-server")@
+pub open spec fn make_stateful_set_name(rabbitmq: RabbitmqClusterView) -> StringView 
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-server")@
 }
 
 pub open spec fn sts_restart_annotation() -> StringView {
@@ -119,7 +125,7 @@ pub open spec fn make_stateful_set(rabbitmq: RabbitmqClusterView, config_map_rv:
         rabbitmq.metadata.namespace.is_Some(),
 {
     let name = rabbitmq.metadata.name.get_Some_0();
-    let sts_name = make_stateful_set_name(name);
+    let sts_name = make_stateful_set_name(rabbitmq);
     let namespace = rabbitmq.metadata.namespace.get_Some_0();
 
     let labels = Map::empty().insert(new_strlit("app")@, name);

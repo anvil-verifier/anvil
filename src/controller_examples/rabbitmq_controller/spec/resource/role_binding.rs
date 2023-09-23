@@ -10,6 +10,7 @@ use crate::kubernetes_api_objects::{
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
+use crate::rabbitmq_controller::spec::resource::StatefulSetBuilder;
 use crate::rabbitmq_controller::spec::types::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::{action::*, state_machine::*};
@@ -22,39 +23,41 @@ verus! {
 pub struct RoleBindingBuilder {}
 
 impl ResourceBuilder<RoleBindingView> for RoleBindingBuilder {
-    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<RoleBindingView, RabbitmqError> {
-        Ok(make_role_binding(rabbitmq))
+    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
+        GetRequest { key: make_role_binding_key(rabbitmq) }
     }
 
-    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: RoleBindingView) -> Result<RoleBindingView, RabbitmqError> {
-        Ok(update_role_binding(rabbitmq, found_resource))
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, RabbitmqError> {
+        Ok(make_role_binding(rabbitmq).marshal())
+    }
+
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: RoleBindingView) -> Result<DynamicObjectView, RabbitmqError> {
+        Ok(update_role_binding(rabbitmq, found_resource).marshal())
     }
 
     open spec fn get_result_check(obj: DynamicObjectView) -> Result<RoleBindingView, RabbitmqError> {
-        let sts = RoleBindingView::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.get_Ok_0())
+        let rb = RoleBindingView::unmarshal(obj);
+        if rb.is_Ok() {
+            Ok(rb.get_Ok_0())
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    open spec fn create_result_check(obj: DynamicObjectView) -> Result<RoleBindingView, RabbitmqError> {
-        let sts = RoleBindingView::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.get_Ok_0())
+    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
+        let rb = RoleBindingView::unmarshal(obj);
+        if rb.is_Ok() {
+            Ok(RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::StatefulSet),
+                ..state
+            })
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    open spec fn update_result_check(obj: DynamicObjectView) -> Result<RoleBindingView, RabbitmqError> {
-        let sts = RoleBindingView::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.get_Ok_0())
-        } else {
-            Err(RabbitmqError::Error)
-        }
+    open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest> {
+        Some(StatefulSetBuilder::get_request(rabbitmq))
     }
 }
 

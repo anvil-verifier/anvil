@@ -10,6 +10,7 @@ use crate::kubernetes_api_objects::{
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
+use crate::rabbitmq_controller::spec::resource::ServiceAccountBuilder;
 use crate::rabbitmq_controller::spec::types::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::{action::*, state_machine::*};
@@ -22,12 +23,16 @@ verus! {
 pub struct ServerConfigMapBuilder {}
 
 impl ResourceBuilder<ConfigMapView> for ServerConfigMapBuilder {
-    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<ConfigMapView, RabbitmqError> {
-        Ok(make_server_config_map(rabbitmq))
+    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
+        GetRequest { key: make_server_config_map_key(rabbitmq) }
     }
 
-    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: ConfigMapView) -> Result<ConfigMapView, RabbitmqError> {
-        Ok(update_server_config_map(rabbitmq, found_resource))
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, RabbitmqError> {
+        Ok(make_server_config_map(rabbitmq).marshal())
+    }
+
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: ConfigMapView) -> Result<DynamicObjectView, RabbitmqError> {
+        Ok(update_server_config_map(rabbitmq, found_resource).marshal())
     }
 
     open spec fn get_result_check(obj: DynamicObjectView) -> Result<ConfigMapView, RabbitmqError> {
@@ -39,22 +44,21 @@ impl ResourceBuilder<ConfigMapView> for ServerConfigMapBuilder {
         }
     }
 
-    open spec fn create_result_check(obj: DynamicObjectView) -> Result<ConfigMapView, RabbitmqError> {
+    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
         let cm = ConfigMapView::unmarshal(obj);
         if cm.is_ok() && cm.get_Ok_0().metadata.resource_version.is_Some() {
-            Ok(cm.get_Ok_0())
+            Ok(RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::ServiceAccount),
+                latest_config_map_rv_opt: Some(int_to_string_view(cm.get_Ok_0().metadata.resource_version.get_Some_0())),
+                ..state
+            })
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    open spec fn update_result_check(obj: DynamicObjectView) -> Result<ConfigMapView, RabbitmqError> {
-        let cm = ConfigMapView::unmarshal(obj);
-        if cm.is_ok() && cm.get_Ok_0().metadata.resource_version.is_Some() {
-            Ok(cm.get_Ok_0())
-        } else {
-            Err(RabbitmqError::Error)
-        }
+    open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest> {
+        Some(ServiceAccountBuilder::get_request(rabbitmq))
     }
 }
 
@@ -75,18 +79,22 @@ pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_c
     }
 }
 
-pub open spec fn make_server_config_map_name(rabbitmq_name: StringView) -> StringView {
-    rabbitmq_name + new_strlit("-server-conf")@
+pub open spec fn make_server_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView 
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+{
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-server-conf")@
 }
 
-pub open spec fn make_server_config_map_key(key: ObjectRef) -> ObjectRef
+pub open spec fn make_server_config_map_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
     recommends
-        key.kind.is_CustomResourceKind(),
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
 {
     ObjectRef {
         kind: ConfigMapView::kind(),
-        name: make_server_config_map_name(key.name),
-        namespace: key.namespace,
+        name: make_server_config_map_name(rabbitmq),
+        namespace: rabbitmq.metadata.namespace.get_Some_0(),
     }
 }
 
@@ -97,7 +105,7 @@ pub open spec fn make_server_config_map(rabbitmq: RabbitmqClusterView) -> Config
 {
     ConfigMapView {
         metadata: ObjectMetaView {
-            name: Some(make_server_config_map_name(rabbitmq.metadata.name.get_Some_0())),
+            name: Some(make_server_config_map_name(rabbitmq)),
             namespace: rabbitmq.metadata.namespace,
             owner_references: Some(make_owner_references(rabbitmq)),
             labels: Some(make_labels(rabbitmq)),

@@ -11,6 +11,7 @@ use crate::kubernetes_api_objects::{
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
+use crate::rabbitmq_controller::exec::resource::role::RoleBuilder;
 use crate::rabbitmq_controller::exec::types::*;
 use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*};
@@ -23,39 +24,45 @@ verus! {
 pub struct ServiceAccountBuilder {}
 
 impl ResourceBuilder<ServiceAccount, spec_resource::ServiceAccountBuilder> for ServiceAccountBuilder {
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<ServiceAccount, RabbitmqError> {
-        Ok(make_service_account(rabbitmq))
+    fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
+        KubeGetRequest {
+            api_resource: ServiceAccount::api_resource(),
+            name: make_service_account_name(rabbitmq),
+            namespace: rabbitmq.namespace().unwrap(),
+        }
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: ServiceAccount) -> Result<ServiceAccount, RabbitmqError> {
-        Ok(update_service_account(rabbitmq, found_resource))
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, RabbitmqError> {
+        Ok(make_service_account(rabbitmq).marshal())
+    }
+
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: ServiceAccount) -> Result<DynamicObject, RabbitmqError> {
+        Ok(update_service_account(rabbitmq, found_resource).marshal())
     }
 
     fn get_result_check(obj: DynamicObject) -> Result<ServiceAccount, RabbitmqError> {
-        let sts = ServiceAccount::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
+        let sa = ServiceAccount::unmarshal(obj);
+        if sa.is_ok() {
+            Ok(sa.unwrap())
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    fn create_result_check(obj: DynamicObject) -> Result<ServiceAccount, RabbitmqError> {
-        let sts = ServiceAccount::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
+    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
+        let sa = ServiceAccount::unmarshal(obj);
+        if sa.is_ok() {
+            Ok(RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::Role),
+                ..state
+            })
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    fn update_result_check(obj: DynamicObject) -> Result<ServiceAccount, RabbitmqError> {
-        let sts = ServiceAccount::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
-        } else {
-            Err(RabbitmqError::Error)
-        }
+    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
+        Some(RoleBuilder::get_request(rabbitmq))
     }
 }
 
@@ -79,6 +86,16 @@ pub fn update_service_account(rabbitmq: &RabbitmqCluster, found_service_account:
     service_account
 }
 
+pub fn make_service_account_name(rabbitmq: &RabbitmqCluster) -> (name: String)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        name@ == spec_resource::make_service_account_name(rabbitmq@),
+{
+    rabbitmq.name().unwrap().concat(new_strlit("-server"))
+}
+
 pub fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: ServiceAccount)
     requires
         rabbitmq@.metadata.name.is_Some(),
@@ -89,7 +106,7 @@ pub fn make_service_account(rabbitmq: &RabbitmqCluster) -> (service_account: Ser
     let mut service_account = ServiceAccount::default();
     service_account.set_metadata({
         let mut metadata = ObjectMeta::default();
-        metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-server")));
+        metadata.set_name(make_service_account_name(rabbitmq));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));

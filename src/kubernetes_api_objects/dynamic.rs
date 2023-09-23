@@ -18,9 +18,13 @@ pub struct DynamicObject {
     inner: K8SDynamicObject,
 }
 
-impl DynamicObject {
-    pub spec fn view(&self) -> DynamicObjectView;
+impl View for DynamicObject {
+    type V = DynamicObjectView;
 
+    spec fn view(&self) -> DynamicObjectView;
+}
+
+impl DynamicObject {
     #[verifier(external)]
     pub fn kube_metadata_ref(&self) -> &K8SObjectMeta {
         &self.inner.metadata

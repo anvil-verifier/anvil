@@ -11,6 +11,7 @@ use crate::kubernetes_api_objects::{
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
+use crate::rabbitmq_controller::exec::resource::config_map::ServerConfigMapBuilder;
 use crate::rabbitmq_controller::exec::types::*;
 use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*};
@@ -23,12 +24,20 @@ verus! {
 pub struct PluginsConfigMapBuilder {}
 
 impl ResourceBuilder<ConfigMap, spec_resource::PluginsConfigMapBuilder> for PluginsConfigMapBuilder {
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<ConfigMap, RabbitmqError> {
-        Ok(make_plugins_config_map(rabbitmq))
+    fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
+        KubeGetRequest {
+            api_resource: ConfigMap::api_resource(),
+            name: make_plugins_config_map_name(rabbitmq),
+            namespace: rabbitmq.namespace().unwrap(),
+        }
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: ConfigMap) -> Result<ConfigMap, RabbitmqError> {
-        Ok(update_plugins_config_map(rabbitmq, found_resource))
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, RabbitmqError> {
+        Ok(make_plugins_config_map(rabbitmq).marshal())
+    }
+
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: ConfigMap) -> Result<DynamicObject, RabbitmqError> {
+        Ok(update_plugins_config_map(rabbitmq, found_resource).marshal())
     }
 
     fn get_result_check(obj: DynamicObject) -> Result<ConfigMap, RabbitmqError> {
@@ -40,22 +49,20 @@ impl ResourceBuilder<ConfigMap, spec_resource::PluginsConfigMapBuilder> for Plug
         }
     }
 
-    fn create_result_check(obj: DynamicObject) -> Result<ConfigMap, RabbitmqError> {
-        let sts = ConfigMap::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
+    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
+        let cm = ConfigMap::unmarshal(obj);
+        if cm.is_ok() {
+            Ok(RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::ServerConfigMap),
+                ..state
+            })
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    fn update_result_check(obj: DynamicObject) -> Result<ConfigMap, RabbitmqError> {
-        let sts = ConfigMap::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
-        } else {
-            Err(RabbitmqError::Error)
-        }
+    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
+        Some(ServerConfigMapBuilder::get_request(rabbitmq))
     }
 }
 
@@ -85,6 +92,16 @@ pub fn update_plugins_config_map(rabbitmq: &RabbitmqCluster, found_config_map: C
     config_map
 }
 
+pub fn make_plugins_config_map_name(rabbitmq: &RabbitmqCluster) -> (name: String)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        name@ == spec_resource::make_plugins_config_map_name(rabbitmq@),
+{
+    rabbitmq.name().unwrap().concat(new_strlit("-plugins-conf"))
+}
+
 pub fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: ConfigMap)
     requires
         rabbitmq@.metadata.name.is_Some(),
@@ -95,7 +112,7 @@ pub fn make_plugins_config_map(rabbitmq: &RabbitmqCluster) -> (config_map: Confi
     let mut config_map = ConfigMap::default();
     config_map.set_metadata({
         let mut metadata = ObjectMeta::default();
-        metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-plugins-conf")));
+        metadata.set_name(make_plugins_config_map_name(rabbitmq));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));

@@ -11,6 +11,7 @@ use crate::kubernetes_api_objects::{
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
+use crate::rabbitmq_controller::exec::resource::service::ServiceBuilder;
 use crate::rabbitmq_controller::exec::types::*;
 use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*};
@@ -23,12 +24,20 @@ verus! {
 pub struct HeadlessServiceBuilder {}
 
 impl ResourceBuilder<Service, spec_resource::HeadlessServiceBuilder> for HeadlessServiceBuilder {
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<Service, RabbitmqError> {
-        Ok(make_headless_service(rabbitmq))
+    fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
+        KubeGetRequest {
+            api_resource: Service::api_resource(),
+            name: make_headless_service_name(rabbitmq),
+            namespace: rabbitmq.namespace().unwrap(),
+        }
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: Service) -> Result<Service, RabbitmqError> {
-        Ok(update_headless_service(rabbitmq, found_resource))
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, RabbitmqError> {
+        Ok(make_headless_service(rabbitmq).marshal())
+    }
+
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: Service) -> Result<DynamicObject, RabbitmqError> {
+        Ok(update_headless_service(rabbitmq, found_resource).marshal())
     }
 
     fn get_result_check(obj: DynamicObject) -> Result<Service, RabbitmqError> {
@@ -40,22 +49,20 @@ impl ResourceBuilder<Service, spec_resource::HeadlessServiceBuilder> for Headles
         }
     }
 
-    fn create_result_check(obj: DynamicObject) -> Result<Service, RabbitmqError> {
-        let sts = Service::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
+    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
+        let service = Service::unmarshal(obj);
+        if service.is_ok() {
+            Ok(RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::Service),
+                ..state
+            })
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    fn update_result_check(obj: DynamicObject) -> Result<Service, RabbitmqError> {
-        let sts = Service::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
-        } else {
-            Err(RabbitmqError::Error)
-        }
+    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
+        Some(ServiceBuilder::get_request(rabbitmq))
     }
 }
 
@@ -81,12 +88,22 @@ pub fn update_headless_service(rabbitmq: &RabbitmqCluster, found_headless_servic
     headless_service
 }
 
+pub fn make_headless_service_name(rabbitmq: &RabbitmqCluster) -> (name: String)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        name@ == spec_resource::make_headless_service_name(rabbitmq@),
+{
+    rabbitmq.name().unwrap().concat(new_strlit("-nodes"))
+}
+
 pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        service@ == spec_resource::make_headless_service(rabbitmq@)
+        service@ == spec_resource::make_headless_service(rabbitmq@),
 {
     let mut ports = Vec::new();
     ports.push(ServicePort::new_with(new_strlit("epmd").to_string(), 4369));
@@ -97,7 +114,7 @@ pub fn make_headless_service(rabbitmq: &RabbitmqCluster) -> (service: Service)
             spec_resource::make_headless_service(rabbitmq@).spec.get_Some_0().ports.get_Some_0()
         );
     }
-    make_service(rabbitmq, rabbitmq.name().unwrap().concat(new_strlit("-nodes")), ports, false)
+    make_service(rabbitmq, make_headless_service_name(rabbitmq), ports, false)
 }
 
 }

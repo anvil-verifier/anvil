@@ -20,14 +20,18 @@ use vstd::string::*;
 verus! {
 
 pub trait ResourceBuilder<T: View, SpecBuilder: spec_resource::ResourceBuilder<T::V>> {
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> (res: Result<T, RabbitmqError>)
+    fn get_request(rabbitmq: &RabbitmqCluster) -> (req: KubeGetRequest)
+        ensures
+            req.to_view() == SpecBuilder::get_request(rabbitmq@);
+
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> (res: Result<DynamicObject, RabbitmqError>)
         requires
             rabbitmq@.metadata.name.is_Some(),
             rabbitmq@.metadata.namespace.is_Some(),
-        ensures 
+        ensures
             resource_res_to_view(res) == SpecBuilder::make(rabbitmq@, state@);
-    
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: T) -> (res: Result<T, RabbitmqError>)
+
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: T) -> (res: Result<DynamicObject, RabbitmqError>)
         requires
             rabbitmq@.metadata.name.is_Some(),
             rabbitmq@.metadata.namespace.is_Some(),
@@ -37,14 +41,16 @@ pub trait ResourceBuilder<T: View, SpecBuilder: spec_resource::ResourceBuilder<T
     fn get_result_check(obj: DynamicObject) -> (res: Result<T, RabbitmqError>)
         ensures
             resource_res_to_view(res) == SpecBuilder::get_result_check(obj@);
-    
-    fn create_result_check(obj: DynamicObject) -> (res: Result<T, RabbitmqError>)
+
+    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>)
         ensures
-            resource_res_to_view(res) == SpecBuilder::create_result_check(obj@);
-    
-    fn update_result_check(obj: DynamicObject) -> (res: Result<T, RabbitmqError>)
+            resource_res_to_view(res) == SpecBuilder::state_after_create_or_update(obj@, state@);
+
+    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>)
         ensures
-            resource_res_to_view(res) == SpecBuilder::update_result_check(obj@);
+            res.is_Some() == SpecBuilder::next_resource_get_request(rabbitmq@).is_Some(),
+            res.is_Some() ==> res.get_Some_0().to_view() == SpecBuilder::next_resource_get_request(rabbitmq@).get_Some_0();
+
 }
 
 pub fn make_labels(rabbitmq: &RabbitmqCluster) -> (labels: StringMap)

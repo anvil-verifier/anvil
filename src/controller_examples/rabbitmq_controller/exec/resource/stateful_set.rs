@@ -23,18 +23,33 @@ verus! {
 pub struct StatefulSetBuilder {}
 
 impl ResourceBuilder<StatefulSet, spec_resource::StatefulSetBuilder> for StatefulSetBuilder {
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<StatefulSet, RabbitmqError> {
+    fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
+        KubeGetRequest {
+            api_resource: StatefulSet::api_resource(),
+            name: make_stateful_set_name(rabbitmq),
+            namespace: rabbitmq.namespace().unwrap(),
+        }
+    }
+
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, RabbitmqError> {
         if state.latest_config_map_rv_opt.is_some() {
-            Ok(make_stateful_set(rabbitmq, state.latest_config_map_rv_opt.as_ref().unwrap()))
+            Ok(make_stateful_set(rabbitmq, state.latest_config_map_rv_opt.as_ref().unwrap()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: StatefulSet) -> Result<StatefulSet, RabbitmqError> {
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: StatefulSet) -> Result<DynamicObject, RabbitmqError> {
+        // We check the owner reference of the found stateful set here to ensure that it is not created from
+        // previously existing (and now deleted) cr. Otherwise, if the replicas of the current cr is smaller
+        // than the previous one, scaling down, which should be prohibited, will happen.
+        // If the found stateful set doesn't contain the controller owner reference of the current cr, we will
+        // just let the reconciler enter the error state and wait for the garbage collector to delete it. So
+        // after that, when a new round of reconcile starts, there is no stateful set in etcd, the reconciler
+        // will go to create a new one.
         if found_resource.metadata().owner_references_only_contains(rabbitmq.controller_owner_ref())
         && state.latest_config_map_rv_opt.is_some() && found_resource.spec().is_some() {
-            Ok(update_stateful_set(rabbitmq, found_resource, state.latest_config_map_rv_opt.as_ref().unwrap()))
+            Ok(update_stateful_set(rabbitmq, found_resource, state.latest_config_map_rv_opt.as_ref().unwrap()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }
@@ -49,22 +64,20 @@ impl ResourceBuilder<StatefulSet, spec_resource::StatefulSetBuilder> for Statefu
         }
     }
 
-    fn create_result_check(obj: DynamicObject) -> Result<StatefulSet, RabbitmqError> {
+    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
         let sts = StatefulSet::unmarshal(obj);
         if sts.is_ok() {
-            Ok(sts.unwrap())
+            Ok(RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::Done,
+                ..state
+            })
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    fn update_result_check(obj: DynamicObject) -> Result<StatefulSet, RabbitmqError> {
-        let sts = StatefulSet::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
-        } else {
-            Err(RabbitmqError::Error)
-        }
+    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
+        None
     }
 }
 
@@ -115,7 +128,7 @@ pub fn make_stateful_set_name(rabbitmq: &RabbitmqCluster) -> (name: String)
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        name@ == spec_resource::make_stateful_set_name(rabbitmq@.metadata.name.get_Some_0()),
+        name@ == spec_resource::make_stateful_set_name(rabbitmq@),
 {
     rabbitmq.name().unwrap().concat(new_strlit("-server"))
 }

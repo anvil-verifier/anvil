@@ -12,6 +12,7 @@ pub mod service;
 pub mod service_account;
 pub mod stateful_set;
 
+pub use common::*;
 pub use config_map::*;
 pub use default_user_secret::*;
 pub use erlang_cookie::*;

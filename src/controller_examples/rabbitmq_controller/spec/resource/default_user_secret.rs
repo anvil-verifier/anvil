@@ -10,6 +10,7 @@ use crate::kubernetes_api_objects::{
 use crate::kubernetes_cluster::spec::message::*;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
+use crate::rabbitmq_controller::spec::resource::rabbitmq_plugins::PluginsConfigMapBuilder;
 use crate::rabbitmq_controller::spec::types::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::{action::*, state_machine::*};
@@ -22,39 +23,41 @@ verus! {
 pub struct DefaultUserSecretBuilder {}
 
 impl ResourceBuilder<SecretView> for DefaultUserSecretBuilder {
-    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<SecretView, RabbitmqError> {
-        Ok(make_default_user_secret(rabbitmq))
+    open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
+        GetRequest { key: make_default_user_secret_key(rabbitmq) }
     }
 
-    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: SecretView) -> Result<SecretView, RabbitmqError> {
-        Ok(update_default_user_secret(rabbitmq, found_resource))
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, RabbitmqError> {
+        Ok(make_default_user_secret(rabbitmq).marshal())
+    }
+
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: SecretView) -> Result<DynamicObjectView, RabbitmqError> {
+        Ok(update_default_user_secret(rabbitmq, found_resource).marshal())
     }
 
     open spec fn get_result_check(obj: DynamicObjectView) -> Result<SecretView, RabbitmqError> {
         let sts = SecretView::unmarshal(obj);
-        if sts.is_ok() {
+        if sts.is_Ok() {
             Ok(sts.get_Ok_0())
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    open spec fn create_result_check(obj: DynamicObjectView) -> Result<SecretView, RabbitmqError> {
+    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
         let sts = SecretView::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.get_Ok_0())
+        if sts.is_Ok() {
+            Ok(RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::PluginsConfigMap),
+                ..state
+            })
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    open spec fn update_result_check(obj: DynamicObjectView) -> Result<SecretView, RabbitmqError> {
-        let sts = SecretView::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.get_Ok_0())
-        } else {
-            Err(RabbitmqError::Error)
-        }
+    open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest> {
+        Some(PluginsConfigMapBuilder::get_request(rabbitmq))
     }
 }
 

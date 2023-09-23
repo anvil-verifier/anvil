@@ -19,15 +19,17 @@ use vstd::string::*;
 verus! {
 
 pub trait ResourceBuilder<T> {
-    spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<T, RabbitmqError>;
+    spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest;
 
-    spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: T) -> Result<T, RabbitmqError>;
+    spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, RabbitmqError>;
+
+    spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: T) -> Result<DynamicObjectView, RabbitmqError>;
 
     spec fn get_result_check(obj: DynamicObjectView) -> Result<T, RabbitmqError>;
 
-    spec fn create_result_check(obj: DynamicObjectView) -> Result<T, RabbitmqError>;
+    spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> Result<RabbitmqReconcileState, RabbitmqError>;
 
-    spec fn update_result_check(obj: DynamicObjectView) -> Result<T, RabbitmqError>;
+    spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest>;
 }
 
 pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView>

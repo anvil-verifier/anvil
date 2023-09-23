@@ -11,6 +11,7 @@ use crate::kubernetes_api_objects::{
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
+use crate::rabbitmq_controller::exec::resource::default_user_secret::DefaultUserSecretBuilder;
 use crate::rabbitmq_controller::exec::types::*;
 use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*};
@@ -23,39 +24,45 @@ verus! {
 pub struct ErlangCookieBuilder {}
 
 impl ResourceBuilder<Secret, spec_resource::ErlangCookieBuilder> for ErlangCookieBuilder {
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<Secret, RabbitmqError> {
-        Ok(make_erlang_secret(rabbitmq))
+    fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
+        KubeGetRequest {
+            api_resource: Secret::api_resource(),
+            name: make_erlang_secret_name(rabbitmq),
+            namespace: rabbitmq.namespace().unwrap(),
+        }
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: Secret) -> Result<Secret, RabbitmqError> {
-        Ok(update_erlang_secret(rabbitmq, found_resource))
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, RabbitmqError> {
+        Ok(make_erlang_secret(rabbitmq).marshal())
+    }
+
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: Secret) -> Result<DynamicObject, RabbitmqError> {
+        Ok(update_erlang_secret(rabbitmq, found_resource).marshal())
     }
 
     fn get_result_check(obj: DynamicObject) -> Result<Secret, RabbitmqError> {
-        let sts = Secret::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
+        let secret = Secret::unmarshal(obj);
+        if secret.is_ok() {
+            Ok(secret.unwrap())
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    fn create_result_check(obj: DynamicObject) -> Result<Secret, RabbitmqError> {
-        let sts = Secret::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
+    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
+        let secret = Secret::unmarshal(obj);
+        if secret.is_ok() {
+            Ok(RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::DefaultUserSecret),
+                ..state
+            })
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    fn update_result_check(obj: DynamicObject) -> Result<Secret, RabbitmqError> {
-        let sts = Secret::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
-        } else {
-            Err(RabbitmqError::Error)
-        }
+    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
+        Some(DefaultUserSecretBuilder::get_request(rabbitmq))
     }
 }
 
@@ -87,6 +94,16 @@ pub fn update_erlang_secret(rabbitmq: &RabbitmqCluster, found_erlang_secret: Sec
     erlang_secret
 }
 
+pub fn make_erlang_secret_name(rabbitmq: &RabbitmqCluster) -> (name: String)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        name@ == spec_resource::make_erlang_secret_name(rabbitmq@),
+{
+    rabbitmq.name().unwrap().concat(new_strlit("-erlang-cookie"))
+}
+
 pub fn make_erlang_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
     requires
         rabbitmq@.metadata.name.is_Some(),
@@ -97,7 +114,7 @@ pub fn make_erlang_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
     let mut data = StringMap::empty();
     let cookie = random_encoded_string(24);
     data.insert(new_strlit(".erlang.cookie").to_string(), cookie);
-    make_secret(rabbitmq, rabbitmq.name().unwrap().concat(new_strlit("-erlang-cookie")), data)
+    make_secret(rabbitmq, make_erlang_secret_name(rabbitmq), data)
 }
 
 #[verifier(external_body)]

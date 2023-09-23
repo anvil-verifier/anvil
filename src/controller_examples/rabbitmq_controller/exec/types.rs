@@ -21,6 +21,19 @@ pub struct RabbitmqReconcileState {
     pub latest_config_map_rv_opt: Option<String>,
 }
 
+impl std::clone::Clone for RabbitmqReconcileState {
+    fn clone(&self) -> RabbitmqReconcileState {
+        RabbitmqReconcileState {
+            reconcile_step: self.reconcile_step,
+            latest_config_map_rv_opt:
+                match &self.latest_config_map_rv_opt {
+                    Some(n) => Some(n.clone()),
+                    None => None,
+                }
+        }
+    }
+}
+
 impl View for RabbitmqReconcileState {
     type V = spec_types::RabbitmqReconcileState;
 

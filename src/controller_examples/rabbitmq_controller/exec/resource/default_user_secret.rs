@@ -11,6 +11,7 @@ use crate::kubernetes_api_objects::{
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
+use crate::rabbitmq_controller::exec::resource::rabbitmq_plugins::PluginsConfigMapBuilder;
 use crate::rabbitmq_controller::exec::types::*;
 use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*};
@@ -23,12 +24,20 @@ verus! {
 pub struct DefaultUserSecretBuilder {}
 
 impl ResourceBuilder<Secret, spec_resource::DefaultUserSecretBuilder> for DefaultUserSecretBuilder {
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<Secret, RabbitmqError> {
-        Ok(make_default_user_secret(rabbitmq))
+    fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
+        KubeGetRequest {
+            api_resource: Secret::api_resource(),
+            name: make_default_user_secret_name(rabbitmq),
+            namespace: rabbitmq.namespace().unwrap(),
+        }
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: Secret) -> Result<Secret, RabbitmqError> {
-        Ok(update_default_user_secret(rabbitmq, found_resource))
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, RabbitmqError> {
+        Ok(make_default_user_secret(rabbitmq).marshal())
+    }
+
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: Secret) -> Result<DynamicObject, RabbitmqError> {
+        Ok(update_default_user_secret(rabbitmq, found_resource).marshal())
     }
 
     fn get_result_check(obj: DynamicObject) -> Result<Secret, RabbitmqError> {
@@ -40,22 +49,20 @@ impl ResourceBuilder<Secret, spec_resource::DefaultUserSecretBuilder> for Defaul
         }
     }
 
-    fn create_result_check(obj: DynamicObject) -> Result<Secret, RabbitmqError> {
-        let sts = Secret::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
+    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
+        let secret = Secret::unmarshal(obj);
+        if secret.is_ok() {
+            Ok(RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::PluginsConfigMap),
+                ..state
+            })
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    fn update_result_check(obj: DynamicObject) -> Result<Secret, RabbitmqError> {
-        let sts = Secret::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
-        } else {
-            Err(RabbitmqError::Error)
-        }
+    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
+        Some(PluginsConfigMapBuilder::get_request(rabbitmq))
     }
 }
 
@@ -80,6 +87,16 @@ pub fn update_default_user_secret(rabbitmq: &RabbitmqCluster, found_secret: Secr
     user_secret
 }
 
+pub fn make_default_user_secret_name(rabbitmq: &RabbitmqCluster) -> (name: String)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        name@ == spec_resource::make_default_user_secret_name(rabbitmq@),
+{
+    rabbitmq.name().unwrap().concat(new_strlit("-default-user"))
+}
+
 pub fn make_default_user_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
     requires
         rabbitmq@.metadata.name.is_Some(),
@@ -98,7 +115,7 @@ pub fn make_default_user_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
     // TODO: check \n
     data.insert(new_strlit("default_user.conf").to_string(), new_strlit("default_user = user\ndefault_pass = changeme").to_string());
     data.insert(new_strlit("port").to_string(), new_strlit("5672").to_string());
-    make_secret(rabbitmq, rabbitmq.name().unwrap().concat(new_strlit("-default-user")), data)
+    make_secret(rabbitmq, make_default_user_secret_name(rabbitmq), data)
 }
 
 }

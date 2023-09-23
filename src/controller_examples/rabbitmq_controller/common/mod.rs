@@ -8,44 +8,22 @@ verus! {
 #[is_variant]
 pub enum RabbitmqReconcileStep {
     Init,
-    AfterGetHeadlessService,
-    AfterCreateHeadlessService,
-    AfterUpdateHeadlessService,
-    AfterGetService,
-    AfterCreateService,
-    AfterUpdateService,
-    AfterGetErlangCookieSecret,
-    AfterCreateErlangCookieSecret,
-    AfterUpdateErlangCookieSecret,
-    AfterGetDefaultUserSecret,
-    AfterCreateDefaultUserSecret,
-    AfterUpdateDefaultUserSecret,
-    AfterGetPluginsConfigMap,
-    AfterCreatePluginsConfigMap,
-    AfterUpdatePluginsConfigMap,
-    AfterGetServerConfigMap,
-    AfterCreateServerConfigMap,
-    AfterUpdateServerConfigMap,
-    AfterGetServiceAccount,
-    AfterCreateServiceAccount,
-    AfterUpdateServiceAccount,
-    AfterGetRole,
-    AfterCreateRole,
-    AfterUpdateRole,
-    AfterGetRoleBinding,
-    AfterCreateRoleBinding,
-    AfterUpdateRoleBinding,
-    AfterGetStatefulSet,
-    AfterCreateStatefulSet,
-    AfterUpdateStatefulSet,
-    // AfterKRequestStep(ActionKind, ResourceKind, ResourceKind),
+    AfterKRequestStep(ActionKind, ResourceKind),
     Done,
     Error,
 }
 
+impl std::marker::Copy for RabbitmqReconcileStep {}
+
+impl std::clone::Clone for RabbitmqReconcileStep {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
 pub enum ResourceKind {
     HeadlessService,
-    MainService,
+    Service,
     ErlangCookieSecret,
     DefaultUserSecret,
     PluginsConfigMap,
@@ -56,14 +34,41 @@ pub enum ResourceKind {
     StatefulSet,
 }
 
+#[is_variant]
 pub enum ActionKind {
     Get,
     Create,
     Update,
 }
 
+impl std::marker::Copy for ResourceKind {}
+
+impl std::clone::Clone for ResourceKind {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl std::marker::Copy for ActionKind {}
+
+impl std::clone::Clone for ActionKind {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+#[is_variant]
 pub enum RabbitmqError {
     Error
+}
+
+impl std::fmt::Debug for RabbitmqError {
+    #[verifier(external)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            RabbitmqError::Error => write!(f, "Error"),
+        }
+    }
 }
 
 pub open spec fn resource_res_to_view<T: View>(res: Result<T, RabbitmqError>) -> Result<T::V, RabbitmqError> {

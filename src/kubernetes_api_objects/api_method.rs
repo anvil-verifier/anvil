@@ -102,6 +102,18 @@ pub struct KubeGetRequest {
 }
 
 impl KubeGetRequest {
+    pub open spec fn to_view(&self) -> GetRequest {
+        GetRequest {
+            key: ObjectRef {
+                kind: self.api_resource@.kind,
+                name: self.name@,
+                namespace: self.namespace@,
+            },
+        }
+    }
+}
+
+impl KubeGetRequest {
     #[verifier(external)]
     pub fn key(&self) -> std::string::String {
         format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref(), self.name.as_rust_string_ref())
@@ -166,13 +178,7 @@ impl KubeUpdateRequest {
 impl KubeAPIRequest {
     pub open spec fn to_view(&self) -> APIRequest {
         match self {
-            KubeAPIRequest::GetRequest(get_req) => APIRequest::GetRequest(GetRequest {
-                key: ObjectRef {
-                    kind: get_req.api_resource@.kind,
-                    name: get_req.name@,
-                    namespace: get_req.namespace@,
-                }
-            }),
+            KubeAPIRequest::GetRequest(get_req) => APIRequest::GetRequest(get_req.to_view()),
             KubeAPIRequest::ListRequest(list_req) => APIRequest::ListRequest(ListRequest {
                 kind: list_req.api_resource@.kind,
                 namespace: list_req.namespace@,

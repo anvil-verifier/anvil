@@ -11,6 +11,7 @@ use crate::kubernetes_api_objects::{
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
+use crate::rabbitmq_controller::exec::resource::role_binding::RoleBindingBuilder;
 use crate::rabbitmq_controller::exec::types::*;
 use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*};
@@ -23,12 +24,20 @@ verus! {
 pub struct RoleBuilder {}
 
 impl ResourceBuilder<Role, spec_resource::RoleBuilder> for RoleBuilder {
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<Role, RabbitmqError> {
-        Ok(make_role(rabbitmq))
+    fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
+        KubeGetRequest {
+            api_resource: Role::api_resource(),
+            name: make_role_name(rabbitmq),
+            namespace: rabbitmq.namespace().unwrap(),
+        }
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: Role) -> Result<Role, RabbitmqError> {
-        Ok(update_role(rabbitmq, found_resource))
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, RabbitmqError> {
+        Ok(make_role(rabbitmq).marshal())
+    }
+
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: Role) -> Result<DynamicObject, RabbitmqError> {
+        Ok(update_role(rabbitmq, found_resource).marshal())
     }
 
     fn get_result_check(obj: DynamicObject) -> Result<Role, RabbitmqError> {
@@ -40,22 +49,20 @@ impl ResourceBuilder<Role, spec_resource::RoleBuilder> for RoleBuilder {
         }
     }
 
-    fn create_result_check(obj: DynamicObject) -> Result<Role, RabbitmqError> {
-        let sts = Role::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
+    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
+        let role = Role::unmarshal(obj);
+        if role.is_ok() {
+            Ok(RabbitmqReconcileState {
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::RoleBinding),
+                ..state
+            })
         } else {
             Err(RabbitmqError::Error)
         }
     }
 
-    fn update_result_check(obj: DynamicObject) -> Result<Role, RabbitmqError> {
-        let sts = Role::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
-        } else {
-            Err(RabbitmqError::Error)
-        }
+    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
+        Some(RoleBindingBuilder::get_request(rabbitmq))
     }
 }
 
@@ -78,6 +85,16 @@ pub fn update_role(rabbitmq: &RabbitmqCluster, found_role: Role) -> (role: Role)
         metadata
     });
     role
+}
+
+pub fn make_role_name(rabbitmq: &RabbitmqCluster) -> (name: String)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        name@ == spec_resource::make_role_name(rabbitmq@),
+{
+    rabbitmq.name().unwrap().concat(new_strlit("-peer-discovery"))
 }
 
 pub fn make_policy_rules(rabbitmq: &RabbitmqCluster) -> (rules: Vec<PolicyRule>)
@@ -181,7 +198,7 @@ pub fn make_role(rabbitmq: &RabbitmqCluster) -> (role: Role)
     let mut role = Role::default();
     role.set_metadata({
         let mut metadata = ObjectMeta::default();
-        metadata.set_name(rabbitmq.name().unwrap().concat(new_strlit("-peer-discovery")));
+        metadata.set_name(make_role_name(rabbitmq));
         metadata.set_namespace(rabbitmq.namespace().unwrap());
         metadata.set_owner_references(make_owner_references(rabbitmq));
         metadata.set_labels(make_labels(rabbitmq));
