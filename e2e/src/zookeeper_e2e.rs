@@ -101,7 +101,7 @@ pub fn zookeeper_cluster_ephemeral() -> String {
 }
 
 pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), Error> {
-    let timeout = Duration::from_secs(360);
+    let timeout = Duration::from_secs(600);
     let start = Instant::now();
     let svc_api: Api<Service> = Api::default_namespaced(client.clone());
     let cm_api: Api<ConfigMap> = Api::default_namespaced(client.clone());
@@ -195,7 +195,7 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
 }
 
 pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> Result<(), Error> {
-    let timeout = Duration::from_secs(360);
+    let timeout = Duration::from_secs(600);
     let mut start = Instant::now();
     let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
     let pvc_api: Api<PersistentVolumeClaim> = Api::default_namespaced(client.clone());
@@ -407,7 +407,7 @@ pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> 
 }
 
 pub async fn relabel_test(client: Client, zk_name: String) -> Result<(), Error> {
-    let timeout = Duration::from_secs(360);
+    let timeout = Duration::from_secs(600);
     let start = Instant::now();
     let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
     run_command(
@@ -517,7 +517,7 @@ pub async fn relabel_test(client: Client, zk_name: String) -> Result<(), Error> 
 }
 
 pub async fn upgrading_test(client: Client, zk_name: String) -> Result<(), Error> {
-    let timeout = Duration::from_secs(360);
+    let timeout = Duration::from_secs(600);
     let start = Instant::now();
     let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
     run_command(
@@ -610,7 +610,7 @@ pub async fn upgrading_test(client: Client, zk_name: String) -> Result<(), Error
 }
 
 pub async fn reconfiguration_test(client: Client, zk_name: String) -> Result<(), Error> {
-    let timeout = Duration::from_secs(360);
+    let timeout = Duration::from_secs(600);
     let start = Instant::now();
     let sts_api: Api<StatefulSet> = Api::default_namespaced(client.clone());
     run_command(

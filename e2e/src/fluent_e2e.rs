@@ -97,6 +97,10 @@ pub fn fluent_bit_config() -> String {
     .to_string()
 }
 
+fn node_number() -> i32 {
+    4
+}
+
 pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), Error> {
     let timeout = Duration::from_secs(360);
     let start = Instant::now();
@@ -114,7 +118,7 @@ pub async fn desired_state_test(client: Client, fb_name: String) -> Result<(), E
                 continue;
             }
             Ok(ds) => {
-                if ds.status.as_ref().unwrap().number_ready == 6 {
+                if ds.status.as_ref().unwrap().number_ready == node_number() {
                     // this number depends on the number of nodes
                     println!("All daemons are ready now.");
                     break;
@@ -197,7 +201,7 @@ pub async fn relabel_test(client: Client, fb_name: String) -> Result<(), Error> 
                     .updated_number_scheduled
                     .as_ref()
                     .unwrap()
-                    == 6
+                    == node_number()
                 {
                     println!("Relabel is done.");
                 } else {
@@ -213,7 +217,7 @@ pub async fn relabel_test(client: Client, fb_name: String) -> Result<(), Error> 
                     continue;
                 }
 
-                if ds.status.as_ref().unwrap().number_ready == 6 {
+                if ds.status.as_ref().unwrap().number_ready == node_number() {
                     println!("All daemon set pods are ready.");
                     break;
                 } else {
