@@ -129,6 +129,13 @@ pub struct KubeListRequest {
     pub namespace: String,
 }
 
+impl KubeListRequest {
+    #[verifier(external)]
+    pub fn key(&self) -> std::string::String {
+        format!("{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref())
+    }
+}
+
 /// KubeCreateRequest has the obj as the parameter of Api.create().
 
 pub struct KubeCreateRequest {
