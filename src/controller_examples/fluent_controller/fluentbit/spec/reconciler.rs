@@ -127,26 +127,105 @@ pub open spec fn reconcile_core(
             }
         },
         FluentBitReconcileStep::AfterCreateRole => {
-            let service_account = make_service_account(fb);
-            let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: fb.metadata.namespace.get_Some_0(),
-                obj: service_account.marshal(),
+            let req_o = APIRequest::GetRequest(GetRequest {
+                key: make_service_account_key(fb.object_ref()),
             });
             let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterCreateServiceAccount,
+                reconcile_step: FluentBitReconcileStep::AfterGetServiceAccount,
                 ..state
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
+        FluentBitReconcileStep::AfterGetServiceAccount => {
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
+                let get_service_account_resp = resp.get_KResponse_0().get_GetResponse_0().res;
+                let unmarshal_service_account_result = ServiceAccountView::unmarshal(get_service_account_resp.get_Ok_0());
+                if get_service_account_resp.is_Ok() {
+                    if unmarshal_service_account_result.is_Ok() {
+                        // update
+                        let found_service_account = unmarshal_service_account_result.get_Ok_0();
+                        let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                            namespace: fb_namespace,
+                            name: make_service_account_name(fb_name),
+                            obj: update_service_account(fb, found_service_account).marshal(),
+                        });
+                        let state_prime = FluentBitReconcileState {
+                            reconcile_step: FluentBitReconcileStep::AfterUpdateServiceAccount,
+                            ..state
+                        };
+                        (state_prime, Some(RequestView::KRequest(req_o)))
+                    } else {
+                        let state_prime = FluentBitReconcileState {
+                            reconcile_step: FluentBitReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                } else if get_service_account_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = APIRequest::CreateRequest(CreateRequest {
+                        namespace: fb_namespace,
+                        obj: make_service_account(fb).marshal(),
+                    });
+                    let state_prime = FluentBitReconcileState {
+                        reconcile_step: FluentBitReconcileStep::AfterCreateServiceAccount,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::KRequest(req_o)))
+                } else {
+                    let state_prime = FluentBitReconcileState {
+                        reconcile_step: FluentBitReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
         FluentBitReconcileStep::AfterCreateServiceAccount => {
-            let req_o = APIRequest::GetRequest(GetRequest {
-                key: make_role_binding_key(fb.object_ref()),
-            });
-            let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterGetRoleBinding,
-                ..state
-            };
-            (state_prime, Some(RequestView::KRequest(req_o)))
+            let create_service_account_resp = resp.get_KResponse_0().get_CreateResponse_0().res;
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
+            && create_service_account_resp.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest {
+                    key: make_role_binding_key(fb.object_ref()),
+                });
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::AfterGetRoleBinding,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        FluentBitReconcileStep::AfterUpdateServiceAccount => {
+            let update_service_account_resp = resp.get_KResponse_0().get_UpdateResponse_0().res;
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
+            && update_service_account_resp.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest {
+                    key: make_role_binding_key(fb.object_ref()),
+                });
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::AfterGetRoleBinding,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         FluentBitReconcileStep::AfterGetRoleBinding => {
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
@@ -377,6 +456,31 @@ pub open spec fn make_service_account_name(fb_name: StringView) -> StringView {
     fb_name
 }
 
+pub open spec fn make_service_account_key(key: ObjectRef) -> ObjectRef
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    ObjectRef {
+        kind: ServiceAccountView::kind(),
+        name: make_service_account_name(key.name),
+        namespace: key.namespace,
+    }
+}
+
+pub open spec fn update_service_account(fb: FluentBitView, found_service_account: ServiceAccountView) -> ServiceAccountView
+    recommends
+        fb.well_formed(),
+{
+    ServiceAccountView {
+        metadata: ObjectMetaView {
+            labels: make_service_account(fb).metadata.labels,
+            annotations: make_service_account(fb).metadata.annotations,
+            ..found_service_account.metadata
+        },
+        ..found_service_account
+    }
+}
+
 pub open spec fn make_service_account(fb: FluentBitView) -> ServiceAccountView
     recommends
         fb.well_formed(),
@@ -384,6 +488,8 @@ pub open spec fn make_service_account(fb: FluentBitView) -> ServiceAccountView
     ServiceAccountView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(make_service_account_name(fb.metadata.name.get_Some_0()))
+            .set_labels(make_labels(fb))
+            .set_annotations(fb.spec.annotations)
             .set_owner_references(seq![fb.controller_owner_ref()])
         )
 }
