@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 use crate::kubernetes_api_objects::{common::*, marshal::*, object_meta::*, resource::*};
-use crate::pervasive_ext::string_view::*;
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 use deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;

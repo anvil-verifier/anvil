@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*};
-use crate::pervasive_ext::to_view::*;
 use crate::reconciler::spec::io::*;
+use crate::vstd_ext::to_view::*;
 use vstd::{prelude::*, view::*};
 
 use vstd::pervasive::unreached;

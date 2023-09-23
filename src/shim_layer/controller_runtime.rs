@@ -3,9 +3,9 @@
 #![allow(unused_imports)]
 use crate::external_api::exec::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
-use crate::pervasive_ext::to_view::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use crate::shim_layer::fault_injection::*;
+use crate::vstd_ext::to_view::*;
 use builtin::*;
 use builtin_macros::*;
 use core::fmt::Debug;
@@ -105,25 +105,25 @@ where
     let cr_kind = K::kind(&K::DynamicType::default()).to_string();
 
     let cr_key = format!("{}/{}/{}", cr_kind, cr_namespace, cr_name);
-    let log_prefix = format!("Reconciling {}:", cr_key);
+    let log_header = format!("Reconciling {}:", cr_key);
 
     let cr_api = Api::<K>::namespaced(client.clone(), &cr_namespace);
     // Get the custom resource by a quorum read to Kubernetes' storage (etcd) to get the most updated custom resource
     let get_cr_resp = cr_api.get(&cr_name).await;
     match get_cr_resp {
         Err(deps_hack::kube_client::error::Error::Api(ErrorResponse { reason, .. })) if &reason == "NotFound" => {
-            println!("{} Custom resource {} not found, end reconcile", log_prefix, cr_name);
+            println!("{} Custom resource {} not found, end reconcile", log_header, cr_name);
             return Ok(Action::await_change());
         },
         Err(err) => {
-            println!("{} Get custom resource {} failed with error: {}, will retry reconcile", log_prefix, cr_name, err);
+            println!("{} Get custom resource {} failed with error: {}, will retry reconcile", log_header, cr_name, err);
             return Ok(Action::requeue(Duration::from_secs(60)));
         },
         _ => {},
     }
     // Wrap the custom resource with Verus-friendly wrapper type (which has a ghost version, i.e., view)
     let cr = get_cr_resp.unwrap();
-    println!("{} Get cr {}", log_prefix, deps_hack::k8s_openapi::serde_json::to_string(&cr).unwrap());
+    println!("{} Get cr {}", log_header, deps_hack::k8s_openapi::serde_json::to_string(&cr).unwrap());
 
     let cr_wrapper = ResourceWrapperType::from_kube(cr);
     let mut state = reconciler.reconcile_init_state();
@@ -137,11 +137,11 @@ where
         check_fault_timing = false;
         // If reconcile core is done, then breaks the loop
         if reconciler.reconcile_done(&state) {
-            println!("{} done", log_prefix);
+            println!("{} done", log_header);
             break;
         }
         if reconciler.reconcile_error(&state) {
-            println!("{} error", log_prefix);
+            println!("{} error", log_header);
             return Err(Error::ReconcileCoreError);
         }
         // Feed the current reconcile state and get the new state and the pending request
@@ -158,17 +158,38 @@ where
                             );
                             let key = get_req.key();
                             match api.get(get_req.name.as_rust_string_ref()).await {
-                                std::result::Result::Err(err) => {
+                                Err(err) => {
                                     kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse{
-                                        res: std::result::Result::Err(kube_error_to_ghost(&err)),
+                                        res: Err(kube_error_to_ghost(&err)),
                                     });
-                                    println!("{} Get {} failed with error: {}", log_prefix, key, err);
+                                    println!("{} Get {} failed with error: {}", log_header, key, err);
                                 },
-                                std::result::Result::Ok(obj) => {
+                                Ok(obj) => {
                                     kube_resp = KubeAPIResponse::GetResponse(KubeGetResponse{
-                                        res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
+                                        res: Ok(DynamicObject::from_kube(obj)),
                                     });
-                                    println!("{} Get {} done", log_prefix, key);
+                                    println!("{} Get {} done", log_header, key);
+                                },
+                            }
+                        },
+                        KubeAPIRequest::ListRequest(list_req) => {
+                            let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+                                client.clone(), list_req.namespace.as_rust_string_ref(), list_req.api_resource.as_kube_ref()
+                            );
+                            let key = list_req.key();
+                            let lp = ListParams::default();
+                            match api.list(&lp).await {
+                                Err(err) => {
+                                    kube_resp = KubeAPIResponse::ListResponse(KubeListResponse{
+                                        res: Err(kube_error_to_ghost(&err)),
+                                    });
+                                    println!("{} List {} failed with error: {}", log_header, key, err);
+                                },
+                                Ok(obj_list) => {
+                                    kube_resp = KubeAPIResponse::ListResponse(KubeListResponse{
+                                        res: Ok(obj_list.items.into_iter().map(|obj| DynamicObject::from_kube(obj)).collect()),
+                                    });
+                                    println!("{} List {} done", log_header, key);
                                 },
                             }
                         },
@@ -181,17 +202,17 @@ where
                             let key = create_req.key();
                             let obj_to_create = create_req.obj.into_kube();
                             match api.create(&pp, &obj_to_create).await {
-                                std::result::Result::Err(err) => {
+                                Err(err) => {
                                     kube_resp = KubeAPIResponse::CreateResponse(KubeCreateResponse{
-                                        res: std::result::Result::Err(kube_error_to_ghost(&err)),
+                                        res: Err(kube_error_to_ghost(&err)),
                                     });
-                                    println!("{} Create {} failed with error: {}", log_prefix, key, err);
+                                    println!("{} Create {} failed with error: {}", log_header, key, err);
                                 },
-                                std::result::Result::Ok(obj) => {
+                                Ok(obj) => {
                                     kube_resp = KubeAPIResponse::CreateResponse(KubeCreateResponse{
-                                        res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
+                                        res: Ok(DynamicObject::from_kube(obj)),
                                     });
-                                    println!("{} Create {} done", log_prefix, key);
+                                    println!("{} Create {} done", log_header, key);
                                 },
                             }
                         },
@@ -203,17 +224,17 @@ where
                             let dp = DeleteParams::default();
                             let key = delete_req.key();
                             match api.delete(delete_req.name.as_rust_string_ref(), &dp).await {
-                                std::result::Result::Err(err) => {
+                                Err(err) => {
                                     kube_resp = KubeAPIResponse::DeleteResponse(KubeDeleteResponse{
-                                        res: std::result::Result::Err(kube_error_to_ghost(&err)),
+                                        res: Err(kube_error_to_ghost(&err)),
                                     });
-                                    println!("{} Delete {} failed with error: {}", log_prefix, key, err);
+                                    println!("{} Delete {} failed with error: {}", log_header, key, err);
                                 },
-                                std::result::Result::Ok(_) => {
+                                Ok(_) => {
                                     kube_resp = KubeAPIResponse::DeleteResponse(KubeDeleteResponse{
-                                        res: std::result::Result::Ok(()),
+                                        res: Ok(()),
                                     });
-                                    println!("{} Delete {} done", log_prefix, key);
+                                    println!("{} Delete {} done", log_header, key);
                                 },
                             }
                         },
@@ -226,23 +247,20 @@ where
                             let key = update_req.key();
                             let obj_to_update = update_req.obj.into_kube();
                             match api.replace(update_req.name.as_rust_string_ref(), &pp, &obj_to_update).await {
-                                std::result::Result::Err(err) => {
+                                Err(err) => {
                                     kube_resp = KubeAPIResponse::UpdateResponse(KubeUpdateResponse{
-                                        res: std::result::Result::Err(kube_error_to_ghost(&err)),
+                                        res: Err(kube_error_to_ghost(&err)),
                                     });
-                                    println!("{} Update {} failed with error: {}", log_prefix, key, err);
+                                    println!("{} Update {} failed with error: {}", log_header, key, err);
                                 },
-                                std::result::Result::Ok(obj) => {
+                                Ok(obj) => {
                                     kube_resp = KubeAPIResponse::UpdateResponse(KubeUpdateResponse{
-                                        res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
+                                        res: Ok(DynamicObject::from_kube(obj)),
                                     });
-                                    println!("{} Update {} done", log_prefix, key);
+                                    println!("{} Update {} done", log_header, key);
                                 },
                             }
                         },
-                        _ => {
-                            panic!("Not supported yet");
-                        }
                     }
                     resp_option = Some(Response::KResponse(kube_resp));
                 },
@@ -257,9 +275,9 @@ where
         if check_fault_timing && fault_injection {
             // If the controller just issues create, update, delete or external request,
             // and fault injection option is on, then check whether to crash at this point
-            let result = crash_or_continue(client, &cr_key, &log_prefix).await;
+            let result = crash_or_continue(client, &cr_key, &log_header).await;
             if result.is_err() {
-                println!("{} crash_or_continue fails due to {}", log_prefix, result.unwrap_err());
+                println!("{} crash_or_continue fails due to {}", log_header, result.unwrap_err());
             }
         }
         state = state_prime;

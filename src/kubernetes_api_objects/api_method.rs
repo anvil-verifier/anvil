@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::{
     dynamic::*,
     error::*,
 };
-use crate::pervasive_ext::{string_view::*, to_view::*};
+use crate::vstd_ext::{string_view::*, to_view::*};
 use vstd::prelude::*;
 use vstd::string::*;
 
@@ -127,6 +127,13 @@ impl KubeGetRequest {
 pub struct KubeListRequest {
     pub api_resource: ApiResource,
     pub namespace: String,
+}
+
+impl KubeListRequest {
+    #[verifier(external)]
+    pub fn key(&self) -> std::string::String {
+        format!("{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref())
+    }
 }
 
 /// KubeCreateRequest has the obj as the parameter of Api.create().

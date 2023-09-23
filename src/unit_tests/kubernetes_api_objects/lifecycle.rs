@@ -3,7 +3,7 @@
 use crate::kubernetes_api_objects::container::*;
 use crate::kubernetes_api_objects::object_meta::*;
 use crate::kubernetes_api_objects::resource::*;
-use crate::pervasive_ext::string_map::*;
+use crate::vstd_ext::string_map::*;
 use vstd::prelude::*;
 use vstd::string::*;
 
@@ -22,7 +22,7 @@ pub fn test_set_command() {
 
 #[test]
 #[verifier(external)]
-pub fn test_set_exec_lifecyclehandler() {
+pub fn test_set_exec() {
     let mut handler = LifecycleHandler::default();
     let mut exec_action = ExecAction::default();
     exec_action.set_command(vec![new_strlit("command").to_string()]);

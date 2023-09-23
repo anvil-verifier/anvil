@@ -4,8 +4,8 @@ use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, error::ParseDynamicObjectError, marshal::*,
     object_meta::*, resource::*,
 };
-use crate::pervasive_ext::string_map::*;
-use crate::pervasive_ext::string_view::*;
+use crate::vstd_ext::string_map::*;
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
@@ -27,7 +27,7 @@ pub struct ServiceAccount {
 
 impl View for ServiceAccount {
     type V = ServiceAccountView;
-    
+
     spec fn view(&self) -> ServiceAccountView;
 }
 

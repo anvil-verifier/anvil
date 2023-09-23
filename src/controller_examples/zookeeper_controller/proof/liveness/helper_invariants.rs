@@ -10,9 +10,9 @@ use crate::kubernetes_cluster::spec::{
     controller::common::{controller_req_msg, ControllerActionInput, ControllerStep},
     message::*,
 };
-use crate::pervasive_ext::multiset_lemmas;
 use crate::reconciler::spec::reconciler::*;
 use crate::temporal_logic::{defs::*, rules::*};
+use crate::vstd_ext::multiset_lib;
 use crate::zookeeper_controller::{
     common::*,
     proof::common::*,
@@ -180,7 +180,7 @@ proof fn lemma_always_filtered_create_sts_req_len_is_at_most_one(
         assert forall |msg| sts_create_req_multiset.count(msg) == 0 by {
             assert(!(s.in_flight().contains(msg) && sts_create_request_msg_since(key, rest_id)(msg)));
         }
-        multiset_lemmas::len_is_zero_means_count_for_each_value_is_zero(sts_create_req_multiset);
+        multiset_lib::len_is_zero_means_count_for_each_value_is_zero(sts_create_req_multiset);
     }
 
     assert forall |s, s_prime: ZKCluster| invariant(s) && #[trigger] stronger_next(s, s_prime)
@@ -313,19 +313,19 @@ pub proof fn lemma_always_at_most_one_create_sts_req_since_rest_id_is_in_flight(
     assert_by(
         p == q, {
             assert forall |ex| p.satisfied_by(ex) implies q.satisfied_by(ex) by {
-                multiset_lemmas::filtered_size_is_zero_means_no_such_value(
+                multiset_lib::filtered_size_is_zero_means_no_such_value(
                     ex.head().network_state.in_flight, sts_create_request_msg_since(key, rest_id)
                 );
-                multiset_lemmas::filtered_size_is_one_means_only_one_such_value(
+                multiset_lib::filtered_size_is_one_means_only_one_such_value(
                     ex.head().network_state.in_flight, sts_create_request_msg_since(key, rest_id)
                 );
             }
 
             assert forall |ex| q.satisfied_by(ex) implies p.satisfied_by(ex) by {
-                multiset_lemmas::filtered_size_is_zero_means_no_such_value(
+                multiset_lib::filtered_size_is_zero_means_no_such_value(
                     ex.head().network_state.in_flight, sts_create_request_msg_since(key, rest_id)
                 );
-                multiset_lemmas::filtered_size_is_one_means_only_one_such_value(
+                multiset_lib::filtered_size_is_one_means_only_one_such_value(
                     ex.head().network_state.in_flight, sts_create_request_msg_since(key, rest_id)
                 );
             }
@@ -491,7 +491,7 @@ proof fn lemma_always_filtered_update_sts_req_len_is_at_most_one(
         assert forall |msg| sts_update_req_multiset.count(msg) == 0 by {
             assert(!(s.in_flight().contains(msg) && sts_update_request_msg_since(key, rest_id)(msg)));
         }
-        multiset_lemmas::len_is_zero_means_count_for_each_value_is_zero(sts_update_req_multiset);
+        multiset_lib::len_is_zero_means_count_for_each_value_is_zero(sts_update_req_multiset);
     }
 
     assert forall |s, s_prime: ZKCluster| invariant(s) && #[trigger] stronger_next(s, s_prime)
@@ -624,19 +624,19 @@ pub proof fn lemma_always_at_most_one_update_sts_req_since_rest_id_is_in_flight(
     assert_by(
         p == q, {
             assert forall |ex| p.satisfied_by(ex) implies q.satisfied_by(ex) by {
-                multiset_lemmas::filtered_size_is_zero_means_no_such_value(
+                multiset_lib::filtered_size_is_zero_means_no_such_value(
                     ex.head().network_state.in_flight, sts_update_request_msg_since(key, rest_id)
                 );
-                multiset_lemmas::filtered_size_is_one_means_only_one_such_value(
+                multiset_lib::filtered_size_is_one_means_only_one_such_value(
                     ex.head().network_state.in_flight, sts_update_request_msg_since(key, rest_id)
                 );
             }
 
             assert forall |ex| q.satisfied_by(ex) implies p.satisfied_by(ex) by {
-                multiset_lemmas::filtered_size_is_zero_means_no_such_value(
+                multiset_lib::filtered_size_is_zero_means_no_such_value(
                     ex.head().network_state.in_flight, sts_update_request_msg_since(key, rest_id)
                 );
-                multiset_lemmas::filtered_size_is_one_means_only_one_such_value(
+                multiset_lib::filtered_size_is_one_means_only_one_such_value(
                     ex.head().network_state.in_flight, sts_update_request_msg_since(key, rest_id)
                 );
             }

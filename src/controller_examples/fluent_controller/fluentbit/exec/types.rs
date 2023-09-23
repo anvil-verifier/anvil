@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*,
     resource::*, resource_requirements::*, toleration::*,
 };
-use crate::pervasive_ext::{string_map::*, string_view::*};
+use crate::vstd_ext::{string_map::*, string_view::*};
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
 

@@ -11,9 +11,9 @@ use crate::kubernetes_api_objects::{
     owner_reference::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
     resource_requirements::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
 };
-use crate::pervasive_ext::string_map::StringMap;
-use crate::pervasive_ext::string_view::*;
 use crate::reconciler::exec::{io::*, reconciler::*};
+use crate::vstd_ext::string_map::StringMap;
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;

@@ -5,7 +5,7 @@ use crate::kubernetes_api_objects::{
     error::ParseDynamicObjectError, marshal::*, object_meta::*, resource::*,
     resource_requirements::*, toleration::*, volume::*,
 };
-use crate::pervasive_ext::{string_map::*, string_view::*};
+use crate::vstd_ext::{string_map::*, string_view::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
 use vstd::string::*;

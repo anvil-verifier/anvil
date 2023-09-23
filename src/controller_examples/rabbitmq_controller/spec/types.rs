@@ -5,8 +5,8 @@ use crate::kubernetes_api_objects::{
     affinity::*, api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*,
     owner_reference::*, resource::*, resource_requirements::*, stateful_set::*, toleration::*,
 };
-use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
+use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {

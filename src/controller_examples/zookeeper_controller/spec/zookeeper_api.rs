@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{common::*, dynamic::*, resource::*, stateful_set::*};
-use crate::pervasive_ext::string_view::*;
+use crate::vstd_ext::string_view::*;
 use crate::zookeeper_controller::common::*;
 use vstd::{prelude::*, string::*};
 
