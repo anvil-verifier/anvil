@@ -1168,7 +1168,7 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
             if zk.spec.persistence.enabled {
                 volumes
             } else {
-                volumes.push(VolumeView::default().set_name(new_strlit("data")@))
+                volumes.push(VolumeView::default().set_name(new_strlit("data")@).set_empty_dir(EmptyDirVolumeSourceView::default()))
             }
         }),
         tolerations: zk.spec.tolerations,

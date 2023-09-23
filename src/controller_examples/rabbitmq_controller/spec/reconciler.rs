@@ -1823,14 +1823,16 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                 ])
             ),
         VolumeView::default()
-            .set_name(new_strlit("rabbitmq-erlang-cookie")@),
+            .set_name(new_strlit("rabbitmq-erlang-cookie")@)
+            .set_empty_dir(EmptyDirVolumeSourceView::default()),
         VolumeView::default()
             .set_name(new_strlit("erlang-cookie-secret")@)
             .set_secret(SecretVolumeSourceView::default()
                 .set_secret_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-erlang-cookie")@)
             ),
         VolumeView::default()
-            .set_name(new_strlit("rabbitmq-plugins")@),
+            .set_name(new_strlit("rabbitmq-plugins")@)
+            .set_empty_dir(EmptyDirVolumeSourceView::default()),
         VolumeView::default()
             .set_name(new_strlit("pod-info")@)
             .set_downward_api(DownwardAPIVolumeSourceView::default()
@@ -1934,7 +1936,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
         ],
         volumes: Some({
             if rabbitmq.spec.persistence.storage == new_strlit("0Gi")@ {
-                volumes.push(VolumeView::default().set_name(new_strlit("persistence")@))
+                volumes.push(VolumeView::default().set_name(new_strlit("persistence")@).set_empty_dir(EmptyDirVolumeSourceView::default()))
             } else {
                 volumes
             }

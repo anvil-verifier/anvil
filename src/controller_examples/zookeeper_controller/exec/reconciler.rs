@@ -1487,7 +1487,7 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
             volumes.push({
                 let mut volume = Volume::default();
                 volume.set_name(new_strlit("data").to_string());
-                volume.set_empty_dir();
+                volume.set_empty_dir(EmptyDirVolumeSource::default());
                 volume
             });
         }

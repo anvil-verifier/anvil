@@ -1984,7 +1984,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     volumes.push({
         let mut volume = Volume::default();
         volume.set_name(new_strlit("rabbitmq-erlang-cookie").to_string());
-        volume.set_empty_dir();
+        volume.set_empty_dir(EmptyDirVolumeSource::default());
         volume
     });
     volumes.push({
@@ -2000,7 +2000,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
     volumes.push({
         let mut volume = Volume::default();
         volume.set_name(new_strlit("rabbitmq-plugins").to_string());
-        volume.set_empty_dir();
+        volume.set_empty_dir(EmptyDirVolumeSource::default());
         volume
     });
     volumes.push({
@@ -2036,7 +2036,7 @@ fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
         volumes.push({
             let mut volume = Volume::default();
             volume.set_name(new_strlit("persistence").to_string());
-            volume.set_empty_dir();
+            volume.set_empty_dir(EmptyDirVolumeSource::default());
             volume
         });
     }
