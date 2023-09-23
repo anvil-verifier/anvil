@@ -60,10 +60,6 @@ impl ResourceBuilder<Service, spec_resource::HeadlessServiceBuilder> for Headles
             Err(RabbitmqError::Error)
         }
     }
-
-    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
-        Some(ServiceBuilder::get_request(rabbitmq))
-    }
 }
 
 pub fn update_headless_service(rabbitmq: &RabbitmqCluster, found_headless_service: Service) -> (service: Service)

@@ -55,10 +55,6 @@ impl ResourceBuilder<RoleView> for RoleBuilder {
             Err(RabbitmqError::Error)
         }
     }
-
-    open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest> {
-        Some(RoleBindingBuilder::get_request(rabbitmq))
-    }
 }
 
 pub open spec fn make_role_name(rabbitmq: RabbitmqClusterView) -> StringView

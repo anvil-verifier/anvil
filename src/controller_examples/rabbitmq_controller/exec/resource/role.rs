@@ -60,10 +60,6 @@ impl ResourceBuilder<Role, spec_resource::RoleBuilder> for RoleBuilder {
             Err(RabbitmqError::Error)
         }
     }
-
-    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
-        Some(RoleBindingBuilder::get_request(rabbitmq))
-    }
 }
 
 pub fn update_role(rabbitmq: &RabbitmqCluster, found_role: Role) -> (role: Role)

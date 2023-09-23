@@ -55,10 +55,6 @@ impl ResourceBuilder<RoleBindingView> for RoleBindingBuilder {
             Err(RabbitmqError::Error)
         }
     }
-
-    open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest> {
-        Some(StatefulSetBuilder::get_request(rabbitmq))
-    }
 }
 
 pub open spec fn make_role_binding_name(rabbitmq: RabbitmqClusterView) -> StringView

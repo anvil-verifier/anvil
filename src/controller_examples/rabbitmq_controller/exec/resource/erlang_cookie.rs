@@ -60,10 +60,6 @@ impl ResourceBuilder<Secret, spec_resource::ErlangCookieBuilder> for ErlangCooki
             Err(RabbitmqError::Error)
         }
     }
-
-    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
-        Some(DefaultUserSecretBuilder::get_request(rabbitmq))
-    }
 }
 
 pub fn update_erlang_secret(rabbitmq: &RabbitmqCluster, found_erlang_secret: Secret) -> (secret: Secret)

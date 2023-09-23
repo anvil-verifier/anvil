@@ -55,10 +55,6 @@ impl ResourceBuilder<SecretView> for ErlangCookieBuilder {
             Err(RabbitmqError::Error)
         }
     }
-
-    open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest> {
-        Some(DefaultUserSecretBuilder::get_request(rabbitmq))
-    }
 }
 
 pub open spec fn make_erlang_secret_name(rabbitmq: RabbitmqClusterView) -> StringView

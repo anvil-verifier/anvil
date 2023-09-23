@@ -28,8 +28,6 @@ pub trait ResourceBuilder<T> {
     spec fn get_result_check(obj: DynamicObjectView) -> Result<T, RabbitmqError>;
 
     spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> Result<RabbitmqReconcileState, RabbitmqError>;
-
-    spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest>;
 }
 
 pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView>

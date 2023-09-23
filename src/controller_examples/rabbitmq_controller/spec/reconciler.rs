@@ -206,7 +206,7 @@ pub open spec fn reconcile_helper<T, Builder: ResourceBuilder<T>>(
                     && update_resp.is_Ok() {
                         let state_prime = Builder::state_after_create_or_update(update_resp.get_Ok_0(), state);
                         if state_prime.is_Ok() {
-                            let req_o = Builder::next_resource_get_request(rabbitmq);
+                            let req_o = next_resource_get_request(rabbitmq, resource);
                             (state_prime.get_Ok_0(), if req_o.is_Some() { Some(RequestView::KRequest(APIRequest::GetRequest(req_o.get_Some_0()))) } else { None })
                         } else {
                             let state_prime = RabbitmqReconcileState {
@@ -230,7 +230,7 @@ pub open spec fn reconcile_helper<T, Builder: ResourceBuilder<T>>(
                     && update_resp.is_Ok() {
                         let state_prime = Builder::state_after_create_or_update(update_resp.get_Ok_0(), state);
                         if state_prime.is_Ok() {
-                            let req_o = Builder::next_resource_get_request(rabbitmq);
+                            let req_o = next_resource_get_request(rabbitmq, resource);
                             (state_prime.get_Ok_0(), if req_o.is_Some() { Some(RequestView::KRequest(APIRequest::GetRequest(req_o.get_Some_0()))) } else { None })
                         } else {
                             let state_prime = RabbitmqReconcileState {
@@ -257,6 +257,21 @@ pub open spec fn reconcile_helper<T, Builder: ResourceBuilder<T>>(
             };
             (state_prime, None)
         },
+    }
+}
+
+pub open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView, kind: ResourceKind) -> Option<GetRequest> {
+    match kind {
+        ResourceKind::HeadlessService => Some(ServiceBuilder::get_request(rabbitmq)),
+        ResourceKind::Service => Some(ErlangCookieBuilder::get_request(rabbitmq)),
+        ResourceKind::ErlangCookieSecret => Some(DefaultUserSecretBuilder::get_request(rabbitmq)),
+        ResourceKind::DefaultUserSecret => Some(PluginsConfigMapBuilder::get_request(rabbitmq)),
+        ResourceKind::PluginsConfigMap => Some(ServerConfigMapBuilder::get_request(rabbitmq)),
+        ResourceKind::ServerConfigMap => Some(ServiceAccountBuilder::get_request(rabbitmq)),
+        ResourceKind::ServiceAccount => Some(RoleBuilder::get_request(rabbitmq)),
+        ResourceKind::Role => Some(RoleBindingBuilder::get_request(rabbitmq)),
+        ResourceKind::RoleBinding => Some(StatefulSetBuilder::get_request(rabbitmq)),
+        _ => None,
     }
 }
 

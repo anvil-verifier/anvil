@@ -55,10 +55,6 @@ impl ResourceBuilder<ConfigMapView> for PluginsConfigMapBuilder {
             Err(RabbitmqError::Error)
         }
     }
-
-    open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest> {
-        Some(ServerConfigMapBuilder::get_request(rabbitmq))
-    }
 }
 
 pub open spec fn make_plugins_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView

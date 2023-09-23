@@ -60,10 +60,6 @@ impl ResourceBuilder<ServiceAccount, spec_resource::ServiceAccountBuilder> for S
             Err(RabbitmqError::Error)
         }
     }
-
-    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
-        Some(RoleBuilder::get_request(rabbitmq))
-    }
 }
 
 pub fn update_service_account(rabbitmq: &RabbitmqCluster, found_service_account: ServiceAccount) -> (service_account: ServiceAccount)

@@ -60,10 +60,6 @@ impl ResourceBuilder<ConfigMap, spec_resource::PluginsConfigMapBuilder> for Plug
             Err(RabbitmqError::Error)
         }
     }
-
-    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
-        Some(ServerConfigMapBuilder::get_request(rabbitmq))
-    }
 }
 
 pub fn update_plugins_config_map(rabbitmq: &RabbitmqCluster, found_config_map: ConfigMap) -> (config_map: ConfigMap)

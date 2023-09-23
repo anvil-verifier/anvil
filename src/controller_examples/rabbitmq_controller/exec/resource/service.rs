@@ -60,10 +60,6 @@ impl ResourceBuilder<Service, spec_resource::ServiceBuilder> for ServiceBuilder 
             Err(RabbitmqError::Error)
         }
     }
-
-    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
-        Some(ErlangCookieBuilder::get_request(rabbitmq))
-    }
 }
 
 pub fn update_main_service(rabbitmq: &RabbitmqCluster, found_main_service: Service) -> (service: Service)

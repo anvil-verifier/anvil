@@ -60,10 +60,6 @@ impl ResourceBuilder<Secret, spec_resource::DefaultUserSecretBuilder> for Defaul
             Err(RabbitmqError::Error)
         }
     }
-
-    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
-        Some(PluginsConfigMapBuilder::get_request(rabbitmq))
-    }
 }
 
 pub fn update_default_user_secret(rabbitmq: &RabbitmqCluster, found_secret: Secret) -> (secret: Secret)

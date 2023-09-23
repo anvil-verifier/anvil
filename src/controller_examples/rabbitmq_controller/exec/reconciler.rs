@@ -204,7 +204,7 @@ pub fn reconcile_helper<
                     && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
                     && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() {
                         let state_prime = Builder::state_after_create_or_update(resp_o.unwrap().into_k_response().into_create_response().res.unwrap(), state.clone());
-                        let req_o = Builder::next_resource_get_request(rabbitmq);
+                        let req_o = next_resource_get_request(rabbitmq, resource);
                         if state_prime.is_ok() {
                             return (state_prime.unwrap(), if req_o.is_some() { Some(Request::KRequest(KubeAPIRequest::GetRequest(req_o.unwrap()))) } else { None });
                         }
@@ -221,7 +221,7 @@ pub fn reconcile_helper<
                     && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
                     && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
                         let state_prime = Builder::state_after_create_or_update(resp_o.unwrap().into_k_response().into_update_response().res.unwrap(), state.clone());
-                        let req_o = Builder::next_resource_get_request(rabbitmq);
+                        let req_o = next_resource_get_request(rabbitmq, resource);
                         if state_prime.is_ok() {
                             return (state_prime.unwrap(), if req_o.is_some() { Some(Request::KRequest(KubeAPIRequest::GetRequest(req_o.unwrap()))) } else { None });
                         }
@@ -242,6 +242,28 @@ pub fn reconcile_helper<
             };
             return (state_prime, None);
         },
+    }
+}
+
+fn next_resource_get_request(rabbitmq: &RabbitmqCluster, kind: ResourceKind) -> (res: Option<KubeGetRequest>)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        res.is_Some() == rabbitmq_spec::next_resource_get_request(rabbitmq@, kind).is_Some(),
+        res.is_Some() ==> res.get_Some_0().to_view() == rabbitmq_spec::next_resource_get_request(rabbitmq@, kind).get_Some_0(),
+{
+    match kind {
+        ResourceKind::HeadlessService => Some(ServiceBuilder::get_request(rabbitmq)),
+        ResourceKind::Service => Some(ErlangCookieBuilder::get_request(rabbitmq)),
+        ResourceKind::ErlangCookieSecret => Some(DefaultUserSecretBuilder::get_request(rabbitmq)),
+        ResourceKind::DefaultUserSecret => Some(PluginsConfigMapBuilder::get_request(rabbitmq)),
+        ResourceKind::PluginsConfigMap => Some(ServerConfigMapBuilder::get_request(rabbitmq)),
+        ResourceKind::ServerConfigMap => Some(ServiceAccountBuilder::get_request(rabbitmq)),
+        ResourceKind::ServiceAccount => Some(RoleBuilder::get_request(rabbitmq)),
+        ResourceKind::Role => Some(RoleBindingBuilder::get_request(rabbitmq)),
+        ResourceKind::RoleBinding => Some(StatefulSetBuilder::get_request(rabbitmq)),
+        _ => None,
     }
 }
 

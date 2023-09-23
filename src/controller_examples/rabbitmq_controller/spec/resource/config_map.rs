@@ -56,10 +56,6 @@ impl ResourceBuilder<ConfigMapView> for ServerConfigMapBuilder {
             Err(RabbitmqError::Error)
         }
     }
-
-    open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest> {
-        Some(ServiceAccountBuilder::get_request(rabbitmq))
-    }
 }
 
 pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_config_map: ConfigMapView) -> ConfigMapView {
@@ -79,7 +75,7 @@ pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_c
     }
 }
 
-pub open spec fn make_server_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView 
+pub open spec fn make_server_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView
     recommends
         rabbitmq.metadata.name.is_Some(),
 {

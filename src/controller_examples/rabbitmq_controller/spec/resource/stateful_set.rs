@@ -63,10 +63,6 @@ impl ResourceBuilder<StatefulSetView> for StatefulSetBuilder {
             Err(RabbitmqError::Error)
         }
     }
-
-    open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest> {
-        None
-    }
 }
 
 pub open spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
@@ -81,7 +77,7 @@ pub open spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectR
     }
 }
 
-pub open spec fn make_stateful_set_name(rabbitmq: RabbitmqClusterView) -> StringView 
+pub open spec fn make_stateful_set_name(rabbitmq: RabbitmqClusterView) -> StringView
     recommends
         rabbitmq.metadata.name.is_Some(),
 {

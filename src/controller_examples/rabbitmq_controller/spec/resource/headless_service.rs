@@ -55,10 +55,6 @@ impl ResourceBuilder<ServiceView> for HeadlessServiceBuilder {
             Err(RabbitmqError::Error)
         }
     }
-
-    open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest> {
-        Some(ServiceBuilder::get_request(rabbitmq))
-    }
 }
 
 pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> StringView

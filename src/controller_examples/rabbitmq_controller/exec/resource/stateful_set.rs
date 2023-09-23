@@ -75,10 +75,6 @@ impl ResourceBuilder<StatefulSet, spec_resource::StatefulSetBuilder> for Statefu
             Err(RabbitmqError::Error)
         }
     }
-
-    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
-        None
-    }
 }
 
 pub fn update_stateful_set(rabbitmq: &RabbitmqCluster, found_stateful_set: StatefulSet, config_map_rv: &String) -> (stateful_set: StatefulSet)
@@ -445,6 +441,7 @@ pub fn make_rabbitmq_pod_spec(rabbitmq: &RabbitmqCluster) -> (pod_spec: PodSpec)
                     ];
                     assert_seqs_equal!(command@.map_values(|s: String| s@), spec_cmd);
                 }
+
                 command
             });
             rabbitmq_container.set_resources({

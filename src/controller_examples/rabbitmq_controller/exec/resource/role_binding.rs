@@ -60,10 +60,6 @@ impl ResourceBuilder<RoleBinding, spec_resource::RoleBindingBuilder> for RoleBin
             Err(RabbitmqError::Error)
         }
     }
-
-    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>) {
-        Some(StatefulSetBuilder::get_request(rabbitmq))
-    }
 }
 
 pub fn update_role_binding(rabbitmq: &RabbitmqCluster, found_role_binding: RoleBinding) -> (role_binding: RoleBinding)

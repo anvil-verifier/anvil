@@ -55,10 +55,6 @@ impl ResourceBuilder<ServiceAccountView> for ServiceAccountBuilder {
             Err(RabbitmqError::Error)
         }
     }
-
-    open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest> {
-        Some(RoleBuilder::get_request(rabbitmq))
-    }
 }
 
 pub open spec fn make_service_account_name(rabbitmq: RabbitmqClusterView) -> StringView

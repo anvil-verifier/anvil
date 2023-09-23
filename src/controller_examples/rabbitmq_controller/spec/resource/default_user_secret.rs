@@ -55,10 +55,6 @@ impl ResourceBuilder<SecretView> for DefaultUserSecretBuilder {
             Err(RabbitmqError::Error)
         }
     }
-
-    open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest> {
-        Some(PluginsConfigMapBuilder::get_request(rabbitmq))
-    }
 }
 
 pub open spec fn make_default_user_secret_name(rabbitmq: RabbitmqClusterView) -> StringView

@@ -48,15 +48,6 @@ pub trait ResourceBuilder<T: View, SpecBuilder: spec_resource::ResourceBuilder<T
     fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>)
         ensures
             resource_res_to_view(res) == SpecBuilder::state_after_create_or_update(obj@, state@);
-
-    fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>)
-        requires
-            rabbitmq@.metadata.name.is_Some(),
-            rabbitmq@.metadata.namespace.is_Some(),
-        ensures
-            res.is_Some() == SpecBuilder::next_resource_get_request(rabbitmq@).is_Some(),
-            res.is_Some() ==> res.get_Some_0().to_view() == SpecBuilder::next_resource_get_request(rabbitmq@).get_Some_0();
-
 }
 
 pub fn make_labels(rabbitmq: &RabbitmqCluster) -> (labels: StringMap)

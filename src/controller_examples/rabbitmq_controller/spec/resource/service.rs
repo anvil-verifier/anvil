@@ -55,10 +55,6 @@ impl ResourceBuilder<ServiceView> for ServiceBuilder {
             Err(RabbitmqError::Error)
         }
     }
-
-    open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView) -> Option<GetRequest> {
-        Some(ErlangCookieBuilder::get_request(rabbitmq))
-    }
 }
 
 pub open spec fn make_main_service_name(rabbitmq: RabbitmqClusterView) -> StringView
