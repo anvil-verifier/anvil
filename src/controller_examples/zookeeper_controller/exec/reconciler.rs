@@ -1337,6 +1337,10 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
             zk_container.set_command({
                 let mut command = Vec::new();
                 command.push(new_strlit("/usr/local/bin/zookeeperStart.sh").to_string());
+                proof {
+                    let spec_cmd = seq![new_strlit("/usr/local/bin/zookeeperStart.sh")@];
+                    assert_seqs_equal!(command@.map_values(|s: String| s@), spec_cmd);
+                }
                 command
             });
             zk_container.set_lifecycle({

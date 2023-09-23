@@ -1110,6 +1110,7 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
             ContainerView {
                 name: new_strlit("zookeeper")@,
                 image: Some(zk.spec.image),
+                command: Some(seq![new_strlit("/usr/local/bin/zookeeperStart.sh")@]),
                 lifecycle: Some(LifecycleView::default()
                     .set_pre_stop(LifecycleHandlerView::default()
                         .set_exec(
@@ -1118,6 +1119,7 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
                         )
                     )
                 ),
+                image_pull_policy: Some(new_strlit("Always")@),
                 resources: zk.spec.resources,
                 volume_mounts: Some(seq![
                     VolumeMountView::default()

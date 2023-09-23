@@ -121,12 +121,10 @@ impl Container {
         self.inner.readiness_probe = Some(readiness_probe.into_kube())
     }
 
-    // Methods for the fields that do not appear in spec
-
     #[verifier(external_body)]
     pub fn set_command(&mut self, command: Vec<String>)
         ensures
-            self@ == old(self)@,
+            self@ == old(self)@.set_command(command@.map_values(|c: String| c@)),
     {
         self.inner.command = Some(
             command.into_iter().map(|c: String| c.into_rust_string()).collect()
@@ -136,7 +134,7 @@ impl Container {
     #[verifier(external_body)]
     pub fn set_image_pull_policy(&mut self, image_pull_policy: String)
         ensures
-            self@ == old(self)@,
+            self@ == old(self)@.set_image_pull_policy(image_pull_policy@),
     {
         self.inner.image_pull_policy = Some(image_pull_policy.into_rust_string())
     }
@@ -689,6 +687,8 @@ pub struct ContainerView {
     pub resources: Option<ResourceRequirementsView>,
     pub readiness_probe: Option<ProbeView>,
     pub liveness_probe: Option<ProbeView>,
+    pub command: Option<Seq<StringView>>,
+    pub image_pull_policy: Option<StringView>,
 }
 
 impl ContainerView {
@@ -703,6 +703,8 @@ impl ContainerView {
             resources: None,
             readiness_probe: None,
             liveness_probe: None,
+            command: None,
+            image_pull_policy: None,
         }
     }
 
@@ -772,6 +774,20 @@ impl ContainerView {
     pub open spec fn set_liveness_probe(self, liveness_probe: ProbeView) -> ContainerView {
         ContainerView {
             liveness_probe: Some(liveness_probe),
+            ..self
+        }
+    }
+
+    pub open spec fn set_command(self, command: Seq<StringView>) -> ContainerView {
+        ContainerView {
+            command: Some(command),
+            ..self
+        }
+    }
+
+    pub open spec fn set_image_pull_policy(self, image_pull_policy: StringView) -> ContainerView {
+        ContainerView {
+            image_pull_policy: Some(image_pull_policy),
             ..self
         }
     }
