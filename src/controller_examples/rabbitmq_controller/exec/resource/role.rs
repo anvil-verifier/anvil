@@ -36,14 +36,10 @@ impl ResourceBuilder<Role, spec_resource::RoleBuilder> for RoleBuilder {
         Ok(make_role(rabbitmq).marshal())
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: Role) -> Result<DynamicObject, RabbitmqError> {
-        Ok(update_role(rabbitmq, found_resource).marshal())
-    }
-
-    fn get_result_check(obj: DynamicObject) -> Result<Role, RabbitmqError> {
-        let sts = Role::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, RabbitmqError> {
+        let role = Role::unmarshal(obj);
+        if role.is_ok() {
+            Ok(update_role(rabbitmq, role.unwrap()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }

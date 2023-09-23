@@ -36,14 +36,10 @@ impl ResourceBuilder<ConfigMap, spec_resource::PluginsConfigMapBuilder> for Plug
         Ok(make_plugins_config_map(rabbitmq).marshal())
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: ConfigMap) -> Result<DynamicObject, RabbitmqError> {
-        Ok(update_plugins_config_map(rabbitmq, found_resource).marshal())
-    }
-
-    fn get_result_check(obj: DynamicObject) -> Result<ConfigMap, RabbitmqError> {
-        let sts = ConfigMap::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, RabbitmqError> {
+        let cm = ConfigMap::unmarshal(obj);
+        if cm.is_ok() {
+            Ok(update_plugins_config_map(rabbitmq, cm.unwrap()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }

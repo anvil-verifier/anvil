@@ -34,16 +34,12 @@ pub trait ResourceBuilder<T: View, SpecBuilder: spec_resource::ResourceBuilder<T
         ensures
             resource_res_to_view(res) == SpecBuilder::make(rabbitmq@, state@);
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: T) -> (res: Result<DynamicObject, RabbitmqError>)
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> (res: Result<DynamicObject, RabbitmqError>)
         requires
             rabbitmq@.metadata.name.is_Some(),
             rabbitmq@.metadata.namespace.is_Some(),
         ensures
-            resource_res_to_view(res) == SpecBuilder::update(rabbitmq@, state@, found_resource@);
-
-    fn get_result_check(obj: DynamicObject) -> (res: Result<T, RabbitmqError>)
-        ensures
-            resource_res_to_view(res) == SpecBuilder::get_result_check(obj@);
+            resource_res_to_view(res) == SpecBuilder::update(rabbitmq@, state@, obj@);
 
     fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>)
         ensures

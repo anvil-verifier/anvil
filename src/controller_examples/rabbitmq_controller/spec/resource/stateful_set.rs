@@ -34,19 +34,12 @@ impl ResourceBuilder<StatefulSetView> for StatefulSetBuilder {
         }
     }
 
-    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: StatefulSetView) -> Result<DynamicObjectView, RabbitmqError> {
-        if found_resource.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
-        && state.latest_config_map_rv_opt.is_Some() && found_resource.spec.is_Some() {
-            Ok(update_stateful_set(rabbitmq, found_resource, state.latest_config_map_rv_opt.get_Some_0()).marshal())
-        } else {
-            Err(RabbitmqError::Error)
-        }
-    }
-
-    open spec fn get_result_check(obj: DynamicObjectView) -> Result<StatefulSetView, RabbitmqError> {
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, RabbitmqError> {
         let sts = StatefulSetView::unmarshal(obj);
-        if sts.is_Ok() {
-            Ok(sts.get_Ok_0())
+        let found_sts = sts.get_Ok_0();
+        if sts.is_Ok() && found_sts.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
+        && state.latest_config_map_rv_opt.is_Some() && found_sts.spec.is_Some() {
+            Ok(update_stateful_set(rabbitmq, found_sts, state.latest_config_map_rv_opt.get_Some_0()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }

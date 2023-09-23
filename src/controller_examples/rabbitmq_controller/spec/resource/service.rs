@@ -31,14 +31,10 @@ impl ResourceBuilder<ServiceView> for ServiceBuilder {
         Ok(make_main_service(rabbitmq).marshal())
     }
 
-    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: ServiceView) -> Result<DynamicObjectView, RabbitmqError> {
-        Ok(update_main_service(rabbitmq, found_resource).marshal())
-    }
-
-    open spec fn get_result_check(obj: DynamicObjectView) -> Result<ServiceView, RabbitmqError> {
-        let sts = ServiceView::unmarshal(obj);
-        if sts.is_Ok() {
-            Ok(sts.get_Ok_0())
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, RabbitmqError> {
+        let service = ServiceView::unmarshal(obj);
+        if service.is_Ok() {
+            Ok(update_main_service(rabbitmq, service.get_Ok_0()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }

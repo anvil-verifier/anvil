@@ -36,14 +36,10 @@ impl ResourceBuilder<Secret, spec_resource::ErlangCookieBuilder> for ErlangCooki
         Ok(make_erlang_secret(rabbitmq).marshal())
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: Secret) -> Result<DynamicObject, RabbitmqError> {
-        Ok(update_erlang_secret(rabbitmq, found_resource).marshal())
-    }
-
-    fn get_result_check(obj: DynamicObject) -> Result<Secret, RabbitmqError> {
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, RabbitmqError> {
         let secret = Secret::unmarshal(obj);
         if secret.is_ok() {
-            Ok(secret.unwrap())
+            Ok(update_erlang_secret(rabbitmq, secret.unwrap()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }

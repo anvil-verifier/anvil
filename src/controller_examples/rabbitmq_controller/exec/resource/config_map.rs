@@ -11,8 +11,8 @@ use crate::kubernetes_api_objects::{
 use crate::pervasive_ext::string_map::StringMap;
 use crate::pervasive_ext::string_view::*;
 use crate::rabbitmq_controller::common::*;
-use crate::rabbitmq_controller::exec::types::*;
 use crate::rabbitmq_controller::exec::resource::service_account::*;
+use crate::rabbitmq_controller::exec::types::*;
 use crate::rabbitmq_controller::spec::resource as spec_resource;
 use crate::reconciler::exec::{io::*, reconciler::*};
 use vstd::prelude::*;
@@ -36,14 +36,10 @@ impl ResourceBuilder<ConfigMap, spec_resource::ServerConfigMapBuilder> for Serve
         Ok(make_server_config_map(rabbitmq).marshal())
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: ConfigMap) -> Result<DynamicObject, RabbitmqError> {
-        Ok(update_server_config_map(rabbitmq, found_resource).marshal())
-    }
-
-    fn get_result_check(obj: DynamicObject) -> Result<ConfigMap, RabbitmqError> {
-        let sts = ConfigMap::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, RabbitmqError> {
+        let cm = ConfigMap::unmarshal(obj);
+        if cm.is_ok() {
+            Ok(update_server_config_map(rabbitmq, cm.unwrap()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }

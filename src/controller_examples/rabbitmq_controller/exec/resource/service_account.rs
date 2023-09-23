@@ -36,14 +36,10 @@ impl ResourceBuilder<ServiceAccount, spec_resource::ServiceAccountBuilder> for S
         Ok(make_service_account(rabbitmq).marshal())
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: ServiceAccount) -> Result<DynamicObject, RabbitmqError> {
-        Ok(update_service_account(rabbitmq, found_resource).marshal())
-    }
-
-    fn get_result_check(obj: DynamicObject) -> Result<ServiceAccount, RabbitmqError> {
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, RabbitmqError> {
         let sa = ServiceAccount::unmarshal(obj);
         if sa.is_ok() {
-            Ok(sa.unwrap())
+            Ok(update_service_account(rabbitmq, sa.unwrap()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }

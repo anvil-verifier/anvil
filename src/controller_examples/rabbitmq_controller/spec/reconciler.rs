@@ -136,28 +136,19 @@ pub open spec fn reconcile_helper<T, Builder: ResourceBuilder<T>>(
                         let get_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
                         if get_resp.is_Ok() {
                             // update
-                            let get_object = Builder::get_result_check(get_resp.get_Ok_0());
-                            if get_object.is_Ok() {
-                                let new_obj = Builder::update(rabbitmq, state, get_object.get_Ok_0());
-                                if new_obj.is_Ok() {
-                                    let updated_obj = new_obj.get_Ok_0();
-                                    let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                                        namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                                        name: Builder::get_request(rabbitmq).key.name,
-                                        obj: updated_obj,
-                                    });
-                                    let state_prime = RabbitmqReconcileState {
-                                        reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, resource),
-                                        ..state
-                                    };
-                                    (state_prime, Some(RequestView::KRequest(req_o)))
-                                } else {
-                                    let state_prime = RabbitmqReconcileState {
-                                        reconcile_step: RabbitmqReconcileStep::Error,
-                                        ..state
-                                    };
-                                    (state_prime, None)
-                                }
+                            let new_obj = Builder::update(rabbitmq, state, get_resp.get_Ok_0());
+                            if new_obj.is_Ok() {
+                                let updated_obj = new_obj.get_Ok_0();
+                                let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                                    namespace: rabbitmq.metadata.namespace.get_Some_0(),
+                                    name: Builder::get_request(rabbitmq).key.name,
+                                    obj: updated_obj,
+                                });
+                                let state_prime = RabbitmqReconcileState {
+                                    reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, resource),
+                                    ..state
+                                };
+                                (state_prime, Some(RequestView::KRequest(req_o)))
                             } else {
                                 let state_prime = RabbitmqReconcileState {
                                     reconcile_step: RabbitmqReconcileStep::Error,

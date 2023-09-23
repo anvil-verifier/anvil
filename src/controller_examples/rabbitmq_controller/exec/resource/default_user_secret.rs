@@ -36,14 +36,10 @@ impl ResourceBuilder<Secret, spec_resource::DefaultUserSecretBuilder> for Defaul
         Ok(make_default_user_secret(rabbitmq).marshal())
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: Secret) -> Result<DynamicObject, RabbitmqError> {
-        Ok(update_default_user_secret(rabbitmq, found_resource).marshal())
-    }
-
-    fn get_result_check(obj: DynamicObject) -> Result<Secret, RabbitmqError> {
-        let sts = Secret::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, RabbitmqError> {
+        let secret = Secret::unmarshal(obj);
+        if secret.is_ok() {
+            Ok(update_default_user_secret(rabbitmq, secret.unwrap()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }

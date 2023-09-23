@@ -31,14 +31,10 @@ impl ResourceBuilder<ConfigMapView> for PluginsConfigMapBuilder {
         Ok(make_plugins_config_map(rabbitmq).marshal())
     }
 
-    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: ConfigMapView) -> Result<DynamicObjectView, RabbitmqError> {
-        Ok(update_plugins_config_map(rabbitmq, found_resource).marshal())
-    }
-
-    open spec fn get_result_check(obj: DynamicObjectView) -> Result<ConfigMapView, RabbitmqError> {
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, RabbitmqError> {
         let cm = ConfigMapView::unmarshal(obj);
         if cm.is_Ok() {
-            Ok(cm.get_Ok_0())
+            Ok(update_plugins_config_map(rabbitmq, cm.get_Ok_0()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }

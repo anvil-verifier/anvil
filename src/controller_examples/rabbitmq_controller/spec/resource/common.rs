@@ -23,9 +23,7 @@ pub trait ResourceBuilder<T> {
 
     spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, RabbitmqError>;
 
-    spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: T) -> Result<DynamicObjectView, RabbitmqError>;
-
-    spec fn get_result_check(obj: DynamicObjectView) -> Result<T, RabbitmqError>;
+    spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, RabbitmqError>;
 
     spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> Result<RabbitmqReconcileState, RabbitmqError>;
 }

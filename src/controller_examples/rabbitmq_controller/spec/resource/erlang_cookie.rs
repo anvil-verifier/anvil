@@ -31,14 +31,10 @@ impl ResourceBuilder<SecretView> for ErlangCookieBuilder {
         Ok(make_erlang_secret(rabbitmq).marshal())
     }
 
-    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: SecretView) -> Result<DynamicObjectView, RabbitmqError> {
-        Ok(update_erlang_secret(rabbitmq, found_resource).marshal())
-    }
-
-    open spec fn get_result_check(obj: DynamicObjectView) -> Result<SecretView, RabbitmqError> {
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, RabbitmqError> {
         let secret = SecretView::unmarshal(obj);
         if secret.is_Ok() {
-            Ok(secret.get_Ok_0())
+            Ok(update_erlang_secret(rabbitmq, secret.get_Ok_0()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }

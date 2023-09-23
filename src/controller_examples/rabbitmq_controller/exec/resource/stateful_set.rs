@@ -39,7 +39,7 @@ impl ResourceBuilder<StatefulSet, spec_resource::StatefulSetBuilder> for Statefu
         }
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: StatefulSet) -> Result<DynamicObject, RabbitmqError> {
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, RabbitmqError> {
         // We check the owner reference of the found stateful set here to ensure that it is not created from
         // previously existing (and now deleted) cr. Otherwise, if the replicas of the current cr is smaller
         // than the previous one, scaling down, which should be prohibited, will happen.
@@ -47,21 +47,15 @@ impl ResourceBuilder<StatefulSet, spec_resource::StatefulSetBuilder> for Statefu
         // just let the reconciler enter the error state and wait for the garbage collector to delete it. So
         // after that, when a new round of reconcile starts, there is no stateful set in etcd, the reconciler
         // will go to create a new one.
-        if found_resource.metadata().owner_references_only_contains(rabbitmq.controller_owner_ref())
-        && state.latest_config_map_rv_opt.is_some() && found_resource.spec().is_some() {
-            Ok(update_stateful_set(rabbitmq, found_resource, state.latest_config_map_rv_opt.as_ref().unwrap()).marshal())
-        } else {
-            Err(RabbitmqError::Error)
-        }
-    }
-
-    fn get_result_check(obj: DynamicObject) -> Result<StatefulSet, RabbitmqError> {
         let sts = StatefulSet::unmarshal(obj);
         if sts.is_ok() {
-            Ok(sts.unwrap())
-        } else {
-            Err(RabbitmqError::Error)
+            let found_sts = sts.unwrap();
+            if found_sts.metadata().owner_references_only_contains(rabbitmq.controller_owner_ref())
+            && state.latest_config_map_rv_opt.is_some() && found_sts.spec().is_some() {
+                return Ok(update_stateful_set(rabbitmq, found_sts, state.latest_config_map_rv_opt.as_ref().unwrap()).marshal());
+            }
         }
+        return Err(RabbitmqError::Error);
     }
 
     fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {

@@ -155,23 +155,20 @@ pub fn reconcile_helper<
                     && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
                         let get_resp = resp_o.unwrap().into_k_response().into_get_response().res;
                         if get_resp.is_ok() {
-                            let get_object = Builder::get_result_check(get_resp.unwrap());
-                            if get_object.is_ok() {
-                                let new_obj = Builder::update(rabbitmq, &state, get_object.unwrap());
-                                if new_obj.is_ok() {
-                                    let updated_obj = new_obj.unwrap();
-                                    let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
-                                        api_resource: Builder::get_request(rabbitmq).api_resource,
-                                        name: Builder::get_request(rabbitmq).name,
-                                        namespace: rabbitmq.namespace().unwrap(),
-                                        obj: updated_obj,
-                                    });
-                                    let state_prime = RabbitmqReconcileState {
-                                        reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, resource),
-                                        ..state
-                                    };
-                                    return (state_prime, Some(Request::KRequest(req_o)));
-                                }
+                            let new_obj = Builder::update(rabbitmq, &state, get_resp.unwrap());
+                            if new_obj.is_ok() {
+                                let updated_obj = new_obj.unwrap();
+                                let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                                    api_resource: Builder::get_request(rabbitmq).api_resource,
+                                    name: Builder::get_request(rabbitmq).name,
+                                    namespace: rabbitmq.namespace().unwrap(),
+                                    obj: updated_obj,
+                                });
+                                let state_prime = RabbitmqReconcileState {
+                                    reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, resource),
+                                    ..state
+                                };
+                                return (state_prime, Some(Request::KRequest(req_o)));
                             }
                         } else if get_resp.unwrap_err().is_object_not_found() {
                             // create

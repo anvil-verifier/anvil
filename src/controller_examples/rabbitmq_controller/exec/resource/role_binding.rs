@@ -36,14 +36,10 @@ impl ResourceBuilder<RoleBinding, spec_resource::RoleBindingBuilder> for RoleBin
         Ok(make_role_binding(rabbitmq).marshal())
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, found_resource: RoleBinding) -> Result<DynamicObject, RabbitmqError> {
-        Ok(update_role_binding(rabbitmq, found_resource).marshal())
-    }
-
-    fn get_result_check(obj: DynamicObject) -> Result<RoleBinding, RabbitmqError> {
-        let sts = RoleBinding::unmarshal(obj);
-        if sts.is_ok() {
-            Ok(sts.unwrap())
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, RabbitmqError> {
+        let rb = RoleBinding::unmarshal(obj);
+        if rb.is_ok() {
+            Ok(update_role_binding(rabbitmq, rb.unwrap()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }

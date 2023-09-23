@@ -31,14 +31,10 @@ impl ResourceBuilder<SecretView> for DefaultUserSecretBuilder {
         Ok(make_default_user_secret(rabbitmq).marshal())
     }
 
-    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: SecretView) -> Result<DynamicObjectView, RabbitmqError> {
-        Ok(update_default_user_secret(rabbitmq, found_resource).marshal())
-    }
-
-    open spec fn get_result_check(obj: DynamicObjectView) -> Result<SecretView, RabbitmqError> {
-        let sts = SecretView::unmarshal(obj);
-        if sts.is_Ok() {
-            Ok(sts.get_Ok_0())
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, RabbitmqError> {
+        let secret = SecretView::unmarshal(obj);
+        if secret.is_Ok() {
+            Ok(update_default_user_secret(rabbitmq, secret.get_Ok_0()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }

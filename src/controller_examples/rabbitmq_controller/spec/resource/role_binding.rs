@@ -31,14 +31,10 @@ impl ResourceBuilder<RoleBindingView> for RoleBindingBuilder {
         Ok(make_role_binding(rabbitmq).marshal())
     }
 
-    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, found_resource: RoleBindingView) -> Result<DynamicObjectView, RabbitmqError> {
-        Ok(update_role_binding(rabbitmq, found_resource).marshal())
-    }
-
-    open spec fn get_result_check(obj: DynamicObjectView) -> Result<RoleBindingView, RabbitmqError> {
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, RabbitmqError> {
         let rb = RoleBindingView::unmarshal(obj);
         if rb.is_Ok() {
-            Ok(rb.get_Ok_0())
+            Ok(update_role_binding(rabbitmq, rb.get_Ok_0()).marshal())
         } else {
             Err(RabbitmqError::Error)
         }
