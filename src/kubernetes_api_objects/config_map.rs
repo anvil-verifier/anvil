@@ -25,9 +25,13 @@ pub struct ConfigMap {
     inner: deps_hack::k8s_openapi::api::core::v1::ConfigMap,
 }
 
-impl ConfigMap {
-    pub spec fn view(&self) -> ConfigMapView;
+impl View for ConfigMap {
+    type V = ConfigMapView;
+    
+    spec fn view(&self) -> ConfigMapView;
+}
 
+impl ConfigMap {
     #[verifier(external_body)]
     pub fn default() -> (config_map: ConfigMap)
         ensures

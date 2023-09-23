@@ -29,9 +29,13 @@ pub struct StatefulSet {
     inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSet,
 }
 
-impl StatefulSet {
-    pub spec fn view(&self) -> StatefulSetView;
+impl View for StatefulSet {
+    type V = StatefulSetView;
+    
+    spec fn view(&self) -> StatefulSetView;
+}
 
+impl StatefulSet {
     #[verifier(external_body)]
     pub fn default() -> (stateful_set: StatefulSet)
         ensures

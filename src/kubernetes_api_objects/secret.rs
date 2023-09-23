@@ -25,9 +25,13 @@ pub struct Secret {
     inner: deps_hack::k8s_openapi::api::core::v1::Secret,
 }
 
-impl Secret {
-    pub spec fn view(&self) -> SecretView;
+impl View for Secret {
+    type V = SecretView;
 
+    spec fn view(&self) -> SecretView;
+}
+
+impl Secret {
     #[verifier(external_body)]
     pub fn default() -> (secret: Secret)
         ensures

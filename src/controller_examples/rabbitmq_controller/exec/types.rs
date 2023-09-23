@@ -6,11 +6,52 @@ use crate::kubernetes_api_objects::{
     owner_reference::*, resource::*, resource_requirements::*, stateful_set::*, toleration::*,
 };
 use crate::pervasive_ext::{string_map::*, string_view::*};
-use crate::rabbitmq_controller::spec::types::*;
+use crate::rabbitmq_controller::common::*;
+use crate::rabbitmq_controller::spec::types as spec_types;
 use deps_hack::kube::Resource;
 use vstd::prelude::*;
 
 verus! {
+
+/// RabbitmqReconcileState describes the local state with which the reconcile functions makes decisions.
+pub struct RabbitmqReconcileState {
+    // reconcile_step, like a program counter, is used to track the progress of reconcile_core
+    // since reconcile_core is frequently "trapped" into the controller_runtime spec.
+    pub reconcile_step: RabbitmqReconcileStep,
+    pub latest_config_map_rv_opt: Option<String>,
+}
+
+impl std::clone::Clone for RabbitmqReconcileState {
+
+    #[verifier(external_body)]
+    fn clone(&self) -> (result: RabbitmqReconcileState)
+        ensures result == self
+    {
+        RabbitmqReconcileState {
+            reconcile_step: self.reconcile_step,
+            latest_config_map_rv_opt:
+                match &self.latest_config_map_rv_opt {
+                    Some(n) => Some(n.clone()),
+                    None => None,
+                }
+        }
+    }
+}
+
+impl View for RabbitmqReconcileState {
+    type V = spec_types::RabbitmqReconcileState;
+
+    open spec fn view(&self) -> spec_types::RabbitmqReconcileState {
+        spec_types::RabbitmqReconcileState {
+            reconcile_step: self.reconcile_step,
+            latest_config_map_rv_opt: 
+                match self.latest_config_map_rv_opt {
+                    Some(s) => Some(s@),
+                    None => None,
+                },
+        }
+    }
+}
 
 #[verifier(external_body)]
 pub struct RabbitmqCluster {
@@ -18,7 +59,7 @@ pub struct RabbitmqCluster {
 }
 
 impl RabbitmqCluster {
-    pub spec fn view(&self) -> RabbitmqClusterView;
+    pub spec fn view(&self) -> spec_types::RabbitmqClusterView;
 
     #[verifier(external_body)]
     pub fn name(&self) -> (name: Option<String>)
@@ -60,7 +101,7 @@ impl RabbitmqCluster {
     #[verifier(external_body)]
     pub fn api_resource() -> (res: ApiResource)
         ensures
-            res@.kind == RabbitmqClusterView::kind(),
+            res@.kind == spec_types::RabbitmqClusterView::kind(),
     {
         ApiResource::from_kube(deps_hack::kube::api::ApiResource::erase::<deps_hack::RabbitmqCluster>(&()))
     }
@@ -91,8 +132,8 @@ impl RabbitmqCluster {
     #[verifier(external_body)]
     pub fn unmarshal(obj: DynamicObject) -> (res: Result<RabbitmqCluster, ParseDynamicObjectError>)
         ensures
-            res.is_Ok() == RabbitmqClusterView::unmarshal(obj@).is_Ok(),
-            res.is_Ok() ==> res.get_Ok_0()@ == RabbitmqClusterView::unmarshal(obj@).get_Ok_0(),
+            res.is_Ok() == spec_types::RabbitmqClusterView::unmarshal(obj@).is_Ok(),
+            res.is_Ok() ==> res.get_Ok_0()@ == spec_types::RabbitmqClusterView::unmarshal(obj@).get_Ok_0(),
     {
         let parse_result = obj.into_kube().try_parse::<deps_hack::RabbitmqCluster>();
         if parse_result.is_ok() {
@@ -124,7 +165,7 @@ pub struct RabbitmqClusterSpec {
 }
 
 impl RabbitmqClusterSpec {
-    pub spec fn view(&self) -> RabbitmqClusterSpecView;
+    pub spec fn view(&self) -> spec_types::RabbitmqClusterSpecView;
 
     #[verifier(external_body)]
     pub fn replicas(&self) -> (replicas: i32)
@@ -245,7 +286,7 @@ pub struct RabbitmqConfig {
 }
 
 impl RabbitmqConfig {
-    pub spec fn view(&self) -> RabbitmqConfigView;
+    pub spec fn view(&self) -> spec_types::RabbitmqConfigView;
 
     #[verifier(external_body)]
     pub fn additional_config(&self) -> (additional_config: Option<String>)
@@ -290,7 +331,7 @@ pub struct RabbitmqClusterPersistenceSpec {
 }
 
 impl RabbitmqClusterPersistenceSpec {
-    pub spec fn view(&self) -> RabbitmqClusterPersistenceSpecView;
+    pub spec fn view(&self) -> spec_types::RabbitmqClusterPersistenceSpecView;
 
     #[verifier(external_body)]
     pub fn storage(&self) -> (storage: String)

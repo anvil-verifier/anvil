@@ -24,9 +24,13 @@ pub struct RoleBinding {
     inner: deps_hack::k8s_openapi::api::rbac::v1::RoleBinding,
 }
 
-impl RoleBinding {
-    pub spec fn view(&self) -> RoleBindingView;
+impl View for RoleBinding {
+    type V = RoleBindingView;
 
+    spec fn view(&self) -> RoleBindingView;
+}
+
+impl RoleBinding {
     #[verifier(external_body)]
     pub fn default() -> (role_binding: RoleBinding)
         ensures

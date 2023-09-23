@@ -6,9 +6,16 @@ use crate::kubernetes_api_objects::{
     owner_reference::*, resource::*, resource_requirements::*, stateful_set::*, toleration::*,
 };
 use crate::pervasive_ext::string_view::*;
+use crate::rabbitmq_controller::common::*;
 use vstd::prelude::*;
 
 verus! {
+
+pub struct RabbitmqReconcileState {
+    pub reconcile_step: RabbitmqReconcileStep,
+    pub latest_config_map_rv_opt: Option<StringView>,
+}
+
 pub struct RabbitmqClusterView {
     pub metadata: ObjectMetaView,
     pub spec: RabbitmqClusterSpecView,
