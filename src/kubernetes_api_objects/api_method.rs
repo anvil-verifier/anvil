@@ -339,31 +339,6 @@ impl ToView for KubeUpdateResponse {
     }
 }
 
-pub open spec fn result_obj_to_view(res: Result<DynamicObject, APIError>) -> Result<DynamicObjectView, APIError> {
-    match res {
-        Ok(obj) => Ok(obj@),
-        Err(err) => Err(err),
-    }
-}
-
-pub open spec fn delete_result_to_view(res: Result<(), APIError>) -> Result<(), APIError> {
-    match res {
-        Ok(_) => Ok(()),
-        Err(err) => Err(err),
-    }
-}
-
-pub open spec fn vec_obj_to_view(res: &Vec<DynamicObject>) -> Seq<DynamicObjectView> {
-    Seq::empty() // TODO: construct the Seq that contains the view of each element in Vec
-}
-
-pub open spec fn result_objs_to_view(res: Result<Vec<DynamicObject>, APIError>) -> Result<Seq<DynamicObjectView>, APIError> {
-    match res {
-        Ok(objs) => Ok(vec_obj_to_view(&objs)),
-        Err(err) => Err(err),
-    }
-}
-
 impl ToView for KubeAPIResponse {
     type V = APIResponse;
     open spec fn to_view(&self) -> APIResponse {
