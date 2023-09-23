@@ -6,6 +6,7 @@ use vstd::{map_lib::*, prelude::*, seq_lib::*};
 verus! {
 
 // Select all the values in m, whose keys satisfy f, into the returned seq
+// TODO: implement the spec function and prove the lemma
 pub closed spec fn select_map_to_seq<K, V>(m: Map<K, V>, f: FnSpec(K) -> bool) -> Seq<V>;
 
 #[verifier(external_body)]
