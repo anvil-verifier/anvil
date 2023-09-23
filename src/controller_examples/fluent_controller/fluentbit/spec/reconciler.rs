@@ -139,27 +139,105 @@ pub open spec fn reconcile_core(
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
         FluentBitReconcileStep::AfterCreateServiceAccount => {
-            let role_binding = make_role_binding(fb);
-            let req_o = APIRequest::CreateRequest(CreateRequest{
-                namespace: fb.metadata.namespace.get_Some_0(),
-                obj: role_binding.marshal(),
+            let req_o = APIRequest::GetRequest(GetRequest {
+                key: make_role_binding_key(fb.object_ref()),
             });
             let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterCreateRoleBinding,
+                reconcile_step: FluentBitReconcileStep::AfterGetRoleBinding,
                 ..state
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
+        FluentBitReconcileStep::AfterGetRoleBinding => {
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
+                let get_role_binding_resp = resp.get_KResponse_0().get_GetResponse_0().res;
+                let unmarshal_role_binding_result = RoleBindingView::unmarshal(get_role_binding_resp.get_Ok_0());
+                if get_role_binding_resp.is_Ok() {
+                    if unmarshal_role_binding_result.is_Ok() {
+                        // update
+                        let found_role_binding = unmarshal_role_binding_result.get_Ok_0();
+                        let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                            namespace: fb_namespace,
+                            name: make_role_binding_name(fb_name),
+                            obj: update_role_binding(fb, found_role_binding).marshal(),
+                        });
+                        let state_prime = FluentBitReconcileState {
+                            reconcile_step: FluentBitReconcileStep::AfterUpdateRoleBinding,
+                            ..state
+                        };
+                        (state_prime, Some(RequestView::KRequest(req_o)))
+                    } else {
+                        let state_prime = FluentBitReconcileState {
+                            reconcile_step: FluentBitReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                } else if get_role_binding_resp.get_Err_0().is_ObjectNotFound() {
+                    // create
+                    let req_o = APIRequest::CreateRequest(CreateRequest {
+                        namespace: fb_namespace,
+                        obj: make_role_binding(fb).marshal(),
+                    });
+                    let state_prime = FluentBitReconcileState {
+                        reconcile_step: FluentBitReconcileStep::AfterCreateRoleBinding,
+                        ..state
+                    };
+                    (state_prime, Some(RequestView::KRequest(req_o)))
+                } else {
+                    let state_prime = FluentBitReconcileState {
+                        reconcile_step: FluentBitReconcileStep::Error,
+                        ..state
+                    };
+                    (state_prime, None)
+                }
+            } else {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
         FluentBitReconcileStep::AfterCreateRoleBinding => {
-            let daemon_set = make_daemon_set(fb);
-            let req_o = APIRequest::GetRequest(GetRequest{
-                key: make_daemon_set_key(fb.object_ref())
-            });
-            let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterGetDaemonSet,
-                ..state
-            };
-            (state_prime, Some(RequestView::KRequest(req_o)))
+            let create_role_binding_resp = resp.get_KResponse_0().get_CreateResponse_0().res;
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
+            && create_role_binding_resp.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest {
+                    key: make_daemon_set_key(fb.object_ref()),
+                });
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::AfterGetDaemonSet,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        FluentBitReconcileStep::AfterUpdateRoleBinding => {
+            let update_role_binding_resp = resp.get_KResponse_0().get_UpdateResponse_0().res;
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
+            && update_role_binding_resp.is_Ok() {
+                let req_o = APIRequest::GetRequest(GetRequest {
+                    key: make_daemon_set_key(fb.object_ref()),
+                });
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::AfterGetDaemonSet,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
         },
         FluentBitReconcileStep::AfterGetDaemonSet => {
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
@@ -213,9 +291,9 @@ pub open spec fn reconcile_core(
             }
         },
         FluentBitReconcileStep::AfterCreateDaemonSet => {
-            let create_stateful_set_resp = resp.get_KResponse_0().get_CreateResponse_0().res;
+            let create_daemon_set_resp = resp.get_KResponse_0().get_CreateResponse_0().res;
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
-            && create_stateful_set_resp.is_Ok() {
+            && create_daemon_set_resp.is_Ok() {
                 let state_prime = FluentBitReconcileState {
                     reconcile_step: FluentBitReconcileStep::Done,
                     ..state
@@ -230,9 +308,9 @@ pub open spec fn reconcile_core(
             }
         },
         FluentBitReconcileStep::AfterUpdateDaemonSet => {
-            let update_stateful_set_resp = resp.get_KResponse_0().get_UpdateResponse_0().res;
+            let update_daemon_set_resp = resp.get_KResponse_0().get_UpdateResponse_0().res;
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
-            && update_stateful_set_resp.is_Ok() {
+            && update_daemon_set_resp.is_Ok() {
                 let state_prime = FluentBitReconcileState {
                     reconcile_step: FluentBitReconcileStep::Done,
                     ..state
@@ -314,6 +392,31 @@ pub open spec fn make_role_binding_name(fb_name: StringView) -> StringView {
     fb_name + new_strlit("-role-binding")@
 }
 
+pub open spec fn make_role_binding_key(key: ObjectRef) -> ObjectRef
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    ObjectRef {
+        kind: RoleBindingView::kind(),
+        name: make_role_binding_name(key.name),
+        namespace: key.namespace,
+    }
+}
+
+pub open spec fn update_role_binding(fb: FluentBitView, found_role_binding: RoleBindingView) -> RoleBindingView
+    recommends
+        fb.well_formed(),
+{
+    RoleBindingView {
+        metadata: ObjectMetaView {
+            labels: make_role_binding(fb).metadata.labels,
+            annotations: make_role_binding(fb).metadata.annotations,
+            ..found_role_binding.metadata
+        },
+        ..found_role_binding
+    }
+}
+
 pub open spec fn make_role_binding(fb: FluentBitView) -> RoleBindingView
     recommends
         fb.well_formed(),
@@ -321,6 +424,8 @@ pub open spec fn make_role_binding(fb: FluentBitView) -> RoleBindingView
     RoleBindingView::default()
         .set_metadata(ObjectMetaView::default()
             .set_name(make_role_binding_name(fb.metadata.name.get_Some_0()))
+            .set_labels(make_labels(fb))
+            .set_annotations(fb.spec.annotations)
             .set_owner_references(seq![fb.controller_owner_ref()])
         ).set_role_ref(RoleRefView::default()
             .set_api_group(new_strlit("rbac.authorization.k8s.io")@)
