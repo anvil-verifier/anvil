@@ -119,6 +119,47 @@ pub fn reconcile_core(fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state
             && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
                 let get_sts_resp = resp_o.unwrap().into_k_response().into_get_response().res;
                 if get_sts_resp.is_ok() {
+                    let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                        api_resource: Role::api_resource(),
+                        name: make_role_name(fb),
+                        namespace: fb.metadata().namespace().unwrap(),
+                    });
+                    let state_prime = FluentBitReconcileState {
+                        reconcile_step: FluentBitReconcileStep::AfterGetRole,
+                        ..state
+                    };
+                    return (state_prime, Some(Request::KRequest(req_o)));
+                }
+            }
+            // return error state
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
+        },
+        FluentBitReconcileStep::AfterGetRole => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                let get_role_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_role_resp.is_ok() {
+                    let unmarshal_role_result = Role::unmarshal(get_role_resp.unwrap());
+                    if unmarshal_role_result.is_ok() {
+                        let found_role = unmarshal_role_result.unwrap();
+                        let new_role = update_role(fb, &found_role);
+                        let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                            api_resource: Role::api_resource(),
+                            name: make_role_name(fb),
+                            namespace: fb.metadata().namespace().unwrap(),
+                            obj: new_role.marshal(),
+                        });
+                        let state_prime = FluentBitReconcileState {
+                            reconcile_step: FluentBitReconcileStep::AfterUpdateRole,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                } else if get_role_resp.unwrap_err().is_object_not_found() {
                     let role = make_role(fb);
                     let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: Role::api_resource(),
@@ -132,7 +173,6 @@ pub fn reconcile_core(fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state
                     return (state_prime, Some(Request::KRequest(req_o)));
                 }
             }
-            // return error state
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::Error,
                 ..state
@@ -140,16 +180,46 @@ pub fn reconcile_core(fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state
             return (state_prime, None);
         },
         FluentBitReconcileStep::AfterCreateRole => {
-            let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
-                api_resource: ServiceAccount::api_resource(),
-                name: make_service_account_name(fb),
-                namespace: fb.metadata().namespace().unwrap(),
-            });
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
+            && resp_o.unwrap().into_k_response().into_create_response().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: ServiceAccount::api_resource(),
+                    name: make_service_account_name(fb),
+                    namespace: fb.metadata().namespace().unwrap(),
+                });
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::AfterGetServiceAccount,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
             let state_prime = FluentBitReconcileState {
-                reconcile_step: FluentBitReconcileStep::AfterGetServiceAccount,
+                reconcile_step: FluentBitReconcileStep::Error,
                 ..state
             };
-            return (state_prime, Some(Request::KRequest(req_o)));
+            return (state_prime, None);
+        },
+        FluentBitReconcileStep::AfterUpdateRole => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
+            && resp_o.unwrap().into_k_response().into_update_response().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: ServiceAccount::api_resource(),
+                    name: make_service_account_name(fb),
+                    namespace: fb.metadata().namespace().unwrap(),
+                });
+                let state_prime = FluentBitReconcileState {
+                    reconcile_step: FluentBitReconcileStep::AfterGetServiceAccount,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
+            let state_prime = FluentBitReconcileState {
+                reconcile_step: FluentBitReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
         },
         FluentBitReconcileStep::AfterGetServiceAccount => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
@@ -425,6 +495,32 @@ fn make_labels(fb: &FluentBit) -> (labels: StringMap)
     labels
 }
 
+fn make_role_name(fb: &FluentBit) -> (name: String)
+    requires
+        fb@.well_formed(),
+    ensures
+        name@ == fb_spec::make_role_name(fb@.metadata.name.get_Some_0()),
+{
+    fb.metadata().name().unwrap().concat(new_strlit("-role"))
+}
+
+fn update_role(fb: &FluentBit, found_role: &Role) -> (role: Role)
+    requires
+        fb@.well_formed(),
+    ensures
+        role@ == fb_spec::update_role(fb@, found_role@),
+{
+    let mut role = found_role.clone();
+    let made_role = make_role(fb);
+    role.set_metadata({
+        let mut metadata = found_role.metadata();
+        metadata.set_labels(made_role.metadata().labels().unwrap());
+        metadata.set_annotations(made_role.metadata().annotations().unwrap());
+        metadata
+    });
+    role
+}
+
 fn make_role(fb: &FluentBit) -> (role: Role)
     requires
         fb@.well_formed(),
@@ -434,7 +530,9 @@ fn make_role(fb: &FluentBit) -> (role: Role)
     let mut role = Role::default();
     role.set_metadata({
         let mut metadata = ObjectMeta::default();
-        metadata.set_name(fb.metadata().name().unwrap().concat(new_strlit("-role")));
+        metadata.set_name(make_role_name(fb));
+        metadata.set_labels(make_labels(fb));
+        metadata.set_annotations(fb.spec().annotations());
         metadata.set_owner_references({
             let mut owner_references = Vec::new();
             owner_references.push(fb.controller_owner_ref());
