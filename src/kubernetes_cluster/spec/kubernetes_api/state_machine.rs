@@ -182,12 +182,12 @@ pub open spec fn handle_delete_request(msg: MsgType<E>, s: KubernetesAPIState) -
             // Instead, we set the deletion timestamp of this object.
             let stamped_obj = obj.set_deletion_timestamp(Self::deletion_timestamp());
             if stamped_obj == obj {
-                let result = Ok(stamped_obj);
+                let result = Ok(());
                 let resp = Message::form_delete_resp_msg(msg, result);
                 (s, resp)
             } else {
                 let stamped_obj_with_new_rv = stamped_obj.set_resource_version(s.resource_version_counter);
-                let result = Ok(stamped_obj_with_new_rv);
+                let result = Ok(());
                 let resp = Message::form_delete_resp_msg(msg, result);
                 (KubernetesAPIState {
                     // Here we use req.key, instead of stamped_obj.object_ref(), to insert to the map.
@@ -200,10 +200,9 @@ pub open spec fn handle_delete_request(msg: MsgType<E>, s: KubernetesAPIState) -
                     ..s
                 }, resp)
             }
-
         } else {
             // The object can be immediately removed from the key-value store.
-            let result = Ok(obj);
+            let result = Ok(());
             let resp = Message::form_delete_resp_msg(msg, result);
             (KubernetesAPIState {
                 resources: s.resources.remove(req.key),

@@ -13,7 +13,7 @@ use core::hash::Hash;
 use deps_hack::anyhow::Result;
 use deps_hack::futures::{Future, Stream, StreamExt, TryFuture};
 use deps_hack::kube::{
-    api::{Api, ListParams, ObjectMeta, PostParams, Resource},
+    api::{Api, DeleteParams, ListParams, ObjectMeta, PostParams, Resource},
     runtime::{
         controller::{self, Action, Controller},
         reflector, watcher,
@@ -192,6 +192,28 @@ where
                                         res: std::result::Result::Ok(DynamicObject::from_kube(obj)),
                                     });
                                     println!("{} Create {} done", log_prefix, key);
+                                },
+                            }
+                        },
+                        KubeAPIRequest::DeleteRequest(delete_req) => {
+                            check_fault_timing = true;
+                            let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+                                client.clone(), delete_req.namespace.as_rust_string_ref(), delete_req.api_resource.as_kube_ref()
+                            );
+                            let dp = DeleteParams::default();
+                            let key = delete_req.key();
+                            match api.delete(delete_req.name.as_rust_string_ref(), &dp).await {
+                                std::result::Result::Err(err) => {
+                                    kube_resp = KubeAPIResponse::DeleteResponse(KubeDeleteResponse{
+                                        res: std::result::Result::Err(kube_error_to_ghost(&err)),
+                                    });
+                                    println!("{} Delete {} failed with error: {}", log_prefix, key, err);
+                                },
+                                std::result::Result::Ok(_) => {
+                                    kube_resp = KubeAPIResponse::DeleteResponse(KubeDeleteResponse{
+                                        res: std::result::Result::Ok(()),
+                                    });
+                                    println!("{} Delete {} done", log_prefix, key);
                                 },
                             }
                         },
