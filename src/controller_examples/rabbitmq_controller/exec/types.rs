@@ -22,7 +22,11 @@ pub struct RabbitmqReconcileState {
 }
 
 impl std::clone::Clone for RabbitmqReconcileState {
-    fn clone(&self) -> RabbitmqReconcileState {
+
+    #[verifier(external_body)]
+    fn clone(&self) -> (result: RabbitmqReconcileState)
+        ensures result == self
+    {
         RabbitmqReconcileState {
             reconcile_step: self.reconcile_step,
             latest_config_map_rv_opt:

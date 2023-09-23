@@ -143,7 +143,7 @@ pub open spec fn reconcile_helper<T, Builder: ResourceBuilder<T>>(
                                     let updated_obj = new_obj.get_Ok_0();
                                     let req_o = APIRequest::UpdateRequest(UpdateRequest {
                                         namespace: rabbitmq.metadata.namespace.get_Some_0(),
-                                        name: updated_obj.metadata.name.get_Some_0(),
+                                        name: Builder::get_request(rabbitmq).key.name,
                                         obj: updated_obj,
                                     });
                                     let state_prime = RabbitmqReconcileState {

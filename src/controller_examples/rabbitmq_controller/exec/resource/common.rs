@@ -21,6 +21,9 @@ verus! {
 
 pub trait ResourceBuilder<T: View, SpecBuilder: spec_resource::ResourceBuilder<T::V>> {
     fn get_request(rabbitmq: &RabbitmqCluster) -> (req: KubeGetRequest)
+        requires
+            rabbitmq@.metadata.name.is_Some(),
+            rabbitmq@.metadata.namespace.is_Some(),
         ensures
             req.to_view() == SpecBuilder::get_request(rabbitmq@);
 
@@ -47,6 +50,9 @@ pub trait ResourceBuilder<T: View, SpecBuilder: spec_resource::ResourceBuilder<T
             resource_res_to_view(res) == SpecBuilder::state_after_create_or_update(obj@, state@);
 
     fn next_resource_get_request(rabbitmq: &RabbitmqCluster) -> (res: Option<KubeGetRequest>)
+        requires
+            rabbitmq@.metadata.name.is_Some(),
+            rabbitmq@.metadata.namespace.is_Some(),
         ensures
             res.is_Some() == SpecBuilder::next_resource_get_request(rabbitmq@).is_Some(),
             res.is_Some() ==> res.get_Some_0().to_view() == SpecBuilder::next_resource_get_request(rabbitmq@).get_Some_0();

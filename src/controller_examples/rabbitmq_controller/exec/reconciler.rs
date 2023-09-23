@@ -162,7 +162,7 @@ pub fn reconcile_helper<
                                     let updated_obj = new_obj.unwrap();
                                     let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
                                         api_resource: Builder::get_request(rabbitmq).api_resource,
-                                        name: updated_obj.metadata().name().unwrap(),
+                                        name: Builder::get_request(rabbitmq).name,
                                         namespace: rabbitmq.namespace().unwrap(),
                                         obj: updated_obj,
                                     });
@@ -240,8 +240,7 @@ pub fn reconcile_helper<
                 reconcile_step: RabbitmqReconcileStep::Error,
                 ..state
             };
-            let req_o = None;
-            return (state_prime, req_o);
+            return (state_prime, None);
         },
     }
 }
