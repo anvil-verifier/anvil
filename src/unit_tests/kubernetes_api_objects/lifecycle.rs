@@ -22,7 +22,7 @@ pub fn test_set_command() {
 
 #[test]
 #[verifier(external)]
-pub fn test_set_exec_lifecyclehandler() {
+pub fn test_set_exec() {
     let mut handler = LifecycleHandler::default();
     let mut exec_action = ExecAction::default();
     exec_action.set_command(vec![new_strlit("command").to_string()]);
