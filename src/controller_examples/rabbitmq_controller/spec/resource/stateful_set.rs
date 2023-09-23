@@ -226,14 +226,16 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                 ])
             ),
         VolumeView::default()
-            .set_name(new_strlit("rabbitmq-erlang-cookie")@),
+            .set_name(new_strlit("rabbitmq-erlang-cookie")@)
+            .set_empty_dir(EmptyDirVolumeSourceView::default()),
         VolumeView::default()
             .set_name(new_strlit("erlang-cookie-secret")@)
             .set_secret(SecretVolumeSourceView::default()
                 .set_secret_name(rabbitmq.metadata.name.get_Some_0() + new_strlit("-erlang-cookie")@)
             ),
         VolumeView::default()
-            .set_name(new_strlit("rabbitmq-plugins")@),
+            .set_name(new_strlit("rabbitmq-plugins")@)
+            .set_empty_dir(EmptyDirVolumeSourceView::default()),
         VolumeView::default()
             .set_name(new_strlit("pod-info")@)
             .set_downward_api(DownwardAPIVolumeSourceView::default()
@@ -254,6 +256,11 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
                 ContainerView::default()
                 .set_name(new_strlit("setup-container")@)
                 .set_image(rabbitmq.spec.image)
+                .set_command(seq![
+                        new_strlit("sh")@,
+                        new_strlit("-c")@,
+                        new_strlit("cp /tmp/erlang-cookie-secret/.erlang.cookie /var/lib/rabbitmq/.erlang.cookie && chmod 600 /var/lib/rabbitmq/.erlang.cookie ; cp /tmp/rabbitmq-plugins/enabled_plugins /operator/enabled_plugins ; echo '[default]' > /var/lib/rabbitmq/.rabbitmqadmin.conf && sed -e 's/default_user/username/' -e 's/default_pass/password/' /tmp/default_user.conf >> /var/lib/rabbitmq/.rabbitmqadmin.conf && chmod 600 /var/lib/rabbitmq/.rabbitmqadmin.conf ; sleep 30")@
+                ])
                 .set_resources(
                     ResourceRequirementsView {
                         limits: Some(Map::empty().insert(new_strlit("cpu")@, new_strlit("100m")@).insert(new_strlit("memory")@, new_strlit("500Mi")@)),
@@ -337,7 +344,7 @@ pub open spec fn make_rabbitmq_pod_spec(rabbitmq: RabbitmqClusterView) -> PodSpe
         ],
         volumes: Some({
             if rabbitmq.spec.persistence.storage == new_strlit("0Gi")@ {
-                volumes.push(VolumeView::default().set_name(new_strlit("persistence")@))
+                volumes.push(VolumeView::default().set_name(new_strlit("persistence")@).set_empty_dir(EmptyDirVolumeSourceView::default()))
             } else {
                 volumes
             }
