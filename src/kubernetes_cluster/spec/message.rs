@@ -290,7 +290,7 @@ pub open spec fn form_create_resp_msg(req_msg: Message<I, O>, result: Result<Dyn
     Self::form_msg(req_msg.dst, req_msg.src, Self::create_resp_msg_content(result, req_msg.content.get_rest_id()))
 }
 
-pub open spec fn form_delete_resp_msg(req_msg: Message<I, O>, result: Result<DynamicObjectView, APIError>) -> Message<I, O>
+pub open spec fn form_delete_resp_msg(req_msg: Message<I, O>, result: Result<(), APIError>) -> Message<I, O>
     recommends req_msg.content.is_delete_request(),
 {
     Self::form_msg(req_msg.dst, req_msg.src, Self::delete_resp_msg_content(result, req_msg.content.get_rest_id()))
@@ -360,7 +360,7 @@ pub open spec fn create_resp_msg_content(res: Result<DynamicObjectView, APIError
     }), resp_id)
 }
 
-pub open spec fn delete_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent<I, O> {
+pub open spec fn delete_resp_msg_content(res: Result<(), APIError>, resp_id: RestId) -> MessageContent<I, O> {
     MessageContent::APIResponse(APIResponse::DeleteResponse(DeleteResponse{
         res: res,
     }), resp_id)

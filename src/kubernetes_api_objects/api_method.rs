@@ -6,7 +6,7 @@ use crate::kubernetes_api_objects::{
     dynamic::*,
     error::*,
 };
-use crate::pervasive_ext::string_view::*;
+use crate::pervasive_ext::{string_view::*, to_view::*};
 use vstd::prelude::*;
 use vstd::string::*;
 
@@ -235,9 +235,8 @@ pub struct CreateResponse {
 
 /// DeleteResponse has (last version of) the object deleted by DeleteRequest.
 
-// TODO: need major revision here; DeleteResponse could be one of: (1) object is being deleted, (2) object is deleted, (3) error.
 pub struct DeleteResponse {
-    pub res: Result<DynamicObjectView, APIError>,
+    pub res: Result<(), APIError>,
 }
 
 /// UpdateResponse has the object updated by CreateRequest.
@@ -262,9 +261,18 @@ pub enum KubeAPIResponse {
 
 /// KubeGetResponse has the object returned by KubeGetRequest.
 
-// TODO: We probably should just type define it as a Result, instead of having a struct wrapper.
 pub struct KubeGetResponse {
     pub res: Result<DynamicObject, APIError>,
+}
+
+impl ToView for KubeGetResponse {
+    type V = GetResponse;
+    open spec fn to_view(&self) -> GetResponse {
+        match self.res {
+            Ok(o) => GetResponse { res: Ok(o@) },
+            Err(e) => GetResponse { res: Err(e) },
+        }
+    }
 }
 
 /// KubeListResponse has the sequence of objects returned by KubeListRequest.
@@ -273,17 +281,46 @@ pub struct KubeListResponse {
     pub res: Result<Vec<DynamicObject>, APIError>,
 }
 
+impl ToView for KubeListResponse {
+    type V = ListResponse;
+    open spec fn to_view(&self) -> ListResponse {
+        match self.res {
+            Ok(l) => ListResponse { res: Ok(l@.map_values(|o: DynamicObject| o@)) },
+            Err(e) => ListResponse { res: Err(e) },
+        }
+    }
+}
+
 /// KubeCreateResponse has the object created by KubeCreateRequest.
 
 pub struct KubeCreateResponse {
     pub res: Result<DynamicObject, APIError>,
 }
 
+impl ToView for KubeCreateResponse {
+    type V = CreateResponse;
+    open spec fn to_view(&self) -> CreateResponse {
+        match self.res {
+            Ok(o) => CreateResponse { res: Ok(o@) },
+            Err(e) => CreateResponse { res: Err(e) },
+        }
+    }
+}
+
 /// DeleteResponse has (last version of) the object deleted by DeleteRequest.
 
-// TODO: need major revision here; DeleteResponse could be one of: (1) object is being deleted, (2) object is deleted, (3) error.
 pub struct KubeDeleteResponse {
-    pub res: Result<DynamicObject, APIError>,
+    pub res: Result<(), APIError>,
+}
+
+impl ToView for KubeDeleteResponse {
+    type V = DeleteResponse;
+    open spec fn to_view(&self) -> DeleteResponse {
+        match self.res {
+            Ok(_) => DeleteResponse { res: Ok(()) },
+            Err(e) => DeleteResponse { res: Err(e) },
+        }
+    }
 }
 
 /// KubeUpdateResponse has the object updated by KubeUpdateRequest.
@@ -292,47 +329,30 @@ pub struct KubeUpdateResponse {
     pub res: Result<DynamicObject, APIError>,
 }
 
-pub open spec fn result_obj_to_view(res: Result<DynamicObject, APIError>) -> Result<DynamicObjectView, APIError> {
-    match res {
-        Ok(obj) => Ok(obj@),
-        Err(err) => Err(err),
+impl ToView for KubeUpdateResponse {
+    type V = UpdateResponse;
+    open spec fn to_view(&self) -> UpdateResponse {
+        match self.res {
+            Ok(o) => UpdateResponse { res: Ok(o@) },
+            Err(e) => UpdateResponse { res: Err(e) },
+        }
     }
 }
 
-pub open spec fn vec_obj_to_view(res: &Vec<DynamicObject>) -> Seq<DynamicObjectView> {
-    Seq::empty() // TODO: construct the Seq that contains the view of each element in Vec
-}
-
-pub open spec fn result_objs_to_view(res: Result<Vec<DynamicObject>, APIError>) -> Result<Seq<DynamicObjectView>, APIError> {
-    match res {
-        Ok(objs) => Ok(vec_obj_to_view(&objs)),
-        Err(err) => Err(err),
+impl ToView for KubeAPIResponse {
+    type V = APIResponse;
+    open spec fn to_view(&self) -> APIResponse {
+        match self {
+            KubeAPIResponse::GetResponse(get_resp) => APIResponse::GetResponse(get_resp.to_view()),
+            KubeAPIResponse::ListResponse(list_resp) => APIResponse::ListResponse(list_resp.to_view()),
+            KubeAPIResponse::CreateResponse(create_resp) => APIResponse::CreateResponse(create_resp.to_view()),
+            KubeAPIResponse::DeleteResponse(delete_resp) => APIResponse::DeleteResponse(delete_resp.to_view()),
+            KubeAPIResponse::UpdateResponse(update_resp) => APIResponse::UpdateResponse(update_resp.to_view()),
+        }
     }
 }
 
 impl KubeAPIResponse {
-    /// to_view returns the view of KubeAPIResponse, i.e., APIResponse used for specifications.
-
-    pub open spec fn to_view(&self) -> APIResponse {
-        match self {
-            KubeAPIResponse::GetResponse(get_resp) => APIResponse::GetResponse(GetResponse {
-                res: result_obj_to_view(get_resp.res),
-            }),
-            KubeAPIResponse::ListResponse(list_resp) => APIResponse::ListResponse(ListResponse {
-                res: result_objs_to_view(list_resp.res)
-            }),
-            KubeAPIResponse::CreateResponse(create_resp) => APIResponse::CreateResponse(CreateResponse {
-                res: result_obj_to_view(create_resp.res),
-            }),
-            KubeAPIResponse::DeleteResponse(delete_resp) => APIResponse::DeleteResponse(DeleteResponse {
-                res: result_obj_to_view(delete_resp.res),
-            }),
-            KubeAPIResponse::UpdateResponse(update_resp) => APIResponse::UpdateResponse(UpdateResponse {
-                res: result_obj_to_view(update_resp.res),
-            }),
-        }
-    }
-
     pub fn is_get_response(&self) -> (res: bool)
         ensures
             res == self.is_GetResponse(),
@@ -434,7 +454,6 @@ impl KubeAPIResponse {
             _ => unreached(),
         }
     }
-
 }
 
 pub open spec fn opt_resp_to_view(resp: &Option<KubeAPIResponse>) -> Option<APIResponse> {
