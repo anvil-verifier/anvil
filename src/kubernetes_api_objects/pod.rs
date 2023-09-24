@@ -242,16 +242,12 @@ impl PodSpec {
 pub struct PodView {
     pub metadata: ObjectMetaView,
     pub spec: Option<PodSpecView>,
+    pub status: Option<PodStatusView>,
 }
 
-impl PodView {
-    pub open spec fn default() -> PodView {
-        PodView {
-            metadata: ObjectMetaView::default(),
-            spec: None,
-        }
-    }
+pub type PodStatusView = EmptyStatusView;
 
+impl PodView {
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> PodView {
         PodView {
             metadata: metadata,
@@ -269,6 +265,15 @@ impl PodView {
 
 impl ResourceView for PodView {
     type Spec = Option<PodSpecView>;
+    type Status = Option<PodStatusView>;
+
+    open spec fn default() -> PodView {
+        PodView {
+            metadata: ObjectMetaView::default(),
+            spec: None,
+            status: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
@@ -292,11 +297,16 @@ impl ResourceView for PodView {
         self.spec
     }
 
+    open spec fn status(self) -> Option<PodStatusView> {
+        self.status
+    }
+
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
             spec: PodView::marshal_spec(self.spec),
+            status: PodView::marshal_status(self.status),
         }
     }
 
@@ -305,16 +315,20 @@ impl ResourceView for PodView {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !PodView::unmarshal_spec(obj.spec).is_Ok() {
             Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !PodView::unmarshal_status(obj.status).is_Ok() {
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Ok(PodView {
                 metadata: obj.metadata,
                 spec: PodView::unmarshal_spec(obj.spec).get_Ok_0(),
+                status: PodView::unmarshal_status(obj.status).get_Ok_0(),
             })
         }
     }
 
     proof fn marshal_preserves_integrity() {
         PodView::marshal_spec_preserves_integrity();
+        PodView::marshal_status_preserves_integrity();
     }
 
     proof fn marshal_preserves_metadata() {}
@@ -325,10 +339,17 @@ impl ResourceView for PodView {
 
     closed spec fn unmarshal_spec(v: Value) -> Result<Option<PodSpecView>, ParseDynamicObjectError>;
 
+    closed spec fn marshal_status(s: Option<PodStatusView>) -> Value;
+
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<PodStatusView>, ParseDynamicObjectError>;
+
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity(){}
 
-    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
+    #[verifier(external_body)]
+    proof fn marshal_status_preserves_integrity() {}
+
+    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
     open spec fn state_validation(self) -> bool {
         &&& self.spec.is_Some()

@@ -26,46 +26,65 @@ verus! {
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 // TODO: maybe make it a method of DynamicObjectView?
-pub open spec fn spec_integrity_check(obj: DynamicObjectView) -> bool {
-    &&& obj.kind == ConfigMapView::kind() ==> ConfigMapView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == DaemonSetView::kind() ==> DaemonSetView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == PodView::kind() ==> PodView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == RoleBindingView::kind() ==> RoleBindingView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == RoleView::kind() ==> RoleView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == SecretView::kind() ==> SecretView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == ServiceView::kind() ==> ServiceView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == StatefulSetView::kind() ==> StatefulSetView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == ServiceAccountView::kind() ==> ServiceAccountView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == K::kind() ==> K::unmarshal_spec(obj.spec).is_Ok()
+// TODO: we should just use pattern matching here; but a problem is that K::kind() is not guaranteed to be CustomResourceKind
+pub open spec fn integrity_check(obj: DynamicObjectView) -> bool {
+    if obj.kind == ConfigMapView::kind() { ConfigMapView::unmarshal_spec(obj.spec).is_Ok() && ConfigMapView::unmarshal_status(obj.status).is_Ok() }
+    else if obj.kind == DaemonSetView::kind() { DaemonSetView::unmarshal_spec(obj.spec).is_Ok() && DaemonSetView::unmarshal_status(obj.status).is_Ok() }
+    else if obj.kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok() && PersistentVolumeClaimView::unmarshal_status(obj.status).is_Ok() }
+    else if obj.kind == PodView::kind() { PodView::unmarshal_spec(obj.spec).is_Ok() && PodView::unmarshal_status(obj.status).is_Ok() }
+    else if obj.kind == RoleBindingView::kind() { RoleBindingView::unmarshal_spec(obj.spec).is_Ok() && RoleBindingView::unmarshal_status(obj.status).is_Ok() }
+    else if obj.kind == RoleView::kind() { RoleView::unmarshal_spec(obj.spec).is_Ok() && RoleView::unmarshal_status(obj.status).is_Ok() }
+    else if obj.kind == SecretView::kind() { SecretView::unmarshal_spec(obj.spec).is_Ok() && SecretView::unmarshal_status(obj.status).is_Ok() }
+    else if obj.kind == ServiceView::kind() { ServiceView::unmarshal_spec(obj.spec).is_Ok() && ServiceView::unmarshal_status(obj.status).is_Ok() }
+    else if obj.kind == StatefulSetView::kind() { StatefulSetView::unmarshal_spec(obj.spec).is_Ok() && StatefulSetView::unmarshal_status(obj.status).is_Ok() }
+    else if obj.kind == ServiceAccountView::kind() { ServiceAccountView::unmarshal_spec(obj.spec).is_Ok() && ServiceAccountView::unmarshal_status(obj.status).is_Ok() }
+    else if obj.kind == K::kind() { K::unmarshal_spec(obj.spec).is_Ok() && K::unmarshal_status(obj.status).is_Ok() }
+    else { true }
 }
 
 pub open spec fn state_validity_check(obj: DynamicObjectView) -> bool {
-    &&& obj.kind == ConfigMapView::kind() ==> ConfigMapView::unmarshal(obj).get_Ok_0().state_validation()
-    &&& obj.kind == DaemonSetView::kind() ==> DaemonSetView::unmarshal(obj).get_Ok_0().state_validation()
-    &&& obj.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::unmarshal(obj).get_Ok_0().state_validation()
-    &&& obj.kind == PodView::kind() ==> PodView::unmarshal(obj).get_Ok_0().state_validation()
-    &&& obj.kind == RoleBindingView::kind() ==> RoleBindingView::unmarshal(obj).get_Ok_0().state_validation()
-    &&& obj.kind == RoleView::kind() ==> RoleView::unmarshal(obj).get_Ok_0().state_validation()
-    &&& obj.kind == SecretView::kind() ==> SecretView::unmarshal(obj).get_Ok_0().state_validation()
-    &&& obj.kind == ServiceView::kind() ==> ServiceView::unmarshal(obj).get_Ok_0().state_validation()
-    &&& obj.kind == StatefulSetView::kind() ==> StatefulSetView::unmarshal(obj).get_Ok_0().state_validation()
-    &&& obj.kind == ServiceAccountView::kind() ==> ServiceAccountView::unmarshal(obj).get_Ok_0().state_validation()
-    &&& obj.kind == K::kind() ==> K::unmarshal(obj).get_Ok_0().state_validation()
+    if obj.kind == ConfigMapView::kind() { ConfigMapView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == DaemonSetView::kind() { DaemonSetView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == PodView::kind() { PodView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == RoleBindingView::kind() { RoleBindingView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == RoleView::kind() { RoleView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == SecretView::kind() { SecretView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == ServiceView::kind() { ServiceView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == StatefulSetView::kind() { StatefulSetView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == ServiceAccountView::kind() { ServiceAccountView::unmarshal(obj).get_Ok_0().state_validation() }
+    else if obj.kind == K::kind() { K::unmarshal(obj).get_Ok_0().state_validation() }
+    else { true }
 }
 
 pub open spec fn transition_validity_check(obj: DynamicObjectView, old_obj: DynamicObjectView) -> bool {
-    &&& obj.kind == ConfigMapView::kind() ==> ConfigMapView::unmarshal(obj).get_Ok_0().transition_validation(ConfigMapView::unmarshal(old_obj).get_Ok_0())
-    &&& obj.kind == DaemonSetView::kind() ==> DaemonSetView::unmarshal(obj).get_Ok_0().transition_validation(DaemonSetView::unmarshal(old_obj).get_Ok_0())
-    &&& obj.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::unmarshal(obj).get_Ok_0().transition_validation(PersistentVolumeClaimView::unmarshal(old_obj).get_Ok_0())
-    &&& obj.kind == PodView::kind() ==> PodView::unmarshal(obj).get_Ok_0().transition_validation(PodView::unmarshal(old_obj).get_Ok_0())
-    &&& obj.kind == RoleBindingView::kind() ==> RoleBindingView::unmarshal(obj).get_Ok_0().transition_validation(RoleBindingView::unmarshal(old_obj).get_Ok_0())
-    &&& obj.kind == RoleView::kind() ==> RoleView::unmarshal(obj).get_Ok_0().transition_validation(RoleView::unmarshal(old_obj).get_Ok_0())
-    &&& obj.kind == SecretView::kind() ==> SecretView::unmarshal(obj).get_Ok_0().transition_validation(SecretView::unmarshal(old_obj).get_Ok_0())
-    &&& obj.kind == ServiceView::kind() ==> ServiceView::unmarshal(obj).get_Ok_0().transition_validation(ServiceView::unmarshal(old_obj).get_Ok_0())
-    &&& obj.kind == StatefulSetView::kind() ==> StatefulSetView::unmarshal(obj).get_Ok_0().transition_validation(StatefulSetView::unmarshal(old_obj).get_Ok_0())
-    &&& obj.kind == ServiceAccountView::kind() ==> ServiceAccountView::unmarshal(obj).get_Ok_0().transition_validation(ServiceAccountView::unmarshal(old_obj).get_Ok_0())
-    &&& obj.kind == K::kind() ==> K::unmarshal(obj).get_Ok_0().transition_validation(K::unmarshal(old_obj).get_Ok_0())
+    if obj.kind == ConfigMapView::kind() { ConfigMapView::unmarshal(obj).get_Ok_0().transition_validation(ConfigMapView::unmarshal(old_obj).get_Ok_0()) }
+    else if obj.kind == DaemonSetView::kind() { DaemonSetView::unmarshal(obj).get_Ok_0().transition_validation(DaemonSetView::unmarshal(old_obj).get_Ok_0()) }
+    else if obj.kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::unmarshal(obj).get_Ok_0().transition_validation(PersistentVolumeClaimView::unmarshal(old_obj).get_Ok_0()) }
+    else if obj.kind == PodView::kind() { PodView::unmarshal(obj).get_Ok_0().transition_validation(PodView::unmarshal(old_obj).get_Ok_0()) }
+    else if obj.kind == RoleBindingView::kind() { RoleBindingView::unmarshal(obj).get_Ok_0().transition_validation(RoleBindingView::unmarshal(old_obj).get_Ok_0()) }
+    else if obj.kind == RoleView::kind() { RoleView::unmarshal(obj).get_Ok_0().transition_validation(RoleView::unmarshal(old_obj).get_Ok_0()) }
+    else if obj.kind == SecretView::kind() { SecretView::unmarshal(obj).get_Ok_0().transition_validation(SecretView::unmarshal(old_obj).get_Ok_0()) }
+    else if obj.kind == ServiceView::kind() { ServiceView::unmarshal(obj).get_Ok_0().transition_validation(ServiceView::unmarshal(old_obj).get_Ok_0()) }
+    else if obj.kind == StatefulSetView::kind() { StatefulSetView::unmarshal(obj).get_Ok_0().transition_validation(StatefulSetView::unmarshal(old_obj).get_Ok_0()) }
+    else if obj.kind == ServiceAccountView::kind() { ServiceAccountView::unmarshal(obj).get_Ok_0().transition_validation(ServiceAccountView::unmarshal(old_obj).get_Ok_0()) }
+    else if obj.kind == K::kind() { K::unmarshal(obj).get_Ok_0().transition_validation(K::unmarshal(old_obj).get_Ok_0()) }
+    else { true }
+}
+
+pub open spec fn marshalled_default_status(obj: DynamicObjectView) -> Value {
+    if obj.kind == ConfigMapView::kind() { ConfigMapView::marshal_status(ConfigMapView::default().status()) }
+    else if obj.kind == DaemonSetView::kind() { DaemonSetView::marshal_status(DaemonSetView::default().status()) }
+    else if obj.kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::marshal_status(PersistentVolumeClaimView::default().status()) }
+    else if obj.kind == PodView::kind() { PodView::marshal_status(PodView::default().status()) }
+    else if obj.kind == RoleBindingView::kind() { RoleBindingView::marshal_status(RoleBindingView::default().status()) }
+    else if obj.kind == RoleView::kind() { RoleView::marshal_status(RoleView::default().status()) }
+    else if obj.kind == SecretView::kind() { SecretView::marshal_status(SecretView::default().status()) }
+    else if obj.kind == ServiceView::kind() { ServiceView::marshal_status(ServiceView::default().status()) }
+    else if obj.kind == StatefulSetView::kind() { StatefulSetView::marshal_status(StatefulSetView::default().status()) }
+    else if obj.kind == ServiceAccountView::kind() { ServiceAccountView::marshal_status(ServiceAccountView::default().status()) }
+    else if obj.kind == K::kind() { K::marshal_status(K::default().status()) }
+    else { arbitrary() }
 }
 
 pub open spec fn handle_get_request(msg: MsgType<E>, s: KubernetesAPIState) -> (KubernetesAPIState, MsgType<E>)
@@ -106,8 +125,8 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
     } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Creation fails because the namespace of the provided object does not match the namespace sent on the request
         Some(APIError::BadRequest)
-    } else if !Self::spec_integrity_check(req.obj) {
-        // Creation fails because the spec of the provided object is not well formed
+    } else if !Self::integrity_check(req.obj) {
+        // Creation fails because the provided object is not well formed
         Some(APIError::BadRequest) // TODO: should the error be BadRequest?
     } else if s.resources.contains_key(req.obj.set_namespace(req.namespace).object_ref()) {
         // Creation fails because the object already exists
@@ -142,11 +161,18 @@ pub open spec fn handle_create_request(msg: MsgType<E>, s: KubernetesAPIState) -
         (s, resp)
     } else {
         // Creation succeeds.
-        // Set the namespace, the resource_version and the uid of the created object.
-        let created_obj = req.obj.set_namespace(req.namespace)
-                            .set_resource_version(s.resource_version_counter)
-                            .set_uid(s.uid_counter)
-                            .unset_deletion_timestamp();
+        let created_obj = DynamicObjectView {
+            kind: req.obj.kind,
+            metadata: ObjectMetaView {
+                namespace: Some(req.namespace), // Set namespace for new object
+                resource_version: Some(s.resource_version_counter), // Set rv for new object
+                uid: Some(s.uid_counter), // Set uid for new object
+                deletion_timestamp: None, // Unset deletion timestamp for new object
+                ..req.obj.metadata
+            },
+            spec: req.obj.spec,
+            status: Self::marshalled_default_status(req.obj), // Overwrite the status with the default one
+        };
         let result = Ok(created_obj);
         let resp = Message::form_create_resp_msg(msg, result);
         (KubernetesAPIState {
@@ -232,8 +258,8 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         // Update fails because the namespace of the provided object
         // does not match the namespace sent on the request
         Some(APIError::BadRequest)
-    } else if !Self::spec_integrity_check(req.obj) {
-        // Update fails because the spec of the provided object is not well formed
+    } else if !Self::integrity_check(req.obj) {
+        // Update fails because the provided object is not well formed
         // TODO: should the error be BadRequest?
         Some(APIError::BadRequest)
     } else if !s.resources.contains_key(req.key()) {
@@ -280,15 +306,18 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
 
 pub open spec fn updated_object(req: UpdateRequest, s: KubernetesAPIState) -> DynamicObjectView {
     let old_obj = s.resources[req.key()];
-    let updated_obj = req.obj.set_namespace(req.namespace)
-                        // Update cannot change the rv; if rv is provided and inconsistent, validation fails.
-                        .set_resource_version(old_obj.metadata.resource_version.get_Some_0())
-                        // Update cannot change the uid; if uid is provided and inconsistent, validation fails.
-                        .set_uid(old_obj.metadata.uid.get_Some_0())
-                        // Update cannot change the deletion timestamp.
-                        .overwrite_deletion_timestamp(old_obj.metadata.deletion_timestamp);
-    // TODO: enforce that finalizer cannot be added if deletion timestamp is set.
-    // TODO: status should also be ignored here, after we support it.
+    let updated_obj = DynamicObjectView {
+        kind: req.obj.kind,
+        metadata: ObjectMetaView {
+            namespace: Some(req.namespace), // Overwrite namespace since it might not be provided
+            resource_version: old_obj.metadata.resource_version, // Overwrite rv since it might not be provided
+            uid: old_obj.metadata.uid, // Overwrite uid since it might not be provided
+            deletion_timestamp: old_obj.metadata.deletion_timestamp, // Ignore any change to deletion_timestamp
+            ..req.obj.metadata
+        },
+        spec: req.obj.spec,
+        status: old_obj.status, // Ignore any change to status
+    };
     updated_obj
 }
 

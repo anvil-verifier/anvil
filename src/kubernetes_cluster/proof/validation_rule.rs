@@ -99,7 +99,7 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: Tem
     );
     let key = cr.object_ref();
     K::object_ref_is_well_formed();
-    K::unmarshal_result_determined_by_unmarshal_spec();
+    K::unmarshal_result_determined_by_unmarshal_spec_and_status();
     assert forall |s, s_prime: Self| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         if s_prime.scheduled_reconciles().contains_key(key) && s_prime.resources().contains_key(key)
         && s_prime.resources()[key].metadata.uid.get_Some_0() == s_prime.scheduled_reconciles()[key].metadata().uid.get_Some_0() {
@@ -198,7 +198,7 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
         let key = cr.object_ref();
         K::object_ref_is_well_formed();
         K::marshal_preserves_metadata();
-        K::unmarshal_result_determined_by_unmarshal_spec();
+        K::unmarshal_result_determined_by_unmarshal_spec_and_status();
         let step = choose |step| Self::next_step(s, s_prime, step);
         if s_prime.ongoing_reconciles().contains_key(key) && s_prime.resources().contains_key(key)
         && s_prime.resources()[key].metadata.uid.get_Some_0() == s_prime.ongoing_reconciles()[key].triggering_cr.metadata().uid.get_Some_0() {

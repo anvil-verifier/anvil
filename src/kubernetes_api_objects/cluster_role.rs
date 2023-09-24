@@ -111,13 +111,6 @@ pub struct ClusterRoleView {
 type ClusterRoleSpecView = (Option<Seq<PolicyRuleView>>, ());
 
 impl ClusterRoleView {
-    pub open spec fn default() -> ClusterRoleView {
-        ClusterRoleView {
-            metadata: ObjectMetaView::default(),
-            policy_rules: None,
-        }
-    }
-
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ClusterRoleView {
         ClusterRoleView {
             metadata: metadata,
@@ -135,6 +128,14 @@ impl ClusterRoleView {
 
 impl ResourceView for ClusterRoleView {
     type Spec = ClusterRoleSpecView;
+    type Status = EmptyStatusView;
+
+    open spec fn default() -> ClusterRoleView {
+        ClusterRoleView {
+            metadata: ObjectMetaView::default(),
+            policy_rules: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
@@ -158,11 +159,16 @@ impl ResourceView for ClusterRoleView {
         (self.policy_rules, ())
     }
 
+    open spec fn status(self) -> EmptyStatusView {
+        empty_status()
+    }
+
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
             spec: ClusterRoleView::marshal_spec((self.policy_rules, ())),
+            status: ClusterRoleView::marshal_status(empty_status()),
         }
     }
 
@@ -170,6 +176,8 @@ impl ResourceView for ClusterRoleView {
         if obj.kind != Self::kind() {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !ClusterRoleView::unmarshal_spec(obj.spec).is_Ok() {
+            Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !ClusterRoleView::unmarshal_status(obj.status).is_Ok() {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Ok(ClusterRoleView {
@@ -181,6 +189,7 @@ impl ResourceView for ClusterRoleView {
 
     proof fn marshal_preserves_integrity() {
         ClusterRoleView::marshal_spec_preserves_integrity();
+        ClusterRoleView::marshal_status_preserves_integrity();
     }
 
     proof fn marshal_preserves_metadata() {}
@@ -191,10 +200,17 @@ impl ResourceView for ClusterRoleView {
 
     closed spec fn unmarshal_spec(v: Value) -> Result<ClusterRoleSpecView, ParseDynamicObjectError>;
 
+    closed spec fn marshal_status(s: EmptyStatusView) -> Value;
+
+    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, ParseDynamicObjectError>;
+
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
 
-    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
+    #[verifier(external_body)]
+    proof fn marshal_status_preserves_integrity() {}
+
+    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
     open spec fn state_validation(self) -> bool {
         true

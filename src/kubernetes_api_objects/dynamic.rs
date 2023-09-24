@@ -75,7 +75,7 @@ pub struct DynamicObjectView {
     pub kind: Kind,
     pub metadata: ObjectMetaView,
     pub spec: Value,
-    // TODO: add status, which will also be a Value
+    pub status: Value,
 }
 
 impl DynamicObjectView {
@@ -125,26 +125,6 @@ impl DynamicObjectView {
         DynamicObjectView {
             metadata: ObjectMetaView {
                 deletion_timestamp: Some(deletion_timestamp),
-                ..self.metadata
-            },
-            ..self
-        }
-    }
-
-    pub open spec fn unset_deletion_timestamp(self) -> DynamicObjectView {
-        DynamicObjectView {
-            metadata: ObjectMetaView {
-                deletion_timestamp: None,
-                ..self.metadata
-            },
-            ..self
-        }
-    }
-
-    pub open spec fn overwrite_deletion_timestamp(self, deletion_timestamp_opt: Option<StringView>) -> DynamicObjectView {
-        DynamicObjectView {
-            metadata: ObjectMetaView {
-                deletion_timestamp: deletion_timestamp_opt,
                 ..self.metadata
             },
             ..self

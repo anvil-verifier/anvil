@@ -194,16 +194,12 @@ impl ResourceWrapper<deps_hack::k8s_openapi::api::core::v1::PersistentVolumeClai
 pub struct PersistentVolumeClaimView {
     pub metadata: ObjectMetaView,
     pub spec: Option<PersistentVolumeClaimSpecView>,
+    pub status: Option<PersistentVolumeClaimStatusView>,
 }
 
-impl PersistentVolumeClaimView {
-    pub open spec fn default() -> PersistentVolumeClaimView {
-        PersistentVolumeClaimView {
-            metadata: ObjectMetaView::default(),
-            spec: None,
-        }
-    }
+pub type PersistentVolumeClaimStatusView = EmptyStatusView;
 
+impl PersistentVolumeClaimView {
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> PersistentVolumeClaimView {
         PersistentVolumeClaimView {
             metadata: metadata,
@@ -221,6 +217,15 @@ impl PersistentVolumeClaimView {
 
 impl ResourceView for PersistentVolumeClaimView {
     type Spec = Option<PersistentVolumeClaimSpecView>;
+    type Status = Option<PersistentVolumeClaimStatusView>;
+
+    open spec fn default() -> PersistentVolumeClaimView {
+        PersistentVolumeClaimView {
+            metadata: ObjectMetaView::default(),
+            spec: None,
+            status: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
@@ -244,11 +249,16 @@ impl ResourceView for PersistentVolumeClaimView {
         self.spec
     }
 
+    open spec fn status(self) -> Option<PersistentVolumeClaimStatusView> {
+        self.status
+    }
+
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
             spec: PersistentVolumeClaimView::marshal_spec(self.spec),
+            status: PersistentVolumeClaimView::marshal_status(self.status),
         }
     }
 
@@ -257,16 +267,20 @@ impl ResourceView for PersistentVolumeClaimView {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok() {
             Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !PersistentVolumeClaimView::unmarshal_status(obj.status).is_Ok() {
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Ok(PersistentVolumeClaimView {
                 metadata: obj.metadata,
                 spec: PersistentVolumeClaimView::unmarshal_spec(obj.spec).get_Ok_0(),
+                status: PersistentVolumeClaimView::unmarshal_status(obj.status).get_Ok_0(),
             })
         }
     }
 
     proof fn marshal_preserves_integrity() {
         PersistentVolumeClaimView::marshal_spec_preserves_integrity();
+        PersistentVolumeClaimView::marshal_status_preserves_integrity();
     }
 
     proof fn marshal_preserves_metadata() {}
@@ -277,10 +291,17 @@ impl ResourceView for PersistentVolumeClaimView {
 
     closed spec fn unmarshal_spec(v: Value) -> Result<Option<PersistentVolumeClaimSpecView>, ParseDynamicObjectError>;
 
+    closed spec fn marshal_status(s: Option<PersistentVolumeClaimStatusView>) -> Value;
+
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<PersistentVolumeClaimStatusView>, ParseDynamicObjectError>;
+
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
 
-    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
+    #[verifier(external_body)]
+    proof fn marshal_status_preserves_integrity() {}
+
+    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
     open spec fn state_validation(self) -> bool {
         &&& self.spec.is_Some()

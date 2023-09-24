@@ -31,16 +31,18 @@ pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
         &&& s.resources()[key].metadata.well_formed()
         &&& s.resources()[key].metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
         &&& {
-            &&& key.kind == ConfigMapView::kind() ==> ConfigMapView::unmarshal(s.resources()[key]).is_Ok()
-            &&& key.kind == DaemonSetView::kind() ==> DaemonSetView::unmarshal(s.resources()[key]).is_Ok()
-            &&& key.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::unmarshal(s.resources()[key]).is_Ok()
-            &&& key.kind == PodView::kind() ==> PodView::unmarshal(s.resources()[key]).is_Ok()
-            &&& key.kind == RoleBindingView::kind() ==> RoleBindingView::unmarshal(s.resources()[key]).is_Ok()
-            &&& key.kind == RoleView::kind() ==> RoleView::unmarshal(s.resources()[key]).is_Ok()
-            &&& key.kind == SecretView::kind() ==> SecretView::unmarshal(s.resources()[key]).is_Ok()
-            &&& key.kind == ServiceView::kind() ==> ServiceView::unmarshal(s.resources()[key]).is_Ok()
-            &&& key.kind == StatefulSetView::kind() ==> StatefulSetView::unmarshal(s.resources()[key]).is_Ok()
-            &&& key.kind == K::kind() ==> K::unmarshal(s.resources()[key]).is_Ok()
+            if key.kind == ConfigMapView::kind() { ConfigMapView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == DaemonSetView::kind() { DaemonSetView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == PodView::kind() { PodView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == RoleBindingView::kind() { RoleBindingView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == RoleView::kind() { RoleView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == SecretView::kind() { SecretView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == ServiceView::kind() { ServiceView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == StatefulSetView::kind() { StatefulSetView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == ServiceAccountView::kind() { ServiceAccountView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == K::kind() { K::unmarshal(s.resources()[key]).is_Ok() }
+            else { true }
         }
     }
 }
@@ -66,7 +68,18 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(spec: TempPred<Self
     implies invariant(s_prime) by {
         assert forall |key: ObjectRef| #[trigger] s_prime.resources().contains_key(key)
         implies Self::etcd_object_is_well_formed(key)(s_prime) by {
-            K::unmarshal_result_determined_by_unmarshal_spec();
+            ConfigMapView::marshal_status_preserves_integrity();
+            DaemonSetView::marshal_status_preserves_integrity();
+            PersistentVolumeClaimView::marshal_status_preserves_integrity();
+            PodView::marshal_status_preserves_integrity();
+            RoleBindingView::marshal_status_preserves_integrity();
+            RoleView::marshal_status_preserves_integrity();
+            SecretView::marshal_status_preserves_integrity();
+            ServiceView::marshal_status_preserves_integrity();
+            StatefulSetView::marshal_status_preserves_integrity();
+            ServiceAccountView::marshal_status_preserves_integrity();
+            K::marshal_status_preserves_integrity();
+            K::unmarshal_result_determined_by_unmarshal_spec_and_status();
             if s.resources().contains_key(key) {} else {}
         }
     }
