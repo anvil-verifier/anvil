@@ -291,43 +291,52 @@ pub open spec fn allow_unconditional_update(kind: Kind) -> bool {
     }
 }
 
-pub open spec fn update_request_admission_check(req: UpdateRequest, s: KubernetesAPIState) -> Option<APIError> {
-    if req.obj.metadata.name.is_None() {
+pub open spec fn update_request_admission_check_helper(name: StringView, namespace: StringView, obj: DynamicObjectView, s: KubernetesAPIState) -> Option<APIError> {
+    let key = ObjectRef {
+        kind: obj.kind,
+        namespace: namespace,
+        name: name,
+    };
+    if obj.metadata.name.is_None() {
         // Update fails because the name of the object is not provided
         Some(APIError::BadRequest)
-    } else if req.name != req.obj.metadata.name.get_Some_0() {
+    } else if name != obj.metadata.name.get_Some_0() {
         // Update fails because the name of the provided object
         // does not match the name sent on the request
         Some(APIError::BadRequest)
-    } else if req.obj.metadata.namespace.is_Some()
-        && req.namespace != req.obj.metadata.namespace.get_Some_0() {
+    } else if obj.metadata.namespace.is_Some()
+        && namespace != obj.metadata.namespace.get_Some_0() {
         // Update fails because the namespace of the provided object
         // does not match the namespace sent on the request
         Some(APIError::BadRequest)
-    } else if !Self::integrity_check(req.obj) {
+    } else if !Self::integrity_check(obj) {
         // Update fails because the provided object is not well formed
         // TODO: should the error be BadRequest?
         Some(APIError::BadRequest)
-    } else if !s.resources.contains_key(req.key()) {
+    } else if !s.resources.contains_key(key) {
         // Update fails because the object does not exist
         // TODO: check AllowCreateOnUpdate() to see whether to support create-on-update
         Some(APIError::ObjectNotFound)
-    } else if req.obj.metadata.resource_version.is_None()
-        && !Self::allow_unconditional_update(req.key().kind) {
+    } else if obj.metadata.resource_version.is_None()
+        && !Self::allow_unconditional_update(key.kind) {
         // Update fails because the object does not provide a rv and unconditional update is not supported
         Some(APIError::Invalid)
-    } else if req.obj.metadata.resource_version.is_Some()
-        && req.obj.metadata.resource_version != s.resources[req.key()].metadata.resource_version {
+    } else if obj.metadata.resource_version.is_Some()
+        && obj.metadata.resource_version != s.resources[key].metadata.resource_version {
         // Update fails because the object has a wrong rv
         Some(APIError::Conflict)
-    } else if req.obj.metadata.uid.is_Some()
-        && req.obj.metadata.uid != s.resources[req.key()].metadata.uid {
+    } else if obj.metadata.uid.is_Some()
+        && obj.metadata.uid != s.resources[key].metadata.uid {
         // Update fails because the object has a wrong uid
         // TODO: double check the Error type
         Some(APIError::InternalError)
     } else {
         None
     }
+}
+
+pub open spec fn update_request_admission_check(req: UpdateRequest, s: KubernetesAPIState) -> Option<APIError> {
+    Self::update_request_admission_check_helper(req.name, req.namespace, req.obj, s)
 }
 
 pub open spec fn updated_object(req: UpdateRequest, s: KubernetesAPIState) -> DynamicObjectView {
@@ -430,42 +439,7 @@ pub open spec fn handle_update_request(msg: MsgType<E>, s: KubernetesAPIState) -
 }
 
 pub open spec fn update_status_request_admission_check(req: UpdateStatusRequest, s: KubernetesAPIState) -> Option<APIError> {
-    if req.obj.metadata.name.is_None() {
-        // Update fails because the name of the object is not provided
-        Some(APIError::BadRequest)
-    } else if req.name != req.obj.metadata.name.get_Some_0() {
-        // Update fails because the name of the provided object
-        // does not match the name sent on the request
-        Some(APIError::BadRequest)
-    } else if req.obj.metadata.namespace.is_Some()
-        && req.namespace != req.obj.metadata.namespace.get_Some_0() {
-        // Update fails because the namespace of the provided object
-        // does not match the namespace sent on the request
-        Some(APIError::BadRequest)
-    } else if !Self::integrity_check(req.obj) {
-        // Update fails because the provided object is not well formed
-        // TODO: should the error be BadRequest?
-        Some(APIError::BadRequest)
-    } else if !s.resources.contains_key(req.key()) {
-        // Update fails because the object does not exist
-        // TODO: check AllowCreateOnUpdate() to see whether to support create-on-update
-        Some(APIError::ObjectNotFound)
-    } else if req.obj.metadata.resource_version.is_None()
-        && !Self::allow_unconditional_update(req.key().kind) {
-        // Update fails because the object does not provide a rv and unconditional update is not supported
-        Some(APIError::Invalid)
-    } else if req.obj.metadata.resource_version.is_Some()
-        && req.obj.metadata.resource_version != s.resources[req.key()].metadata.resource_version {
-        // Update fails because the object has a wrong rv
-        Some(APIError::Conflict)
-    } else if req.obj.metadata.uid.is_Some()
-        && req.obj.metadata.uid != s.resources[req.key()].metadata.uid {
-        // Update fails because the object has a wrong uid
-        // TODO: double check the Error type
-        Some(APIError::InternalError)
-    } else {
-        None
-    }
+    Self::update_request_admission_check_helper(req.name, req.namespace, req.obj, s)
 }
 
 pub open spec fn status_updated_object(req: UpdateStatusRequest, s: KubernetesAPIState) -> DynamicObjectView {
