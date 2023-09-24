@@ -19,22 +19,16 @@ pub struct RabbitmqReconcileState {
 pub struct RabbitmqClusterView {
     pub metadata: ObjectMetaView,
     pub spec: RabbitmqClusterSpecView,
+    pub status: Option<RabbitmqClusterStatusView>,
 }
+
+pub type RabbitmqClusterStatusView = EmptyStatusView;
 
 impl RabbitmqClusterView {
     pub open spec fn well_formed(self) -> bool {
         &&& self.metadata.name.is_Some()
         &&& self.metadata.namespace.is_Some()
         &&& self.metadata.uid.is_Some()
-    }
-
-    // TODO: remove the redundant spec methods name() and namespace()
-    pub open spec fn name(self) -> Option<StringView> {
-        self.metadata.name
-    }
-
-    pub open spec fn namespace(self) -> Option<StringView> {
-        self.metadata.namespace
     }
 
     pub open spec fn controller_owner_ref(self) -> OwnerReferenceView {
@@ -50,6 +44,15 @@ impl RabbitmqClusterView {
 
 impl ResourceView for RabbitmqClusterView {
     type Spec = RabbitmqClusterSpecView;
+    type Status = Option<RabbitmqClusterStatusView>;
+
+    open spec fn default() -> RabbitmqClusterView {
+        RabbitmqClusterView {
+            metadata: ObjectMetaView::default(),
+            spec: arbitrary(), // TODO: specify the default value for spec
+            status: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
@@ -73,11 +76,16 @@ impl ResourceView for RabbitmqClusterView {
         self.spec
     }
 
+    open spec fn status(self) -> Option<RabbitmqClusterStatusView> {
+        self.status
+    }
+
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            spec: RabbitmqClusterView::marshal_spec(self.spec)
+            spec: RabbitmqClusterView::marshal_spec(self.spec),
+            status: RabbitmqClusterView::marshal_status(self.status),
         }
     }
 
@@ -86,16 +94,20 @@ impl ResourceView for RabbitmqClusterView {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !RabbitmqClusterView::unmarshal_spec(obj.spec).is_Ok() {
             Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !RabbitmqClusterView::unmarshal_status(obj.status).is_Ok() {
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Ok(RabbitmqClusterView {
                 metadata: obj.metadata,
                 spec: RabbitmqClusterView::unmarshal_spec(obj.spec).get_Ok_0(),
+                status: RabbitmqClusterView::unmarshal_status(obj.status).get_Ok_0(),
             })
         }
     }
 
     proof fn marshal_preserves_integrity() {
         RabbitmqClusterView::marshal_spec_preserves_integrity();
+        RabbitmqClusterView::marshal_status_preserves_integrity();
     }
 
     proof fn marshal_preserves_metadata() {}
@@ -106,8 +118,15 @@ impl ResourceView for RabbitmqClusterView {
 
     closed spec fn unmarshal_spec(v: Value) -> Result<RabbitmqClusterSpecView, ParseDynamicObjectError>;
 
+    closed spec fn marshal_status(s: Option<RabbitmqClusterStatusView>) -> Value;
+
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<RabbitmqClusterStatusView>, ParseDynamicObjectError>;
+
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_status_preserves_integrity() {}
 
     proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 

@@ -64,8 +64,8 @@ impl RabbitmqCluster {
     #[verifier(external_body)]
     pub fn name(&self) -> (name: Option<String>)
         ensures
-            self@.name().is_Some() == name.is_Some(),
-            name.is_Some() ==> name.get_Some_0()@ == self@.name().get_Some_0(),
+            self@.metadata.name.is_Some() == name.is_Some(),
+            name.is_Some() ==> name.get_Some_0()@ == self@.metadata.name.get_Some_0(),
     {
         match &self.inner.metadata.name {
             Some(n) => Some(String::from_rust_string(n.to_string())),
@@ -76,8 +76,8 @@ impl RabbitmqCluster {
     #[verifier(external_body)]
     pub fn namespace(&self) -> (namespace: Option<String>)
         ensures
-            self@.namespace().is_Some() == namespace.is_Some(),
-            namespace.is_Some() ==> namespace.get_Some_0()@ == self@.namespace().get_Some_0(),
+            self@.metadata.namespace.is_Some() == namespace.is_Some(),
+            namespace.is_Some() ==> namespace.get_Some_0()@ == self@.metadata.namespace.get_Some_0(),
     {
         match &self.inner.metadata.namespace {
             Some(n) => Some(String::from_rust_string(n.to_string())),

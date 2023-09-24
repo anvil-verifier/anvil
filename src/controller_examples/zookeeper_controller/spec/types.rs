@@ -13,7 +13,10 @@ verus! {
 pub struct ZookeeperClusterView {
     pub metadata: ObjectMetaView,
     pub spec: ZookeeperClusterSpecView,
+    pub status: Option<ZookeeperClusterStatusView>,
 }
+
+pub type ZookeeperClusterStatusView = EmptyStatusView;
 
 impl ZookeeperClusterView {
     pub open spec fn well_formed(self) -> bool {
@@ -35,6 +38,15 @@ impl ZookeeperClusterView {
 
 impl ResourceView for ZookeeperClusterView {
     type Spec = ZookeeperClusterSpecView;
+    type Status = Option<ZookeeperClusterStatusView>;
+
+    open spec fn default() -> ZookeeperClusterView {
+        ZookeeperClusterView {
+            metadata: ObjectMetaView::default(),
+            spec: arbitrary(), // TODO: specify the default value for spec
+            status: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
@@ -58,11 +70,16 @@ impl ResourceView for ZookeeperClusterView {
         self.spec
     }
 
+    open spec fn status(self) -> Option<ZookeeperClusterStatusView> {
+        self.status
+    }
+
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
             spec: ZookeeperClusterView::marshal_spec(self.spec),
+            status: ZookeeperClusterView::marshal_status(self.status),
         }
     }
 
@@ -71,16 +88,20 @@ impl ResourceView for ZookeeperClusterView {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !ZookeeperClusterView::unmarshal_spec(obj.spec).is_Ok() {
             Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !ZookeeperClusterView::unmarshal_status(obj.status).is_Ok() {
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Ok(ZookeeperClusterView {
                 metadata: obj.metadata,
                 spec: ZookeeperClusterView::unmarshal_spec(obj.spec).get_Ok_0(),
+                status: ZookeeperClusterView::unmarshal_status(obj.status).get_Ok_0(),
             })
         }
     }
 
     proof fn marshal_preserves_integrity() {
         ZookeeperClusterView::marshal_spec_preserves_integrity();
+        ZookeeperClusterView::marshal_status_preserves_integrity();
     }
 
     proof fn marshal_preserves_metadata() {}
@@ -91,8 +112,15 @@ impl ResourceView for ZookeeperClusterView {
 
     closed spec fn unmarshal_spec(v: Value) -> Result<ZookeeperClusterSpecView, ParseDynamicObjectError>;
 
+    closed spec fn marshal_status(s: Option<ZookeeperClusterStatusView>) -> Value;
+
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<ZookeeperClusterStatusView>, ParseDynamicObjectError>;
+
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_status_preserves_integrity() {}
 
     proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 

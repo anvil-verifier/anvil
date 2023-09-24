@@ -12,12 +12,16 @@ verus! {
 pub struct FluentBitView {
     pub metadata: ObjectMetaView,
     pub spec: FluentBitSpecView,
+    pub status: Option<FluentBitStatusView>,
 }
+
+pub type FluentBitStatusView = EmptyStatusView;
 
 impl FluentBitView {
     pub open spec fn well_formed(self) -> bool {
         &&& self.metadata.name.is_Some()
         &&& self.metadata.namespace.is_Some()
+        &&& self.metadata.uid.is_Some()
     }
 
     pub open spec fn controller_owner_ref(self) -> OwnerReferenceView {
@@ -33,6 +37,15 @@ impl FluentBitView {
 
 impl ResourceView for FluentBitView {
     type Spec = FluentBitSpecView;
+    type Status = Option<FluentBitStatusView>;
+
+    open spec fn default() -> FluentBitView {
+        FluentBitView {
+            metadata: ObjectMetaView::default(),
+            spec: arbitrary(), // TODO: specify the default value for spec
+            status: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
@@ -56,11 +69,16 @@ impl ResourceView for FluentBitView {
         self.spec
     }
 
+    open spec fn status(self) -> Option<FluentBitStatusView> {
+        self.status
+    }
+
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            spec: FluentBitView::marshal_spec(self.spec)
+            spec: FluentBitView::marshal_spec(self.spec),
+            status: FluentBitView::marshal_status(self.status),
         }
     }
 
@@ -69,16 +87,20 @@ impl ResourceView for FluentBitView {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !FluentBitView::unmarshal_spec(obj.spec).is_Ok() {
             Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !FluentBitView::unmarshal_status(obj.status).is_Ok() {
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Ok(FluentBitView {
                 metadata: obj.metadata,
                 spec: FluentBitView::unmarshal_spec(obj.spec).get_Ok_0(),
+                status: FluentBitView::unmarshal_status(obj.status).get_Ok_0(),
             })
         }
     }
 
     proof fn marshal_preserves_integrity() {
         FluentBitView::marshal_spec_preserves_integrity();
+        FluentBitView::marshal_status_preserves_integrity();
     }
 
     proof fn marshal_preserves_metadata() {}
@@ -89,8 +111,15 @@ impl ResourceView for FluentBitView {
 
     closed spec fn unmarshal_spec(v: Value) -> Result<FluentBitSpecView, ParseDynamicObjectError>;
 
+    closed spec fn marshal_status(s: Option<FluentBitStatusView>) -> Value;
+
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<FluentBitStatusView>, ParseDynamicObjectError>;
+
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
+
+    #[verifier(external_body)]
+    proof fn marshal_status_preserves_integrity() {}
 
     proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
