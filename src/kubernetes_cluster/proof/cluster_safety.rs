@@ -27,9 +27,10 @@ pub proof fn lemma_always_has_rest_id_counter_no_smaller_than(
 
 pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
-        &&& s.resources()[key].object_ref() == key
         &&& s.resources()[key].metadata.well_formed()
+        &&& s.resources()[key].object_ref() == key
         &&& s.resources()[key].metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
+        &&& s.resources()[key].metadata.uid.get_Some_0() < s.kubernetes_api_state.uid_counter
         &&& {
             if key.kind == ConfigMapView::kind() { ConfigMapView::unmarshal(s.resources()[key]).is_Ok() }
             else if key.kind == DaemonSetView::kind() { DaemonSetView::unmarshal(s.resources()[key]).is_Ok() }
@@ -80,7 +81,22 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(spec: TempPred<Self
             ServiceAccountView::marshal_status_preserves_integrity();
             K::marshal_status_preserves_integrity();
             K::unmarshal_result_determined_by_unmarshal_spec_and_status();
-            if s.resources().contains_key(key) {} else {}
+            if s.resources().contains_key(key) {
+                let step = choose |step| Self::next_step(s, s_prime, step);
+                match step {
+                    Step::KubernetesAPIStep(input) => {
+                        match input.get_Some_0().content.get_APIRequest_0() {
+                            APIRequest::GetRequest(_) => {}
+                            APIRequest::ListRequest(_) => {}
+                            APIRequest::CreateRequest(_) => {}
+                            APIRequest::DeleteRequest(_) => {}
+                            APIRequest::UpdateRequest(_) => {}
+                            APIRequest::UpdateStatusRequest(_) => {}
+                        }
+                    }
+                    _ => {}
+                }
+            } else {}
         }
     }
 

@@ -141,6 +141,24 @@ impl<I, O> MessageContent<I, O> {
         self.get_APIRequest_0().get_UpdateRequest_0()
     }
 
+    pub open spec fn is_update_status_request(self) -> bool {
+        &&& self.is_APIRequest()
+        &&& self.get_APIRequest_0().is_UpdateStatusRequest()
+    }
+
+    pub open spec fn is_update_status_request_with_key(self, key: ObjectRef) -> bool {
+        &&& self.is_APIRequest()
+        &&& self.get_APIRequest_0().is_UpdateStatusRequest()
+        &&& self.get_APIRequest_0().get_UpdateStatusRequest_0().key() == key
+    }
+
+    pub open spec fn get_update_status_request(self) -> UpdateStatusRequest
+        recommends
+            self.is_update_status_request()
+    {
+        self.get_APIRequest_0().get_UpdateStatusRequest_0()
+    }
+
     pub open spec fn is_get_response(self) -> bool {
         &&& self.is_APIResponse()
         &&& self.get_APIResponse_0().is_GetResponse()
@@ -207,6 +225,7 @@ pub open spec fn is_ok_resp(resp: APIResponse) -> bool {
         APIResponse::CreateResponse(create_resp) => create_resp.res.is_Ok(),
         APIResponse::DeleteResponse(delete_resp) => delete_resp.res.is_Ok(),
         APIResponse::UpdateResponse(update_resp) => update_resp.res.is_Ok(),
+        APIResponse::UpdateStatusResponse(update_status_resp) => update_status_resp.res.is_Ok(),
     }
 }
 
@@ -241,6 +260,7 @@ pub open spec fn resp_msg_matches_req_msg(resp_msg: Message<I, O>, req_msg: Mess
             APIResponse::CreateResponse(_) => req_msg.content.get_APIRequest_0().is_CreateRequest(),
             APIResponse::DeleteResponse(_) => req_msg.content.get_APIRequest_0().is_DeleteRequest(),
             APIResponse::UpdateResponse(_) => req_msg.content.get_APIRequest_0().is_UpdateRequest(),
+            APIResponse::UpdateStatusResponse(_) => req_msg.content.get_APIRequest_0().is_UpdateStatusRequest(),
         }
     }
     ||| {
@@ -261,6 +281,7 @@ pub open spec fn form_matched_err_resp_msg(req_msg: Message<I, O>, err: APIError
         APIRequest::CreateRequest(_) => Self::form_create_resp_msg(req_msg, Err(err)),
         APIRequest::DeleteRequest(_) => Self::form_delete_resp_msg(req_msg, Err(err)),
         APIRequest::UpdateRequest(_) => Self::form_update_resp_msg(req_msg, Err(err)),
+        APIRequest::UpdateStatusRequest(_) => Self::form_update_status_resp_msg(req_msg, Err(err)),
     }
 }
 
@@ -300,6 +321,12 @@ pub open spec fn form_update_resp_msg(req_msg: Message<I, O>, result: Result<Dyn
     recommends req_msg.content.is_update_request(),
 {
     Self::form_msg(req_msg.dst, req_msg.src, Self::update_resp_msg_content(result, req_msg.content.get_rest_id()))
+}
+
+pub open spec fn form_update_status_resp_msg(req_msg: Message<I, O>, result: Result<DynamicObjectView, APIError>) -> Message<I, O>
+    recommends req_msg.content.is_update_request(),
+{
+    Self::form_msg(req_msg.dst, req_msg.src, Self::update_status_resp_msg_content(result, req_msg.content.get_rest_id()))
 }
 
 pub open spec fn form_external_resp_msg(req_msg: Message<I, O>, resp: O) -> Message<I, O>
@@ -342,6 +369,14 @@ pub open spec fn update_req_msg_content(namespace: StringView, name: StringView,
     }), req_id)
 }
 
+pub open spec fn update_status_req_msg_content(namespace: StringView, name: StringView, obj: DynamicObjectView, req_id: RestId) -> MessageContent<I, O> {
+    MessageContent::APIRequest(APIRequest::UpdateStatusRequest(UpdateStatusRequest{
+        namespace: namespace,
+        name: name,
+        obj: obj,
+    }), req_id)
+}
+
 pub open spec fn get_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent<I, O> {
     MessageContent::APIResponse(APIResponse::GetResponse(GetResponse{
         res: res,
@@ -368,6 +403,12 @@ pub open spec fn delete_resp_msg_content(res: Result<(), APIError>, resp_id: Res
 
 pub open spec fn update_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent<I, O> {
     MessageContent::APIResponse(APIResponse::UpdateResponse(UpdateResponse{
+        res: res,
+    }), resp_id)
+}
+
+pub open spec fn update_status_resp_msg_content(res: Result<DynamicObjectView, APIError>, resp_id: RestId) -> MessageContent<I, O> {
+    MessageContent::APIResponse(APIResponse::UpdateStatusResponse(UpdateStatusResponse{
         res: res,
     }), resp_id)
 }
