@@ -27,7 +27,7 @@ impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 // TODO: maybe make it a method of DynamicObjectView?
 // TODO: we should just use pattern matching here; but a problem is that K::kind() is not guaranteed to be CustomResourceKind
-pub open spec fn integrity_check(obj: DynamicObjectView) -> bool {
+pub open spec fn unmarshallable_object(obj: DynamicObjectView) -> bool {
     if obj.kind == ConfigMapView::kind() { ConfigMapView::unmarshal_spec(obj.spec).is_Ok() && ConfigMapView::unmarshal_status(obj.status).is_Ok() }
     else if obj.kind == DaemonSetView::kind() { DaemonSetView::unmarshal_spec(obj.spec).is_Ok() && DaemonSetView::unmarshal_status(obj.status).is_Ok() }
     else if obj.kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok() && PersistentVolumeClaimView::unmarshal_status(obj.status).is_Ok() }
@@ -167,7 +167,7 @@ pub open spec fn create_request_admission_check(req: CreateRequest, s: Kubernete
     } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Creation fails because the namespace of the provided object does not match the namespace sent on the request
         Some(APIError::BadRequest)
-    } else if !Self::integrity_check(req.obj) {
+    } else if !Self::unmarshallable_object(req.obj) {
         // Creation fails because the provided object is not well formed
         Some(APIError::BadRequest) // TODO: should the error be BadRequest?
     } else if s.resources.contains_key(req.obj.set_namespace(req.namespace).object_ref()) {
@@ -309,7 +309,7 @@ pub open spec fn update_request_admission_check_helper(name: StringView, namespa
         // Update fails because the namespace of the provided object
         // does not match the namespace sent on the request
         Some(APIError::BadRequest)
-    } else if !Self::integrity_check(obj) {
+    } else if !Self::unmarshallable_object(obj) {
         // Update fails because the provided object is not well formed
         // TODO: should the error be BadRequest?
         Some(APIError::BadRequest)
