@@ -56,11 +56,6 @@ pub trait ResourceView: Sized {
 
     spec fn status(self) -> Self::Status;
 
-    /// Get the default status of this type, which is used when creating the object
-    /// The default status will overwrite whatever status field provided by the creation request
-
-    spec fn default_status() -> Self::Status;
-
     /// Convert the object to a dynamic object
 
     spec fn marshal(self) -> DynamicObjectView;

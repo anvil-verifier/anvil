@@ -290,10 +290,6 @@ impl ResourceView for RoleBindingView {
         empty_status()
     }
 
-    open spec fn default_status() -> EmptyStatusView {
-        empty_status()
-    }
-
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),

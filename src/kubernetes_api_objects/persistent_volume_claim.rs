@@ -253,10 +253,6 @@ impl ResourceView for PersistentVolumeClaimView {
         self.status
     }
 
-    open spec fn default_status() -> Option<PersistentVolumeClaimStatusView> {
-        None
-    }
-
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),

@@ -141,7 +141,6 @@ impl ClusterRoleBindingView {
             ..self
         }
     }
-
 }
 
 impl ResourceView for ClusterRoleBindingView {
@@ -179,10 +178,6 @@ impl ResourceView for ClusterRoleBindingView {
     }
 
     open spec fn status(self) -> EmptyStatusView {
-        empty_status()
-    }
-
-    open spec fn default_status() -> EmptyStatusView {
         empty_status()
     }
 

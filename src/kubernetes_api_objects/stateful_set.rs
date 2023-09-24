@@ -338,10 +338,6 @@ impl ResourceView for StatefulSetView {
         self.status
     }
 
-    open spec fn default_status() -> Option<StatefulSetStatusView> {
-        None
-    }
-
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),

@@ -301,10 +301,6 @@ impl ResourceView for PodView {
         self.status
     }
 
-    open spec fn default_status() -> Option<PodStatusView> {
-        None
-    }
-
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),

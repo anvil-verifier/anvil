@@ -213,10 +213,6 @@ impl ResourceView for SecretView {
         empty_status()
     }
 
-    open spec fn default_status() -> EmptyStatusView {
-        empty_status()
-    }
-
     proof fn object_ref_is_well_formed() {}
 
     open spec fn marshal(self) -> DynamicObjectView {

@@ -263,10 +263,6 @@ impl ResourceView for DaemonSetView {
         self.status
     }
 
-    open spec fn default_status() -> Option<DaemonSetStatusView> {
-        None
-    }
-
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),

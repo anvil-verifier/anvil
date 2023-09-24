@@ -342,10 +342,6 @@ impl ResourceView for ServiceView {
         self.status
     }
 
-    open spec fn default_status() -> Option<ServiceStatusView> {
-        None
-    }
-
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
