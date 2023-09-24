@@ -248,14 +248,6 @@ pub struct PodView {
 pub type PodStatusView = EmptyStatusView;
 
 impl PodView {
-    pub open spec fn default() -> PodView {
-        PodView {
-            metadata: ObjectMetaView::default(),
-            spec: None,
-            status: None,
-        }
-    }
-
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> PodView {
         PodView {
             metadata: metadata,
@@ -274,6 +266,14 @@ impl PodView {
 impl ResourceView for PodView {
     type Spec = Option<PodSpecView>;
     type Status = Option<PodStatusView>;
+
+    open spec fn default() -> PodView {
+        PodView {
+            metadata: ObjectMetaView::default(),
+            spec: None,
+            status: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata

@@ -23,6 +23,8 @@ pub trait ResourceView: Sized {
     type Spec;
     type Status;
 
+    spec fn default() -> Self;
+
     /// Get the metadata of the object
 
     spec fn metadata(self) -> ObjectMetaView;

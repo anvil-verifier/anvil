@@ -151,13 +151,6 @@ pub struct ConfigMapView {
 type ConfigMapSpecView = (Option<Map<StringView, StringView>>, ());
 
 impl ConfigMapView {
-    pub open spec fn default() -> ConfigMapView {
-        ConfigMapView {
-            metadata: ObjectMetaView::default(),
-            data: None,
-        }
-    }
-
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ConfigMapView {
         ConfigMapView {
             metadata: metadata,
@@ -176,6 +169,13 @@ impl ConfigMapView {
 impl ResourceView for ConfigMapView {
     type Spec = ConfigMapSpecView;
     type Status = EmptyStatusView;
+
+    open spec fn default() -> ConfigMapView {
+        ConfigMapView {
+            metadata: ObjectMetaView::default(),
+            data: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata

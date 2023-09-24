@@ -289,14 +289,6 @@ pub struct ServiceView {
 pub type ServiceStatusView = EmptyStatusView;
 
 impl ServiceView {
-    pub open spec fn default() -> ServiceView {
-        ServiceView {
-            metadata: ObjectMetaView::default(),
-            spec: None,
-            status: None,
-        }
-    }
-
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ServiceView {
         ServiceView {
             metadata: metadata,
@@ -315,6 +307,14 @@ impl ServiceView {
 impl ResourceView for ServiceView {
     type Spec = Option<ServiceSpecView>;
     type Status = Option<ServiceStatusView>;
+
+    open spec fn default() -> ServiceView {
+        ServiceView {
+            metadata: ObjectMetaView::default(),
+            spec: None,
+            status: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata

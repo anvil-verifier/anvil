@@ -121,14 +121,6 @@ pub struct ClusterRoleBindingView {
 type ClusterRoleBindingSpecView = (RoleRefView, Option<Seq<SubjectView>>);
 
 impl ClusterRoleBindingView {
-    pub open spec fn default() -> ClusterRoleBindingView {
-        ClusterRoleBindingView {
-            metadata: ObjectMetaView::default(),
-            role_ref: RoleRefView::default(),
-            subjects: None,
-        }
-    }
-
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ClusterRoleBindingView {
         ClusterRoleBindingView {
             metadata: metadata,
@@ -155,6 +147,14 @@ impl ClusterRoleBindingView {
 impl ResourceView for ClusterRoleBindingView {
     type Spec = ClusterRoleBindingSpecView;
     type Status = EmptyStatusView;
+
+    open spec fn default() -> ClusterRoleBindingView {
+        ClusterRoleBindingView {
+            metadata: ObjectMetaView::default(),
+            role_ref: RoleRefView::default(),
+            subjects: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata

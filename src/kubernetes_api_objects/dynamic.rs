@@ -130,26 +130,6 @@ impl DynamicObjectView {
             ..self
         }
     }
-
-    pub open spec fn unset_deletion_timestamp(self) -> DynamicObjectView {
-        DynamicObjectView {
-            metadata: ObjectMetaView {
-                deletion_timestamp: None,
-                ..self.metadata
-            },
-            ..self
-        }
-    }
-
-    pub open spec fn overwrite_deletion_timestamp(self, deletion_timestamp_opt: Option<StringView>) -> DynamicObjectView {
-        DynamicObjectView {
-            metadata: ObjectMetaView {
-                deletion_timestamp: deletion_timestamp_opt,
-                ..self.metadata
-            },
-            ..self
-        }
-    }
 }
 
 // This data type represents the entire cluster state that consists of

@@ -178,13 +178,6 @@ pub struct RoleView {
 type RoleSpecView = (Option<Seq<PolicyRuleView>>, ());
 
 impl RoleView {
-    pub open spec fn default() -> RoleView {
-        RoleView {
-            metadata: ObjectMetaView::default(),
-            policy_rules: None,
-        }
-    }
-
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> RoleView {
         RoleView {
             metadata: metadata,
@@ -203,6 +196,13 @@ impl RoleView {
 impl ResourceView for RoleView {
     type Spec = RoleSpecView;
     type Status = EmptyStatusView;
+
+    open spec fn default() -> RoleView {
+        RoleView {
+            metadata: ObjectMetaView::default(),
+            policy_rules: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata

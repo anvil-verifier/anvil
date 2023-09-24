@@ -123,13 +123,6 @@ pub struct ServiceAccountView {
 type ServiceAccountSpecView = (Option<bool>, ());
 
 impl ServiceAccountView {
-    pub open spec fn default() -> ServiceAccountView {
-        ServiceAccountView {
-            metadata: ObjectMetaView::default(),
-            automount_service_account_token: None,
-        }
-    }
-
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ServiceAccountView {
         ServiceAccountView {
             metadata: metadata,
@@ -141,6 +134,13 @@ impl ServiceAccountView {
 impl ResourceView for ServiceAccountView {
     type Spec = ServiceAccountSpecView;
     type Status = EmptyStatusView;
+
+    open spec fn default() -> ServiceAccountView {
+        ServiceAccountView {
+            metadata: ObjectMetaView::default(),
+            automount_service_account_token: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata

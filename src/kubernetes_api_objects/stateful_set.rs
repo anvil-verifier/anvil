@@ -285,14 +285,6 @@ pub struct StatefulSetView {
 pub type StatefulSetStatusView = EmptyStatusView;
 
 impl StatefulSetView {
-    pub open spec fn default() -> StatefulSetView {
-        StatefulSetView {
-            metadata: ObjectMetaView::default(),
-            spec: None,
-            status: None,
-        }
-    }
-
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> StatefulSetView {
         StatefulSetView {
             metadata: metadata,
@@ -311,6 +303,14 @@ impl StatefulSetView {
 impl ResourceView for StatefulSetView {
     type Spec = Option<StatefulSetSpecView>;
     type Status = Option<StatefulSetStatusView>;
+
+    open spec fn default() -> StatefulSetView {
+        StatefulSetView {
+            metadata: ObjectMetaView::default(),
+            spec: None,
+            status: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata

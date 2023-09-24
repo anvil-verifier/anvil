@@ -210,14 +210,6 @@ pub struct DaemonSetView {
 pub type DaemonSetStatusView = EmptyStatusView;
 
 impl DaemonSetView {
-    pub open spec fn default() -> DaemonSetView {
-        DaemonSetView {
-            metadata: ObjectMetaView::default(),
-            spec: None,
-            status: None,
-        }
-    }
-
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> DaemonSetView {
         DaemonSetView {
             metadata: metadata,
@@ -236,6 +228,14 @@ impl DaemonSetView {
 impl ResourceView for DaemonSetView {
     type Spec = Option<DaemonSetSpecView>;
     type Status = Option<DaemonSetStatusView>;
+
+    open spec fn default() -> DaemonSetView {
+        DaemonSetView {
+            metadata: ObjectMetaView::default(),
+            spec: None,
+            status: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata

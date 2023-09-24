@@ -111,13 +111,6 @@ pub struct ClusterRoleView {
 type ClusterRoleSpecView = (Option<Seq<PolicyRuleView>>, ());
 
 impl ClusterRoleView {
-    pub open spec fn default() -> ClusterRoleView {
-        ClusterRoleView {
-            metadata: ObjectMetaView::default(),
-            policy_rules: None,
-        }
-    }
-
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> ClusterRoleView {
         ClusterRoleView {
             metadata: metadata,
@@ -136,6 +129,13 @@ impl ClusterRoleView {
 impl ResourceView for ClusterRoleView {
     type Spec = ClusterRoleSpecView;
     type Status = EmptyStatusView;
+
+    open spec fn default() -> ClusterRoleView {
+        ClusterRoleView {
+            metadata: ObjectMetaView::default(),
+            policy_rules: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata

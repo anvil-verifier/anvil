@@ -155,14 +155,6 @@ pub struct SecretView {
 type SecretSpecView = (Option<Map<StringView, StringView>>, Option<StringView>);
 
 impl SecretView {
-    pub open spec fn default() -> SecretView {
-        SecretView {
-            metadata: ObjectMetaView::default(),
-            data: None,
-            type_: None,
-        }
-    }
-
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> SecretView {
         SecretView {
             metadata: metadata,
@@ -188,6 +180,14 @@ impl SecretView {
 impl ResourceView for SecretView {
     type Spec = SecretSpecView;
     type Status = EmptyStatusView;
+
+    open spec fn default() -> SecretView {
+        SecretView {
+            metadata: ObjectMetaView::default(),
+            data: None,
+            type_: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata

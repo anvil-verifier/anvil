@@ -200,14 +200,6 @@ pub struct PersistentVolumeClaimView {
 pub type PersistentVolumeClaimStatusView = EmptyStatusView;
 
 impl PersistentVolumeClaimView {
-    pub open spec fn default() -> PersistentVolumeClaimView {
-        PersistentVolumeClaimView {
-            metadata: ObjectMetaView::default(),
-            spec: None,
-            status: None,
-        }
-    }
-
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> PersistentVolumeClaimView {
         PersistentVolumeClaimView {
             metadata: metadata,
@@ -226,6 +218,14 @@ impl PersistentVolumeClaimView {
 impl ResourceView for PersistentVolumeClaimView {
     type Spec = Option<PersistentVolumeClaimSpecView>;
     type Status = Option<PersistentVolumeClaimStatusView>;
+
+    open spec fn default() -> PersistentVolumeClaimView {
+        PersistentVolumeClaimView {
+            metadata: ObjectMetaView::default(),
+            spec: None,
+            status: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata

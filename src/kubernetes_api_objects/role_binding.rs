@@ -230,14 +230,6 @@ pub struct RoleBindingView {
 type RoleBindingSpecView = (RoleRefView, Option<Seq<SubjectView>>);
 
 impl RoleBindingView {
-    pub open spec fn default() -> RoleBindingView {
-        RoleBindingView {
-            metadata: ObjectMetaView::default(),
-            role_ref: RoleRefView::default(),
-            subjects: None,
-        }
-    }
-
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> RoleBindingView {
         RoleBindingView {
             metadata: metadata,
@@ -263,6 +255,14 @@ impl RoleBindingView {
 impl ResourceView for RoleBindingView {
     type Spec = RoleBindingSpecView;
     type Status = EmptyStatusView;
+
+    open spec fn default() -> RoleBindingView {
+        RoleBindingView {
+            metadata: ObjectMetaView::default(),
+            role_ref: RoleRefView::default(),
+            subjects: None,
+        }
+    }
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
