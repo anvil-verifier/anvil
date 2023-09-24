@@ -26,18 +26,18 @@ verus! {
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 // TODO: maybe make it a method of DynamicObjectView?
-pub open spec fn spec_integrity_check(obj: DynamicObjectView) -> bool {
-    &&& obj.kind == ConfigMapView::kind() ==> ConfigMapView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == DaemonSetView::kind() ==> DaemonSetView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == PodView::kind() ==> PodView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == RoleBindingView::kind() ==> RoleBindingView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == RoleView::kind() ==> RoleView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == SecretView::kind() ==> SecretView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == ServiceView::kind() ==> ServiceView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == StatefulSetView::kind() ==> StatefulSetView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == ServiceAccountView::kind() ==> ServiceAccountView::unmarshal_spec(obj.spec).is_Ok()
-    &&& obj.kind == K::kind() ==> K::unmarshal_spec(obj.spec).is_Ok()
+pub open spec fn integrity_check(obj: DynamicObjectView) -> bool {
+    &&& obj.kind == ConfigMapView::kind() ==> ConfigMapView::unmarshal_spec(obj.spec).is_Ok() && ConfigMapView::unmarshal_status(obj.status).is_Ok()
+    &&& obj.kind == DaemonSetView::kind() ==> DaemonSetView::unmarshal_spec(obj.spec).is_Ok() && DaemonSetView::unmarshal_status(obj.status).is_Ok()
+    &&& obj.kind == PersistentVolumeClaimView::kind() ==> PersistentVolumeClaimView::unmarshal_spec(obj.spec).is_Ok() && PersistentVolumeClaimView::unmarshal_status(obj.status).is_Ok()
+    &&& obj.kind == PodView::kind() ==> PodView::unmarshal_spec(obj.spec).is_Ok() && PodView::unmarshal_status(obj.status).is_Ok()
+    &&& obj.kind == RoleBindingView::kind() ==> RoleBindingView::unmarshal_spec(obj.spec).is_Ok() && RoleBindingView::unmarshal_status(obj.status).is_Ok()
+    &&& obj.kind == RoleView::kind() ==> RoleView::unmarshal_spec(obj.spec).is_Ok() && RoleView::unmarshal_status(obj.status).is_Ok()
+    &&& obj.kind == SecretView::kind() ==> SecretView::unmarshal_spec(obj.spec).is_Ok() && SecretView::unmarshal_status(obj.status).is_Ok()
+    &&& obj.kind == ServiceView::kind() ==> ServiceView::unmarshal_spec(obj.spec).is_Ok() && ServiceView::unmarshal_status(obj.status).is_Ok()
+    &&& obj.kind == StatefulSetView::kind() ==> StatefulSetView::unmarshal_spec(obj.spec).is_Ok() && StatefulSetView::unmarshal_status(obj.status).is_Ok()
+    &&& obj.kind == ServiceAccountView::kind() ==> ServiceAccountView::unmarshal_spec(obj.spec).is_Ok() && ServiceAccountView::unmarshal_status(obj.status).is_Ok()
+    &&& obj.kind == K::kind() ==> K::unmarshal_spec(obj.spec).is_Ok() && K::unmarshal_status(obj.status).is_Ok()
 }
 
 pub open spec fn state_validity_check(obj: DynamicObjectView) -> bool {
@@ -106,8 +106,8 @@ pub open spec fn validate_create_request(req: CreateRequest, s: KubernetesAPISta
     } else if req.obj.metadata.namespace.is_Some() && req.namespace != req.obj.metadata.namespace.get_Some_0() {
         // Creation fails because the namespace of the provided object does not match the namespace sent on the request
         Some(APIError::BadRequest)
-    } else if !Self::spec_integrity_check(req.obj) {
-        // Creation fails because the spec of the provided object is not well formed
+    } else if !Self::integrity_check(req.obj) {
+        // Creation fails because the provided object is not well formed
         Some(APIError::BadRequest) // TODO: should the error be BadRequest?
     } else if s.resources.contains_key(req.obj.set_namespace(req.namespace).object_ref()) {
         // Creation fails because the object already exists
@@ -143,6 +143,7 @@ pub open spec fn handle_create_request(msg: MsgType<E>, s: KubernetesAPIState) -
     } else {
         // Creation succeeds.
         // Set the namespace, the resource_version and the uid of the created object.
+        // TODO: overwrite .status
         let created_obj = req.obj.set_namespace(req.namespace)
                             .set_resource_version(s.resource_version_counter)
                             .set_uid(s.uid_counter)
@@ -232,8 +233,8 @@ pub open spec fn validate_update_request(req: UpdateRequest, s: KubernetesAPISta
         // Update fails because the namespace of the provided object
         // does not match the namespace sent on the request
         Some(APIError::BadRequest)
-    } else if !Self::spec_integrity_check(req.obj) {
-        // Update fails because the spec of the provided object is not well formed
+    } else if !Self::integrity_check(req.obj) {
+        // Update fails because the provided object is not well formed
         // TODO: should the error be BadRequest?
         Some(APIError::BadRequest)
     } else if !s.resources.contains_key(req.key()) {

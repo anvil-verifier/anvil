@@ -21,6 +21,7 @@ pub trait ResourceWrapper<T>: Sized {
 /// This trait defines the methods that each ghost type of Kubernetes resource object should implement
 pub trait ResourceView: Sized {
     type Spec;
+    type Status;
 
     /// Get the metadata of the object
 
@@ -48,6 +49,15 @@ pub trait ResourceView: Sized {
     /// Get the spec of the object
 
     spec fn spec(self) -> Self::Spec;
+
+    /// Get the status of the object
+
+    spec fn status(self) -> Self::Status;
+
+    /// Get the default status of this type, which is used when creating the object
+    /// The default status will overwrite whatever status field provided by the creation request
+
+    spec fn default_status() -> Self::Status;
 
     /// Convert the object to a dynamic object
 
@@ -80,16 +90,28 @@ pub trait ResourceView: Sized {
 
     spec fn unmarshal_spec(v: Value) -> Result<Self::Spec, ParseDynamicObjectError>;
 
+    spec fn marshal_status(s: Self::Status) -> Value;
+
+    spec fn unmarshal_status(v: Value) -> Result<Self::Status, ParseDynamicObjectError>;
+
     proof fn marshal_spec_preserves_integrity()
         ensures
             forall |s: Self::Spec|
                 Self::unmarshal_spec(#[trigger] Self::marshal_spec(s)).is_Ok()
                 && s == Self::unmarshal_spec(Self::marshal_spec(s)).get_Ok_0();
 
-    proof fn unmarshal_result_determined_by_unmarshal_spec()
+    proof fn marshal_status_preserves_integrity()
+        ensures
+            forall |s: Self::Status|
+                Self::unmarshal_status(#[trigger] Self::marshal_status(s)).is_Ok()
+                && s == Self::unmarshal_status(Self::marshal_status(s)).get_Ok_0();
+
+    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status()
         ensures
             forall |obj: DynamicObjectView|
-                obj.kind == Self::kind() ==> Self::unmarshal_spec(obj.spec).is_Ok() == #[trigger] Self::unmarshal(obj).is_Ok();
+                obj.kind == Self::kind() ==>
+                    #[trigger] Self::unmarshal(obj).is_Ok() ==
+                    (Self::unmarshal_spec(obj.spec).is_Ok() && Self::unmarshal_status(obj.status).is_Ok());
 
     /// This method specifies the validation rule that only checks the new object.
     spec fn state_validation(self) -> bool;
@@ -97,6 +119,14 @@ pub trait ResourceView: Sized {
     /// This method specifies the validation rule that checks the relations between the new and old object.
     spec fn transition_validation(self, old_obj: Self) -> bool;
 
+}
+
+pub struct EmptyStatusView {
+    pub empty: i32,
+}
+
+pub open spec fn empty_status() -> EmptyStatusView {
+    EmptyStatusView { empty: 0 }
 }
 
 }

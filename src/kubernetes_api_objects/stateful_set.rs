@@ -279,13 +279,17 @@ impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec> for
 pub struct StatefulSetView {
     pub metadata: ObjectMetaView,
     pub spec: Option<StatefulSetSpecView>,
+    pub status: Option<StatefulSetStatusView>,
 }
+
+pub type StatefulSetStatusView = EmptyStatusView;
 
 impl StatefulSetView {
     pub open spec fn default() -> StatefulSetView {
         StatefulSetView {
             metadata: ObjectMetaView::default(),
             spec: None,
+            status: None,
         }
     }
 
@@ -306,6 +310,7 @@ impl StatefulSetView {
 
 impl ResourceView for StatefulSetView {
     type Spec = Option<StatefulSetSpecView>;
+    type Status = Option<StatefulSetStatusView>;
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
@@ -329,11 +334,20 @@ impl ResourceView for StatefulSetView {
         self.spec
     }
 
+    open spec fn status(self) -> Option<StatefulSetStatusView> {
+        self.status
+    }
+
+    open spec fn default_status() -> Option<StatefulSetStatusView> {
+        None
+    }
+
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
             spec: StatefulSetView::marshal_spec(self.spec),
+            status: StatefulSetView::marshal_status(self.status),
         }
     }
 
@@ -342,16 +356,20 @@ impl ResourceView for StatefulSetView {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !StatefulSetView::unmarshal_spec(obj.spec).is_Ok() {
             Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !StatefulSetView::unmarshal_status(obj.status).is_Ok() {
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Ok(StatefulSetView {
                 metadata: obj.metadata,
                 spec: StatefulSetView::unmarshal_spec(obj.spec).get_Ok_0(),
+                status: StatefulSetView::unmarshal_status(obj.status).get_Ok_0(),
             })
         }
     }
 
     proof fn marshal_preserves_integrity() {
         StatefulSetView::marshal_spec_preserves_integrity();
+        StatefulSetView::marshal_status_preserves_integrity();
     }
 
     proof fn marshal_preserves_metadata() {}
@@ -362,10 +380,17 @@ impl ResourceView for StatefulSetView {
 
     closed spec fn unmarshal_spec(v: Value) -> Result<Option<StatefulSetSpecView>, ParseDynamicObjectError>;
 
+    closed spec fn marshal_status(s: Option<StatefulSetStatusView>) -> Value;
+
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<StatefulSetStatusView>, ParseDynamicObjectError>;
+
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
 
-    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
+    #[verifier(external_body)]
+    proof fn marshal_status_preserves_integrity() {}
+
+    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
     open spec fn state_validation(self) -> bool {
         let new_spec = self.spec.get_Some_0();

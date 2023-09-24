@@ -66,7 +66,7 @@ pub proof fn lemma_always_each_object_in_etcd_is_well_formed(spec: TempPred<Self
     implies invariant(s_prime) by {
         assert forall |key: ObjectRef| #[trigger] s_prime.resources().contains_key(key)
         implies Self::etcd_object_is_well_formed(key)(s_prime) by {
-            K::unmarshal_result_determined_by_unmarshal_spec();
+            K::unmarshal_result_determined_by_unmarshal_spec_and_status();
             if s.resources().contains_key(key) {} else {}
         }
     }

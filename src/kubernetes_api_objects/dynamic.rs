@@ -75,7 +75,7 @@ pub struct DynamicObjectView {
     pub kind: Kind,
     pub metadata: ObjectMetaView,
     pub spec: Value,
-    // TODO: add status, which will also be a Value
+    pub status: Value,
 }
 
 impl DynamicObjectView {

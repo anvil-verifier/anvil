@@ -154,6 +154,7 @@ impl ClusterRoleBindingView {
 
 impl ResourceView for ClusterRoleBindingView {
     type Spec = ClusterRoleBindingSpecView;
+    type Status = EmptyStatusView;
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
@@ -177,11 +178,20 @@ impl ResourceView for ClusterRoleBindingView {
         (self.role_ref, self.subjects)
     }
 
+    open spec fn status(self) -> EmptyStatusView {
+        empty_status()
+    }
+
+    open spec fn default_status() -> EmptyStatusView {
+        empty_status()
+    }
+
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
             spec: ClusterRoleBindingView::marshal_spec((self.role_ref, self.subjects)),
+            status: ClusterRoleBindingView::marshal_status(empty_status()),
         }
     }
 
@@ -189,6 +199,8 @@ impl ResourceView for ClusterRoleBindingView {
         if obj.kind != Self::kind() {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !ClusterRoleBindingView::unmarshal_spec(obj.spec).is_Ok() {
+            Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !ClusterRoleBindingView::unmarshal_status(obj.status).is_Ok() {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Ok(ClusterRoleBindingView {
@@ -201,6 +213,7 @@ impl ResourceView for ClusterRoleBindingView {
 
     proof fn marshal_preserves_integrity() {
         ClusterRoleBindingView::marshal_spec_preserves_integrity();
+        ClusterRoleBindingView::marshal_status_preserves_integrity();
     }
 
     proof fn marshal_preserves_metadata() {}
@@ -211,10 +224,17 @@ impl ResourceView for ClusterRoleBindingView {
 
     closed spec fn unmarshal_spec(v: Value) -> Result<ClusterRoleBindingSpecView, ParseDynamicObjectError>;
 
+    closed spec fn marshal_status(s: EmptyStatusView) -> Value;
+
+    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, ParseDynamicObjectError>;
+
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
 
-    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
+    #[verifier(external_body)]
+    proof fn marshal_status_preserves_integrity() {}
+
+    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
     open spec fn state_validation(self) -> bool {
         true

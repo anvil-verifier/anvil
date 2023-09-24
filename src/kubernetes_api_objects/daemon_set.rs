@@ -204,13 +204,17 @@ impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec> for D
 pub struct DaemonSetView {
     pub metadata: ObjectMetaView,
     pub spec: Option<DaemonSetSpecView>,
+    pub status: Option<DaemonSetStatusView>,
 }
+
+pub type DaemonSetStatusView = EmptyStatusView;
 
 impl DaemonSetView {
     pub open spec fn default() -> DaemonSetView {
         DaemonSetView {
             metadata: ObjectMetaView::default(),
             spec: None,
+            status: None,
         }
     }
 
@@ -231,6 +235,7 @@ impl DaemonSetView {
 
 impl ResourceView for DaemonSetView {
     type Spec = Option<DaemonSetSpecView>;
+    type Status = Option<DaemonSetStatusView>;
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
@@ -254,11 +259,20 @@ impl ResourceView for DaemonSetView {
         self.spec
     }
 
+    open spec fn status(self) -> Option<DaemonSetStatusView> {
+        self.status
+    }
+
+    open spec fn default_status() -> Option<DaemonSetStatusView> {
+        None
+    }
+
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
             spec: DaemonSetView::marshal_spec(self.spec),
+            status: DaemonSetView::marshal_status(self.status),
         }
     }
 
@@ -267,16 +281,20 @@ impl ResourceView for DaemonSetView {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !DaemonSetView::unmarshal_spec(obj.spec).is_Ok() {
             Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !DaemonSetView::unmarshal_status(obj.status).is_Ok() {
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Ok(DaemonSetView {
                 metadata: obj.metadata,
                 spec: DaemonSetView::unmarshal_spec(obj.spec).get_Ok_0(),
+                status: DaemonSetView::unmarshal_status(obj.status).get_Ok_0(),
             })
         }
     }
 
     proof fn marshal_preserves_integrity() {
         DaemonSetView::marshal_spec_preserves_integrity();
+        DaemonSetView::marshal_status_preserves_integrity();
     }
 
     proof fn marshal_preserves_metadata() {}
@@ -287,10 +305,17 @@ impl ResourceView for DaemonSetView {
 
     closed spec fn unmarshal_spec(v: Value) -> Result<Option<DaemonSetSpecView>, ParseDynamicObjectError>;
 
+    closed spec fn marshal_status(s: Option<DaemonSetStatusView>) -> Value;
+
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<DaemonSetStatusView>, ParseDynamicObjectError>;
+
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
 
-    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
+    #[verifier(external_body)]
+    proof fn marshal_status_preserves_integrity() {}
+
+    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
     open spec fn state_validation(self) -> bool {
         &&& self.spec.is_Some()

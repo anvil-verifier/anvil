@@ -283,13 +283,17 @@ impl ServicePort {
 pub struct ServiceView {
     pub metadata: ObjectMetaView,
     pub spec: Option<ServiceSpecView>,
+    pub status: Option<ServiceStatusView>,
 }
+
+pub type ServiceStatusView = EmptyStatusView;
 
 impl ServiceView {
     pub open spec fn default() -> ServiceView {
         ServiceView {
             metadata: ObjectMetaView::default(),
             spec: None,
+            status: None,
         }
     }
 
@@ -310,6 +314,7 @@ impl ServiceView {
 
 impl ResourceView for ServiceView {
     type Spec = Option<ServiceSpecView>;
+    type Status = Option<ServiceStatusView>;
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
@@ -333,11 +338,20 @@ impl ResourceView for ServiceView {
         self.spec
     }
 
+    open spec fn status(self) -> Option<ServiceStatusView> {
+        self.status
+    }
+
+    open spec fn default_status() -> Option<ServiceStatusView> {
+        None
+    }
+
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
             spec: ServiceView::marshal_spec(self.spec),
+            status: ServiceView::marshal_status(self.status),
         }
     }
 
@@ -346,16 +360,20 @@ impl ResourceView for ServiceView {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !ServiceView::unmarshal_spec(obj.spec).is_Ok() {
             Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !ServiceView::unmarshal_status(obj.status).is_Ok() {
+            Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Ok(ServiceView {
                 metadata: obj.metadata,
                 spec: ServiceView::unmarshal_spec(obj.spec).get_Ok_0(),
+                status: ServiceView::unmarshal_status(obj.status).get_Ok_0(),
             })
         }
     }
 
     proof fn marshal_preserves_integrity() {
         ServiceView::marshal_spec_preserves_integrity();
+        ServiceView::marshal_status_preserves_integrity();
     }
 
     proof fn marshal_preserves_metadata() {}
@@ -366,10 +384,17 @@ impl ResourceView for ServiceView {
 
     closed spec fn unmarshal_spec(v: Value) -> Result<Option<ServiceSpecView>, ParseDynamicObjectError>;
 
+    closed spec fn marshal_status(s: Option<ServiceStatusView>) -> Value;
+
+    closed spec fn unmarshal_status(v: Value) -> Result<Option<ServiceStatusView>, ParseDynamicObjectError>;
+
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
 
-    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
+    #[verifier(external_body)]
+    proof fn marshal_status_preserves_integrity() {}
+
+    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
     open spec fn state_validation(self) -> bool {
         &&& self.spec.is_Some()

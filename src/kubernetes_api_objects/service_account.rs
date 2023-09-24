@@ -119,6 +119,7 @@ pub struct ServiceAccountView {
     pub metadata: ObjectMetaView,
     pub automount_service_account_token: Option<bool>,
 }
+
 type ServiceAccountSpecView = (Option<bool>, ());
 
 impl ServiceAccountView {
@@ -139,6 +140,7 @@ impl ServiceAccountView {
 
 impl ResourceView for ServiceAccountView {
     type Spec = ServiceAccountSpecView;
+    type Status = EmptyStatusView;
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
@@ -162,11 +164,20 @@ impl ResourceView for ServiceAccountView {
         (self.automount_service_account_token, ())
     }
 
+    open spec fn status(self) -> EmptyStatusView {
+        empty_status()
+    }
+
+    open spec fn default_status() -> EmptyStatusView {
+        empty_status()
+    }
+
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
             spec: ServiceAccountView::marshal_spec((self.automount_service_account_token, ())),
+            status: ServiceAccountView::marshal_status(empty_status()),
         }
     }
 
@@ -174,6 +185,8 @@ impl ResourceView for ServiceAccountView {
             if obj.kind != Self::kind() {
                 Err(ParseDynamicObjectError::UnmarshalError)
             } else if !ServiceAccountView::unmarshal_spec(obj.spec).is_Ok() {
+                Err(ParseDynamicObjectError::UnmarshalError)
+            } else if !ServiceAccountView::unmarshal_status(obj.status).is_Ok() {
                 Err(ParseDynamicObjectError::UnmarshalError)
             } else {
                 Ok(ServiceAccountView {
@@ -185,6 +198,7 @@ impl ResourceView for ServiceAccountView {
 
     proof fn marshal_preserves_integrity() {
         ServiceAccountView::marshal_spec_preserves_integrity();
+        ServiceAccountView::marshal_status_preserves_integrity();
     }
 
     proof fn marshal_preserves_metadata() {}
@@ -195,10 +209,17 @@ impl ResourceView for ServiceAccountView {
 
     closed spec fn unmarshal_spec(v: Value) -> Result<ServiceAccountSpecView, ParseDynamicObjectError>;
 
+    closed spec fn marshal_status(s: EmptyStatusView) -> Value;
+
+    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, ParseDynamicObjectError>;
+
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
 
-    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
+    #[verifier(external_body)]
+    proof fn marshal_status_preserves_integrity() {}
+
+    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
     open spec fn state_validation(self) -> bool {
         true

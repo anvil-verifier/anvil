@@ -262,6 +262,7 @@ impl RoleBindingView {
 
 impl ResourceView for RoleBindingView {
     type Spec = RoleBindingSpecView;
+    type Status = EmptyStatusView;
 
     open spec fn metadata(self) -> ObjectMetaView {
         self.metadata
@@ -285,11 +286,20 @@ impl ResourceView for RoleBindingView {
         (self.role_ref, self.subjects)
     }
 
+    open spec fn status(self) -> EmptyStatusView {
+        empty_status()
+    }
+
+    open spec fn default_status() -> EmptyStatusView {
+        empty_status()
+    }
+
     open spec fn marshal(self) -> DynamicObjectView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
             spec: RoleBindingView::marshal_spec((self.role_ref, self.subjects)),
+            status: RoleBindingView::marshal_status(empty_status()),
         }
     }
 
@@ -297,6 +307,8 @@ impl ResourceView for RoleBindingView {
         if obj.kind != Self::kind() {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else if !RoleBindingView::unmarshal_spec(obj.spec).is_Ok() {
+            Err(ParseDynamicObjectError::UnmarshalError)
+        } else if !RoleBindingView::unmarshal_status(obj.status).is_Ok() {
             Err(ParseDynamicObjectError::UnmarshalError)
         } else {
             Ok(RoleBindingView {
@@ -309,6 +321,7 @@ impl ResourceView for RoleBindingView {
 
     proof fn marshal_preserves_integrity() {
         RoleBindingView::marshal_spec_preserves_integrity();
+        RoleBindingView::marshal_status_preserves_integrity();
     }
 
     proof fn marshal_preserves_metadata() {}
@@ -319,10 +332,17 @@ impl ResourceView for RoleBindingView {
 
     closed spec fn unmarshal_spec(v: Value) -> Result<RoleBindingSpecView, ParseDynamicObjectError>;
 
+    closed spec fn marshal_status(s: EmptyStatusView) -> Value;
+
+    closed spec fn unmarshal_status(v: Value) -> Result<EmptyStatusView, ParseDynamicObjectError>;
+
     #[verifier(external_body)]
     proof fn marshal_spec_preserves_integrity() {}
 
-    proof fn unmarshal_result_determined_by_unmarshal_spec() {}
+    #[verifier(external_body)]
+    proof fn marshal_status_preserves_integrity() {}
+
+    proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
     open spec fn state_validation(self) -> bool {
         &&& self.role_ref.api_group == new_strlit("rbac.authorization.k8s.io")@
