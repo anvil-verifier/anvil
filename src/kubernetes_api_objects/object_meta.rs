@@ -141,14 +141,6 @@ impl ObjectMeta {
     }
 
     #[verifier(external_body)]
-    pub fn set_generate_name(&mut self, generate_name: String)
-        ensures
-            self@ == old(self)@.set_generate_name(generate_name@),
-    {
-        self.inner.generate_name = Some(generate_name.into_rust_string());
-    }
-
-    #[verifier(external_body)]
     pub fn set_labels(&mut self, labels: StringMap)
         ensures
             self@ == old(self)@.set_labels(labels@),
@@ -225,7 +217,6 @@ impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::
 pub struct ObjectMetaView {
     pub name: Option<StringView>,
     pub namespace: Option<StringView>,
-    pub generate_name: Option<StringView>,
     pub resource_version: Option<ResourceVersion>, // make rv a nat so that it is easy to compare in spec/proof
     pub uid: Option<Uid>,
     pub labels: Option<Map<StringView, StringView>>,
@@ -240,7 +231,6 @@ impl ObjectMetaView {
         ObjectMetaView {
             name: None,
             namespace: None,
-            generate_name: None,
             resource_version: None,
             uid: None,
             labels: None,
@@ -268,13 +258,6 @@ impl ObjectMetaView {
     pub open spec fn set_namespace(self, namespace: StringView) -> ObjectMetaView {
         ObjectMetaView {
             namespace: Some(namespace),
-            ..self
-        }
-    }
-
-    pub open spec fn set_generate_name(self, generate_name: StringView) -> ObjectMetaView {
-        ObjectMetaView {
-            generate_name: Some(generate_name),
             ..self
         }
     }
