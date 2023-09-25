@@ -27,14 +27,6 @@ pub fn test_set_namespace() {
 
 #[test]
 #[verifier(external)]
-pub fn test_set_generate_name() {
-    let mut object_meta = ObjectMeta::default();
-    object_meta.set_generate_name(new_strlit("generate_name").to_string());
-    assert_eq!("generate_name".to_string(), object_meta.into_kube().generate_name.unwrap());
-}
-
-#[test]
-#[verifier(external)]
 pub fn test_set_labels() {
     let mut object_meta = ObjectMeta::default();
     let mut labels = StringMap::new();

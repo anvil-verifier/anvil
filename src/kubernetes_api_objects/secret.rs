@@ -82,14 +82,6 @@ impl Secret {
     }
 
     #[verifier(external_body)]
-    pub fn set_type(&mut self, type_: String)
-        ensures
-            self@ == old(self)@.set_type(type_@),
-    {
-        self.inner.type_ = Some(type_.into_rust_string())
-    }
-
-    #[verifier(external_body)]
     pub fn clone(&self) -> (c: Self)
         ensures
             c@ == self@,
@@ -149,10 +141,9 @@ impl Secret {
 pub struct SecretView {
     pub metadata: ObjectMetaView,
     pub data: Option<Map<StringView, StringView>>, // For view, <String, String> map is used instead of <String, Bytestring> map for now.
-    pub type_: Option<StringView>,
 }
 
-type SecretSpecView = (Option<Map<StringView, StringView>>, Option<StringView>);
+type SecretSpecView = (Option<Map<StringView, StringView>>, ());
 
 impl SecretView {
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> SecretView {
@@ -168,13 +159,6 @@ impl SecretView {
             ..self
         }
     }
-
-    pub open spec fn set_type(self, type_: StringView) -> SecretView {
-        SecretView {
-            type_: Some(type_),
-            ..self
-        }
-    }
 }
 
 impl ResourceView for SecretView {
@@ -185,7 +169,6 @@ impl ResourceView for SecretView {
         SecretView {
             metadata: ObjectMetaView::default(),
             data: None,
-            type_: None,
         }
     }
 
@@ -206,7 +189,7 @@ impl ResourceView for SecretView {
     }
 
     open spec fn spec(self) -> SecretSpecView {
-        (self.data, self.type_)
+        (self.data, ())
     }
 
     open spec fn status(self) -> EmptyStatusView {
@@ -219,7 +202,7 @@ impl ResourceView for SecretView {
         DynamicObjectView {
             kind: Self::kind(),
             metadata: self.metadata,
-            spec: SecretView::marshal_spec((self.data, self.type_)),
+            spec: SecretView::marshal_spec((self.data, ())),
             status: SecretView::marshal_status(empty_status()),
         }
     }
@@ -235,7 +218,6 @@ impl ResourceView for SecretView {
             Ok(SecretView {
                 metadata: obj.metadata,
                 data: SecretView::unmarshal_spec(obj.spec).get_Ok_0().0,
-                type_: SecretView::unmarshal_spec(obj.spec).get_Ok_0().1,
             })
         }
     }

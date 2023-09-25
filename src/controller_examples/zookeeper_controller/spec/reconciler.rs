@@ -1064,7 +1064,6 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
         .set_selector(LabelSelectorView::default().set_match_labels(make_base_labels(zk)))
         .set_template(PodTemplateSpecView::default()
             .set_metadata(ObjectMetaView::default()
-                .set_generate_name(name)
                 .set_labels(make_labels(zk))
                 .set_annotations(zk.spec.annotations.insert(new_strlit("config")@, rv))
             )

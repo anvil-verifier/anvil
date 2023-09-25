@@ -1243,7 +1243,6 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
             let mut pod_template_spec = PodTemplateSpec::default();
             pod_template_spec.set_metadata({
                 let mut metadata = ObjectMeta::default();
-                metadata.set_generate_name(zk.metadata().name().unwrap());
                 metadata.set_labels(make_labels(zk));
                 metadata.set_annotations({
                     let mut annotations = zk.spec().annotations();
