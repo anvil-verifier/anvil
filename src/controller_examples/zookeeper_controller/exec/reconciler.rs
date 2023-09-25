@@ -1247,7 +1247,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
                 metadata.set_labels(make_labels(zk));
                 metadata.set_annotations({
                     let mut annotations = zk.spec().annotations();
-                    annotations.insert(new_strlit("config").to_string(), rv.clone());
+                    annotations.insert(new_strlit("anvil.dev/lastRestartAt").to_string(), rv.clone());
                     annotations
                 });
                 metadata

@@ -1066,7 +1066,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
             .set_metadata(ObjectMetaView::default()
                 .set_generate_name(name)
                 .set_labels(make_labels(zk))
-                .set_annotations(zk.spec.annotations.insert(new_strlit("config")@, rv))
+                .set_annotations(zk.spec.annotations.insert(new_strlit("anvil.dev/lastRestartAt")@, rv))
             )
             .set_spec(make_zk_pod_spec(zk))
         )
