@@ -122,7 +122,15 @@ pub struct KubeGetRequest {
 }
 
 impl KubeGetRequest {
-    pub open spec fn to_view(&self) -> GetRequest {
+    #[verifier(external)]
+    pub fn key(&self) -> std::string::String {
+        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref(), self.name.as_rust_string_ref())
+    }
+}
+
+impl ToView for KubeGetRequest {
+    type V = GetRequest;
+    open spec fn to_view(&self) -> GetRequest {
         GetRequest {
             key: ObjectRef {
                 kind: self.api_resource@.kind,
@@ -130,13 +138,6 @@ impl KubeGetRequest {
                 namespace: self.namespace@,
             },
         }
-    }
-}
-
-impl KubeGetRequest {
-    #[verifier(external)]
-    pub fn key(&self) -> std::string::String {
-        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref(), self.name.as_rust_string_ref())
     }
 }
 
@@ -156,6 +157,16 @@ impl KubeListRequest {
     }
 }
 
+impl ToView for KubeListRequest {
+    type V = ListRequest;
+    open spec fn to_view(&self) -> ListRequest {
+        ListRequest {
+            kind: self.api_resource@.kind,
+            namespace: self.namespace@,
+        }
+    }
+}
+
 /// KubeCreateRequest has the obj as the parameter of Api.create().
 
 pub struct KubeCreateRequest {
@@ -171,6 +182,16 @@ impl KubeCreateRequest {
     }
 }
 
+impl ToView for KubeCreateRequest {
+    type V = CreateRequest;
+    open spec fn to_view(&self) -> CreateRequest {
+        CreateRequest {
+            namespace: self.namespace@,
+            obj: self.obj@,
+        }
+    }
+}
+
 /// KubeDeleteRequest has the name as the parameter of Api.delete(), and namespace to instantiate an Api.
 
 pub struct KubeDeleteRequest {
@@ -183,6 +204,19 @@ impl KubeDeleteRequest {
     #[verifier(external)]
     pub fn key(&self) -> std::string::String {
         format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref(), self.name.as_rust_string_ref())
+    }
+}
+
+impl ToView for KubeDeleteRequest {
+    type V = DeleteRequest;
+    open spec fn to_view(&self) -> DeleteRequest {
+        DeleteRequest {
+            key: ObjectRef {
+                kind: self.api_resource@.kind,
+                name: self.name@,
+                namespace: self.namespace@,
+            }
+        }
     }
 }
 
@@ -202,6 +236,17 @@ impl KubeUpdateRequest {
     }
 }
 
+impl ToView for KubeUpdateRequest {
+    type V = UpdateRequest;
+    open spec fn to_view(&self) -> UpdateRequest {
+        UpdateRequest {
+            name: self.name@,
+            namespace: self.namespace@,
+            obj: self.obj@,
+        }
+    }
+}
+
 /// KubeUpdateRequest has the obj as the parameter of Api.replace_status().
 
 pub struct KubeUpdateStatusRequest {
@@ -218,35 +263,26 @@ impl KubeUpdateStatusRequest {
     }
 }
 
+impl ToView for KubeUpdateStatusRequest {
+    type V = UpdateStatusRequest;
+    open spec fn to_view(&self) -> UpdateStatusRequest {
+        UpdateStatusRequest {
+            name: self.name@,
+            namespace: self.namespace@,
+            obj: self.obj@,
+        }
+    }
+}
+
 impl KubeAPIRequest {
     pub open spec fn to_view(&self) -> APIRequest {
         match self {
             KubeAPIRequest::GetRequest(get_req) => APIRequest::GetRequest(get_req.to_view()),
-            KubeAPIRequest::ListRequest(list_req) => APIRequest::ListRequest(ListRequest {
-                kind: list_req.api_resource@.kind,
-                namespace: list_req.namespace@,
-            }),
-            KubeAPIRequest::CreateRequest(create_req) => APIRequest::CreateRequest(CreateRequest {
-                namespace: create_req.namespace@,
-                obj: create_req.obj@,
-            }),
-            KubeAPIRequest::DeleteRequest(delete_req) => APIRequest::DeleteRequest(DeleteRequest {
-                key: ObjectRef {
-                    kind: delete_req.api_resource@.kind,
-                    name: delete_req.name@,
-                    namespace: delete_req.namespace@,
-                }
-            }),
-            KubeAPIRequest::UpdateRequest(update_req) => APIRequest::UpdateRequest(UpdateRequest {
-                name: update_req.name@,
-                namespace: update_req.namespace@,
-                obj: update_req.obj@,
-            }),
-            KubeAPIRequest::UpdateStatusRequest(update_status_req) => APIRequest::UpdateStatusRequest(UpdateStatusRequest {
-                name: update_status_req.name@,
-                namespace: update_status_req.namespace@,
-                obj: update_status_req.obj@,
-            }),
+            KubeAPIRequest::ListRequest(list_req) => APIRequest::ListRequest(list_req.to_view()),
+            KubeAPIRequest::CreateRequest(create_req) => APIRequest::CreateRequest(create_req.to_view()),
+            KubeAPIRequest::DeleteRequest(delete_req) => APIRequest::DeleteRequest(delete_req.to_view()),
+            KubeAPIRequest::UpdateRequest(update_req) => APIRequest::UpdateRequest(update_req.to_view()),
+            KubeAPIRequest::UpdateStatusRequest(update_status_req) => APIRequest::UpdateStatusRequest(update_status_req.to_view()),
         }
     }
 }
