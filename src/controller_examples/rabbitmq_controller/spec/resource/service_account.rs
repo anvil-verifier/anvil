@@ -51,6 +51,10 @@ impl ResourceBuilder<ServiceAccountView> for ServiceAccountBuilder {
             Err(RabbitmqError::Error)
         }
     }
+
+    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
+        true
+    }
 }
 
 pub open spec fn make_service_account_name(rabbitmq: RabbitmqClusterView) -> StringView

@@ -26,6 +26,8 @@ pub trait ResourceBuilder<T> {
     spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, RabbitmqError>;
 
     spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> Result<RabbitmqReconcileState, RabbitmqError>;
+
+    spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool;
 }
 
 pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView>

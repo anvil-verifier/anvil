@@ -52,6 +52,10 @@ impl ResourceBuilder<ConfigMapView> for ServerConfigMapBuilder {
             Err(RabbitmqError::Error)
         }
     }
+
+    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
+        true
+    }
 }
 
 pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_config_map: ConfigMapView) -> ConfigMapView {

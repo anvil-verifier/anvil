@@ -51,6 +51,10 @@ impl ResourceBuilder<ServiceView> for HeadlessServiceBuilder {
             Err(RabbitmqError::Error)
         }
     }
+
+    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
+        true
+    }
 }
 
 pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> StringView

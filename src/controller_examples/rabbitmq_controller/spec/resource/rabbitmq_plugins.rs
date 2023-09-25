@@ -51,6 +51,10 @@ impl ResourceBuilder<ConfigMapView> for PluginsConfigMapBuilder {
             Err(RabbitmqError::Error)
         }
     }
+
+    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
+        true
+    }
 }
 
 pub open spec fn make_plugins_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView

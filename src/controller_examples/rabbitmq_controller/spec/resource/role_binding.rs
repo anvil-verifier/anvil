@@ -51,6 +51,10 @@ impl ResourceBuilder<RoleBindingView> for RoleBindingBuilder {
             Err(RabbitmqError::Error)
         }
     }
+
+    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
+        true
+    }
 }
 
 pub open spec fn make_role_binding_name(rabbitmq: RabbitmqClusterView) -> StringView

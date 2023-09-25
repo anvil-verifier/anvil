@@ -51,6 +51,10 @@ impl ResourceBuilder<SecretView> for DefaultUserSecretBuilder {
             Err(RabbitmqError::Error)
         }
     }
+
+    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
+        true
+    }
 }
 
 pub open spec fn make_default_user_secret_name(rabbitmq: RabbitmqClusterView) -> StringView

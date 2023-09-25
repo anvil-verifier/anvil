@@ -51,6 +51,10 @@ impl ResourceBuilder<SecretView> for ErlangCookieBuilder {
             Err(RabbitmqError::Error)
         }
     }
+
+    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
+        true
+    }
 }
 
 pub open spec fn make_erlang_secret_name(rabbitmq: RabbitmqClusterView) -> StringView
