@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq-controller
+  namespace: rabbitmq
+  labels:
+    app.kubernetes.io/name: rabbitmq-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rabbitmq-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rabbitmq-controller
+    spec:
+      containers:
+        - image: local/rabbitmq-controller:v0.1.0
+          imagePullPolicy: IfNotPresent
+          name: controller
+          command: ["/usr/local/bin/controller"]
+          args: ["crash"]
+      serviceAccountName: rabbitmq-controller
