@@ -53,7 +53,8 @@ impl ResourceBuilder<RoleView> for RoleBuilder {
     }
 
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
-        true
+        &&& RoleView::unmarshal(obj).is_Ok()
+        &&& RoleView::unmarshal(obj).get_Ok_0().policy_rules == make_role(rabbitmq).policy_rules
     }
 }
 

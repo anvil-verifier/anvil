@@ -53,7 +53,9 @@ impl ResourceBuilder<RoleBindingView> for RoleBindingBuilder {
     }
 
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
-        true
+        &&& RoleBindingView::unmarshal(obj).is_Ok()
+        &&& RoleBindingView::unmarshal(obj).get_Ok_0().role_ref == make_role_binding(rabbitmq).role_ref
+        &&& RoleBindingView::unmarshal(obj).get_Ok_0().subjects == make_role_binding(rabbitmq).subjects
     }
 }
 

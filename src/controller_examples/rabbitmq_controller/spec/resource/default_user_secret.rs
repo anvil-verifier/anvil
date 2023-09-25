@@ -53,7 +53,9 @@ impl ResourceBuilder<SecretView> for DefaultUserSecretBuilder {
     }
 
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
-        true
+        &&& SecretView::unmarshal(obj).is_Ok()
+        &&& SecretView::unmarshal(obj).get_Ok_0().data == make_default_user_secret(rabbitmq).data
+        &&& SecretView::unmarshal(obj).get_Ok_0().type_ == make_default_user_secret(rabbitmq).type_
     }
 }
 

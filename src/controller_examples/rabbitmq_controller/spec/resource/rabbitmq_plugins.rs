@@ -53,7 +53,8 @@ impl ResourceBuilder<ConfigMapView> for PluginsConfigMapBuilder {
     }
 
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
-        true
+        &&& ConfigMapView::unmarshal(obj).is_Ok()
+        &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == make_plugins_config_map(rabbitmq).data
     }
 }
 

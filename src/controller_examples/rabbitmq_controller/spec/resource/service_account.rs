@@ -53,7 +53,8 @@ impl ResourceBuilder<ServiceAccountView> for ServiceAccountBuilder {
     }
 
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
-        true
+        &&& ServiceAccountView::unmarshal(obj).is_Ok()
+        &&& ServiceAccountView::unmarshal(obj).get_Ok_0().automount_service_account_token == make_service_account(rabbitmq).automount_service_account_token
     }
 }
 

@@ -58,7 +58,9 @@ impl ResourceBuilder<StatefulSetView> for StatefulSetBuilder {
     }
 
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
-        true
+        &&& StatefulSetView::unmarshal(obj).is_Ok()
+        &&& exists |rv: StringView|
+            StatefulSetView::unmarshal(obj).get_Ok_0().spec == (#[trigger] make_stateful_set(rabbitmq, rv)).spec
     }
 }
 

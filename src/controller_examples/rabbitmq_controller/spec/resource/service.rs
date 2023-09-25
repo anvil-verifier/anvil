@@ -53,7 +53,8 @@ impl ResourceBuilder<ServiceView> for ServiceBuilder {
     }
 
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
-        true
+        &&& ServiceView::unmarshal(obj).is_Ok()
+        &&& ServiceView::unmarshal(obj).get_Ok_0().spec == make_main_service(rabbitmq).spec
     }
 }
 
