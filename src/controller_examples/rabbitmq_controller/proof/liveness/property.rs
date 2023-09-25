@@ -22,8 +22,24 @@ use vstd::prelude::*;
 
 verus! {
 
+pub type RMQCluster = Cluster<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>;
+
+spec fn liveness(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster>
+    recommends
+        rabbitmq.well_formed(),
+{
+    always(lift_state(RMQCluster::desired_state_is(rabbitmq))).leads_to(always(lift_state(current_state_matches(rabbitmq))))
+}
+
+pub open spec fn current_state_matches(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        forall |kind: ResourceKind|
+            #[trigger] resource_state_matches(rabbitmq, kind, s.resources())
+    }
+}
+
 pub open spec fn resource_state_matches(
-    rabbitmq: RabbitmqClusterView, resource: DynamicObjectView, kind: ResourceKind, resources: Map<ObjectRef, DynamicObjectView>
+    rabbitmq: RabbitmqClusterView, kind: ResourceKind, resources: Map<ObjectRef, DynamicObjectView>
 ) -> bool {
     match kind {
         ResourceKind::HeadlessService => {
