@@ -6,8 +6,10 @@ use vstd::string::*;
 
 verus! {
 
+// make Uid an int, instead of String, so that it is easy to compare in spec/proof
 pub type Uid = int;
 
+// make ResourceVersion an int, instead of String, so that it is easy to compare in spec/proof
 pub type ResourceVersion = int;
 
 #[is_variant]

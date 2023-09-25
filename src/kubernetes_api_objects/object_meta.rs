@@ -217,7 +217,7 @@ impl ResourceWrapper<deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::
 pub struct ObjectMetaView {
     pub name: Option<StringView>,
     pub namespace: Option<StringView>,
-    pub resource_version: Option<ResourceVersion>, // make rv a nat so that it is easy to compare in spec/proof
+    pub resource_version: Option<ResourceVersion>,
     pub uid: Option<Uid>,
     pub labels: Option<Map<StringView, StringView>>,
     pub annotations: Option<Map<StringView, StringView>>,
