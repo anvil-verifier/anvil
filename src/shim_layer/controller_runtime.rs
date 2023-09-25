@@ -261,6 +261,30 @@ where
                                 },
                             }
                         },
+                        KubeAPIRequest::UpdateStatusRequest(update_status_req) => {
+                            check_fault_timing = true;
+                            let api = Api::<deps_hack::kube::api::DynamicObject>::namespaced_with(
+                                client.clone(), update_status_req.namespace.as_rust_string_ref(), update_status_req.api_resource.as_kube_ref()
+                            );
+                            let pp = PostParams::default();
+                            let key = update_status_req.key();
+                            let obj_to_update = update_status_req.obj.into_kube();
+                            // Here we assume serde_json always succeed
+                            match api.replace_status(update_status_req.name.as_rust_string_ref(), &pp, deps_hack::k8s_openapi::serde_json::to_vec(&obj_to_update).unwrap()).await {
+                                Err(err) => {
+                                    kube_resp = KubeAPIResponse::UpdateStatusResponse(KubeUpdateStatusResponse{
+                                        res: Err(kube_error_to_ghost(&err)),
+                                    });
+                                    println!("{} UpdateStatus {} failed with error: {}", log_header, key, err);
+                                },
+                                Ok(obj) => {
+                                    kube_resp = KubeAPIResponse::UpdateStatusResponse(KubeUpdateStatusResponse{
+                                        res: Ok(DynamicObject::from_kube(obj)),
+                                    });
+                                    println!("{} UpdateStatus {} done", log_header, key);
+                                },
+                            }
+                        },
                     }
                     resp_option = Some(Response::KResponse(kube_resp));
                 },

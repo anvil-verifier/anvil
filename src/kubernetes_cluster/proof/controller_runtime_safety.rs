@@ -38,15 +38,13 @@ pub proof fn lemma_always_scheduled_cr_has_lower_uid_than_uid_counter(spec: Temp
     let invariant = Self::scheduled_cr_has_lower_uid_than_uid_counter();
     let stronger_next = |s, s_prime| {
         Self::next()(s, s_prime)
-        && Self::every_object_in_etcd_has_lower_uid_than_uid_counter()(s)
+        && Self::each_object_in_etcd_is_well_formed()(s)
     };
-    Self::lemma_always_every_object_in_etcd_has_lower_uid_than_uid_counter(spec);
-    combine_spec_entails_always_n!(spec, lift_action(stronger_next), lift_action(Self::next()), lift_state(Self::every_object_in_etcd_has_lower_uid_than_uid_counter()));
+    Self::lemma_always_each_object_in_etcd_is_well_formed(spec);
+    strengthen_next(spec, Self::next(), Self::each_object_in_etcd_is_well_formed(), stronger_next);
     assert forall |s, s_prime| invariant(s) && #[trigger] stronger_next(s, s_prime) implies invariant(s_prime) by {
-        // if s_prime.controller_state.scheduled_reconciles.contains_key(key) {
-            assert(s.kubernetes_api_state.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
-            K::marshal_preserves_metadata();
-        // }
+        assert(s.kubernetes_api_state.uid_counter <= s_prime.kubernetes_api_state.uid_counter);
+        K::marshal_preserves_metadata();
     }
     init_invariant(spec, Self::init(), stronger_next, invariant);
 }

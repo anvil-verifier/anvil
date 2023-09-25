@@ -28,6 +28,7 @@ pub enum APIRequest {
     CreateRequest(CreateRequest),
     DeleteRequest(DeleteRequest),
     UpdateRequest(UpdateRequest),
+    UpdateStatusRequest(UpdateStatusRequest),
 }
 
 /// GetRequest gets an object with the key (kind, name and namespace).
@@ -74,6 +75,24 @@ impl UpdateRequest {
     }
 }
 
+/// UpdateStatusRequest replaces the status of the existing obj with a new one.
+
+pub struct UpdateStatusRequest {
+    pub namespace: StringView,
+    pub name: StringView,
+    pub obj: DynamicObjectView,
+}
+
+impl UpdateStatusRequest {
+    pub open spec fn key(self) -> ObjectRef {
+        ObjectRef {
+            kind: self.obj.kind,
+            namespace: self.namespace,
+            name: self.name,
+        }
+    }
+}
+
 /// KubeAPIRequest represents API requests used in executable.
 ///
 /// kube-rs uses a generic type kube::api::Api as an api handle to send
@@ -91,6 +110,7 @@ pub enum KubeAPIRequest {
     CreateRequest(KubeCreateRequest),
     DeleteRequest(KubeDeleteRequest),
     UpdateRequest(KubeUpdateRequest),
+    UpdateStatusRequest(KubeUpdateStatusRequest),
 }
 
 /// KubeGetRequest has the name as the parameter of Api.get(), and namespace to instantiate an Api.
@@ -182,6 +202,22 @@ impl KubeUpdateRequest {
     }
 }
 
+/// KubeUpdateRequest has the obj as the parameter of Api.replace_status().
+
+pub struct KubeUpdateStatusRequest {
+    pub api_resource: ApiResource,
+    pub name: String,
+    pub namespace: String,
+    pub obj: DynamicObject,
+}
+
+impl KubeUpdateStatusRequest {
+    #[verifier(external)]
+    pub fn key(&self) -> std::string::String {
+        format!("{}/{}/{}", self.api_resource.as_kube_ref().kind, self.namespace.as_rust_string_ref(), self.name.as_rust_string_ref())
+    }
+}
+
 impl KubeAPIRequest {
     pub open spec fn to_view(&self) -> APIRequest {
         match self {
@@ -206,6 +242,11 @@ impl KubeAPIRequest {
                 namespace: update_req.namespace@,
                 obj: update_req.obj@,
             }),
+            KubeAPIRequest::UpdateStatusRequest(update_status_req) => APIRequest::UpdateStatusRequest(UpdateStatusRequest {
+                name: update_status_req.name@,
+                namespace: update_status_req.namespace@,
+                obj: update_status_req.obj@,
+            }),
         }
     }
 }
@@ -226,6 +267,7 @@ pub enum APIResponse {
     CreateResponse(CreateResponse),
     DeleteResponse(DeleteResponse),
     UpdateResponse(UpdateResponse),
+    UpdateStatusResponse(UpdateStatusResponse),
 }
 
 /// GetResponse has the object returned by GetRequest.
@@ -246,15 +288,21 @@ pub struct CreateResponse {
     pub res: Result<DynamicObjectView, APIError>,
 }
 
-/// DeleteResponse has (last version of) the object deleted by DeleteRequest.
+/// DeleteResponse does NOT contain the object that gets deleted.
 
 pub struct DeleteResponse {
     pub res: Result<(), APIError>,
 }
 
-/// UpdateResponse has the object updated by CreateRequest.
+/// UpdateResponse has the object updated by UpdateRequest.
 
 pub struct UpdateResponse {
+    pub res: Result<DynamicObjectView, APIError>,
+}
+
+/// UpdateStatusResponse has the object updated by UpdateStatusRequest.
+
+pub struct UpdateStatusResponse {
     pub res: Result<DynamicObjectView, APIError>,
 }
 
@@ -262,7 +310,6 @@ pub struct UpdateResponse {
 ///
 /// KubeAPIResponse wraps around the results returned by the methods of kube::api::Api.
 
-// TODO: implement all the variants after we import kube-rs.
 #[is_variant]
 pub enum KubeAPIResponse {
     GetResponse(KubeGetResponse),
@@ -270,6 +317,7 @@ pub enum KubeAPIResponse {
     CreateResponse(KubeCreateResponse),
     DeleteResponse(KubeDeleteResponse),
     UpdateResponse(KubeUpdateResponse),
+    UpdateStatusResponse(KubeUpdateStatusResponse),
 }
 
 /// KubeGetResponse has the object returned by KubeGetRequest.
@@ -352,6 +400,22 @@ impl ToView for KubeUpdateResponse {
     }
 }
 
+/// KubeUpdateStatusResponse has the object updated by KubeUpdateStatusRequest.
+
+pub struct KubeUpdateStatusResponse {
+    pub res: Result<DynamicObject, APIError>,
+}
+
+impl ToView for KubeUpdateStatusResponse {
+    type V = UpdateStatusResponse;
+    open spec fn to_view(&self) -> UpdateStatusResponse {
+        match self.res {
+            Ok(o) => UpdateStatusResponse { res: Ok(o@) },
+            Err(e) => UpdateStatusResponse { res: Err(e) },
+        }
+    }
+}
+
 impl ToView for KubeAPIResponse {
     type V = APIResponse;
     open spec fn to_view(&self) -> APIResponse {
@@ -361,6 +425,7 @@ impl ToView for KubeAPIResponse {
             KubeAPIResponse::CreateResponse(create_resp) => APIResponse::CreateResponse(create_resp.to_view()),
             KubeAPIResponse::DeleteResponse(delete_resp) => APIResponse::DeleteResponse(delete_resp.to_view()),
             KubeAPIResponse::UpdateResponse(update_resp) => APIResponse::UpdateResponse(update_resp.to_view()),
+            KubeAPIResponse::UpdateStatusResponse(update_status_resp) => APIResponse::UpdateStatusResponse(update_status_resp.to_view()),
         }
     }
 }

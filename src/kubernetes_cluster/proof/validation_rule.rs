@@ -23,9 +23,15 @@ pub open spec fn marshal_preserves_spec() -> bool {
             ==> K::unmarshal_spec(d.spec).get_Ok_0() == K::unmarshal(d).get_Ok_0().spec()
 }
 
+pub open spec fn marshal_preserves_status() -> bool {
+    forall |d: DynamicObjectView|
+        #[trigger] K::unmarshal(d).is_Ok()
+            ==> K::unmarshal_status(d.status).get_Ok_0() == K::unmarshal(d).get_Ok_0().status()
+}
+
 /// The relexitivity allows the metadata to be different.
 pub open spec fn is_reflexive_and_transitive() -> bool {
-    &&& forall |x: K, y: K|  x.spec() == y.spec() ==> #[trigger] K::transition_validation(x, y)
+    &&& forall |x: K, y: K|  (x.spec() == y.spec() && x.status() == y.status()) ==> #[trigger] K::transition_validation(x, y)
     &&& forall |x: K, y: K, z: K| #![trigger K::transition_validation(x, y), K::transition_validation(y, z)]
         K::transition_validation(x, y) && K::transition_validation(y, z) ==> K::transition_validation(x, z)
 }
@@ -47,6 +53,7 @@ pub proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_and_trig
     requires
         K::kind() == Kind::CustomResourceKind,
         Self::marshal_preserves_spec(),
+        Self::marshal_preserves_status(),
         Self::is_reflexive_and_transitive(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
@@ -78,6 +85,7 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: Tem
         K::kind() == Kind::CustomResourceKind,
         Self::is_reflexive_and_transitive(),
         Self::marshal_preserves_spec(),
+        Self::marshal_preserves_status(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
     ensures
@@ -117,13 +125,18 @@ proof fn lemma_always_transition_rule_applies_to_etcd_and_scheduled_cr(spec: Tem
                                 K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
                                 K::unmarshal(s.resources()[key]).get_Ok_0()
                             ));
-                        } else {
-                            assert(input.get_Some_0().content.is_update_request());
+                        } else if input.get_Some_0().content.is_update_request() {
                             assert(K::unmarshal(input.get_Some_0().content.get_update_request().obj).is_Ok());
-                            assert(input.get_Some_0().content.get_update_request().obj.spec == s_prime.resources()[key].spec);
                             assert(K::transition_validation(
                                 K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
-                                K::unmarshal(input.get_Some_0().content.get_update_request().obj).get_Ok_0()
+                                K::unmarshal(s.resources()[key]).get_Ok_0()
+                            ));
+                        } else {
+                            assert(input.get_Some_0().content.is_update_status_request());
+                            assert(K::unmarshal(input.get_Some_0().content.get_update_status_request().obj).is_Ok());
+                            assert(K::transition_validation(
+                                K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
+                                K::unmarshal(s.resources()[key]).get_Ok_0()
                             ));
                         }
                     }
@@ -165,6 +178,7 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
     requires
         K::kind() == Kind::CustomResourceKind,
         Self::marshal_preserves_spec(),
+        Self::marshal_preserves_status(),
         Self::is_reflexive_and_transitive(),
         spec.entails(lift_state(Self::init())),
         spec.entails(always(lift_action(Self::next()))),
@@ -215,13 +229,18 @@ proof fn lemma_always_triggering_cr_is_in_correct_order(spec: TempPred<Self>, cr
                                 K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
                                 K::unmarshal(s.resources()[key]).get_Ok_0()
                             ));
-                        } else {
-                            assert(input.get_Some_0().content.is_update_request());
+                        } else if input.get_Some_0().content.is_update_request() {
                             assert(K::unmarshal(input.get_Some_0().content.get_update_request().obj).is_Ok());
-                            assert(input.get_Some_0().content.get_update_request().obj.spec == s_prime.resources()[key].spec);
                             assert(K::transition_validation(
                                 K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
-                                K::unmarshal(input.get_Some_0().content.get_update_request().obj).get_Ok_0()
+                                K::unmarshal(s.resources()[key]).get_Ok_0()
+                            ));
+                        } else {
+                            assert(input.get_Some_0().content.is_update_status_request());
+                            assert(K::unmarshal(input.get_Some_0().content.get_update_status_request().obj).is_Ok());
+                            assert(K::transition_validation(
+                                K::unmarshal(s_prime.resources()[key]).get_Ok_0(),
+                                K::unmarshal(s.resources()[key]).get_Ok_0()
                             ));
                         }
                     }
