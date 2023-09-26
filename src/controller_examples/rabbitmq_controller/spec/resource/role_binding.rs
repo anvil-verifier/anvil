@@ -52,7 +52,10 @@ impl ResourceBuilder for RoleBindingBuilder {
         }
     }
 
-    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
+    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
+        let key = make_role_binding_key(rabbitmq);
+        let obj = resources[key];
+        &&& resources.contains_key(key)
         &&& RoleBindingView::unmarshal(obj).is_Ok()
         &&& RoleBindingView::unmarshal(obj).get_Ok_0().role_ref == make_role_binding(rabbitmq).role_ref
         &&& RoleBindingView::unmarshal(obj).get_Ok_0().subjects == make_role_binding(rabbitmq).subjects

@@ -34,11 +34,8 @@ spec fn liveness(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster>
 
 pub open spec fn current_state_matches(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        forall |sub_resource: SubResource| {
-            let key = (#[trigger] get_request(sub_resource, rabbitmq)).key;
-            &&& s.resources().contains_key(key)
-            &&& resource_state_matches(sub_resource, rabbitmq, s.resources()[key])
-        }
+        forall |sub_resource: SubResource| 
+            #[trigger] resource_state_matches(sub_resource, rabbitmq, s.resources())
     }
 }
 

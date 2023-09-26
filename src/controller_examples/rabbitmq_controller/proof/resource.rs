@@ -79,18 +79,18 @@ pub open spec fn state_after_create_or_update(sub_resource: SubResource, obj: Dy
     }
 }
 
-pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
+pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
     match sub_resource {
-        SubResource::HeadlessService => HeadlessServiceBuilder::resource_state_matches(rabbitmq, obj),
-        SubResource::Service => ServiceBuilder::resource_state_matches(rabbitmq, obj),
-        SubResource::ErlangCookieSecret => ErlangCookieBuilder::resource_state_matches(rabbitmq, obj),
-        SubResource::DefaultUserSecret => DefaultUserSecretBuilder::resource_state_matches(rabbitmq, obj),
-        SubResource::PluginsConfigMap => PluginsConfigMapBuilder::resource_state_matches(rabbitmq, obj),
-        SubResource::ServerConfigMap => ServerConfigMapBuilder::resource_state_matches(rabbitmq, obj),
-        SubResource::ServiceAccount => ServiceAccountBuilder::resource_state_matches(rabbitmq, obj),
-        SubResource::Role => RoleBuilder::resource_state_matches(rabbitmq, obj),
-        SubResource::RoleBinding => RoleBindingBuilder::resource_state_matches(rabbitmq, obj),
-        SubResource::StatefulSet => StatefulSetBuilder::resource_state_matches(rabbitmq, obj),
+        SubResource::HeadlessService => HeadlessServiceBuilder::resource_state_matches(rabbitmq, resources),
+        SubResource::Service => ServiceBuilder::resource_state_matches(rabbitmq, resources),
+        SubResource::ErlangCookieSecret => ErlangCookieBuilder::resource_state_matches(rabbitmq, resources),
+        SubResource::DefaultUserSecret => DefaultUserSecretBuilder::resource_state_matches(rabbitmq, resources),
+        SubResource::PluginsConfigMap => PluginsConfigMapBuilder::resource_state_matches(rabbitmq, resources),
+        SubResource::ServerConfigMap => ServerConfigMapBuilder::resource_state_matches(rabbitmq, resources),
+        SubResource::ServiceAccount => ServiceAccountBuilder::resource_state_matches(rabbitmq, resources),
+        SubResource::Role => RoleBuilder::resource_state_matches(rabbitmq, resources),
+        SubResource::RoleBinding => RoleBindingBuilder::resource_state_matches(rabbitmq, resources),
+        SubResource::StatefulSet => StatefulSetBuilder::resource_state_matches(rabbitmq, resources),
     }
 }
 
