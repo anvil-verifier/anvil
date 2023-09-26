@@ -86,41 +86,41 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::Init => {
             let req_o = KubeAPIRequest::GetRequest(HeadlessServiceBuilder::get_request(rabbitmq));
             let state_prime = RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::HeadlessService),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::HeadlessService),
                 ..state
             };
             return (state_prime, Some(Request::KRequest(req_o)));
         },
         RabbitmqReconcileStep::AfterKRequestStep(_, resource) => {
             match resource {
-                ResourceKind::HeadlessService => {
+                SubResource::HeadlessService => {
                     reconcile_helper::<spec_resource::HeadlessServiceBuilder, HeadlessServiceBuilder>(rabbitmq, resp_o, state)
                 },
-                ResourceKind::Service => {
+                SubResource::Service => {
                     reconcile_helper::<spec_resource::ServiceBuilder, ServiceBuilder>(rabbitmq, resp_o, state)
                 },
-                ResourceKind::ErlangCookieSecret => {
+                SubResource::ErlangCookieSecret => {
                     reconcile_helper::<spec_resource::ErlangCookieBuilder, ErlangCookieBuilder>(rabbitmq, resp_o, state)
                 },
-                ResourceKind::DefaultUserSecret => {
+                SubResource::DefaultUserSecret => {
                     reconcile_helper::<spec_resource::DefaultUserSecretBuilder, DefaultUserSecretBuilder>(rabbitmq, resp_o, state)
                 },
-                ResourceKind::PluginsConfigMap => {
+                SubResource::PluginsConfigMap => {
                     reconcile_helper::<spec_resource::PluginsConfigMapBuilder, PluginsConfigMapBuilder>(rabbitmq, resp_o, state)
                 },
-                ResourceKind::ServerConfigMap => {
+                SubResource::ServerConfigMap => {
                     reconcile_helper::<spec_resource::ServerConfigMapBuilder, ServerConfigMapBuilder>(rabbitmq, resp_o, state)
                 },
-                ResourceKind::ServiceAccount => {
+                SubResource::ServiceAccount => {
                     reconcile_helper::<spec_resource::ServiceAccountBuilder, ServiceAccountBuilder>(rabbitmq, resp_o, state)
                 },
-                ResourceKind::Role => {
+                SubResource::Role => {
                     reconcile_helper::<spec_resource::RoleBuilder, RoleBuilder>(rabbitmq, resp_o, state)
                 },
-                ResourceKind::RoleBinding => {
+                SubResource::RoleBinding => {
                     reconcile_helper::<spec_resource::RoleBindingBuilder, RoleBindingBuilder>(rabbitmq, resp_o, state)
                 },
-                ResourceKind::StatefulSet => {
+                SubResource::StatefulSet => {
                     reconcile_helper::<spec_resource::StatefulSetBuilder, StatefulSetBuilder>(rabbitmq, resp_o, state)
                 },
             }
@@ -240,24 +240,24 @@ pub fn reconcile_helper<
     }
 }
 
-fn next_resource_get_request(rabbitmq: &RabbitmqCluster, kind: ResourceKind) -> (res: Option<KubeGetRequest>)
+fn next_resource_get_request(rabbitmq: &RabbitmqCluster, sub_resource: SubResource) -> (res: Option<KubeGetRequest>)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        res.is_Some() == rabbitmq_spec::next_resource_get_request(rabbitmq@, kind).is_Some(),
-        res.is_Some() ==> res.get_Some_0().to_view() == rabbitmq_spec::next_resource_get_request(rabbitmq@, kind).get_Some_0(),
+        res.is_Some() == rabbitmq_spec::next_resource_get_request(rabbitmq@, sub_resource).is_Some(),
+        res.is_Some() ==> res.get_Some_0().to_view() == rabbitmq_spec::next_resource_get_request(rabbitmq@, sub_resource).get_Some_0(),
 {
-    match kind {
-        ResourceKind::HeadlessService => Some(ServiceBuilder::get_request(rabbitmq)),
-        ResourceKind::Service => Some(ErlangCookieBuilder::get_request(rabbitmq)),
-        ResourceKind::ErlangCookieSecret => Some(DefaultUserSecretBuilder::get_request(rabbitmq)),
-        ResourceKind::DefaultUserSecret => Some(PluginsConfigMapBuilder::get_request(rabbitmq)),
-        ResourceKind::PluginsConfigMap => Some(ServerConfigMapBuilder::get_request(rabbitmq)),
-        ResourceKind::ServerConfigMap => Some(ServiceAccountBuilder::get_request(rabbitmq)),
-        ResourceKind::ServiceAccount => Some(RoleBuilder::get_request(rabbitmq)),
-        ResourceKind::Role => Some(RoleBindingBuilder::get_request(rabbitmq)),
-        ResourceKind::RoleBinding => Some(StatefulSetBuilder::get_request(rabbitmq)),
+    match sub_resource {
+        SubResource::HeadlessService => Some(ServiceBuilder::get_request(rabbitmq)),
+        SubResource::Service => Some(ErlangCookieBuilder::get_request(rabbitmq)),
+        SubResource::ErlangCookieSecret => Some(DefaultUserSecretBuilder::get_request(rabbitmq)),
+        SubResource::DefaultUserSecret => Some(PluginsConfigMapBuilder::get_request(rabbitmq)),
+        SubResource::PluginsConfigMap => Some(ServerConfigMapBuilder::get_request(rabbitmq)),
+        SubResource::ServerConfigMap => Some(ServiceAccountBuilder::get_request(rabbitmq)),
+        SubResource::ServiceAccount => Some(RoleBuilder::get_request(rabbitmq)),
+        SubResource::Role => Some(RoleBindingBuilder::get_request(rabbitmq)),
+        SubResource::RoleBinding => Some(StatefulSetBuilder::get_request(rabbitmq)),
         _ => None,
     }
 }

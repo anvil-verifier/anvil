@@ -49,7 +49,7 @@ impl ResourceBuilder<spec_resource::ServiceAccountBuilder> for ServiceAccountBui
         let sa = ServiceAccount::unmarshal(obj);
         if sa.is_ok() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::Role),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Role),
                 ..state
             })
         } else {

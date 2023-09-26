@@ -44,7 +44,7 @@ impl ResourceBuilder for ServiceBuilder {
         let service = ServiceView::unmarshal(obj);
         if service.is_Ok() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::ErlangCookieSecret),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ErlangCookieSecret),
                 ..state
             })
         } else {

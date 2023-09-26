@@ -44,7 +44,7 @@ impl ResourceBuilder for RoleBuilder {
         let role = RoleView::unmarshal(obj);
         if role.is_Ok() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::RoleBinding),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::RoleBinding),
                 ..state
             })
         } else {

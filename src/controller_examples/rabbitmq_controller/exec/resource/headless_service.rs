@@ -49,7 +49,7 @@ impl ResourceBuilder<spec_resource::HeadlessServiceBuilder> for HeadlessServiceB
         let service = Service::unmarshal(obj);
         if service.is_ok() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::Service),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Service),
                 ..state
             })
         } else {

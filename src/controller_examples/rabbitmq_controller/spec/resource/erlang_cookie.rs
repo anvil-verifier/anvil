@@ -44,7 +44,7 @@ impl ResourceBuilder for ErlangCookieBuilder {
         let secret = SecretView::unmarshal(obj);
         if secret.is_Ok() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::DefaultUserSecret),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::DefaultUserSecret),
                 ..state
             })
         } else {

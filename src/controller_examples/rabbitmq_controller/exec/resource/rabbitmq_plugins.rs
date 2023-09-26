@@ -49,7 +49,7 @@ impl ResourceBuilder<spec_resource::PluginsConfigMapBuilder> for PluginsConfigMa
         let cm = ConfigMap::unmarshal(obj);
         if cm.is_ok() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::ServerConfigMap),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServerConfigMap),
                 ..state
             })
         } else {

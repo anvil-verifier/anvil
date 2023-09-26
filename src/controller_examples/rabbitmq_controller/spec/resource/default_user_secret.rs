@@ -44,7 +44,7 @@ impl ResourceBuilder for DefaultUserSecretBuilder {
         let sts = SecretView::unmarshal(obj);
         if sts.is_Ok() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::PluginsConfigMap),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::PluginsConfigMap),
                 ..state
             })
         } else {

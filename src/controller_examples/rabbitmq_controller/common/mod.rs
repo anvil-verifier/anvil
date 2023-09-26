@@ -8,7 +8,7 @@ verus! {
 #[is_variant]
 pub enum RabbitmqReconcileStep {
     Init,
-    AfterKRequestStep(ActionKind, ResourceKind),
+    AfterKRequestStep(ActionKind, SubResource),
     Done,
     Error,
 }
@@ -25,7 +25,7 @@ impl std::clone::Clone for RabbitmqReconcileStep {
     }
 }
 
-pub enum ResourceKind {
+pub enum SubResource {
     HeadlessService,
     Service,
     ErlangCookieSecret,
@@ -45,9 +45,9 @@ pub enum ActionKind {
     Update,
 }
 
-impl std::marker::Copy for ResourceKind {}
+impl std::marker::Copy for SubResource {}
 
-impl std::clone::Clone for ResourceKind {
+impl std::clone::Clone for SubResource {
 
     #[verifier(external_body)]
     fn clone(&self) -> (result: Self)
