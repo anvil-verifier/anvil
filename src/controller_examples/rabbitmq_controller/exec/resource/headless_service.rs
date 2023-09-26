@@ -48,10 +48,7 @@ impl ResourceBuilder<spec_resource::HeadlessServiceBuilder> for HeadlessServiceB
     fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
         let service = Service::unmarshal(obj);
         if service.is_ok() {
-            Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Service),
-                ..state
-            })
+            Ok(state)
         } else {
             Err(RabbitmqError::Error)
         }

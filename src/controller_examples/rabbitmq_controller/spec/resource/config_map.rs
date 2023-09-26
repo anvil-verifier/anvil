@@ -44,7 +44,6 @@ impl ResourceBuilder for ServerConfigMapBuilder {
         let cm = ConfigMapView::unmarshal(obj);
         if cm.is_ok() && cm.get_Ok_0().metadata.resource_version.is_Some() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServiceAccount),
                 latest_config_map_rv_opt: Some(int_to_string_view(cm.get_Ok_0().metadata.resource_version.get_Some_0())),
                 ..state
             })

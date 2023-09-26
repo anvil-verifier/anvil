@@ -43,10 +43,7 @@ impl ResourceBuilder for DefaultUserSecretBuilder {
     open spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
         let sts = SecretView::unmarshal(obj);
         if sts.is_Ok() {
-            Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::PluginsConfigMap),
-                ..state
-            })
+            Ok(state)
         } else {
             Err(RabbitmqError::Error)
         }

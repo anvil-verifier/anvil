@@ -48,10 +48,7 @@ impl ResourceBuilder<spec_resource::ServiceAccountBuilder> for ServiceAccountBui
     fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
         let sa = ServiceAccount::unmarshal(obj);
         if sa.is_ok() {
-            Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Role),
-                ..state
-            })
+            Ok(state)
         } else {
             Err(RabbitmqError::Error)
         }

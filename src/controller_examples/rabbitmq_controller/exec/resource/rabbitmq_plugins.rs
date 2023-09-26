@@ -48,10 +48,7 @@ impl ResourceBuilder<spec_resource::PluginsConfigMapBuilder> for PluginsConfigMa
     fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
         let cm = ConfigMap::unmarshal(obj);
         if cm.is_ok() {
-            Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServerConfigMap),
-                ..state
-            })
+            Ok(state)
         } else {
             Err(RabbitmqError::Error)
         }

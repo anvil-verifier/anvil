@@ -40,6 +40,9 @@ pub trait ResourceBuilder<SpecBuilder: spec_resource::ResourceBuilder> {
         ensures
             resource_res_to_view(res) == SpecBuilder::update(rabbitmq@, state@, obj@);
 
+    /// state_after_create_or_update describes how a successfully created/updated object influences the reconcile state except
+    /// the part concerning control flow, i.e., what the next step is. The next step will be decided by the reconciler. Such design
+    /// leads to lower coupling and fewer mistakes (e.g. next step and get request mismatch).
     fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>)
         ensures
             resource_res_to_view(res) == SpecBuilder::state_after_create_or_update(obj@, state@);

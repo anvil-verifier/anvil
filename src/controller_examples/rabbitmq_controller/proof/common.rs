@@ -19,30 +19,6 @@ use vstd::prelude::*;
 
 verus! {
 
-pub type RMQStep = Step<RMQMessage>;
-
-pub type RMQCluster = Cluster<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>;
-
-pub type RMQMessage = Message<EmptyTypeView, EmptyTypeView>;
-
-pub open spec fn cluster_spec() -> TempPred<RMQCluster> {
-    RMQCluster::sm_spec()
-}
-
-pub open spec fn at_rabbitmq_step(key: ObjectRef, step: RabbitmqReconcileStep) -> StatePred<RMQCluster>
-    recommends
-        key.kind.is_CustomResourceKind()
-{
-    |s: RMQCluster| {
-        &&& s.ongoing_reconciles().contains_key(key)
-        &&& s.ongoing_reconciles()[key].local_state.reconcile_step == step
-    }
-}
-
-pub open spec fn at_step_closure(step: RabbitmqReconcileStep) -> FnSpec(RabbitmqReconcileState) -> bool {
-    |s: RabbitmqReconcileState| s.reconcile_step == step
-}
-
 pub open spec fn at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, step: RabbitmqReconcileStep) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         &&& s.ongoing_reconciles().contains_key(rabbitmq.object_ref())
