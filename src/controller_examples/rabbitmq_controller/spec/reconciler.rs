@@ -192,13 +192,18 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder>(
                     }
                 },
                 ActionKind::Create => {
-                    let update_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
+                    let create_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
                     if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
-                    && update_resp.is_Ok() {
-                        let state_prime = Builder::state_after_create_or_update(update_resp.get_Ok_0(), state);
+                    && create_resp.is_Ok() {
+                        let state_prime = Builder::state_after_create_or_update(create_resp.get_Ok_0(), state);
                         if state_prime.is_Ok() {
-                            let req_o = next_resource_get_request(rabbitmq, resource);
-                            (state_prime.get_Ok_0(), if req_o.is_Some() { Some(RequestView::KRequest(APIRequest::GetRequest(req_o.get_Some_0()))) } else { None })
+                            let (next_step, req_opt) = next_resource_get_step_and_request(rabbitmq, resource);
+                            let state_prime_with_next_step = RabbitmqReconcileState {
+                                reconcile_step: next_step,
+                                ..state_prime.get_Ok_0()
+                            };
+                            let req = if req_opt.is_Some() { Some(RequestView::KRequest(APIRequest::GetRequest(req_opt.get_Some_0()))) } else { None };
+                            (state_prime_with_next_step, req)
                         } else {
                             let state_prime = RabbitmqReconcileState {
                                 reconcile_step: RabbitmqReconcileStep::Error,
@@ -221,8 +226,13 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder>(
                     && update_resp.is_Ok() {
                         let state_prime = Builder::state_after_create_or_update(update_resp.get_Ok_0(), state);
                         if state_prime.is_Ok() {
-                            let req_o = next_resource_get_request(rabbitmq, resource);
-                            (state_prime.get_Ok_0(), if req_o.is_Some() { Some(RequestView::KRequest(APIRequest::GetRequest(req_o.get_Some_0()))) } else { None })
+                            let (next_step, req_opt) = next_resource_get_step_and_request(rabbitmq, resource);
+                            let state_prime_with_next_step = RabbitmqReconcileState {
+                                reconcile_step: next_step,
+                                ..state_prime.get_Ok_0()
+                            };
+                            let req = if req_opt.is_Some() { Some(RequestView::KRequest(APIRequest::GetRequest(req_opt.get_Some_0()))) } else { None };
+                            (state_prime_with_next_step, req)
                         } else {
                             let state_prime = RabbitmqReconcileState {
                                 reconcile_step: RabbitmqReconcileStep::Error,
@@ -251,19 +261,23 @@ pub open spec fn reconcile_helper<Builder: ResourceBuilder>(
     }
 }
 
-pub open spec fn next_resource_get_request(rabbitmq: RabbitmqClusterView, sub_resource: SubResource) -> Option<GetRequest> {
+pub open spec fn next_resource_get_step_and_request(rabbitmq: RabbitmqClusterView, sub_resource: SubResource) -> (RabbitmqReconcileStep, Option<GetRequest>) {
     match sub_resource {
-        SubResource::HeadlessService => Some(ServiceBuilder::get_request(rabbitmq)),
-        SubResource::Service => Some(ErlangCookieBuilder::get_request(rabbitmq)),
-        SubResource::ErlangCookieSecret => Some(DefaultUserSecretBuilder::get_request(rabbitmq)),
-        SubResource::DefaultUserSecret => Some(PluginsConfigMapBuilder::get_request(rabbitmq)),
-        SubResource::PluginsConfigMap => Some(ServerConfigMapBuilder::get_request(rabbitmq)),
-        SubResource::ServerConfigMap => Some(ServiceAccountBuilder::get_request(rabbitmq)),
-        SubResource::ServiceAccount => Some(RoleBuilder::get_request(rabbitmq)),
-        SubResource::Role => Some(RoleBindingBuilder::get_request(rabbitmq)),
-        SubResource::RoleBinding => Some(StatefulSetBuilder::get_request(rabbitmq)),
-        _ => None,
+        SubResource::HeadlessService => (after_get_k_request_step(SubResource::Service), Some(ServiceBuilder::get_request(rabbitmq))),
+        SubResource::Service => (after_get_k_request_step(SubResource::ErlangCookieSecret), Some(ErlangCookieBuilder::get_request(rabbitmq))),
+        SubResource::ErlangCookieSecret => (after_get_k_request_step(SubResource::DefaultUserSecret), Some(DefaultUserSecretBuilder::get_request(rabbitmq))),
+        SubResource::DefaultUserSecret => (after_get_k_request_step(SubResource::PluginsConfigMap), Some(PluginsConfigMapBuilder::get_request(rabbitmq))),
+        SubResource::PluginsConfigMap => (after_get_k_request_step(SubResource::ServerConfigMap), Some(ServerConfigMapBuilder::get_request(rabbitmq))),
+        SubResource::ServerConfigMap => (after_get_k_request_step(SubResource::ServiceAccount), Some(ServiceAccountBuilder::get_request(rabbitmq))),
+        SubResource::ServiceAccount => (after_get_k_request_step(SubResource::Role), Some(RoleBuilder::get_request(rabbitmq))),
+        SubResource::Role => (after_get_k_request_step(SubResource::RoleBinding), Some(RoleBindingBuilder::get_request(rabbitmq))),
+        SubResource::RoleBinding => (after_get_k_request_step(SubResource::StatefulSet), Some(StatefulSetBuilder::get_request(rabbitmq))),
+        _ => (RabbitmqReconcileStep::Done, None),
     }
+}
+
+pub open spec fn after_get_k_request_step(sub_resource: SubResource) -> RabbitmqReconcileStep {
+    RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource)
 }
 
 }

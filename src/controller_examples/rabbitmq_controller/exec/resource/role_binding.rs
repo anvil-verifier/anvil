@@ -48,10 +48,7 @@ impl ResourceBuilder<spec_resource::RoleBindingBuilder> for RoleBindingBuilder {
     fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
         let rb = RoleBinding::unmarshal(obj);
         if rb.is_ok() {
-            Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
-                ..state
-            })
+            Ok(state)
         } else {
             Err(RabbitmqError::Error)
         }
