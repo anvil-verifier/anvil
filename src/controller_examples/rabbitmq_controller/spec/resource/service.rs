@@ -22,7 +22,7 @@ verus! {
 
 pub struct ServiceBuilder {}
 
-impl ResourceBuilder<ServiceView> for ServiceBuilder {
+impl ResourceBuilder for ServiceBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
         GetRequest { key: make_main_service_key(rabbitmq) }
     }
@@ -44,11 +44,25 @@ impl ResourceBuilder<ServiceView> for ServiceBuilder {
         let service = ServiceView::unmarshal(obj);
         if service.is_Ok() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::ErlangCookieSecret),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ErlangCookieSecret),
                 ..state
             })
         } else {
             Err(RabbitmqError::Error)
+        }
+    }
+
+    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
+        let key = make_main_service_key(rabbitmq);
+        let obj = resources[key];
+        let made_spec = make_main_service(rabbitmq).spec.get_Some_0();
+        let spec = ServiceView::unmarshal(obj).get_Ok_0().spec.get_Some_0();
+        &&& resources.contains_key(key)
+        &&& ServiceView::unmarshal(obj).is_Ok()
+        &&& ServiceView::unmarshal(obj).get_Ok_0().spec.is_Some()
+        &&& made_spec == ServiceSpecView {
+            cluster_ip: made_spec.cluster_ip,
+            ..spec
         }
     }
 }

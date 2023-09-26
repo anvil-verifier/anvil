@@ -23,7 +23,7 @@ verus! {
 
 pub struct ServerConfigMapBuilder {}
 
-impl ResourceBuilder<ConfigMap, spec_resource::ServerConfigMapBuilder> for ServerConfigMapBuilder {
+impl ResourceBuilder<spec_resource::ServerConfigMapBuilder> for ServerConfigMapBuilder {
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: ConfigMap::api_resource(),
@@ -49,7 +49,7 @@ impl ResourceBuilder<ConfigMap, spec_resource::ServerConfigMapBuilder> for Serve
         let cm = ConfigMap::unmarshal(obj);
         if cm.is_ok() && cm.as_ref().unwrap().metadata().resource_version().is_some() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::ServiceAccount),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServiceAccount),
                 latest_config_map_rv_opt: Some(cm.unwrap().metadata().resource_version().unwrap()),
                 ..state
             })

@@ -23,7 +23,7 @@ verus! {
 
 pub struct ServiceAccountBuilder {}
 
-impl ResourceBuilder<ServiceAccount, spec_resource::ServiceAccountBuilder> for ServiceAccountBuilder {
+impl ResourceBuilder<spec_resource::ServiceAccountBuilder> for ServiceAccountBuilder {
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: ServiceAccount::api_resource(),
@@ -49,7 +49,7 @@ impl ResourceBuilder<ServiceAccount, spec_resource::ServiceAccountBuilder> for S
         let sa = ServiceAccount::unmarshal(obj);
         if sa.is_ok() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::Role),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Role),
                 ..state
             })
         } else {

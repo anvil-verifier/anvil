@@ -22,7 +22,7 @@ verus! {
 
 pub struct PluginsConfigMapBuilder {}
 
-impl ResourceBuilder<ConfigMapView> for PluginsConfigMapBuilder {
+impl ResourceBuilder for PluginsConfigMapBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
         GetRequest { key: make_plugins_config_map_key(rabbitmq) }
     }
@@ -44,12 +44,20 @@ impl ResourceBuilder<ConfigMapView> for PluginsConfigMapBuilder {
         let cm = ConfigMapView::unmarshal(obj);
         if cm.is_Ok() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::ServerConfigMap),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServerConfigMap),
                 ..state
             })
         } else {
             Err(RabbitmqError::Error)
         }
+    }
+
+    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
+        let key = make_plugins_config_map_key(rabbitmq);
+        let obj = resources[key];
+        &&& resources.contains_key(key)
+        &&& ConfigMapView::unmarshal(obj).is_Ok()
+        &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == make_plugins_config_map(rabbitmq).data
     }
 }
 

@@ -9,6 +9,7 @@ use crate::kubernetes_api_objects::{
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::rabbitmq_controller::common::*;
+use crate::rabbitmq_controller::spec::resource::config_map::ServerConfigMapBuilder;
 use crate::rabbitmq_controller::spec::types::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::{action::*, state_machine::*};
@@ -21,7 +22,7 @@ verus! {
 
 pub struct StatefulSetBuilder {}
 
-impl ResourceBuilder<StatefulSetView> for StatefulSetBuilder {
+impl ResourceBuilder for StatefulSetBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
         GetRequest { key: make_stateful_set_key(rabbitmq) }
     }
@@ -55,6 +56,19 @@ impl ResourceBuilder<StatefulSetView> for StatefulSetBuilder {
         } else {
             Err(RabbitmqError::Error)
         }
+    }
+
+    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
+        let key = make_stateful_set_key(rabbitmq);
+        let obj = resources[key];
+        let cm_key = ServerConfigMapBuilder::get_request(rabbitmq).key;
+        let cm_obj = resources[cm_key];
+        &&& resources.contains_key(key)
+        &&& resources.contains_key(cm_key)
+        &&& cm_obj.metadata.resource_version.is_Some()
+        &&& StatefulSetView::unmarshal(obj).is_Ok()
+        &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec
+            == (#[trigger] make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version.get_Some_0()))).spec
     }
 }
 

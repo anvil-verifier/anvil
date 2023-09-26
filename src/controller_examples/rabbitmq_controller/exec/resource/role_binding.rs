@@ -23,7 +23,7 @@ verus! {
 
 pub struct RoleBindingBuilder {}
 
-impl ResourceBuilder<RoleBinding, spec_resource::RoleBindingBuilder> for RoleBindingBuilder {
+impl ResourceBuilder<spec_resource::RoleBindingBuilder> for RoleBindingBuilder {
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: RoleBinding::api_resource(),
@@ -49,7 +49,7 @@ impl ResourceBuilder<RoleBinding, spec_resource::RoleBindingBuilder> for RoleBin
         let rb = RoleBinding::unmarshal(obj);
         if rb.is_ok() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::StatefulSet),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::StatefulSet),
                 ..state
             })
         } else {

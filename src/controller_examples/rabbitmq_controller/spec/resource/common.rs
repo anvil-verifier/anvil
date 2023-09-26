@@ -18,7 +18,7 @@ use vstd::string::*;
 
 verus! {
 
-pub trait ResourceBuilder<T> {
+pub trait ResourceBuilder {
     spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest;
 
     spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, RabbitmqError>;
@@ -26,6 +26,10 @@ pub trait ResourceBuilder<T> {
     spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, RabbitmqError>;
 
     spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> Result<RabbitmqReconcileState, RabbitmqError>;
+
+    /// resource_state_matches takes the cr and an object that stores all resources, then it will check whether the resource pool
+    /// reaches the desired state in the view of the object that it builds.
+    spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool;
 }
 
 pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView>

@@ -23,7 +23,7 @@ verus! {
 
 pub struct ServiceBuilder {}
 
-impl ResourceBuilder<Service, spec_resource::ServiceBuilder> for ServiceBuilder {
+impl ResourceBuilder<spec_resource::ServiceBuilder> for ServiceBuilder {
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: Service::api_resource(),
@@ -49,7 +49,7 @@ impl ResourceBuilder<Service, spec_resource::ServiceBuilder> for ServiceBuilder 
         let service = Service::unmarshal(obj);
         if service.is_ok() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::ErlangCookieSecret),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ErlangCookieSecret),
                 ..state
             })
         } else {

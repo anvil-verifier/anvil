@@ -22,7 +22,7 @@ verus! {
 
 pub struct ServiceAccountBuilder {}
 
-impl ResourceBuilder<ServiceAccountView> for ServiceAccountBuilder {
+impl ResourceBuilder for ServiceAccountBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
         GetRequest { key: make_service_account_key(rabbitmq) }
     }
@@ -44,12 +44,20 @@ impl ResourceBuilder<ServiceAccountView> for ServiceAccountBuilder {
         let sa = ServiceAccountView::unmarshal(obj);
         if sa.is_Ok() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::Role),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Role),
                 ..state
             })
         } else {
             Err(RabbitmqError::Error)
         }
+    }
+
+    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
+        let key = make_service_account_key(rabbitmq);
+        let obj = resources[key];
+        &&& resources.contains_key(key)
+        &&& ServiceAccountView::unmarshal(obj).is_Ok()
+        &&& ServiceAccountView::unmarshal(obj).get_Ok_0().automount_service_account_token == make_service_account(rabbitmq).automount_service_account_token
     }
 }
 

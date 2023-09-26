@@ -23,7 +23,7 @@ verus! {
 
 pub struct DefaultUserSecretBuilder {}
 
-impl ResourceBuilder<Secret, spec_resource::DefaultUserSecretBuilder> for DefaultUserSecretBuilder {
+impl ResourceBuilder<spec_resource::DefaultUserSecretBuilder> for DefaultUserSecretBuilder {
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: Secret::api_resource(),
@@ -49,7 +49,7 @@ impl ResourceBuilder<Secret, spec_resource::DefaultUserSecretBuilder> for Defaul
         let secret = Secret::unmarshal(obj);
         if secret.is_ok() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::PluginsConfigMap),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::PluginsConfigMap),
                 ..state
             })
         } else {

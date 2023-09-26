@@ -22,7 +22,7 @@ verus! {
 
 pub struct ErlangCookieBuilder {}
 
-impl ResourceBuilder<SecretView> for ErlangCookieBuilder {
+impl ResourceBuilder for ErlangCookieBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
         GetRequest { key: make_erlang_secret_key(rabbitmq) }
     }
@@ -44,12 +44,20 @@ impl ResourceBuilder<SecretView> for ErlangCookieBuilder {
         let secret = SecretView::unmarshal(obj);
         if secret.is_Ok() {
             Ok(RabbitmqReconcileState {
-                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, ResourceKind::DefaultUserSecret),
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::DefaultUserSecret),
                 ..state
             })
         } else {
             Err(RabbitmqError::Error)
         }
+    }
+
+    open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
+        let key = make_erlang_secret_key(rabbitmq);
+        let obj = resources[key];
+        &&& resources.contains_key(key)
+        &&& SecretView::unmarshal(obj).is_Ok()
+        &&& SecretView::unmarshal(obj).get_Ok_0().data == make_erlang_secret(rabbitmq).data
     }
 }
 

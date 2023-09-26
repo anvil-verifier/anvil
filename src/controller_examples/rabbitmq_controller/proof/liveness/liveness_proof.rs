@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use super::terminate;
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, dynamic::*, owner_reference::*, resource::*,
@@ -16,45 +15,13 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::rabbitmq_controller::{
     common::*,
-    proof::{common::*, helper_invariants},
+    proof::{common::*, helper_invariants, property, terminate},
     spec::{reconciler::*, types::*},
 };
 use crate::temporal_logic::{defs::*, rules::*};
 use vstd::prelude::*;
 
 verus! {
-
-// The current config map matches the desired state described in the cr.
-// I.e., the corresponding stateful set exists and its spec is the same as desired.
-spec fn current_config_map_matches(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
-    |s: RMQCluster| {
-        &&& s.resources().contains_key(make_server_config_map_key(rabbitmq.object_ref()))
-        &&& ConfigMapView::unmarshal(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).is_Ok()
-        &&& ConfigMapView::unmarshal(s.resources()[make_server_config_map_key(rabbitmq.object_ref())]).get_Ok_0().data == make_server_config_map(rabbitmq).data
-    }
-}
-
-// The current stateful set matches the desired state described in the cr.
-// I.e., the corresponding stateful set exists and its spec is the same as desired.
-spec fn current_stateful_set_matches(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
-    |s: RMQCluster| {
-        &&& s.resources().contains_key(make_stateful_set_key(rabbitmq.object_ref()))
-        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).is_Ok()
-        &&& StatefulSetView::unmarshal(s.resources()[make_stateful_set_key(rabbitmq.object_ref())]).get_Ok_0().spec == make_stateful_set(rabbitmq).spec
-    }
-}
-
-spec fn current_state_matches(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
-    lift_state(current_config_map_matches(rabbitmq)).and(lift_state(current_stateful_set_matches(rabbitmq)))
-}
-
-// The liveness property says []desired_state_is(rabbitmq) ~> []current_state_matches(rabbitmq).
-spec fn liveness(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster>
-    recommends
-        rabbitmq.well_formed(),
-{
-    always(lift_state(RMQCluster::desired_state_is(rabbitmq))).leads_to(always(current_state_matches(rabbitmq)))
-}
 
 // We prove init /\ []next /\ []wf |= []RMQCluster::desired_state_is(rabbitmq) ~> []current_state_matches(rabbitmq) holds for each rabbitmq.
 proof fn liveness_proof_forall_rabbitmq()
