@@ -2,5 +2,6 @@
 // SPDX-License-Identifier: MIT
 // pub mod common;
 pub mod liveness;
+pub mod resource;
 // pub mod safety;
 // pub mod helper_invariants;
