@@ -21,7 +21,7 @@ verus! {
 
 pub struct StatefulSetBuilder {}
 
-impl ResourceBuilder<StatefulSetView> for StatefulSetBuilder {
+impl ResourceBuilder for StatefulSetBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
         GetRequest { key: make_stateful_set_key(rabbitmq) }
     }

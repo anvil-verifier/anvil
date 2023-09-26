@@ -22,7 +22,7 @@ verus! {
 
 pub struct ServerConfigMapBuilder {}
 
-impl ResourceBuilder<ConfigMapView> for ServerConfigMapBuilder {
+impl ResourceBuilder for ServerConfigMapBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
         GetRequest { key: make_server_config_map_key(rabbitmq) }
     }

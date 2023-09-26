@@ -22,7 +22,7 @@ verus! {
 
 pub struct HeadlessServiceBuilder {}
 
-impl ResourceBuilder<ServiceView> for HeadlessServiceBuilder {
+impl ResourceBuilder for HeadlessServiceBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
         GetRequest { key: make_headless_service_key(rabbitmq) }
     }

@@ -22,7 +22,7 @@ verus! {
 
 pub struct DefaultUserSecretBuilder {}
 
-impl ResourceBuilder<SecretView> for DefaultUserSecretBuilder {
+impl ResourceBuilder for DefaultUserSecretBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
         GetRequest { key: make_default_user_secret_key(rabbitmq) }
     }
@@ -55,7 +55,6 @@ impl ResourceBuilder<SecretView> for DefaultUserSecretBuilder {
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
         &&& SecretView::unmarshal(obj).is_Ok()
         &&& SecretView::unmarshal(obj).get_Ok_0().data == make_default_user_secret(rabbitmq).data
-        &&& SecretView::unmarshal(obj).get_Ok_0().type_ == make_default_user_secret(rabbitmq).type_
     }
 }
 

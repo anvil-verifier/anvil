@@ -18,7 +18,7 @@ use vstd::string::*;
 
 verus! {
 
-pub trait ResourceBuilder<T> {
+pub trait ResourceBuilder {
     spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest;
 
     spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, RabbitmqError>;

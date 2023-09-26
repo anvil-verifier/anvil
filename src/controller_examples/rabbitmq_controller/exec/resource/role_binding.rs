@@ -23,7 +23,7 @@ verus! {
 
 pub struct RoleBindingBuilder {}
 
-impl ResourceBuilder<RoleBinding, spec_resource::RoleBindingBuilder> for RoleBindingBuilder {
+impl ResourceBuilder<spec_resource::RoleBindingBuilder> for RoleBindingBuilder {
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: RoleBinding::api_resource(),

@@ -23,7 +23,7 @@ verus! {
 
 pub struct ServerConfigMapBuilder {}
 
-impl ResourceBuilder<ConfigMap, spec_resource::ServerConfigMapBuilder> for ServerConfigMapBuilder {
+impl ResourceBuilder<spec_resource::ServerConfigMapBuilder> for ServerConfigMapBuilder {
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: ConfigMap::api_resource(),

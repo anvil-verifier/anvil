@@ -22,7 +22,7 @@ verus! {
 
 pub struct ServiceBuilder {}
 
-impl ResourceBuilder<ServiceView> for ServiceBuilder {
+impl ResourceBuilder for ServiceBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
         GetRequest { key: make_main_service_key(rabbitmq) }
     }

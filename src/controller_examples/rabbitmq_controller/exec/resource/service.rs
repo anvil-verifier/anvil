@@ -23,7 +23,7 @@ verus! {
 
 pub struct ServiceBuilder {}
 
-impl ResourceBuilder<Service, spec_resource::ServiceBuilder> for ServiceBuilder {
+impl ResourceBuilder<spec_resource::ServiceBuilder> for ServiceBuilder {
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: Service::api_resource(),

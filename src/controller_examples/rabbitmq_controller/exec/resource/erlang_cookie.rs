@@ -23,7 +23,7 @@ verus! {
 
 pub struct ErlangCookieBuilder {}
 
-impl ResourceBuilder<Secret, spec_resource::ErlangCookieBuilder> for ErlangCookieBuilder {
+impl ResourceBuilder<spec_resource::ErlangCookieBuilder> for ErlangCookieBuilder {
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: Secret::api_resource(),

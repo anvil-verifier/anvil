@@ -94,34 +94,34 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         RabbitmqReconcileStep::AfterKRequestStep(_, resource) => {
             match resource {
                 ResourceKind::HeadlessService => {
-                    reconcile_helper::<Service, spec_resource::HeadlessServiceBuilder, HeadlessServiceBuilder>(rabbitmq, resp_o, state)
+                    reconcile_helper::<spec_resource::HeadlessServiceBuilder, HeadlessServiceBuilder>(rabbitmq, resp_o, state)
                 },
                 ResourceKind::Service => {
-                    reconcile_helper::<Service, spec_resource::ServiceBuilder, ServiceBuilder>(rabbitmq, resp_o, state)
+                    reconcile_helper::<spec_resource::ServiceBuilder, ServiceBuilder>(rabbitmq, resp_o, state)
                 },
                 ResourceKind::ErlangCookieSecret => {
-                    reconcile_helper::<Secret, spec_resource::ErlangCookieBuilder, ErlangCookieBuilder>(rabbitmq, resp_o, state)
+                    reconcile_helper::<spec_resource::ErlangCookieBuilder, ErlangCookieBuilder>(rabbitmq, resp_o, state)
                 },
                 ResourceKind::DefaultUserSecret => {
-                    reconcile_helper::<Secret, spec_resource::DefaultUserSecretBuilder, DefaultUserSecretBuilder>(rabbitmq, resp_o, state)
+                    reconcile_helper::<spec_resource::DefaultUserSecretBuilder, DefaultUserSecretBuilder>(rabbitmq, resp_o, state)
                 },
                 ResourceKind::PluginsConfigMap => {
-                    reconcile_helper::<ConfigMap, spec_resource::PluginsConfigMapBuilder, PluginsConfigMapBuilder>(rabbitmq, resp_o, state)
+                    reconcile_helper::<spec_resource::PluginsConfigMapBuilder, PluginsConfigMapBuilder>(rabbitmq, resp_o, state)
                 },
                 ResourceKind::ServerConfigMap => {
-                    reconcile_helper::<ConfigMap, spec_resource::ServerConfigMapBuilder, ServerConfigMapBuilder>(rabbitmq, resp_o, state)
+                    reconcile_helper::<spec_resource::ServerConfigMapBuilder, ServerConfigMapBuilder>(rabbitmq, resp_o, state)
                 },
                 ResourceKind::ServiceAccount => {
-                    reconcile_helper::<ServiceAccount, spec_resource::ServiceAccountBuilder, ServiceAccountBuilder>(rabbitmq, resp_o, state)
+                    reconcile_helper::<spec_resource::ServiceAccountBuilder, ServiceAccountBuilder>(rabbitmq, resp_o, state)
                 },
                 ResourceKind::Role => {
-                    reconcile_helper::<Role, spec_resource::RoleBuilder, RoleBuilder>(rabbitmq, resp_o, state)
+                    reconcile_helper::<spec_resource::RoleBuilder, RoleBuilder>(rabbitmq, resp_o, state)
                 },
                 ResourceKind::RoleBinding => {
-                    reconcile_helper::<RoleBinding, spec_resource::RoleBindingBuilder, RoleBindingBuilder>(rabbitmq, resp_o, state)
+                    reconcile_helper::<spec_resource::RoleBindingBuilder, RoleBindingBuilder>(rabbitmq, resp_o, state)
                 },
                 ResourceKind::StatefulSet => {
-                    reconcile_helper::<StatefulSet, spec_resource::StatefulSetBuilder, StatefulSetBuilder>(rabbitmq, resp_o, state)
+                    reconcile_helper::<spec_resource::StatefulSetBuilder, StatefulSetBuilder>(rabbitmq, resp_o, state)
                 },
             }
         },
@@ -132,9 +132,8 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
 }
 
 pub fn reconcile_helper<
-    T: View,
-    SpecBuilder: spec_resource::ResourceBuilder<T::V>,
-    Builder: ResourceBuilder<T, SpecBuilder>
+    SpecBuilder: spec_resource::ResourceBuilder,
+    Builder: ResourceBuilder<SpecBuilder>
 >(
     rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState
 ) -> (res: (RabbitmqReconcileState, Option<Request<EmptyType>>))
@@ -143,7 +142,7 @@ pub fn reconcile_helper<
         rabbitmq@.metadata.namespace.is_Some(),
         state.reconcile_step.is_AfterKRequestStep(),
     ensures
-        (res.0@, opt_request_to_view(&res.1)) == rabbitmq_spec::reconcile_helper::<T::V, SpecBuilder>(rabbitmq@, opt_response_to_view(&resp_o), state@),
+        (res.0@, opt_request_to_view(&res.1)) == rabbitmq_spec::reconcile_helper::<SpecBuilder>(rabbitmq@, opt_response_to_view(&resp_o), state@),
 {
     let step = state.reconcile_step.clone();
     match step {

@@ -22,7 +22,7 @@ verus! {
 
 pub struct ErlangCookieBuilder {}
 
-impl ResourceBuilder<SecretView> for ErlangCookieBuilder {
+impl ResourceBuilder for ErlangCookieBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
         GetRequest { key: make_erlang_secret_key(rabbitmq) }
     }
@@ -55,7 +55,6 @@ impl ResourceBuilder<SecretView> for ErlangCookieBuilder {
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, obj: DynamicObjectView) -> bool {
         &&& SecretView::unmarshal(obj).is_Ok()
         &&& SecretView::unmarshal(obj).get_Ok_0().data == make_erlang_secret(rabbitmq).data
-        &&& SecretView::unmarshal(obj).get_Ok_0().type_ == make_erlang_secret(rabbitmq).type_
     }
 }
 

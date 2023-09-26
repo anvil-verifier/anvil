@@ -23,7 +23,7 @@ verus! {
 
 pub struct PluginsConfigMapBuilder {}
 
-impl ResourceBuilder<ConfigMap, spec_resource::PluginsConfigMapBuilder> for PluginsConfigMapBuilder {
+impl ResourceBuilder<spec_resource::PluginsConfigMapBuilder> for PluginsConfigMapBuilder {
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: ConfigMap::api_resource(),

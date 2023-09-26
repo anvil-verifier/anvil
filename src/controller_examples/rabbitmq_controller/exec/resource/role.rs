@@ -23,7 +23,7 @@ verus! {
 
 pub struct RoleBuilder {}
 
-impl ResourceBuilder<Role, spec_resource::RoleBuilder> for RoleBuilder {
+impl ResourceBuilder<spec_resource::RoleBuilder> for RoleBuilder {
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: Role::api_resource(),

@@ -22,7 +22,7 @@ verus! {
 
 pub struct StatefulSetBuilder {}
 
-impl ResourceBuilder<StatefulSet, spec_resource::StatefulSetBuilder> for StatefulSetBuilder {
+impl ResourceBuilder<spec_resource::StatefulSetBuilder> for StatefulSetBuilder {
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: StatefulSet::api_resource(),

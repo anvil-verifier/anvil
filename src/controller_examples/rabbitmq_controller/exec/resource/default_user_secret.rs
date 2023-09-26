@@ -23,7 +23,7 @@ verus! {
 
 pub struct DefaultUserSecretBuilder {}
 
-impl ResourceBuilder<Secret, spec_resource::DefaultUserSecretBuilder> for DefaultUserSecretBuilder {
+impl ResourceBuilder<spec_resource::DefaultUserSecretBuilder> for DefaultUserSecretBuilder {
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: Secret::api_resource(),

@@ -23,7 +23,7 @@ verus! {
 
 pub struct HeadlessServiceBuilder {}
 
-impl ResourceBuilder<Service, spec_resource::HeadlessServiceBuilder> for HeadlessServiceBuilder {
+impl ResourceBuilder<spec_resource::HeadlessServiceBuilder> for HeadlessServiceBuilder {
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: Service::api_resource(),

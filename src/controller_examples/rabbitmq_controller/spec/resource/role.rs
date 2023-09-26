@@ -22,7 +22,7 @@ verus! {
 
 pub struct RoleBuilder {}
 
-impl ResourceBuilder<RoleView> for RoleBuilder {
+impl ResourceBuilder for RoleBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
         GetRequest { key: make_role_key(rabbitmq) }
     }

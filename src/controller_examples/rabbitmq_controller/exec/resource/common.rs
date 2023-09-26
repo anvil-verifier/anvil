@@ -18,7 +18,7 @@ use vstd::string::*;
 
 verus! {
 
-pub trait ResourceBuilder<T: View, SpecBuilder: spec_resource::ResourceBuilder<T::V>> {
+pub trait ResourceBuilder<SpecBuilder: spec_resource::ResourceBuilder> {
     fn get_request(rabbitmq: &RabbitmqCluster) -> (req: KubeGetRequest)
         requires
             rabbitmq@.metadata.name.is_Some(),
