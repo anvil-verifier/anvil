@@ -43,4 +43,12 @@ pub open spec fn at_step_closure(step: RabbitmqReconcileStep) -> FnSpec(Rabbitmq
     |s: RabbitmqReconcileState| s.reconcile_step == step
 }
 
+pub open spec fn after_create_k_request_step(sub_resource: SubResource) -> RabbitmqReconcileStep {
+    RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource)
+}
+
+pub open spec fn after_update_k_request_step(sub_resource: SubResource) -> RabbitmqReconcileStep {
+    RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource)
+}
+
 }
