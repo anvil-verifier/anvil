@@ -24,7 +24,6 @@ pub struct ZookeeperReconcileState {
     // reconcile_step, like a program counter, is used to track the progress of reconcile_core
     // since reconcile_core is frequently "trapped" into the controller_runtime spec.
     pub reconcile_step: ZookeeperReconcileStep,
-    pub found_stateful_set_opt: Option<StatefulSet>,
     pub latest_config_map_rv_opt: Option<String>,
 }
 
@@ -32,10 +31,6 @@ impl ZookeeperReconcileState {
     pub open spec fn to_view(&self) -> zk_spec::ZookeeperReconcileState {
         zk_spec::ZookeeperReconcileState {
             reconcile_step: self.reconcile_step,
-            found_stateful_set_opt: match &self.found_stateful_set_opt {
-                Some(sts) => Some(sts@),
-                None => None,
-            },
             latest_config_map_rv_opt: match &self.latest_config_map_rv_opt {
                 Some(s) => Some(s@),
                 None => None,
@@ -77,7 +72,6 @@ pub fn reconcile_init_state() -> (state: ZookeeperReconcileState)
 {
     ZookeeperReconcileState {
         reconcile_step: ZookeeperReconcileStep::Init,
-        found_stateful_set_opt: None,
         latest_config_map_rv_opt: None,
     }
 }
@@ -109,6 +103,7 @@ pub fn reconcile_core(
         zk@.well_formed(),
     ensures
         (res.0.to_view(), opt_request_to_view(&res.1)) == zk_spec::reconcile_core(zk@, opt_response_to_view(&resp_o), state.to_view()),
+        resource_version_check(opt_response_to_view(&resp_o), opt_request_to_view(&res.1)),
 {
     let step = state.reconcile_step;
     match step {
@@ -523,44 +518,30 @@ pub fn reconcile_core(
             && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
                 let get_stateful_set_resp = resp_o.unwrap().into_k_response().into_get_response().res;
                 if get_stateful_set_resp.is_ok() {
-                    let unmarshal_stateful_set_result = StatefulSet::unmarshal(get_stateful_set_resp.unwrap());
-                    if unmarshal_stateful_set_result.is_ok() {
-                        let found_stateful_set = unmarshal_stateful_set_result.unwrap();
-                        // Only proceed if the stateful set is owned by the current cr
-                        // so that we won't accidentally update ports or some other mutable fields.
-                        if found_stateful_set.metadata().owner_references_only_contains(zk.controller_owner_ref()) {
-                            // Updating the stateful set can lead to downscale,
-                            // which also requires to remove the zookeeper replica from the membership list explicitly.
-                            // If the zookeeper replica is deleted without being removed from the membership,
-                            // the zookeeper cluster might be unavailable because of losing the quorum.
-                            // So the controller needs to correctly prompt membership change before reducing the replica
-                            // size of the stateful set, by writing the new replica size into the zookeeper API.
-                            // Details can be found in https://github.com/vmware-research/verifiable-controllers/issues/174.
-                            let state_prime = ZookeeperReconcileState {
-                                reconcile_step: ZookeeperReconcileStep::AfterExistsZKNode,
-                                // Save the stateful set found by the get request.
-                                // Later when we want to update sts, we can use the old sts as the base
-                                // and we do not need to call GetRequest again.
-                                found_stateful_set_opt: Some(found_stateful_set),
-                                ..state
-                            };
-                            let node_path = zk_node_path(zk);
-                            let ext_req = ZKAPIInput::ExistsRequest(
-                                zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().ports().client(), node_path
-                            );
-                            return (state_prime, Some(Request::ExternalRequest(ext_req)));
-                        }
-                    }
-                } else if get_stateful_set_resp.unwrap_err().is_object_not_found() && state.latest_config_map_rv_opt.is_some() {
-                    // Create the stateful set since it doesn't exist yet.
-                    let stateful_set = make_stateful_set(zk, state.latest_config_map_rv_opt.as_ref().unwrap());
-                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                    // Updating the stateful set can lead to downscale,
+                    // which also requires to remove the zookeeper replica from the membership list explicitly.
+                    // If the zookeeper replica is deleted without being removed from the membership,
+                    // the zookeeper cluster might be unavailable because of losing the quorum.
+                    // So the controller needs to correctly prompt membership change before reducing the replica
+                    // size of the stateful set, by writing the new replica size into the zookeeper API.
+                    // Details can be found in https://github.com/vmware-research/verifiable-controllers/issues/174.
+                    let state_prime = ZookeeperReconcileState {
+                        reconcile_step: ZookeeperReconcileStep::AfterExistsZKNode,
+                        ..state
+                    };
+                    let node_path = zk_node_path(zk);
+                    let ext_req = ZKAPIInput::ExistsRequest(
+                        zk.metadata().name().unwrap(), zk.metadata().namespace().unwrap(), zk.spec().ports().client(), node_path
+                    );
+                    return (state_prime, Some(Request::ExternalRequest(ext_req)));
+                } else if get_stateful_set_resp.unwrap_err().is_object_not_found() {
+                    let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
                         api_resource: StatefulSet::api_resource(),
+                        name: make_stateful_set_name(zk),
                         namespace: zk.metadata().namespace().unwrap(),
-                        obj: stateful_set.marshal(),
                     });
                     let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::AfterCreateStatefulSet,
+                        reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet2,
                         ..state
                     };
                     return (state_prime, Some(Request::KRequest(req_o)));
@@ -636,27 +617,17 @@ pub fn reconcile_core(
         ZookeeperReconcileStep::AfterCreateZKNode => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
             && resp_o.as_ref().unwrap().as_external_response_ref().is_create_response()
-            && resp_o.unwrap().into_external_response().unwrap_create_response().res.is_ok()
-            && state.found_stateful_set_opt.is_some() && state.latest_config_map_rv_opt.is_some() {
-                // Update the stateful set only after we ensure
-                // that the ZK node has been set correctly.
-                let found_stateful_set = state.found_stateful_set_opt.as_ref().unwrap();
-                if found_stateful_set.spec().is_some() {
-                    let latest_config_map_rv = state.latest_config_map_rv_opt.as_ref().unwrap();
-                    let new_stateful_set = update_stateful_set(zk, found_stateful_set, latest_config_map_rv);
-                    let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
-                        api_resource: StatefulSet::api_resource(),
-                        name: make_stateful_set_name(zk),
-                        namespace: zk.metadata().namespace().unwrap(),
-                        obj: new_stateful_set.marshal(),
-                    });
-                    let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
-                        found_stateful_set_opt: None,
-                        ..state
-                    };
-                    return (state_prime, Some(Request::KRequest(req_o)));
-                }
+            && resp_o.unwrap().into_external_response().unwrap_create_response().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: StatefulSet::api_resource(),
+                    name: make_stateful_set_name(zk),
+                    namespace: zk.metadata().namespace().unwrap(),
+                });
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet2,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
             }
             let state_prime = ZookeeperReconcileState {
                 reconcile_step: ZookeeperReconcileStep::Error,
@@ -667,23 +638,62 @@ pub fn reconcile_core(
         ZookeeperReconcileStep::AfterUpdateZKNode => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_external_response()
             && resp_o.as_ref().unwrap().as_external_response_ref().is_set_data_response()
-            && resp_o.unwrap().into_external_response().unwrap_set_data_response().res.is_ok()
-            && state.found_stateful_set_opt.is_some() && state.latest_config_map_rv_opt.is_some() {
-                // Update the stateful set only after we ensure
-                // that the ZK node has been set correctly.
-                let found_stateful_set = state.found_stateful_set_opt.as_ref().unwrap();
-                if found_stateful_set.spec().is_some() {
-                    let latest_config_map_rv = state.latest_config_map_rv_opt.as_ref().unwrap();
-                    let new_stateful_set = update_stateful_set(zk, found_stateful_set, latest_config_map_rv);
-                    let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+            && resp_o.unwrap().into_external_response().unwrap_set_data_response().res.is_ok() {
+                let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
+                    api_resource: StatefulSet::api_resource(),
+                    name: make_stateful_set_name(zk),
+                    namespace: zk.metadata().namespace().unwrap(),
+                });
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::AfterGetStatefulSet2,
+                    ..state
+                };
+                return (state_prime, Some(Request::KRequest(req_o)));
+            }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
+        },
+        ZookeeperReconcileStep::AfterGetStatefulSet2 => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response()
+            && state.latest_config_map_rv_opt.is_some() {
+                let get_stateful_set_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                if get_stateful_set_resp.is_ok() {
+                    let unmarshal_stateful_set_result = StatefulSet::unmarshal(get_stateful_set_resp.unwrap());
+                    if unmarshal_stateful_set_result.is_ok() {
+                        let found_stateful_set = unmarshal_stateful_set_result.as_ref().unwrap();
+                        // Only proceed if the stateful set is owned by the current cr
+                        // so that we won't accidentally update ports or some other mutable fields.
+                        if found_stateful_set.metadata().owner_references_only_contains(zk.controller_owner_ref())
+                        && found_stateful_set.spec().is_some() {
+                            let latest_config_map_rv = state.latest_config_map_rv_opt.as_ref().unwrap();
+                            let new_stateful_set = update_stateful_set(zk, found_stateful_set, latest_config_map_rv);
+                            let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                                api_resource: StatefulSet::api_resource(),
+                                name: make_stateful_set_name(zk),
+                                namespace: zk.metadata().namespace().unwrap(),
+                                obj: new_stateful_set.marshal(),
+                            });
+                            let state_prime = ZookeeperReconcileState {
+                                reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
+                                ..state
+                            };
+                            return (state_prime, Some(Request::KRequest(req_o)));
+                        }
+                    }
+                } else if get_stateful_set_resp.unwrap_err().is_object_not_found() {
+                    // Create the stateful set since it doesn't exist yet.
+                    let stateful_set = make_stateful_set(zk, state.latest_config_map_rv_opt.as_ref().unwrap());
+                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
                         api_resource: StatefulSet::api_resource(),
-                        name: make_stateful_set_name(zk),
                         namespace: zk.metadata().namespace().unwrap(),
-                        obj: new_stateful_set.marshal(),
+                        obj: stateful_set.marshal(),
                     });
                     let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::AfterUpdateStatefulSet,
-                        found_stateful_set_opt: None,
+                        reconcile_step: ZookeeperReconcileStep::AfterCreateStatefulSet,
                         ..state
                     };
                     return (state_prime, Some(Request::KRequest(req_o)));

@@ -65,15 +65,15 @@ impl ZKState {
 }
 
 pub struct ZKAPIExistsResultView {
-    pub res: Result<Option<ZKNodeVersion>, Error>,
+    pub res: Result<Option<ZKNodeVersion>, ZKAPIError>,
 }
 
 pub struct ZKAPICreateResultView {
-    pub res: Result<(), Error>,
+    pub res: Result<(), ZKAPIError>,
 }
 
 pub struct ZKAPISetDataResultView {
-    pub res: Result<(), Error>,
+    pub res: Result<(), ZKAPIError>,
 }
 
 #[is_variant]
@@ -152,7 +152,7 @@ pub open spec fn handle_exists(
 ) -> (ZKState, ZKAPIExistsResultView) {
     let key = ObjectRef { kind: Kind::StatefulSetKind, namespace: namespace, name: name };
     if !validate(name, namespace, port, path, resources) {
-        (state, ZKAPIExistsResultView{res: Err(Error::ZKNodeExistsFailed)})
+        (state, ZKAPIExistsResultView{res: Err(ZKAPIError::ZKNodeExistsFailed)})
     } else {
         let addr = ZKNodeAddr::new(name, namespace, resources[key].metadata.uid.get_Some_0(), path);
         if !state.data.contains_key(addr) {
@@ -171,12 +171,12 @@ pub open spec fn handle_create(
 ) -> (ZKState, ZKAPICreateResultView) {
     let key = ObjectRef { kind: Kind::StatefulSetKind, namespace: namespace, name: name };
     if !validate(name, namespace, port, path, resources) {
-        (state, ZKAPICreateResultView{res: Err(Error::ZKNodeCreateFailed)})
+        (state, ZKAPICreateResultView{res: Err(ZKAPIError::ZKNodeCreateFailed)})
     } else {
         let addr = ZKNodeAddr::new(name, namespace, resources[key].metadata.uid.get_Some_0(), path);
         if !state.data.contains_key(addr) {
             if path.len() > 1 && !state.data.contains_key(addr.parent_addr()) {
-                (state, ZKAPICreateResultView{res: Err(Error::ZKNodeCreateFailed)})
+                (state, ZKAPICreateResultView{res: Err(ZKAPIError::ZKNodeCreateFailed)})
             } else {
                 let state_prime = ZKState {
                     data: state.data.insert(addr, (data, 0)),
@@ -184,7 +184,7 @@ pub open spec fn handle_create(
                 (state_prime, ZKAPICreateResultView{res: Ok(())})
             }
         } else {
-            (state, ZKAPICreateResultView{res: Err(Error::ZKNodeCreateAlreadyExists)})
+            (state, ZKAPICreateResultView{res: Err(ZKAPIError::ZKNodeCreateAlreadyExists)})
         }
     }
 }
@@ -196,15 +196,15 @@ pub open spec fn handle_set_data(
 ) -> (ZKState, ZKAPISetDataResultView) {
     let key = ObjectRef { kind: Kind::StatefulSetKind, namespace: namespace, name: name };
     if !validate(name, namespace, port, path, resources) {
-        (state, ZKAPISetDataResultView{res: Err(Error::ZKNodeSetDataFailed)})
+        (state, ZKAPISetDataResultView{res: Err(ZKAPIError::ZKNodeSetDataFailed)})
     } else {
         let addr = ZKNodeAddr::new(name, namespace, resources[key].metadata.uid.get_Some_0(), path);
         if !state.data.contains_key(addr) {
-            (state, ZKAPISetDataResultView{res: Err(Error::ZKNodeSetDataFailed)})
+            (state, ZKAPISetDataResultView{res: Err(ZKAPIError::ZKNodeSetDataFailed)})
         } else {
             let current_version = state.data[addr].1;
             if current_version != version {
-                (state, ZKAPISetDataResultView{res: Err(Error::ZKNodeSetDataFailed)})
+                (state, ZKAPISetDataResultView{res: Err(ZKAPIError::ZKNodeSetDataFailed)})
             } else {
                 let state_prime = ZKState {
                     data: state.data.insert(addr, (data, current_version + 1)),

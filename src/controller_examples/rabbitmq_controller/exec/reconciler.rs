@@ -81,6 +81,7 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
         (res.0@, opt_request_to_view(&res.1)) == rabbitmq_spec::reconcile_core(rabbitmq@, opt_response_to_view(&resp_o), state@),
+        resource_version_check(opt_response_to_view(&resp_o), opt_request_to_view(&res.1)),
 {
     match &state.reconcile_step {
         RabbitmqReconcileStep::Init => {

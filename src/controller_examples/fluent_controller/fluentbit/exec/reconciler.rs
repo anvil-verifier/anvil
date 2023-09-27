@@ -99,6 +99,7 @@ pub fn reconcile_core(fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state
         fb@.well_formed(),
     ensures
         (res.0.to_view(), opt_request_to_view(&res.1)) == fb_spec::reconcile_core(fb@, opt_response_to_view(&resp_o), state.to_view()),
+        resource_version_check(opt_response_to_view(&resp_o), opt_request_to_view(&res.1)),
 {
     let step = state.reconcile_step;
     match step{

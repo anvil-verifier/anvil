@@ -16,7 +16,7 @@ use vstd::pervasive::unreached;
 verus! {
 
 pub struct ZKAPIExistsResult {
-    pub res: Result<Option<i32>, Error>,
+    pub res: Result<Option<i32>, ZKAPIError>,
 }
 
 impl ToView for ZKAPIExistsResult {
@@ -33,7 +33,7 @@ impl ToView for ZKAPIExistsResult {
 }
 
 pub struct ZKAPICreateResult {
-    pub res: Result<(), Error>,
+    pub res: Result<(), ZKAPIError>,
 }
 
 impl ToView for ZKAPICreateResult {
@@ -44,7 +44,7 @@ impl ToView for ZKAPICreateResult {
 }
 
 pub struct ZKAPISetDataResult {
-    pub res: Result<(), Error>,
+    pub res: Result<(), ZKAPIError>,
 }
 
 impl ToView for ZKAPISetDataResult {
@@ -207,12 +207,12 @@ pub fn zk_exists(name: String, namespace: String, port: i32, path: Vec<String>) 
 }
 
 #[verifier(external)]
-pub fn zk_exists_internal(name: String, namespace: String, port: i32, path: Vec<String>) -> Result<Option<i32>, Error> {
-    let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|e| Error::ZKNodeExistsFailed)?;
+pub fn zk_exists_internal(name: String, namespace: String, port: i32, path: Vec<String>) -> Result<Option<i32>, ZKAPIError> {
+    let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|e| ZKAPIError::ZKNodeExistsFailed)?;
     let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
     println!("Checking existence of {} ...", &path_as_string);
     match zk_client.exists(path_as_string.as_str(), false) {
-        Err(e) => Err(Error::ZKNodeExistsFailed),
+        Err(e) => Err(ZKAPIError::ZKNodeExistsFailed),
         Ok(o) => match o {
             Some(stat) => Ok(Some(stat.version)),
             None => Ok(None),
@@ -231,15 +231,15 @@ pub fn zk_create(name: String, namespace: String, port: i32, path: Vec<String>, 
 }
 
 #[verifier(external)]
-pub fn zk_create_internal(name: String, namespace: String, port: i32, path: Vec<String>, data: String) -> Result<(), Error> {
-    let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|e| Error::ZKNodeCreateFailed)?;
+pub fn zk_create_internal(name: String, namespace: String, port: i32, path: Vec<String>, data: String) -> Result<(), ZKAPIError> {
+    let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|e| ZKAPIError::ZKNodeCreateFailed)?;
     let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
     let data_as_string = data.into_rust_string();
     println!("Creating {} {} ...", &path_as_string, &data_as_string);
     match zk_client.create(path_as_string.as_str(), data_as_string.as_str().as_bytes().to_vec(), Acl::open_unsafe().to_vec(), CreateMode::Persistent) {
         Err(e) => match e {
-            ZkError::NodeExists => Err(Error::ZKNodeCreateAlreadyExists),
-            _ => Err(Error::ZKNodeCreateFailed),
+            ZkError::NodeExists => Err(ZKAPIError::ZKNodeCreateAlreadyExists),
+            _ => Err(ZKAPIError::ZKNodeCreateFailed),
         },
         Ok(_) => Ok(()),
     }
@@ -256,13 +256,13 @@ pub fn zk_set_data(name: String, namespace: String, port: i32, path: Vec<String>
 }
 
 #[verifier(external)]
-pub fn zk_set_data_internal(name: String, namespace: String, port: i32, path: Vec<String>, data: String, version: i32) -> Result<(), Error> {
-    let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|e| Error::ZKNodeSetDataFailed)?;
+pub fn zk_set_data_internal(name: String, namespace: String, port: i32, path: Vec<String>, data: String, version: i32) -> Result<(), ZKAPIError> {
+    let zk_client = set_up_zk_client(&name, &namespace, port).map_err(|e| ZKAPIError::ZKNodeSetDataFailed)?;
     let path_as_string = format!("/{}", path.into_iter().map(|s: String| s.into_rust_string()).collect::<Vec<_>>().join("/"));
     let data_as_string = data.into_rust_string();
     println!("Setting {} {} {} ...", &path_as_string, &data_as_string, version);
     match zk_client.set_data(path_as_string.as_str(), data_as_string.as_str().as_bytes().to_vec(), Some(version)) {
-        Err(_) => Err(Error::ZKNodeSetDataFailed),
+        Err(_) => Err(ZKAPIError::ZKNodeSetDataFailed),
         Ok(_) => Ok(()),
     }
 }
