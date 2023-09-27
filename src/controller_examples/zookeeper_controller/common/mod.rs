@@ -33,32 +33,32 @@ pub enum ZookeeperReconcileStep {
 }
 
 #[is_variant]
-pub enum Error {
+pub enum ZKAPIError {
     ZKNodeExistsFailed,
     ZKNodeCreateAlreadyExists,
     ZKNodeCreateFailed,
     ZKNodeSetDataFailed,
 }
 
-impl Error {
+impl ZKAPIError {
     pub fn is_create_already_exists(&self) -> (res: bool)
         ensures res <==> self.is_ZKNodeCreateAlreadyExists(),
     {
         match self {
-            Error::ZKNodeCreateAlreadyExists => true,
+            ZKAPIError::ZKNodeCreateAlreadyExists => true,
             _ => false,
         }
     }
 }
 
-impl std::fmt::Debug for Error {
+impl std::fmt::Debug for ZKAPIError {
     #[verifier(external)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
-            Error::ZKNodeExistsFailed => write!(f, "ZKNodeExistsFailed"),
-            Error::ZKNodeCreateAlreadyExists => write!(f, "ZKNodeCreateAlreadyExists"),
-            Error::ZKNodeCreateFailed => write!(f, "ZKNodeCreateFailed"),
-            Error::ZKNodeSetDataFailed => write!(f, "ZKNodeSetDataFailed"),
+            ZKAPIError::ZKNodeExistsFailed => write!(f, "ZKNodeExistsFailed"),
+            ZKAPIError::ZKNodeCreateAlreadyExists => write!(f, "ZKNodeCreateAlreadyExists"),
+            ZKAPIError::ZKNodeCreateFailed => write!(f, "ZKNodeCreateFailed"),
+            ZKAPIError::ZKNodeSetDataFailed => write!(f, "ZKNodeSetDataFailed"),
         }
     }
 }
