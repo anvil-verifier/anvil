@@ -55,6 +55,14 @@ impl ResourceBuilder for StatefulSetBuilder {
         }
     }
 
+    open spec fn requirements(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) -> bool {
+        let cm_key = ServerConfigMapBuilder::get_request(rabbitmq).key;
+        let cm_obj = resources[cm_key];
+        &&& resources.contains_key(cm_key)
+        &&& cm_obj.metadata.resource_version.is_Some()
+        &&& state.latest_config_map_rv_opt == Some(int_to_string_view(cm_obj.metadata.resource_version.get_Some_0()))
+    }
+
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
         let key = make_stateful_set_key(rabbitmq);
         let obj = resources[key];
@@ -66,6 +74,10 @@ impl ResourceBuilder for StatefulSetBuilder {
         &&& StatefulSetView::unmarshal(obj).is_Ok()
         &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec
             == (#[trigger] make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version.get_Some_0()))).spec
+    }
+
+    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
+        StatefulSetView::marshal_preserves_integrity();
     }
 }
 

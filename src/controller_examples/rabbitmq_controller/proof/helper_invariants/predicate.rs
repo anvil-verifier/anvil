@@ -132,6 +132,7 @@ pub open spec fn no_delete_request_msg_in_flight_with_key(key: ObjectRef) -> Sta
     }
 }
 
+/// We only need it for AfterGetStatefulSet, but keeping all the steps makes the invariant easier to prove.
 pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let key = rabbitmq.object_ref();

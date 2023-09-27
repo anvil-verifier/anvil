@@ -224,6 +224,8 @@ pub proof fn invariants_since_phase_v_is_stable(rabbitmq: RabbitmqClusterView)
     always_p_is_stable(tla_forall(a_to_p_1));
 }
 
+/// To prove this invariants, we need to know that at those steps, server config map exists and won't be changed (updated
+/// or deleted). Thus, we put it after phase iv and phase v.
 pub open spec fn invariants_since_phase_vi(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))
 }
