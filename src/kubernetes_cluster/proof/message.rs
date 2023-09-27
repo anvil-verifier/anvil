@@ -65,6 +65,14 @@ proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator(
                     match next_step {
                         Step::KubernetesAPIStep(input) => {
                             let req_msg = input.get_Some_0();
+                            match req_msg.content.get_APIRequest_0() {
+                                APIRequest::GetRequest(_) => {}
+                                APIRequest::ListRequest(_) => {}
+                                APIRequest::CreateRequest(_) => {}
+                                APIRequest::DeleteRequest(_) => {}
+                                APIRequest::UpdateRequest(_) => {}
+                                APIRequest::UpdateStatusRequest(_) => {}
+                            }
                             assert(s.in_flight().contains(req_msg));
                             assert(id == req_msg.content.get_rest_id());
                         }
