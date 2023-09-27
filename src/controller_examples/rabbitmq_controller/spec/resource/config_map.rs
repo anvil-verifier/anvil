@@ -14,7 +14,7 @@ use crate::rabbitmq_controller::spec::types::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
-use crate::vstd_ext::string_view::*;
+use crate::vstd_ext::{map_lib::*, string_view::*};
 use vstd::prelude::*;
 use vstd::string::*;
 
@@ -52,12 +52,21 @@ impl ResourceBuilder for ServerConfigMapBuilder {
         }
     }
 
+    open spec fn requirements(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) -> bool {
+        true
+    }
+
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
         let key = make_server_config_map_key(rabbitmq);
         let obj = resources[key];
         &&& resources.contains_key(key)
         &&& ConfigMapView::unmarshal(obj).is_Ok()
         &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == make_server_config_map(rabbitmq).data
+    }
+
+    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
+        ConfigMapView::marshal_preserves_integrity();
+        union_prefer_right_self_changes_nothing::<StringView, StringView>();
     }
 }
 

@@ -19,4 +19,10 @@ pub proof fn lemma_select_map_to_seq_membership<K, V>(m: Map<K, V>, f: FnSpec(K)
         m.dom().filter(f).len() == select_map_to_seq(m, f).len(),
 {}
 
+pub proof fn union_prefer_right_self_changes_nothing<K, V>()
+    ensures
+        forall |map: Map<K, V>|
+            map.union_prefer_right(map) =~= map,
+{}
+
 }

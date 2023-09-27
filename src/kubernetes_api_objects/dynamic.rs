@@ -91,6 +91,13 @@ impl DynamicObjectView {
         }
     }
 
+    pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> DynamicObjectView {
+        DynamicObjectView {
+            metadata: metadata,
+            ..self
+        }
+    }
+
     pub open spec fn set_namespace(self, namespace: StringView) -> DynamicObjectView {
         DynamicObjectView {
             metadata: ObjectMetaView {
