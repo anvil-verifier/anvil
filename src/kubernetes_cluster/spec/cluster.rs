@@ -35,7 +35,7 @@ pub struct Cluster<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
     pub external_api_state: ExternalAPIState<E>,
     pub rest_id_allocator: RestIdAllocator,
     pub crash_enabled: bool,
-    pub busy_enabled: bool,
+    pub transient_failure_enabled: bool,
 }
 
 impl<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
