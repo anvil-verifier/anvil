@@ -41,7 +41,7 @@ spec fn next_with_wf() -> TempPred<RMQCluster> {
     .and(tla_forall(|input| RMQCluster::schedule_controller_reconcile().weak_fairness(input)))
     .and(tla_forall(|input| RMQCluster::builtin_controllers_next().weak_fairness(input)))
     .and(RMQCluster::disable_crash().weak_fairness(()))
-    .and(RMQCluster::disable_busy().weak_fairness(()))
+    .and(RMQCluster::disable_transient_failure().weak_fairness(()))
 }
 
 proof fn next_with_wf_is_stable()
@@ -54,7 +54,7 @@ proof fn next_with_wf_is_stable()
     RMQCluster::tla_forall_action_weak_fairness_is_stable(RMQCluster::schedule_controller_reconcile());
     RMQCluster::tla_forall_action_weak_fairness_is_stable(RMQCluster::builtin_controllers_next());
     RMQCluster::action_weak_fairness_is_stable(RMQCluster::disable_crash());
-    RMQCluster::action_weak_fairness_is_stable(RMQCluster::disable_busy());
+    RMQCluster::action_weak_fairness_is_stable(RMQCluster::disable_transient_failure());
     stable_and_n!(
         always(lift_action(RMQCluster::next())),
         tla_forall(|input| RMQCluster::kubernetes_api_next().weak_fairness(input)),
@@ -62,7 +62,7 @@ proof fn next_with_wf_is_stable()
         tla_forall(|input| RMQCluster::schedule_controller_reconcile().weak_fairness(input)),
         tla_forall(|input| RMQCluster::builtin_controllers_next().weak_fairness(input)),
         RMQCluster::disable_crash().weak_fairness(()),
-        RMQCluster::disable_busy().weak_fairness(())
+        RMQCluster::disable_transient_failure().weak_fairness(())
     );
 }
 
