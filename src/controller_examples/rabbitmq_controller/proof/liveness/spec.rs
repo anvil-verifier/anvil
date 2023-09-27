@@ -191,11 +191,11 @@ pub proof fn invariants_since_phase_iii_is_stable(rabbitmq: RabbitmqClusterView)
 /// Invariants since this phase ensure that certain objects only have owner references that point to current cr.
 /// To have these invariants, we first need the invariant that evert create/update request make/change the object in the
 /// expected way.
-spec fn invariants_since_phase_iv(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
+pub open spec fn invariants_since_phase_iv(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(get_request(sub_resource, rabbitmq).key, rabbitmq))))
 }
 
-proof fn invariants_since_phase_iv_is_stable(rabbitmq: RabbitmqClusterView)
+pub proof fn invariants_since_phase_iv_is_stable(rabbitmq: RabbitmqClusterView)
     ensures
         valid(stable(invariants_since_phase_iv(rabbitmq))),
 {
@@ -209,11 +209,11 @@ proof fn invariants_since_phase_iv_is_stable(rabbitmq: RabbitmqClusterView)
 /// Invariants since phase V rely on the invariants since phase IV. When the objects starts to always have owner reference
 /// pointing to current cr, it will never be recycled by the garbage collector. Plus, the reconciler itself never tries to
 /// delete this object, so we can have the invariants saying that no delete request messages will be in flight.
-spec fn invariants_since_phase_v(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
+pub open spec fn invariants_since_phase_v(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key))))
 }
 
-proof fn invariants_since_phase_v_is_stable(rabbitmq: RabbitmqClusterView)
+pub proof fn invariants_since_phase_v_is_stable(rabbitmq: RabbitmqClusterView)
     ensures
         valid(stable(invariants_since_phase_v(rabbitmq))),
 {
@@ -222,6 +222,17 @@ proof fn invariants_since_phase_v_is_stable(rabbitmq: RabbitmqClusterView)
         |sub_resource: SubResource| always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key))), a_to_p_1
     );
     always_p_is_stable(tla_forall(a_to_p_1));
+}
+
+pub open spec fn invariants_since_phase_vi(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
+    always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))
+}
+
+pub proof fn invariants_since_phase_vi_is_stable(rabbitmq: RabbitmqClusterView)
+    ensures
+        valid(stable(invariants_since_phase_vi(rabbitmq))),
+{
+    always_p_is_stable(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)));
 }
 
 }

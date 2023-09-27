@@ -132,4 +132,25 @@ pub open spec fn no_delete_request_msg_in_flight_with_key(key: ObjectRef) -> Sta
     }
 }
 
+pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        let key = rabbitmq.object_ref();
+        let local_state = s.ongoing_reconciles()[key].local_state;
+        s.ongoing_reconciles().contains_key(key)
+        ==> match local_state.reconcile_step {
+            RabbitmqReconcileStep::AfterKRequestStep(_, sub_resource) => {
+                match sub_resource {
+                    SubResource::ServiceAccount | SubResource::Role | SubResource::RoleBinding | SubResource::StatefulSet => {
+                        let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
+                        &&& s.resources().contains_key(cm_key)
+                        &&& local_state.latest_config_map_rv_opt == Some(int_to_string_view(s.resources()[cm_key].metadata.resource_version.get_Some_0()))
+                    },
+                    _ => true,
+                }
+            }
+            _ => true,
+        }
+    }
+}
+
 }
