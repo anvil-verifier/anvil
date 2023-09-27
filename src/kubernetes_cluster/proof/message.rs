@@ -68,8 +68,8 @@ proof fn next_preserves_every_in_flight_msg_has_lower_id_than_allocator(
                             assert(s.in_flight().contains(req_msg));
                             assert(id == req_msg.content.get_rest_id());
                         }
-                        Step::KubernetesBusy(input) => {
-                            let req_msg = input.get_Some_0();
+                        Step::FailTransientlyStep(input) => {
+                            let req_msg = input.0;
                             assert(s.in_flight().contains(req_msg));
                             assert(id == req_msg.content.get_rest_id());
                         }
@@ -303,8 +303,8 @@ proof fn newly_added_msg_have_different_id_from_existing_ones(
                 assert(s.network_state.in_flight.count(req_msg) <= 1);
                 assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
             }
-            Step::KubernetesBusy(input) => {
-                let req_msg = input.get_Some_0();
+            Step::FailTransientlyStep(input) => {
+                let req_msg = input.0;
                 assert(s.network_state.in_flight.count(req_msg) <= 1);
                 assert(msg_1.content.get_rest_id() != msg_2.content.get_rest_id());
             }
@@ -545,11 +545,11 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
                         assert(Self::is_ok_get_response_msg_and_matches_key(req_key)(msg));
                     }
                 },
-                Step::KubernetesBusy(input) => {
+                Step::FailTransientlyStep(input) => {
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
                     if !s.in_flight().contains(msg) {
                         assert(Self::in_flight_or_pending_req_message(s, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
-                        assert(Self::in_flight_or_pending_req_message(s, input.get_Some_0()));
+                        assert(Self::in_flight_or_pending_req_message(s, input.0));
                         assert(msg.src.is_KubernetesAPI());
                         assert(msg.content.is_get_response());
                         assert(msg.content.get_get_response().res.is_Err());

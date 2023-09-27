@@ -33,8 +33,8 @@ pub enum Step<Msg> {
     ScheduleControllerReconcileStep(ObjectRef),
     RestartController(),
     DisableCrash(),
-    KubernetesBusy(Option<Msg>),
-    DisableBusy(),
+    FailTransientlyStep((Msg, APIError)),
+    DisableTransientFailure(),
     StutterStep(),
 }
 
@@ -49,7 +49,7 @@ pub open spec fn init() -> StatePred<Self> {
         &&& (Self::network().init)(s.network_state)
         &&& (Self::external_api().init)(s.external_api_state)
         &&& s.crash_enabled
-        &&& s.busy_enabled
+        &&& s.transient_failure_enabled
     }
 }
 
@@ -270,45 +270,50 @@ pub open spec fn disable_crash() -> Action<Self, (), ()> {
     }
 }
 
-pub open spec fn busy_kubernetes_api_rejects_request() -> Action<Self, Option<MsgType<E>>, ()> {
-    let network_result = |input: Option<MsgType<E>>, s: Self| {
-        let req_msg = input.get_Some_0();
-        let resp = Message::form_matched_err_resp_msg(req_msg, APIError::ServerTimeout);
+/// This action fails a request sent to the Kubernetes API in a transient way:
+/// the request fails with timeout error or conflict error (caused by resource version conflicts).
+pub open spec fn fail_request_transiently() -> Action<Self, (MsgType<E>, APIError), ()> {
+    let result = |input: (MsgType<E>, APIError), s: Self| {
+        let req_msg = input.0;
+        let api_err = input.1;
+        let resp = Message::form_matched_err_resp_msg(req_msg, api_err);
         let msg_ops = MessageOps {
-            recv: input,
+            recv: Some(req_msg),
             send: Multiset::singleton(resp),
         };
         let result = Self::network().next_result(msg_ops, s.network_state);
         result
     };
     Action {
-        precondition: |input: Option<MsgType<E>>, s: Self| {
-            &&& s.busy_enabled
-            &&& input.is_Some()
-            &&& input.get_Some_0().dst.is_KubernetesAPI()
-            &&& input.get_Some_0().content.is_APIRequest()
-            &&& network_result(input, s).is_Enabled()
+        precondition: |input: (MsgType<E>, APIError), s: Self| {
+            let req_msg = input.0;
+            let api_err = input.1;
+            &&& s.transient_failure_enabled
+            &&& req_msg.dst.is_KubernetesAPI()
+            &&& req_msg.content.is_APIRequest()
+            &&& (api_err.is_Timeout() || api_err.is_ServerTimeout() || api_err.is_Conflict())
+            &&& result(input, s).is_Enabled()
         },
-        transition: |input: Option<MsgType<E>>, s: Self| {
+        transition: |input: (MsgType<E>, APIError), s: Self| {
             (Self {
-                network_state: network_result(input, s).get_Enabled_0(),
+                network_state: result(input, s).get_Enabled_0(),
                 ..s
             }, ())
         }
     }
 }
 
-/// This action disallows the Kubernetes API to be busy from this point.
+/// This action disallows the Kubernetes API to have transient failure from this point.
 /// This is used to constraint the transient error of Kubernetes APIs for liveness proof:
 /// the requests from the controller eventually stop being rejected by transient error.
-pub open spec fn disable_busy() -> Action<Self, (), ()> {
+pub open spec fn disable_transient_failure() -> Action<Self, (), ()> {
     Action {
         precondition: |input:(), s: Self| {
             true
         },
         transition: |input: (), s: Self| {
             (Self {
-                busy_enabled: false,
+                transient_failure_enabled: false,
                 ..s
             }, ())
         }
@@ -367,8 +372,8 @@ pub open spec fn next_step(s: Self, s_prime: Self, step: Step<MsgType<E>>) -> bo
         Step::ScheduleControllerReconcileStep(input) => Self::schedule_controller_reconcile().forward(input)(s, s_prime),
         Step::RestartController() => Self::restart_controller().forward(())(s, s_prime),
         Step::DisableCrash() => Self::disable_crash().forward(())(s, s_prime),
-        Step::KubernetesBusy(input) => Self::busy_kubernetes_api_rejects_request().forward(input)(s, s_prime),
-        Step::DisableBusy() => Self::disable_busy().forward(())(s, s_prime),
+        Step::FailTransientlyStep(input) => Self::fail_request_transiently().forward(input)(s, s_prime),
+        Step::DisableTransientFailure() => Self::disable_transient_failure().forward(())(s, s_prime),
         Step::StutterStep() => Self::stutter().forward(())(s, s_prime),
     }
 }
@@ -395,7 +400,7 @@ pub open spec fn sm_partial_spec() -> TempPred<Self> {
     .and(tla_forall(|input| Self::external_api_next().weak_fairness(input)))
     .and(tla_forall(|input| Self::schedule_controller_reconcile().weak_fairness(input)))
     .and(Self::disable_crash().weak_fairness(()))
-    .and(Self::disable_busy().weak_fairness(()))
+    .and(Self::disable_transient_failure().weak_fairness(()))
 }
 
 pub open spec fn kubernetes_api_action_pre(action: KubernetesAPIAction<E::Input, E::Output>, input: Option<MsgType<E>>) -> StatePred<Self> {
@@ -462,8 +467,9 @@ pub open spec fn crash_disabled() -> StatePred<Self> {
     |s: Self| !s.crash_enabled
 }
 
+// TODO: rename it!
 pub open spec fn busy_disabled() -> StatePred<Self> {
-    |s: Self| !s.busy_enabled
+    |s: Self| !s.transient_failure_enabled
 }
 
 pub open spec fn rest_id_counter_is(rest_id: nat) -> StatePred<Self> {
