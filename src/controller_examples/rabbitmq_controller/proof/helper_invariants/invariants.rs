@@ -556,22 +556,6 @@ pub proof fn lemma_always_server_config_map_has_no_finalizers_or_timestamp_and_o
     init_invariant(spec, RMQCluster::init(), stronger_next, inv);
 }
 
-pub open spec fn object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(key: ObjectRef, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
-    |s: RMQCluster| {
-        s.resources().contains_key(key)
-        ==> s.resources()[key].metadata.deletion_timestamp.is_None()
-            && s.resources()[key].metadata.finalizers.is_None()
-            && exists |uid: Uid| #![auto]
-            s.resources()[key].metadata.owner_references == Some(seq![OwnerReferenceView {
-                block_owner_deletion: None,
-                controller: Some(true),
-                kind: RabbitmqClusterView::kind(),
-                name: rabbitmq.metadata.name.get_Some_0(),
-                uid: uid,
-            }])
-    }
-}
-
 pub proof fn lemma_always_stateful_set_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
@@ -1016,13 +1000,6 @@ pub open spec fn no_delete_request_msg_in_flight_with_key(key: ObjectRef) -> Sta
             &&& msg.content.is_delete_request()
             &&& msg.content.get_delete_request().key == key
         }
-    }
-}
-
-pub open spec fn object_of_key_only_has_owner_reference_pointing_to_current_cr(key: ObjectRef, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
-    |s: RMQCluster| {
-        s.resources().contains_key(key)
-        ==> s.resources()[key].metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
     }
 }
 
