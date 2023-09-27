@@ -25,6 +25,7 @@ pub enum ZookeeperReconcileStep {
     AfterCreateZKParentNode,
     AfterCreateZKNode,
     AfterUpdateZKNode,
+    AfterGetStatefulSet2,
     AfterCreateStatefulSet,
     AfterUpdateStatefulSet,
     Done,
