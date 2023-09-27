@@ -103,6 +103,7 @@ pub fn reconcile_core(
         zk@.well_formed(),
     ensures
         (res.0.to_view(), opt_request_to_view(&res.1)) == zk_spec::reconcile_core(zk@, opt_response_to_view(&resp_o), state.to_view()),
+        resource_version_check(opt_response_to_view(&resp_o), opt_request_to_view(&res.1)),
 {
     let step = state.reconcile_step;
     match step {
