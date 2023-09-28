@@ -32,3 +32,4 @@ schemars = "0.8.6"
 thiserror = "1.0.29"
 tokio-stream = { version = "0.1.9", features = ["net"] }
 zookeeper = "0.6"
+tungstenite = "0.20.1"
