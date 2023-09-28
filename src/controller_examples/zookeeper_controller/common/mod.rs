@@ -28,6 +28,7 @@ pub enum ZookeeperReconcileStep {
     AfterGetStatefulSet2,
     AfterCreateStatefulSet,
     AfterUpdateStatefulSet,
+    AfterUpdateStatus,
     Done,
     Error,
 }

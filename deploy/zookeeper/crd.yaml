@@ -678,10 +678,20 @@ spec:
                 - ports
                 - replicas
               type: object
+            status:
+              nullable: true
+              properties:
+                ready_replicas:
+                  format: int32
+                  type: integer
+              required:
+                - ready_replicas
+              type: object
           required:
             - spec
           title: ZookeeperCluster
           type: object
       served: true
       storage: true
-      subresources: {}
+      subresources:
+        status: {}

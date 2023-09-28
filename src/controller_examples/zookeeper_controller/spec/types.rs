@@ -16,8 +16,6 @@ pub struct ZookeeperClusterView {
     pub status: Option<ZookeeperClusterStatusView>,
 }
 
-pub type ZookeeperClusterStatusView = EmptyStatusView;
-
 impl ZookeeperClusterView {
     pub open spec fn well_formed(self) -> bool {
         &&& self.metadata.name.is_Some()
@@ -32,6 +30,13 @@ impl ZookeeperClusterView {
             kind: Self::kind(),
             name: self.metadata.name.get_Some_0(),
             uid: self.metadata.uid.get_Some_0(),
+        }
+    }
+
+    pub open spec fn set_status(self, status: ZookeeperClusterStatusView) -> ZookeeperClusterView {
+        ZookeeperClusterView {
+            status: Some(status),
+            ..self
         }
     }
 }
@@ -183,5 +188,25 @@ pub struct ZookeeperPersistenceView {
     pub storage_size: StringView,
     pub storage_class_name: Option<StringView>,
 }
+
+pub struct ZookeeperClusterStatusView {
+    pub ready_replicas: int,
+}
+
+impl ZookeeperClusterStatusView {
+    pub open spec fn default() -> ZookeeperClusterStatusView {
+        ZookeeperClusterStatusView {
+            ready_replicas: 0,
+        }
+    }
+
+    pub open spec fn set_ready_replicas(self, ready_replicas: int) -> ZookeeperClusterStatusView {
+        ZookeeperClusterStatusView {
+            ready_replicas: ready_replicas,
+            ..self
+        }
+    }
+}
+
 
 }
