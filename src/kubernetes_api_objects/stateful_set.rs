@@ -76,6 +76,19 @@ impl StatefulSet {
     }
 
     #[verifier(external_body)]
+    pub fn status(&self) -> (status: Option<StatefulSetStatus>)
+        ensures
+            self@.status.is_Some() == status.is_Some(),
+            status.is_Some() ==> status.get_Some_0()@ == self@.status.get_Some_0(),
+    {
+        if self.inner.status.is_none() {
+            None
+        } else {
+            Some(StatefulSetStatus::from_kube(self.inner.status.as_ref().unwrap().clone()))
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn set_metadata(&mut self, metadata: ObjectMeta)
         ensures
             self@ == old(self)@.set_metadata(metadata@),
@@ -273,6 +286,89 @@ impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetSpec> for
     }
 }
 
+#[verifier(external_body)]
+pub struct StatefulSetPersistentVolumeClaimRetentionPolicy {
+    inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy,
+}
+
+impl StatefulSetPersistentVolumeClaimRetentionPolicy {
+    pub spec fn view(&self) -> StatefulSetPersistentVolumeClaimRetentionPolicyView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicy)
+        ensures
+            pvc_retention_policy@ == StatefulSetPersistentVolumeClaimRetentionPolicyView::default(),
+    {
+        StatefulSetPersistentVolumeClaimRetentionPolicy {
+            inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_when_deleted(&mut self, when_deleted: String)
+        ensures
+            self@ == old(self)@.set_when_deleted(when_deleted@),
+    {
+        self.inner.when_deleted = Some(
+            when_deleted.into_rust_string()
+        )
+    }
+
+    #[verifier(external_body)]
+    pub fn set_when_scaled(&mut self, when_scaled: String)
+        ensures
+            self@ == old(self)@.set_when_scaled(when_scaled@),
+    {
+        self.inner.when_scaled = Some(
+            when_scaled.into_rust_string()
+        )
+    }
+}
+
+impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy> for StatefulSetPersistentVolumeClaimRetentionPolicy {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy) -> StatefulSetPersistentVolumeClaimRetentionPolicy {
+        StatefulSetPersistentVolumeClaimRetentionPolicy {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct StatefulSetStatus {
+    inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus,
+}
+
+impl StatefulSetStatus {
+    pub spec fn view(&self) -> StatefulSetStatusView;
+
+    #[verifier(external_body)]
+    pub fn ready_replicas(&self) -> (ready_replicas: Option<i32>)
+        ensures
+            self@.ready_replicas.is_Some() == ready_replicas.is_Some(),
+            ready_replicas.is_Some() ==> ready_replicas.get_Some_0() == self@.ready_replicas.get_Some_0(),
+    {
+        self.inner.ready_replicas.clone()
+    }
+}
+
+impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus> for StatefulSetStatus {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus) -> StatefulSetStatus {
+        StatefulSetStatus { inner: inner }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetStatus {
+        self.inner
+    }
+}
+
 /// StatefulSetView is the ghost type of StatefulSet.
 /// It is supposed to be used in spec and proof code.
 
@@ -281,8 +377,6 @@ pub struct StatefulSetView {
     pub spec: Option<StatefulSetSpecView>,
     pub status: Option<StatefulSetStatusView>,
 }
-
-pub type StatefulSetStatusView = EmptyStatusView;
 
 impl StatefulSetView {
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> StatefulSetView {
@@ -505,60 +599,6 @@ impl Marshalable for StatefulSetSpecView {
     proof fn marshal_preserves_integrity() {}
 }
 
-#[verifier(external_body)]
-pub struct StatefulSetPersistentVolumeClaimRetentionPolicy {
-    inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy,
-}
-
-impl StatefulSetPersistentVolumeClaimRetentionPolicy {
-    pub spec fn view(&self) -> StatefulSetPersistentVolumeClaimRetentionPolicyView;
-
-    #[verifier(external_body)]
-    pub fn default() -> (pvc_retention_policy: StatefulSetPersistentVolumeClaimRetentionPolicy)
-        ensures
-            pvc_retention_policy@ == StatefulSetPersistentVolumeClaimRetentionPolicyView::default(),
-    {
-        StatefulSetPersistentVolumeClaimRetentionPolicy {
-            inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy::default(),
-        }
-    }
-
-    #[verifier(external_body)]
-    pub fn set_when_deleted(&mut self, when_deleted: String)
-        ensures
-            self@ == old(self)@.set_when_deleted(when_deleted@),
-    {
-        self.inner.when_deleted = Some(
-            when_deleted.into_rust_string()
-        )
-    }
-
-    #[verifier(external_body)]
-    pub fn set_when_scaled(&mut self, when_scaled: String)
-        ensures
-            self@ == old(self)@.set_when_scaled(when_scaled@),
-    {
-        self.inner.when_scaled = Some(
-            when_scaled.into_rust_string()
-        )
-    }
-}
-
-impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy> for StatefulSetPersistentVolumeClaimRetentionPolicy {
-    #[verifier(external)]
-    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy) -> StatefulSetPersistentVolumeClaimRetentionPolicy {
-        StatefulSetPersistentVolumeClaimRetentionPolicy {
-            inner: inner
-        }
-    }
-
-    #[verifier(external)]
-    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::StatefulSetPersistentVolumeClaimRetentionPolicy {
-        self.inner
-    }
-}
-
-
 pub struct StatefulSetPersistentVolumeClaimRetentionPolicyView {
     pub when_deleted: Option<StringView>,
     pub when_scaled: Option<StringView>,
@@ -602,6 +642,10 @@ impl Marshalable for StatefulSetPersistentVolumeClaimRetentionPolicyView {
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
+}
+
+pub struct StatefulSetStatusView {
+    pub ready_replicas: Option<int>,
 }
 
 }

@@ -568,6 +568,40 @@ impl KubeAPIResponse {
             _ => unreached(),
         }
     }
+
+    pub fn is_update_status_response(&self) -> (res: bool)
+        ensures
+            res == self.is_UpdateStatusResponse(),
+    {
+        match self {
+            KubeAPIResponse::UpdateStatusResponse(resp) => true,
+            _ => false,
+        }
+    }
+
+    pub fn as_update_status_response_ref(&self) -> (resp: &KubeUpdateStatusResponse)
+        requires
+            self.is_UpdateStatusResponse(),
+        ensures
+            resp == self.get_UpdateStatusResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::UpdateStatusResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
+
+    pub fn into_update_status_response(self) -> (resp: KubeUpdateStatusResponse)
+        requires
+            self.is_UpdateStatusResponse(),
+        ensures
+            resp == self.get_UpdateStatusResponse_0(),
+    {
+        match self {
+            KubeAPIResponse::UpdateStatusResponse(resp) => resp,
+            _ => unreached(),
+        }
+    }
 }
 
 pub open spec fn opt_resp_to_view(resp: &Option<KubeAPIResponse>) -> Option<APIResponse> {
