@@ -194,6 +194,31 @@ pub async fn desired_state_test(client: Client, zk_name: String) -> Result<(), E
     Ok(())
 }
 
+pub async fn status_test(client: Client, zk_name: String) -> Result<(), Error> {
+    let timeout = Duration::from_secs(360);
+    let start = Instant::now();
+
+    loop {
+        sleep(Duration::from_secs(5)).await;
+        if start.elapsed() > timeout {
+            return Err(Error::Timeout);
+        }
+        if run_command(
+            "kubectl",
+            vec!["get", "zk", "zookeeper", "-o", "yaml"],
+            "failed to get zk",
+        )
+        .0
+        .contains("ready_replicas: 3")
+        {
+            println!("Status gets updated to 3 ready replicas now.");
+            break;
+        }
+    }
+    println!("Status test passed.");
+    Ok(())
+}
+
 pub async fn scaling_test(client: Client, zk_name: String, persistent: bool) -> Result<(), Error> {
     let timeout = Duration::from_secs(600);
     let mut start = Instant::now();
@@ -862,6 +887,7 @@ pub async fn zookeeper_e2e_test() -> Result<(), Error> {
     let zk_name = apply(zookeeper_cluster(), client.clone(), &discovery).await?;
 
     desired_state_test(client.clone(), zk_name.clone()).await?;
+    status_test(client.clone(), zk_name.clone()).await?;
     relabel_test(client.clone(), zk_name.clone()).await?;
     reconfiguration_test(client.clone(), zk_name.clone()).await?;
     zk_workload_test(client.clone(), zk_name.clone()).await?;
@@ -892,6 +918,7 @@ pub async fn zookeeper_scaling_e2e_test() -> Result<(), Error> {
     let zk_name = apply(zookeeper_cluster(), client.clone(), &discovery).await?;
 
     desired_state_test(client.clone(), zk_name.clone()).await?;
+    status_test(client.clone(), zk_name.clone()).await?;
     scaling_test(client.clone(), zk_name.clone(), true).await?;
     zk_workload_test(client.clone(), zk_name.clone()).await?;
 
@@ -919,6 +946,7 @@ pub async fn zookeeper_ephemeral_e2e_test() -> Result<(), Error> {
     let zk_name = apply(zookeeper_cluster_ephemeral(), client.clone(), &discovery).await?;
 
     desired_state_test(client.clone(), zk_name.clone()).await?;
+    status_test(client.clone(), zk_name.clone()).await?;
     scaling_test(client.clone(), zk_name.clone(), false).await?;
     zk_workload_test(client.clone(), zk_name.clone()).await?;
 
