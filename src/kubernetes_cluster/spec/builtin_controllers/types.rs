@@ -16,11 +16,15 @@ pub type StoredState = Map<ObjectRef, DynamicObjectView>;
 #[is_variant]
 pub enum BuiltinControllersStep {
     RunGarbageCollector,
+    RunStatefulSetController,
+    RunStabilizer,
 }
 
 #[is_variant]
 pub enum BuiltinControllerChoice {
     GarbageCollector,
+    StatefulSetController{ready_replicas: int},
+    Stabilizer,
 }
 
 pub struct BuiltinControllersActionInput {

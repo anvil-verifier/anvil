@@ -411,6 +411,14 @@ pub proof fn lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spe
                 assert(s.kubernetes_api_state.resource_version_counter <= s_prime.kubernetes_api_state.resource_version_counter);
             } else {
                 let input = step.get_KubernetesAPIStep_0().get_Some_0();
+                match input.content.get_APIRequest_0() {
+                    APIRequest::GetRequest(_) => {}
+                    APIRequest::ListRequest(_) => {}
+                    APIRequest::CreateRequest(_) => {}
+                    APIRequest::DeleteRequest(_) => {}
+                    APIRequest::UpdateRequest(_) => {}
+                    APIRequest::UpdateStatusRequest(_) => {}
+                }
                 let req_key = input.content.get_get_request().key;
                 assert(s.resources().contains_key(req_key));
                 assert(msg.content.get_get_response().res.get_Ok_0().metadata.resource_version.get_Some_0() == s.resources()[req_key].metadata.resource_version.get_Some_0());

@@ -411,6 +411,7 @@ pub open spec fn handle_update_request(msg: MsgType<E>, s: KubernetesAPIState) -
                     (KubernetesAPIState {
                         resources: s.resources.insert(req.key(), updated_obj_with_new_rv),
                         resource_version_counter: s.resource_version_counter + 1, // Advance the rv counter
+                        stable_resources: s.stable_resources.remove(req.key()),
                         ..s
                     }, resp)
                 } else {
@@ -550,7 +551,8 @@ pub open spec fn handle_request() -> KubernetesAPIAction<E::Input, E::Output> {
 pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine<E::Input, E::Output> {
     StateMachine {
         init: |s: KubernetesAPIState| {
-            s.resources == Map::<ObjectRef, DynamicObjectView>::empty()
+            &&& s.resources == Map::<ObjectRef, DynamicObjectView>::empty()
+            &&& s.stable_resources == Set::<ObjectRef>::empty()
         },
         actions: set![Self::handle_request()],
         step_to_action: |step: KubernetesAPIStep| {
