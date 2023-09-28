@@ -4,7 +4,6 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*, error::*, resource::*};
 use crate::kubernetes_cluster::spec::{
-    builtin_controllers::types::BuiltinControllersState,
     client::types::ClientState,
     controller::common::{ControllerState, OngoingReconcile},
     external_api::types::ExternalAPIState,
@@ -28,7 +27,6 @@ verus! {
 /// specify the generics whenever calling those spec or proof functions.
 pub struct Cluster<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> {
     pub kubernetes_api_state: KubernetesAPIState,
-    pub builtin_controllers_state: BuiltinControllersState,
     pub controller_state: ControllerState<K, E, R>,
     pub client_state: ClientState,
     pub network_state: NetworkState<E::Input, E::Output>,

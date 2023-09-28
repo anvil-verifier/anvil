@@ -462,6 +462,14 @@ pub proof fn lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spe
                 let step = choose |step| Self::next_step(s, s_prime, step);
                 assert(step.is_KubernetesAPIStep());
                 let req = step.get_KubernetesAPIStep_0().get_Some_0();
+                match req.content.get_APIRequest_0() {
+                    APIRequest::GetRequest(_) => {}
+                    APIRequest::ListRequest(_) => {}
+                    APIRequest::CreateRequest(_) => {}
+                    APIRequest::DeleteRequest(_) => {}
+                    APIRequest::UpdateRequest(_) => {}
+                    APIRequest::UpdateStatusRequest(_) => {}
+                }
                 assert(msg == Self::handle_get_request(req, s.kubernetes_api_state).1);
                 assert(s.resources().contains_key(req.content.get_get_request().key));
                 assert(msg.content.get_get_response().res.get_Ok_0() == s.resources()[req.content.get_get_request().key]);

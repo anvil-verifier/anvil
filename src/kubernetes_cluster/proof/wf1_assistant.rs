@@ -113,14 +113,14 @@ pub proof fn builtin_controllers_action_pre_implies_next_pre(
     implies Self::builtin_controllers_next().pre(input)(s) by {
         Self::exists_next_builtin_controllers_step(
             action,
-            BuiltinControllersActionInput{choice: input.0, key: input.1, resources: s.kubernetes_api_state.resources, rest_id_allocator: s.rest_id_allocator},
-            s.builtin_controllers_state
+            BuiltinControllersActionInput{choice: input.0, key: input.1, rest_id_allocator: s.rest_id_allocator},
+            s.kubernetes_api_state
         );
     };
 }
 
 pub proof fn exists_next_builtin_controllers_step(
-    action: BuiltinControllersAction<E::Input, E::Output>, input: BuiltinControllersActionInput, s: BuiltinControllersState
+    action: BuiltinControllersAction<E::Input, E::Output>, input: BuiltinControllersActionInput, s: KubernetesAPIState
 )
     requires
         Self::builtin_controllers().actions.contains(action),

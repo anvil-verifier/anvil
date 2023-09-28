@@ -6,6 +6,7 @@ use crate::kubernetes_api_objects::prelude::*;
 use crate::kubernetes_cluster::spec::{
     builtin_controllers::{garbage_collector::*, types::*},
     cluster::Cluster,
+    kubernetes_api::common::KubernetesAPIState,
     message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
@@ -20,7 +21,7 @@ impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
 pub open spec fn builtin_controllers() -> BuiltinControllersStateMachine<E::Input, E::Output> {
     StateMachine {
-        init: |s: BuiltinControllersState| {
+        init: |s: KubernetesAPIState| {
             true
         },
         actions: set![Self::run_garbage_collector()],

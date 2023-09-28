@@ -43,7 +43,7 @@ impl<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 pub open spec fn init() -> StatePred<Self> {
     |s: Self| {
         &&& (Self::kubernetes_api().init)(s.kubernetes_api_state)
-        &&& (Self::builtin_controllers().init)(s.builtin_controllers_state)
+        &&& (Self::builtin_controllers().init)(s.kubernetes_api_state)
         &&& (Self::controller().init)(s.controller_state)
         &&& (Self::client().init)(s.client_state)
         &&& (Self::network().init)(s.network_state)
@@ -99,10 +99,9 @@ pub open spec fn builtin_controllers_next() -> Action<Self, (BuiltinControllerCh
             BuiltinControllersActionInput {
                 choice: input.0,
                 key: input.1,
-                resources: s.kubernetes_api_state.resources,
                 rest_id_allocator: s.rest_id_allocator,
             },
-            s.builtin_controllers_state
+            s.kubernetes_api_state
         );
         let msg_ops = MessageOps {
             recv: None,
@@ -120,7 +119,7 @@ pub open spec fn builtin_controllers_next() -> Action<Self, (BuiltinControllerCh
         transition: |input: (BuiltinControllerChoice, ObjectRef), s: Self| {
             let (host_result, network_result) = result(input, s);
             (Self {
-                builtin_controllers_state: host_result.get_Enabled_0(),
+                kubernetes_api_state: host_result.get_Enabled_0(),
                 network_state: network_result.get_Enabled_0(),
                 rest_id_allocator: host_result.get_Enabled_1().rest_id_allocator,
                 ..s
@@ -429,9 +428,9 @@ pub open spec fn builtin_controllers_action_pre(action: BuiltinControllersAction
             BuiltinControllersActionInput{
                 choice: input.0,
                 key: input.1,
-                resources: s.kubernetes_api_state.resources,
-                rest_id_allocator: s.rest_id_allocator},
-            s.builtin_controllers_state
+                rest_id_allocator: s.rest_id_allocator
+            },
+            s.kubernetes_api_state
         );
         let msg_ops = MessageOps {
             recv: None,

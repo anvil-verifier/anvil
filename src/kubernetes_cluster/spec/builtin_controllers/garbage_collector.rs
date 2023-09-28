@@ -4,7 +4,8 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    builtin_controllers::types::*, cluster::Cluster, message::*,
+    builtin_controllers::types::*, cluster::Cluster, kubernetes_api::common::KubernetesAPIState,
+    message::*,
 };
 use crate::reconciler::spec::reconciler::Reconciler;
 use crate::state_machine::action::*;
@@ -24,17 +25,18 @@ impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 pub open spec fn garbage_collector_deletion_enabled(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
         let input = BuiltinControllersActionInput {
-            choice: BuiltinControllerChoice::GarbageCollector, key: key,
-            resources: s.kubernetes_api_state.resources, rest_id_allocator: s.rest_id_allocator
+            choice: BuiltinControllerChoice::GarbageCollector,
+            key: key,
+            rest_id_allocator: s.rest_id_allocator
         };
-        (Self::run_garbage_collector().precondition)(input, s.builtin_controllers_state)
+        (Self::run_garbage_collector().precondition)(input, s.kubernetes_api_state)
     }
 }
 
 pub open spec fn run_garbage_collector() -> BuiltinControllersAction<E::Input, E::Output> {
     Action {
-        precondition: |input: BuiltinControllersActionInput, s: BuiltinControllersState| {
-            let resources = input.resources;
+        precondition: |input: BuiltinControllersActionInput, s: KubernetesAPIState| {
+            let resources = s.resources;
             let key = input.key;
             let owner_references = resources[key].metadata.owner_references.get_Some_0();
             // The garbage collector is chosen by the top level state machine
@@ -54,7 +56,7 @@ pub open spec fn run_garbage_collector() -> BuiltinControllersAction<E::Input, E
                 ||| resources[owner_reference_to_object_reference(owner_references[i], key.namespace)].metadata.uid != Some(owner_references[i].uid)
             }
         },
-        transition: |input: BuiltinControllersActionInput, s: BuiltinControllersState| {
+        transition: |input: BuiltinControllersActionInput, s: KubernetesAPIState| {
             let delete_req_msg = Message::built_in_controller_req_msg(Message::delete_req_msg_content(
                 input.key, input.rest_id_allocator.allocate().1
             ));
