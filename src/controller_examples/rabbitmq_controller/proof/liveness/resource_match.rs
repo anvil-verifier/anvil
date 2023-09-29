@@ -3,8 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, dynamic::*, owner_reference::*, resource::*,
-    stateful_set::*,
+    api_method::*, common::*, dynamic::*, owner_reference::*, prelude::*, resource::*,
 };
 use crate::kubernetes_cluster::spec::{
     builtin_controllers::types::BuiltinControllerChoice,
@@ -22,8 +21,8 @@ use crate::rabbitmq_controller::{
     spec::{reconciler::*, resource::*, types::*},
 };
 use crate::temporal_logic::{defs::*, rules::*};
-use crate::vstd_ext::string_view::*;
-use vstd::prelude::*;
+use crate::vstd_ext::{map_lib::*, string_view::*};
+use vstd::{prelude::*, string::*};
 
 verus! {
 
@@ -806,29 +805,5 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
 //         RMQCluster::continue_reconcile(), pre, post
 //     );
 // }
-
-pub proof fn created_obj_matches_desired_state(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState)
-    requires
-        rabbitmq.metadata.name.is_Some(),
-        rabbitmq.metadata.namespace.is_Some(),
-    ensures
-        requirements(sub_resource, rabbitmq, state, resources) ==> {
-            let made_obj = make(sub_resource, rabbitmq, state);
-            made_obj.is_Ok() && valid_created_obj(sub_resource, rabbitmq, made_obj.get_Ok_0(), resources)
-        },
-{
-    match sub_resource {
-        SubResource::HeadlessService => HeadlessServiceBuilder::created_obj_matches_desired_state(rabbitmq, state, resources),
-        SubResource::Service => ServiceBuilder::created_obj_matches_desired_state(rabbitmq, state, resources),
-        SubResource::ErlangCookieSecret => ErlangCookieBuilder::created_obj_matches_desired_state(rabbitmq, state, resources),
-        SubResource::DefaultUserSecret => DefaultUserSecretBuilder::created_obj_matches_desired_state(rabbitmq, state, resources),
-        SubResource::PluginsConfigMap => PluginsConfigMapBuilder::created_obj_matches_desired_state(rabbitmq, state, resources),
-        SubResource::ServerConfigMap => ServerConfigMapBuilder::created_obj_matches_desired_state(rabbitmq, state, resources),
-        SubResource::ServiceAccount => ServiceAccountBuilder::created_obj_matches_desired_state(rabbitmq, state, resources),
-        SubResource::Role => RoleBuilder::created_obj_matches_desired_state(rabbitmq, state, resources),
-        SubResource::RoleBinding => RoleBindingBuilder::created_obj_matches_desired_state(rabbitmq, state, resources),
-        SubResource::StatefulSet => StatefulSetBuilder::created_obj_matches_desired_state(rabbitmq, state, resources),
-    }
-}
 
 }

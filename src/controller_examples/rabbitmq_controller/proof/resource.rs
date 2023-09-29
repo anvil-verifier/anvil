@@ -94,19 +94,4 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
     }
 }
 
-pub open spec fn requirements(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) -> bool {
-    match sub_resource {
-        SubResource::HeadlessService => HeadlessServiceBuilder::requirements(rabbitmq, state, resources),
-        SubResource::Service => ServiceBuilder::requirements(rabbitmq, state, resources),
-        SubResource::ErlangCookieSecret => ErlangCookieBuilder::requirements(rabbitmq, state, resources),
-        SubResource::DefaultUserSecret => DefaultUserSecretBuilder::requirements(rabbitmq, state, resources),
-        SubResource::PluginsConfigMap => PluginsConfigMapBuilder::requirements(rabbitmq, state, resources),
-        SubResource::ServerConfigMap => ServerConfigMapBuilder::requirements(rabbitmq, state, resources),
-        SubResource::ServiceAccount => ServiceAccountBuilder::requirements(rabbitmq, state, resources),
-        SubResource::Role => RoleBuilder::requirements(rabbitmq, state, resources),
-        SubResource::RoleBinding => RoleBindingBuilder::requirements(rabbitmq, state, resources),
-        SubResource::StatefulSet => StatefulSetBuilder::requirements(rabbitmq, state, resources),
-    }
-}
-
 }
