@@ -78,6 +78,19 @@ pub struct DynamicObjectView {
     pub status: Value,
 }
 
+/// DynamicObjectMutView includes the fields of a core object that can be
+/// mutated by a custom controller, including labels, annotations, and spec.
+/// Things like resource version and uid are not here because they are either decided
+/// by etcd or cannot be mutated.
+
+pub struct DynamicObjectMutView {
+    pub labels: Option<Map<StringView, StringView>>,
+    pub annotations: Option<Map<StringView, StringView>>,
+    pub spec: Value,
+}
+
+pub type DynamicObjectMutViewPred = FnSpec(DynamicObjectMutView) -> bool;
+
 impl DynamicObjectView {
     pub open spec fn object_ref(self) -> ObjectRef
         recommends
@@ -88,6 +101,14 @@ impl DynamicObjectView {
             kind: self.kind,
             name: self.metadata.name.get_Some_0(),
             namespace: self.metadata.namespace.get_Some_0(),
+        }
+    }
+
+    pub open spec fn mutable_subset(self) -> DynamicObjectMutView {
+        DynamicObjectMutView {
+            labels: self.metadata.labels,
+            annotations: self.metadata.annotations,
+            spec: self.spec,
         }
     }
 

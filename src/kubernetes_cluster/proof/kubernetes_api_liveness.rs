@@ -33,18 +33,18 @@ pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
     use_tla_forall::<Self, Option<MsgType<E>>>(spec, |i| Self::kubernetes_api_next().weak_fairness(i), input);
-
     Self::kubernetes_api_action_pre_implies_next_pre(action, input);
     valid_implies_trans::<Self>(
-        lift_state(pre), lift_state(Self::kubernetes_api_action_pre(action, input)), lift_state(Self::kubernetes_api_next().pre(input))
+        lift_state(pre),
+        lift_state(Self::kubernetes_api_action_pre(action, input)),
+        lift_state(Self::kubernetes_api_next().pre(input))
     );
-
     Self::kubernetes_api_next().wf1(input, spec, next, pre, post);
 }
 
 pub proof fn lemma_pre_leads_to_post_by_builtin_controllers(
-    spec: TempPred<Self>, input: (BuiltinControllerChoice, ObjectRef), next: ActionPred<Self>, action: BuiltinControllersAction<E::Input, E::Output>,
-    pre: StatePred<Self>, post: StatePred<Self>
+    spec: TempPred<Self>, input: (BuiltinControllerChoice, ObjectRef), next: ActionPred<Self>,
+    action: BuiltinControllersAction<E::Input, E::Output>, pre: StatePred<Self>, post: StatePred<Self>
 )
     requires
         Self::builtin_controllers().actions.contains(action),
@@ -57,12 +57,38 @@ pub proof fn lemma_pre_leads_to_post_by_builtin_controllers(
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
     use_tla_forall::<Self, (BuiltinControllerChoice, ObjectRef)>(spec, |i| Self::builtin_controllers_next().weak_fairness(i), input);
-
     Self::builtin_controllers_action_pre_implies_next_pre(action, input);
     valid_implies_trans::<Self>(
-        lift_state(pre), lift_state(Self::builtin_controllers_action_pre(action, input)), lift_state(Self::builtin_controllers_next().pre(input))
+        lift_state(pre),
+        lift_state(Self::builtin_controllers_action_pre(action, input)),
+        lift_state(Self::builtin_controllers_next().pre(input))
     );
     Self::builtin_controllers_next().wf1(input, spec, next, pre, post);
+}
+
+pub proof fn lemma_pre_leads_to_post_by_builtin_controllers_borrow_from_spec(
+    spec: TempPred<Self>, input: (BuiltinControllerChoice, ObjectRef), next: ActionPred<Self>,
+    action: BuiltinControllersAction<E::Input, E::Output>, c: StatePred<Self>, pre: StatePred<Self>, post: StatePred<Self>
+)
+    requires
+        Self::builtin_controllers().actions.contains(action),
+        forall |s, s_prime: Self| pre(s) && c(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
+        forall |s, s_prime: Self| pre(s) && c(s) && #[trigger] next(s, s_prime) && Self::builtin_controllers_next().forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s: Self| #[trigger] pre(s) && c(s) ==> Self::builtin_controllers_action_pre(action, input)(s),
+        spec.entails(always(lift_action(next))),
+        spec.entails(tla_forall(|i| Self::builtin_controllers_next().weak_fairness(i))),
+        spec.entails(always(lift_state(c))),
+    ensures
+        spec.entails(lift_state(pre).leads_to(lift_state(post))),
+{
+    use_tla_forall::<Self, (BuiltinControllerChoice, ObjectRef)>(spec, |i| Self::builtin_controllers_next().weak_fairness(i), input);
+    Self::builtin_controllers_action_pre_implies_next_pre(action, input);
+    valid_implies_trans::<Self>(
+        lift_state(pre).and(lift_state(c)),
+        lift_state(Self::builtin_controllers_action_pre(action, input)),
+        lift_state(Self::builtin_controllers_next().pre(input))
+    );
+    Self::builtin_controllers_next().wf1_borrow_from_spec(input, spec, next, c, pre, post);
 }
 
 pub proof fn lemma_get_req_leads_to_some_resp
