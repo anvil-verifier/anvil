@@ -22,7 +22,8 @@ pub open spec fn run_stabilizer() -> BuiltinControllersAction<E::Input, E::Outpu
         precondition: |input: BuiltinControllersActionInput, s: KubernetesAPIState| {
             let key = input.key;
             &&& input.choice.is_Stabilizer()
-            &&& s.stable_resources.contains(key)
+            // Only stabilize the object that already exists
+            &&& s.resources.contains_key(key)
         },
         transition: |input: BuiltinControllersActionInput, s: KubernetesAPIState| {
             let key = input.key;

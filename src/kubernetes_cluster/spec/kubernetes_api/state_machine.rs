@@ -222,6 +222,8 @@ pub open spec fn handle_create_request(msg: MsgType<E>, s: KubernetesAPIState) -
             let resp = Message::form_create_resp_msg(msg, result);
             (KubernetesAPIState {
                 resources: s.resources.insert(created_obj.object_ref(), created_obj),
+                // The object just gets created so it is not stable yet: built-in controller might update it
+                stable_resources: s.stable_resources.remove(created_obj.object_ref()),
                 uid_counter: s.uid_counter + 1,
                 resource_version_counter: s.resource_version_counter + 1,
                 ..s
@@ -410,8 +412,9 @@ pub open spec fn handle_update_request(msg: MsgType<E>, s: KubernetesAPIState) -
                     // or has at least one finalizer.
                     (KubernetesAPIState {
                         resources: s.resources.insert(req.key(), updated_obj_with_new_rv),
-                        resource_version_counter: s.resource_version_counter + 1, // Advance the rv counter
+                        // The object just gets updated so it is not stable yet: built-in controller might update it
                         stable_resources: s.stable_resources.remove(req.key()),
+                        resource_version_counter: s.resource_version_counter + 1, // Advance the rv counter
                         ..s
                     }, resp)
                 } else {
