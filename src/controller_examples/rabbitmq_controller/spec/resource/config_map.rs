@@ -64,8 +64,13 @@ impl ResourceBuilder for ServerConfigMapBuilder {
         &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == make_server_config_map(rabbitmq).data
     }
 
-    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
+    proof fn created_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
+        let obj = Self::make(rabbitmq, state).get_Ok_0();
         ConfigMapView::marshal_preserves_integrity();
+        ConfigMapView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+        assert(
+            ConfigMapView::unmarshal_spec(obj.spec).is_Ok() && ConfigMapView::unmarshal_status(obj.status).is_Ok()
+        );
         union_prefer_right_self_changes_nothing::<StringView, StringView>();
     }
 }

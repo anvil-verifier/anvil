@@ -61,7 +61,7 @@ impl ResourceBuilder for PluginsConfigMapBuilder {
         &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == make_plugins_config_map(rabbitmq).data
     }
 
-    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
+    proof fn created_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
         ConfigMapView::marshal_preserves_integrity();
         let data = Map::empty().insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].")@);
         assert(

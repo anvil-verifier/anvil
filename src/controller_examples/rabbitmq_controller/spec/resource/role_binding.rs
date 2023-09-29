@@ -62,7 +62,7 @@ impl ResourceBuilder for RoleBindingBuilder {
         &&& RoleBindingView::unmarshal(obj).get_Ok_0().subjects == make_role_binding(rabbitmq).subjects
     }
 
-    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
+    proof fn created_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
         RoleBindingView::marshal_preserves_integrity();
     }
 }

@@ -40,15 +40,6 @@ pub open spec fn object_of_key_has_no_finalizers_or_timestamp_and_only_has_contr
     }
 }
 
-pub open spec fn resource_create_request_msg(key: ObjectRef) -> FnSpec(RMQMessage) -> bool {
-    |msg: RMQMessage|
-        msg.dst.is_KubernetesAPI()
-        && msg.content.is_create_request()
-        && msg.content.get_create_request().namespace == key.namespace
-        && msg.content.get_create_request().obj.metadata.name.get_Some_0() == key.name
-        && msg.content.get_create_request().obj.kind == key.kind
-}
-
 pub open spec fn resource_update_request_msg(key: ObjectRef) -> FnSpec(RMQMessage) -> bool {
     |msg: RMQMessage|
         msg.dst.is_KubernetesAPI()
@@ -56,7 +47,7 @@ pub open spec fn resource_update_request_msg(key: ObjectRef) -> FnSpec(RMQMessag
         && msg.content.get_update_request().key() == key
 }
 
-pub open spec fn every_resource_object_in_create_request_does_the_make_method(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
+pub open spec fn every_resource_object_in_create_request_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
     recommends
         rabbitmq.well_formed(),
 {
@@ -71,8 +62,7 @@ pub open spec fn every_resource_object_in_create_request_does_the_make_method(su
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
             &&& RMQCluster::pending_k8s_api_req_msg(s, key)
             &&& msg == s.ongoing_reconciles()[key].pending_req_msg.get_Some_0()
-            &&& made_object.is_Ok()
-            &&& msg.content.get_create_request().obj == made_object.get_Ok_0()
+            &&& valid_created_obj(sub_resource, rabbitmq, msg.content.get_create_request().obj, s.resources())
         }
             // A reminder: The last predicate implies:
             // && msg.content.get_create_request().obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])

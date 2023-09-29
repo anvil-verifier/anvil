@@ -61,7 +61,7 @@ impl ResourceBuilder for ServiceAccountBuilder {
         &&& ServiceAccountView::unmarshal(obj).get_Ok_0().automount_service_account_token == make_service_account(rabbitmq).automount_service_account_token
     }
 
-    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
+    proof fn created_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
         ServiceAccountView::marshal_preserves_integrity();
     }
 }

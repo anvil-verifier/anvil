@@ -76,7 +76,7 @@ impl ResourceBuilder for StatefulSetBuilder {
             == (#[trigger] make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version.get_Some_0()))).spec
     }
 
-    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
+    proof fn created_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
         StatefulSetView::marshal_preserves_integrity();
     }
 }

@@ -61,7 +61,7 @@ impl ResourceBuilder for ErlangCookieBuilder {
         &&& SecretView::unmarshal(obj).get_Ok_0().data == make_erlang_secret(rabbitmq).data
     }
 
-    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
+    proof fn created_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
         SecretView::marshal_preserves_integrity();
     }
 }

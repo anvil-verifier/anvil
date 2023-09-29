@@ -61,7 +61,7 @@ impl ResourceBuilder for RoleBuilder {
         &&& RoleView::unmarshal(obj).get_Ok_0().policy_rules == make_role(rabbitmq).policy_rules
     }
 
-    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
+    proof fn created_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
         RoleView::marshal_preserves_integrity();
     }
 }

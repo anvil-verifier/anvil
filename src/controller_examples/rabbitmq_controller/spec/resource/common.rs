@@ -1,13 +1,17 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
+use crate::external_api::spec::EmptyAPI;
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
 };
+use crate::kubernetes_cluster::spec::cluster::*;
+use crate::kubernetes_cluster::spec::cluster_state_machine::Step;
 use crate::kubernetes_cluster::spec::message::*;
 use crate::rabbitmq_controller::common::*;
+use crate::rabbitmq_controller::spec::reconciler::RabbitmqReconciler;
 use crate::rabbitmq_controller::spec::types::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
 use crate::state_machine::{action::*, state_machine::*};
@@ -18,6 +22,8 @@ use vstd::string::*;
 
 verus! {
 
+type RMQCluster = Cluster<RabbitmqClusterView, EmptyAPI, RabbitmqReconciler>;
+
 pub trait ResourceBuilder {
     spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest;
 
@@ -27,29 +33,35 @@ pub trait ResourceBuilder {
 
     spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> Result<RabbitmqReconcileState, RabbitmqError>;
 
-    /// Describes how can the created/updated object satisfies the desired state.
+    /// Describes how can the created object satisfies the desired state.
     spec fn requirements(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) -> bool;
 
     /// resource_state_matches takes the cr and an object that stores all resources, then it will check whether the resource pool
     /// reaches the desired state in the view of the object that it builds.
     spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool;
 
-    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState)
+    proof fn created_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState)
         requires
             rabbitmq.metadata.name.is_Some(),
             rabbitmq.metadata.namespace.is_Some(),
         ensures
             Self::requirements(rabbitmq, state, resources) ==> {
-                let resource_key = Self::get_request(rabbitmq).key;
-                let made_obj = Self::make(rabbitmq, state);
-                let updated_obj = Self::update(rabbitmq, state, resources[resource_key]);
-                forall |metadata: ObjectMetaView| #![auto] {
-                    &&& (made_obj.is_Ok() ==> Self::resource_state_matches(rabbitmq, resources.insert(resource_key, made_obj.get_Ok_0().set_metadata(metadata))))
-                    &&& (
-                        resources.contains_key(resource_key) && Self::resource_state_matches(rabbitmq, resources) && updated_obj.is_Ok() 
-                        ==> Self::resource_state_matches(rabbitmq, resources.insert(resource_key, updated_obj.get_Ok_0().set_metadata(metadata)))
-                    )
-                }    
+                let obj_res = Self::make(rabbitmq, state);
+                let obj = obj_res.get_Ok_0();
+                &&& obj_res.is_Ok()
+                &&& obj.metadata.name.is_Some()
+                &&& obj.metadata.namespace.is_Some()
+                &&& obj.metadata.namespace.get_Some_0() == rabbitmq.metadata.namespace.get_Some_0()
+                &&& RMQCluster::unmarshallable_object(obj)
+                &&& obj.object_ref() == Self::get_request(rabbitmq).key
+                &&& forall |created_obj: DynamicObjectView| #![auto]
+                    {
+                        created_obj.spec == obj.spec
+                        && created_obj.metadata.owner_references == obj.metadata.owner_references
+                    } ==> {
+                        RMQCluster::created_object_validity_check(created_obj).is_None()
+                        && Self::resource_state_matches(rabbitmq, resources.insert(obj.object_ref(), created_obj))
+                    }
             };
 }
 
