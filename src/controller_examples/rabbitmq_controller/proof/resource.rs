@@ -94,4 +94,51 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
     }
 }
 
+pub open spec fn requirements(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) -> bool {
+    match sub_resource {
+        SubResource::HeadlessService => HeadlessServiceBuilder::requirements(rabbitmq, state, resources),
+        SubResource::Service => ServiceBuilder::requirements(rabbitmq, state, resources),
+        SubResource::ErlangCookieSecret => ErlangCookieBuilder::requirements(rabbitmq, state, resources),
+        SubResource::DefaultUserSecret => DefaultUserSecretBuilder::requirements(rabbitmq, state, resources),
+        SubResource::PluginsConfigMap => PluginsConfigMapBuilder::requirements(rabbitmq, state, resources),
+        SubResource::ServerConfigMap => ServerConfigMapBuilder::requirements(rabbitmq, state, resources),
+        SubResource::ServiceAccount => ServiceAccountBuilder::requirements(rabbitmq, state, resources),
+        SubResource::Role => RoleBuilder::requirements(rabbitmq, state, resources),
+        SubResource::RoleBinding => RoleBindingBuilder::requirements(rabbitmq, state, resources),
+        SubResource::StatefulSet => StatefulSetBuilder::requirements(rabbitmq, state, resources),
+    }
+}
+
+pub proof fn created_or_updated_obj_matches_desired_state(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState)
+    requires
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+    ensures
+        requirements(sub_resource, rabbitmq, state, resources) ==> {
+            let resource_key = get_request(sub_resource, rabbitmq).key;
+            let made_obj = make(sub_resource, rabbitmq, state);
+            let updated_obj = update(sub_resource, rabbitmq, state, resources[resource_key]);
+            forall |metadata: ObjectMetaView| #![auto] {
+                &&& (made_obj.is_Ok() ==> resource_state_matches(sub_resource, rabbitmq, resources.insert(resource_key, made_obj.get_Ok_0().set_metadata(metadata))))
+                &&& (
+                    resources.contains_key(resource_key) && resource_state_matches(sub_resource, rabbitmq, resources) && updated_obj.is_Ok() 
+                    ==> resource_state_matches(sub_resource, rabbitmq, resources.insert(resource_key, updated_obj.get_Ok_0().set_metadata(metadata)))
+                )
+            }    
+        },
+{
+    match sub_resource {
+        SubResource::HeadlessService => HeadlessServiceBuilder::created_or_updated_obj_matches_desired_state(rabbitmq, state, resources),
+        SubResource::Service => ServiceBuilder::created_or_updated_obj_matches_desired_state(rabbitmq, state, resources),
+        SubResource::ErlangCookieSecret => ErlangCookieBuilder::created_or_updated_obj_matches_desired_state(rabbitmq, state, resources),
+        SubResource::DefaultUserSecret => DefaultUserSecretBuilder::created_or_updated_obj_matches_desired_state(rabbitmq, state, resources),
+        SubResource::PluginsConfigMap => PluginsConfigMapBuilder::created_or_updated_obj_matches_desired_state(rabbitmq, state, resources),
+        SubResource::ServerConfigMap => ServerConfigMapBuilder::created_or_updated_obj_matches_desired_state(rabbitmq, state, resources),
+        SubResource::ServiceAccount => ServiceAccountBuilder::created_or_updated_obj_matches_desired_state(rabbitmq, state, resources),
+        SubResource::Role => RoleBuilder::created_or_updated_obj_matches_desired_state(rabbitmq, state, resources),
+        SubResource::RoleBinding => RoleBindingBuilder::created_or_updated_obj_matches_desired_state(rabbitmq, state, resources),
+        SubResource::StatefulSet => StatefulSetBuilder::created_or_updated_obj_matches_desired_state(rabbitmq, state, resources),
+    }
+}
+
 }

@@ -49,8 +49,7 @@ pub trait ResourceBuilder {
                         resources.contains_key(resource_key) && Self::resource_state_matches(rabbitmq, resources) && updated_obj.is_Ok() 
                         ==> Self::resource_state_matches(rabbitmq, resources.insert(resource_key, updated_obj.get_Ok_0().set_metadata(metadata)))
                     )
-                }
-                    
+                }    
             };
 }
 

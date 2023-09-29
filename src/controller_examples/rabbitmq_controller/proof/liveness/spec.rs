@@ -23,7 +23,7 @@ use vstd::prelude::*;
 
 verus! {
 
-spec fn assumption_and_invariants_of_all_phases(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
+pub open spec fn assumption_and_invariants_of_all_phases(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     invariants(rabbitmq)
     .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
     .and(invariants_since_phase_i(rabbitmq))
@@ -31,10 +31,11 @@ spec fn assumption_and_invariants_of_all_phases(rabbitmq: RabbitmqClusterView) -
     .and(invariants_since_phase_iii(rabbitmq))
     .and(invariants_since_phase_iv(rabbitmq))
     .and(invariants_since_phase_v(rabbitmq))
+    .and(invariants_since_phase_vi(rabbitmq))
 }
 
 // Next and all the wf conditions.
-spec fn next_with_wf() -> TempPred<RMQCluster> {
+pub open spec fn next_with_wf() -> TempPred<RMQCluster> {
     always(lift_action(RMQCluster::next()))
     .and(tla_forall(|input| RMQCluster::kubernetes_api_next().weak_fairness(input)))
     .and(tla_forall(|input| RMQCluster::controller_next().weak_fairness(input)))
@@ -44,7 +45,7 @@ spec fn next_with_wf() -> TempPred<RMQCluster> {
     .and(RMQCluster::disable_transient_failure().weak_fairness(()))
 }
 
-proof fn next_with_wf_is_stable()
+pub proof fn next_with_wf_is_stable()
     ensures
         valid(stable(next_with_wf())),
 {
@@ -71,12 +72,12 @@ proof fn next_with_wf_is_stable()
 ///
 /// The final goal of our proof is to show init /\ invariants |= []desired_state_is(cr) ~> []current_state_matches(cr).
 /// init /\ invariants is equivalent to init /\ next /\ weak_fairness, so we get cluster_spec() |= []desired_state_is(cr) ~> []current_state_matches(cr).
-spec fn invariants(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
+pub open spec fn invariants(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     next_with_wf()
     .and(derived_invariants_since_beginning(rabbitmq))
 }
 
-proof fn invariants_is_stable(rabbitmq: RabbitmqClusterView)
+pub proof fn invariants_is_stable(rabbitmq: RabbitmqClusterView)
     ensures
         valid(stable(invariants(rabbitmq))),
 {
