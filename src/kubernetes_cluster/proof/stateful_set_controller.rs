@@ -18,6 +18,22 @@ verus! {
 
 impl <K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
 
+pub open spec fn every_in_flight_create_req_msg_for_this_object_satisfies(
+    key: ObjectRef, requirements: DynamicObjectMutViewPred
+) -> StatePred<Self> {
+    |s: Self| {
+        forall |msg: MsgType<E>|
+            #[trigger] s.in_flight().contains(msg)
+            && msg.dst.is_KubernetesAPI()
+            && msg.content.is_create_request()
+            && msg.content.get_create_request().namespace == key.namespace
+            && msg.content.get_create_request().obj.kind == key.kind
+            && msg.content.get_create_request().obj.metadata.name.is_Some()
+            && msg.content.get_create_request().obj.metadata.name.get_Some_0() == key.name
+            ==> requirements(msg.content.get_create_request().obj.mutable_subset())
+    }
+}
+
 pub open spec fn every_in_flight_update_req_msg_for_this_object_satisfies(
     key: ObjectRef, requirements: DynamicObjectMutViewPred
 ) -> StatePred<Self> {
@@ -64,63 +80,142 @@ pub open spec fn no_status_update_req_msg_from_bc_for_this_object(key: ObjectRef
 /// or there is never update_status request for this stateful set object
 /// (which means any following update request does not need to compete with update_state request).
 
-#[verifier(external_body)]
-pub proof fn lemma_true_leads_to_always_stateful_set_satisfies_or_no_update_status_req_msg(
+pub proof fn lemma_true_leads_to_always_object_not_exist_or_updated_or_no_more_pending_req(
     spec: TempPred<Self>, key: ObjectRef, requirements: DynamicObjectMutViewPred
 )
     requires
-        key.kind == StatefulSetView::kind(),
-        spec.entails(always(lift_state(Self::this_object_exists(key)))),
-        spec.entails(always(lift_state(Self::every_in_flight_update_req_msg_for_this_object_satisfies(key, requirements)))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| Self::builtin_controllers_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::every_in_flight_create_req_msg_for_this_object_satisfies(key, requirements)))),
+        spec.entails(always(lift_state(Self::every_in_flight_update_req_msg_for_this_object_satisfies(key, requirements)))),
     ensures
-        spec.entails(
-            true_pred().leads_to(always(lift_state(
-                |s: Self| {
-                    ||| Self::this_object_satisfies(key, requirements)(s)
-                    ||| Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
+        spec.entails(true_pred().leads_to(always(lift_state(
+            |s: Self| {
+                ||| !s.resources().contains_key(key)
+                ||| Self::this_object_satisfies(key, requirements)(s)
+                ||| {
+                    &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
+                    &&& Self::this_object_is_stable(key)(s)
                 }
-            )))
-        ),
-{}
-
-pub proof fn lemma_true_leads_to_stateful_set_is_stable(spec: TempPred<Self>, key: ObjectRef)
-    requires
-        key.kind == StatefulSetView::kind(),
-        spec.entails(always(lift_state(Self::this_object_exists(key)))),
-        spec.entails(always(lift_action(Self::next()))),
-        spec.entails(tla_forall(|i| Self::builtin_controllers_next().weak_fairness(i))),
-    ensures
-        spec.entails(true_pred().leads_to(lift_state(Self::this_object_is_stable(key)))),
+            }
+        )))),
 {
-    let pre = |s: Self| true;
-    let post = Self::this_object_is_stable(key);
+    Self::lemma_true_leads_to_object_not_exist_or_updated_or_no_more_pending_req(spec, key, requirements);
 
-    let input = (BuiltinControllerChoice::Stabilizer, key);
+    let post = |s: Self| {
+        ||| !s.resources().contains_key(key)
+        ||| Self::this_object_satisfies(key, requirements)(s)
+        ||| {
+            &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
+            &&& Self::this_object_is_stable(key)(s)
+        }
+    };
     let stronger_next = |s, s_prime: Self| {
         &&& Self::next()(s, s_prime)
-        &&& Self::this_object_exists(key)(s)
+        &&& Self::every_in_flight_create_req_msg_for_this_object_satisfies(key, requirements)(s)
+        &&& Self::every_in_flight_update_req_msg_for_this_object_satisfies(key, requirements)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(Self::next()),
-        lift_state(Self::this_object_exists(key))
+        lift_state(Self::every_in_flight_create_req_msg_for_this_object_satisfies(key, requirements)),
+        lift_state(Self::every_in_flight_update_req_msg_for_this_object_satisfies(key, requirements))
     );
 
-    Self::lemma_pre_leads_to_post_by_builtin_controllers_borrow_from_spec(
-        spec, input, stronger_next, Self::run_stabilizer(), Self::this_object_exists(key), pre, post
-    );
+    assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
+        if !s.resources().contains_key(key) || Self::this_object_satisfies(key, requirements)(s) {
+            // Trivial case.
+        } else {
+            assert forall |msg| update_status_msg_from_bc_for(key)(msg) implies !s_prime.in_flight().contains(msg) by {
+                // Just need s.in_flight().contains(msg) to trigger the universal quantifier.
+                if s.in_flight().contains(msg) {} else {}
+            }
+        }
+    }
+
+    leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(post));
 }
 
-proof fn lemma_pending_update_status_req_num_is_n_leads_to_object_updated_or_no_more_pending_req(
+pub proof fn lemma_true_leads_to_object_not_exist_or_updated_or_no_more_pending_req(
+    spec: TempPred<Self>, key: ObjectRef, requirements: DynamicObjectMutViewPred
+)
+    requires
+        spec.entails(always(lift_action(Self::next()))),
+        spec.entails(tla_forall(|i| Self::builtin_controllers_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(Self::every_in_flight_create_req_msg_for_this_object_satisfies(key, requirements)))),
+        spec.entails(always(lift_state(Self::every_in_flight_update_req_msg_for_this_object_satisfies(key, requirements)))),
+    ensures
+        spec.entails(true_pred().leads_to(lift_state(
+            |s: Self| {
+                ||| !s.resources().contains_key(key)
+                ||| Self::this_object_satisfies(key, requirements)(s)
+                ||| {
+                    &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
+                    &&& Self::this_object_is_stable(key)(s)
+                }
+            }
+        ))),
+{
+    let key_exists = |s: Self| s.resources().contains_key(key);
+    let key_not_exists = |s: Self| !s.resources().contains_key(key);
+    let post = |s: Self| {
+        ||| !s.resources().contains_key(key)
+        ||| Self::this_object_satisfies(key, requirements)(s)
+        ||| {
+            &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
+            &&& Self::this_object_is_stable(key)(s)
+        }
+    };
+    assert_by(spec.entails(lift_state(key_exists).leads_to(lift_state(post))), {
+        let key_not_exists_or_stable = |s: Self| {
+            ||| !s.resources().contains_key(key)
+            ||| Self::this_object_is_stable(key)(s)
+        };
+        let input = (BuiltinControllerChoice::Stabilizer, key);
+        Self::lemma_pre_leads_to_post_by_builtin_controllers(
+            spec, input, Self::next(), Self::run_stabilizer(), key_exists, key_not_exists_or_stable
+        );
+        assert_by(spec.entails(lift_state(Self::this_object_is_stable(key)).leads_to(lift_state(post))), {
+            let stable_and_pending_update_status_req_num_is_n = |msg_num: nat| lift_state(|s: Self| {
+                &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == msg_num
+                &&& Self::this_object_is_stable(key)(s)
+            });
+            assert forall |msg_num: nat|
+                spec.entails(#[trigger] stable_and_pending_update_status_req_num_is_n(msg_num).leads_to(lift_state(post)))
+            by {
+                Self::lemma_pending_update_status_req_num_is_n_leads_to_object_not_exist_or_updated_or_no_more_pending_req(
+                    spec, key, requirements, msg_num
+                );
+            }
+            leads_to_exists_intro(spec, stable_and_pending_update_status_req_num_is_n, lift_state(post));
+            assert_by(tla_exists(stable_and_pending_update_status_req_num_is_n) == lift_state(Self::this_object_is_stable(key)), {
+                assert forall |ex| #[trigger] lift_state(Self::this_object_is_stable(key)).satisfied_by(ex) implies
+                tla_exists(stable_and_pending_update_status_req_num_is_n).satisfied_by(ex) by {
+                    let current_msg_num = ex.head().network_state.in_flight.filter(update_status_msg_from_bc_for(key)).len();
+                    assert(stable_and_pending_update_status_req_num_is_n(current_msg_num).satisfied_by(ex));
+                }
+                temp_pred_equality(tla_exists(stable_and_pending_update_status_req_num_is_n), lift_state(Self::this_object_is_stable(key)));
+            });
+        });
+        temp_pred_equality(lift_state(Self::this_object_is_stable(key)).or(lift_state(key_not_exists)), lift_state(key_not_exists_or_stable));
+        temp_pred_equality(lift_state(post).or(lift_state(key_not_exists)), lift_state(post));
+        sandwich_leads_to_by_or_temp(spec, lift_state(Self::this_object_is_stable(key)), lift_state(post), lift_state(key_not_exists));
+        leads_to_trans_temp(spec, lift_state(key_exists), lift_state(key_not_exists_or_stable), lift_state(post));
+    });
+    temp_pred_equality(lift_state(key_exists).or(lift_state(key_not_exists)), true_pred());
+    temp_pred_equality(lift_state(post).or(lift_state(key_not_exists)), lift_state(post));
+    sandwich_leads_to_by_or_temp(spec, lift_state(key_exists), lift_state(post), lift_state(key_not_exists));
+}
+
+proof fn lemma_pending_update_status_req_num_is_n_leads_to_object_not_exist_or_updated_or_no_more_pending_req(
     spec: TempPred<Self>, key: ObjectRef, requirements: DynamicObjectMutViewPred, msg_num: nat
 )
     requires
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
-        spec.entails(always(lift_state(Self::this_object_exists(key)))),
+        spec.entails(always(lift_state(Self::every_in_flight_create_req_msg_for_this_object_satisfies(key, requirements)))),
         spec.entails(always(lift_state(Self::every_in_flight_update_req_msg_for_this_object_satisfies(key, requirements)))),
     ensures
         spec.entails(
@@ -129,6 +224,7 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_object_updated_or_no_
                 &&& Self::this_object_is_stable(key)(s)
             }).leads_to(lift_state(
                 |s: Self| {
+                    ||| !s.resources().contains_key(key)
                     ||| Self::this_object_satisfies(key, requirements)(s)
                     ||| {
                         &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
@@ -144,6 +240,7 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_object_updated_or_no_
         &&& Self::this_object_is_stable(key)(s)
     };
     let post = |s: Self| {
+        ||| !s.resources().contains_key(key)
         ||| Self::this_object_satisfies(key, requirements)(s)
         ||| {
             &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
@@ -169,24 +266,28 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_object_updated_or_no_
             &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == (msg_num - 1) as nat
             &&& Self::this_object_is_stable(key)(s)
         });
-        let obj_updated = lift_state(Self::this_object_satisfies(key, requirements));
+        let obj_not_exist_or_updated = lift_state(|s: Self| {
+            ||| !s.resources().contains_key(key)
+            ||| Self::this_object_satisfies(key, requirements)(s)
+        });
         let no_more_pending_req = lift_state(|s: Self| {
             &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
             &&& Self::this_object_is_stable(key)(s)
         });
-        let pre_minus_one_or_obj_updated = lift_state(|s: Self| {
+        let pre_minus_one_or_obj_not_exist_or_updated = lift_state(|s: Self| {
+            ||| !s.resources().contains_key(key)
             ||| Self::this_object_satisfies(key, requirements)(s)
             ||| {
                 &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == (msg_num - 1) as nat
                 &&& Self::this_object_is_stable(key)(s)
             }
         });
-        assert_by(spec.entails(lift_state(pre).leads_to(pre_minus_one_or_obj_updated)), {
+        assert_by(spec.entails(lift_state(pre).leads_to(pre_minus_one_or_obj_not_exist_or_updated)), {
             assert forall |msg: MsgType<E>|
-            spec.entails(#[trigger] pre_concrete_msg(msg).leads_to(pre_minus_one_or_obj_updated)) by {
-                Self::object_updated_or_pending_update_status_requests_num_decreases(spec, key, requirements, msg_num, msg);
+            spec.entails(#[trigger] pre_concrete_msg(msg).leads_to(pre_minus_one_or_obj_not_exist_or_updated)) by {
+                Self::object_not_exist_or_updated_or_pending_update_status_requests_num_decreases(spec, key, requirements, msg_num, msg);
             }
-            leads_to_exists_intro(spec, pre_concrete_msg, pre_minus_one_or_obj_updated);
+            leads_to_exists_intro(spec, pre_concrete_msg, pre_minus_one_or_obj_not_exist_or_updated);
             assert_by(tla_exists(pre_concrete_msg) == lift_state(pre), {
                 assert forall |ex| #[trigger] lift_state(pre).satisfied_by(ex)
                 implies tla_exists(pre_concrete_msg).satisfied_by(ex) by {
@@ -197,23 +298,23 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_object_updated_or_no_
                 temp_pred_equality(tla_exists(pre_concrete_msg), lift_state(pre));
             });
         });
-        Self::lemma_pending_update_status_req_num_is_n_leads_to_object_updated_or_no_more_pending_req(
+        Self::lemma_pending_update_status_req_num_is_n_leads_to_object_not_exist_or_updated_or_no_more_pending_req(
             spec, key, requirements, (msg_num - 1) as nat
         );
-        temp_pred_equality(pre_minus_one_or_obj_updated, pre_minus_one.or(obj_updated));
-        temp_pred_equality(lift_state(post), no_more_pending_req.or(obj_updated));
-        leads_to_shortcut_temp(spec, lift_state(pre), pre_minus_one, no_more_pending_req, obj_updated);
+        temp_pred_equality(pre_minus_one_or_obj_not_exist_or_updated, pre_minus_one.or(obj_not_exist_or_updated));
+        temp_pred_equality(lift_state(post), no_more_pending_req.or(obj_not_exist_or_updated));
+        leads_to_shortcut_temp(spec, lift_state(pre), pre_minus_one, no_more_pending_req, obj_not_exist_or_updated);
     }
 }
 
-proof fn object_updated_or_pending_update_status_requests_num_decreases(
+proof fn object_not_exist_or_updated_or_pending_update_status_requests_num_decreases(
     spec: TempPred<Self>, key: ObjectRef, requirements: DynamicObjectMutViewPred, msg_num: nat, msg: MsgType<E>
 )
     requires
         msg_num > 0,
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
-        spec.entails(always(lift_state(Self::this_object_exists(key)))),
+        spec.entails(always(lift_state(Self::every_in_flight_create_req_msg_for_this_object_satisfies(key, requirements)))),
         spec.entails(always(lift_state(Self::every_in_flight_update_req_msg_for_this_object_satisfies(key, requirements)))),
     ensures
         spec.entails(
@@ -222,6 +323,7 @@ proof fn object_updated_or_pending_update_status_requests_num_decreases(
                 &&& Self::this_object_is_stable(key)(s)
                 &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).count(msg) > 0
             }).leads_to(lift_state(|s: Self| {
+                ||| !s.resources().contains_key(key)
                 ||| Self::this_object_satisfies(key, requirements)(s)
                 ||| {
                     &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == (msg_num - 1) as nat
@@ -236,6 +338,7 @@ proof fn object_updated_or_pending_update_status_requests_num_decreases(
         &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).count(msg) > 0
     };
     let post = |s: Self| {
+        ||| !s.resources().contains_key(key)
         ||| Self::this_object_satisfies(key, requirements)(s)
         ||| {
             &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == (msg_num - 1) as nat
@@ -245,13 +348,13 @@ proof fn object_updated_or_pending_update_status_requests_num_decreases(
     let input = Some(msg);
     let stronger_next = |s, s_prime: Self| {
         &&& Self::next()(s, s_prime)
-        &&& Self::this_object_exists(key)(s)
+        &&& Self::every_in_flight_create_req_msg_for_this_object_satisfies(key, requirements)(s)
         &&& Self::every_in_flight_update_req_msg_for_this_object_satisfies(key, requirements)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(Self::next()),
-        lift_state(Self::this_object_exists(key)),
+        lift_state(Self::every_in_flight_create_req_msg_for_this_object_satisfies(key, requirements)),
         lift_state(Self::every_in_flight_update_req_msg_for_this_object_satisfies(key, requirements))
     );
 
@@ -264,10 +367,13 @@ proof fn object_updated_or_pending_update_status_requests_num_decreases(
             Step::KubernetesAPIStep(input) => {
                 if pending_req_multiset.count(input.get_Some_0()) > 0 {
                     assert(pending_req_multiset.remove(input.get_Some_0()) =~= pending_req_multiset_prime);
-                    assert(Self::this_object_is_stable(key)(s_prime));
                 } else {
                     assert(pending_req_multiset =~= pending_req_multiset_prime);
-                    assert(Self::this_object_is_stable(key)(s_prime) || Self::this_object_satisfies(key, requirements)(s_prime));
+                    assert(
+                        Self::this_object_is_stable(key)(s_prime)
+                        || Self::this_object_satisfies(key, requirements)(s_prime)
+                        || !s.resources().contains_key(key)
+                    );
                 }
             },
             Step::FailTransientlyStep(input) => {
