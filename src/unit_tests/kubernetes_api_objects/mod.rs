@@ -6,3 +6,4 @@ pub mod lifecycle;
 pub mod object_meta;
 pub mod probe;
 pub mod resource_requirements;
+pub mod volume_mount;
