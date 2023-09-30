@@ -1,8 +1,0 @@
-apiVersion: anvil.dev/v1
-kind: RabbitmqCluster
-metadata:
-  name: hello-world
-  namespace: default
-spec:
-  replicas: 1
-  

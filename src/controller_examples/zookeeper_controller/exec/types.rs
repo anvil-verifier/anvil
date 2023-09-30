@@ -21,6 +21,14 @@ impl ZookeeperCluster {
     pub spec fn view(&self) -> ZookeeperClusterView;
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (zk: Self)
+        ensures
+            zk@ == self@,
+    {
+        ZookeeperCluster { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures
             metadata@ == self@.metadata,
@@ -34,6 +42,14 @@ impl ZookeeperCluster {
             spec@ == self@.spec,
     {
         ZookeeperClusterSpec::from_kube(self.inner.spec.clone())
+    }
+
+    #[verifier(external_body)]
+    pub fn set_status(&mut self, status: ZookeeperClusterStatus)
+        ensures
+            self@ == old(self)@.set_status(status@),
+    {
+        self.inner.status = Some(status.into_kube());
     }
 
     #[verifier(external_body)]
@@ -473,6 +489,47 @@ impl ResourceWrapper<deps_hack::ZookeeperPersistence> for ZookeeperPersistence {
 
     #[verifier(external)]
     fn into_kube(self) -> deps_hack::ZookeeperPersistence {
+        self.inner
+    }
+}
+
+#[verifier(external_body)]
+pub struct ZookeeperClusterStatus {
+    inner: deps_hack::ZookeeperClusterStatus,
+}
+
+impl ZookeeperClusterStatus {
+    pub spec fn view(&self) -> ZookeeperClusterStatusView;
+
+    #[verifier(external_body)]
+    pub fn default() -> (status: ZookeeperClusterStatus)
+        ensures
+            status@ == ZookeeperClusterStatusView::default(),
+    {
+        ZookeeperClusterStatus {
+            inner: deps_hack::ZookeeperClusterStatus::default(),
+        }
+    }
+
+    #[verifier(external_body)]
+    pub fn set_ready_replicas(&mut self, ready_replicas: i32)
+        ensures
+            self@ == old(self)@.set_ready_replicas(ready_replicas as int),
+    {
+        self.inner.ready_replicas = ready_replicas
+    }
+}
+
+impl ResourceWrapper<deps_hack::ZookeeperClusterStatus> for ZookeeperClusterStatus {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::ZookeeperClusterStatus) -> ZookeeperClusterStatus {
+        ZookeeperClusterStatus {
+            inner: inner
+        }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::ZookeeperClusterStatus {
         self.inner
     }
 }

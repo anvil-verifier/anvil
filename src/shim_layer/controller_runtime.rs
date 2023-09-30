@@ -347,6 +347,10 @@ pub fn kube_error_to_ghost(error: &deps_hack::kube::Error) -> APIError {
                 APIError::Invalid
             } else if &error_resp.reason == "InternalError" {
                 APIError::InternalError
+            } else if &error_resp.reason == "Timeout" {
+                APIError::Timeout
+            } else if &error_resp.reason == "ServerTimeout" {
+                APIError::ServerTimeout
             } else {
                 APIError::Other
             }

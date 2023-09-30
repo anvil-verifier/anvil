@@ -49,6 +49,10 @@ impl ResourceBuilder for HeadlessServiceBuilder {
         }
     }
 
+    open spec fn requirements(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) -> bool {
+        true
+    }
+
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
         let key = make_headless_service_key(rabbitmq);
         let obj = resources[key];
@@ -61,6 +65,10 @@ impl ResourceBuilder for HeadlessServiceBuilder {
             cluster_ip: made_spec.cluster_ip,
             ..spec
         }
+    }
+
+    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
+        ServiceView::marshal_preserves_integrity();
     }
 }
 

@@ -61,7 +61,7 @@ pub proof fn sm_partial_spec_is_stable()
     Self::tla_forall_action_weak_fairness_is_stable::<Option<MsgType<E>>, ()>(Self::external_api_next());
     Self::tla_forall_action_weak_fairness_is_stable::<ObjectRef, ()>(Self::schedule_controller_reconcile());
     Self::action_weak_fairness_is_stable::<()>(Self::disable_crash());
-    Self::action_weak_fairness_is_stable::<()>(Self::disable_busy());
+    Self::action_weak_fairness_is_stable::<()>(Self::disable_transient_failure());
 
     stable_and_n!(
         always(lift_action(Self::next())),
@@ -71,7 +71,7 @@ pub proof fn sm_partial_spec_is_stable()
         tla_forall(|input| Self::external_api_next().weak_fairness(input)),
         tla_forall(|input| Self::schedule_controller_reconcile().weak_fairness(input)),
         Self::disable_crash().weak_fairness(()),
-        Self::disable_busy().weak_fairness(())
+        Self::disable_transient_failure().weak_fairness(())
     );
 }
 
@@ -94,12 +94,12 @@ pub proof fn lemma_true_leads_to_busy_always_disabled(
 )
     requires
         spec.entails(always(lift_action(Self::next()))),
-        spec.entails(Self::disable_busy().weak_fairness(())),
+        spec.entails(Self::disable_transient_failure().weak_fairness(())),
     ensures
         spec.entails(true_pred().leads_to(always(lift_state(Self::busy_disabled())))),
 {
     let true_state = |s: Self| true;
-    Self::disable_busy().wf1((), spec, Self::next(), true_state, Self::busy_disabled());
+    Self::disable_transient_failure().wf1((), spec, Self::next(), true_state, Self::busy_disabled());
     leads_to_stable_temp::<Self>(spec, lift_action(Self::next()), true_pred(), lift_state(Self::busy_disabled()));
 }
 

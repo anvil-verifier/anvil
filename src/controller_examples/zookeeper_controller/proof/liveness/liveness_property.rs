@@ -57,7 +57,7 @@ spec fn next_with_wf() -> TempPred<ZKCluster> {
     .and(tla_forall(|input| ZKCluster::controller_next().weak_fairness(input)))
     .and(tla_forall(|input| ZKCluster::schedule_controller_reconcile().weak_fairness(input)))
     .and(ZKCluster::disable_crash().weak_fairness(()))
-    .and(ZKCluster::disable_busy().weak_fairness(()))
+    .and(ZKCluster::disable_transient_failure().weak_fairness(()))
 }
 
 proof fn next_with_wf_is_stable()
@@ -69,14 +69,14 @@ proof fn next_with_wf_is_stable()
     ZKCluster::tla_forall_action_weak_fairness_is_stable(ZKCluster::controller_next());
     ZKCluster::tla_forall_action_weak_fairness_is_stable(ZKCluster::schedule_controller_reconcile());
     ZKCluster::action_weak_fairness_is_stable(ZKCluster::disable_crash());
-    ZKCluster::action_weak_fairness_is_stable(ZKCluster::disable_busy());
+    ZKCluster::action_weak_fairness_is_stable(ZKCluster::disable_transient_failure());
     stable_and_n!(
         always(lift_action(ZKCluster::next())),
         tla_forall(|input| ZKCluster::kubernetes_api_next().weak_fairness(input)),
         tla_forall(|input| ZKCluster::controller_next().weak_fairness(input)),
         tla_forall(|input| ZKCluster::schedule_controller_reconcile().weak_fairness(input)),
         ZKCluster::disable_crash().weak_fairness(()),
-        ZKCluster::disable_busy().weak_fairness(())
+        ZKCluster::disable_transient_failure().weak_fairness(())
     );
 }
 

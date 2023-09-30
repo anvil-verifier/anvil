@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::kubernetes_api_objects::{api_method::*, common::*, dynamic::*};
+use crate::kubernetes_cluster::spec::kubernetes_api::common::KubernetesAPIState;
 use crate::kubernetes_cluster::spec::message::*;
 use crate::state_machine::action::*;
 use crate::state_machine::state_machine::*;
@@ -11,8 +12,6 @@ use vstd::{multiset::*, prelude::*};
 verus! {
 
 pub type StoredState = Map<ObjectRef, DynamicObjectView>;
-
-pub struct BuiltinControllersState {}
 
 #[is_variant]
 pub enum BuiltinControllersStep {
@@ -27,7 +26,6 @@ pub enum BuiltinControllerChoice {
 pub struct BuiltinControllersActionInput {
     pub choice: BuiltinControllerChoice,
     pub key: ObjectRef,
-    pub resources: StoredState,
     pub rest_id_allocator: RestIdAllocator,
 }
 
@@ -36,13 +34,13 @@ pub struct BuiltinControllersActionOutput<I, O> {
     pub rest_id_allocator: RestIdAllocator,
 }
 
-pub type BuiltinControllersStateMachine<I, O> = StateMachine<BuiltinControllersState,
+pub type BuiltinControllersStateMachine<I, O> = StateMachine<KubernetesAPIState,
                                             BuiltinControllersActionInput,
                                             BuiltinControllersActionInput,
                                             BuiltinControllersActionOutput<I, O>,
                                             BuiltinControllersStep>;
 
-pub type BuiltinControllersAction<I, O> = Action<BuiltinControllersState,
+pub type BuiltinControllersAction<I, O> = Action<KubernetesAPIState,
                                         BuiltinControllersActionInput,
                                         BuiltinControllersActionOutput<I, O>>;
 

@@ -38,6 +38,7 @@ pub struct SimpleCRSpec {
 )]
 #[kube(group = "anvil.dev", version = "v1", kind = "ZookeeperCluster")]
 #[kube(shortname = "zk", namespaced)]
+#[kube(status = "ZookeeperClusterStatus")]
 pub struct ZookeeperClusterSpec {
     pub replicas: i32,
     pub image: String,
@@ -53,6 +54,11 @@ pub struct ZookeeperClusterSpec {
     pub labels: std::collections::BTreeMap<String, String>,
     #[serde(default)]
     pub annotations: std::collections::BTreeMap<String, String>,
+}
+
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+pub struct ZookeeperClusterStatus {
+    pub ready_replicas: i32,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]

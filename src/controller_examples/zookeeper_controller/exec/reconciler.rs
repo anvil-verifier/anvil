@@ -710,11 +710,18 @@ pub fn reconcile_core(
             && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response() {
                 let create_stateful_set_resp = resp_o.unwrap().into_k_response().into_create_response().res;
                 if create_stateful_set_resp.is_ok() {
+                    let updated_zk = update_zk_status(zk, 0);
+                    let req_o = KubeAPIRequest::UpdateStatusRequest(KubeUpdateStatusRequest {
+                        api_resource: ZookeeperCluster::api_resource(),
+                        name: zk.metadata().name().unwrap(),
+                        namespace: zk.metadata().namespace().unwrap(),
+                        obj: updated_zk.marshal(),
+                    });
                     let state_prime = ZookeeperReconcileState {
-                        reconcile_step: ZookeeperReconcileStep::Done,
+                        reconcile_step: ZookeeperReconcileStep::AfterUpdateStatus,
                         ..state
                     };
-                    return (state_prime, None);
+                    return (state_prime, Some(Request::KRequest(req_o)));
                 }
             }
             let state_prime = ZookeeperReconcileState {
@@ -728,6 +735,40 @@ pub fn reconcile_core(
             && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response() {
                 let update_stateful_set_resp = resp_o.unwrap().into_k_response().into_update_response().res;
                 if update_stateful_set_resp.is_ok() {
+                    let unmarshal_stateful_set_result = StatefulSet::unmarshal(update_stateful_set_resp.unwrap());
+                    if unmarshal_stateful_set_result.is_ok() {
+                        let updated_stateful_set = unmarshal_stateful_set_result.unwrap();
+                        let ready_replicas = if updated_stateful_set.status().is_some() && updated_stateful_set.status().as_ref().unwrap().ready_replicas().is_some() {
+                            updated_stateful_set.status().as_ref().unwrap().ready_replicas().unwrap()
+                        } else {
+                            0
+                        };
+                        let updated_zk = update_zk_status(zk, ready_replicas);
+                        let req_o = KubeAPIRequest::UpdateStatusRequest(KubeUpdateStatusRequest {
+                            api_resource: ZookeeperCluster::api_resource(),
+                            name: zk.metadata().name().unwrap(),
+                            namespace: zk.metadata().namespace().unwrap(),
+                            obj: updated_zk.marshal(),
+                        });
+                        let state_prime = ZookeeperReconcileState {
+                            reconcile_step: ZookeeperReconcileStep::AfterUpdateStatus,
+                            ..state
+                        };
+                        return (state_prime, Some(Request::KRequest(req_o)));
+                    }
+                }
+            }
+            let state_prime = ZookeeperReconcileState {
+                reconcile_step: ZookeeperReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
+        },
+        ZookeeperReconcileStep::AfterUpdateStatus => {
+            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_status_response() {
+                let update_status_resp = resp_o.unwrap().into_k_response().into_update_status_response().res;
+                if update_status_resp.is_ok() {
                     let state_prime = ZookeeperReconcileState {
                         reconcile_step: ZookeeperReconcileStep::Done,
                         ..state
@@ -1518,6 +1559,19 @@ fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
     pod_spec.set_node_selector(zk.spec().node_selector());
 
     pod_spec
+}
+
+fn update_zk_status(zk: &ZookeeperCluster, ready_replicas: i32) -> (updated_zk: ZookeeperCluster)
+    ensures
+        updated_zk@ == zk_spec::update_zk_status(zk@, ready_replicas as int),
+{
+    let mut updated_zk = zk.clone();
+    updated_zk.set_status({
+        let mut status = ZookeeperClusterStatus::default();
+        status.set_ready_replicas(ready_replicas);
+        status
+    });
+    updated_zk
 }
 
 }

@@ -669,11 +669,16 @@ pub open spec fn reconcile_core(
             let create_stateful_set_resp = resp.get_KResponse_0().get_CreateResponse_0().res;
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
             && create_stateful_set_resp.is_Ok() {
+                let req_o = APIRequest::UpdateStatusRequest(UpdateStatusRequest {
+                    namespace: zk_namespace,
+                    name: zk_name,
+                    obj: update_zk_status(zk, 0).marshal(),
+                });
                 let state_prime = ZookeeperReconcileState {
-                    reconcile_step: ZookeeperReconcileStep::Done,
+                    reconcile_step: ZookeeperReconcileStep::AfterUpdateStatus,
                     ..state
                 };
-                (state_prime, None)
+                (state_prime, Some(RequestView::KRequest(req_o)))
             } else {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Error,
@@ -684,8 +689,37 @@ pub open spec fn reconcile_core(
         },
         ZookeeperReconcileStep::AfterUpdateStatefulSet => {
             let update_stateful_set_resp = resp.get_KResponse_0().get_UpdateResponse_0().res;
+            let unmarshal_stateful_set_result = StatefulSetView::unmarshal(update_stateful_set_resp.get_Ok_0());
+            let updated_stateful_set = unmarshal_stateful_set_result.get_Ok_0();
             if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
-            && update_stateful_set_resp.is_Ok() {
+            && update_stateful_set_resp.is_Ok() && unmarshal_stateful_set_result.is_Ok() {
+                let ready_replicas = if updated_stateful_set.status.is_Some() && updated_stateful_set.status.get_Some_0().ready_replicas.is_Some() {
+                    updated_stateful_set.status.get_Some_0().ready_replicas.get_Some_0()
+                } else {
+                    0
+                };
+                let req_o = APIRequest::UpdateStatusRequest(UpdateStatusRequest {
+                    namespace: zk_namespace,
+                    name: zk_name,
+                    obj: update_zk_status(zk, ready_replicas).marshal(),
+                });
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::AfterUpdateStatus,
+                    ..state
+                };
+                (state_prime, Some(RequestView::KRequest(req_o)))
+            } else {
+                let state_prime = ZookeeperReconcileState {
+                    reconcile_step: ZookeeperReconcileStep::Error,
+                    ..state
+                };
+                (state_prime, None)
+            }
+        },
+        ZookeeperReconcileStep::AfterUpdateStatus => {
+            let update_status_resp = resp.get_KResponse_0().get_UpdateStatusResponse_0().res;
+            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateStatusResponse()
+            && update_status_resp.is_Ok() {
                 let state_prime = ZookeeperReconcileState {
                     reconcile_step: ZookeeperReconcileStep::Done,
                     ..state
@@ -1192,6 +1226,18 @@ pub open spec fn make_zk_pod_spec(zk: ZookeeperClusterView) -> PodSpecView
         tolerations: zk.spec.tolerations,
         node_selector: Some(zk.spec.node_selector),
         ..PodSpecView::default()
+    }
+}
+
+pub open spec fn update_zk_status(zk: ZookeeperClusterView, ready_replicas: int) -> ZookeeperClusterView
+    recommends
+        zk.well_formed(),
+{
+    ZookeeperClusterView {
+        status: Some(ZookeeperClusterStatusView {
+            ready_replicas: ready_replicas,
+        }),
+        ..zk
     }
 }
 

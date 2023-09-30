@@ -118,9 +118,9 @@ pub proof fn lemma_get_req_leads_to_some_resp
                     assert(pre(s_prime));
                 }
             },
-            Step::KubernetesBusy(input) => {
-                if input.get_Some_0() == msg {
-                    let resp = Message::form_matched_err_resp_msg(msg, APIError::ServerTimeout);
+            Step::FailTransientlyStep(input) => {
+                if input.0 == msg {
+                    let resp = Message::form_matched_err_resp_msg(msg, input.1);
                     assert(s_prime.in_flight().contains(resp));
                     assert(Message::resp_msg_matches_req_msg(resp, msg));
                     assert(post(s_prime));
@@ -179,7 +179,7 @@ pub proof fn lemma_get_req_leads_to_ok_or_err_resp
     };
     let stronger_next = |s, s_prime: Self| {
         Self::next()(s, s_prime)
-        && !s.busy_enabled
+        && !s.transient_failure_enabled
     };
     strengthen_next::<Self>(spec, Self::next(), Self::busy_disabled(), stronger_next);
     Self::lemma_pre_leads_to_post_by_kubernetes_api(spec, Some(msg), stronger_next, Self::handle_request(), pre, post);
@@ -618,7 +618,7 @@ proof fn pending_requests_num_decreases(
     let stronger_next = |s, s_prime: Self| {
         &&& Self::next()(s, s_prime)
         &&& s.has_rest_id_counter_no_smaller_than(rest_id)
-        &&& !s.busy_enabled
+        &&& !s.transient_failure_enabled
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),

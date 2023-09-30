@@ -49,12 +49,20 @@ impl ResourceBuilder for ErlangCookieBuilder {
         }
     }
 
+    open spec fn requirements(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) -> bool {
+        true
+    }
+
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
         let key = make_erlang_secret_key(rabbitmq);
         let obj = resources[key];
         &&& resources.contains_key(key)
         &&& SecretView::unmarshal(obj).is_Ok()
         &&& SecretView::unmarshal(obj).get_Ok_0().data == make_erlang_secret(rabbitmq).data
+    }
+
+    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
+        SecretView::marshal_preserves_integrity();
     }
 }
 
