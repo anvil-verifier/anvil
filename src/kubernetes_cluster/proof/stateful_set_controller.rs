@@ -47,25 +47,6 @@ pub open spec fn every_in_flight_update_req_msg_for_this_object_satisfies(
     }
 }
 
-pub open spec fn this_object_exists(key: ObjectRef) -> StatePred<Self> {
-    |s: Self| {
-        s.resources().contains_key(key)
-    }
-}
-
-pub open spec fn this_object_satisfies(key: ObjectRef, requirements: DynamicObjectMutViewPred) -> StatePred<Self> {
-    |s: Self| {
-        &&& s.resources().contains_key(key)
-        &&& requirements(s.resources()[key].mutable_subset())
-    }
-}
-
-pub open spec fn this_object_is_stable(key: ObjectRef) -> StatePred<Self> {
-    |s: Self| {
-        &&& s.stable_resources().contains(key)
-    }
-}
-
 pub open spec fn no_status_update_req_msg_from_bc_for_this_object(key: ObjectRef) -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
@@ -93,10 +74,10 @@ pub proof fn lemma_true_leads_to_always_object_not_exist_or_updated_or_no_more_p
         spec.entails(true_pred().leads_to(always(lift_state(
             |s: Self| {
                 ||| !s.resources().contains_key(key)
-                ||| Self::this_object_satisfies(key, requirements)(s)
+                ||| s.resources().contains_key(key) && requirements(s.resources()[key].mutable_subset())
                 ||| {
                     &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
-                    &&& Self::this_object_is_stable(key)(s)
+                    &&& s.stable_resources().contains(key)
                 }
             }
         )))),
@@ -105,10 +86,10 @@ pub proof fn lemma_true_leads_to_always_object_not_exist_or_updated_or_no_more_p
 
     let post = |s: Self| {
         ||| !s.resources().contains_key(key)
-        ||| Self::this_object_satisfies(key, requirements)(s)
+        ||| s.resources().contains_key(key) && requirements(s.resources()[key].mutable_subset())
         ||| {
             &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
-            &&& Self::this_object_is_stable(key)(s)
+            &&& s.stable_resources().contains(key)
         }
     };
     let stronger_next = |s, s_prime: Self| {
@@ -124,7 +105,8 @@ pub proof fn lemma_true_leads_to_always_object_not_exist_or_updated_or_no_more_p
     );
 
     assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
-        if !s.resources().contains_key(key) || Self::this_object_satisfies(key, requirements)(s) {
+        if !s.resources().contains_key(key)
+        || (s.resources().contains_key(key) && requirements(s.resources()[key].mutable_subset())) {
             // Trivial case.
         } else {
             assert forall |msg| update_status_msg_from_bc_for(key)(msg) implies !s_prime.in_flight().contains(msg) by {
@@ -137,7 +119,7 @@ pub proof fn lemma_true_leads_to_always_object_not_exist_or_updated_or_no_more_p
     leads_to_stable_temp(spec, lift_action(stronger_next), true_pred(), lift_state(post));
 }
 
-pub proof fn lemma_true_leads_to_object_not_exist_or_updated_or_no_more_pending_req(
+proof fn lemma_true_leads_to_object_not_exist_or_updated_or_no_more_pending_req(
     spec: TempPred<Self>, key: ObjectRef, requirements: DynamicObjectMutViewPred
 )
     requires
@@ -150,10 +132,10 @@ pub proof fn lemma_true_leads_to_object_not_exist_or_updated_or_no_more_pending_
         spec.entails(true_pred().leads_to(lift_state(
             |s: Self| {
                 ||| !s.resources().contains_key(key)
-                ||| Self::this_object_satisfies(key, requirements)(s)
+                ||| s.resources().contains_key(key) && requirements(s.resources()[key].mutable_subset())
                 ||| {
                     &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
-                    &&& Self::this_object_is_stable(key)(s)
+                    &&& s.stable_resources().contains(key)
                 }
             }
         ))),
@@ -162,25 +144,25 @@ pub proof fn lemma_true_leads_to_object_not_exist_or_updated_or_no_more_pending_
     let key_not_exists = |s: Self| !s.resources().contains_key(key);
     let post = |s: Self| {
         ||| !s.resources().contains_key(key)
-        ||| Self::this_object_satisfies(key, requirements)(s)
+        ||| s.resources().contains_key(key) && requirements(s.resources()[key].mutable_subset())
         ||| {
             &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
-            &&& Self::this_object_is_stable(key)(s)
+            &&& s.stable_resources().contains(key)
         }
     };
     assert_by(spec.entails(lift_state(key_exists).leads_to(lift_state(post))), {
         let key_not_exists_or_stable = |s: Self| {
             ||| !s.resources().contains_key(key)
-            ||| Self::this_object_is_stable(key)(s)
+            ||| s.stable_resources().contains(key)
         };
         let input = (BuiltinControllerChoice::Stabilizer, key);
         Self::lemma_pre_leads_to_post_by_builtin_controllers(
             spec, input, Self::next(), Self::run_stabilizer(), key_exists, key_not_exists_or_stable
         );
-        assert_by(spec.entails(lift_state(Self::this_object_is_stable(key)).leads_to(lift_state(post))), {
+        assert_by(spec.entails(lift_state(|s: Self| s.stable_resources().contains(key)).leads_to(lift_state(post))), {
             let stable_and_pending_update_status_req_num_is_n = |msg_num: nat| lift_state(|s: Self| {
                 &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == msg_num
-                &&& Self::this_object_is_stable(key)(s)
+                &&& s.stable_resources().contains(key)
             });
             assert forall |msg_num: nat|
                 spec.entails(#[trigger] stable_and_pending_update_status_req_num_is_n(msg_num).leads_to(lift_state(post)))
@@ -190,18 +172,18 @@ pub proof fn lemma_true_leads_to_object_not_exist_or_updated_or_no_more_pending_
                 );
             }
             leads_to_exists_intro(spec, stable_and_pending_update_status_req_num_is_n, lift_state(post));
-            assert_by(tla_exists(stable_and_pending_update_status_req_num_is_n) == lift_state(Self::this_object_is_stable(key)), {
-                assert forall |ex| #[trigger] lift_state(Self::this_object_is_stable(key)).satisfied_by(ex) implies
-                tla_exists(stable_and_pending_update_status_req_num_is_n).satisfied_by(ex) by {
+            assert_by(tla_exists(stable_and_pending_update_status_req_num_is_n) == lift_state(|s: Self| s.stable_resources().contains(key)), {
+                assert forall |ex| lift_state(|s: Self| s.stable_resources().contains(key)).satisfied_by(ex) implies
+                #[trigger] tla_exists(stable_and_pending_update_status_req_num_is_n).satisfied_by(ex) by {
                     let current_msg_num = ex.head().network_state.in_flight.filter(update_status_msg_from_bc_for(key)).len();
                     assert(stable_and_pending_update_status_req_num_is_n(current_msg_num).satisfied_by(ex));
                 }
-                temp_pred_equality(tla_exists(stable_and_pending_update_status_req_num_is_n), lift_state(Self::this_object_is_stable(key)));
+                temp_pred_equality(tla_exists(stable_and_pending_update_status_req_num_is_n), lift_state(|s: Self| s.stable_resources().contains(key)));
             });
         });
-        temp_pred_equality(lift_state(Self::this_object_is_stable(key)).or(lift_state(key_not_exists)), lift_state(key_not_exists_or_stable));
+        temp_pred_equality(lift_state(|s: Self| s.stable_resources().contains(key)).or(lift_state(key_not_exists)), lift_state(key_not_exists_or_stable));
         temp_pred_equality(lift_state(post).or(lift_state(key_not_exists)), lift_state(post));
-        sandwich_leads_to_by_or_temp(spec, lift_state(Self::this_object_is_stable(key)), lift_state(post), lift_state(key_not_exists));
+        sandwich_leads_to_by_or_temp(spec, lift_state(|s: Self| s.stable_resources().contains(key)), lift_state(post), lift_state(key_not_exists));
         leads_to_trans_temp(spec, lift_state(key_exists), lift_state(key_not_exists_or_stable), lift_state(post));
     });
     temp_pred_equality(lift_state(key_exists).or(lift_state(key_not_exists)), true_pred());
@@ -221,14 +203,14 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_object_not_exist_or_u
         spec.entails(
             lift_state(|s: Self| {
                 &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == msg_num
-                &&& Self::this_object_is_stable(key)(s)
+                &&& s.stable_resources().contains(key)
             }).leads_to(lift_state(
                 |s: Self| {
                     ||| !s.resources().contains_key(key)
-                    ||| Self::this_object_satisfies(key, requirements)(s)
+                    ||| s.resources().contains_key(key) && requirements(s.resources()[key].mutable_subset())
                     ||| {
                         &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
-                        &&& Self::this_object_is_stable(key)(s)
+                        &&& s.stable_resources().contains(key)
                     }
                 }
             ))
@@ -237,19 +219,19 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_object_not_exist_or_u
 {
     let pre = |s: Self| {
         &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == msg_num
-        &&& Self::this_object_is_stable(key)(s)
+        &&& s.stable_resources().contains(key)
     };
     let post = |s: Self| {
         ||| !s.resources().contains_key(key)
-        ||| Self::this_object_satisfies(key, requirements)(s)
+        ||| s.resources().contains_key(key) && requirements(s.resources()[key].mutable_subset())
         ||| {
             &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
-            &&& Self::this_object_is_stable(key)(s)
+            &&& s.stable_resources().contains(key)
         }
     };
     if msg_num == 0 {
         assert_by(valid(lift_state(pre).implies(lift_state(post))), {
-            assert forall |s| #[trigger] pre(s) implies post(s) by {
+            assert forall |s: Self| #[trigger] pre(s) implies post(s) by {
                 assert forall |msg| update_status_msg_from_bc_for(key)(msg) implies !s.in_flight().contains(msg) by {
                     assert(s.in_flight().filter(update_status_msg_from_bc_for(key)).count(msg) == 0);
                 }
@@ -259,27 +241,27 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_object_not_exist_or_u
     } else {
         let pre_concrete_msg = |msg: MsgType<E>| lift_state(|s: Self| {
             &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == msg_num
-            &&& Self::this_object_is_stable(key)(s)
+            &&& s.stable_resources().contains(key)
             &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).count(msg) > 0
         });
         let pre_minus_one = lift_state(|s: Self| {
             &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == (msg_num - 1) as nat
-            &&& Self::this_object_is_stable(key)(s)
+            &&& s.stable_resources().contains(key)
         });
         let obj_not_exist_or_updated = lift_state(|s: Self| {
             ||| !s.resources().contains_key(key)
-            ||| Self::this_object_satisfies(key, requirements)(s)
+            ||| s.resources().contains_key(key) && requirements(s.resources()[key].mutable_subset())
         });
         let no_more_pending_req = lift_state(|s: Self| {
             &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
-            &&& Self::this_object_is_stable(key)(s)
+            &&& s.stable_resources().contains(key)
         });
         let pre_minus_one_or_obj_not_exist_or_updated = lift_state(|s: Self| {
             ||| !s.resources().contains_key(key)
-            ||| Self::this_object_satisfies(key, requirements)(s)
+            ||| s.resources().contains_key(key) && requirements(s.resources()[key].mutable_subset())
             ||| {
                 &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == (msg_num - 1) as nat
-                &&& Self::this_object_is_stable(key)(s)
+                &&& s.stable_resources().contains(key)
             }
         });
         assert_by(spec.entails(lift_state(pre).leads_to(pre_minus_one_or_obj_not_exist_or_updated)), {
@@ -320,29 +302,29 @@ proof fn object_not_exist_or_updated_or_pending_update_status_requests_num_decre
         spec.entails(
             lift_state(|s: Self| {
                 &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == msg_num
-                &&& Self::this_object_is_stable(key)(s)
+                &&& s.stable_resources().contains(key)
                 &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).count(msg) > 0
             }).leads_to(lift_state(|s: Self| {
                 ||| !s.resources().contains_key(key)
-                ||| Self::this_object_satisfies(key, requirements)(s)
+                ||| s.resources().contains_key(key) && requirements(s.resources()[key].mutable_subset())
                 ||| {
                     &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == (msg_num - 1) as nat
-                    &&& Self::this_object_is_stable(key)(s)
+                    &&& s.stable_resources().contains(key)
                 }
             }))
         ),
 {
     let pre = |s: Self| {
         &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == msg_num
-        &&& Self::this_object_is_stable(key)(s)
+        &&& s.stable_resources().contains(key)
         &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).count(msg) > 0
     };
     let post = |s: Self| {
         ||| !s.resources().contains_key(key)
-        ||| Self::this_object_satisfies(key, requirements)(s)
+        ||| s.resources().contains_key(key) && requirements(s.resources()[key].mutable_subset())
         ||| {
             &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == (msg_num - 1) as nat
-            &&& Self::this_object_is_stable(key)(s)
+            &&& s.stable_resources().contains(key)
         }
     };
     let input = Some(msg);
@@ -369,11 +351,6 @@ proof fn object_not_exist_or_updated_or_pending_update_status_requests_num_decre
                     assert(pending_req_multiset.remove(input.get_Some_0()) =~= pending_req_multiset_prime);
                 } else {
                     assert(pending_req_multiset =~= pending_req_multiset_prime);
-                    assert(
-                        Self::this_object_is_stable(key)(s_prime)
-                        || Self::this_object_satisfies(key, requirements)(s_prime)
-                        || !s.resources().contains_key(key)
-                    );
                 }
             },
             Step::FailTransientlyStep(input) => {
