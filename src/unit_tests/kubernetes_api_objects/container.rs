@@ -197,4 +197,36 @@ pub fn test_set_env() {
     container.set_env(vec![env_var.clone()]);
     assert_eq!(vec![env_var.into_kube()], container.into_kube().env.unwrap());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_default(){
+    let container = Container::default();
+    assert_eq!(container.into_kube(), deps_hack::k8s_openapi::api::core::v1::Container::default());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_clone(){
+    let mut container = Container::default();
+    container.set_image(new_strlit("image").to_string());
+    let container_clone = container.clone();
+    assert_eq!(container.into_kube(), container_clone.into_kube());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_overwrite_resources(){
+    let mut container = Container::default();
+    let mut resources = ResourceRequirements::default();
+    let mut requests = StringMap::new();
+    requests.insert(new_strlit("cpu").to_string(), new_strlit("100m").to_string());
+    resources.set_requests(requests);
+    container. overwrite_resources(Some(resources.clone()));
+    assert_eq!(resources.into_kube(), container.into_kube().resources.unwrap());
+    let mut container_2 = Container::default();
+    let resources_2 = None;
+    container_2.overwrite_resources(resources_2);
+    assert_eq!(None, container_2.into_kube().resources);
+}
 }

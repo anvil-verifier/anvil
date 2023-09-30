@@ -9,22 +9,6 @@ use vstd::string::*;
 
 verus! {
 // Tests for Probe
-#[test]
-#[verifier(external)]
-pub fn test_set_host() {
-    let mut tcp_socket_action = TCPSocketAction::default();
-    tcp_socket_action.set_host(new_strlit("host").to_string());
-    assert_eq!("host".to_string(), tcp_socket_action.into_kube().host.unwrap());
-}
-
-#[test]
-#[verifier(external)]
-pub fn test_set_port() {
-    let mut tcp_socket_action = TCPSocketAction::default();
-    tcp_socket_action.set_port(8080);
-    assert_eq!(deps_hack::k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(8080),
-               tcp_socket_action.into_kube().port);
-}
 
 #[test]
 #[verifier(external)]
@@ -87,4 +71,21 @@ pub fn test_set_timeout_seconds() {
     probe.set_timeout_seconds(3);
     assert_eq!(3, probe.into_kube().timeout_seconds.unwrap());
 }
+
+#[test]
+#[verifier(external)]
+pub fn test_default() {
+    let probe = Probe::default();
+    assert_eq!(probe.into_kube(), deps_hack::k8s_openapi::api::core::v1::Probe::default());
+}
+
+#[test]
+#[verifier(external)]
+pub fn test_clone() {
+    let mut probe = Probe::default();
+    probe.set_timeout_seconds(3);
+    let probe_clone = probe.clone();
+    assert_eq!(probe.into_kube(), probe_clone.into_kube());
+}
+
 }
