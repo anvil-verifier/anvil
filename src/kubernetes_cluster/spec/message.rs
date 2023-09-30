@@ -426,6 +426,21 @@ pub open spec fn api_request_msg_before<I, O>(rest_id: RestId) -> FnSpec(Message
         && msg.content.get_rest_id() < rest_id
 }
 
+pub open spec fn update_status_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+    |msg: Message<I, O>|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_update_status_request()
+        && msg.content.get_update_status_request().key() == key
+}
+
+pub open spec fn update_status_msg_from_bc_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+    |msg: Message<I, O>|
+        msg.dst.is_KubernetesAPI()
+        && msg.src.is_BuiltinController()
+        && msg.content.is_update_status_request()
+        && msg.content.get_update_status_request().key() == key
+}
+
 pub open spec fn received_msg_destined_for<I, O>(recv: Option<Message<I, O>>, host_id: HostId) -> bool {
     if recv.is_Some() {
         recv.get_Some_0().dst == host_id
