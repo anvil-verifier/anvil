@@ -8,28 +8,22 @@ use vstd::prelude::*;
 use vstd::string::*;
 
 verus! {
-// Tests for life cycle
+// Tests for life cycle handler
 #[test]
 #[verifier(external)]
-pub fn test_set_pre_stop() {
-    let mut lifecycle = Lifecycle::default();
+pub fn test_set_exec() {
     let mut handler = LifecycleHandler::default();
     let mut exec_action = ExecAction::default();
     exec_action.set_command(vec![new_strlit("command").to_string()]);
-    handler.set_exec(exec_action);
-
-    lifecycle.set_pre_stop(handler.clone());
-    assert_eq!(
-        handler.into_kube(),
-        lifecycle.into_kube().pre_stop.unwrap()
-    );
+    handler.set_exec(exec_action.clone());
+    assert_eq!(exec_action.into_kube(), handler.into_kube().exec.unwrap());
 }
 
 #[test]
 #[verifier(external)]
 pub fn test_default(){
-    let lifecycle = Lifecycle::default();
-    assert_eq!(lifecycle.into_kube(), deps_hack::k8s_openapi::api::core::v1::Lifecycle::default());
+    let handler = LifecycleHandler::default();
+    assert_eq!(handler.into_kube(), deps_hack::k8s_openapi::api::core::v1::LifecycleHandler::default());
 }
 
 #[test]

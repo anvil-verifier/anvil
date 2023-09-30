@@ -11,35 +11,32 @@ verus! {
 // Tests for life cycle
 #[test]
 #[verifier(external)]
-pub fn test_set_pre_stop() {
-    let mut lifecycle = Lifecycle::default();
-    let mut handler = LifecycleHandler::default();
+pub fn test_set_command() {
     let mut exec_action = ExecAction::default();
     exec_action.set_command(vec![new_strlit("command").to_string()]);
-    handler.set_exec(exec_action);
-
-    lifecycle.set_pre_stop(handler.clone());
     assert_eq!(
-        handler.into_kube(),
-        lifecycle.into_kube().pre_stop.unwrap()
+        vec!["command".to_string()],
+        exec_action.into_kube().command.unwrap()
     );
 }
 
 #[test]
 #[verifier(external)]
-pub fn test_default(){
-    let lifecycle = Lifecycle::default();
-    assert_eq!(lifecycle.into_kube(), deps_hack::k8s_openapi::api::core::v1::Lifecycle::default());
+pub fn test_default() {
+    let exec_action = ExecAction::default();
+    assert_eq!(
+        exec_action.into_kube(),
+        deps_hack::k8s_openapi::api::core::v1::ExecAction::default()
+    );
 }
 
 #[test]
 #[verifier(external)]
-pub fn test_clone(){
-    let mut handler = LifecycleHandler::default();
+pub fn test_clone() {
     let mut exec_action = ExecAction::default();
     exec_action.set_command(vec![new_strlit("command").to_string()]);
-    handler.set_exec(exec_action.clone());
-    let handler_clone = handler.clone();
-    assert_eq!(handler.into_kube(), handler_clone.into_kube());
+    let exec_action_clone = exec_action.clone();
+    assert_eq!(exec_action.into_kube(), exec_action_clone.into_kube());
 }
+
 }
