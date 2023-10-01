@@ -62,6 +62,10 @@ impl ResourceBuilder for ServiceBuilder {
             ..spec
         }
     }
+
+    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
+        &&& ServiceView::unmarshal(object).is_Ok()
+    }
 }
 
 pub open spec fn make_main_service_name(rabbitmq: RabbitmqClusterView) -> StringView

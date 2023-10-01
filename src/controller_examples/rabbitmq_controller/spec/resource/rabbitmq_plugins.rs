@@ -56,6 +56,10 @@ impl ResourceBuilder for PluginsConfigMapBuilder {
         &&& ConfigMapView::unmarshal(obj).is_Ok()
         &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == make_plugins_config_map(rabbitmq).data
     }
+
+    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
+        &&& ConfigMapView::unmarshal(object).is_Ok()
+    }
 }
 
 pub open spec fn make_plugins_config_map_name(rabbitmq: RabbitmqClusterView) -> StringView

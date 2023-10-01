@@ -29,6 +29,8 @@ pub trait ResourceBuilder {
     /// resource_state_matches takes the cr and an object that stores all resources, then it will check whether the resource pool
     /// reaches the desired state in the view of the object that it builds.
     spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool;
+
+    spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool;
 }
 
 pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView>

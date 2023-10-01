@@ -56,6 +56,10 @@ impl ResourceBuilder for RoleBuilder {
         &&& RoleView::unmarshal(obj).is_Ok()
         &&& RoleView::unmarshal(obj).get_Ok_0().policy_rules == make_role(rabbitmq).policy_rules
     }
+
+    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
+        &&& RoleView::unmarshal(object).is_Ok()
+    }
 }
 
 pub open spec fn make_role_name(rabbitmq: RabbitmqClusterView) -> StringView

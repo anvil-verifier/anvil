@@ -57,6 +57,10 @@ impl ResourceBuilder for RoleBindingBuilder {
         &&& RoleBindingView::unmarshal(obj).get_Ok_0().role_ref == make_role_binding(rabbitmq).role_ref
         &&& RoleBindingView::unmarshal(obj).get_Ok_0().subjects == make_role_binding(rabbitmq).subjects
     }
+
+    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
+        &&& RoleBindingView::unmarshal(object).is_Ok()
+    }
 }
 
 pub open spec fn make_role_binding_name(rabbitmq: RabbitmqClusterView) -> StringView

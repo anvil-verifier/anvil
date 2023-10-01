@@ -67,6 +67,11 @@ impl ResourceBuilder for StatefulSetBuilder {
         &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec
             == (#[trigger] make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version.get_Some_0()))).spec
     }
+
+    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
+        &&& StatefulSetView::unmarshal(object).is_Ok()
+        &&& StatefulSetView::unmarshal(object).get_Ok_0().spec.is_Some()
+    }
 }
 
 pub open spec fn make_stateful_set_key(rabbitmq: RabbitmqClusterView) -> ObjectRef

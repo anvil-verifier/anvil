@@ -59,6 +59,11 @@ impl ResourceBuilder for ServerConfigMapBuilder {
         &&& ConfigMapView::unmarshal(obj).is_Ok()
         &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == make_server_config_map(rabbitmq).data
     }
+
+    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
+        let cm = ConfigMapView::unmarshal(object).get_Ok_0();
+        &&& ConfigMapView::unmarshal(object).is_Ok()
+    }
 }
 
 pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_config_map: ConfigMapView) -> ConfigMapView {

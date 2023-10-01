@@ -94,4 +94,19 @@ pub open spec fn resource_state_matches(sub_resource: SubResource, rabbitmq: Rab
     }
 }
 
+pub open spec fn unchangeable(sub_resource: SubResource, object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
+    match sub_resource {
+        SubResource::HeadlessService => HeadlessServiceBuilder::unchangeable(object, rabbitmq),
+        SubResource::Service => ServiceBuilder::unchangeable(object, rabbitmq),
+        SubResource::ErlangCookieSecret => ErlangCookieBuilder::unchangeable(object, rabbitmq),
+        SubResource::DefaultUserSecret => DefaultUserSecretBuilder::unchangeable(object, rabbitmq),
+        SubResource::PluginsConfigMap => PluginsConfigMapBuilder::unchangeable(object, rabbitmq),
+        SubResource::ServerConfigMap => ServerConfigMapBuilder::unchangeable(object, rabbitmq),
+        SubResource::ServiceAccount => ServiceAccountBuilder::unchangeable(object, rabbitmq),
+        SubResource::Role => RoleBuilder::unchangeable(object, rabbitmq),
+        SubResource::RoleBinding => RoleBindingBuilder::unchangeable(object, rabbitmq),
+        SubResource::StatefulSet => StatefulSetBuilder::unchangeable(object, rabbitmq),
+    }
+}
+
 }

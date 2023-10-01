@@ -56,6 +56,10 @@ impl ResourceBuilder for ErlangCookieBuilder {
         &&& SecretView::unmarshal(obj).is_Ok()
         &&& SecretView::unmarshal(obj).get_Ok_0().data == make_erlang_secret(rabbitmq).data
     }
+
+    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
+        &&& SecretView::unmarshal(object).is_Ok()
+    }
 }
 
 pub open spec fn make_erlang_secret_name(rabbitmq: RabbitmqClusterView) -> StringView

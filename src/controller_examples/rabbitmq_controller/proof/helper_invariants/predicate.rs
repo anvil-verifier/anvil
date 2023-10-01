@@ -59,7 +59,7 @@ pub open spec fn every_resource_create_request_implies_at_after_create_resource_
     }
 }
 
-pub open spec fn every_resource_object_in_update_request_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
+pub open spec fn every_resource_update_request_implies_at_after_update_resource_step(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
     recommends
         rabbitmq.well_formed(),
 {
@@ -126,6 +126,13 @@ pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq: Rab
             }
             _ => true,
         }
+    }
+}
+
+pub open spec fn object_in_etcd_satisfies_unchangeable(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
+        ==> unchangeable(sub_resource, s.resources()[get_request(sub_resource, rabbitmq).key], rabbitmq)
     }
 }
 

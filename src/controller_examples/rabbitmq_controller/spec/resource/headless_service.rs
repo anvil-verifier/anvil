@@ -63,6 +63,10 @@ impl ResourceBuilder for HeadlessServiceBuilder {
             ..spec
         }
     }
+
+    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
+        &&& ServiceView::unmarshal(object).is_Ok()
+    }
 }
 
 pub open spec fn make_headless_service_name(rabbitmq: RabbitmqClusterView) -> StringView
