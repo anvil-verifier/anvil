@@ -17,6 +17,7 @@ pub type StoredState = Map<ObjectRef, DynamicObjectView>;
 pub enum BuiltinControllersStep {
     RunGarbageCollector,
     RunStatefulSetController,
+    RunDaemonSetController,
     RunStabilizer,
 }
 
@@ -24,6 +25,7 @@ pub enum BuiltinControllersStep {
 pub enum BuiltinControllerChoice {
     GarbageCollector,
     StatefulSetController{ready_replicas: int},
+    DaemonSetController{number_ready: int},
     Stabilizer,
 }
 
