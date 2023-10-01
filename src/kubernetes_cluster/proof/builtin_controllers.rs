@@ -314,12 +314,29 @@ pub open spec fn no_status_update_req_msg_from_bc_for_this_object(key: ObjectRef
     }
 }
 
-/// This lemma shows that if spec ensures the stateful set object (identified by the key) always exists and
-/// every update request for this stateful set object satisfies some requirements,
-/// the system will eventually reaches a state where either the stateful set object is
-/// updated to always satisfy that requirement,
-/// or there is never update_status request for this stateful set object
-/// (which means any following update request does not need to compete with update_state request).
+/// This lemma shows that for a given object (identified by the key) if
+/// (1) all the create request for this object will create an object that satisfies the requirements
+/// (2) all the update request for this object will update this object to satisfy the requirements,
+/// then eventually it will reach a state where it is always true that
+/// (1) the object does not exist,
+/// (2) or the object exists and satisfies the requirements,
+/// (3) or there is no update-status request for this object in the network.
+///
+/// This lemma is used to help prove that the custom controller eventually updates the object
+/// to the desired state even with potential race from other built-in controllers,
+/// such as the stateful set controller or daemon set controller.
+///
+/// Such race condition makes the liveness proof harder because if the controller loses the race
+/// and the built-in controller first updates the object, the controller's update will fail due
+/// to the conflict error caused by resource version checking.
+/// Note that liveness is still possible here since the built-in controller eventually stops
+/// sending update-status request of an object (thanks to the stabilizer) before the next update to the same
+/// object from the custom controller.
+///
+/// This lemma basically shows us why liveness is still possible here: if the create/update from the custom
+/// controller ever gets handled, then the object is already in the desired state; otherwise eventually
+/// the object becomes stable and all update-status requests are gone, so later the request from the custom
+/// controller can directly go through.
 
 pub proof fn lemma_true_leads_to_always_object_not_exist_or_updated_or_no_more_pending_req(
     spec: TempPred<Self>, key: ObjectRef, requirements: DynamicObjectMutViewPred
