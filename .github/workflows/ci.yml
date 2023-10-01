@@ -1,5 +1,5 @@
 name: Continuous integration
-run-name: Regression tests run by ${{ github.actor }}
+run-name: Continuous integration run by ${{ github.actor }}
 on:
   # push:
   #   branches:
