@@ -23,7 +23,7 @@ pub open spec fn run_stateful_set_controller() -> BuiltinControllersAction<E::In
             let resources = s.resources;
             let key = input.key;
             let owner_references = resources[key].metadata.owner_references.get_Some_0();
-            // The garbage collector is chosen by the top level state machine
+            // The stateful set controller is chosen by the top level state machine
             &&& input.choice.is_StatefulSetController()
             // The object exists in the cluster state
             &&& resources.contains_key(key)
