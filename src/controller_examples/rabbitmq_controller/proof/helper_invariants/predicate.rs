@@ -40,13 +40,6 @@ pub open spec fn object_of_key_has_no_finalizers_or_timestamp_and_only_has_contr
     }
 }
 
-pub open spec fn resource_update_request_msg(key: ObjectRef) -> FnSpec(RMQMessage) -> bool {
-    |msg: RMQMessage|
-        msg.dst.is_KubernetesAPI()
-        && msg.content.is_update_request()
-        && msg.content.get_update_request().key() == key
-}
-
 pub open spec fn every_resource_create_request_implies_at_after_create_resource_step(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
     recommends
         rabbitmq.well_formed(),
