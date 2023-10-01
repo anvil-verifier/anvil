@@ -58,7 +58,7 @@ impl ResourceBuilder for DefaultUserSecretBuilder {
     }
 
     open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-        &&& SecretView::unmarshal(object).is_Ok()
+        true
     }
 }
 
@@ -95,6 +95,7 @@ pub open spec fn update_default_user_secret(rabbitmq: RabbitmqClusterView, found
             annotations: made_secret.metadata.annotations,
             ..found_secret.metadata
         },
+        data: made_secret.data,
         ..found_secret
     }
 }

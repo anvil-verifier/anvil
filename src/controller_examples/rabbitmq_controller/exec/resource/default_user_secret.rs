@@ -73,6 +73,7 @@ pub fn update_default_user_secret(rabbitmq: &RabbitmqCluster, found_secret: Secr
         metadata.set_annotations(made_user_secret.metadata().annotations().unwrap());
         metadata
     });
+    user_secret.set_data(made_user_secret.data().unwrap());
     user_secret
 }
 

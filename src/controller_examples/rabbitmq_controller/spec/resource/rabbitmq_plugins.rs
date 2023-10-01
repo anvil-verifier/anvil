@@ -58,7 +58,7 @@ impl ResourceBuilder for PluginsConfigMapBuilder {
     }
 
     open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-        &&& ConfigMapView::unmarshal(object).is_Ok()
+        true
     }
 }
 
@@ -88,17 +88,7 @@ pub open spec fn update_plugins_config_map(rabbitmq: RabbitmqClusterView, found_
 {
     let made_config_map = make_plugins_config_map(rabbitmq);
     ConfigMapView {
-        data: Some({
-            if found_config_map.data.is_Some() {
-                found_config_map.data.get_Some_0()
-                    .insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].")@)
-            } else {
-                Map::empty().insert(
-                    new_strlit("enabled_plugins")@,
-                    new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].")@
-                )
-            }
-        }),
+        data: made_config_map.data,
         metadata: ObjectMetaView {
             owner_references: Some(make_owner_references(rabbitmq)),
             finalizers: None,

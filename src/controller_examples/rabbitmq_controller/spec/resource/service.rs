@@ -101,6 +101,7 @@ pub open spec fn update_main_service(rabbitmq: RabbitmqClusterView, found_main_s
             annotations: made_main_service.metadata.annotations,
             ..found_main_service.metadata
         },
+        spec: made_main_service.spec,
         ..found_main_service
     }
 }

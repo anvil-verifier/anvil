@@ -58,7 +58,7 @@ impl ResourceBuilder for RoleBuilder {
     }
 
     open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-        &&& RoleView::unmarshal(object).is_Ok()
+        true
     }
 }
 

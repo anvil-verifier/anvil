@@ -64,12 +64,7 @@ pub fn update_plugins_config_map(rabbitmq: &RabbitmqCluster, found_config_map: C
 {
     let mut config_map = found_config_map.clone();
     let made_config_map = make_plugins_config_map(rabbitmq);
-    config_map.set_data({
-        let mut data = if found_config_map.data().is_some() { found_config_map.data().unwrap() } else { StringMap::empty() };
-        data.insert(new_strlit("enabled_plugins").to_string(),
-                new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].").to_string());
-        data
-    });
+    config_map.set_data(made_config_map.data().unwrap());
     config_map.set_metadata({
         let mut metadata = found_config_map.metadata();
         metadata.set_owner_references(make_owner_references(rabbitmq));

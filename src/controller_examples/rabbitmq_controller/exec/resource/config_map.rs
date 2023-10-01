@@ -68,12 +68,7 @@ pub fn update_server_config_map(rabbitmq: &RabbitmqCluster, found_config_map: Co
     let mut config_map = found_config_map.clone();
     let made_server_cm = make_server_config_map(rabbitmq);
 
-    config_map.set_data({
-        let old_data_opt = found_config_map.data();
-        let mut old_data = if old_data_opt.is_some() { old_data_opt.unwrap() } else { StringMap::empty() };
-        old_data.extend(made_server_cm.data().unwrap());
-        old_data
-    });
+    config_map.set_data(made_server_cm.data().unwrap());
     config_map.set_metadata({
         let mut metadata = found_config_map.metadata();
         // The reason why we add these two operations is that it makes the proof easier.

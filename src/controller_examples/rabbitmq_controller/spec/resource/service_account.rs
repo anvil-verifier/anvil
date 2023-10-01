@@ -59,6 +59,7 @@ impl ResourceBuilder for ServiceAccountBuilder {
 
     open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
         &&& ServiceAccountView::unmarshal(object).is_Ok()
+        &&& ServiceAccountView::unmarshal(object).get_Ok_0().automount_service_account_token == make_service_account(rabbitmq).automount_service_account_token
     }
 }
 

@@ -61,8 +61,7 @@ impl ResourceBuilder for ServerConfigMapBuilder {
     }
 
     open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-        let cm = ConfigMapView::unmarshal(object).get_Ok_0();
-        &&& ConfigMapView::unmarshal(object).is_Ok()
+        true
     }
 }
 
@@ -75,10 +74,7 @@ pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_c
             annotations: make_server_config_map(rabbitmq).metadata.annotations,
             ..found_config_map.metadata
         },
-        data: Some({
-            let old_data = if found_config_map.data.is_Some() { found_config_map.data.get_Some_0() } else { Map::empty() };
-            old_data.union_prefer_right(make_server_config_map(rabbitmq).data.get_Some_0())
-        }),
+        data: make_server_config_map(rabbitmq).data,
         ..found_config_map
     }
 }

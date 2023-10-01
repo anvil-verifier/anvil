@@ -76,6 +76,7 @@ pub fn update_main_service(rabbitmq: &RabbitmqCluster, found_main_service: Servi
         metadata.set_annotations(made_service.metadata().annotations().unwrap());
         metadata
     });
+    main_service.set_spec(made_service.spec().unwrap());
     main_service
 }
 
