@@ -73,7 +73,7 @@ pub fn update_default_user_secret(rabbitmq: &RabbitmqCluster, found_secret: Secr
         metadata.set_annotations(made_user_secret.metadata().annotations().unwrap());
         metadata
     });
-    user_secret.set_data(made_user_secret.data().unwrap());
+    user_secret.set_data(make_default_user_secret_data(rabbitmq));
     user_secret
 }
 
@@ -87,12 +87,12 @@ pub fn make_default_user_secret_name(rabbitmq: &RabbitmqCluster) -> (name: Strin
     rabbitmq.name().unwrap().concat(new_strlit("-default-user"))
 }
 
-pub fn make_default_user_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
+pub fn make_default_user_secret_data(rabbitmq: &RabbitmqCluster) -> (data: StringMap)
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
     ensures
-        secret@ == spec_resource::make_default_user_secret(rabbitmq@)
+        data@ == spec_resource::make_default_user_secret_data(rabbitmq@),
 {
     let mut data = StringMap::empty();
     data.insert(new_strlit("username").to_string(), new_strlit("user").to_string());
@@ -105,7 +105,17 @@ pub fn make_default_user_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
     // TODO: check \n
     data.insert(new_strlit("default_user.conf").to_string(), new_strlit("default_user = user\ndefault_pass = changeme").to_string());
     data.insert(new_strlit("port").to_string(), new_strlit("5672").to_string());
-    make_secret(rabbitmq, make_default_user_secret_name(rabbitmq), data)
+    data
+}
+
+pub fn make_default_user_secret(rabbitmq: &RabbitmqCluster) -> (secret: Secret)
+    requires
+        rabbitmq@.metadata.name.is_Some(),
+        rabbitmq@.metadata.namespace.is_Some(),
+    ensures
+        secret@ == spec_resource::make_default_user_secret(rabbitmq@),
+{
+    make_secret(rabbitmq, make_default_user_secret_name(rabbitmq), make_default_user_secret_data(rabbitmq))
 }
 
 }

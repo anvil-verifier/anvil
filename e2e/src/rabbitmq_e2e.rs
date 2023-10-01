@@ -404,7 +404,7 @@ pub async fn scaling_test(client: Client, rabbitmq_name: String) -> Result<(), E
             Ok(sts) => {
                 if sts.spec.unwrap().replicas != Some(4) {
                     println!(
-                        "Stateful set spec is not consistent with zookeeper cluster spec yet."
+                        "Stateful set spec is not consistent with rabbitmq cluster spec yet."
                     );
                     continue;
                 }

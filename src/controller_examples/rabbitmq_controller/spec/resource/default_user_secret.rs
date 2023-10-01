@@ -95,17 +95,17 @@ pub open spec fn update_default_user_secret(rabbitmq: RabbitmqClusterView, found
             annotations: made_secret.metadata.annotations,
             ..found_secret.metadata
         },
-        data: made_secret.data,
+        data: Some(make_default_user_secret_data(rabbitmq)),
         ..found_secret
     }
 }
 
-pub open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> SecretView
+pub open spec fn make_default_user_secret_data(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView>
     recommends
         rabbitmq.metadata.name.is_Some(),
         rabbitmq.metadata.namespace.is_Some(),
 {
-    let data = Map::empty()
+    Map::empty()
         .insert(new_strlit("username")@, new_strlit("user")@)
         .insert(new_strlit("password")@, new_strlit("changeme")@)
         .insert(new_strlit("type")@, new_strlit("rabbitmq")@)
@@ -114,8 +114,15 @@ pub open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> Secr
         )
         .insert(new_strlit("provider")@, new_strlit("rabbitmq")@)
         .insert(new_strlit("default_user.conf")@, new_strlit("default_user = user\ndefault_pass = changeme")@)
-        .insert(new_strlit("port")@, new_strlit("5672")@);
-    make_secret(rabbitmq, make_default_user_secret_name(rabbitmq), data)
+        .insert(new_strlit("port")@, new_strlit("5672")@)
+}
+
+pub open spec fn make_default_user_secret(rabbitmq: RabbitmqClusterView) -> SecretView
+    recommends
+        rabbitmq.metadata.name.is_Some(),
+        rabbitmq.metadata.namespace.is_Some(),
+{
+    make_secret(rabbitmq, make_default_user_secret_name(rabbitmq), make_default_user_secret_data(rabbitmq))
 }
 
 }
