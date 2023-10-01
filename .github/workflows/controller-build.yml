@@ -18,8 +18,11 @@ jobs:
         run: |
           cp docker/controller/Dockerfile .
           docker build -t ghcr.io/${{ env.IMAGE_NAME }}/simple-controller:latest --build-arg APP=simple .
+          docker tag ghcr.io/${{ env.IMAGE_NAME }}/simple-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/simple-controller:${{ github.sha }}
       - name: Push simple controller image
-        run: docker push ghcr.io/${{ env.IMAGE_NAME }}/simple-controller:latest
+        run: |
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/simple-controller:latest
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/simple-controller:${{ github.sha }}
   build-zookeeper-controller:
     runs-on: ubuntu-20.04
     permissions:
@@ -34,8 +37,11 @@ jobs:
         run: |
           cp docker/controller/Dockerfile .
           docker build -t ghcr.io/${{ env.IMAGE_NAME }}/zookeeper-controller:latest --build-arg APP=zookeeper .
+          docker tag ghcr.io/${{ env.IMAGE_NAME }}/zookeeper-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/zookeeper-controller:${{ github.sha }}
       - name: Push zookeeper controller image
-        run: docker push ghcr.io/${{ env.IMAGE_NAME }}/zookeeper-controller:latest
+        run: |
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/zookeeper-controller:latest
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/zookeeper-controller:${{ github.sha }}
   build-rabbitmq-controller:
     runs-on: ubuntu-20.04
     permissions:
@@ -50,8 +56,11 @@ jobs:
         run: |
           cp docker/controller/Dockerfile .
           docker build -t ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest --build-arg APP=rabbitmq .
+          docker tag ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:${{ github.sha }}
       - name: Push rabbitmq controller image
-        run: docker push ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest
+        run: |
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:latest
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/rabbitmq-controller:${{ github.sha }}
   build-fluent-controller:
     runs-on: ubuntu-20.04
     permissions:
@@ -66,5 +75,8 @@ jobs:
         run: |
           cp docker/controller/Dockerfile .
           docker build -t ghcr.io/${{ env.IMAGE_NAME }}/fluent-controller:latest --build-arg APP=fluent .
+          docker tag ghcr.io/${{ env.IMAGE_NAME }}/fluent-controller:latest ghcr.io/${{ env.IMAGE_NAME }}/fluent-controller:${{ github.sha }}
       - name: Push fluent controller image
-        run: docker push ghcr.io/${{ env.IMAGE_NAME }}/fluent-controller:latest
+        run: |
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/fluent-controller:latest
+          docker push ghcr.io/${{ env.IMAGE_NAME }}/fluent-controller:${{ github.sha }}
