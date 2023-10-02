@@ -213,7 +213,7 @@ pub proof fn invariants_since_phase_iv_is_stable(rabbitmq: RabbitmqClusterView)
 /// pointing to current cr, it will never be recycled by the garbage collector. Plus, the reconciler itself never tries to
 /// delete this object, so we can have the invariants saying that no delete request messages will be in flight.
 pub open spec fn invariants_since_phase_v(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
-    tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(rabbitmq))))
+    tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq))))
     .and(tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)))))
 }
 
@@ -221,9 +221,9 @@ pub proof fn invariants_since_phase_v_is_stable(rabbitmq: RabbitmqClusterView)
     ensures
         valid(stable(invariants_since_phase_v(rabbitmq))),
 {
-    let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(rabbitmq));
+    let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq));
     tla_forall_always_equality_variant::<RMQCluster, SubResource>(
-        |sub_resource: SubResource| always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(rabbitmq))), a_to_p_1
+        |sub_resource: SubResource| always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq))), a_to_p_1
     );
     let a_to_p_2 = |sub_resource: SubResource| lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key));
     tla_forall_always_equality_variant::<RMQCluster, SubResource>(
