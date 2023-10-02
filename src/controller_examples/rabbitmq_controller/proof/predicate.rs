@@ -50,6 +50,13 @@ pub open spec fn at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, s
     }
 }
 
+pub open spec fn no_pending_req_at_rabbitmq_step_with_rabbitmq(rabbitmq: RabbitmqClusterView, step: RabbitmqReconcileStep) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
+        &&& RMQCluster::no_pending_req_msg_or_external_api_input(s, rabbitmq.object_ref())
+    }
+}
+
 pub open spec fn at_step_closure(step: RabbitmqReconcileStep) -> FnSpec(RabbitmqReconcileState) -> bool {
     |s: RabbitmqReconcileState| s.reconcile_step == step
 }
