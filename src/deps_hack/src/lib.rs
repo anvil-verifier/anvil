@@ -115,7 +115,7 @@ pub struct ZookeeperPersistence {
     #[serde(rename = "storageSize")]
     pub storage_size: k8s_openapi::apimachinery::pkg::api::resource::Quantity,
     #[serde(rename = "storageClassName")]
-    pub storage_class_name: Option<String>,
+    pub storage_class_name: String,
 }
 
 #[derive(

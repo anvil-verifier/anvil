@@ -57,6 +57,7 @@ pub fn zookeeper_cluster() -> String {
       persistence:
         enabled: true
         storageSize: 20Gi
+        storageClassName: standard
     "
     .to_string()
 }
@@ -96,6 +97,7 @@ pub fn zookeeper_cluster_ephemeral() -> String {
       persistence:
         enabled: false
         storageSize: 20Gi
+        storageClassName: standard
     "
     .to_string()
 }

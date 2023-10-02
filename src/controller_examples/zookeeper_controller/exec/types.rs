@@ -467,15 +467,11 @@ impl ZookeeperPersistence {
     }
 
     #[verifier(external_body)]
-    pub fn storage_class_name(&self) -> (storage_class_name: Option<String>)
+    pub fn storage_class_name(&self) -> (storage_class_name: String)
         ensures
-            self@.storage_class_name.is_Some() == storage_class_name.is_Some(),
-            storage_class_name.is_Some() ==> storage_class_name.get_Some_0()@ == self@.storage_class_name.get_Some_0(),
+            self@.storage_class_name == storage_class_name@,
     {
-        match &self.inner.storage_class_name {
-            Some(s) => Some(String::from_rust_string(s.clone())),
-            None => None,
-        }
+        String::from_rust_string(self.inner.storage_class_name.clone())
     }
 }
 
