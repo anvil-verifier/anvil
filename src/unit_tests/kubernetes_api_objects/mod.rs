@@ -13,3 +13,6 @@ pub mod probe;
 pub mod resource_requirements;
 pub mod tcp_socket_action;
 pub mod volume_mount;
+pub mod pod;
+pub mod pod_spec;
+pub mod pod_template_spec;

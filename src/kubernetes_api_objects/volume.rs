@@ -30,6 +30,16 @@ impl Volume {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (volume: Volume)
+        ensures
+            volume@ == old(volume@),
+    {
+        Volume {
+            inner: self.inner.clone(),
+        }
+    }
+
+    #[verifier(external_body)]
     pub fn set_name(&mut self, name: String)
         ensures
             self@ == old(self)@.set_name(name@),
