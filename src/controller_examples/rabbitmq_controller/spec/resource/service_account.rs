@@ -49,10 +49,6 @@ impl ResourceBuilder for ServiceAccountBuilder {
         }
     }
 
-    open spec fn requirements(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) -> bool {
-        true
-    }
-
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
         let key = make_service_account_key(rabbitmq);
         let obj = resources[key];
@@ -61,8 +57,9 @@ impl ResourceBuilder for ServiceAccountBuilder {
         &&& ServiceAccountView::unmarshal(obj).get_Ok_0().automount_service_account_token == make_service_account(rabbitmq).automount_service_account_token
     }
 
-    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
-        ServiceAccountView::marshal_preserves_integrity();
+    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
+        &&& ServiceAccountView::unmarshal(object).is_Ok()
+        &&& ServiceAccountView::unmarshal(object).get_Ok_0().automount_service_account_token == make_service_account(rabbitmq).automount_service_account_token
     }
 }
 

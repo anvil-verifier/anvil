@@ -55,14 +55,6 @@ impl ResourceBuilder for StatefulSetBuilder {
         }
     }
 
-    open spec fn requirements(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) -> bool {
-        let cm_key = ServerConfigMapBuilder::get_request(rabbitmq).key;
-        let cm_obj = resources[cm_key];
-        &&& resources.contains_key(cm_key)
-        &&& cm_obj.metadata.resource_version.is_Some()
-        &&& state.latest_config_map_rv_opt == Some(int_to_string_view(cm_obj.metadata.resource_version.get_Some_0()))
-    }
-
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
         let key = make_stateful_set_key(rabbitmq);
         let obj = resources[key];
@@ -76,8 +68,17 @@ impl ResourceBuilder for StatefulSetBuilder {
             == (#[trigger] make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version.get_Some_0()))).spec
     }
 
-    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
-        StatefulSetView::marshal_preserves_integrity();
+    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
+        let sts = StatefulSetView::unmarshal(object).get_Ok_0();
+        let made_spec = make_stateful_set(rabbitmq, new_strlit("")@).spec.get_Some_0();
+        &&& StatefulSetView::unmarshal(object).is_Ok()
+        &&& sts.spec.is_Some()
+        &&& made_spec == StatefulSetSpecView {
+            replicas: made_spec.replicas,
+            template: made_spec.template,
+            persistent_volume_claim_retention_policy: made_spec.persistent_volume_claim_retention_policy,
+            ..sts.spec.get_Some_0()
+        }
     }
 }
 

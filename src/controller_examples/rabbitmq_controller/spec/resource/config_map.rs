@@ -52,10 +52,6 @@ impl ResourceBuilder for ServerConfigMapBuilder {
         }
     }
 
-    open spec fn requirements(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) -> bool {
-        true
-    }
-
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
         let key = make_server_config_map_key(rabbitmq);
         let obj = resources[key];
@@ -64,9 +60,8 @@ impl ResourceBuilder for ServerConfigMapBuilder {
         &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == make_server_config_map(rabbitmq).data
     }
 
-    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
-        ConfigMapView::marshal_preserves_integrity();
-        union_prefer_right_self_changes_nothing::<StringView, StringView>();
+    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
+        true
     }
 }
 
@@ -79,10 +74,7 @@ pub open spec fn update_server_config_map(rabbitmq: RabbitmqClusterView, found_c
             annotations: make_server_config_map(rabbitmq).metadata.annotations,
             ..found_config_map.metadata
         },
-        data: Some({
-            let old_data = if found_config_map.data.is_Some() { found_config_map.data.get_Some_0() } else { Map::empty() };
-            old_data.union_prefer_right(make_server_config_map(rabbitmq).data.get_Some_0())
-        }),
+        data: make_server_config_map(rabbitmq).data,
         ..found_config_map
     }
 }

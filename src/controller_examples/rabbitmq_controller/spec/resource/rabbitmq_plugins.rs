@@ -49,10 +49,6 @@ impl ResourceBuilder for PluginsConfigMapBuilder {
         }
     }
 
-    open spec fn requirements(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) -> bool {
-        true
-    }
-
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
         let key = make_plugins_config_map_key(rabbitmq);
         let obj = resources[key];
@@ -61,13 +57,8 @@ impl ResourceBuilder for PluginsConfigMapBuilder {
         &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == make_plugins_config_map(rabbitmq).data
     }
 
-    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
-        ConfigMapView::marshal_preserves_integrity();
-        let data = Map::empty().insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].")@);
-        assert(
-            data =~=
-            data.insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].")@)
-        );
+    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
+        true
     }
 }
 
@@ -97,17 +88,7 @@ pub open spec fn update_plugins_config_map(rabbitmq: RabbitmqClusterView, found_
 {
     let made_config_map = make_plugins_config_map(rabbitmq);
     ConfigMapView {
-        data: Some({
-            if found_config_map.data.is_Some() {
-                found_config_map.data.get_Some_0()
-                    .insert(new_strlit("enabled_plugins")@, new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].")@)
-            } else {
-                Map::empty().insert(
-                    new_strlit("enabled_plugins")@,
-                    new_strlit("[rabbitmq_peer_discovery_k8s,rabbitmq_prometheus,rabbitmq_management].")@
-                )
-            }
-        }),
+        data: made_config_map.data,
         metadata: ObjectMetaView {
             owner_references: Some(make_owner_references(rabbitmq)),
             finalizers: None,

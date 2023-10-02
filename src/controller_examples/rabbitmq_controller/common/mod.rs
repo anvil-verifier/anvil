@@ -62,7 +62,7 @@ impl std::marker::Copy for ActionKind {}
 impl std::clone::Clone for ActionKind {
 
     #[verifier(external_body)]
-    fn clone(&self) -> (result: Self) 
+    fn clone(&self) -> (result: Self)
         ensures result == self
     {
         *self

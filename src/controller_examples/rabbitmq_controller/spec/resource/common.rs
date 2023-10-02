@@ -1,7 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::{
     container::*, label_selector::*, pod_template_spec::*, prelude::*, resource_requirements::*,
     volume::*,
@@ -27,31 +26,11 @@ pub trait ResourceBuilder {
 
     spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> Result<RabbitmqReconcileState, RabbitmqError>;
 
-    /// Describes how can the created/updated object satisfies the desired state.
-    spec fn requirements(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) -> bool;
-
     /// resource_state_matches takes the cr and an object that stores all resources, then it will check whether the resource pool
     /// reaches the desired state in the view of the object that it builds.
     spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool;
 
-    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState)
-        requires
-            rabbitmq.metadata.name.is_Some(),
-            rabbitmq.metadata.namespace.is_Some(),
-        ensures
-            Self::requirements(rabbitmq, state, resources) ==> {
-                let resource_key = Self::get_request(rabbitmq).key;
-                let made_obj = Self::make(rabbitmq, state);
-                let updated_obj = Self::update(rabbitmq, state, resources[resource_key]);
-                forall |metadata: ObjectMetaView| #![auto] {
-                    &&& (made_obj.is_Ok() ==> Self::resource_state_matches(rabbitmq, resources.insert(resource_key, made_obj.get_Ok_0().set_metadata(metadata))))
-                    &&& (
-                        resources.contains_key(resource_key) && Self::resource_state_matches(rabbitmq, resources) && updated_obj.is_Ok() 
-                        ==> Self::resource_state_matches(rabbitmq, resources.insert(resource_key, updated_obj.get_Ok_0().set_metadata(metadata)))
-                    )
-                }
-                    
-            };
+    spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool;
 }
 
 pub open spec fn make_labels(rabbitmq: RabbitmqClusterView) -> Map<StringView, StringView>

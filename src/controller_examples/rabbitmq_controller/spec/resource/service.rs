@@ -49,10 +49,6 @@ impl ResourceBuilder for ServiceBuilder {
         }
     }
 
-    open spec fn requirements(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) -> bool {
-        true
-    }
-
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
         let key = make_main_service_key(rabbitmq);
         let obj = resources[key];
@@ -67,8 +63,8 @@ impl ResourceBuilder for ServiceBuilder {
         }
     }
 
-    proof fn created_or_updated_obj_matches_desired_state(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, resources: StoredState) {
-        ServiceView::marshal_preserves_integrity();
+    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
+        &&& ServiceView::unmarshal(object).is_Ok()
     }
 }
 
@@ -105,6 +101,7 @@ pub open spec fn update_main_service(rabbitmq: RabbitmqClusterView, found_main_s
             annotations: made_main_service.metadata.annotations,
             ..found_main_service.metadata
         },
+        spec: made_main_service.spec,
         ..found_main_service
     }
 }

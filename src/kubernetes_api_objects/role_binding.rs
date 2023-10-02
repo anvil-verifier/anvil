@@ -343,9 +343,9 @@ impl ResourceView for RoleBindingView {
     open spec fn state_validation(self) -> bool {
         &&& self.role_ref.api_group == new_strlit("rbac.authorization.k8s.io")@
         &&& (self.role_ref.kind == new_strlit("Role")@ || self.role_ref.kind == new_strlit("ClusterRole")@)
-        &&& self.role_ref.name.len() > 0
-        &&& self.subjects.is_Some()
-            ==> forall |i| 0 <= i < self.subjects.get_Some_0().len() ==> #[trigger] self.subjects.get_Some_0()[i].state_validation(true)
+        // &&& self.role_ref.name.len() > 0
+        // &&& self.subjects.is_Some()
+        //     ==> forall |i| 0 <= i < self.subjects.get_Some_0().len() ==> #[trigger] self.subjects.get_Some_0()[i].state_validation(true)
     }
 
     open spec fn transition_validation(self, old_obj: RoleBindingView) -> bool {
