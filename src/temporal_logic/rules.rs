@@ -2649,6 +2649,24 @@ macro_rules! leads_to_always_combine_n_internal {
 pub use leads_to_always_combine_n;
 pub use leads_to_always_combine_n_internal;
 
+#[macro_export]
+macro_rules! leads_to_always_combine_n_with_equality {
+    [$($tail:tt)*] => {
+        ::builtin_macros::verus_proof_macro_exprs!($crate::temporal_logic::rules::leads_to_always_combine_n_with_equality_internal!($($tail)*));
+    };
+}
+
+#[macro_export]
+macro_rules! leads_to_always_combine_n_with_equality_internal {
+    ($spec:expr, $p:expr, $dst:expr, $($tail:tt)*) => {
+        temp_pred_equality($dst, combine_with_next!($($tail)*));
+        leads_to_always_combine_n!($spec, $p, $($tail)*);
+    };
+}
+
+pub use leads_to_always_combine_n_with_equality;
+pub use leads_to_always_combine_n_with_equality_internal;
+
 /// Combine the conclusions of two leads_to if the conclusions are stable.
 /// pre:
 ///     spec |= p ~> []q

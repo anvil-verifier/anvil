@@ -16,7 +16,7 @@ use crate::rabbitmq_controller::{
     common::*,
     proof::{
         helper_invariants,
-        liveness::{resource_match::*, spec::assumption_and_invariants_of_all_phases, terminate},
+        liveness::{resource_match::*, spec::*, terminate, property::*},
         predicate::*,
         resource::*,
     },
@@ -28,17 +28,113 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-// This lemma proves that with all the invariants, assumptions, and even invariants that only hold since rest id counter is rest_id,
-// true ~> []current_state_matches(rabbitmq).
+proof fn lemma_true_leads_to_always_resource_matches_for_all_resources(rabbitmq: RabbitmqClusterView)
+    requires
+        rabbitmq.well_formed(),
+    ensures
+        assumption_and_invariants_of_all_phases(rabbitmq)
+        .entails(
+            true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))
+        ),
+{
+    let spec = assumption_and_invariants_of_all_phases(rabbitmq);
+    lemma_true_leads_to_state_matches_for_all_resources(rabbitmq);
+    assert forall |sub_resource: SubResource| sub_resource != SubResource::StatefulSet implies spec.entails(
+        true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, rabbitmq))))
+    ) by {
+        use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(res, rabbitmq))), sub_resource);
+        use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(res, rabbitmq).key))), sub_resource);
+        use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(res, rabbitmq).key))), sub_resource);
+        use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(res, rabbitmq).key, rabbitmq))), sub_resource);
+        use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(res, rabbitmq))), sub_resource);
+        lemma_resource_object_is_stable(spec, sub_resource, rabbitmq, true_pred());
+    }
+    lemma_true_leads_to_stateful_set_always_matches(rabbitmq);
+    leads_to_always_combine_n_with_equality!(
+        spec, true_pred(), lift_state(current_state_matches(rabbitmq)),
+        lift_state(sub_resource_state_matches(SubResource::HeadlessService, rabbitmq)),
+        lift_state(sub_resource_state_matches(SubResource::Service, rabbitmq)),
+        lift_state(sub_resource_state_matches(SubResource::ErlangCookieSecret, rabbitmq)),
+        lift_state(sub_resource_state_matches(SubResource::DefaultUserSecret, rabbitmq)),
+        lift_state(sub_resource_state_matches(SubResource::PluginsConfigMap, rabbitmq)),
+        lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)),
+        lift_state(sub_resource_state_matches(SubResource::ServiceAccount, rabbitmq)),
+        lift_state(sub_resource_state_matches(SubResource::Role, rabbitmq)),
+        lift_state(sub_resource_state_matches(SubResource::RoleBinding, rabbitmq)),
+        lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))
+    );
+}
+
+proof fn lemma_true_leads_to_stateful_set_always_matches(rabbitmq: RabbitmqClusterView)
+    requires
+        rabbitmq.well_formed(),
+        assumption_and_invariants_of_all_phases(rabbitmq)
+        .entails(
+            true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))))
+        ),
+        assumption_and_invariants_of_all_phases(rabbitmq)
+        .entails(
+            true_pred().leads_to(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)))
+        )
+    ensures
+        assumption_and_invariants_of_all_phases(rabbitmq)
+        .entails(
+            true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))
+        ),
+{
+    let spec = assumption_and_invariants_of_all_phases(rabbitmq).and(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))));
+    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(res, rabbitmq))), SubResource::ServerConfigMap);
+    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(res, rabbitmq).key))), SubResource::ServerConfigMap);
+    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(res, rabbitmq).key))), SubResource::ServerConfigMap);
+    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(res, rabbitmq))), SubResource::ServerConfigMap);
+    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(res, rabbitmq).key, rabbitmq))), SubResource::ServerConfigMap);
+    let spec_action = |s: RMQCluster, s_prime: RMQCluster| {
+        &&& RMQCluster::next()(s, s_prime)
+        &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
+        &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::ServerConfigMap, rabbitmq)(s)
+        &&& helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(SubResource::ServerConfigMap, rabbitmq).key)(s)
+        &&& helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(SubResource::ServerConfigMap, rabbitmq).key)(s)
+        &&& sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s)
+        &&& helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ServerConfigMap, rabbitmq)(s)
+        &&& helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(SubResource::ServerConfigMap, rabbitmq).key, rabbitmq)(s)
+    };
+    assert forall |s: RMQCluster, s_prime: RMQCluster| #[trigger] spec_action(s, s_prime) implies helper_invariants::cm_rv_stays_unchanged(rabbitmq)(s, s_prime) by {
+        ConfigMapView::marshal_preserves_integrity();
+        ConfigMapView::marshal_spec_preserves_integrity();
+        let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
+        assert(s.resources().contains_key(cm_key));
+        assert(s_prime.resources().contains_key(cm_key));
+        assert(ConfigMapView::unmarshal_spec(s.resources()[cm_key].spec).get_Ok_0().0 == make_server_config_map(rabbitmq).data);
+        assert(ConfigMapView::unmarshal_spec(s_prime.resources()[cm_key].spec).get_Ok_0().0 == make_server_config_map(rabbitmq).data);
+        assume(s.resources()[cm_key] == s_prime.resources()[cm_key]);
+    }
+    invariant_n!(
+        spec, lift_action(spec_action), lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)),
+        lift_action(RMQCluster::next()),
+        lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
+        lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::ServerConfigMap, rabbitmq)),
+        lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(SubResource::ServerConfigMap, rabbitmq).key)),
+        lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(SubResource::ServerConfigMap, rabbitmq).key)),
+        lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)),
+        lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::ServerConfigMap, rabbitmq)),
+        lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(SubResource::ServerConfigMap, rabbitmq).key, rabbitmq))
+    );
+    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(res, rabbitmq))), SubResource::StatefulSet);
+    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(res, rabbitmq).key))), SubResource::StatefulSet);
+    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(res, rabbitmq).key))), SubResource::StatefulSet);
+    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(res, rabbitmq).key, rabbitmq))), SubResource::StatefulSet);
+    entails_trans(spec, assumption_and_invariants_of_all_phases(rabbitmq), true_pred().leads_to(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))));
+    lemma_stateful_set_is_stable(spec, rabbitmq, true_pred());
+    assumption_and_invariants_of_all_phases_is_stable(rabbitmq);
+    unpack_conditions_from_spec(assumption_and_invariants_of_all_phases(rabbitmq), always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))), true_pred(), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))));
+    temp_pred_equality(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))), true_pred().and(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)))));
+    leads_to_trans_temp(assumption_and_invariants_of_all_phases(rabbitmq), true_pred(), always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))
+}
+
 proof fn lemma_true_leads_to_state_matches_for_all_resources(rabbitmq: RabbitmqClusterView)
     requires
         rabbitmq.well_formed(),
     ensures
-        // forall |sub_resource: SubResource|
-        //     assumption_and_invariants_of_all_phases(rabbitmq)
-        //     .entails(
-        //         true_pred().leads_to(lift_state(#[trigger] pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq)))
-        //     ),
         forall |sub_resource: SubResource|
             assumption_and_invariants_of_all_phases(rabbitmq)
             .entails(
@@ -67,7 +163,7 @@ proof fn lemma_true_leads_to_state_matches_for_all_resources(rabbitmq: RabbitmqC
             .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_get_step_and_request(rabbitmq, sub_resource).0.get_AfterKRequestStep_1(), rabbitmq)))) by {
         lemma_from_after_get_resource_step_to_after_get_next_resource_step_and_resource_state_matches(sub_resource, rabbitmq);
     }
-    // Thanks for the recursive construction of macro.
+    // Thanks to the recursive construction of macro.
     leads_to_trans_n!(
         spec, true_pred(), lift_state(|s: RMQCluster| { !s.ongoing_reconciles().contains_key(rabbitmq.object_ref()) }),
         lift_state(|s: RMQCluster| { !s.ongoing_reconciles().contains_key(rabbitmq.object_ref()) && s.scheduled_reconciles().contains_key(rabbitmq.object_ref())}),

@@ -34,6 +34,25 @@ pub open spec fn assumption_and_invariants_of_all_phases(rabbitmq: RabbitmqClust
     .and(invariants_since_phase_vi(rabbitmq))
 }
 
+pub proof fn assumption_and_invariants_of_all_phases_is_stable(rabbitmq: RabbitmqClusterView)
+    ensures
+        valid(stable(assumption_and_invariants_of_all_phases(rabbitmq))),
+{
+    invariants_is_stable(rabbitmq);
+    always_p_is_stable(lift_state(RMQCluster::desired_state_is(rabbitmq)));
+    invariants_since_phase_i_is_stable(rabbitmq);
+    invariants_since_phase_ii_is_stable(rabbitmq);
+    invariants_since_phase_iii_is_stable(rabbitmq);
+    invariants_since_phase_iv_is_stable(rabbitmq);
+    invariants_since_phase_v_is_stable(rabbitmq);
+    invariants_since_phase_vi_is_stable(rabbitmq);
+    stable_and_n!(
+        invariants(rabbitmq), always(lift_state(RMQCluster::desired_state_is(rabbitmq))),
+        invariants_since_phase_i(rabbitmq), invariants_since_phase_ii(rabbitmq), invariants_since_phase_iii(rabbitmq),
+        invariants_since_phase_iv(rabbitmq), invariants_since_phase_v(rabbitmq), invariants_since_phase_vi(rabbitmq)
+    );
+}
+
 // Next and all the wf conditions.
 pub open spec fn next_with_wf() -> TempPred<RMQCluster> {
     always(lift_action(RMQCluster::next()))

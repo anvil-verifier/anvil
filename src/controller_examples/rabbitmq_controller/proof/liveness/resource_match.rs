@@ -1013,7 +1013,7 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     );
 }
 
-proof fn lemma_resource_object_is_stable(
+pub proof fn lemma_resource_object_is_stable(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, p: TempPred<RMQCluster>
 )
     requires
@@ -1085,7 +1085,7 @@ proof fn lemma_resource_object_is_stable(
     leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));
 }
 
-proof fn lemma_stateful_set_is_stable(
+pub proof fn lemma_stateful_set_is_stable(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, p: TempPred<RMQCluster>
 )
     requires
