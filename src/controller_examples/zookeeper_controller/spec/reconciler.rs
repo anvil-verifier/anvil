@@ -968,19 +968,22 @@ pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
     recommends
         zk.well_formed(),
 {
-    ConfigMapView::default()
-        .set_metadata(ObjectMetaView::default()
-            .set_name(make_config_map_name(zk.metadata.name.get_Some_0()))
-            .set_labels(make_labels(zk))
-            .set_annotations(zk.spec.annotations)
-            .set_owner_references(make_owner_references(zk))
-        )
-        .set_data(Map::empty()
+    ConfigMapView {
+        metadata: ObjectMetaView {
+            name: Some(make_config_map_name(zk.metadata.name.get_Some_0())),
+            owner_references: Some(make_owner_references(zk)),
+            labels: Some(make_labels(zk)),
+            annotations: Some(zk.spec.annotations),
+            ..ConfigMapView::default().metadata
+        },
+        data: Some(Map::empty()
             .insert(new_strlit("zoo.cfg")@, make_zk_config(zk))
             .insert(new_strlit("log4j.properties")@, make_log4j_config())
             .insert(new_strlit("log4j-quiet.properties")@, make_log4j_quiet_config())
             .insert(new_strlit("env.sh")@, make_env_config(zk))
-        )
+        ),
+        ..ConfigMapView::default()
+    }
 }
 
 pub open spec fn update_config_map(zk: ZookeeperClusterView, found_config_map: ConfigMapView) -> ConfigMapView
