@@ -930,10 +930,8 @@ proof fn lemma_stateful_set_is_stable(
         &&& helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(SubResource::StatefulSet, rabbitmq).key)(s)
         &&& helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(SubResource::StatefulSet, rabbitmq).key, rabbitmq)(s)
         &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)(s)
-        // &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)(s_prime)
         &&& helper_invariants::cm_rv_stays_unchanged(rabbitmq)(s, s_prime)
     };
-    always_to_always_later(spec, lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)));
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(RMQCluster::next()),
@@ -942,7 +940,6 @@ proof fn lemma_stateful_set_is_stable(
         lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(SubResource::StatefulSet, rabbitmq).key)),
         lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(SubResource::StatefulSet, rabbitmq).key, rabbitmq)),
         lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)),
-        // later(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq))),
         lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq))
     );
 
