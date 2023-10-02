@@ -26,7 +26,7 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
-pub open spec fn current_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+pub open spec fn sub_resource_state_matches(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         resource_state_matches(sub_resource, rabbitmq, s.resources())
     }
@@ -57,7 +57,7 @@ proof fn lemma_from_after_get_resource_step_to_resource_matches(spec: TempPred<R
     ensures
         spec.entails(
             lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq))
-                .leads_to(lift_state(current_state_matches(sub_resource, rabbitmq)))
+                .leads_to(lift_state(sub_resource_state_matches(sub_resource, rabbitmq)))
         ),
 {
     lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(spec, sub_resource, rabbitmq);
@@ -70,7 +70,7 @@ proof fn lemma_from_after_get_resource_step_to_resource_matches(spec: TempPred<R
         &&& s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
         &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq)(s)
     };
-    or_leads_to_combine(spec, key_not_exists, key_exists, current_state_matches(sub_resource, rabbitmq));
+    or_leads_to_combine(spec, key_not_exists, key_exists, sub_resource_state_matches(sub_resource, rabbitmq));
     temp_pred_equality(
         lift_state(key_not_exists).or(lift_state(key_exists)), lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq))
     );
@@ -99,7 +99,7 @@ proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_match
             lift_state(|s: RMQCluster| {
                 &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq)(s)
-            }).leads_to(lift_state(current_state_matches(sub_resource, rabbitmq)))
+            }).leads_to(lift_state(sub_resource_state_matches(sub_resource, rabbitmq)))
         ),
 {
     let pre = lift_state(|s: RMQCluster| {
@@ -175,11 +175,11 @@ proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_match
         }
     );
 
-    assert forall |req_msg| spec.entails(#[trigger] post_and_req_in_flight(req_msg).leads_to(lift_state(current_state_matches(sub_resource, rabbitmq))))
+    assert forall |req_msg| spec.entails(#[trigger] post_and_req_in_flight(req_msg).leads_to(lift_state(sub_resource_state_matches(sub_resource, rabbitmq))))
     by {
         lemma_resource_state_matches_at_after_create_resource_step(spec, sub_resource, rabbitmq, req_msg);
     }
-    leads_to_exists_intro(spec, post_and_req_in_flight, lift_state(current_state_matches(sub_resource, rabbitmq)));
+    leads_to_exists_intro(spec, post_and_req_in_flight, lift_state(sub_resource_state_matches(sub_resource, rabbitmq)));
     assert_by(
         tla_exists(post_and_req_in_flight) == post,
         {
@@ -193,7 +193,7 @@ proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_match
     );
 
     leads_to_trans_temp(spec, pre, pre_and_exists_resp_in_flight, post);
-    leads_to_trans_temp(spec, pre, post, lift_state(current_state_matches(sub_resource, rabbitmq)));
+    leads_to_trans_temp(spec, pre, post, lift_state(sub_resource_state_matches(sub_resource, rabbitmq)));
 }
 
 proof fn lemma_from_key_not_exists_to_receives_not_found_resp_at_after_get_resource_step(
@@ -307,7 +307,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
             lift_state(|s: RMQCluster| {
                 &&& s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
                 &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq)(s)
-            }).leads_to(lift_state(current_state_matches(sub_resource, rabbitmq)))
+            }).leads_to(lift_state(sub_resource_state_matches(sub_resource, rabbitmq)))
         ),
 {
     let resource_key = get_request(sub_resource, rabbitmq).key;
@@ -317,7 +317,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     });
     let post = pending_req_in_flight_at_after_update_resource_step(sub_resource, rabbitmq);
     assert_by(
-        spec.entails(pre.leads_to(lift_state(current_state_matches(sub_resource, rabbitmq)))),
+        spec.entails(pre.leads_to(lift_state(sub_resource_state_matches(sub_resource, rabbitmq)))),
         {
             let pre_and_req_in_flight = |req_msg| lift_state(
                 |s: RMQCluster| {
@@ -386,14 +386,14 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                 }
             );
 
-            assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(lift_state(current_state_matches(sub_resource, rabbitmq)))) by {
+            assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(lift_state(sub_resource_state_matches(sub_resource, rabbitmq)))) by {
                 lemma_resource_state_matches_at_after_update_resource_step(spec, sub_resource, rabbitmq, req_msg);
                 temp_pred_equality(
                     pre_and_req_in_flight(req_msg),
                     lift_state(req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, rabbitmq, req_msg))
                 );
             }
-            leads_to_exists_intro(spec, pre_and_req_in_flight, lift_state(current_state_matches(sub_resource, rabbitmq)));
+            leads_to_exists_intro(spec, pre_and_req_in_flight, lift_state(sub_resource_state_matches(sub_resource, rabbitmq)));
             assert_by(
                 tla_exists(pre_and_req_in_flight) == lift_state(post),
                 {
@@ -408,7 +408,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
 
             leads_to_trans_n!(
                 spec, pre, lift_state(at_after_get_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq)), lift_state(post),
-                lift_state(current_state_matches(sub_resource, rabbitmq))
+                lift_state(sub_resource_state_matches(sub_resource, rabbitmq))
             );
         }
     );
@@ -504,7 +504,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
                     &&& !s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
                     &&& req_msg_is_the_in_flight_pending_req_at_after_create_resource_step(sub_resource, rabbitmq, req_msg)(s)
                 }
-            ).leads_to(lift_state(current_state_matches(sub_resource, rabbitmq)))
+            ).leads_to(lift_state(sub_resource_state_matches(sub_resource, rabbitmq)))
         ),
 {
     let pre = |s: RMQCluster| {
@@ -534,7 +534,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
         lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq))
     );
 
-    let post = current_state_matches(sub_resource, rabbitmq);
+    let post = sub_resource_state_matches(sub_resource, rabbitmq);
 
     assert forall |s, s_prime: RMQCluster| pre(s) && #[trigger] stronger_next(s, s_prime) && RMQCluster::kubernetes_api_next().forward(input)(s, s_prime) implies post(s_prime) by {
         assert(make(sub_resource, rabbitmq, s.ongoing_reconciles()[rabbitmq.object_ref()].local_state).is_Ok());
@@ -583,7 +583,7 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
     }
 
     RMQCluster::lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, input, stronger_next, RMQCluster::handle_request(), pre, current_state_matches(sub_resource, rabbitmq)
+        spec, input, stronger_next, RMQCluster::handle_request(), pre, sub_resource_state_matches(sub_resource, rabbitmq)
     );
 }
 
@@ -685,11 +685,11 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     ensures
         spec.entails(
             lift_state(req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, rabbitmq, req_msg))
-            .leads_to(lift_state(current_state_matches(sub_resource, rabbitmq)))
+            .leads_to(lift_state(sub_resource_state_matches(sub_resource, rabbitmq)))
         ),
 {
     let pre = req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, rabbitmq, req_msg);
-    let post = current_state_matches(sub_resource, rabbitmq);
+    let post = sub_resource_state_matches(sub_resource, rabbitmq);
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let input = Some(req_msg);
     let stronger_next = |s, s_prime: RMQCluster| {
@@ -763,7 +763,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
     }
 
     RMQCluster::lemma_pre_leads_to_post_by_kubernetes_api(
-        spec, input, stronger_next, RMQCluster::handle_request(), pre, current_state_matches(sub_resource, rabbitmq)
+        spec, input, stronger_next, RMQCluster::handle_request(), pre, sub_resource_state_matches(sub_resource, rabbitmq)
     );
 }
 
@@ -838,7 +838,7 @@ proof fn lemma_resource_object_is_stable(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, p: TempPred<RMQCluster>
 )
     requires
-        spec.entails(p.leads_to(lift_state(current_state_matches(sub_resource, rabbitmq)))),
+        spec.entails(p.leads_to(lift_state(sub_resource_state_matches(sub_resource, rabbitmq)))),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)))),
@@ -847,9 +847,9 @@ proof fn lemma_resource_object_is_stable(
         spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))),
         sub_resource != SubResource::StatefulSet,
     ensures
-        spec.entails(p.leads_to(always(lift_state(current_state_matches(sub_resource, rabbitmq))))),
+        spec.entails(p.leads_to(always(lift_state(sub_resource_state_matches(sub_resource, rabbitmq))))),
 {
-    let post = current_state_matches(sub_resource, rabbitmq);
+    let post = sub_resource_state_matches(sub_resource, rabbitmq);
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
@@ -910,7 +910,7 @@ proof fn lemma_stateful_set_is_stable(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, p: TempPred<RMQCluster>
 )
     requires
-        spec.entails(p.leads_to(lift_state(current_state_matches(SubResource::StatefulSet, rabbitmq)))),
+        spec.entails(p.leads_to(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)))),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(SubResource::StatefulSet, rabbitmq).key)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)))),
@@ -919,9 +919,9 @@ proof fn lemma_stateful_set_is_stable(
         spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))),
         spec.entails(always(lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)))),
     ensures
-        spec.entails(p.leads_to(always(lift_state(current_state_matches(SubResource::StatefulSet, rabbitmq))))),
+        spec.entails(p.leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))),
 {
-    let post = current_state_matches(SubResource::StatefulSet, rabbitmq);
+    let post = sub_resource_state_matches(SubResource::StatefulSet, rabbitmq);
     let resource_key = get_request(SubResource::StatefulSet, rabbitmq).key;
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
