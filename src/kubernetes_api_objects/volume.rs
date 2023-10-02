@@ -32,7 +32,7 @@ impl Volume {
     #[verifier(external_body)]
     pub fn clone(&self) -> (volume: Volume)
         ensures
-            volume@ == old(volume@),
+            volume@ == volume@,
     {
         Volume {
             inner: self.inner.clone(),
