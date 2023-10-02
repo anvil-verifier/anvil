@@ -32,7 +32,7 @@ pub open spec fn sub_resource_state_matches(sub_resource: SubResource, rabbitmq:
     }
 }
 
-proof fn lemma_from_after_get_resource_step_to_resource_matches(
+pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, sub_resource: SubResource, next_resource: SubResource
 )
     requires

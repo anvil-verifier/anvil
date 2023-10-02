@@ -101,6 +101,7 @@ pub open spec fn derived_invariants_since_beginning(rabbitmq: RabbitmqClusterVie
     .and(tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(sub_resource, rabbitmq).key, rabbitmq)))))
     .and(always(lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init)))))
     .and(tla_forall(|step: (ActionKind, SubResource)| always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))))))
+    .and(tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(res, rabbitmq).key)))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClusterView)
@@ -115,6 +116,10 @@ pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClus
     tla_forall_always_equality_variant::<RMQCluster, (ActionKind, SubResource)>(
         |step: (ActionKind, SubResource)| always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))))), a_to_p_2
     );
+    let a_to_p_3 = |res: SubResource| lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(res, rabbitmq).key));
+    tla_forall_always_equality_variant::<RMQCluster, SubResource>(
+        |res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(res, rabbitmq).key))), a_to_p_3
+    );
     stable_and_always_n!(
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())),
@@ -125,7 +130,8 @@ pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClus
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         tla_forall(a_to_p_1),
         lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
-        tla_forall(a_to_p_2)
+        tla_forall(a_to_p_2),
+        tla_forall(a_to_p_3)
     );
 }
 
