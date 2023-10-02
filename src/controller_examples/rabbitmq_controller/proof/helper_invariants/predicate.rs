@@ -53,9 +53,9 @@ pub open spec fn every_resource_create_request_implies_at_after_create_resource_
         } ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s)
             &&& RMQCluster::pending_k8s_api_req_msg_is(s, key, msg)
+            &&& make(sub_resource, rabbitmq, s.ongoing_reconciles()[key].local_state).is_Ok()
+            &&& msg.content.get_create_request().obj == make(sub_resource, rabbitmq, s.ongoing_reconciles()[key].local_state).get_Ok_0()
         }
-            // A reminder: The last predicate implies:
-            // && msg.content.get_create_request().obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
     }
 }
 
@@ -72,9 +72,10 @@ pub open spec fn every_resource_update_request_implies_at_after_update_resource_
         } ==> {
             &&& at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
             &&& RMQCluster::pending_k8s_api_req_msg_is(s, key, msg)
+            &&& s.resources().contains_key(resource_key)
+            &&& update(sub_resource, rabbitmq, s.ongoing_reconciles()[key].local_state, s.resources()[resource_key]).is_Ok()
+            &&& msg.content.get_update_request().obj == update(sub_resource, rabbitmq, s.ongoing_reconciles()[key].local_state, s.resources()[resource_key]).get_Ok_0()
         }
-            // A reminder: The last predicate implies:
-            // && msg.content.get_update_request().obj.metadata.owner_references == Some(seq![rabbitmq.controller_owner_ref()])
     }
 }
 
@@ -119,6 +120,7 @@ pub open spec fn cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq: Rab
                     SubResource::ServiceAccount | SubResource::Role | SubResource::RoleBinding | SubResource::StatefulSet => {
                         let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
                         &&& s.resources().contains_key(cm_key)
+                        &&& s.resources()[cm_key].metadata.resource_version.is_Some()
                         &&& local_state.latest_config_map_rv_opt == Some(int_to_string_view(s.resources()[cm_key].metadata.resource_version.get_Some_0()))
                     },
                     _ => true,
@@ -133,6 +135,16 @@ pub open spec fn object_in_etcd_satisfies_unchangeable(sub_resource: SubResource
     |s: RMQCluster| {
         s.resources().contains_key(get_request(sub_resource, rabbitmq).key)
         ==> unchangeable(sub_resource, s.resources()[get_request(sub_resource, rabbitmq).key], rabbitmq)
+    }
+}
+
+pub open spec fn cm_rv_stays_unchanged(rabbitmq: RabbitmqClusterView) -> ActionPred<RMQCluster> {
+    |s: RMQCluster, s_prime: RMQCluster| {
+        let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
+        &&& s.resources().contains_key(cm_key)
+        &&& s_prime.resources().contains_key(cm_key)
+        &&& s.resources()[cm_key].metadata.resource_version.is_Some()
+        &&& s.resources()[cm_key].metadata.resource_version == s_prime.resources()[cm_key].metadata.resource_version
     }
 }
 

@@ -315,7 +315,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
         &&& s.resources().contains_key(resource_key)
         &&& pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq)(s)
     });
-    let post = pending_req_in_flight_at_after_update_resource_step_and_key_exists(sub_resource, rabbitmq);
+    let post = pending_req_in_flight_at_after_update_resource_step(sub_resource, rabbitmq);
     assert_by(
         spec.entails(pre.leads_to(lift_state(current_state_matches(sub_resource, rabbitmq)))),
         {
@@ -382,7 +382,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
 
             let pre_and_req_in_flight = |req_msg| lift_state(
                 |s: RMQCluster| {
-                    req_msg_is_the_in_flight_pending_req_at_after_update_resource_step_and_key_exists(sub_resource, rabbitmq, req_msg)(s)
+                    req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, rabbitmq, req_msg)(s)
                 }
             );
 
@@ -390,7 +390,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                 lemma_resource_state_matches_at_after_update_resource_step(spec, sub_resource, rabbitmq, req_msg);
                 temp_pred_equality(
                     pre_and_req_in_flight(req_msg),
-                    lift_state(req_msg_is_the_in_flight_pending_req_at_after_update_resource_step_and_key_exists(sub_resource, rabbitmq, req_msg))
+                    lift_state(req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, rabbitmq, req_msg))
                 );
             }
             leads_to_exists_intro(spec, pre_and_req_in_flight, lift_state(current_state_matches(sub_resource, rabbitmq)));
@@ -676,7 +676,6 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
-        spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)))),
         spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)))),
@@ -685,11 +684,11 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))),
     ensures
         spec.entails(
-            lift_state(req_msg_is_the_in_flight_pending_req_at_after_update_resource_step_and_key_exists(sub_resource, rabbitmq, req_msg))
+            lift_state(req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, rabbitmq, req_msg))
             .leads_to(lift_state(current_state_matches(sub_resource, rabbitmq)))
         ),
 {
-    let pre = req_msg_is_the_in_flight_pending_req_at_after_update_resource_step_and_key_exists(sub_resource, rabbitmq, req_msg);
+    let pre = req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, rabbitmq, req_msg);
     let post = current_state_matches(sub_resource, rabbitmq);
     let resource_key = get_request(sub_resource, rabbitmq).key;
     let input = Some(req_msg);
@@ -790,11 +789,11 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     ensures
         spec.entails(
             lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, resp_msg))
-            .leads_to(lift_state(pending_req_in_flight_at_after_update_resource_step_and_key_exists(sub_resource, rabbitmq)))
+            .leads_to(lift_state(pending_req_in_flight_at_after_update_resource_step(sub_resource, rabbitmq)))
         ),
 {
     let pre = resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, resp_msg);
-    let post = pending_req_in_flight_at_after_update_resource_step_and_key_exists(sub_resource, rabbitmq);
+    let post = pending_req_in_flight_at_after_update_resource_step(sub_resource, rabbitmq);
     let input = (Some(resp_msg), Some(rabbitmq.object_ref()));
     let stronger_next = |s, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
@@ -833,6 +832,128 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         spec, input, stronger_next,
         RMQCluster::continue_reconcile(), pre, post
     );
+}
+
+proof fn lemma_resource_object_is_stable(
+    spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, p: TempPred<RMQCluster>
+)
+    requires
+        spec.entails(p.leads_to(lift_state(current_state_matches(sub_resource, rabbitmq)))),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)))),
+        spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)))),
+        spec.entails(always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(sub_resource, rabbitmq).key, rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))),
+        sub_resource != SubResource::StatefulSet,
+    ensures
+        spec.entails(p.leads_to(always(lift_state(current_state_matches(sub_resource, rabbitmq))))),
+{
+    let post = current_state_matches(sub_resource, rabbitmq);
+    let resource_key = get_request(sub_resource, rabbitmq).key;
+    let stronger_next = |s, s_prime: RMQCluster| {
+        &&& RMQCluster::next()(s, s_prime)
+        &&& helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)(s)
+        &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)(s)
+        &&& helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)(s)
+        &&& helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(sub_resource, rabbitmq).key, rabbitmq)(s)
+        &&& helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)(s)
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(RMQCluster::next()),
+        lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)),
+        lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)),
+        lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)),
+        lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(sub_resource, rabbitmq).key, rabbitmq)),
+        lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq))
+    );
+
+    assert forall |s, s_prime: RMQCluster| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
+        match sub_resource {
+            SubResource::HeadlessService => {
+                ServiceView::marshal_preserves_integrity();
+                assert(ServiceView::unmarshal(make_headless_service(rabbitmq).marshal()).get_Ok_0().spec.is_Some());
+                assert(ServiceView::unmarshal(make_headless_service(rabbitmq).marshal()).get_Ok_0().state_validation());
+                assert(RMQCluster::object_validity_check(make_headless_service(rabbitmq).marshal()).is_None());
+                assert(post(s_prime));
+            },
+            SubResource::Service => {ServiceView::marshal_preserves_integrity();assert(post(s_prime));},
+            SubResource::ErlangCookieSecret => {SecretView::marshal_preserves_integrity();assert(post(s_prime));},
+            SubResource::DefaultUserSecret => {SecretView::marshal_preserves_integrity();assert(post(s_prime));},
+            SubResource::PluginsConfigMap => {
+                ConfigMapView::marshal_preserves_integrity();assert(post(s_prime));
+                assert(ConfigMapView::unmarshal(make_plugins_config_map(rabbitmq).marshal()).get_Ok_0().data == make_plugins_config_map(rabbitmq).data);
+                assert(post(s_prime));
+            },
+            SubResource::ServerConfigMap => {
+                ConfigMapView::marshal_preserves_integrity();
+                assert(ConfigMapView::unmarshal(make_server_config_map(rabbitmq).marshal()).get_Ok_0().data == make_server_config_map(rabbitmq).data);
+                assert(post(s_prime));
+            },
+            SubResource::ServiceAccount => {ServiceAccountView::marshal_preserves_integrity();assert(post(s_prime));},
+            SubResource::Role => {RoleView::marshal_preserves_integrity();assert(post(s_prime));},
+            SubResource::RoleBinding => {
+                RoleBindingView::marshal_preserves_integrity();
+                RoleBindingView::marshal_status_preserves_integrity();
+                RoleBindingView::marshal_spec_preserves_integrity();
+                RoleBindingView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+            },
+            _ => {}
+        }
+    }
+
+    leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));
+}
+
+proof fn lemma_stateful_set_is_stable(
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, p: TempPred<RMQCluster>
+)
+    requires
+        spec.entails(p.leads_to(lift_state(current_state_matches(SubResource::StatefulSet, rabbitmq)))),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(SubResource::StatefulSet, rabbitmq).key)))),
+        spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(SubResource::StatefulSet, rabbitmq).key)))),
+        spec.entails(always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(SubResource::StatefulSet, rabbitmq).key, rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))),
+        spec.entails(always(lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)))),
+    ensures
+        spec.entails(p.leads_to(always(lift_state(current_state_matches(SubResource::StatefulSet, rabbitmq))))),
+{
+    let post = current_state_matches(SubResource::StatefulSet, rabbitmq);
+    let resource_key = get_request(SubResource::StatefulSet, rabbitmq).key;
+    let stronger_next = |s, s_prime: RMQCluster| {
+        &&& RMQCluster::next()(s, s_prime)
+        &&& helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(SubResource::StatefulSet, rabbitmq).key)(s)
+        &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)(s)
+        &&& helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(SubResource::StatefulSet, rabbitmq).key)(s)
+        &&& helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(SubResource::StatefulSet, rabbitmq).key, rabbitmq)(s)
+        &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)(s)
+        // &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)(s_prime)
+        &&& helper_invariants::cm_rv_stays_unchanged(rabbitmq)(s, s_prime)
+    };
+    always_to_always_later(spec, lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(RMQCluster::next()),
+        lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(SubResource::StatefulSet, rabbitmq).key)),
+        lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)),
+        lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(SubResource::StatefulSet, rabbitmq).key)),
+        lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(SubResource::StatefulSet, rabbitmq).key, rabbitmq)),
+        lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)),
+        // later(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq))),
+        lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq))
+    );
+
+    assert forall |s, s_prime: RMQCluster| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
+        StatefulSetView::marshal_preserves_integrity();
+        StatefulSetView::marshal_status_preserves_integrity();
+        StatefulSetView::marshal_spec_preserves_integrity();
+        StatefulSetView::unmarshal_result_determined_by_unmarshal_spec_and_status();
+    }
+
+    leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));
 }
 
 }

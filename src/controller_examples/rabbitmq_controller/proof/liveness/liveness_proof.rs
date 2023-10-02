@@ -1507,40 +1507,6 @@ proof fn lemma_sts_is_created_at_after_create_stateful_set_step_with_rabbitmq(
 }
 
 // Note that this variant only holds since the CR always exists and the old configmap owned by the old CR has been deleted.
-proof fn lemma_server_config_map_is_stable(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, p: TempPred<RMQCluster>
-)
-    requires
-        spec.entails(p.leads_to(lift_state(current_config_map_matches(rabbitmq)))),
-        spec.entails(always(lift_action(RMQCluster::next()))),
-        spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref()))))),
-        spec.entails(always(lift_state(helper_invariants::every_update_server_cm_req_does_the_same(rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)))),
-    ensures
-        spec.entails(p.leads_to(always(lift_state(current_config_map_matches(rabbitmq))))),
-{
-    let post = current_config_map_matches(rabbitmq);
-    let stronger_next = |s, s_prime: RMQCluster| {
-        &&& RMQCluster::next()(s, s_prime)
-        &&& helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref()))(s)
-        &&& helper_invariants::every_update_server_cm_req_does_the_same(rabbitmq)(s)
-        &&& helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)(s)
-    };
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(RMQCluster::next()),
-        lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref()))),
-        lift_state(helper_invariants::every_update_server_cm_req_does_the_same(rabbitmq)),
-        lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq))
-    );
-
-    assert forall |s, s_prime| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
-        ConfigMapView::marshal_spec_preserves_integrity();
-    }
-
-    leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));
-}
-
 proof fn lemma_stateful_set_is_stable(
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, p: TempPred<RMQCluster>
 )

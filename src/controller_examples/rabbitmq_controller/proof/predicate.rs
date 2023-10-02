@@ -223,8 +223,6 @@ pub open spec fn pending_req_in_flight_at_after_create_resource_step(
         &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::CustomController
         &&& resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
-        &&& make(sub_resource, rabbitmq, s.ongoing_reconciles()[rabbitmq.object_ref()].local_state).is_Ok()
-        &&& msg.content.get_create_request().obj == make(sub_resource, rabbitmq, s.ongoing_reconciles()[rabbitmq.object_ref()].local_state).get_Ok_0()
     }
 }
 
@@ -238,13 +236,11 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_create_resource_s
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::CustomController
         &&& resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(req_msg)
-        &&& make(sub_resource, rabbitmq, s.ongoing_reconciles()[rabbitmq.object_ref()].local_state).is_Ok()
-        &&& req_msg.content.get_create_request().obj == make(sub_resource, rabbitmq, s.ongoing_reconciles()[rabbitmq.object_ref()].local_state).get_Ok_0()
     }
 }
 
 pub open spec fn pending_req_in_flight_at_after_update_resource_step(
-    sub_resource: SubResource, rabbitmq: RabbitmqClusterView, object: DynamicObjectView
+    sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         let step = after_update_k_request_step(sub_resource);
@@ -254,37 +250,10 @@ pub open spec fn pending_req_in_flight_at_after_update_resource_step(
         &&& s.in_flight().contains(msg)
         &&& msg.src == HostId::CustomController
         &&& resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
-        &&& update(sub_resource, rabbitmq, s.ongoing_reconciles()[rabbitmq.object_ref()].local_state, object).is_Ok()
-        &&& msg.content.get_update_request().obj == update(sub_resource, rabbitmq, s.ongoing_reconciles()[rabbitmq.object_ref()].local_state, object).get_Ok_0()
-    }
-}
-
-pub open spec fn pending_req_in_flight_at_after_update_resource_step_and_key_exists(
-    sub_resource: SubResource, rabbitmq: RabbitmqClusterView
-) -> StatePred<RMQCluster> {
-    |s: RMQCluster| {
-        let resource_key = get_request(sub_resource, rabbitmq).key;
-        &&& s.resources().contains_key(resource_key)
-        &&& pending_req_in_flight_at_after_update_resource_step(sub_resource, rabbitmq, s.resources()[resource_key])(s)
     }
 }
 
 pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(
-    sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage, object: DynamicObjectView
-) -> StatePred<RMQCluster> {
-    |s: RMQCluster| {
-        let step = after_update_k_request_step(sub_resource);
-        &&& at_rabbitmq_step_with_rabbitmq(rabbitmq, step)(s)
-        &&& RMQCluster::pending_k8s_api_req_msg_is(s, rabbitmq.object_ref(), req_msg)
-        &&& s.in_flight().contains(req_msg)
-        &&& req_msg.src == HostId::CustomController
-        &&& resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(req_msg)
-        &&& update(sub_resource, rabbitmq, s.ongoing_reconciles()[rabbitmq.object_ref()].local_state, object).is_Ok()
-        &&& req_msg.content.get_update_request().obj == update(sub_resource, rabbitmq, s.ongoing_reconciles()[rabbitmq.object_ref()].local_state, object).get_Ok_0()
-    }
-}
-
-pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_resource_step_and_key_exists(
     sub_resource: SubResource, rabbitmq: RabbitmqClusterView, req_msg: RMQMessage
 ) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
@@ -295,9 +264,6 @@ pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_update_resource_s
         &&& s.in_flight().contains(req_msg)
         &&& req_msg.src == HostId::CustomController
         &&& resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(req_msg)
-        &&& s.resources().contains_key(resource_key)
-        &&& update(sub_resource, rabbitmq, s.ongoing_reconciles()[rabbitmq.object_ref()].local_state, s.resources()[resource_key]).is_Ok()
-        &&& req_msg.content.get_update_request().obj == update(sub_resource, rabbitmq, s.ongoing_reconciles()[rabbitmq.object_ref()].local_state, s.resources()[resource_key]).get_Ok_0()
     }
 }
 
