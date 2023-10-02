@@ -31,3 +31,4 @@ spec:
   persistence:
     enabled: true
     storageSize: 20Gi
+    storageClassName: standard

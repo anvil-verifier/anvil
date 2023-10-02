@@ -186,7 +186,7 @@ pub struct ZookeeperConfigView {
 pub struct ZookeeperPersistenceView {
     pub enabled: bool,
     pub storage_size: StringView,
-    pub storage_class_name: Option<StringView>,
+    pub storage_class_name: StringView,
 }
 
 pub struct ZookeeperClusterStatusView {

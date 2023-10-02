@@ -571,7 +571,6 @@ spec:
                         - rule: "self == oldSelf"
                           message: changing persistence.enabled is not supported
                     storageClassName:
-                      nullable: true
                       type: string
                       x-kubernetes-validations:
                         - rule: "self == oldSelf"
@@ -584,6 +583,7 @@ spec:
                           message: changing persistence.storageSize is not supported
                   required:
                     - enabled
+                    - storageClassName
                     - storageSize
                   type: object
                 ports:

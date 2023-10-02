@@ -158,6 +158,14 @@ impl PersistentVolumeClaimSpec {
     }
 
     #[verifier(external_body)]
+    pub fn set_storage_class_name(&mut self, storage_class_name: String)
+        ensures
+            self@ == old(self)@.set_storage_class_name(storage_class_name@),
+    {
+        self.inner.storage_class_name = Some(storage_class_name.into_rust_string());
+    }
+
+    #[verifier(external_body)]
     pub fn overwrite_storage_class_name(&mut self, storage_class_name: Option<String>)
         ensures
             storage_class_name.is_None() ==> self@ == old(self)@.overwrite_storage_class_name(None),
@@ -337,6 +345,13 @@ impl PersistentVolumeClaimSpecView {
     pub open spec fn set_resources(self, resources: ResourceRequirementsView) -> PersistentVolumeClaimSpecView {
         PersistentVolumeClaimSpecView {
             resources: Some(resources),
+            ..self
+        }
+    }
+
+    pub open spec fn set_storage_class_name(self, storage_class_name: StringView) -> PersistentVolumeClaimSpecView {
+        PersistentVolumeClaimSpecView {
+            storage_class_name: Some(storage_class_name),
             ..self
         }
     }
