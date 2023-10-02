@@ -279,7 +279,7 @@ proof fn lemma_delete_msg_in_flight_leads_to_owner_references_satisfies(
 }
 
 pub open spec fn every_in_flight_create_req_msg_for_this_object_satisfies(
-    key: ObjectRef, requirements: DynamicObjectMutViewPred
+    key: ObjectRef, requirements: MutableByUpdatePred
 ) -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
@@ -289,7 +289,7 @@ pub open spec fn every_in_flight_create_req_msg_for_this_object_satisfies(
 }
 
 pub open spec fn every_in_flight_update_req_msg_for_this_object_satisfies(
-    key: ObjectRef, requirements: DynamicObjectMutViewPred
+    key: ObjectRef, requirements: MutableByUpdatePred
 ) -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
@@ -330,7 +330,7 @@ pub open spec fn no_status_update_req_msg_from_bc_for_this_object(key: ObjectRef
 /// controller can directly go through.
 
 pub proof fn lemma_true_leads_to_always_object_not_exist_or_updated_or_no_more_pending_req(
-    spec: TempPred<Self>, key: ObjectRef, requirements: DynamicObjectMutViewPred
+    spec: TempPred<Self>, key: ObjectRef, requirements: MutableByUpdatePred
 )
     requires
         spec.entails(always(lift_action(Self::next()))),
@@ -388,7 +388,7 @@ pub proof fn lemma_true_leads_to_always_object_not_exist_or_updated_or_no_more_p
 }
 
 proof fn lemma_true_leads_to_object_not_exist_or_updated_or_no_more_pending_req(
-    spec: TempPred<Self>, key: ObjectRef, requirements: DynamicObjectMutViewPred
+    spec: TempPred<Self>, key: ObjectRef, requirements: MutableByUpdatePred
 )
     requires
         spec.entails(always(lift_action(Self::next()))),
@@ -460,7 +460,7 @@ proof fn lemma_true_leads_to_object_not_exist_or_updated_or_no_more_pending_req(
 }
 
 proof fn lemma_pending_update_status_req_num_is_n_leads_to_object_not_exist_or_updated_or_no_more_pending_req(
-    spec: TempPred<Self>, key: ObjectRef, requirements: DynamicObjectMutViewPred, msg_num: nat
+    spec: TempPred<Self>, key: ObjectRef, requirements: MutableByUpdatePred, msg_num: nat
 )
     requires
         spec.entails(always(lift_action(Self::next()))),
@@ -558,7 +558,7 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_object_not_exist_or_u
 }
 
 proof fn object_not_exist_or_updated_or_pending_update_status_requests_num_decreases(
-    spec: TempPred<Self>, key: ObjectRef, requirements: DynamicObjectMutViewPred, msg_num: nat, msg: MsgType<E>
+    spec: TempPred<Self>, key: ObjectRef, requirements: MutableByUpdatePred, msg_num: nat, msg: MsgType<E>
 )
     requires
         msg_num > 0,
