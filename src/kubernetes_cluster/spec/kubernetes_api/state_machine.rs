@@ -341,8 +341,7 @@ pub open spec fn update_request_admission_check(req: UpdateRequest, s: Kubernete
     Self::update_request_admission_check_helper(req.name, req.namespace, req.obj, s)
 }
 
-pub open spec fn updated_object(req: UpdateRequest, s: KubernetesAPIState) -> DynamicObjectView {
-    let old_obj = s.resources[req.key()];
+pub open spec fn updated_object(req: UpdateRequest, old_obj: DynamicObjectView) -> DynamicObjectView {
     let updated_obj = DynamicObjectView {
         kind: req.obj.kind,
         metadata: ObjectMetaView {
@@ -383,8 +382,8 @@ pub open spec fn handle_update_request(msg: MsgType<E>, s: KubernetesAPIState) -
         let resp = Message::form_update_resp_msg(msg, result);
         (s, resp)
     } else {
-        let updated_obj = Self::updated_object(req, s);
         let old_obj = s.resources[req.key()];
+        let updated_obj = Self::updated_object(req, old_obj);
         if updated_obj == old_obj {
             // Update is a noop because there is nothing to update
             // so the resource version counter does not increase here,
@@ -446,8 +445,7 @@ pub open spec fn update_status_request_admission_check(req: UpdateStatusRequest,
     Self::update_request_admission_check_helper(req.name, req.namespace, req.obj, s)
 }
 
-pub open spec fn status_updated_object(req: UpdateStatusRequest, s: KubernetesAPIState) -> DynamicObjectView {
-    let old_obj = s.resources[req.key()];
+pub open spec fn status_updated_object(req: UpdateStatusRequest, old_obj: DynamicObjectView) -> DynamicObjectView {
     let status_updated_object = DynamicObjectView {
         kind: req.obj.kind,
         metadata: old_obj.metadata, // Ignore any change to metadata
@@ -468,8 +466,8 @@ pub open spec fn handle_update_status_request(msg: MsgType<E>, s: KubernetesAPIS
         let resp = Message::form_update_status_resp_msg(msg, result);
         (s, resp)
     } else {
-        let updated_obj = Self::status_updated_object(req, s);
         let old_obj = s.resources[req.key()];
+        let updated_obj = Self::status_updated_object(req, old_obj);
         if updated_obj == old_obj {
             // UpdateStatus is a noop because there is nothing to update
             // so the resource version counter does not increase here,

@@ -283,13 +283,7 @@ pub open spec fn every_in_flight_create_req_msg_for_this_object_satisfies(
 ) -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
-            #[trigger] s.in_flight().contains(msg)
-            && msg.dst.is_KubernetesAPI()
-            && msg.content.is_create_request()
-            && msg.content.get_create_request().namespace == key.namespace
-            && msg.content.get_create_request().obj.kind == key.kind
-            && msg.content.get_create_request().obj.metadata.name.is_Some()
-            && msg.content.get_create_request().obj.metadata.name.get_Some_0() == key.name
+            #[trigger] s.in_flight().contains(msg) && create_msg_for(key)(msg)
             ==> requirements(msg.content.get_create_request().obj.mutable_subset())
     }
 }
@@ -299,10 +293,7 @@ pub open spec fn every_in_flight_update_req_msg_for_this_object_satisfies(
 ) -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
-            #[trigger] s.in_flight().contains(msg)
-            && msg.dst.is_KubernetesAPI()
-            && msg.content.is_update_request()
-            && msg.content.get_update_request().key() == key
+            #[trigger] s.in_flight().contains(msg) && update_msg_for(key)(msg)
             ==> requirements(msg.content.get_update_request().obj.mutable_subset())
     }
 }

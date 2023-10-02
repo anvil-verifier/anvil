@@ -426,11 +426,35 @@ pub open spec fn api_request_msg_before<I, O>(rest_id: RestId) -> FnSpec(Message
         && msg.content.get_rest_id() < rest_id
 }
 
+pub open spec fn create_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+    |msg: Message<I, O>|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_create_request()
+        && msg.content.get_create_request().namespace == key.namespace
+        && msg.content.get_create_request().obj.kind == key.kind
+        && msg.content.get_create_request().obj.metadata.name.is_Some()
+        && msg.content.get_create_request().obj.metadata.name.get_Some_0() == key.name
+}
+
+pub open spec fn update_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+    |msg: Message<I, O>|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_update_request()
+        && msg.content.get_update_request().key() == key
+}
+
 pub open spec fn update_status_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
     |msg: Message<I, O>|
         msg.dst.is_KubernetesAPI()
         && msg.content.is_update_status_request()
         && msg.content.get_update_status_request().key() == key
+}
+
+pub open spec fn delete_msg_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
+    |msg: Message<I, O>|
+        msg.dst.is_KubernetesAPI()
+        && msg.content.is_delete_request()
+        && msg.content.get_delete_request().key == key
 }
 
 pub open spec fn update_status_msg_from_bc_for<I, O>(key: ObjectRef) -> FnSpec(Message<I, O>) -> bool {
