@@ -780,6 +780,10 @@ pub open spec fn make_labels(zk: ZookeeperClusterView) -> Map<StringView, String
     zk.spec.labels.union_prefer_right(make_base_labels(zk))
 }
 
+pub open spec fn make_owner_references(zk: ZookeeperClusterView) -> Seq<OwnerReferenceView> {
+    seq![zk.controller_owner_ref()]
+}
+
 pub open spec fn make_headless_service_key(key: ObjectRef) -> ObjectRef
     recommends
         key.kind.is_CustomResourceKind(),
@@ -801,6 +805,8 @@ pub open spec fn update_headless_service(zk: ZookeeperClusterView, found_headles
 {
     ServiceView {
         metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(zk)),
+            finalizers: None,
             labels: make_headless_service(zk).metadata.labels,
             annotations: make_headless_service(zk).metadata.annotations,
             ..found_headless_service.metadata
@@ -850,6 +856,8 @@ pub open spec fn update_client_service(zk: ZookeeperClusterView, found_client_se
 {
     ServiceView {
         metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(zk)),
+            finalizers: None,
             labels: make_client_service(zk).metadata.labels,
             annotations: make_client_service(zk).metadata.annotations,
             ..found_client_service.metadata
@@ -893,6 +901,8 @@ pub open spec fn update_admin_server_service(zk: ZookeeperClusterView, found_adm
 {
     ServiceView {
         metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(zk)),
+            finalizers: None,
             labels: make_admin_server_service(zk).metadata.labels,
             annotations: make_admin_server_service(zk).metadata.annotations,
             ..found_admin_server_service.metadata
@@ -926,7 +936,7 @@ pub open spec fn make_service(
             name: Some(name),
             labels: Some(make_labels(zk)),
             annotations: Some(zk.spec.annotations),
-            owner_references: Some(seq![zk.controller_owner_ref()]),
+            owner_references: Some(make_owner_references(zk)),
             ..ObjectMetaView::default()
         },
         spec: Some(ServiceSpecView {
@@ -963,7 +973,7 @@ pub open spec fn make_config_map(zk: ZookeeperClusterView) -> ConfigMapView
             .set_name(make_config_map_name(zk.metadata.name.get_Some_0()))
             .set_labels(make_labels(zk))
             .set_annotations(zk.spec.annotations)
-            .set_owner_references(seq![zk.controller_owner_ref()])
+            .set_owner_references(make_owner_references(zk))
         )
         .set_data(Map::empty()
             .insert(new_strlit("zoo.cfg")@, make_zk_config(zk))
@@ -977,13 +987,17 @@ pub open spec fn update_config_map(zk: ZookeeperClusterView, found_config_map: C
     recommends
         zk.well_formed(),
 {
-    found_config_map
-        .set_metadata(
-            found_config_map.metadata
-                .set_labels(make_config_map(zk).metadata.labels.get_Some_0())
-                .set_annotations(make_config_map(zk).metadata.annotations.get_Some_0())
-        )
-        .set_data(make_config_map(zk).data.get_Some_0())
+    ConfigMapView {
+        metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(zk)),
+            finalizers: None,
+            labels: make_config_map(zk).metadata.labels,
+            annotations: make_config_map(zk).metadata.annotations,
+            ..found_config_map.metadata
+        },
+        data: make_config_map(zk).data,
+        ..found_config_map
+    }
 }
 
 pub open spec fn make_zk_config(zk: ZookeeperClusterView) -> StringView {
@@ -1082,6 +1096,8 @@ pub open spec fn update_stateful_set(zk: ZookeeperClusterView, found_stateful_se
 {
     StatefulSetView {
         metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(zk)),
+            finalizers: None,
             labels: make_stateful_set(zk, rv).metadata.labels,
             annotations: make_stateful_set(zk, rv).metadata.annotations,
             ..found_stateful_set.metadata
@@ -1107,7 +1123,7 @@ pub open spec fn make_stateful_set(zk: ZookeeperClusterView, rv: StringView) -> 
         .set_name(name)
         .set_labels(make_labels(zk))
         .set_annotations(zk.spec.annotations)
-        .set_owner_references(seq![zk.controller_owner_ref()]);
+        .set_owner_references(make_owner_references(zk));
 
     let spec = StatefulSetSpecView::default()
         .set_replicas(zk.spec.replicas)

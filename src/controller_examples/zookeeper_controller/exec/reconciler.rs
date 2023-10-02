@@ -852,6 +852,23 @@ fn make_labels(zk: &ZookeeperCluster) -> (labels: StringMap)
     labels
 }
 
+pub fn make_owner_references(zk: &ZookeeperCluster) -> (owner_references: Vec<OwnerReference>)
+    requires
+        zk@.well_formed(),
+    ensures
+        owner_references@.map_values(|or: OwnerReference| or@) ==  zk_spec::make_owner_references(zk@),
+{
+    let mut owner_references = Vec::new();
+    owner_references.push(zk.controller_owner_ref());
+    proof {
+        assert_seqs_equal!(
+            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+            zk_spec::make_owner_references(zk@)
+        );
+    }
+    owner_references
+}
+
 fn make_headless_service_name(zk: &ZookeeperCluster) -> (name: String)
     requires
         zk@.well_formed(),
@@ -872,6 +889,8 @@ fn update_headless_service(zk: &ZookeeperCluster, found_headless_service: &Servi
     let made_headless_service = make_headless_service(zk);
     headless_service.set_metadata({
         let mut metadata = found_headless_service.metadata();
+        metadata.set_owner_references(make_owner_references(zk));
+        metadata.unset_finalizers();
         metadata.set_labels(made_headless_service.metadata().labels().unwrap());
         metadata.set_annotations(made_headless_service.metadata().annotations().unwrap());
         metadata
@@ -930,6 +949,8 @@ fn update_client_service(zk: &ZookeeperCluster, found_client_service: &Service) 
     let made_client_service = make_client_service(zk);
     client_service.set_metadata({
         let mut metadata = found_client_service.metadata();
+        metadata.set_owner_references(make_owner_references(zk));
+        metadata.unset_finalizers();
         metadata.set_labels(made_client_service.metadata().labels().unwrap());
         metadata.set_annotations(made_client_service.metadata().annotations().unwrap());
         metadata
@@ -984,6 +1005,8 @@ fn update_admin_server_service(zk: &ZookeeperCluster, found_admin_server_service
     let made_admin_server_service = make_admin_server_service(zk);
     admin_server_service.set_metadata({
         let mut metadata = found_admin_server_service.metadata();
+        metadata.set_owner_references(make_owner_references(zk));
+        metadata.unset_finalizers();
         metadata.set_labels(made_admin_server_service.metadata().labels().unwrap());
         metadata.set_annotations(made_admin_server_service.metadata().annotations().unwrap());
         metadata
@@ -1031,17 +1054,7 @@ fn make_service(zk: &ZookeeperCluster, name: String, ports: Vec<ServicePort>, cl
         metadata.set_name(name);
         metadata.set_labels(make_labels(zk));
         metadata.set_annotations(zk.spec().annotations());
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(zk.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    zk_spec::make_service(zk@, name@, ports@.map_values(|port: ServicePort| port@), cluster_ip).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
+        metadata.set_owner_references(make_owner_references(zk));
         metadata
     });
     service.set_spec({
@@ -1076,6 +1089,8 @@ fn update_config_map(zk: &ZookeeperCluster, found_config_map: &ConfigMap) -> (co
     let made_config_map = make_config_map(zk);
     config_map.set_metadata({
         let mut metadata = found_config_map.metadata();
+        metadata.set_owner_references(make_owner_references(zk));
+        metadata.unset_finalizers();
         metadata.set_labels(made_config_map.metadata().labels().unwrap());
         metadata.set_annotations(made_config_map.metadata().annotations().unwrap());
         metadata
@@ -1098,17 +1113,7 @@ fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
         metadata.set_name(make_config_map_name(zk));
         metadata.set_labels(make_labels(zk));
         metadata.set_annotations(zk.spec().annotations());
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(zk.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    zk_spec::make_config_map(zk@).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
+        metadata.set_owner_references(make_owner_references(zk));
         metadata
     });
     config_map.set_data({
@@ -1230,6 +1235,8 @@ fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulSet, 
     let made_stateful_set = make_stateful_set(zk, rv);
     stateful_set.set_metadata({
         let mut metadata = found_stateful_set.metadata();
+        metadata.set_owner_references(make_owner_references(zk));
+        metadata.unset_finalizers();
         metadata.set_labels(made_stateful_set.metadata().labels().unwrap());
         metadata.set_annotations(made_stateful_set.metadata().annotations().unwrap());
         metadata
@@ -1258,17 +1265,7 @@ fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: State
         metadata.set_name(make_stateful_set_name(zk));
         metadata.set_labels(make_labels(zk));
         metadata.set_annotations(zk.spec().annotations());
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(zk.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    zk_spec::make_stateful_set(zk@, rv@).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
+        metadata.set_owner_references(make_owner_references(zk));
         metadata
     });
     stateful_set.set_spec({
