@@ -66,7 +66,7 @@ impl ResourceBuilder for ServiceBuilder {
     }
 
     open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-        &&& ServiceView::unmarshal(object).is_Ok()
+        true
     }
 }
 

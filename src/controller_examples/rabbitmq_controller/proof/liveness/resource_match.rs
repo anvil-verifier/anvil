@@ -230,7 +230,7 @@ proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_match
                 &&& RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())(s)
                 &&& RMQCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())(s)
             };
-        
+
             combine_spec_entails_always_n!(
                 spec, lift_action(stronger_next),
                 lift_action(RMQCluster::next()),
@@ -418,7 +418,8 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
             );
 
             leads_to_trans_n!(
-                spec, pre, lift_state(at_after_get_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq)), lift_state(post),match_and_ok_resp
+                spec, pre, lift_state(at_after_get_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq)),
+                lift_state(post), match_and_ok_resp
             );
         }
     );
@@ -441,7 +442,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                 &&& RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref())(s)
                 &&& RMQCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref())(s)
             };
-        
+
             combine_spec_entails_always_n!(
                 spec, lift_action(stronger_next),
                 lift_action(RMQCluster::next()),
@@ -715,40 +716,16 @@ proof fn lemma_resource_state_matches_at_after_create_resource_step(
         let resp = RMQCluster::handle_create_request(pending_msg, s.kubernetes_api_state).1;
         assert(s_prime.in_flight().contains(resp));
         match sub_resource {
-            SubResource::HeadlessService => {
-                ServiceView::marshal_preserves_integrity();
-                ServiceView::marshal_status_preserves_integrity();
-                ServiceView::marshal_spec_preserves_integrity();
-                ServiceView::unmarshal_result_determined_by_unmarshal_spec_and_status();
-                assert(post(s_prime));
-            },
-            SubResource::Service => {ServiceView::marshal_preserves_integrity();assert(post(s_prime));},
-            SubResource::ErlangCookieSecret => {SecretView::marshal_preserves_integrity();assert(post(s_prime));},
-            SubResource::DefaultUserSecret => {SecretView::marshal_preserves_integrity();assert(post(s_prime));},
-            SubResource::PluginsConfigMap => {
-                ConfigMapView::marshal_preserves_integrity();assert(post(s_prime));
-                assert(ConfigMapView::unmarshal(make_plugins_config_map(rabbitmq).marshal()).get_Ok_0().data == make_plugins_config_map(rabbitmq).data);
-                assert(post(s_prime));
-            },
-            SubResource::ServerConfigMap => {
-                ConfigMapView::marshal_preserves_integrity();
-                assert(ConfigMapView::unmarshal(make_server_config_map(rabbitmq).marshal()).get_Ok_0().data == make_server_config_map(rabbitmq).data);
-                assert(post(s_prime));
-            },
-            SubResource::ServiceAccount => {ServiceAccountView::marshal_preserves_integrity();assert(post(s_prime));},
-            SubResource::Role => {RoleView::marshal_preserves_integrity();assert(post(s_prime));},
-            SubResource::RoleBinding => {
-                RoleBindingView::marshal_preserves_integrity();
-                RoleBindingView::marshal_status_preserves_integrity();
-                RoleBindingView::marshal_spec_preserves_integrity();
-                RoleBindingView::unmarshal_result_determined_by_unmarshal_spec_and_status();
-            },
-            SubResource::StatefulSet => {
-                StatefulSetView::marshal_preserves_integrity();
-                StatefulSetView::marshal_status_preserves_integrity();
-                StatefulSetView::marshal_spec_preserves_integrity();
-                StatefulSetView::unmarshal_result_determined_by_unmarshal_spec_and_status();
-            },
+            SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
+            SubResource::Service => ServiceView::marshal_preserves_integrity(),
+            SubResource::ErlangCookieSecret => SecretView::marshal_preserves_integrity(),
+            SubResource::DefaultUserSecret => SecretView::marshal_preserves_integrity(),
+            SubResource::PluginsConfigMap => ConfigMapView::marshal_preserves_integrity(),
+            SubResource::ServerConfigMap => ConfigMapView::marshal_preserves_integrity(),
+            SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
+            SubResource::Role => RoleView::marshal_preserves_integrity(),
+            SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
+            SubResource::StatefulSet => StatefulSetView::marshal_preserves_integrity(),
         }
     }
 
@@ -907,40 +884,16 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         let resp = RMQCluster::handle_update_request(pending_msg, s.kubernetes_api_state).1;
         assert(s_prime.in_flight().contains(resp));
         match sub_resource {
-            SubResource::HeadlessService => {
-                ServiceView::marshal_preserves_integrity();
-                assert(ServiceView::unmarshal(make_headless_service(rabbitmq).marshal()).get_Ok_0().spec.is_Some());
-                assert(ServiceView::unmarshal(make_headless_service(rabbitmq).marshal()).get_Ok_0().state_validation());
-                assert(RMQCluster::object_validity_check(make_headless_service(rabbitmq).marshal()).is_None());
-                assert(post(s_prime));
-            },
-            SubResource::Service => {ServiceView::marshal_preserves_integrity();assert(post(s_prime));},
-            SubResource::ErlangCookieSecret => {SecretView::marshal_preserves_integrity();assert(post(s_prime));},
-            SubResource::DefaultUserSecret => {SecretView::marshal_preserves_integrity();assert(post(s_prime));},
-            SubResource::PluginsConfigMap => {
-                ConfigMapView::marshal_preserves_integrity();assert(post(s_prime));
-                assert(ConfigMapView::unmarshal(make_plugins_config_map(rabbitmq).marshal()).get_Ok_0().data == make_plugins_config_map(rabbitmq).data);
-                assert(post(s_prime));
-            },
-            SubResource::ServerConfigMap => {
-                ConfigMapView::marshal_preserves_integrity();
-                assert(ConfigMapView::unmarshal(make_server_config_map(rabbitmq).marshal()).get_Ok_0().data == make_server_config_map(rabbitmq).data);
-                assert(post(s_prime));
-            },
-            SubResource::ServiceAccount => {ServiceAccountView::marshal_preserves_integrity();assert(post(s_prime));},
-            SubResource::Role => {RoleView::marshal_preserves_integrity();assert(post(s_prime));},
-            SubResource::RoleBinding => {
-                RoleBindingView::marshal_preserves_integrity();
-                RoleBindingView::marshal_status_preserves_integrity();
-                RoleBindingView::marshal_spec_preserves_integrity();
-                RoleBindingView::unmarshal_result_determined_by_unmarshal_spec_and_status();
-            },
-            SubResource::StatefulSet => {
-                StatefulSetView::marshal_preserves_integrity();
-                StatefulSetView::marshal_status_preserves_integrity();
-                StatefulSetView::marshal_spec_preserves_integrity();
-                StatefulSetView::unmarshal_result_determined_by_unmarshal_spec_and_status();
-            },
+            SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
+            SubResource::Service => ServiceView::marshal_preserves_integrity(),
+            SubResource::ErlangCookieSecret => SecretView::marshal_preserves_integrity(),
+            SubResource::DefaultUserSecret => SecretView::marshal_preserves_integrity(),
+            SubResource::PluginsConfigMap => ConfigMapView::marshal_preserves_integrity(),
+            SubResource::ServerConfigMap => ConfigMapView::marshal_preserves_integrity(),
+            SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
+            SubResource::Role => RoleView::marshal_preserves_integrity(),
+            SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
+            SubResource::StatefulSet => StatefulSetView::marshal_preserves_integrity(),
         }
     }
 
@@ -1053,34 +1006,15 @@ pub proof fn lemma_resource_object_is_stable(
 
     assert forall |s, s_prime: RMQCluster| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
         match sub_resource {
-            SubResource::HeadlessService => {
-                ServiceView::marshal_preserves_integrity();
-                assert(ServiceView::unmarshal(make_headless_service(rabbitmq).marshal()).get_Ok_0().spec.is_Some());
-                assert(ServiceView::unmarshal(make_headless_service(rabbitmq).marshal()).get_Ok_0().state_validation());
-                assert(RMQCluster::object_validity_check(make_headless_service(rabbitmq).marshal()).is_None());
-                assert(post(s_prime));
-            },
-            SubResource::Service => {ServiceView::marshal_preserves_integrity();assert(post(s_prime));},
-            SubResource::ErlangCookieSecret => {SecretView::marshal_preserves_integrity();assert(post(s_prime));},
-            SubResource::DefaultUserSecret => {SecretView::marshal_preserves_integrity();assert(post(s_prime));},
-            SubResource::PluginsConfigMap => {
-                ConfigMapView::marshal_preserves_integrity();assert(post(s_prime));
-                assert(ConfigMapView::unmarshal(make_plugins_config_map(rabbitmq).marshal()).get_Ok_0().data == make_plugins_config_map(rabbitmq).data);
-                assert(post(s_prime));
-            },
-            SubResource::ServerConfigMap => {
-                ConfigMapView::marshal_preserves_integrity();
-                assert(ConfigMapView::unmarshal(make_server_config_map(rabbitmq).marshal()).get_Ok_0().data == make_server_config_map(rabbitmq).data);
-                assert(post(s_prime));
-            },
-            SubResource::ServiceAccount => {ServiceAccountView::marshal_preserves_integrity();assert(post(s_prime));},
-            SubResource::Role => {RoleView::marshal_preserves_integrity();assert(post(s_prime));},
-            SubResource::RoleBinding => {
-                RoleBindingView::marshal_preserves_integrity();
-                RoleBindingView::marshal_status_preserves_integrity();
-                RoleBindingView::marshal_spec_preserves_integrity();
-                RoleBindingView::unmarshal_result_determined_by_unmarshal_spec_and_status();
-            },
+            SubResource::HeadlessService => ServiceView::marshal_preserves_integrity(),
+            SubResource::Service => ServiceView::marshal_preserves_integrity(),
+            SubResource::ErlangCookieSecret => SecretView::marshal_preserves_integrity(),
+            SubResource::DefaultUserSecret => SecretView::marshal_preserves_integrity(),
+            SubResource::PluginsConfigMap => ConfigMapView::marshal_preserves_integrity(),
+            SubResource::ServerConfigMap => ConfigMapView::marshal_preserves_integrity(),
+            SubResource::ServiceAccount => ServiceAccountView::marshal_preserves_integrity(),
+            SubResource::Role => RoleView::marshal_preserves_integrity(),
+            SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
             _ => {}
         }
     }
