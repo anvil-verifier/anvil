@@ -8,7 +8,9 @@ verus! {
 #[is_variant]
 pub enum FluentBitConfigReconcileStep {
     Init,
+    AfterGetSecret,
     AfterCreateSecret,
+    AfterUpdateSecret,
     Done,
     Error,
 }
