@@ -62,6 +62,8 @@ impl ResourceBuilder for HeadlessServiceBuilder {
             cluster_ip: made_spec.cluster_ip,
             ..spec
         }
+        &&& obj.metadata.labels == make_headless_service(rabbitmq).metadata.labels
+        &&& obj.metadata.annotations == make_headless_service(rabbitmq).metadata.annotations
     }
 
     open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {

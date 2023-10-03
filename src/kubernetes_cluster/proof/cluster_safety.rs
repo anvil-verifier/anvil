@@ -32,49 +32,17 @@ pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
         &&& s.resources()[key].metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
         &&& s.resources()[key].metadata.uid.get_Some_0() < s.kubernetes_api_state.uid_counter
         &&& {
-            if key.kind == ConfigMapView::kind() { 
-                &&& ConfigMapView::unmarshal(s.resources()[key]).is_Ok() 
-                &&& ConfigMapView::unmarshal(s.resources()[key]).get_Ok_0().state_validation()
-            }
-            else if key.kind == DaemonSetView::kind() { 
-                &&& DaemonSetView::unmarshal(s.resources()[key]).is_Ok() 
-                &&& DaemonSetView::unmarshal(s.resources()[key]).get_Ok_0().state_validation()
-            }
-            else if key.kind == PersistentVolumeClaimView::kind() { 
-                &&& PersistentVolumeClaimView::unmarshal(s.resources()[key]).is_Ok() 
-                &&& PersistentVolumeClaimView::unmarshal(s.resources()[key]).get_Ok_0().state_validation()
-            }
-            else if key.kind == PodView::kind() { 
-                &&& PodView::unmarshal(s.resources()[key]).is_Ok() 
-                &&& PodView::unmarshal(s.resources()[key]).get_Ok_0().state_validation()
-            }
-            else if key.kind == RoleBindingView::kind() { 
-                &&& RoleBindingView::unmarshal(s.resources()[key]).is_Ok() 
-                &&& RoleBindingView::unmarshal(s.resources()[key]).get_Ok_0().state_validation()
-            }
-            else if key.kind == RoleView::kind() { 
-                &&& RoleView::unmarshal(s.resources()[key]).is_Ok() 
-                &&& RoleView::unmarshal(s.resources()[key]).get_Ok_0().state_validation()
-            }
-            else if key.kind == SecretView::kind() { 
-                &&& SecretView::unmarshal(s.resources()[key]).is_Ok()
-                &&& SecretView::unmarshal(s.resources()[key]).get_Ok_0().state_validation()
-            }
-            else if key.kind == ServiceView::kind() { 
-                &&& ServiceView::unmarshal(s.resources()[key]).is_Ok() 
-                &&& ServiceView::unmarshal(s.resources()[key]).get_Ok_0().state_validation()
-            }
-            else if key.kind == StatefulSetView::kind() { 
-                &&& StatefulSetView::unmarshal(s.resources()[key]).is_Ok() 
-                &&& StatefulSetView::unmarshal(s.resources()[key]).get_Ok_0().state_validation()
-            }
-            else if key.kind == ServiceAccountView::kind() { 
-                &&& ServiceAccountView::unmarshal(s.resources()[key]).is_Ok() 
-                &&& ServiceAccountView::unmarshal(s.resources()[key]).get_Ok_0().state_validation()
-            }
-            else if key.kind == K::kind() { 
-                &&& K::unmarshal(s.resources()[key]).is_Ok() 
-            }
+            if key.kind == ConfigMapView::kind() { ConfigMapView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == DaemonSetView::kind() { DaemonSetView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == PersistentVolumeClaimView::kind() { PersistentVolumeClaimView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == PodView::kind() { PodView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == RoleBindingView::kind() { RoleBindingView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == RoleView::kind() { RoleView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == SecretView::kind() { SecretView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == ServiceView::kind() { ServiceView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == StatefulSetView::kind() { StatefulSetView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == ServiceAccountView::kind() { ServiceAccountView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == K::kind() { K::unmarshal(s.resources()[key]).is_Ok() }
             else { true }
         }
     }

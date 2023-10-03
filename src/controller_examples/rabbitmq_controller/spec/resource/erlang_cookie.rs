@@ -55,6 +55,8 @@ impl ResourceBuilder for ErlangCookieBuilder {
         &&& resources.contains_key(key)
         &&& SecretView::unmarshal(obj).is_Ok()
         &&& SecretView::unmarshal(obj).get_Ok_0().data == make_erlang_secret(rabbitmq).data
+        &&& obj.metadata.labels == make_erlang_secret(rabbitmq).metadata.labels
+        &&& obj.metadata.annotations == make_erlang_secret(rabbitmq).metadata.annotations
     }
 
     open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
