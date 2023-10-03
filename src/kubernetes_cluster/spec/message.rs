@@ -183,6 +183,18 @@ impl<I, O> MessageContent<I, O> {
         self.get_APIResponse_0().get_CreateResponse_0()
     }
 
+    pub open spec fn is_update_response(self) -> bool {
+        &&& self.is_APIResponse()
+        &&& self.get_APIResponse_0().is_UpdateResponse()
+    }
+
+    pub open spec fn get_update_response(self) -> UpdateResponse
+        recommends
+            self.is_update_response()
+    {
+        self.get_APIResponse_0().get_UpdateResponse_0()
+    }
+
     pub open spec fn is_delete_response(self) -> bool {
         &&& self.is_APIResponse()
         &&& self.get_APIResponse_0().is_DeleteResponse()

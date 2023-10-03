@@ -550,8 +550,8 @@ spec:
                   format: int32
                   type: integer
                   x-kubernetes-validations:
-                    - rule: "self >= oldSelf"
-                      message: scaling down is not supported
+                    - rule: "self >= 0 && self >= oldSelf"
+                      message: replicas should be non-negative and scaling down is not supported
                 resources:
                   description: ResourceRequirements describes the compute resource requirements.
                   nullable: true

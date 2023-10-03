@@ -61,10 +61,12 @@ impl ResourceBuilder for ServiceBuilder {
             cluster_ip: made_spec.cluster_ip,
             ..spec
         }
+        &&& obj.metadata.labels == make_main_service(rabbitmq).metadata.labels
+        &&& obj.metadata.annotations == make_main_service(rabbitmq).metadata.annotations
     }
 
     open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-        &&& ServiceView::unmarshal(object).is_Ok()
+        true
     }
 }
 

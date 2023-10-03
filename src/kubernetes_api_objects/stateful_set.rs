@@ -485,7 +485,7 @@ impl ResourceView for StatefulSetView {
     open spec fn state_validation(self) -> bool {
         let new_spec = self.spec.get_Some_0();
         &&& self.spec.is_Some()
-        // &&& new_spec.replicas.is_Some() ==> new_spec.replicas.get_Some_0() > 0
+        &&& new_spec.replicas.is_Some() ==> new_spec.replicas.get_Some_0() >= 0
         // &&& new_spec.pod_management_policy.is_Some()
         //     ==> (new_spec.pod_management_policy.get_Some_0() == new_strlit("OrderedReady")@
         //         || new_spec.pod_management_policy.get_Some_0() == new_strlit("Parallel")@)
