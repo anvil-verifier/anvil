@@ -182,6 +182,7 @@ pub proof fn invariants_since_phase_i_is_stable(rabbitmq: RabbitmqClusterView)
 /// in phase III relies on it.
 pub open spec fn invariants_since_phase_ii(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))
+    .and(always(lift_state(helper_invariants::triggering_cr_satisfies_state_validation())))
 }
 
 
@@ -189,7 +190,10 @@ pub proof fn invariants_since_phase_ii_is_stable(rabbitmq: RabbitmqClusterView)
     ensures
         valid(stable(invariants_since_phase_ii(rabbitmq))),
 {
-    always_p_is_stable(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)));
+    stable_and_always_n!(
+        lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)),
+        lift_state(helper_invariants::triggering_cr_satisfies_state_validation())
+    );
 }
 
 /// After we know that the spec and uid of object in reconcile, we can obtain the following invariants about messages. This is

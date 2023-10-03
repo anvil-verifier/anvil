@@ -131,7 +131,12 @@ impl ResourceView for RabbitmqClusterView {
     proof fn unmarshal_result_determined_by_unmarshal_spec_and_status() {}
 
     open spec fn state_validation(self) -> bool {
-        true
+        &&& self.spec.replicas >= 0
+        // &&& self.spec.pod_management_policy.is_Some() ==> 
+        //     (self.spec.pod_management_policy.get_Some_0() == new_strlit("OrderedReady")@
+        //         || self.spec.pod_management_policy.get_Some_0() == new_strlit("Parallel")@)
+        // &&& self.spec.persistent_volume_claim_retention_policy.is_Some() ==>
+        //     self.spec.persistent_volume_claim_retention_policy.get_Some_0().state_validation()
     }
 
     open spec fn transition_validation(self, old_obj: RabbitmqClusterView) -> bool {

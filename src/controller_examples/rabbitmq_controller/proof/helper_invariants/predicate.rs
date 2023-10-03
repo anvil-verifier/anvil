@@ -24,6 +24,16 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
 
+pub open spec fn triggering_cr_satisfies_state_validation() -> StatePred<RMQCluster>
+{
+    |s: RMQCluster| {
+        forall |key: ObjectRef|
+        #[trigger] s.ongoing_reconciles().contains_key(key)
+        && key.kind.is_CustomResourceKind()
+        ==> s.ongoing_reconciles()[key].triggering_cr.state_validation()
+    }
+}
+
 pub open spec fn object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(key: ObjectRef, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         s.resources().contains_key(key)
