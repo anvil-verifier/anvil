@@ -138,6 +138,10 @@ proof fn lemma_true_leads_to_state_matches_for_all_resources(rabbitmq: RabbitmqC
     lemma_from_init_step_to_after_create_headless_service_step(spec, rabbitmq);
 
     use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(res, rabbitmq))), SubResource::ServerConfigMap);
+    // We first show that the reconciler can go to at_after_get_resource_step(next_resource) from at_after_get_resource_step(sub_resource)
+    // where sub_resource cannot be StatefulSet because it's the last resource to be processed and doesn't have its next_resource.
+    // Through this, we can string all the resources together in sequence. This also means that the system can go to any
+    // at_after_get_resource_step(sub_resource) from an arbitrary state.
     assert forall |sub_resource: SubResource| sub_resource != SubResource::StatefulSet implies spec.entails(
         lift_state(#[trigger] pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq))
             .leads_to(lift_state(pending_req_in_flight_at_after_get_resource_step(next_resource_get_step_and_request(rabbitmq, sub_resource).0.get_AfterKRequestStep_1(), rabbitmq)))) by {
@@ -161,6 +165,10 @@ proof fn lemma_true_leads_to_state_matches_for_all_resources(rabbitmq: RabbitmqC
         lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::RoleBinding, rabbitmq)),
         lift_state(pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, rabbitmq))
     );
+
+    // Since we already have true ~> at_after_get_resource_step(sub_resource), and we can get at_after_get_resource_step(sub_resource)
+    // ~> sub_resource_state_matches(sub_resource, rabbitmq) by applying lemma lemma_from_after_get_resource_step_to_resource_matches,
+    // we now have true ~> sub_resource_state_matches(sub_resource, rabbitmq).
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(lift_state(#[trigger] sub_resource_state_matches(sub_resource, rabbitmq)))) by {
         use_tla_forall_for_sub_resource(spec, sub_resource, rabbitmq);
         let next_resource = if sub_resource == SubResource::StatefulSet { sub_resource } else {
