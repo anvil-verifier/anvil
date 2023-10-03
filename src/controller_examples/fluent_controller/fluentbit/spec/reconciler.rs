@@ -6,8 +6,9 @@ use crate::fluent_controller::fluentbit::common::*;
 use crate::fluent_controller::fluentbit::spec::types::*;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, container::*, daemon_set::*, dynamic::*,
-    label_selector::*, object_meta::*, persistent_volume_claim::*, pod::*, pod_template_spec::*,
-    resource::*, role::*, role_binding::*, secret::*, service::*, service_account::*, volume::*,
+    label_selector::*, object_meta::*, owner_reference::*, persistent_volume_claim::*, pod::*,
+    pod_template_spec::*, resource::*, role::*, role_binding::*, secret::*, service::*,
+    service_account::*, volume::*,
 };
 use crate::kubernetes_cluster::spec::message::*;
 use crate::reconciler::spec::{io::*, reconciler::*};
@@ -509,6 +510,10 @@ pub open spec fn make_labels(fb: FluentBitView) -> Map<StringView, StringView> {
     fb.spec.labels.union_prefer_right(make_base_labels(fb))
 }
 
+pub open spec fn make_owner_references(fb: FluentBitView) -> Seq<OwnerReferenceView> {
+    seq![fb.controller_owner_ref()]
+}
+
 pub open spec fn make_role_name(fb_name: StringView) -> StringView {
     fb_name + new_strlit("-role")@
 }
@@ -530,6 +535,8 @@ pub open spec fn update_role(fb: FluentBitView, found_role: RoleView) -> RoleVie
 {
     RoleView {
         metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(fb)),
+            finalizers: None,
             labels: make_role(fb).metadata.labels,
             annotations: make_role(fb).metadata.annotations,
             ..found_role.metadata
@@ -547,7 +554,7 @@ pub open spec fn make_role(fb: FluentBitView) -> RoleView
             .set_name(make_role_name(fb.metadata.name.get_Some_0()))
             .set_labels(make_labels(fb))
             .set_annotations(fb.spec.annotations)
-            .set_owner_references(seq![fb.controller_owner_ref()])
+            .set_owner_references(make_owner_references(fb))
         ).set_policy_rules(
             seq![
                 PolicyRuleView::default()
@@ -579,6 +586,8 @@ pub open spec fn update_service_account(fb: FluentBitView, found_service_account
 {
     ServiceAccountView {
         metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(fb)),
+            finalizers: None,
             labels: make_service_account(fb).metadata.labels,
             annotations: make_service_account(fb).metadata.annotations,
             ..found_service_account.metadata
@@ -596,7 +605,7 @@ pub open spec fn make_service_account(fb: FluentBitView) -> ServiceAccountView
             .set_name(make_service_account_name(fb.metadata.name.get_Some_0()))
             .set_labels(make_labels(fb))
             .set_annotations(fb.spec.annotations)
-            .set_owner_references(seq![fb.controller_owner_ref()])
+            .set_owner_references(make_owner_references(fb))
         )
 }
 
@@ -621,6 +630,8 @@ pub open spec fn update_role_binding(fb: FluentBitView, found_role_binding: Role
 {
     RoleBindingView {
         metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(fb)),
+            finalizers: None,
             labels: make_role_binding(fb).metadata.labels,
             annotations: make_role_binding(fb).metadata.annotations,
             ..found_role_binding.metadata
@@ -638,7 +649,7 @@ pub open spec fn make_role_binding(fb: FluentBitView) -> RoleBindingView
             .set_name(make_role_binding_name(fb.metadata.name.get_Some_0()))
             .set_labels(make_labels(fb))
             .set_annotations(fb.spec.annotations)
-            .set_owner_references(seq![fb.controller_owner_ref()])
+            .set_owner_references(make_owner_references(fb))
         ).set_role_ref(RoleRefView::default()
             .set_api_group(new_strlit("rbac.authorization.k8s.io")@)
             .set_kind(new_strlit("Role")@)
@@ -671,6 +682,8 @@ pub open spec fn update_daemon_set(fb: FluentBitView, found_daemon_set: DaemonSe
 {
     DaemonSetView {
         metadata: ObjectMetaView {
+            owner_references: Some(make_owner_references(fb)),
+            finalizers: None,
             labels: make_daemon_set(fb).metadata.labels,
             annotations: make_daemon_set(fb).metadata.annotations,
             ..found_daemon_set.metadata
@@ -692,7 +705,7 @@ pub open spec fn make_daemon_set(fb: FluentBitView) -> DaemonSetView
             .set_name(make_daemon_set_name(fb.metadata.name.get_Some_0()))
             .set_labels(make_labels(fb))
             .set_annotations(fb.spec.annotations)
-            .set_owner_references(seq![fb.controller_owner_ref()])
+            .set_owner_references(make_owner_references(fb))
         ).set_spec(DaemonSetSpecView::default()
             .set_selector(LabelSelectorView::default().set_match_labels(make_base_labels(fb)))
             .set_template(PodTemplateSpecView::default()

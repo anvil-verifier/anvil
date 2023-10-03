@@ -21,13 +21,6 @@ use vstd::string::*;
 
 verus! {
 
-// TODO:
-// + Use Role after Anvil supports cluster-scoped resources
-//
-// + Add more features
-//
-// + Split the management logic into two reconciliation loops
-
 pub struct FluentBitReconcileState {
     pub reconcile_step: FluentBitReconcileStep,
 }
@@ -496,6 +489,23 @@ fn make_labels(fb: &FluentBit) -> (labels: StringMap)
     labels
 }
 
+pub fn make_owner_references(fb: &FluentBit) -> (owner_references: Vec<OwnerReference>)
+    requires
+        fb@.well_formed(),
+    ensures
+        owner_references@.map_values(|or: OwnerReference| or@) == fb_spec::make_owner_references(fb@),
+{
+    let mut owner_references = Vec::new();
+    owner_references.push(fb.controller_owner_ref());
+    proof {
+        assert_seqs_equal!(
+            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
+            fb_spec::make_owner_references(fb@)
+        );
+    }
+    owner_references
+}
+
 fn make_role_name(fb: &FluentBit) -> (name: String)
     requires
         fb@.well_formed(),
@@ -515,6 +525,8 @@ fn update_role(fb: &FluentBit, found_role: &Role) -> (role: Role)
     let made_role = make_role(fb);
     role.set_metadata({
         let mut metadata = found_role.metadata();
+        metadata.set_owner_references(make_owner_references(fb));
+        metadata.unset_finalizers();
         metadata.set_labels(made_role.metadata().labels().unwrap());
         metadata.set_annotations(made_role.metadata().annotations().unwrap());
         metadata
@@ -534,17 +546,7 @@ fn make_role(fb: &FluentBit) -> (role: Role)
         metadata.set_name(make_role_name(fb));
         metadata.set_labels(make_labels(fb));
         metadata.set_annotations(fb.spec().annotations());
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(fb.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    fb_spec::make_role(fb@).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
+        metadata.set_owner_references(make_owner_references(fb));
         metadata
     });
     role.set_policy_rules({
@@ -616,6 +618,8 @@ fn update_service_account(fb: &FluentBit, found_service_account: &ServiceAccount
     let made_service_account = make_service_account(fb);
     service_account.set_metadata({
         let mut metadata = found_service_account.metadata();
+        metadata.set_owner_references(make_owner_references(fb));
+        metadata.unset_finalizers();
         metadata.set_labels(made_service_account.metadata().labels().unwrap());
         metadata.set_annotations(made_service_account.metadata().annotations().unwrap());
         metadata
@@ -635,17 +639,7 @@ fn make_service_account(fb: &FluentBit) -> (service_account: ServiceAccount)
         metadata.set_name(make_service_account_name(fb));
         metadata.set_labels(make_labels(fb));
         metadata.set_annotations(fb.spec().annotations());
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(fb.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    fb_spec::make_service_account(fb@).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
+        metadata.set_owner_references(make_owner_references(fb));
         metadata
     });
     service_account
@@ -670,6 +664,8 @@ fn update_role_binding(fb: &FluentBit, found_role_binding: &RoleBinding) -> (rol
     let made_role_binding = make_role_binding(fb);
     role_binding.set_metadata({
         let mut metadata = found_role_binding.metadata();
+        metadata.set_owner_references(make_owner_references(fb));
+        metadata.unset_finalizers();
         metadata.set_labels(made_role_binding.metadata().labels().unwrap());
         metadata.set_annotations(made_role_binding.metadata().annotations().unwrap());
         metadata
@@ -689,17 +685,7 @@ fn make_role_binding(fb: &FluentBit) -> (role_binding: RoleBinding)
         metadata.set_name(make_role_binding_name(fb));
         metadata.set_labels(make_labels(fb));
         metadata.set_annotations(fb.spec().annotations());
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(fb.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    fb_spec::make_role_binding(fb@).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
+        metadata.set_owner_references(make_owner_references(fb));
         metadata
     });
     role_binding.set_role_ref({
@@ -750,6 +736,8 @@ fn update_daemon_set(fb: &FluentBit, found_daemon_set: &DaemonSet) -> (daemon_se
     let made_daemon_set = make_daemon_set(fb);
     daemon_set.set_metadata({
         let mut metadata = found_daemon_set.metadata();
+        metadata.set_owner_references(make_owner_references(fb));
+        metadata.unset_finalizers();
         metadata.set_labels(made_daemon_set.metadata().labels().unwrap());
         metadata.set_annotations(made_daemon_set.metadata().annotations().unwrap());
         metadata
@@ -774,17 +762,7 @@ fn make_daemon_set(fb: &FluentBit) -> (daemon_set: DaemonSet)
         metadata.set_name(make_daemon_set_name(fb));
         metadata.set_labels(make_labels(fb));
         metadata.set_annotations(fb.spec().annotations());
-        metadata.set_owner_references({
-            let mut owner_references = Vec::new();
-            owner_references.push(fb.controller_owner_ref());
-            proof {
-                assert_seqs_equal!(
-                    owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-                    fb_spec::make_daemon_set(fb@).metadata.owner_references.get_Some_0()
-                );
-            }
-            owner_references
-        });
+        metadata.set_owner_references(make_owner_references(fb));
         metadata
     });
     daemon_set.set_spec({

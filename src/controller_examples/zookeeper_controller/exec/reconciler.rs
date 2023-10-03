@@ -856,7 +856,7 @@ pub fn make_owner_references(zk: &ZookeeperCluster) -> (owner_references: Vec<Ow
     requires
         zk@.well_formed(),
     ensures
-        owner_references@.map_values(|or: OwnerReference| or@) ==  zk_spec::make_owner_references(zk@),
+        owner_references@.map_values(|or: OwnerReference| or@) == zk_spec::make_owner_references(zk@),
 {
     let mut owner_references = Vec::new();
     owner_references.push(zk.controller_owner_ref());
