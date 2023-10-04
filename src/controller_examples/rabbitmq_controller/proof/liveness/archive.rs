@@ -90,8 +90,8 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
             helper_invariants::lemma_eventually_only_valid_server_config_map_exists(spec, rabbitmq);
             leads_to_always_combine_temp(
                 spec, true_pred(),
-                lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)),
-                lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq))
+                lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)),
+                lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq))
             );
             leads_to_trans_temp(spec, true_pred(), invariants_since_phase_IV(rabbitmq), always(current_state_matches(rabbitmq)));
         }
@@ -257,8 +257,8 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)),
-        lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)),
+        lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)),
+        lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)),
         lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
         lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateHeadlessService))),
         lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterCreateService))),

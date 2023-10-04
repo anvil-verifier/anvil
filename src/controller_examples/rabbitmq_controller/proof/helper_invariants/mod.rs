@@ -3,7 +3,6 @@
 // pub mod invariants;
 // pub mod owner_ref;
 pub mod predicate;
+pub mod proof;
 
-// pub use invariants::*;
-// pub use owner_ref::*;
 pub use predicate::*;

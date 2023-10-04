@@ -16,7 +16,7 @@ use crate::rabbitmq_controller::{
     common::*,
     proof::{
         helper_invariants,
-        liveness::{resource_match::*, spec::*, terminate, property::*},
+        liveness::{property::*, resource_match::*, spec::*, terminate},
         predicate::*,
         resource::*,
     },
@@ -87,8 +87,8 @@ proof fn lemma_true_leads_to_always_stateful_set_matches(rabbitmq: RabbitmqClust
         &&& helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(SubResource::ServerConfigMap, rabbitmq).key)(s)
         &&& helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(SubResource::ServerConfigMap, rabbitmq).key)(s)
         &&& sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s)
-        &&& helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(SubResource::ServerConfigMap, rabbitmq).key, rabbitmq)(s)
-        &&& helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(get_request(SubResource::ServerConfigMap, rabbitmq).key, rabbitmq)(s)
+        &&& helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s)
+        &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)(s)
     };
     invariant_n!(
         spec, lift_action(spec_action), lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)),
@@ -98,8 +98,8 @@ proof fn lemma_true_leads_to_always_stateful_set_matches(rabbitmq: RabbitmqClust
         lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(SubResource::ServerConfigMap, rabbitmq).key)),
         lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(SubResource::ServerConfigMap, rabbitmq).key)),
         lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)),
-        lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(SubResource::ServerConfigMap, rabbitmq).key, rabbitmq)),
-        lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(get_request(SubResource::ServerConfigMap, rabbitmq).key, rabbitmq))
+        lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)),
+        lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq))
     );
     use_tla_forall_for_sub_resource(spec, SubResource::StatefulSet, rabbitmq);
     entails_trans(spec, assumption_and_invariants_of_all_phases(rabbitmq), true_pred().leads_to(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))));
@@ -300,27 +300,27 @@ proof fn use_tla_forall_for_sub_resource(spec: TempPred<RMQCluster>, sub_resourc
         spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(res, rabbitmq))))),
         spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(res, rabbitmq).key))))),
         spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(res, rabbitmq).key))))),
-        spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(res, rabbitmq).key, rabbitmq))))),
+        spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, rabbitmq))))),
         spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(res, rabbitmq))))),
-        spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(get_request(res, rabbitmq).key, rabbitmq))))),
+        spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(res, rabbitmq))))),
         spec.entails(tla_forall(|res: SubResource| always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(res, rabbitmq))))),
     ensures
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)))),
         spec.entails(always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)))),
-        spec.entails(always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(sub_resource, rabbitmq).key, rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(get_request(sub_resource, rabbitmq).key, rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))),
 {
     use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(res, rabbitmq))), sub_resource);
     use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(res, rabbitmq))), sub_resource);
     use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(res, rabbitmq).key))), sub_resource);
     use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(res, rabbitmq).key))), sub_resource);
-    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(res, rabbitmq).key, rabbitmq))), sub_resource);
+    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(res, rabbitmq))), sub_resource);
     use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(res, rabbitmq))), sub_resource);
-    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::object_of_key_only_has_owner_reference_pointing_to_current_cr(get_request(res, rabbitmq).key, rabbitmq))), sub_resource);
+    use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(res, rabbitmq))), sub_resource);
     use_tla_forall(spec, |res: SubResource| always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(res, rabbitmq))), sub_resource);
 }
 

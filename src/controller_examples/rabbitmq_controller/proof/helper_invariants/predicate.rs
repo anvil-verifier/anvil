@@ -34,7 +34,8 @@ pub open spec fn triggering_cr_satisfies_state_validation() -> StatePred<RMQClus
     }
 }
 
-pub open spec fn object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(key: ObjectRef, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    let key = get_request(sub_resource, rabbitmq).key;
     |s: RMQCluster| {
         s.resources().contains_key(key)
         ==> s.resources()[key].metadata.deletion_timestamp.is_None()
@@ -89,7 +90,8 @@ pub open spec fn every_resource_update_request_implies_at_after_update_resource_
     }
 }
 
-pub open spec fn object_of_key_only_has_owner_reference_pointing_to_current_cr(key: ObjectRef, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+pub open spec fn resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    let key = get_request(sub_resource, rabbitmq).key;
     |s: RMQCluster| {
         s.resources().contains_key(key)
         ==> s.resources()[key].metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())

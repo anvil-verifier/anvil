@@ -537,9 +537,9 @@ pub proof fn lemma_always_server_config_map_has_no_finalizers_or_timestamp_and_o
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
-        spec.entails(always(lift_state(object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)))),
+        spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)))),
 {
-    let inv = object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq);
+    let inv = resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq);
     lemma_always_server_config_map_create_request_msg_is_valid(spec, rabbitmq.object_ref());
     lemma_always_server_config_map_update_request_msg_is_valid(spec, rabbitmq.object_ref());
     let stronger_next = |s, s_prime| {
@@ -561,9 +561,9 @@ pub proof fn lemma_always_stateful_set_has_no_finalizers_or_timestamp_and_only_h
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
-        spec.entails(always(lift_state(object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)))),
+        spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)))),
 {
-    let inv = object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq);
+    let inv = resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq);
     lemma_always_sts_create_request_msg_is_valid(spec, rabbitmq.object_ref());
     lemma_always_sts_update_request_msg_is_valid(spec, rabbitmq.object_ref());
     let stronger_next = |s, s_prime| {
@@ -633,7 +633,7 @@ pub proof fn lemma_true_leads_to_always_no_delete_cm_req_is_in_flight(spec: Temp
         spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
-        spec.entails(always(lift_state(object_of_key_only_has_owner_reference_pointing_to_current_cr(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq))))
+        spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq))))
     ensures
         spec.entails(
             true_pred().leads_to(always(lift_state(no_delete_request_msg_in_flight_with_key(make_server_config_map_key(rabbitmq.object_ref())))))
@@ -649,7 +649,7 @@ pub proof fn lemma_true_leads_to_always_no_delete_cm_req_is_in_flight(spec: Temp
     let stronger_next = |s: RMQCluster, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::desired_state_is(rabbitmq)(s)
-        &&& object_of_key_only_has_owner_reference_pointing_to_current_cr(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)(s)
+        &&& resource_object_only_has_owner_reference_pointing_to_current_cr(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)(s)
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
     };
     assert forall |s: RMQCluster, s_prime: RMQCluster| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
@@ -665,7 +665,7 @@ pub proof fn lemma_true_leads_to_always_no_delete_cm_req_is_in_flight(spec: Temp
     invariant_n!(
         spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()), lift_state(RMQCluster::desired_state_is(rabbitmq)),
-        lift_state(object_of_key_only_has_owner_reference_pointing_to_current_cr(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)),
+        lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(make_server_config_map_key(rabbitmq.object_ref()), rabbitmq)),
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed())
     );
 
@@ -1030,7 +1030,7 @@ pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: Tem
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
-        spec.entails(always(lift_state(object_of_key_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq))))
+        spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq))))
     ensures
         spec.entails(
             true_pred().leads_to(always(lift_state(no_delete_request_msg_in_flight_with_key(make_stateful_set_key(rabbitmq.object_ref())))))
@@ -1046,7 +1046,7 @@ pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: Tem
     let stronger_next = |s: RMQCluster, s_prime: RMQCluster| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::desired_state_is(rabbitmq)(s)
-        &&& object_of_key_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)(s)
+        &&& resource_object_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)(s)
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
     };
     assert forall |s: RMQCluster, s_prime: RMQCluster| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
@@ -1062,7 +1062,7 @@ pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: Tem
     invariant_n!(
         spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_action(RMQCluster::next()), lift_state(RMQCluster::desired_state_is(rabbitmq)),
-        lift_state(object_of_key_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)),
+        lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(make_stateful_set_key(rabbitmq.object_ref()), rabbitmq)),
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed())
     );
 
