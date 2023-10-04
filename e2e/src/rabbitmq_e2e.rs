@@ -566,7 +566,7 @@ pub async fn rabbitmq_workload_test(client: Client, rabbitmq_name: String) -> Re
             "--image=pivotalrabbitmq/perf-test",
             "--",
             "--uri",
-            "\"amqp://new_user:new_pass@rabbitmq\"",
+            "\"amqp://new_user:new_pass@rabbitmq-client\"",
         ],
         "failed to run perf test pod",
     );
