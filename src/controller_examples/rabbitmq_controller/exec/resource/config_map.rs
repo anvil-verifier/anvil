@@ -12,7 +12,8 @@ use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::resource::service_account::*;
 use crate::rabbitmq_controller::exec::types::*;
 use crate::rabbitmq_controller::spec::resource as spec_resource;
-use crate::reconciler::exec::{io::*, reconciler::*};
+use crate::rabbitmq_controller::spec::types::RabbitmqClusterView;
+use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -23,7 +24,12 @@ verus! {
 
 pub struct ServerConfigMapBuilder {}
 
-impl ResourceBuilder<spec_resource::ServerConfigMapBuilder> for ServerConfigMapBuilder {
+impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::ServerConfigMapBuilder> for ServerConfigMapBuilder {
+    open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
+        &&& rabbitmq.metadata.name.is_Some()
+        &&& rabbitmq.metadata.namespace.is_Some()
+    }
+
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: ConfigMap::api_resource(),
@@ -32,20 +38,20 @@ impl ResourceBuilder<spec_resource::ServerConfigMapBuilder> for ServerConfigMapB
         }
     }
 
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, RabbitmqError> {
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, ()> {
         Ok(make_server_config_map(rabbitmq).marshal())
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, RabbitmqError> {
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         let cm = ConfigMap::unmarshal(obj);
         if cm.is_ok() {
             Ok(update_server_config_map(rabbitmq, cm.unwrap()).marshal())
         } else {
-            Err(RabbitmqError::Error)
+            Err(())
         }
     }
 
-    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
+    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
         let cm = ConfigMap::unmarshal(obj);
         if cm.is_ok() && cm.as_ref().unwrap().metadata().resource_version().is_some() {
             Ok(RabbitmqReconcileState {
@@ -53,7 +59,7 @@ impl ResourceBuilder<spec_resource::ServerConfigMapBuilder> for ServerConfigMapB
                 ..state
             })
         } else {
-            Err(RabbitmqError::Error)
+            Err(())
         }
     }
 }

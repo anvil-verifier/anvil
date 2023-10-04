@@ -69,25 +69,4 @@ impl std::clone::Clone for ActionKind {
     }
 }
 
-#[is_variant]
-pub enum RabbitmqError {
-    Error
-}
-
-impl std::fmt::Debug for RabbitmqError {
-    #[verifier(external)]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match *self {
-            RabbitmqError::Error => write!(f, "Error"),
-        }
-    }
-}
-
-pub open spec fn resource_res_to_view<T: View>(res: Result<T, RabbitmqError>) -> Result<T::V, RabbitmqError> {
-    match res {
-        Ok(resource) => Ok(resource@),
-        Err(err) => Err(err),
-    }
-}
-
 }

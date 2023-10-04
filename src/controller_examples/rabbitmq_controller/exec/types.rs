@@ -58,9 +58,13 @@ pub struct RabbitmqCluster {
     inner: deps_hack::RabbitmqCluster
 }
 
-impl RabbitmqCluster {
-    pub spec fn view(&self) -> spec_types::RabbitmqClusterView;
+impl View for RabbitmqCluster {
+    type V = spec_types::RabbitmqClusterView;
 
+    spec fn view(&self) -> spec_types::RabbitmqClusterView;
+}
+
+impl RabbitmqCluster {
     #[verifier(external_body)]
     pub fn name(&self) -> (name: Option<String>)
         ensures
