@@ -18,36 +18,6 @@ use vstd::string::*;
 
 verus! {
 
-pub trait ResourceBuilder<SpecBuilder: spec_resource::ResourceBuilder> {
-    fn get_request(rabbitmq: &RabbitmqCluster) -> (req: KubeGetRequest)
-        requires
-            rabbitmq@.metadata.name.is_Some(),
-            rabbitmq@.metadata.namespace.is_Some(),
-        ensures
-            req.to_view() == SpecBuilder::get_request(rabbitmq@);
-
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> (res: Result<DynamicObject, RabbitmqError>)
-        requires
-            rabbitmq@.metadata.name.is_Some(),
-            rabbitmq@.metadata.namespace.is_Some(),
-        ensures
-            resource_res_to_view(res) == SpecBuilder::make(rabbitmq@, state@);
-
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> (res: Result<DynamicObject, RabbitmqError>)
-        requires
-            rabbitmq@.metadata.name.is_Some(),
-            rabbitmq@.metadata.namespace.is_Some(),
-        ensures
-            resource_res_to_view(res) == SpecBuilder::update(rabbitmq@, state@, obj@);
-
-    /// state_after_create_or_update describes how a successfully created/updated object influences the reconcile state except
-    /// the part concerning control flow, i.e., what the next step is. The next step will be decided by the reconciler. Such design
-    /// leads to lower coupling and fewer mistakes (e.g. next step and get request mismatch).
-    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>)
-        ensures
-            resource_res_to_view(res) == SpecBuilder::state_after_create_or_update(obj@, state@);
-}
-
 pub fn make_labels(rabbitmq: &RabbitmqCluster) -> (labels: StringMap)
     requires
         rabbitmq@.metadata.name.is_Some(),

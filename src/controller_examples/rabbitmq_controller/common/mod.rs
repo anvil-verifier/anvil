@@ -83,11 +83,4 @@ impl std::fmt::Debug for RabbitmqError {
     }
 }
 
-pub open spec fn resource_res_to_view<T: View>(res: Result<T, RabbitmqError>) -> Result<T::V, RabbitmqError> {
-    match res {
-        Ok(resource) => Ok(resource@),
-        Err(err) => Err(err),
-    }
-}
-
 }
