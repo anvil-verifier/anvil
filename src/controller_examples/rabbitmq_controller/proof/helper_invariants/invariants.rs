@@ -28,50 +28,6 @@ verus! {
 // And use this assumption to write lemmas that are independent of controllers, then further decouple specific controller
 // from the proof logic.
 
-/// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a server config map
-/// update request message (with key as key), it must be a controller action, and the triggering cr is s.ongoing_reconciles()[key].triggering_cr.
-///
-/// After the action, the controller stays at AfterUpdateServerConfigMap step.
-proof fn lemma_server_config_map_update_request_msg_implies_key_in_reconcile_equals(
-    key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: RMQMessage, step: RMQStep
-)
-    requires
-        key.kind.is_CustomResourceKind(),
-        server_config_map_update_request_msg(key)(msg),
-        !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
-        RMQCluster::next_step(s, s_prime, step),
-        RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
-    ensures
-        step.is_ControllerStep(),
-        step.get_ControllerStep_0().1.get_Some_0() == key,
-        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterUpdateServerConfigMap)(s_prime),
-{
-    let cr_key = step.get_ControllerStep_0().1.get_Some_0();
-    seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server-conf")@);
-}
-
-/// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a stateful set
-/// create request message (with key as key), it must be a controller action, and the triggering cr is s.ongoing_reconciles()[key].triggering_cr.
-///
-/// After the action, the controller stays at AfterCreateStatefulSet step.
-pub proof fn lemma_stateful_set_create_request_msg_implies_key_in_reconcile_equals(
-    key: ObjectRef, s: RMQCluster, s_prime: RMQCluster, msg: RMQMessage, step: RMQStep
-)
-    requires
-        key.kind.is_CustomResourceKind(),
-        sts_create_request_msg(key)(msg),
-        !s.in_flight().contains(msg), s_prime.in_flight().contains(msg),
-        RMQCluster::next_step(s, s_prime, step),
-        RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
-    ensures
-        step.is_ControllerStep(),
-        step.get_ControllerStep_0().1.get_Some_0() == key,
-        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterCreateStatefulSet)(s_prime),
-{
-    let cr_key = step.get_ControllerStep_0().1.get_Some_0();
-    seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
-}
-
 /// This lemma is used to show that if an action (which transfers the state from s to s_prime) creates a stateful set
 /// update request message (with key as key), it must be a controller action, and the triggering cr is s.ongoing_reconciles()[key].triggering_cr.
 ///

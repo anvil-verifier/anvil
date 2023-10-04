@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"rust-analyzer.server.path": "/Users/mawenjie/desktop/research/SystemVerification/verus-analyzer/dist/verus-analyzer-x86_64-apple-darwin.gz",
+        "rust-analyzer.checkOnSave": false,
+	}
+}
