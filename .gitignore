@@ -12,3 +12,4 @@ e2e/target/
 /target
 /Cargo.lock
 src/liblib.rlib
+verifiable-controllers.code-workspace
