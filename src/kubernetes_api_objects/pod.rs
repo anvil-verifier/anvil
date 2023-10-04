@@ -138,6 +138,14 @@ impl PodSpec {
     }
 
     #[verifier(external_body)]
+    pub fn clone(&self) -> (p: PodSpec)
+        ensures
+            p@ == self@,
+    {
+        PodSpec { inner: self.inner.clone() }
+    }
+
+    #[verifier(external_body)]
     pub fn set_affinity(&mut self, affinity: Affinity)
         ensures
             self@ == old(self)@.set_affinity(affinity@),
