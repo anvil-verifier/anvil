@@ -93,7 +93,7 @@ pub fn make_main_service_name(rabbitmq: &RabbitmqCluster) -> (name: String)
     ensures
         name@ == spec_resource::make_main_service_name(rabbitmq@),
 {
-    rabbitmq.name().unwrap()
+    rabbitmq.name().unwrap().concat(new_strlit("-client"))
 }
 
 pub fn make_main_service(rabbitmq: &RabbitmqCluster) -> (service: Service)

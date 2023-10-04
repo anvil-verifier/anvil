@@ -74,7 +74,7 @@ pub open spec fn make_main_service_name(rabbitmq: RabbitmqClusterView) -> String
     recommends
         rabbitmq.metadata.name.is_Some(),
 {
-    rabbitmq.metadata.name.get_Some_0()
+    rabbitmq.metadata.name.get_Some_0() + new_strlit("-client")@
 }
 
 pub open spec fn make_main_service_key(rabbitmq: RabbitmqClusterView) -> ObjectRef
