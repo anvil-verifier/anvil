@@ -11,7 +11,7 @@ use crate::kubernetes_cluster::spec::message::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::spec::resource::service::ServiceBuilder;
 use crate::rabbitmq_controller::spec::types::*;
-use crate::reconciler::spec::{io::*, reconciler::*};
+use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
@@ -22,33 +22,32 @@ verus! {
 
 pub struct HeadlessServiceBuilder {}
 
-impl ResourceBuilder for HeadlessServiceBuilder {
+impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for HeadlessServiceBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
         GetRequest { key: make_headless_service_key(rabbitmq) }
     }
 
-    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, RabbitmqError> {
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> {
         Ok(make_headless_service(rabbitmq).marshal())
     }
 
-    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, RabbitmqError> {
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
         if service.is_Ok() {
             Ok(update_headless_service(rabbitmq, service.get_Ok_0()).marshal())
         } else {
-            Err(RabbitmqError::Error)
+            Err(())
         }
     }
 
-    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
+    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
         let service = ServiceView::unmarshal(obj);
         if service.is_Ok() {
             Ok(state)
         } else {
-            Err(RabbitmqError::Error)
+            Err(())
         }
     }
-
 
     open spec fn resource_state_matches(rabbitmq: RabbitmqClusterView, resources: StoredState) -> bool {
         let key = make_headless_service_key(rabbitmq);

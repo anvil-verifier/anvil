@@ -10,7 +10,7 @@ use crate::kubernetes_cluster::spec::message::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::spec::resource::*;
 use crate::rabbitmq_controller::spec::types::*;
-use crate::reconciler::spec::{io::*, reconciler::*};
+use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
@@ -119,7 +119,7 @@ pub open spec fn reconcile_error_result(state: RabbitmqReconcileState) -> (Rabbi
     (state_prime, req_o)
 }
 
-pub open spec fn reconcile_helper<Builder: ResourceBuilder>(
+pub open spec fn reconcile_helper<Builder: ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState>>(
     rabbitmq: RabbitmqClusterView, resp_o: Option<ResponseView<EmptyTypeView>>, state: RabbitmqReconcileState
 ) -> (RabbitmqReconcileState, Option<RequestView<EmptyTypeView>>)
     recommends

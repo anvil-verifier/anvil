@@ -10,7 +10,7 @@ use crate::kubernetes_api_objects::{
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::spec::resource::*;
 use crate::rabbitmq_controller::spec::types::{RabbitmqClusterView, RabbitmqReconcileState};
-use crate::reconciler::exec::{io::*, reconciler::*};
+use crate::reconciler::spec::resource_builder::*;
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -34,7 +34,7 @@ pub open spec fn get_request(sub_resource: SubResource, rabbitmq: RabbitmqCluste
     }
 }
 
-pub open spec fn make(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, RabbitmqError> {
+pub open spec fn make(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> {
     match sub_resource {
         SubResource::HeadlessService => HeadlessServiceBuilder::make(rabbitmq, state),
         SubResource::Service => ServiceBuilder::make(rabbitmq, state),
@@ -49,7 +49,7 @@ pub open spec fn make(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, 
     }
 }
 
-pub open spec fn update(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, RabbitmqError> {
+pub open spec fn update(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
     match sub_resource {
         SubResource::HeadlessService => HeadlessServiceBuilder::update(rabbitmq, state, obj),
         SubResource::Service => ServiceBuilder::update(rabbitmq, state, obj),
@@ -64,7 +64,7 @@ pub open spec fn update(sub_resource: SubResource, rabbitmq: RabbitmqClusterView
     }
 }
 
-pub open spec fn state_after_create_or_update(sub_resource: SubResource, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
+pub open spec fn state_after_create_or_update(sub_resource: SubResource, obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
     match sub_resource {
         SubResource::HeadlessService => HeadlessServiceBuilder::state_after_create_or_update(obj, state),
         SubResource::Service => ServiceBuilder::state_after_create_or_update(obj, state),

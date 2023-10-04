@@ -11,7 +11,8 @@ use crate::kubernetes_api_objects::{
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::exec::types::*;
 use crate::rabbitmq_controller::spec::resource as spec_resource;
-use crate::reconciler::exec::{io::*, reconciler::*};
+use crate::rabbitmq_controller::spec::types::RabbitmqClusterView;
+use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
 use crate::vstd_ext::string_map::StringMap;
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
@@ -22,7 +23,12 @@ verus! {
 
 pub struct StatefulSetBuilder {}
 
-impl ResourceBuilder<spec_resource::StatefulSetBuilder> for StatefulSetBuilder {
+impl ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, spec_resource::StatefulSetBuilder> for StatefulSetBuilder {
+    open spec fn requirements(rabbitmq: RabbitmqClusterView) -> bool {
+        &&& rabbitmq.metadata.name.is_Some()
+        &&& rabbitmq.metadata.namespace.is_Some()
+    }
+
     fn get_request(rabbitmq: &RabbitmqCluster) -> KubeGetRequest {
         KubeGetRequest {
             api_resource: StatefulSet::api_resource(),
@@ -31,15 +37,15 @@ impl ResourceBuilder<spec_resource::StatefulSetBuilder> for StatefulSetBuilder {
         }
     }
 
-    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, RabbitmqError> {
+    fn make(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState) -> Result<DynamicObject, ()> {
         if state.latest_config_map_rv_opt.is_some() {
             Ok(make_stateful_set(rabbitmq, state.latest_config_map_rv_opt.as_ref().unwrap()).marshal())
         } else {
-            Err(RabbitmqError::Error)
+            Err(())
         }
     }
 
-    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, RabbitmqError> {
+    fn update(rabbitmq: &RabbitmqCluster, state: &RabbitmqReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
         // We check the owner reference of the found stateful set here to ensure that it is not created from
         // previously existing (and now deleted) cr. Otherwise, if the replicas of the current cr is smaller
         // than the previous one, scaling down, which should be prohibited, will happen.
@@ -55,15 +61,15 @@ impl ResourceBuilder<spec_resource::StatefulSetBuilder> for StatefulSetBuilder {
                 return Ok(update_stateful_set(rabbitmq, found_sts, state.latest_config_map_rv_opt.as_ref().unwrap()).marshal());
             }
         }
-        return Err(RabbitmqError::Error);
+        return Err(());
     }
 
-    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
+    fn state_after_create_or_update(obj: DynamicObject, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
         let sts = StatefulSet::unmarshal(obj);
         if sts.is_ok() {
             Ok(state)
         } else {
-            Err(RabbitmqError::Error)
+            Err(())
         }
     }
 }

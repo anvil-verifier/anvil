@@ -11,7 +11,7 @@ use crate::kubernetes_cluster::spec::message::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::spec::resource::config_map::ServerConfigMapBuilder;
 use crate::rabbitmq_controller::spec::types::*;
-use crate::reconciler::spec::{io::*, reconciler::*};
+use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
@@ -22,36 +22,36 @@ verus! {
 
 pub struct StatefulSetBuilder {}
 
-impl ResourceBuilder for StatefulSetBuilder {
+impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSetBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
         GetRequest { key: make_stateful_set_key(rabbitmq) }
     }
 
-    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, RabbitmqError> {
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> {
         if state.latest_config_map_rv_opt.is_Some() {
             Ok(make_stateful_set(rabbitmq, state.latest_config_map_rv_opt.get_Some_0()).marshal())
         } else {
-            Err(RabbitmqError::Error)
+            Err(())
         }
     }
 
-    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, RabbitmqError> {
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let sts = StatefulSetView::unmarshal(obj);
         let found_sts = sts.get_Ok_0();
         if sts.is_Ok() && found_sts.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
         && state.latest_config_map_rv_opt.is_Some() && found_sts.spec.is_Some() {
             Ok(update_stateful_set(rabbitmq, found_sts, state.latest_config_map_rv_opt.get_Some_0()).marshal())
         } else {
-            Err(RabbitmqError::Error)
+            Err(())
         }
     }
 
-    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
+    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
         let sts = StatefulSetView::unmarshal(obj);
         if sts.is_Ok() {
             Ok(state)
         } else {
-            Err(RabbitmqError::Error)
+            Err(())
         }
     }
 

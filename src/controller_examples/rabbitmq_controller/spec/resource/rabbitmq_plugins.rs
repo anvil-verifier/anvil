@@ -11,7 +11,7 @@ use crate::kubernetes_cluster::spec::message::*;
 use crate::rabbitmq_controller::common::*;
 use crate::rabbitmq_controller::spec::resource::config_map::ServerConfigMapBuilder;
 use crate::rabbitmq_controller::spec::types::*;
-use crate::reconciler::spec::{io::*, reconciler::*};
+use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
 use crate::state_machine::{action::*, state_machine::*};
 use crate::temporal_logic::defs::*;
 use crate::vstd_ext::string_view::*;
@@ -22,30 +22,30 @@ verus! {
 
 pub struct PluginsConfigMapBuilder {}
 
-impl ResourceBuilder for PluginsConfigMapBuilder {
+impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for PluginsConfigMapBuilder {
     open spec fn get_request(rabbitmq: RabbitmqClusterView) -> GetRequest {
         GetRequest { key: make_plugins_config_map_key(rabbitmq) }
     }
 
-    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, RabbitmqError> {
+    open spec fn make(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> {
         Ok(make_plugins_config_map(rabbitmq).marshal())
     }
 
-    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, RabbitmqError> {
+    open spec fn update(rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let cm = ConfigMapView::unmarshal(obj);
         if cm.is_Ok() {
             Ok(update_plugins_config_map(rabbitmq, cm.get_Ok_0()).marshal())
         } else {
-            Err(RabbitmqError::Error)
+            Err(())
         }
     }
 
-    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, RabbitmqError>) {
+    open spec fn state_after_create_or_update(obj: DynamicObjectView, state: RabbitmqReconcileState) -> (res: Result<RabbitmqReconcileState, ()>) {
         let cm = ConfigMapView::unmarshal(obj);
         if cm.is_Ok() {
             Ok(state)
         } else {
-            Err(RabbitmqError::Error)
+            Err(())
         }
     }
 

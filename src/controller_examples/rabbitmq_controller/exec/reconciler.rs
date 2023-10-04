@@ -12,7 +12,9 @@ use crate::rabbitmq_controller::exec::resource::*;
 use crate::rabbitmq_controller::exec::types::*;
 use crate::rabbitmq_controller::spec::reconciler as rabbitmq_spec;
 use crate::rabbitmq_controller::spec::resource as spec_resource;
-use crate::reconciler::exec::{io::*, reconciler::*};
+use crate::rabbitmq_controller::spec::types as spec_types;
+use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
+use crate::reconciler::spec::resource_builder::ResourceBuilder as SpecResourceBuilder;
 use crate::vstd_ext::{string_map::StringMap, string_view::*, to_view::*};
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -113,14 +115,15 @@ pub fn reconcile_core(rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyT
 }
 
 pub fn reconcile_helper<
-    SpecBuilder: spec_resource::ResourceBuilder,
-    Builder: ResourceBuilder<SpecBuilder>
+    SpecBuilder: SpecResourceBuilder<spec_types::RabbitmqClusterView, spec_types::RabbitmqReconcileState>,
+    Builder: ResourceBuilder<RabbitmqCluster, RabbitmqReconcileState, SpecBuilder>
 >(
     rabbitmq: &RabbitmqCluster, resp_o: Option<Response<EmptyType>>, state: RabbitmqReconcileState
 ) -> (res: (RabbitmqReconcileState, Option<Request<EmptyType>>))
     requires
         rabbitmq@.metadata.name.is_Some(),
         rabbitmq@.metadata.namespace.is_Some(),
+        Builder::requirements(rabbitmq@),
         state.reconcile_step.is_AfterKRequestStep(),
     ensures
         (res.0@, opt_request_to_view(&res.1)) == rabbitmq_spec::reconcile_helper::<SpecBuilder>(rabbitmq@, opt_response_to_view(&resp_o), state@),
