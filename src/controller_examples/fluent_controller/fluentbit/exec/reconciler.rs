@@ -98,8 +98,8 @@ pub fn reconcile_core(fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state
                 let get_sts_resp = resp_o.unwrap().into_k_response().into_get_response().res;
                 if get_sts_resp.is_ok() {
                     let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
-                        api_resource: Role::api_resource(),
-                        name: make_role_name(fb),
+                        api_resource: ServiceAccount::api_resource(),
+                        name: make_service_account_name(fb),
                         namespace: fb.metadata().namespace().unwrap(),
                     });
                     let state_prime = FluentBitReconcileState {

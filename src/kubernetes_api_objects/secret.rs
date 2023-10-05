@@ -56,7 +56,18 @@ impl Secret {
             self@.data.is_Some() == data.is_Some(),
             data.is_Some() ==> data.get_Some_0()@ == self@.data.get_Some_0(),
     {
-        todo!()
+        match &self.inner.data {
+            Some(d) => {
+                let binary_map = d.clone();
+                let mut string_map = std::collections::BTreeMap::new();
+                for (key, value) in binary_map {
+                    // NOTE: unwrap might panic here if value.0 is invalid utf8 sequence!
+                    string_map.insert(key, std::string::String::from_utf8(value.0).unwrap());
+                }
+                Some(StringMap::from_rust_map(string_map))
+            },
+            None => None,
+        }
     }
 
     #[verifier(external_body)]
@@ -67,14 +78,14 @@ impl Secret {
         self.inner.metadata = metadata.into_kube();
     }
 
-    // @TODO: data is a map of string to bytestring. May support it in the future.
+    // TODO: data is a map of string to bytestring. May support it in the future.
     #[verifier(external_body)]
     pub fn set_data(&mut self, data: StringMap)
         ensures
             self@ == old(self)@.set_data(data@),
     {
         let string_map = data.into_rust_map();
-        let mut binary_map: std::collections::BTreeMap<std::string::String, deps_hack::k8s_openapi::ByteString> = std::collections::BTreeMap::new();
+        let mut binary_map = std::collections::BTreeMap::new();
         for (key, value) in string_map {
             binary_map.insert(key, deps_hack::k8s_openapi::ByteString(value.into_bytes()));
         }

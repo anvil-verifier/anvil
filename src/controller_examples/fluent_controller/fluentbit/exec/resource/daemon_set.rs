@@ -71,12 +71,6 @@ pub fn update_daemon_set(fb: &FluentBit, found_daemon_set: DaemonSet) -> (daemon
     let made_ds = make_daemon_set(fb);
 
     let mut daemon_set = found_daemon_set.clone();
-    daemon_set.set_spec({
-        let mut ds_spec = found_daemon_set.spec().unwrap();
-        let made_spec = made_ds.spec().unwrap();
-        ds_spec.set_template(made_spec.template());
-        ds_spec
-    });
     daemon_set.set_metadata({
         let mut metadata = found_daemon_set.metadata();
         metadata.set_owner_references(make_owner_references(fb));
@@ -84,6 +78,12 @@ pub fn update_daemon_set(fb: &FluentBit, found_daemon_set: DaemonSet) -> (daemon
         metadata.set_labels(made_ds.metadata().labels().unwrap());
         metadata.set_annotations(made_ds.metadata().annotations().unwrap());
         metadata
+    });
+    daemon_set.set_spec({
+        let mut ds_spec = found_daemon_set.spec().unwrap();
+        let made_spec = made_ds.spec().unwrap();
+        ds_spec.set_template(made_spec.template());
+        ds_spec
     });
     daemon_set
 }

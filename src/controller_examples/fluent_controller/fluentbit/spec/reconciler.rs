@@ -90,7 +90,7 @@ pub open spec fn reconcile_core(
             && resp_o.get_Some_0().get_KResponse_0().is_GetResponse()
             && get_secret_resp.is_Ok() {
                 let req_o = APIRequest::GetRequest(GetRequest {
-                    key: make_role_key(fb),
+                    key: make_service_account_key(fb),
                 });
                 let state_prime = FluentBitReconcileState {
                     reconcile_step: FluentBitReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::ServiceAccount),
