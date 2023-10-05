@@ -121,6 +121,7 @@ pub open spec fn derived_invariants_since_beginning(rabbitmq: RabbitmqClusterVie
     .and(always(lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init)))))
     .and(tla_forall(|step: (ActionKind, SubResource)| always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))))))
     .and(tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(res, rabbitmq)))))
+    .and(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation())))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClusterView)
@@ -150,7 +151,8 @@ pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClus
         tla_forall(a_to_p_1),
         lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
         tla_forall(a_to_p_2),
-        tla_forall(a_to_p_3)
+        tla_forall(a_to_p_3),
+        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation())
     );
 }
 
@@ -182,7 +184,6 @@ pub proof fn invariants_since_phase_i_is_stable(rabbitmq: RabbitmqClusterView)
 /// in phase III relies on it.
 pub open spec fn invariants_since_phase_ii(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)))
-    .and(always(lift_state(helper_invariants::triggering_cr_satisfies_state_validation())))
 }
 
 
@@ -190,10 +191,7 @@ pub proof fn invariants_since_phase_ii_is_stable(rabbitmq: RabbitmqClusterView)
     ensures
         valid(stable(invariants_since_phase_ii(rabbitmq))),
 {
-    stable_and_always_n!(
-        lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)),
-        lift_state(helper_invariants::triggering_cr_satisfies_state_validation())
-    );
+    always_p_is_stable(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)));
 }
 
 /// After we know that the spec and uid of object in reconcile, we can obtain the following invariants about messages. This is
@@ -301,12 +299,13 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         );
     }
     spec_entails_tla_forall(spec, a_to_p_2);
-    
+
     let a_to_p_3 = |res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(res, rabbitmq)));
     assert forall |sub_resource: SubResource| spec.entails(#[trigger] a_to_p_3(sub_resource)) by {
         helper_invariants::lemma_always_no_update_status_request_msg_in_flight_of(spec, sub_resource, rabbitmq);
     }
     spec_entails_tla_forall(spec, a_to_p_3);
+    helper_invariants::lemma_always_the_object_in_reconcile_satisfies_state_validation(spec);
 
     entails_and_n!(
         spec,
@@ -320,9 +319,10 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
         always(lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init)))),
         tla_forall(|step: (ActionKind, SubResource)| always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))))),
-        tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(res, rabbitmq))))
+        tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(res, rabbitmq)))),
+        always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()))
     );
-    
+
 }
 
 }
