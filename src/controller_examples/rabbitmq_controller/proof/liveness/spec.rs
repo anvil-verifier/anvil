@@ -120,7 +120,7 @@ pub open spec fn derived_invariants_since_beginning(rabbitmq: RabbitmqClusterVie
     .and(tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))))
     .and(always(lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init)))))
     .and(tla_forall(|step: (ActionKind, SubResource)| always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))))))
-    .and(tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(res, rabbitmq).key)))))
+    .and(tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(res, rabbitmq)))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClusterView)
@@ -135,9 +135,9 @@ pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClus
     tla_forall_always_equality_variant::<RMQCluster, (ActionKind, SubResource)>(
         |step: (ActionKind, SubResource)| always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))))), a_to_p_2
     );
-    let a_to_p_3 = |res: SubResource| lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(res, rabbitmq).key));
+    let a_to_p_3 = |res: SubResource| lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(res, rabbitmq));
     tla_forall_always_equality_variant::<RMQCluster, SubResource>(
-        |res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(res, rabbitmq).key))), a_to_p_3
+        |res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(res, rabbitmq))), a_to_p_3
     );
     stable_and_always_n!(
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
@@ -274,8 +274,9 @@ pub proof fn invariants_since_phase_vi_is_stable(rabbitmq: RabbitmqClusterView)
     always_p_is_stable(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)));
 }
 
-#[verifier(external_body)]
 proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
+    requires
+        rabbitmq.well_formed(),
     ensures
         cluster_spec().entails(derived_invariants_since_beginning(rabbitmq)),
 {
@@ -287,6 +288,41 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
     RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     RMQCluster::lemma_always_each_scheduled_object_has_consistent_key_and_valid_metadata(spec);
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
+    let a_to_p_1 = |sub_resource: SubResource| always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)));
+    assert forall |sub_resource: SubResource| spec.entails(#[trigger] a_to_p_1(sub_resource)) by {
+        helper_invariants::lemma_always_resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(spec, sub_resource, rabbitmq);
+    }
+    spec_entails_tla_forall(spec, a_to_p_1);
+    RMQCluster::lemma_always_no_pending_req_msg_or_external_api_input_at_reconcile_state(spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init));
+    let a_to_p_2 = |step: (ActionKind, SubResource)| always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))));
+    assert forall |step: (ActionKind, SubResource)| spec.entails(#[trigger] a_to_p_2(step)) by {
+        RMQCluster::lemma_always_pending_req_in_flight_or_resp_in_flight_at_reconcile_state(
+            spec, rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1))
+        );
+    }
+    spec_entails_tla_forall(spec, a_to_p_2);
+    
+    let a_to_p_3 = |res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(res, rabbitmq)));
+    assert forall |sub_resource: SubResource| spec.entails(#[trigger] a_to_p_3(sub_resource)) by {
+        helper_invariants::lemma_always_no_update_status_request_msg_in_flight_of(spec, sub_resource, rabbitmq);
+    }
+    spec_entails_tla_forall(spec, a_to_p_3);
+
+    entails_and_n!(
+        spec,
+        always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id())),
+        always(lift_state(RMQCluster::each_resp_matches_at_most_one_pending_req(rabbitmq.object_ref()))),
+        always(lift_state(RMQCluster::each_resp_if_matches_pending_req_then_no_other_resp_matches(rabbitmq.object_ref()))),
+        always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator())),
+        always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed())),
+        always(lift_state(RMQCluster::each_scheduled_object_has_consistent_key_and_valid_metadata())),
+        always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())),
+        tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
+        always(lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init)))),
+        tla_forall(|step: (ActionKind, SubResource)| always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))))),
+        tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(res, rabbitmq))))
+    );
+    
 }
 
 }

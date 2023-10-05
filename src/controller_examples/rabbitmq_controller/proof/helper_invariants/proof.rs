@@ -22,6 +22,59 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
 
+pub proof fn lemma_always_no_update_status_request_msg_in_flight_of(
+    spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+)
+    requires
+        rabbitmq.well_formed(),
+        spec.entails(lift_state(RMQCluster::init())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+    ensures
+        spec.entails(always(lift_state(no_update_status_request_msg_in_flight_of(sub_resource, rabbitmq)))),
+{
+    let inv = no_update_status_request_msg_in_flight_of(sub_resource, rabbitmq);
+    let resource_key = get_request(sub_resource, rabbitmq).key;
+    assert forall |s, s_prime: RMQCluster| inv(s) && #[trigger] RMQCluster::next()(s, s_prime) implies inv(s_prime) by {
+        assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.content.is_update_status_request() 
+        implies msg.content.get_update_status_request().key() != resource_key by {
+            if s.in_flight().contains(msg) {
+                assert(msg.content.get_update_status_request().key() != resource_key);
+            } else {
+                let step = choose |step: RMQStep| RMQCluster::next_step(s, s_prime, step);
+                match step {
+                    Step::ControllerStep(_) => {
+                        assert(!msg.content.is_update_status_request());
+                        assert(false);
+                    },
+                    Step::KubernetesAPIStep(_) => {
+                        assert(!msg.content.is_APIRequest());
+                        assert(!msg.content.is_update_status_request());
+                        assert(false);
+                    },
+                    Step::ClientStep() => {
+                        assert(!msg.content.is_update_status_request());
+                        assert(false);
+                    },
+                    Step::BuiltinControllersStep(_) => {
+                        assert(!msg.content.is_update_status_request());
+                        assert(false);
+                    },
+                    Step::FailTransientlyStep(_) => {
+                        assert(!msg.content.is_APIRequest());
+                        assert(!msg.content.is_update_status_request());
+                        assert(false);
+                    },
+                    _ => {
+                        assert(!s_prime.in_flight().contains(msg));
+                        assert(false);
+                    }
+                }
+            }
+        }
+    }
+    init_invariant(spec, RMQCluster::init(), RMQCluster::next(), inv);
+}
+
 spec fn make_owner_references_with_name_and_uid(name: StringView, uid: Uid) -> OwnerReferenceView {
     OwnerReferenceView {
         block_owner_deletion: None,

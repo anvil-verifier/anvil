@@ -109,14 +109,13 @@ pub open spec fn no_delete_request_msg_in_flight_with_key(key: ObjectRef) -> Sta
     }
 }
 
-pub open spec fn no_update_status_request_msg_in_flight_with_key(key: ObjectRef) -> StatePred<RMQCluster> {
+pub open spec fn no_update_status_request_msg_in_flight_of(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        forall |msg: RMQMessage| !{
-            &&& #[trigger] s.in_flight().contains(msg)
-            &&& msg.dst.is_KubernetesAPI()
-            &&& msg.content.is_update_status_request()
-            &&& msg.content.get_update_status_request().key() == key
-        }
+        forall |msg: RMQMessage| //#![trigger s.in_flight().contains(msg), msg.content.is_update_status_request()]
+            #[trigger] s.in_flight().contains(msg)
+            // && msg.dst.is_KubernetesAPI()
+            && msg.content.is_update_status_request()
+            ==> msg.content.get_update_status_request().key() != get_request(sub_resource, rabbitmq).key
     }
 }
 
