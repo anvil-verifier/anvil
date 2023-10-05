@@ -1,5 +1,6 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
+use crate::fluent_controller::fluentbit::common::*;
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*,
@@ -9,6 +10,11 @@ use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
 
 verus! {
+
+pub struct FluentBitReconcileState {
+    pub reconcile_step: FluentBitReconcileStep,
+}
+
 pub struct FluentBitView {
     pub metadata: ObjectMetaView,
     pub spec: FluentBitSpecView,

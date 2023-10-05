@@ -25,4 +25,15 @@ pub enum FluentBitReconcileStep {
     Error,
 }
 
+impl std::marker::Copy for FluentBitReconcileStep {}
+
+impl std::clone::Clone for FluentBitReconcileStep {
+    #[verifier(external_body)]
+    fn clone(&self) -> (result: Self)
+        ensures result == self
+    {
+        *self
+    }
+}
+
 }

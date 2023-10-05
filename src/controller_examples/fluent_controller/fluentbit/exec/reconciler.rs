@@ -5,6 +5,7 @@ use crate::external_api::exec::*;
 use crate::fluent_controller::fluentbit::common::*;
 use crate::fluent_controller::fluentbit::exec::types::*;
 use crate::fluent_controller::fluentbit::spec::reconciler as fb_spec;
+use crate::fluent_controller::fluentbit::spec::types as spec_types;
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
 use crate::kubernetes_api_objects::{
     api_method::*, common::*, config_map::*, container::*, daemon_set::*, label_selector::*,
@@ -20,18 +21,6 @@ use vstd::seq_lib::*;
 use vstd::string::*;
 
 verus! {
-
-pub struct FluentBitReconcileState {
-    pub reconcile_step: FluentBitReconcileStep,
-}
-
-impl FluentBitReconcileState {
-    pub open spec fn to_view(&self) -> fb_spec::FluentBitReconcileState {
-        fb_spec::FluentBitReconcileState {
-            reconcile_step: self.reconcile_step,
-        }
-    }
-}
 
 pub struct FluentBitReconciler {}
 
@@ -60,7 +49,7 @@ impl Default for FluentBitReconciler {
 
 pub fn reconcile_init_state() -> (state: FluentBitReconcileState)
     ensures
-        state.to_view() == fb_spec::reconcile_init_state(),
+        state@ == fb_spec::reconcile_init_state(),
 {
     FluentBitReconcileState {
         reconcile_step: FluentBitReconcileStep::Init,
@@ -69,7 +58,7 @@ pub fn reconcile_init_state() -> (state: FluentBitReconcileState)
 
 pub fn reconcile_done(state: &FluentBitReconcileState) -> (res: bool)
     ensures
-        res == fb_spec::reconcile_done(state.to_view()),
+        res == fb_spec::reconcile_done(state@),
 {
     match state.reconcile_step {
         FluentBitReconcileStep::Done => true,
@@ -79,7 +68,7 @@ pub fn reconcile_done(state: &FluentBitReconcileState) -> (res: bool)
 
 pub fn reconcile_error(state: &FluentBitReconcileState) -> (res: bool)
     ensures
-        res == fb_spec::reconcile_error(state.to_view()),
+        res == fb_spec::reconcile_error(state@),
 {
     match state.reconcile_step {
         FluentBitReconcileStep::Error => true,
@@ -91,7 +80,7 @@ pub fn reconcile_core(fb: &FluentBit, resp_o: Option<Response<EmptyType>>, state
     requires
         fb@.well_formed(),
     ensures
-        (res.0.to_view(), opt_request_to_view(&res.1)) == fb_spec::reconcile_core(fb@, opt_response_to_view(&resp_o), state.to_view()),
+        (res.0@, opt_request_to_view(&res.1)) == fb_spec::reconcile_core(fb@, opt_response_to_view(&resp_o), state@),
         resource_version_check(opt_response_to_view(&resp_o), opt_request_to_view(&res.1)),
 {
     let step = state.reconcile_step;

@@ -20,10 +20,6 @@ use vstd::string::*;
 
 verus! {
 
-pub struct FluentBitReconcileState {
-    pub reconcile_step: FluentBitReconcileStep,
-}
-
 pub struct FluentBitReconciler {}
 
 impl Reconciler<FluentBitView, EmptyAPI> for FluentBitReconciler {
