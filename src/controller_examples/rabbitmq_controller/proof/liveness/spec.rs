@@ -32,6 +32,7 @@ pub open spec fn assumption_and_invariants_of_all_phases(rabbitmq: RabbitmqClust
     .and(invariants_since_phase_iv(rabbitmq))
     .and(invariants_since_phase_v(rabbitmq))
     .and(invariants_since_phase_vi(rabbitmq))
+    .and(invariants_since_phase_vii(rabbitmq))
 }
 
 pub proof fn assumption_and_invariants_of_all_phases_is_stable(rabbitmq: RabbitmqClusterView)
@@ -46,10 +47,12 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(rabbitmq: Rabbitm
     invariants_since_phase_iv_is_stable(rabbitmq);
     invariants_since_phase_v_is_stable(rabbitmq);
     invariants_since_phase_vi_is_stable(rabbitmq);
+    invariants_since_phase_vii_is_stable(rabbitmq);
     stable_and_n!(
         invariants(rabbitmq), always(lift_state(RMQCluster::desired_state_is(rabbitmq))),
         invariants_since_phase_i(rabbitmq), invariants_since_phase_ii(rabbitmq), invariants_since_phase_iii(rabbitmq),
-        invariants_since_phase_iv(rabbitmq), invariants_since_phase_v(rabbitmq), invariants_since_phase_vi(rabbitmq)
+        invariants_since_phase_iv(rabbitmq), invariants_since_phase_v(rabbitmq), invariants_since_phase_vi(rabbitmq),
+        invariants_since_phase_vii(rabbitmq)
     );
 }
 
@@ -122,6 +125,7 @@ pub open spec fn derived_invariants_since_beginning(rabbitmq: RabbitmqClusterVie
     .and(tla_forall(|step: (ActionKind, SubResource)| always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))))))
     .and(tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(res, rabbitmq)))))
     .and(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation())))
+    .and(always(lift_state(helper_invariants::cm_rv_is_some_after_cm_is_updated(rabbitmq))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClusterView)
@@ -152,7 +156,8 @@ pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClus
         lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
         tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),
-        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation())
+        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()),
+        lift_state(helper_invariants::cm_rv_is_some_after_cm_is_updated(rabbitmq))
     );
 }
 
@@ -194,24 +199,22 @@ pub proof fn invariants_since_phase_ii_is_stable(rabbitmq: RabbitmqClusterView)
     always_p_is_stable(lift_state(RMQCluster::the_object_in_reconcile_has_spec_and_uid_as(rabbitmq)));
 }
 
-/// After we know that the spec and uid of object in reconcile, we can obtain the following invariants about messages. This is
-/// because the create and update request messages are derived from the custom resource object in reconcile (i.e, triggering_cr).
 pub open spec fn invariants_since_phase_iii(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
-    tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq))))
-    .and(tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)))))
+    tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::object_in_every_resource_create_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq))))
+    .and(tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq)))))
 }
 
 pub proof fn invariants_since_phase_iii_is_stable(rabbitmq: RabbitmqClusterView)
     ensures
         valid(stable(invariants_since_phase_iii(rabbitmq))),
 {
-    let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq));
+    let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_create_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq));
     tla_forall_always_equality_variant::<RMQCluster, SubResource>(
-        |sub_resource: SubResource| always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq))), a_to_p_1
+        |sub_resource: SubResource| always(lift_state(helper_invariants::object_in_every_resource_create_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq))), a_to_p_1
     );
-    let a_to_p_2 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq));
+    let a_to_p_2 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq));
     tla_forall_always_equality_variant::<RMQCluster, SubResource>(
-        |sub_resource: SubResource| always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq))), a_to_p_2
+        |sub_resource: SubResource| always(lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq))), a_to_p_2
     );
     stable_and_always_n!(tla_forall(a_to_p_1), tla_forall(a_to_p_2));
 }
@@ -259,15 +262,37 @@ pub proof fn invariants_since_phase_v_is_stable(rabbitmq: RabbitmqClusterView)
     stable_and_always_n!(tla_forall(a_to_p_1), tla_forall(a_to_p_2));
 }
 
-/// To prove this invariants, we need to know that at those steps, server config map exists and won't be changed (updated
-/// or deleted). Thus, we put it after phase iv and phase v.
+// TODO: These should be moved to later phases.
+// For phase iii, we need invariants saying that owner_references in objects create/update requests only point to current cr.
 pub open spec fn invariants_since_phase_vi(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
-    always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))
+    tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq))))
+    .and(tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)))))
 }
 
 pub proof fn invariants_since_phase_vi_is_stable(rabbitmq: RabbitmqClusterView)
     ensures
         valid(stable(invariants_since_phase_vi(rabbitmq))),
+{
+    let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq));
+    tla_forall_always_equality_variant::<RMQCluster, SubResource>(
+        |sub_resource: SubResource| always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq))), a_to_p_1
+    );
+    let a_to_p_2 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq));
+    tla_forall_always_equality_variant::<RMQCluster, SubResource>(
+        |sub_resource: SubResource| always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq))), a_to_p_2
+    );
+    stable_and_always_n!(tla_forall(a_to_p_1), tla_forall(a_to_p_2));
+}
+
+/// To prove this invariants, we need to know that at those steps, server config map exists and won't be changed (updated
+/// or deleted). Thus, we put it after phase iv and phase v.
+pub open spec fn invariants_since_phase_vii(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
+    always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))
+}
+
+pub proof fn invariants_since_phase_vii_is_stable(rabbitmq: RabbitmqClusterView)
+    ensures
+        valid(stable(invariants_since_phase_vii(rabbitmq))),
 {
     always_p_is_stable(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)));
 }
@@ -306,6 +331,7 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
     }
     spec_entails_tla_forall(spec, a_to_p_3);
     helper_invariants::lemma_always_the_object_in_reconcile_satisfies_state_validation(spec);
+    helper_invariants::lemma_always_cm_rv_is_some_after_cm_is_updated(spec, rabbitmq);
 
     entails_and_n!(
         spec,
@@ -320,9 +346,9 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         always(lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init)))),
         tla_forall(|step: (ActionKind, SubResource)| always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))))),
         tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(res, rabbitmq)))),
-        always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()))
+        always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation())),
+        always(lift_state(helper_invariants::cm_rv_is_some_after_cm_is_updated(rabbitmq)))
     );
-
 }
 
 }

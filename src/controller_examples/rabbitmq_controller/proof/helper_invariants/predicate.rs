@@ -72,6 +72,42 @@ pub open spec fn resource_object_has_no_finalizers_or_timestamp_and_only_has_con
     }
 }
 
+pub open spec fn object_in_every_resource_create_request_only_has_owner_references_pointing_to_current_cr(
+    sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+) -> StatePred<RMQCluster>
+    recommends
+        rabbitmq.well_formed(),
+{
+    |s: RMQCluster| {
+        let key = rabbitmq.object_ref();
+        let resource_key = get_request(sub_resource, rabbitmq).key;
+        forall |msg: RMQMessage| {
+            &&& #[trigger] s.network_state.in_flight.contains(msg)
+            &&& resource_create_request_msg(resource_key)(msg)
+        } ==> {
+            msg.content.get_create_request().obj.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
+        }
+    }
+}
+
+pub open spec fn object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(
+    sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+) -> StatePred<RMQCluster>
+    recommends
+        rabbitmq.well_formed(),
+{
+    |s: RMQCluster| {
+        let key = rabbitmq.object_ref();
+        let resource_key = get_request(sub_resource, rabbitmq).key;
+        forall |msg: RMQMessage| {
+            &&& #[trigger] s.network_state.in_flight.contains(msg)
+            &&& resource_update_request_msg(resource_key)(msg)
+        } ==> {
+            msg.content.get_update_request().obj.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
+        }
+    }
+}
+
 pub open spec fn every_resource_create_request_implies_at_after_create_resource_step(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster>
     recommends
         rabbitmq.well_formed(),
@@ -137,6 +173,26 @@ pub open spec fn no_update_status_request_msg_in_flight_of(sub_resource: SubReso
             // && msg.dst.is_KubernetesAPI()
             && msg.content.is_update_status_request()
             ==> msg.content.get_update_status_request().key() != get_request(sub_resource, rabbitmq).key
+    }
+}
+
+/// We only need it for AfterGetStatefulSet, but keeping all the steps makes the invariant easier to prove.
+pub open spec fn cm_rv_is_some_after_cm_is_updated(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        let key = rabbitmq.object_ref();
+        let local_state = s.ongoing_reconciles()[key].local_state;
+        s.ongoing_reconciles().contains_key(key)
+        ==> match local_state.reconcile_step {
+            RabbitmqReconcileStep::AfterKRequestStep(_, sub_resource) => {
+                match sub_resource {
+                    SubResource::ServiceAccount | SubResource::Role | SubResource::RoleBinding | SubResource::StatefulSet => {
+                        local_state.latest_config_map_rv_opt.is_Some()
+                    },
+                    _ => true,
+                }
+            }
+            _ => true,
+        }
     }
 }
 
