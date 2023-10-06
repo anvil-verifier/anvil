@@ -330,19 +330,11 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
     assert_by(
         spec.entails(pre.leads_to(match_and_ok_resp)),
         {
-            let pre_and_req_in_flight = |req_msg| lift_state(
-                |s: FBCluster| {
-                    req_msg_is_the_in_flight_pending_req_at_after_get_resource_step_and_key_exists(sub_resource, fb, req_msg)(s)
-                }
-            );
+            let pre_and_req_in_flight = |req_msg| lift_state(req_msg_is_the_in_flight_pending_req_at_after_get_resource_step_and_key_exists(sub_resource, fb, req_msg));
 
             assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(lift_state(at_after_get_resource_step_and_exists_ok_resp_in_flight(sub_resource, fb))))
             by {
                 lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(spec, sub_resource, fb, req_msg);
-                temp_pred_equality(
-                    pre_and_req_in_flight(req_msg),
-                    lift_state(req_msg_is_the_in_flight_pending_req_at_after_get_resource_step_and_key_exists(sub_resource, fb, req_msg))
-                );
             }
             leads_to_exists_intro(spec, pre_and_req_in_flight, lift_state(at_after_get_resource_step_and_exists_ok_resp_in_flight(sub_resource, fb)));
             assert_by(
@@ -391,18 +383,10 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
                 }
             );
 
-            let pre_and_req_in_flight = |req_msg| lift_state(
-                |s: FBCluster| {
-                    req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, fb, req_msg)(s)
-                }
-            );
+            let pre_and_req_in_flight = |req_msg| lift_state(req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, fb, req_msg));
 
             assert forall |req_msg| spec.entails(#[trigger] pre_and_req_in_flight(req_msg).leads_to(match_and_ok_resp)) by {
                 lemma_resource_state_matches_at_after_update_resource_step(spec, sub_resource, fb, req_msg);
-                temp_pred_equality(
-                    pre_and_req_in_flight(req_msg),
-                    lift_state(req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, fb, req_msg))
-                );
             }
             leads_to_exists_intro(spec, pre_and_req_in_flight, match_and_ok_resp);
             assert_by(
