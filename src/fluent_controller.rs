@@ -23,8 +23,8 @@ use crate::fluent_controller::{
         types::{FluentBit, FluentBitReconcileState},
     },
     fluentbit_config::exec::{
-        reconciler::{FluentBitConfigReconcileState, FluentBitConfigReconciler},
-        types::FluentBitConfig,
+        reconciler::FluentBitConfigReconciler,
+        types::{FluentBitConfig, FluentBitConfigReconcileState},
     },
 };
 use deps_hack::anyhow::Result;

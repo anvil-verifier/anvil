@@ -3,34 +3,19 @@
 #![allow(unused_imports)]
 use crate::external_api::exec::*;
 use crate::fluent_controller::fluentbit_config::common::*;
+use crate::fluent_controller::fluentbit_config::exec::resource::*;
 use crate::fluent_controller::fluentbit_config::exec::types::*;
 use crate::fluent_controller::fluentbit_config::spec::reconciler as fbc_spec;
+use crate::fluent_controller::fluentbit_config::spec::resource as spec_resource;
+use crate::fluent_controller::fluentbit_config::spec::types as spec_types;
+use crate::kubernetes_api_objects::prelude::*;
 use crate::kubernetes_api_objects::resource::ResourceWrapper;
-use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, daemon_set::*, label_selector::*, object_meta::*,
-    owner_reference::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, resource::*,
-    resource_requirements::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
-};
-use crate::reconciler::exec::{io::*, reconciler::*};
-use crate::vstd_ext::string_map::StringMap;
-use crate::vstd_ext::string_view::*;
-use vstd::prelude::*;
-use vstd::seq_lib::*;
-use vstd::string::*;
+use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
+use crate::reconciler::spec::resource_builder::ResourceBuilder as SpecResourceBuilder;
+use crate::vstd_ext::{string_map::StringMap, string_view::*, to_view::*};
+use vstd::{prelude::*, string::*};
 
 verus! {
-
-pub struct FluentBitConfigReconcileState {
-    pub reconcile_step: FluentBitConfigReconcileStep,
-}
-
-impl FluentBitConfigReconcileState {
-    pub open spec fn to_view(&self) -> fbc_spec::FluentBitConfigReconcileState {
-        fbc_spec::FluentBitConfigReconcileState {
-            reconcile_step: self.reconcile_step,
-        }
-    }
-}
 
 pub struct FluentBitConfigReconciler {}
 
@@ -59,7 +44,7 @@ impl Default for FluentBitConfigReconciler {
 
 pub fn reconcile_init_state() -> (state: FluentBitConfigReconcileState)
     ensures
-        state.to_view() == fbc_spec::reconcile_init_state(),
+        state@ == fbc_spec::reconcile_init_state(),
 {
     FluentBitConfigReconcileState {
         reconcile_step: FluentBitConfigReconcileStep::Init,
@@ -68,7 +53,7 @@ pub fn reconcile_init_state() -> (state: FluentBitConfigReconcileState)
 
 pub fn reconcile_done(state: &FluentBitConfigReconcileState) -> (res: bool)
     ensures
-        res == fbc_spec::reconcile_done(state.to_view()),
+        res == fbc_spec::reconcile_done(state@),
 {
     match state.reconcile_step {
         FluentBitConfigReconcileStep::Done => true,
@@ -78,7 +63,7 @@ pub fn reconcile_done(state: &FluentBitConfigReconcileState) -> (res: bool)
 
 pub fn reconcile_error(state: &FluentBitConfigReconcileState) -> (res: bool)
     ensures
-        res == fbc_spec::reconcile_error(state.to_view()),
+        res == fbc_spec::reconcile_error(state@),
 {
     match state.reconcile_step {
         FluentBitConfigReconcileStep::Error => true,
@@ -90,97 +75,25 @@ pub fn reconcile_core(fbc: &FluentBitConfig, resp_o: Option<Response<EmptyType>>
     requires
         fbc@.well_formed(),
     ensures
-        (res.0.to_view(), opt_request_to_view(&res.1)) == fbc_spec::reconcile_core(fbc@, opt_response_to_view(&resp_o), state.to_view()),
+        (res.0@, opt_request_to_view(&res.1)) == fbc_spec::reconcile_core(fbc@, opt_response_to_view(&resp_o), state@),
 {
     let step = state.reconcile_step;
     match step{
-        FluentBitConfigReconcileStep::Init => {
-            let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
-                api_resource: Secret::api_resource(),
-                name: fbc.metadata().name().unwrap(),
-                namespace: fbc.metadata().namespace().unwrap(),
-            });
+       FluentBitConfigReconcileStep::Init => {
+            let req_o = KubeAPIRequest::GetRequest(SecretBuilder::get_request(fbc));
             let state_prime = FluentBitConfigReconcileState {
-                reconcile_step: FluentBitConfigReconcileStep::AfterGetSecret,
+                reconcile_step: FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Secret),
                 ..state
             };
             return (state_prime, Some(Request::KRequest(req_o)));
         },
-        FluentBitConfigReconcileStep::AfterGetSecret => {
-            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
-                let get_secret_resp = resp_o.unwrap().into_k_response().into_get_response().res;
-                if get_secret_resp.is_ok() {
-                    let unmarshal_secret_result = Secret::unmarshal(get_secret_resp.unwrap());
-                    if unmarshal_secret_result.is_ok() {
-                        let found_secret = unmarshal_secret_result.unwrap();
-                        let new_secret = update_secret(fbc, &found_secret);
-                        let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
-                            api_resource: Secret::api_resource(),
-                            name: make_secret_name(fbc),
-                            namespace: fbc.metadata().namespace().unwrap(),
-                            obj: new_secret.marshal(),
-                        });
-                        let state_prime = FluentBitConfigReconcileState {
-                            reconcile_step: FluentBitConfigReconcileStep::AfterUpdateSecret,
-                            ..state
-                        };
-                        return (state_prime, Some(Request::KRequest(req_o)));
-                    }
-                } else if get_secret_resp.unwrap_err().is_object_not_found() {
-                    let secret = make_secret(fbc);
-                    let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
-                        api_resource: Secret::api_resource(),
-                        namespace: fbc.metadata().namespace().unwrap(),
-                        obj: secret.marshal(),
-                    });
-                    let state_prime = FluentBitConfigReconcileState {
-                        reconcile_step: FluentBitConfigReconcileStep::AfterCreateSecret,
-                        ..state
-                    };
-                    return (state_prime, Some(Request::KRequest(req_o)));
-                }
+        FluentBitConfigReconcileStep::AfterKRequestStep(_, resource) => {
+            match resource {
+                SubResource::Secret => reconcile_helper::<spec_resource::SecretBuilder, SecretBuilder>(fbc, resp_o, state),
             }
-            let state_prime = FluentBitConfigReconcileState {
-                reconcile_step: FluentBitConfigReconcileStep::Error,
-                ..state
-            };
-            return (state_prime, None);
-        },
-        FluentBitConfigReconcileStep::AfterCreateSecret => {
-            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
-            && resp_o.unwrap().into_k_response().into_create_response().res.is_ok() {
-                let state_prime = FluentBitConfigReconcileState {
-                    reconcile_step: FluentBitConfigReconcileStep::Done,
-                    ..state
-                };
-                return (state_prime, None);
-            }
-            let state_prime = FluentBitConfigReconcileState {
-                reconcile_step: FluentBitConfigReconcileStep::Error,
-                ..state
-            };
-            return (state_prime, None);
-        },
-        FluentBitConfigReconcileStep::AfterUpdateSecret => {
-            if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
-            && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
-            && resp_o.unwrap().into_k_response().into_update_response().res.is_ok() {
-                let state_prime = FluentBitConfigReconcileState {
-                    reconcile_step: FluentBitConfigReconcileStep::Done,
-                    ..state
-                };
-                return (state_prime, None);
-            }
-            let state_prime = FluentBitConfigReconcileState {
-                reconcile_step: FluentBitConfigReconcileStep::Error,
-                ..state
-            };
-            return (state_prime, None);
         },
         _ => {
-            let state_prime = FluentBitConfigReconcileState {
+            let state_prime =FluentBitConfigReconcileState {
                 reconcile_step: step,
                 ..state
             };
@@ -190,70 +103,143 @@ pub fn reconcile_core(fbc: &FluentBitConfig, resp_o: Option<Response<EmptyType>>
     }
 }
 
-pub fn make_owner_references(fbc: &FluentBitConfig) -> (owner_references: Vec<OwnerReference>)
+pub fn reconcile_helper<
+    SpecBuilder: SpecResourceBuilder<spec_types::FluentBitConfigView, spec_types::FluentBitConfigReconcileState>,
+    Builder: ResourceBuilder<FluentBitConfig, FluentBitConfigReconcileState, SpecBuilder>
+>(
+    fbc: &FluentBitConfig, resp_o: Option<Response<EmptyType>>, state: FluentBitConfigReconcileState
+) -> (res: (FluentBitConfigReconcileState, Option<Request<EmptyType>>))
     requires
         fbc@.well_formed(),
+        Builder::requirements(fbc@),
+        state.reconcile_step.is_AfterKRequestStep(),
     ensures
-        owner_references@.map_values(|or: OwnerReference| or@) == fbc_spec::make_owner_references(fbc@),
+        (res.0@, opt_request_to_view(&res.1)) == fbc_spec::reconcile_helper::<SpecBuilder>(fbc@, opt_response_to_view(&resp_o), state@),
 {
-    let mut owner_references = Vec::new();
-    owner_references.push(fbc.controller_owner_ref());
-    proof {
-        assert_seqs_equal!(
-            owner_references@.map_values(|owner_ref: OwnerReference| owner_ref@),
-            fbc_spec::make_owner_references(fbc@)
-        );
+    let step = state.reconcile_step.clone();
+    match step {
+        FluentBitConfigReconcileStep::AfterKRequestStep(action, resource) => {
+            match action {
+                ActionKind::Get => {
+                    if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+                    && resp_o.as_ref().unwrap().as_k_response_ref().is_get_response() {
+                        let get_resp = resp_o.unwrap().into_k_response().into_get_response().res;
+                        if get_resp.is_ok() {
+                            let new_obj = Builder::update(fbc, &state, get_resp.unwrap());
+                            if new_obj.is_ok() {
+                                let updated_obj = new_obj.unwrap();
+                                let req_o = KubeAPIRequest::UpdateRequest(KubeUpdateRequest {
+                                    api_resource: Builder::get_request(fbc).api_resource,
+                                    name: Builder::get_request(fbc).name,
+                                    namespace: fbc.metadata().namespace().unwrap(),
+                                    obj: updated_obj,
+                                });
+                                let state_prime = FluentBitConfigReconcileState {
+                                    reconcile_step: FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Update, resource),
+                                    ..state
+                                };
+                                return (state_prime, Some(Request::KRequest(req_o)));
+                            }
+                        } else if get_resp.unwrap_err().is_object_not_found() {
+                            // create
+                            let new_obj = Builder::make(fbc, &state);
+                            if new_obj.is_ok() {
+                                let created_obj = new_obj.unwrap();
+                                let req_o = KubeAPIRequest::CreateRequest(KubeCreateRequest {
+                                    api_resource: Builder::get_request(fbc).api_resource,
+                                    namespace: fbc.metadata().namespace().unwrap(),
+                                    obj: created_obj,
+                                });
+                                let state_prime = FluentBitConfigReconcileState {
+                                    reconcile_step: FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Create, resource),
+                                    ..state
+                                };
+                                return (state_prime, Some(Request::KRequest(req_o)));
+                            }
+                        }
+                    }
+                    // return error state
+                    let state_prime = FluentBitConfigReconcileState {
+                        reconcile_step: FluentBitConfigReconcileStep::Error,
+                        ..state
+                    };
+                    let req_o = None;
+                    return (state_prime, req_o);
+                },
+                ActionKind::Create => {
+                    if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+                    && resp_o.as_ref().unwrap().as_k_response_ref().is_create_response()
+                    && resp_o.as_ref().unwrap().as_k_response_ref().as_create_response_ref().res.is_ok() {
+                        let state_prime = Builder::state_after_create_or_update(resp_o.unwrap().into_k_response().into_create_response().res.unwrap(), state.clone());
+                        let (next_step, req_opt) = next_resource_get_step_and_request(fbc, resource);
+                        if state_prime.is_ok() {
+                            let state_prime_with_next_step = FluentBitConfigReconcileState {
+                                reconcile_step: next_step,
+                                ..state_prime.unwrap()
+                            };
+                            let req = if req_opt.is_some() { Some(Request::KRequest(KubeAPIRequest::GetRequest(req_opt.unwrap()))) } else { None };
+                            return (state_prime_with_next_step, req);
+                        }
+                    }
+                    let state_prime = FluentBitConfigReconcileState {
+                        reconcile_step: FluentBitConfigReconcileStep::Error,
+                        ..state
+                    };
+                    let req_o = None;
+                    return (state_prime, req_o);
+                },
+                ActionKind::Update => {
+                    if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
+                    && resp_o.as_ref().unwrap().as_k_response_ref().is_update_response()
+                    && resp_o.as_ref().unwrap().as_k_response_ref().as_update_response_ref().res.is_ok() {
+                        let state_prime = Builder::state_after_create_or_update(resp_o.unwrap().into_k_response().into_update_response().res.unwrap(), state.clone());
+                        let (next_step, req_opt) = next_resource_get_step_and_request(fbc, resource);
+                        if state_prime.is_ok() {
+                            let state_prime_with_next_step = FluentBitConfigReconcileState {
+                                reconcile_step: next_step,
+                                ..state_prime.unwrap()
+                            };
+                            let req = if req_opt.is_some() { Some(Request::KRequest(KubeAPIRequest::GetRequest(req_opt.unwrap()))) } else { None };
+                            return (state_prime_with_next_step, req);
+                        }
+                    }
+                    let state_prime = FluentBitConfigReconcileState {
+                        reconcile_step: FluentBitConfigReconcileStep::Error,
+                        ..state
+                    };
+                    let req_o = None;
+                    return (state_prime, req_o);
+                },
+            }
+        },
+        _ => {
+            let state_prime = FluentBitConfigReconcileState {
+                reconcile_step: FluentBitConfigReconcileStep::Error,
+                ..state
+            };
+            return (state_prime, None);
+        },
     }
-    owner_references
 }
 
-fn make_secret_name(fbc: &FluentBitConfig) -> (name: String)
+fn next_resource_get_step_and_request(fbc: &FluentBitConfig, sub_resource: SubResource) -> (res: (FluentBitConfigReconcileStep, Option<KubeGetRequest>))
     requires
         fbc@.well_formed(),
     ensures
-        name@ == fbc_spec::make_secret_name(fbc@.metadata.name.get_Some_0()),
+        res.1.is_Some() == fbc_spec::next_resource_get_step_and_request(fbc@, sub_resource).1.is_Some(),
+        res.1.is_Some() ==> res.1.get_Some_0().to_view() == fbc_spec::next_resource_get_step_and_request(fbc@, sub_resource).1.get_Some_0(),
+        res.0 == fbc_spec::next_resource_get_step_and_request(fbc@, sub_resource).0,
 {
-    fbc.metadata().name().unwrap()
+    match sub_resource {
+        SubResource::Secret => (FluentBitConfigReconcileStep::Done, None),
+    }
 }
 
-pub fn make_secret(fbc: &FluentBitConfig) -> (secret: Secret)
-    requires
-        fbc@.well_formed(),
+fn after_get_k_request_step(sub_resource: SubResource) -> (step: FluentBitConfigReconcileStep)
     ensures
-        secret@ == fbc_spec::make_secret(fbc@),
+        step == fbc_spec::after_get_k_request_step(sub_resource),
 {
-    let mut secret = Secret::default();
-    secret.set_metadata({
-        let mut metadata = ObjectMeta::default();
-        metadata.set_name(make_secret_name(fbc));
-        metadata.set_owner_references(make_owner_references(fbc));
-        metadata
-    });
-    secret.set_data({
-        let mut data = StringMap::empty();
-        data.insert(new_strlit("fluent-bit.conf").to_string(), fbc.spec().fluentbit_config());
-        data.insert(new_strlit("parsers.conf").to_string(), fbc.spec().parsers_config());
-        data
-    });
-    secret
-}
-
-fn update_secret(fbc: &FluentBitConfig, found_secret: &Secret) -> (secret: Secret)
-    requires
-        fbc@.well_formed(),
-    ensures
-        secret@ == fbc_spec::update_secret(fbc@, found_secret@),
-{
-    let mut secret = found_secret.clone();
-    let made_secret = make_secret(fbc);
-    secret.set_metadata({
-        let mut metadata = found_secret.metadata();
-        metadata.set_owner_references(make_owner_references(fbc));
-        metadata.unset_finalizers();
-        metadata
-    });
-    secret.set_data(made_secret.data().unwrap());
-    secret
+    FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource)
 }
 
 }

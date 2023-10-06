@@ -3,25 +3,13 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::*;
 use crate::fluent_controller::fluentbit_config::common::*;
+use crate::fluent_controller::fluentbit_config::spec::resource::*;
 use crate::fluent_controller::fluentbit_config::spec::types::*;
-use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, daemon_set::*, dynamic::*, label_selector::*,
-    object_meta::*, owner_reference::*, persistent_volume_claim::*, pod::*, pod_template_spec::*,
-    resource::*, role::*, role_binding::*, secret::*, service::*, service_account::*,
-};
-use crate::kubernetes_cluster::spec::message::*;
-use crate::reconciler::spec::{io::*, reconciler::*};
-use crate::state_machine::{action::*, state_machine::*};
-use crate::temporal_logic::defs::*;
-use crate::vstd_ext::string_view::*;
-use vstd::prelude::*;
-use vstd::string::*;
+use crate::kubernetes_api_objects::prelude::*;
+use crate::reconciler::spec::{io::*, reconciler::*, resource_builder::*};
+use vstd::{prelude::*, string::*};
 
 verus! {
-
-pub struct FluentBitConfigReconcileState {
-    pub reconcile_step: FluentBitConfigReconcileStep,
-}
 
 pub struct FluentBitConfigReconciler {}
 
@@ -81,100 +69,18 @@ pub open spec fn reconcile_core(
     let resp = resp_o.get_Some_0();
     let fbc_name = fbc.metadata.name.get_Some_0();
     let fbc_namespace = fbc.metadata.namespace.get_Some_0();
-    match step{
+    match step {
         FluentBitConfigReconcileStep::Init => {
-            let req_o = APIRequest::GetRequest(GetRequest {
-                key: make_secret_key(fbc.object_ref()),
-            });
+            let req_o = APIRequest::GetRequest(SecretBuilder::get_request(fbc));
             let state_prime = FluentBitConfigReconcileState {
-                reconcile_step: FluentBitConfigReconcileStep::AfterGetSecret,
+                reconcile_step: FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::Secret),
                 ..state
             };
             (state_prime, Some(RequestView::KRequest(req_o)))
         },
-        FluentBitConfigReconcileStep::AfterGetSecret => {
-            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_GetResponse() {
-                let get_secret_resp = resp.get_KResponse_0().get_GetResponse_0().res;
-                let unmarshal_secret_result = SecretView::unmarshal(get_secret_resp.get_Ok_0());
-                if get_secret_resp.is_Ok() {
-                    if unmarshal_secret_result.is_Ok() {
-                        // update
-                        let found_secret = unmarshal_secret_result.get_Ok_0();
-                        let req_o = APIRequest::UpdateRequest(UpdateRequest {
-                            namespace: fbc_namespace,
-                            name: make_secret_name(fbc_name),
-                            obj: update_secret(fbc, found_secret).marshal(),
-                        });
-                        let state_prime = FluentBitConfigReconcileState {
-                            reconcile_step: FluentBitConfigReconcileStep::AfterUpdateSecret,
-                            ..state
-                        };
-                        (state_prime, Some(RequestView::KRequest(req_o)))
-                    } else {
-                        let state_prime = FluentBitConfigReconcileState {
-                            reconcile_step: FluentBitConfigReconcileStep::Error,
-                            ..state
-                        };
-                        (state_prime, None)
-                    }
-                } else if get_secret_resp.get_Err_0().is_ObjectNotFound() {
-                    // create
-                    let req_o = APIRequest::CreateRequest(CreateRequest {
-                        namespace: fbc_namespace,
-                        obj: make_secret(fbc).marshal(),
-                    });
-                    let state_prime = FluentBitConfigReconcileState {
-                        reconcile_step: FluentBitConfigReconcileStep::AfterCreateSecret,
-                        ..state
-                    };
-                    (state_prime, Some(RequestView::KRequest(req_o)))
-                } else {
-                    let state_prime = FluentBitConfigReconcileState {
-                        reconcile_step: FluentBitConfigReconcileStep::Error,
-                        ..state
-                    };
-                    (state_prime, None)
-                }
-            } else {
-                let state_prime = FluentBitConfigReconcileState {
-                    reconcile_step: FluentBitConfigReconcileStep::Error,
-                    ..state
-                };
-                (state_prime, None)
-            }
-        },
-        FluentBitConfigReconcileStep::AfterCreateSecret => {
-            let create_secret_resp = resp.get_KResponse_0().get_CreateResponse_0().res;
-            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_CreateResponse()
-            && create_secret_resp.is_Ok() {
-                let state_prime = FluentBitConfigReconcileState {
-                    reconcile_step: FluentBitConfigReconcileStep::Done,
-                    ..state
-                };
-                (state_prime, None)
-            } else {
-                let state_prime = FluentBitConfigReconcileState {
-                    reconcile_step: FluentBitConfigReconcileStep::Error,
-                    ..state
-                };
-                (state_prime, None)
-            }
-        },
-        FluentBitConfigReconcileStep::AfterUpdateSecret => {
-            let update_secret_resp = resp.get_KResponse_0().get_UpdateResponse_0().res;
-            if resp_o.is_Some() && resp.is_KResponse() && resp.get_KResponse_0().is_UpdateResponse()
-            && update_secret_resp.is_Ok() {
-                let state_prime = FluentBitConfigReconcileState {
-                    reconcile_step: FluentBitConfigReconcileStep::Done,
-                    ..state
-                };
-                (state_prime, None)
-            } else {
-                let state_prime = FluentBitConfigReconcileState {
-                    reconcile_step: FluentBitConfigReconcileStep::Error,
-                    ..state
-                };
-                (state_prime, None)
+        FluentBitConfigReconcileStep::AfterKRequestStep(_, resource) => {
+            match resource {
+                SubResource::Secret => { reconcile_helper::<SecretBuilder>(fbc, resp_o, state) },
             }
         },
         _ => {
@@ -196,56 +102,155 @@ pub open spec fn reconcile_error_result(state: FluentBitConfigReconcileState) ->
     (state_prime, req_o)
 }
 
-pub open spec fn make_owner_references(fbc: FluentBitConfigView) -> Seq<OwnerReferenceView> {
-    seq![fbc.controller_owner_ref()]
-}
-
-
-pub open spec fn make_secret_name(fbc_name: StringView) -> StringView {
-    fbc_name
-}
-
-pub open spec fn make_secret_key(key: ObjectRef) -> ObjectRef
+pub open spec fn reconcile_helper<Builder: ResourceBuilder<FluentBitConfigView, FluentBitConfigReconcileState>>(
+    fb: FluentBitConfigView, resp_o: Option<ResponseView<EmptyTypeView>>, state: FluentBitConfigReconcileState
+) -> (FluentBitConfigReconcileState, Option<RequestView<EmptyTypeView>>)
     recommends
-        key.kind.is_CustomResourceKind(),
+        fb.well_formed(),
+        state.reconcile_step.is_AfterKRequestStep(),
 {
-    ObjectRef {
-        kind: SecretView::kind(),
-        name: make_secret_name(key.name),
-        namespace: key.namespace,
-    }
-}
-
-pub open spec fn make_secret(fbc: FluentBitConfigView) -> SecretView
-    recommends
-        fbc.well_formed(),
-{
-    SecretView::default()
-        .set_metadata(ObjectMetaView::default()
-            .set_name(make_secret_name(fbc.metadata.name.get_Some_0()))
-            .set_owner_references(make_owner_references(fbc))
-        ).set_data(Map::empty()
-            .insert(new_strlit("fluent-bit.conf")@, fbc.spec.fluentbit_config)
-            .insert(new_strlit("parsers.conf")@, fbc.spec.parsers_config)
-        )
-}
-
-pub open spec fn update_secret(fbc: FluentBitConfigView, found_secret: SecretView) -> SecretView
-    recommends
-        fbc.well_formed(),
-{
-    SecretView {
-        metadata: ObjectMetaView {
-            owner_references: Some(make_owner_references(fbc)),
-            finalizers: None,
-            ..found_secret.metadata
+    let step = state.reconcile_step;
+    match step {
+        FluentBitConfigReconcileStep::AfterKRequestStep(action, resource) => {
+            match action {
+                ActionKind::Get => {
+                    if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_GetResponse() {
+                        let get_resp = resp_o.get_Some_0().get_KResponse_0().get_GetResponse_0().res;
+                        if get_resp.is_Ok() {
+                            // update
+                            let new_obj = Builder::update(fb, state, get_resp.get_Ok_0());
+                            if new_obj.is_Ok() {
+                                let updated_obj = new_obj.get_Ok_0();
+                                let req_o = APIRequest::UpdateRequest(UpdateRequest {
+                                    namespace: fb.metadata.namespace.get_Some_0(),
+                                    name: Builder::get_request(fb).key.name,
+                                    obj: updated_obj,
+                                });
+                                let state_prime = FluentBitConfigReconcileState {
+                                    reconcile_step: FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Update, resource),
+                                    ..state
+                                };
+                                (state_prime, Some(RequestView::KRequest(req_o)))
+                            } else {
+                                let state_prime = FluentBitConfigReconcileState {
+                                    reconcile_step: FluentBitConfigReconcileStep::Error,
+                                    ..state
+                                };
+                                (state_prime, None)
+                            }
+                        } else if get_resp.get_Err_0().is_ObjectNotFound() {
+                            let new_obj = Builder::make(fb, state);
+                            if new_obj.is_Ok() {
+                                let req_o = APIRequest::CreateRequest(CreateRequest {
+                                    namespace: fb.metadata.namespace.get_Some_0(),
+                                    obj: new_obj.get_Ok_0(),
+                                });
+                                let state_prime = FluentBitConfigReconcileState {
+                                    reconcile_step: FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Create, resource),
+                                    ..state
+                                };
+                                (state_prime, Some(RequestView::KRequest(req_o)))
+                            } else {
+                                let state_prime = FluentBitConfigReconcileState {
+                                    reconcile_step: FluentBitConfigReconcileStep::Error,
+                                    ..state
+                                };
+                                (state_prime, None)
+                            }
+                        } else {
+                            let state_prime = FluentBitConfigReconcileState {
+                                reconcile_step: FluentBitConfigReconcileStep::Error,
+                                ..state
+                            };
+                            (state_prime, None)
+                        }
+                    } else {
+                        // return error state
+                        let state_prime = FluentBitConfigReconcileState {
+                            reconcile_step: FluentBitConfigReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                },
+                ActionKind::Create => {
+                    let create_resp = resp_o.get_Some_0().get_KResponse_0().get_CreateResponse_0().res;
+                    if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_CreateResponse()
+                    && create_resp.is_Ok() {
+                        let state_prime = Builder::state_after_create_or_update(create_resp.get_Ok_0(), state);
+                        if state_prime.is_Ok() {
+                            let (next_step, req_opt) = next_resource_get_step_and_request(fb, resource);
+                            let state_prime_with_next_step = FluentBitConfigReconcileState {
+                                reconcile_step: next_step,
+                                ..state_prime.get_Ok_0()
+                            };
+                            let req = if req_opt.is_Some() { Some(RequestView::KRequest(APIRequest::GetRequest(req_opt.get_Some_0()))) } else { None };
+                            (state_prime_with_next_step, req)
+                        } else {
+                            let state_prime = FluentBitConfigReconcileState {
+                                reconcile_step: FluentBitConfigReconcileStep::Error,
+                                ..state
+                            };
+                            (state_prime, None)
+                        }
+                    } else {
+                        // return error state
+                        let state_prime = FluentBitConfigReconcileState {
+                            reconcile_step: FluentBitConfigReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                },
+                ActionKind::Update => {
+                    let update_resp = resp_o.get_Some_0().get_KResponse_0().get_UpdateResponse_0().res;
+                    if resp_o.is_Some() && resp_o.get_Some_0().is_KResponse() && resp_o.get_Some_0().get_KResponse_0().is_UpdateResponse()
+                    && update_resp.is_Ok() {
+                        let state_prime = Builder::state_after_create_or_update(update_resp.get_Ok_0(), state);
+                        if state_prime.is_Ok() {
+                            let (next_step, req_opt) = next_resource_get_step_and_request(fb, resource);
+                            let state_prime_with_next_step = FluentBitConfigReconcileState {
+                                reconcile_step: next_step,
+                                ..state_prime.get_Ok_0()
+                            };
+                            let req = if req_opt.is_Some() { Some(RequestView::KRequest(APIRequest::GetRequest(req_opt.get_Some_0()))) } else { None };
+                            (state_prime_with_next_step, req)
+                        } else {
+                            let state_prime = FluentBitConfigReconcileState {
+                                reconcile_step: FluentBitConfigReconcileStep::Error,
+                                ..state
+                            };
+                            (state_prime, None)
+                        }
+                    } else {
+                        // return error state
+                        let state_prime = FluentBitConfigReconcileState {
+                            reconcile_step: FluentBitConfigReconcileStep::Error,
+                            ..state
+                        };
+                        (state_prime, None)
+                    }
+                },
+            }
         },
-        data: Some(Map::empty()
-            .insert(new_strlit("fluent-bit.conf")@, fbc.spec.fluentbit_config)
-            .insert(new_strlit("parsers.conf")@, fbc.spec.parsers_config)
-        ),
-        ..found_secret
+        _ => {
+            let state_prime = FluentBitConfigReconcileState {
+                reconcile_step: FluentBitConfigReconcileStep::Error,
+                ..state
+            };
+            (state_prime, None)
+        },
     }
+}
+
+pub open spec fn next_resource_get_step_and_request(fb: FluentBitConfigView, sub_resource: SubResource) -> (FluentBitConfigReconcileStep, Option<GetRequest>) {
+    match sub_resource {
+        SubResource::Secret => (FluentBitConfigReconcileStep::Done, None),
+    }
+}
+
+pub open spec fn after_get_k_request_step(sub_resource: SubResource) -> FluentBitConfigReconcileStep {
+    FluentBitConfigReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource)
 }
 
 }
