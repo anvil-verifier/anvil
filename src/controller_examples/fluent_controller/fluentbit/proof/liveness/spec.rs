@@ -23,9 +23,16 @@ use vstd::prelude::*;
 
 verus! {
 
+pub open spec fn desired_state_is(fb: FluentBitView) -> StatePred<FBCluster>
+    recommends
+        fb.well_formed(),
+{
+    |s: FBCluster| FBCluster::desired_state_is(fb)(s) && s.resources().contains_key(desired_secret_key(fb))
+}
+
 pub open spec fn assumption_and_invariants_of_all_phases(fb: FluentBitView) -> TempPred<FBCluster> {
     invariants(fb)
-    .and(always(lift_state(FBCluster::desired_state_is(fb))))
+    .and(always(lift_state(desired_state_is(fb))))
     .and(invariants_since_phase_i(fb))
     .and(invariants_since_phase_ii(fb))
     .and(invariants_since_phase_iii(fb))
@@ -38,14 +45,14 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(fb: FluentBitView
         valid(stable(assumption_and_invariants_of_all_phases(fb))),
 {
     invariants_is_stable(fb);
-    always_p_is_stable(lift_state(FBCluster::desired_state_is(fb)));
+    always_p_is_stable(lift_state(desired_state_is(fb)));
     invariants_since_phase_i_is_stable(fb);
     invariants_since_phase_ii_is_stable(fb);
     invariants_since_phase_iii_is_stable(fb);
     invariants_since_phase_iv_is_stable(fb);
     invariants_since_phase_v_is_stable(fb);
     stable_and_n!(
-        invariants(fb), always(lift_state(FBCluster::desired_state_is(fb))),
+        invariants(fb), always(lift_state(desired_state_is(fb))),
         invariants_since_phase_i(fb), invariants_since_phase_ii(fb), invariants_since_phase_iii(fb),
         invariants_since_phase_iv(fb), invariants_since_phase_v(fb)
     );
@@ -117,6 +124,7 @@ pub open spec fn derived_invariants_since_beginning(fb: FluentBitView) -> TempPr
     .and(always(lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata())))
     .and(tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::object_of_key_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(get_request(sub_resource, fb).key, fb)))))
     .and(always(lift_state(FBCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::Init)))))
+    .and(always(lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterGetSecret)))))
     .and(tla_forall(|step: (ActionKind, SubResource)| always(lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterKRequestStep(step.0, step.1)))))))
     .and(tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_with_key(get_request(res, fb).key)))))
 }
@@ -147,6 +155,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(fb: FluentBitView)
         lift_state(FBCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         tla_forall(a_to_p_1),
         lift_state(FBCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::Init))),
+        lift_state(FBCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(fb.object_ref(), at_step_closure(FluentBitReconcileStep::AfterGetSecret))),
         tla_forall(a_to_p_2),
         tla_forall(a_to_p_3)
     );

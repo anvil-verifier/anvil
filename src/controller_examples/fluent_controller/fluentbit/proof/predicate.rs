@@ -57,6 +57,77 @@ pub open spec fn no_pending_req_at_fb_step_with_fb(fb: FluentBitView, step: Flue
     }
 }
 
+pub open spec fn pending_req_at_after_get_secret_step_with_fb(fb: FluentBitView) -> StatePred<FBCluster> {
+    |s: FBCluster| {
+        let msg = s.ongoing_reconciles()[fb.object_ref()].pending_req_msg.get_Some_0();
+        let request = msg.content.get_APIRequest_0();
+        &&& at_fb_step_with_fb(fb, FluentBitReconcileStep::AfterGetSecret)(s)
+        &&& FBCluster::pending_k8s_api_req_msg(s, fb.object_ref())
+        &&& s.in_flight().contains(msg)
+        &&& msg.src == HostId::CustomController
+        &&& msg.dst == HostId::KubernetesAPI
+        &&& msg.content.is_APIRequest()
+        &&& request.is_GetRequest()
+        &&& request.get_GetRequest_0() == get_secret_req(fb)
+    }
+}
+
+pub open spec fn req_msg_is_the_in_flight_pending_req_at_after_get_secret_step(
+    fb: FluentBitView, req_msg: FBMessage
+) -> StatePred<FBCluster> {
+    |s: FBCluster| {
+        let request = req_msg.content.get_APIRequest_0();
+        &&& at_fb_step_with_fb(fb, FluentBitReconcileStep::AfterGetSecret)(s)
+        &&& FBCluster::pending_k8s_api_req_msg_is(s, fb.object_ref(), req_msg)
+        &&& s.in_flight().contains(req_msg)
+        &&& req_msg.src == HostId::CustomController
+        &&& req_msg.dst == HostId::KubernetesAPI
+        &&& req_msg.content.is_APIRequest()
+        &&& request.is_GetRequest()
+        &&& request.get_GetRequest_0() == get_secret_req(fb)
+    }
+}
+
+pub open spec fn at_after_get_secret_step_and_exists_ok_resp_in_flight(fb: FluentBitView) -> StatePred<FBCluster> {
+    |s: FBCluster| {
+        let msg = s.ongoing_reconciles()[fb.object_ref()].pending_req_msg.get_Some_0();
+        let request = msg.content.get_APIRequest_0();
+        let key = get_secret_req(fb).key;
+        &&& at_fb_step_with_fb(fb, FluentBitReconcileStep::AfterGetSecret)(s)
+        &&& FBCluster::pending_k8s_api_req_msg(s, fb.object_ref())
+        &&& msg.src == HostId::CustomController
+        &&& msg.dst == HostId::KubernetesAPI
+        &&& msg.content.is_APIRequest()
+        &&& request.is_GetRequest()
+        &&& request.get_GetRequest_0() == get_secret_req(fb)
+        &&& exists |resp_msg| {
+            &&& #[trigger] s.in_flight().contains(resp_msg)
+            &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
+            &&& resp_msg.content.get_get_response().res.is_Ok()
+        }
+    }
+}
+
+pub open spec fn resp_msg_is_the_in_flight_ok_resp_at_after_get_secret_step(
+    fb: FluentBitView, resp_msg: FBMessage
+) -> StatePred<FBCluster> {
+    |s: FBCluster| {
+        let msg = s.ongoing_reconciles()[fb.object_ref()].pending_req_msg.get_Some_0();
+        let request = msg.content.get_APIRequest_0();
+        let key = get_secret_req(fb).key;
+        &&& at_fb_step_with_fb(fb, FluentBitReconcileStep::AfterGetSecret)(s)
+        &&& FBCluster::pending_k8s_api_req_msg(s, fb.object_ref())
+        &&& msg.src == HostId::CustomController
+        &&& msg.dst == HostId::KubernetesAPI
+        &&& msg.content.is_APIRequest()
+        &&& request.is_GetRequest()
+        &&& request.get_GetRequest_0() == get_secret_req(fb)
+        &&& s.in_flight().contains(resp_msg)
+        &&& Message::resp_msg_matches_req_msg(resp_msg, msg)
+        &&& resp_msg.content.get_get_response().res.is_Ok()
+    }
+}
+
 pub open spec fn at_step_closure(step: FluentBitReconcileStep) -> FnSpec(FluentBitReconcileState) -> bool {
     |s: FluentBitReconcileState| s.reconcile_step == step
 }
