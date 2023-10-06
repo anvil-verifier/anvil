@@ -71,13 +71,7 @@ pub open spec fn reconcile_core(
     let fb_namespace = fb.metadata.namespace.get_Some_0();
     match step{
         FluentBitReconcileStep::Init => {
-            let req_o = APIRequest::GetRequest(GetRequest{
-                key: ObjectRef {
-                    kind: SecretView::kind(),
-                    name: fb.spec.fluentbit_config_name,
-                    namespace: fb.metadata.namespace.get_Some_0(),
-                }
-            });
+            let req_o = APIRequest::GetRequest(get_secret_req(fb));
             let state_prime = FluentBitReconcileState {
                 reconcile_step: FluentBitReconcileStep::AfterGetSecret,
                 ..state
@@ -121,6 +115,24 @@ pub open spec fn reconcile_core(
             (state_prime, None)
         }
     }
+}
+
+pub open spec fn desired_secret_key(fb: FluentBitView) -> ObjectRef
+    recommends
+        fb.well_formed(),
+{
+    ObjectRef {
+        kind: SecretView::kind(),
+        namespace: fb.metadata.namespace.get_Some_0(),
+        name: fb.spec.fluentbit_config_name,
+    }
+}
+
+pub open spec fn get_secret_req(fb: FluentBitView) -> GetRequest
+    recommends
+        fb.well_formed(),
+{
+    GetRequest{ key: desired_secret_key(fb) }
 }
 
 pub open spec fn reconcile_error_result(state: FluentBitReconcileState) -> (FluentBitReconcileState, Option<APIRequest>) {
