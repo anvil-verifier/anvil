@@ -16,6 +16,7 @@ pub struct KubernetesAPIState {
     pub resources: StoredState,
     pub uid_counter: Uid,
     pub resource_version_counter: ResourceVersion,
+    pub stable_resources: Set<ObjectRef>,
 }
 
 pub enum KubernetesAPIStep {

@@ -131,6 +131,15 @@ pub proof fn exists_next_builtin_controllers_step(
     if action == Self::run_garbage_collector() {
         let step = BuiltinControllersStep::RunGarbageCollector;
         assert(((Self::builtin_controllers().step_to_action)(step).precondition)(input, s));
+    } else if action == Self::run_stateful_set_controller() {
+        let step = BuiltinControllersStep::RunStatefulSetController;
+        assert(((Self::builtin_controllers().step_to_action)(step).precondition)(input, s));
+    } else if action == Self::run_daemon_set_controller() {
+        let step = BuiltinControllersStep::RunDaemonSetController;
+        assert(((Self::builtin_controllers().step_to_action)(step).precondition)(input, s));
+    } else {
+        let step = BuiltinControllersStep::RunStabilizer;
+        assert(((Self::builtin_controllers().step_to_action)(step).precondition)(input, s));
     }
 }
 

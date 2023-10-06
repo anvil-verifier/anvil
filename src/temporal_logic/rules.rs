@@ -1923,7 +1923,7 @@ pub proof fn implies_preserved_by_and_temp<T>(spec: TempPred<T>, p1: TempPred<T>
 ///     spec |= [](q1 => q2)
 /// post:
 ///     spec |= [](p /\ q1 => p /\ q2)
-pub proof fn sandwich_always_implies_temp<T>(spec: TempPred<T>, p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
+pub proof fn sandwich_always_implies_by_and_temp<T>(spec: TempPred<T>, p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
     requires
         spec.entails(always(q1.implies(q2))),
     ensures
@@ -3008,6 +3008,52 @@ pub proof fn leads_to_contraposition<T>(spec: TempPred<T>, p: StatePred<T>, q: S
         spec.entails(always(always(not(lift_state(q))).implies(always(not(lift_state(p)))))),
 {
     leads_to_contraposition_temp::<T>(spec, lift_state(p), lift_state(q));
+}
+
+/// Sandwich leads-to with or r.
+/// pre:
+///     spec |= p ~> q
+/// post:
+///     spec |= p \/ r ~> q \/ r
+pub proof fn sandwich_leads_to_by_or_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>)
+    requires
+        spec.entails(p.leads_to(q)),
+    ensures
+        spec.entails(p.or(r).leads_to(q.or(r))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.or(r).leads_to(q.or(r)).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.or(r).satisfied_by(ex.suffix(i)) implies eventually(q.or(r)).satisfied_by(ex.suffix(i)) by {
+            implies_apply(ex, spec, p.leads_to(q));
+            leads_to_unfold(ex, p, q);
+            if p.satisfied_by(ex.suffix(i)) {
+                implies_apply(ex.suffix(i), p, eventually(q));
+                let witness_idx = eventually_choose_witness(ex.suffix(i), q);
+                eventually_proved_by_witness(ex.suffix(i), q.or(r), witness_idx);
+            } else {
+                let witness_idx = 0;
+                execution_equality(ex.suffix(i), ex.suffix(i).suffix(0));
+                eventually_proved_by_witness(ex.suffix(i), q.or(r), witness_idx);
+            }
+        }
+    }
+}
+
+/// Combine two leads-to with a shortcut.
+/// pre:
+///     spec |= p ~> q \/ s
+///     spec |= q ~> r \/ s
+/// post:
+///     spec |= p ~> r \/ s
+pub proof fn leads_to_shortcut_temp<T>(spec: TempPred<T>, p: TempPred<T>, q: TempPred<T>, r: TempPred<T>, s: TempPred<T>)
+    requires
+        spec.entails(p.leads_to(q.or(s))),
+        spec.entails(q.leads_to(r.or(s))),
+    ensures
+        spec.entails(p.leads_to(r.or(s))),
+{
+    sandwich_leads_to_by_or_temp(spec, q, r.or(s), s);
+    temp_pred_equality(r.or(s).or(s), r.or(s));
+    leads_to_trans_temp(spec, p, q.or(s), r.or(s));
 }
 
 }

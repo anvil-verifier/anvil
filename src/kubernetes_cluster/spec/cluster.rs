@@ -48,6 +48,11 @@ impl<K: ResourceView, E: ExternalAPI, R: Reconciler<K, E>> Cluster<K, E, R> {
     }
 
     #[verifier(inline)]
+    pub open spec fn stable_resources(self) -> Set<ObjectRef> {
+        self.kubernetes_api_state.stable_resources
+    }
+
+    #[verifier(inline)]
     pub open spec fn ongoing_reconciles(self) -> Map<ObjectRef, OngoingReconcile<K, E, R>> {
         self.controller_state.ongoing_reconciles
     }

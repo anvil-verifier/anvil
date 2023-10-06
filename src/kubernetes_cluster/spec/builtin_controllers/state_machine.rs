@@ -4,7 +4,9 @@
 use crate::external_api::spec::*;
 use crate::kubernetes_api_objects::prelude::*;
 use crate::kubernetes_cluster::spec::{
-    builtin_controllers::{garbage_collector::*, types::*},
+    builtin_controllers::{
+        garbage_collector::*, stabilizer::*, stateful_set_controller::*, types::*,
+    },
     cluster::Cluster,
     kubernetes_api::common::KubernetesAPIState,
     message::*,
@@ -24,10 +26,18 @@ pub open spec fn builtin_controllers() -> BuiltinControllersStateMachine<E::Inpu
         init: |s: KubernetesAPIState| {
             true
         },
-        actions: set![Self::run_garbage_collector()],
+        actions: set![
+            Self::run_garbage_collector(),
+            Self::run_stateful_set_controller(),
+            Self::run_daemon_set_controller(),
+            Self::run_stabilizer()
+        ],
         step_to_action: |step: BuiltinControllersStep| {
             match step {
                 BuiltinControllersStep::RunGarbageCollector => Self::run_garbage_collector(),
+                BuiltinControllersStep::RunStatefulSetController => Self::run_stateful_set_controller(),
+                BuiltinControllersStep::RunDaemonSetController => Self::run_daemon_set_controller(),
+                BuiltinControllersStep::RunStabilizer => Self::run_stabilizer(),
             }
         },
         action_input: |step: BuiltinControllersStep, input: BuiltinControllersActionInput| {

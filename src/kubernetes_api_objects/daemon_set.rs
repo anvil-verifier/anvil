@@ -198,6 +198,35 @@ impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::DaemonSetSpec> for D
     }
 }
 
+#[verifier(external_body)]
+pub struct DaemonSetStatus {
+    inner: deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus,
+}
+
+impl DaemonSetStatus {
+    pub spec fn view(&self) -> DaemonSetStatusView;
+
+    #[verifier(external_body)]
+    pub fn number_ready(&self) -> (number_ready: i32)
+        ensures
+            self@.number_ready == number_ready as int,
+    {
+        self.inner.number_ready
+    }
+}
+
+impl ResourceWrapper<deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus> for DaemonSetStatus {
+    #[verifier(external)]
+    fn from_kube(inner: deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus) -> DaemonSetStatus {
+        DaemonSetStatus { inner: inner }
+    }
+
+    #[verifier(external)]
+    fn into_kube(self) -> deps_hack::k8s_openapi::api::apps::v1::DaemonSetStatus {
+        self.inner
+    }
+}
+
 /// DaemonSetView is the ghost type of DaemonSet.
 /// It is supposed to be used in spec and proof code.
 
@@ -206,8 +235,6 @@ pub struct DaemonSetView {
     pub spec: Option<DaemonSetSpecView>,
     pub status: Option<DaemonSetStatusView>,
 }
-
-pub type DaemonSetStatusView = EmptyStatusView;
 
 impl DaemonSetView {
     pub open spec fn set_metadata(self, metadata: ObjectMetaView) -> DaemonSetView {
@@ -362,6 +389,10 @@ impl Marshalable for DaemonSetSpecView {
 
     #[verifier(external_body)]
     proof fn marshal_preserves_integrity() {}
+}
+
+pub struct DaemonSetStatusView {
+    pub number_ready: int,
 }
 
 }

@@ -222,6 +222,8 @@ pub open spec fn handle_create_request(msg: MsgType<E>, s: KubernetesAPIState) -
             let resp = Message::form_create_resp_msg(msg, result);
             (KubernetesAPIState {
                 resources: s.resources.insert(created_obj.object_ref(), created_obj),
+                // The object just gets created so it is not stable yet: built-in controller might update it
+                stable_resources: s.stable_resources.remove(created_obj.object_ref()),
                 uid_counter: s.uid_counter + 1,
                 resource_version_counter: s.resource_version_counter + 1,
                 ..s
@@ -339,8 +341,7 @@ pub open spec fn update_request_admission_check(req: UpdateRequest, s: Kubernete
     Self::update_request_admission_check_helper(req.name, req.namespace, req.obj, s)
 }
 
-pub open spec fn updated_object(req: UpdateRequest, s: KubernetesAPIState) -> DynamicObjectView {
-    let old_obj = s.resources[req.key()];
+pub open spec fn updated_object(req: UpdateRequest, old_obj: DynamicObjectView) -> DynamicObjectView {
     let updated_obj = DynamicObjectView {
         kind: req.obj.kind,
         metadata: ObjectMetaView {
@@ -381,8 +382,8 @@ pub open spec fn handle_update_request(msg: MsgType<E>, s: KubernetesAPIState) -
         let resp = Message::form_update_resp_msg(msg, result);
         (s, resp)
     } else {
-        let updated_obj = Self::updated_object(req, s);
         let old_obj = s.resources[req.key()];
+        let updated_obj = Self::updated_object(req, old_obj);
         if updated_obj == old_obj {
             // Update is a noop because there is nothing to update
             // so the resource version counter does not increase here,
@@ -410,6 +411,8 @@ pub open spec fn handle_update_request(msg: MsgType<E>, s: KubernetesAPIState) -
                     // or has at least one finalizer.
                     (KubernetesAPIState {
                         resources: s.resources.insert(req.key(), updated_obj_with_new_rv),
+                        // The object just gets updated so it is not stable yet: built-in controller might update it
+                        stable_resources: s.stable_resources.remove(req.key()),
                         resource_version_counter: s.resource_version_counter + 1, // Advance the rv counter
                         ..s
                     }, resp)
@@ -442,8 +445,7 @@ pub open spec fn update_status_request_admission_check(req: UpdateStatusRequest,
     Self::update_request_admission_check_helper(req.name, req.namespace, req.obj, s)
 }
 
-pub open spec fn status_updated_object(req: UpdateStatusRequest, s: KubernetesAPIState) -> DynamicObjectView {
-    let old_obj = s.resources[req.key()];
+pub open spec fn status_updated_object(req: UpdateStatusRequest, old_obj: DynamicObjectView) -> DynamicObjectView {
     let status_updated_object = DynamicObjectView {
         kind: req.obj.kind,
         metadata: old_obj.metadata, // Ignore any change to metadata
@@ -464,8 +466,8 @@ pub open spec fn handle_update_status_request(msg: MsgType<E>, s: KubernetesAPIS
         let resp = Message::form_update_status_resp_msg(msg, result);
         (s, resp)
     } else {
-        let updated_obj = Self::status_updated_object(req, s);
         let old_obj = s.resources[req.key()];
+        let updated_obj = Self::status_updated_object(req, old_obj);
         if updated_obj == old_obj {
             // UpdateStatus is a noop because there is nothing to update
             // so the resource version counter does not increase here,
@@ -550,7 +552,8 @@ pub open spec fn handle_request() -> KubernetesAPIAction<E::Input, E::Output> {
 pub open spec fn kubernetes_api() -> KubernetesAPIStateMachine<E::Input, E::Output> {
     StateMachine {
         init: |s: KubernetesAPIState| {
-            s.resources == Map::<ObjectRef, DynamicObjectView>::empty()
+            &&& s.resources == Map::<ObjectRef, DynamicObjectView>::empty()
+            &&& s.stable_resources == Set::<ObjectRef>::empty()
         },
         actions: set![Self::handle_request()],
         step_to_action: |step: KubernetesAPIStep| {

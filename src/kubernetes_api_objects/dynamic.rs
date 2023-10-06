@@ -1,11 +1,10 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::kubernetes_api_objects::{common::*, marshal::*, object_meta::*, resource::*};
+use crate::kubernetes_api_objects::{
+    common::*, marshal::*, object_meta::*, owner_reference::*, resource::*,
+};
 use crate::vstd_ext::string_view::*;
 use vstd::prelude::*;
-
-use deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta as K8SObjectMeta;
-use deps_hack::kube::api::DynamicObject as K8SDynamicObject;
 
 verus! {
 
@@ -15,7 +14,7 @@ verus! {
 
 #[verifier(external_body)]
 pub struct DynamicObject {
-    inner: K8SDynamicObject,
+    inner: deps_hack::kube::api::DynamicObject,
 }
 
 impl View for DynamicObject {
@@ -26,7 +25,7 @@ impl View for DynamicObject {
 
 impl DynamicObject {
     #[verifier(external)]
-    pub fn kube_metadata_ref(&self) -> &K8SObjectMeta {
+    pub fn kube_metadata_ref(&self) -> &deps_hack::k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta {
         &self.inner.metadata
     }
 
@@ -47,16 +46,16 @@ impl DynamicObject {
     }
 }
 
-impl ResourceWrapper<K8SDynamicObject> for DynamicObject {
+impl ResourceWrapper<deps_hack::kube::api::DynamicObject> for DynamicObject {
     #[verifier(external)]
-    fn from_kube(inner: K8SDynamicObject) -> DynamicObject {
+    fn from_kube(inner: deps_hack::kube::api::DynamicObject) -> DynamicObject {
         DynamicObject {
             inner: inner
         }
     }
 
     #[verifier(external)]
-    fn into_kube(self) -> K8SDynamicObject {
+    fn into_kube(self) -> deps_hack::kube::api::DynamicObject {
         self.inner
     }
 }
@@ -78,6 +77,22 @@ pub struct DynamicObjectView {
     pub status: Value,
 }
 
+/// MutableByUpdate includes the fields of a dynamic object that can be
+/// created/mutated by a create/update request (NOT an update-status request),
+/// including labels, annotations, owner_references, finalizers and spec.
+/// Things like resource version and uid are not here because they are either decided
+/// by the api server/etcd, or cannot be mutated by the controller once the object gets created.
+
+pub struct MutableByUpdate {
+    pub labels: Option<Map<StringView, StringView>>,
+    pub annotations: Option<Map<StringView, StringView>>,
+    pub owner_references: Option<Seq<OwnerReferenceView>>,
+    pub finalizers: Option<Seq<StringView>>,
+    pub spec: Value,
+}
+
+pub type MutableByUpdatePred = FnSpec(MutableByUpdate) -> bool;
+
 impl DynamicObjectView {
     pub open spec fn object_ref(self) -> ObjectRef
         recommends
@@ -88,6 +103,16 @@ impl DynamicObjectView {
             kind: self.kind,
             name: self.metadata.name.get_Some_0(),
             namespace: self.metadata.namespace.get_Some_0(),
+        }
+    }
+
+    pub open spec fn mutable_subset(self) -> MutableByUpdate {
+        MutableByUpdate {
+            labels: self.metadata.labels,
+            annotations: self.metadata.annotations,
+            owner_references: self.metadata.owner_references,
+            finalizers: self.metadata.finalizers,
+            spec: self.spec,
         }
     }
 

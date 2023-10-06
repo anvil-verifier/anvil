@@ -33,18 +33,18 @@ pub proof fn lemma_pre_leads_to_post_by_kubernetes_api(
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
     use_tla_forall::<Self, Option<MsgType<E>>>(spec, |i| Self::kubernetes_api_next().weak_fairness(i), input);
-
     Self::kubernetes_api_action_pre_implies_next_pre(action, input);
     valid_implies_trans::<Self>(
-        lift_state(pre), lift_state(Self::kubernetes_api_action_pre(action, input)), lift_state(Self::kubernetes_api_next().pre(input))
+        lift_state(pre),
+        lift_state(Self::kubernetes_api_action_pre(action, input)),
+        lift_state(Self::kubernetes_api_next().pre(input))
     );
-
     Self::kubernetes_api_next().wf1(input, spec, next, pre, post);
 }
 
 pub proof fn lemma_pre_leads_to_post_by_builtin_controllers(
-    spec: TempPred<Self>, input: (BuiltinControllerChoice, ObjectRef), next: ActionPred<Self>, action: BuiltinControllersAction<E::Input, E::Output>,
-    pre: StatePred<Self>, post: StatePred<Self>
+    spec: TempPred<Self>, input: (BuiltinControllerChoice, ObjectRef), next: ActionPred<Self>,
+    action: BuiltinControllersAction<E::Input, E::Output>, pre: StatePred<Self>, post: StatePred<Self>
 )
     requires
         Self::builtin_controllers().actions.contains(action),
@@ -57,12 +57,38 @@ pub proof fn lemma_pre_leads_to_post_by_builtin_controllers(
         spec.entails(lift_state(pre).leads_to(lift_state(post))),
 {
     use_tla_forall::<Self, (BuiltinControllerChoice, ObjectRef)>(spec, |i| Self::builtin_controllers_next().weak_fairness(i), input);
-
     Self::builtin_controllers_action_pre_implies_next_pre(action, input);
     valid_implies_trans::<Self>(
-        lift_state(pre), lift_state(Self::builtin_controllers_action_pre(action, input)), lift_state(Self::builtin_controllers_next().pre(input))
+        lift_state(pre),
+        lift_state(Self::builtin_controllers_action_pre(action, input)),
+        lift_state(Self::builtin_controllers_next().pre(input))
     );
     Self::builtin_controllers_next().wf1(input, spec, next, pre, post);
+}
+
+pub proof fn lemma_pre_leads_to_post_by_builtin_controllers_borrow_from_spec(
+    spec: TempPred<Self>, input: (BuiltinControllerChoice, ObjectRef), next: ActionPred<Self>,
+    action: BuiltinControllersAction<E::Input, E::Output>, c: StatePred<Self>, pre: StatePred<Self>, post: StatePred<Self>
+)
+    requires
+        Self::builtin_controllers().actions.contains(action),
+        forall |s, s_prime: Self| pre(s) && c(s) && #[trigger] next(s, s_prime) ==> pre(s_prime) || post(s_prime),
+        forall |s, s_prime: Self| pre(s) && c(s) && #[trigger] next(s, s_prime) && Self::builtin_controllers_next().forward(input)(s, s_prime) ==> post(s_prime),
+        forall |s: Self| #[trigger] pre(s) && c(s) ==> Self::builtin_controllers_action_pre(action, input)(s),
+        spec.entails(always(lift_action(next))),
+        spec.entails(tla_forall(|i| Self::builtin_controllers_next().weak_fairness(i))),
+        spec.entails(always(lift_state(c))),
+    ensures
+        spec.entails(lift_state(pre).leads_to(lift_state(post))),
+{
+    use_tla_forall::<Self, (BuiltinControllerChoice, ObjectRef)>(spec, |i| Self::builtin_controllers_next().weak_fairness(i), input);
+    Self::builtin_controllers_action_pre_implies_next_pre(action, input);
+    valid_implies_trans::<Self>(
+        lift_state(pre).and(lift_state(c)),
+        lift_state(Self::builtin_controllers_action_pre(action, input)),
+        lift_state(Self::builtin_controllers_next().pre(input))
+    );
+    Self::builtin_controllers_next().wf1_borrow_from_spec(input, spec, next, c, pre, post);
 }
 
 pub proof fn lemma_get_req_leads_to_some_resp
@@ -251,7 +277,6 @@ pub proof fn lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(
     requires
         spec.entails(always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
-        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
     ensures
@@ -286,7 +311,6 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
     requires
         spec.entails(always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)))),
         spec.entails(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()))),
-        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
     ensures
@@ -297,13 +321,11 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
     // Use the stable part of spec, show the stability of stable_spec and also spec |= stable_spec
     let always_spec = always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)))
                     .and(always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator())))
-                    .and(always(lift_state(Self::busy_disabled())))
                     .and(always(lift_action(Self::next())));
     let stable_spec = always_spec.and(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i)));
     stable_and_always_n!(
         lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
         lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator()),
-        lift_state(Self::busy_disabled()),
         lift_action(Self::next())
     );
     Self::tla_forall_action_weak_fairness_is_stable(Self::kubernetes_api_next());
@@ -312,7 +334,6 @@ pub proof fn lemma_some_rest_id_leads_to_always_every_in_flight_req_msg_satisfie
         spec,
         always(lift_action(Self::every_new_req_msg_if_in_flight_then_satisfies(requirements))),
         always(lift_state(Self::every_in_flight_msg_has_lower_id_than_allocator())),
-        always(lift_state(Self::busy_disabled())),
         always(lift_action(Self::next())),
         tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))
     );
@@ -401,7 +422,6 @@ pub proof fn lemma_true_leads_to_always_no_req_before_rest_id_is_in_flight(
     spec: TempPred<Self>, rest_id: RestId
 )
     requires
-        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
@@ -434,7 +454,6 @@ pub proof fn lemma_eventually_no_req_before_rest_id_is_in_flight(
     spec: TempPred<Self>, rest_id: RestId
 )
     requires
-        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
@@ -476,7 +495,6 @@ proof fn lemma_pending_requests_number_is_n_leads_to_no_pending_requests(
     spec: TempPred<Self>, rest_id: RestId, msg_num: nat
 )
     requires
-        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
@@ -592,7 +610,6 @@ proof fn pending_requests_num_decreases(
 )
     requires
         msg_num > 0,
-        spec.entails(always(lift_state(Self::busy_disabled()))),
         spec.entails(always(lift_action(Self::next()))),
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)))),
@@ -618,13 +635,11 @@ proof fn pending_requests_num_decreases(
     let stronger_next = |s, s_prime: Self| {
         &&& Self::next()(s, s_prime)
         &&& s.has_rest_id_counter_no_smaller_than(rest_id)
-        &&& !s.transient_failure_enabled
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
         lift_action(Self::next()),
-        lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id)),
-        lift_state(Self::busy_disabled())
+        lift_state(Self::rest_id_counter_is_no_smaller_than(rest_id))
     );
 
     assert forall |s, s_prime: Self| pre(s) && #[trigger] stronger_next(s, s_prime)
@@ -636,6 +651,13 @@ proof fn pending_requests_num_decreases(
             Step::KubernetesAPIStep(input) => {
                 if pending_req_multiset.count(input.get_Some_0()) > 0 {
                     assert(pending_req_multiset.remove(input.get_Some_0()) =~= pending_req_multiset_prime);
+                } else {
+                    assert(pending_req_multiset =~= pending_req_multiset_prime);
+                }
+            },
+            Step::FailTransientlyStep(input) => {
+                if pending_req_multiset.count(input.0) > 0 {
+                    assert(pending_req_multiset.remove(input.0) =~= pending_req_multiset_prime);
                 } else {
                     assert(pending_req_multiset =~= pending_req_multiset_prime);
                 }
