@@ -1,6 +1,10 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
-use crate::fluent_controller::fluentbit_config::spec::types::*;
+use crate::fluent_controller::fluentbit_config::common::*;
+use crate::fluent_controller::fluentbit_config::spec::types as spec_types;
+use crate::fluent_controller::fluentbit_config::spec::types::{
+    FluentBitConfigSpecView, FluentBitConfigView,
+};
 use crate::kubernetes_api_objects::error::ParseDynamicObjectError;
 use crate::kubernetes_api_objects::{
     api_resource::*, common::*, dynamic::*, marshal::*, object_meta::*, owner_reference::*,
@@ -12,14 +16,42 @@ use vstd::prelude::*;
 
 verus! {
 
+pub struct FluentBitConfigReconcileState {
+    pub reconcile_step: FluentBitConfigReconcileStep,
+}
+
+impl std::clone::Clone for FluentBitConfigReconcileState {
+    #[verifier(external_body)]
+    fn clone(&self) -> (result: FluentBitConfigReconcileState)
+        ensures result == self
+    {
+        FluentBitConfigReconcileState {
+            reconcile_step: self.reconcile_step,
+        }
+    }
+}
+
+impl View for FluentBitConfigReconcileState {
+    type V = spec_types::FluentBitConfigReconcileState;
+    open spec fn view(&self) -> spec_types::FluentBitConfigReconcileState {
+        spec_types::FluentBitConfigReconcileState {
+            reconcile_step: self.reconcile_step,
+        }
+    }
+}
+
 #[verifier(external_body)]
 pub struct FluentBitConfig {
     inner: deps_hack::FluentBitConfig
 }
 
-impl FluentBitConfig {
-    pub spec fn view(&self) -> FluentBitConfigView;
+impl View for FluentBitConfig {
+    type V = spec_types::FluentBitConfigView;
 
+    spec fn view(&self) -> spec_types::FluentBitConfigView;
+}
+
+impl FluentBitConfig {
     #[verifier(external_body)]
     pub fn metadata(&self) -> (metadata: ObjectMeta)
         ensures
