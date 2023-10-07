@@ -645,27 +645,6 @@ pub proof fn lemma_true_leads_to_always_no_delete_sts_req_is_in_flight(spec: Tem
     );
 }
 
-/// This spec tells that when the reconciler is at AfterGetStatefulSet, and there is a matched response, the reponse must be
-/// sts_get_response_msg. This lemma is used to show that the response message, if is ok, has an object whose reference is
-/// stateful_set_key. resp_msg_matches_req_msg doesn't talk about the object in response should match the key in request
-/// so we need this extra spec and lemma.
-///
-/// If we don't have this, we have no idea of what is inside the response message.
-pub open spec fn response_at_after_get_stateful_set_step_is_sts_get_response(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
-    let key = rabbitmq.object_ref();
-    |s: RMQCluster| {
-        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterGetStatefulSet)(s)
-        ==> s.ongoing_reconciles()[key].pending_req_msg.is_Some()
-            && sts_get_request_msg(key)(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
-            && (
-                forall |msg: RMQMessage|
-                    #[trigger] s.in_flight().contains(msg)
-                    && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
-                    ==> sts_get_response_msg(key)(msg)
-            )
-    }
-}
-
 pub proof fn lemma_always_response_at_after_get_stateful_set_step_is_sts_get_response(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),

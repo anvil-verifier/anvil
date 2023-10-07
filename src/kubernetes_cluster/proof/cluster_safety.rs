@@ -40,7 +40,10 @@ pub open spec fn etcd_object_is_well_formed(key: ObjectRef) -> StatePred<Self> {
             else if key.kind == RoleView::kind() { RoleView::unmarshal(s.resources()[key]).is_Ok() }
             else if key.kind == SecretView::kind() { SecretView::unmarshal(s.resources()[key]).is_Ok() }
             else if key.kind == ServiceView::kind() { ServiceView::unmarshal(s.resources()[key]).is_Ok() }
-            else if key.kind == StatefulSetView::kind() { StatefulSetView::unmarshal(s.resources()[key]).is_Ok() }
+            else if key.kind == StatefulSetView::kind() { 
+                &&& StatefulSetView::unmarshal(s.resources()[key]).is_Ok() 
+                &&& StatefulSetView::unmarshal(s.resources()[key]).get_Ok_0().state_validation()
+            }
             else if key.kind == ServiceAccountView::kind() { ServiceAccountView::unmarshal(s.resources()[key]).is_Ok() }
             else if key.kind == K::kind() { K::unmarshal(s.resources()[key]).is_Ok() }
             else { true }

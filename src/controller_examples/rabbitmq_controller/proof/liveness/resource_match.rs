@@ -841,7 +841,8 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         spec.entails(
             lift_state(req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, rabbitmq, req_msg))
             .leads_to(lift_state(sub_resource_state_matches(sub_resource, rabbitmq))
-            .and(lift_state(at_after_update_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq))))
+            .and(lift_state(at_after_update_resource_step_and_exists_ok_resp_in_flight(sub_resource, rabbitmq)))
+        )
         ),
 {
     let pre = req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, rabbitmq, req_msg);
@@ -853,7 +854,6 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         &&& RMQCluster::busy_disabled()(s)
         &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
-        &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
         &&& helper_invariants::the_object_in_reconcile_satisfies_state_validation()(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)(s)
         &&& helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)(s)
@@ -869,7 +869,6 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         lift_state(RMQCluster::busy_disabled()),
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
-        lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)),
         lift_state(helper_invariants::no_delete_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)),
