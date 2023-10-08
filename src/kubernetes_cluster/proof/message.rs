@@ -636,20 +636,6 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
     init_invariant(spec, Self::init(), next, inv);
 }
 
-pub open spec fn pending_req_msg_no_in_flight_if_matches(key: ObjectRef) -> StatePred<Self>
-    recommends
-        key.kind.is_CustomResourceKind(),
-{
-    |s: Self| {
-        forall |msg: MsgType<E>|
-            #[trigger] s.in_flight().contains(msg)
-            && s.ongoing_reconciles().contains_key(key)
-            && s.ongoing_reconciles()[key].pending_req_msg.is_Some()
-            && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
-            ==> !s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
-    }
-}
-
 pub open spec fn key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(key: ObjectRef) -> StatePred<Self>
     recommends
         key.kind.is_CustomResourceKind(),

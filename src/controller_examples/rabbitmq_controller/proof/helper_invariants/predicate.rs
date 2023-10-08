@@ -132,7 +132,7 @@ pub open spec fn response_at_after_get_resource_step_is_resource_get_response(
     }
 }
 
-pub open spec fn object_in_response_at_after_get_update_step_is_same_as_etcd(
+pub open spec fn object_in_response_at_after_update_resource_step_is_same_as_etcd(
     sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 ) -> StatePred<RMQCluster> {
     let key = rabbitmq.object_ref();
@@ -152,7 +152,7 @@ pub open spec fn object_in_response_at_after_get_update_step_is_same_as_etcd(
     }
 }
 
-pub open spec fn object_in_response_at_after_get_create_step_is_same_as_etcd(
+pub open spec fn object_in_response_at_after_create_resource_step_is_same_as_etcd(
     sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 ) -> StatePred<RMQCluster> {
     let key = rabbitmq.object_ref();
