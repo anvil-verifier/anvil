@@ -51,6 +51,16 @@ pub struct CreateRequest {
     pub obj: DynamicObjectView,
 }
 
+impl CreateRequest {
+    pub open spec fn key(self) -> ObjectRef {
+        ObjectRef {
+            name: self.obj.metadata.name.get_Some_0(),
+            namespace: self.namespace,
+            kind: self.obj.kind,
+        }
+    }
+}
+
 /// DeleteRequest deletes the object with the key.
 
 pub struct DeleteRequest {

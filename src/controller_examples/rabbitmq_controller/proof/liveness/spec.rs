@@ -262,8 +262,7 @@ pub proof fn invariants_since_phase_v_is_stable(rabbitmq: RabbitmqClusterView)
     stable_and_always_n!(tla_forall(a_to_p_1), tla_forall(a_to_p_2));
 }
 
-// TODO: These should be moved to later phases.
-// For phase iii, we need invariants saying that owner_references in objects create/update requests only point to current cr.
+// TODO: Add those aboud server config map
 pub open spec fn invariants_since_phase_vi(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     tla_forall(|sub_resource: SubResource| always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq))))
 }
@@ -281,6 +280,8 @@ pub proof fn invariants_since_phase_vi_is_stable(rabbitmq: RabbitmqClusterView)
 
 /// To prove this invariants, we need to know that at those steps, server config map exists and won't be changed (updated
 /// or deleted). Thus, we put it after phase iv and phase v.
+/// 
+/// TODO: Prove this
 pub open spec fn invariants_since_phase_vii(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))
 }

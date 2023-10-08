@@ -384,6 +384,21 @@ pub open spec fn is_ok_update_response_msg_and_matches_key(key: ObjectRef) -> Fn
         && msg.content.get_update_response().res.get_Ok_0().object_ref() == key
 }
 
+pub open spec fn is_ok_create_response_msg() -> FnSpec(MsgType<E>) -> bool {
+    |msg: MsgType<E>|
+        msg.src.is_KubernetesAPI()
+        && msg.content.is_create_response()
+        && msg.content.get_create_response().res.is_Ok()
+}
+
+pub open spec fn is_ok_create_response_msg_and_matches_key(key: ObjectRef) -> FnSpec(MsgType<E>) -> bool {
+    |msg: MsgType<E>|
+        msg.src.is_KubernetesAPI()
+        && msg.content.is_create_response()
+        && msg.content.get_create_response().res.is_Ok()
+        && msg.content.get_create_response().res.get_Ok_0().object_ref() == key
+}
+
 pub open spec fn object_in_ok_get_response_has_smaller_rv_than_etcd() -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
@@ -647,6 +662,24 @@ pub open spec fn key_of_object_in_matched_ok_update_resp_message_is_same_as_key_
             && s.ongoing_reconciles()[key].pending_req_msg.is_Some()
             && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
             ==> Self::is_ok_update_response_msg_and_matches_key(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_update_request().key())(msg)
+    }
+}
+
+pub open spec fn key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(key: ObjectRef) -> StatePred<Self>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: Self| {
+        let pending_req = s.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
+        let create_req = pending_req.content.get_create_request();
+        forall |msg: MsgType<E>|
+            #[trigger] s.in_flight().contains(msg)
+            && Self::is_ok_create_response_msg()(msg)
+            && s.ongoing_reconciles().contains_key(key)
+            && s.ongoing_reconciles()[key].pending_req_msg.is_Some()
+            && Message::resp_msg_matches_req_msg(msg, pending_req)
+            ==> create_req.obj.metadata.name.is_Some()
+                && Self::is_ok_create_response_msg_and_matches_key(create_req.key())(msg)
     }
 }
 
