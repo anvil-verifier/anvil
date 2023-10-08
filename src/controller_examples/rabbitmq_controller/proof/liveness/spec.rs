@@ -125,7 +125,6 @@ pub open spec fn derived_invariants_since_beginning(rabbitmq: RabbitmqClusterVie
     .and(tla_forall(|step: (ActionKind, SubResource)| always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))))))
     .and(tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(res, rabbitmq)))))
     .and(always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation())))
-    .and(always(lift_state(helper_invariants::cm_rv_is_some_after_cm_is_updated(rabbitmq))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClusterView)
@@ -156,8 +155,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClus
         lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init))),
         tla_forall(a_to_p_2),
         tla_forall(a_to_p_3),
-        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()),
-        lift_state(helper_invariants::cm_rv_is_some_after_cm_is_updated(rabbitmq))
+        lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation())
     );
 }
 
@@ -327,7 +325,6 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
     }
     spec_entails_tla_forall(spec, a_to_p_3);
     helper_invariants::lemma_always_the_object_in_reconcile_satisfies_state_validation(spec);
-    helper_invariants::lemma_always_cm_rv_is_some_after_cm_is_updated(spec, rabbitmq);
 
     entails_and_n!(
         spec,
@@ -342,8 +339,7 @@ proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         always(lift_state(RMQCluster::no_pending_req_msg_or_external_api_input_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::Init)))),
         tla_forall(|step: (ActionKind, SubResource)| always(lift_state(RMQCluster::pending_req_in_flight_or_resp_in_flight_at_reconcile_state(rabbitmq.object_ref(), at_step_closure(RabbitmqReconcileStep::AfterKRequestStep(step.0, step.1)))))),
         tla_forall(|res: SubResource| always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(res, rabbitmq)))),
-        always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation())),
-        always(lift_state(helper_invariants::cm_rv_is_some_after_cm_is_updated(rabbitmq)))
+        always(lift_state(helper_invariants::the_object_in_reconcile_satisfies_state_validation()))
     );
 }
 
