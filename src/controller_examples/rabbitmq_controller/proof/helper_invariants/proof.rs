@@ -76,6 +76,90 @@ pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spe
     init_invariant(spec, RMQCluster::init(), stronger_next, inv);
 }
 
+pub proof fn lemma_always_object_in_response_at_after_get_update_step_is_same_as_etcd(
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView
+)
+    requires
+        rabbitmq.well_formed(),
+        spec.entails(lift_state(RMQCluster::init())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(always(lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()))),
+        spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_unique_id()))),
+        spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+        spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(RMQCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(RMQCluster::pending_req_msg_no_in_flight_if_matches(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(no_delete_request_msg_in_flight_of(SubResource::ServerConfigMap, rabbitmq)))),
+        spec.entails(always(lift_state(no_update_status_request_msg_in_flight_of(SubResource::ServerConfigMap, rabbitmq)))),
+        spec.entails(true_pred().leads_to(lift_state(|s: RMQCluster| !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())))),
+        spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)))),
+        spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)))),
+    ensures
+        spec.entails(true_pred().leads_to(always(lift_state(object_in_response_at_after_get_update_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq))))),
+{
+    let key = rabbitmq.object_ref();
+    let inv = object_in_response_at_after_get_update_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq);
+    let next = |s: RMQCluster, s_prime: RMQCluster| {
+        &&& RMQCluster::next()(s, s_prime)
+        &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
+        &&& RMQCluster::every_in_flight_msg_has_unique_id()(s)
+        &&& RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()(s)
+        &&& RMQCluster::each_object_in_etcd_is_well_formed()(s_prime)
+        &&& RMQCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(key)(s_prime)
+        &&& RMQCluster::pending_req_msg_no_in_flight_if_matches(key)(s)
+        &&& no_delete_request_msg_in_flight_of(SubResource::ServerConfigMap, rabbitmq)(s)
+        &&& no_update_status_request_msg_in_flight_of(SubResource::ServerConfigMap, rabbitmq)(s)
+        &&& object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)(s)
+        &&& resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s)
+    };
+    always_to_always_later(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
+    always_to_always_later(spec, lift_state(RMQCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(key)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(next), lift_action(RMQCluster::next()),
+        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
+        lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
+        lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()),
+        later(lift_state(RMQCluster::each_object_in_etcd_is_well_formed())),
+        later(lift_state(RMQCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(key))),
+        lift_state(RMQCluster::pending_req_msg_no_in_flight_if_matches(key)),
+        lift_state(no_delete_request_msg_in_flight_of(SubResource::ServerConfigMap, rabbitmq)),
+        lift_state(no_update_status_request_msg_in_flight_of(SubResource::ServerConfigMap, rabbitmq)),
+        lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)),
+        lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq))
+    );
+    leads_to_weaken_temp(
+        spec, true_pred(), lift_state(|s: RMQCluster| !s.ongoing_reconciles().contains_key(rabbitmq.object_ref())),
+        true_pred(), lift_state(inv)
+    );
+    let resource_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
+    let key = rabbitmq.object_ref();
+    assert forall |s: RMQCluster, s_prime: RMQCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+        let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
+        if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, SubResource::ServerConfigMap))(s_prime) {
+            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some());
+            assert(resource_update_request_msg(resource_key)(pending_req));
+            assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_update_response_msg(resource_key, s_prime)(msg) by {
+                assert(msg.src.is_KubernetesAPI());
+                assert(msg.content.is_update_response());
+                if msg.content.get_update_response().res.is_Ok() {
+                    let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+                    if !s.in_flight().contains(msg) {
+                        assert(step.is_KubernetesAPIStep());
+                        let req = step.get_KubernetesAPIStep_0().get_Some_0();
+                        assert(msg.content.get_update_response().res.get_Ok_0().object_ref() == req.content.get_update_request().key());
+                        assert(msg.content.get_update_response().res.get_Ok_0().object_ref() == resource_key);
+                        assert(msg.content.get_update_response().res.get_Ok_0() == s_prime.resources()[req.content.get_update_request().key()]);
+                    } else {
+                        assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
+                        assert(!s.in_flight().contains(pending_req));
+                    }
+                }
+            }
+        }
+    }
+    leads_to_stable_temp(spec, lift_action(next), true_pred(), lift_state(inv));
+}
+
 pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )

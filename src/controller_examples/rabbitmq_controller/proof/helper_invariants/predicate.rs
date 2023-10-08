@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 use crate::external_api::spec::{EmptyAPI, EmptyTypeView};
 use crate::kubernetes_api_objects::{
-    api_method::*, common::*, config_map::*, error::*, owner_reference::*, resource::*,
+    api_method::*, common::*, config_map::*, dynamic::*, error::*, owner_reference::*, resource::*,
     stateful_set::*,
 };
 use crate::kubernetes_cluster::spec::{
@@ -82,6 +82,19 @@ pub open spec fn resource_get_response_msg(key: ObjectRef) -> FnSpec(RMQMessage)
         )
 }
 
+pub open spec fn resource_update_response_msg(key: ObjectRef, s: RMQCluster) -> FnSpec(RMQMessage) -> bool {
+    |msg: RMQMessage|
+        msg.src.is_KubernetesAPI()
+        && msg.content.is_update_response()
+        && (
+            msg.content.get_update_response().res.is_Ok()
+            ==> (
+                s.resources().contains_key(key)
+                && msg.content.get_update_response().res.get_Ok_0() == s.resources()[key]
+            )
+        )
+}
+
 /// This spec tells that when the reconciler is at AfterGetStatefulSet, and there is a matched response, the reponse must be
 /// sts_get_response_msg. This lemma is used to show that the response message, if is ok, has an object whose reference is
 /// stateful_set_key. resp_msg_matches_req_msg doesn't talk about the object in response should match the key in request
@@ -106,21 +119,23 @@ pub open spec fn response_at_after_get_resource_step_is_resource_get_response(
     }
 }
 
-pub open spec fn object_in_every_resource_create_request_only_has_owner_references_pointing_to_current_cr(
+pub open spec fn object_in_response_at_after_get_update_step_is_same_as_etcd(
     sub_resource: SubResource, rabbitmq: RabbitmqClusterView
-) -> StatePred<RMQCluster>
-    recommends
-        rabbitmq.well_formed(),
-{
+) -> StatePred<RMQCluster> {
+    let key = rabbitmq.object_ref();
+    let resource_key = get_request(sub_resource, rabbitmq).key;
     |s: RMQCluster| {
-        let key = rabbitmq.object_ref();
-        let resource_key = get_request(sub_resource, rabbitmq).key;
-        forall |msg: RMQMessage| {
-            &&& #[trigger] s.network_state.in_flight.contains(msg)
-            &&& resource_create_request_msg(resource_key)(msg)
-        } ==> {
-            msg.content.get_create_request().obj.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
-        }
+        let pending_req = s.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
+
+        at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s)
+        ==> s.ongoing_reconciles()[key].pending_req_msg.is_Some()
+            && resource_update_request_msg(resource_key)(pending_req)
+            && (
+                forall |msg: RMQMessage|
+                    #[trigger] s.in_flight().contains(msg)
+                    && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+                    ==> resource_update_response_msg(resource_key, s)(msg)
+            )
     }
 }
 

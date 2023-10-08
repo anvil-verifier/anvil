@@ -369,6 +369,21 @@ pub open spec fn is_ok_get_response_msg_and_matches_key(key: ObjectRef) -> FnSpe
         && msg.content.get_get_response().res.get_Ok_0().object_ref() == key
 }
 
+pub open spec fn is_ok_update_response_msg() -> FnSpec(MsgType<E>) -> bool {
+    |msg: MsgType<E>|
+        msg.src.is_KubernetesAPI()
+        && msg.content.is_update_response()
+        && msg.content.get_update_response().res.is_Ok()
+}
+
+pub open spec fn is_ok_update_response_msg_and_matches_key(key: ObjectRef) -> FnSpec(MsgType<E>) -> bool {
+    |msg: MsgType<E>|
+        msg.src.is_KubernetesAPI()
+        && msg.content.is_update_response()
+        && msg.content.get_update_response().res.is_Ok()
+        && msg.content.get_update_response().res.get_Ok_0().object_ref() == key
+}
+
 pub open spec fn object_in_ok_get_response_has_smaller_rv_than_etcd() -> StatePred<Self> {
     |s: Self| {
         forall |msg: MsgType<E>|
@@ -512,7 +527,6 @@ pub open spec fn key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_
             && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
             ==> Self::is_ok_get_response_msg_and_matches_key(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_get_request().key)(msg)
     }
-
 }
 
 pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec: TempPred<Self>, key: ObjectRef)
@@ -605,6 +619,35 @@ pub proof fn lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_a
         }
     }
     init_invariant(spec, Self::init(), next, inv);
+}
+
+pub open spec fn pending_req_msg_no_in_flight_if_matches(key: ObjectRef) -> StatePred<Self>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: Self| {
+        forall |msg: MsgType<E>|
+            #[trigger] s.in_flight().contains(msg)
+            && s.ongoing_reconciles().contains_key(key)
+            && s.ongoing_reconciles()[key].pending_req_msg.is_Some()
+            && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+            ==> !s.in_flight().contains(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+    }
+}
+
+pub open spec fn key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(key: ObjectRef) -> StatePred<Self>
+    recommends
+        key.kind.is_CustomResourceKind(),
+{
+    |s: Self| {
+        forall |msg: MsgType<E>|
+            #[trigger] s.in_flight().contains(msg)
+            && Self::is_ok_update_response_msg()(msg)
+            && s.ongoing_reconciles().contains_key(key)
+            && s.ongoing_reconciles()[key].pending_req_msg.is_Some()
+            && Message::resp_msg_matches_req_msg(msg, s.ongoing_reconciles()[key].pending_req_msg.get_Some_0())
+            ==> Self::is_ok_update_response_msg_and_matches_key(s.ongoing_reconciles()[key].pending_req_msg.get_Some_0().content.get_update_request().key())(msg)
+    }
 }
 
 }
