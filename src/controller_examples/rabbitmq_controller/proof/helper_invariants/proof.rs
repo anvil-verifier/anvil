@@ -76,6 +76,61 @@ pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spe
     init_invariant(spec, RMQCluster::init(), stronger_next, inv);
 }
 
+pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response(
+    spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+)
+    requires
+        spec.entails(lift_state(RMQCluster::init())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        sub_resource != SubResource::DefaultUserSecret,
+    ensures
+        spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)))),
+{
+    let inv = response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq);
+    let key = rabbitmq.object_ref();
+    let next = |s, s_prime| {
+        &&& RMQCluster::next()(s, s_prime)
+        &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
+        &&& RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)(s_prime)
+    };
+    RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
+    RMQCluster::lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, key);
+    always_to_always_later(spec, lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(next), lift_action(RMQCluster::next()),
+        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
+        later(lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)))
+    );
+    init_invariant(spec, RMQCluster::init(), next, inv);
+}
+
+pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response_for_default_user_secret(
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView
+)
+    requires
+        spec.entails(lift_state(RMQCluster::init())),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+    ensures
+        spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(SubResource::DefaultUserSecret, rabbitmq)))),
+{
+    let inv = response_at_after_get_resource_step_is_resource_get_response(SubResource::DefaultUserSecret, rabbitmq);
+    let key = rabbitmq.object_ref();
+    let next = |s, s_prime| {
+        &&& RMQCluster::next()(s, s_prime)
+        &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
+        &&& RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)(s_prime)
+    };
+    RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
+    RMQCluster::lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, key);
+    always_to_always_later(spec, lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)));
+    combine_spec_entails_always_n!(
+        spec, lift_action(next), lift_action(RMQCluster::next()),
+        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
+        later(lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)))
+    );
+    init_invariant(spec, RMQCluster::init(), next, inv);
+}
+
 pub proof fn lemma_always_cm_rv_is_some_after_cm_is_updated(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         spec.entails(lift_state(RMQCluster::init())),
@@ -105,7 +160,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         spec.entails(always(lift_state(RMQCluster::every_in_flight_req_is_unique()))),
         spec.entails(always(lift_state(RMQCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, rabbitmq).key)))),
         spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)))),
-        spec.entails(always(lift_state(no_delete_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)))),
+        spec.entails(always(lift_state(no_delete_request_msg_in_flight_of(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(no_update_status_request_msg_in_flight_of(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)))),
@@ -145,7 +200,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         &&& RMQCluster::every_in_flight_req_is_unique()(s)
         &&& RMQCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, rabbitmq).key)(s)
         &&& response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)(s)
-        &&& no_delete_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)(s)
+        &&& no_delete_request_msg_in_flight_of(sub_resource, rabbitmq)(s)
         &&& no_update_status_request_msg_in_flight_of(sub_resource, rabbitmq)(s)
         &&& object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq)(s)
         &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
@@ -179,7 +234,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         lift_state(RMQCluster::every_in_flight_req_is_unique()),
         lift_state(RMQCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(sub_resource, rabbitmq).key)),
         lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)),
-        lift_state(no_delete_request_msg_in_flight_with_key(get_request(sub_resource, rabbitmq).key)),
+        lift_state(no_delete_request_msg_in_flight_of(sub_resource, rabbitmq)),
         lift_state(no_update_status_request_msg_in_flight_of(sub_resource, rabbitmq)),
         lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq)),
         lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
@@ -587,6 +642,117 @@ proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_eq
             seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-peer-discovery")@);
         },
     }
+}
+
+/// This lemma demonstrates how to use kubernetes_cluster::proof::kubernetes_api_liveness::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies
+/// (referred to as lemma_X) to prove that the system will eventually enter a state where delete stateful set request messages
+/// will never appear in flight.
+///
+/// As an example, we can look at how this lemma is proved.
+/// - Precondition: The preconditions should include all precondtions used by lemma_X and other predicates which show that
+///     the newly generated messages are as expected. ("expected" means not delete stateful set request messages in this lemma. Therefore,
+///     we provide an invariant stateful_set_has_owner_reference_pointing_to_current_cr so that the grabage collector won't try
+///     to send a delete request to delete the messsage.)
+/// - Postcondition: spec |= true ~> [](forall |msg| as_expected(msg))
+/// - Proof body: The proof consists of three parts.
+///   + Come up with "requirements" for those newly created api request messages. Usually, just move the forall |msg| and
+///     s.in_flight().contains(msg) in the statepred of final state (no_delete_sts_req_is_in_flight in this lemma, so we can
+///     get the requirements in this lemma).
+///   + Show that spec |= every_new_req_msg_if_in_flight_then_satisfies. Basically, use two assert forall to show that forall state and
+///     its next state and forall messages, if the messages are newly generated, they must satisfy the "requirements" and always satisfies it
+///     as long as it is in flight.
+///   + Call lemma_X. If a correct "requirements" are provided, we can easily prove the equivalence of every_in_flight_req_msg_satisfies(requirements)
+///     and the original statepred.
+pub proof fn lemma_eventaully_always_no_delete_resource_request_msg_is_in_flight(
+    spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+)
+    requires
+        spec.entails(always(lift_state(RMQCluster::each_object_in_etcd_is_well_formed()))),
+        spec.entails(always(lift_state(RMQCluster::every_in_flight_msg_has_lower_id_than_allocator()))),
+        spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
+        spec.entails(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))
+    ensures
+        spec.entails(
+            true_pred().leads_to(always(lift_state(no_delete_request_msg_in_flight_of(sub_resource, rabbitmq))))
+        ),
+{
+    let key = rabbitmq.object_ref();
+    let resource_key = get_request(sub_resource, rabbitmq).key;
+    let requirements = |msg: RMQMessage, s: RMQCluster| !{
+        &&& msg.dst.is_KubernetesAPI()
+        &&& msg.content.is_delete_request()
+        &&& msg.content.get_delete_request().key == resource_key
+    };
+
+    let stronger_next = |s: RMQCluster, s_prime: RMQCluster| {
+        &&& RMQCluster::next()(s, s_prime)
+        &&& RMQCluster::desired_state_is(rabbitmq)(s)
+        &&& resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
+        &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
+    };
+    assert forall |s: RMQCluster, s_prime: RMQCluster| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
+        assert forall |msg: RMQMessage| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
+        implies requirements(msg, s_prime) by {
+            if s.resources().contains_key(resource_key) {
+                let owner_refs = s.resources()[resource_key].metadata.owner_references;
+                assert(owner_refs == Some(seq![rabbitmq.controller_owner_ref()]));
+                assert(owner_reference_to_object_reference(owner_refs.get_Some_0()[0], key.namespace) == key);
+            }
+        }
+    }
+    invariant_n!(
+        spec, lift_action(stronger_next), lift_action(RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)),
+        lift_action(RMQCluster::next()), lift_state(RMQCluster::desired_state_is(rabbitmq)),
+        lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
+        lift_state(RMQCluster::each_object_in_etcd_is_well_formed())
+    );
+
+    RMQCluster::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies(spec, requirements);
+    temp_pred_equality(
+        lift_state(no_delete_request_msg_in_flight_of(sub_resource, rabbitmq)),
+        lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements))
+    );
+}
+
+pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(
+    spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+)
+    requires
+        rabbitmq.well_formed(),
+        spec.entails(always(lift_state(RMQCluster::busy_disabled()))),
+        spec.entails(always(lift_action(RMQCluster::next()))),
+        spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
+        spec.entails(tla_forall(|i| RMQCluster::builtin_controllers_next().weak_fairness(i))),
+        spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
+        spec.entails(always(lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
+        spec.entails(always(lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)))),
+        spec.entails(always(lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq)))),
+    ensures
+        spec.entails(true_pred().leads_to(always(lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))))),
+{
+    let key = get_request(sub_resource, rabbitmq).key;
+    let eventual_owner_ref = |owner_ref: Option<Seq<OwnerReferenceView>>| {owner_ref == Some(seq![rabbitmq.controller_owner_ref()])};
+    always_weaken(spec, object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq), RMQCluster::every_update_msg_sets_owner_references_as(key, eventual_owner_ref));
+    always_weaken(spec, every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq), RMQCluster::every_create_msg_sets_owner_references_as(key, eventual_owner_ref));
+    always_weaken(spec, resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq), RMQCluster::object_has_no_finalizers(key));
+
+    let state = |s: RMQCluster| {
+        RMQCluster::desired_state_is(rabbitmq)(s)
+        && resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)(s)
+    };
+    invariant_n!(
+        spec, lift_state(state), lift_state(RMQCluster::objects_owner_references_violates(key, eventual_owner_ref)).implies(lift_state(RMQCluster::garbage_collector_deletion_enabled(key))),
+        lift_state(RMQCluster::desired_state_is(rabbitmq)),
+        lift_state(resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq))
+    );
+    RMQCluster::lemma_eventually_objects_owner_references_satisfies(spec, key, eventual_owner_ref);
+    temp_pred_equality(
+        lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
+        lift_state(RMQCluster::objects_owner_references_satisfies(key, eventual_owner_ref))
+    );
 }
 
 }

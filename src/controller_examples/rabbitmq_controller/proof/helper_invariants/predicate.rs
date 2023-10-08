@@ -197,13 +197,13 @@ pub open spec fn resource_object_only_has_owner_reference_pointing_to_current_cr
     }
 }
 
-pub open spec fn no_delete_request_msg_in_flight_with_key(key: ObjectRef) -> StatePred<RMQCluster> {
+pub open spec fn no_delete_request_msg_in_flight_of(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         forall |msg: RMQMessage| !{
             &&& #[trigger] s.in_flight().contains(msg)
             &&& msg.dst.is_KubernetesAPI()
             &&& msg.content.is_delete_request()
-            &&& msg.content.get_delete_request().key == key
+            &&& msg.content.get_delete_request().key == get_request(sub_resource, rabbitmq).key
         }
     }
 }
