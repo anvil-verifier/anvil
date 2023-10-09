@@ -145,29 +145,6 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
     );
 
     // Now we eliminate the assumption []RMQCluster::crash_disabled() /\ []busy_disabled.
-    assert_by(
-        invariants(rabbitmq).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
-        .entails(
-            true_pred().leads_to(always(current_state_matches(rabbitmq)))
-        ),
-        {
-            let spec = invariants(rabbitmq).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))));
-            unpack_conditions_from_spec(spec, invariants_since_phase_I(rabbitmq), true_pred(), always(current_state_matches(rabbitmq)));
-            temp_pred_equality(true_pred().and(invariants_since_phase_I(rabbitmq)), invariants_since_phase_I(rabbitmq));
-
-            RMQCluster::lemma_true_leads_to_crash_always_disabled(spec);
-            RMQCluster::lemma_true_leads_to_busy_always_disabled(spec);
-            RMQCluster::lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, rabbitmq);
-            leads_to_always_combine_n!(
-                spec,
-                true_pred(),
-                lift_state(RMQCluster::crash_disabled()),
-                lift_state(RMQCluster::busy_disabled()),
-                lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq))
-            );
-            leads_to_trans_temp(spec, true_pred(), invariants_since_phase_I(rabbitmq), always(current_state_matches(rabbitmq)));
-        }
-    );
 
     // Then we unpack the assumption of []RMQCluster::desired_state_is(rabbitmq) from spec.
     assert_by(

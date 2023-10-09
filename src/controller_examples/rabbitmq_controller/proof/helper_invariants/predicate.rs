@@ -245,7 +245,7 @@ pub open spec fn resource_object_only_has_owner_reference_pointing_to_current_cr
     }
 }
 
-pub open spec fn no_delete_request_msg_in_flight_of(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+pub open spec fn no_delete_resource_request_msg_in_flight(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         forall |msg: RMQMessage| !{
             &&& #[trigger] s.in_flight().contains(msg)
@@ -263,26 +263,6 @@ pub open spec fn no_update_status_request_msg_in_flight_of(sub_resource: SubReso
             // && msg.dst.is_KubernetesAPI()
             && msg.content.is_update_status_request()
             ==> msg.content.get_update_status_request().key() != get_request(sub_resource, rabbitmq).key
-    }
-}
-
-/// We only need it for AfterGetStatefulSet, but keeping all the steps makes the invariant easier to prove.
-pub open spec fn cm_rv_is_some_after_cm_is_updated(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
-    |s: RMQCluster| {
-        let key = rabbitmq.object_ref();
-        let local_state = s.ongoing_reconciles()[key].local_state;
-        s.ongoing_reconciles().contains_key(key)
-        ==> match local_state.reconcile_step {
-            RabbitmqReconcileStep::AfterKRequestStep(_, sub_resource) => {
-                match sub_resource {
-                    SubResource::ServiceAccount | SubResource::Role | SubResource::RoleBinding | SubResource::StatefulSet => {
-                        local_state.latest_config_map_rv_opt.is_Some()
-                    },
-                    _ => true,
-                }
-            }
-            _ => true,
-        }
     }
 }
 
