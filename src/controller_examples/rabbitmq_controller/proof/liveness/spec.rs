@@ -384,6 +384,8 @@ pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         cluster_spec().entails(derived_invariants_since_beginning(rabbitmq)),
 {
     let spec = cluster_spec();
+    // Adding two assertions to make the verification faster because all the lemmas blow require the two preconditions.
+    // And then the verifier doesn't have to infer it every time applying those lemmas.
     assert(spec.entails(lift_state(RMQCluster::init())));
     assert(spec.entails(always(lift_action(RMQCluster::next()))));
     RMQCluster::lemma_always_every_in_flight_msg_has_unique_id(spec);
