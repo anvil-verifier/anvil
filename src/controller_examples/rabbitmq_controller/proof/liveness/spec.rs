@@ -132,6 +132,7 @@ pub proof fn assumption_and_invariants_of_all_phases_is_stable(rabbitmq: Rabbitm
         valid(stable(invariants(rabbitmq))),
         forall |i: nat|  1 <= i <= 8 ==> valid(stable(#[trigger] spec_before_phase_n(i, rabbitmq))),
 {
+    reveal_with_fuel(spec_before_phase_n, 8);
     invariants_is_stable(rabbitmq);
     always_p_is_stable(lift_state(RMQCluster::desired_state_is(rabbitmq)));
     invariants_since_phase_i_is_stable(rabbitmq);

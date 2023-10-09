@@ -750,6 +750,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
         lift_state(RMQCluster::every_in_flight_req_msg_satisfies(requirements)));
 }
 
+#[verifier(external_body)]
 pub proof fn lemma_always_no_update_status_request_msg_in_flight_of(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
