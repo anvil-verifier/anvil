@@ -966,115 +966,134 @@ proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_eq
     let key = rabbitmq.object_ref();
     let cr = s.ongoing_reconciles()[key].triggering_cr;
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
-    match sub_resource {
-        SubResource::ServerConfigMap => {
-            // resource_create_request_msg(key)(msg) requires the msg has a key with name key.name "-server-conf". So we
-            // first show that in this action, cr_key is only possible to add "-server-conf" rather than "-plugins-conf" to reach
-            // such a post state.
-            assert_by(
-                cr_key.name + new_strlit("-plugins-conf")@ != key.name + new_strlit("-server-conf")@,
-                {
-                    let str1 = cr_key.name + new_strlit("-plugins-conf")@;
-                    let str2 = key.name + new_strlit("-server-conf")@;
-                    reveal_strlit("-server-conf");
-                    reveal_strlit("-plugins-conf");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 6] == 's');
-                        assert(str2[str1.len() - 6] == 'r');
-                    }
+    if resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg) || resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg) {
+        assert(step.is_ControllerStep());
+        assert(s.ongoing_reconciles().contains_key(cr_key));
+        let local_step = s.ongoing_reconciles()[cr_key].local_state.reconcile_step;
+        let local_step_prime = s_prime.ongoing_reconciles()[cr_key].local_state.reconcile_step;
+        assert(local_step_prime.is_AfterKRequestStep());
+        assert(local_step.is_AfterKRequestStep() && local_step.get_AfterKRequestStep_0() == ActionKind::Get);
+        if resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg) {
+            assert(local_step_prime.get_AfterKRequestStep_0() == ActionKind::Create);
+        }
+        if resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg) {
+            assert(local_step_prime.get_AfterKRequestStep_0() == ActionKind::Update);
+        }
+        assert_by(
+            cr_key == rabbitmq.object_ref() && local_step.get_AfterKRequestStep_1() == sub_resource,
+            {
+                // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
+                match sub_resource {
+                    SubResource::ServerConfigMap => {
+                        // resource_create_request_msg(key)(msg) requires the msg has a key with name key.name "-server-conf". So we
+                        // first show that in this action, cr_key is only possible to add "-server-conf" rather than "-plugins-conf" to reach
+                        // such a post state.
+                        assert_by(
+                            cr_key.name + new_strlit("-plugins-conf")@ != key.name + new_strlit("-server-conf")@,
+                            {
+                                let str1 = cr_key.name + new_strlit("-plugins-conf")@;
+                                let str2 = key.name + new_strlit("-server-conf")@;
+                                reveal_strlit("-server-conf");
+                                reveal_strlit("-plugins-conf");
+                                if str1.len() == str2.len() {
+                                    assert(str1[str1.len() - 6] == 's');
+                                    assert(str2[str1.len() - 6] == 'r');
+                                }
+                            }
+                        );
+                        // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
+                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server-conf")@);
+                    },
+                    SubResource::PluginsConfigMap => {
+                        assert_by(
+                            key.name + new_strlit("-plugins-conf")@ != cr_key.name + new_strlit("-server-conf")@,
+                            {
+                                let str1 = key.name + new_strlit("-plugins-conf")@;
+                                let str2 = cr_key.name + new_strlit("-server-conf")@;
+                                reveal_strlit("-server-conf");
+                                reveal_strlit("-plugins-conf");
+                                if str1.len() == str2.len() {
+                                    assert(str1[str1.len() - 6] == 's');
+                                    assert(str2[str1.len() - 6] == 'r');
+                                }
+                            }
+                        );
+                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-plugins-conf")@);
+                    },
+                    SubResource::ErlangCookieSecret => {
+                        assert_by(
+                            cr_key.name + new_strlit("-default-user")@ != key.name + new_strlit("-erlang-cookie")@,
+                            {
+                                let str1 = cr_key.name + new_strlit("-default-user")@;
+                                let str2 = key.name + new_strlit("-erlang-cookie")@;
+                                reveal_strlit("-erlang-cookie");
+                                reveal_strlit("-default-user");
+                                if str1.len() == str2.len() {
+                                    assert(str1[str1.len() - 1] == 'r');
+                                    assert(str2[str1.len() - 1] == 'e');
+                                }
+                            }
+                        );
+                        // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
+                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-erlang-cookie")@);
+                    },
+                    SubResource::DefaultUserSecret => {
+                        assert_by(
+                            key.name + new_strlit("-default-user")@ != cr_key.name + new_strlit("-erlang-cookie")@,
+                            {
+                                let str1 = key.name + new_strlit("-default-user")@;
+                                let str2 = cr_key.name + new_strlit("-erlang-cookie")@;
+                                reveal_strlit("-erlang-cookie");
+                                reveal_strlit("-default-user");
+                                if str1.len() == str2.len() {
+                                    assert(str1[str1.len() - 1] == 'r');
+                                    assert(str2[str1.len() - 1] == 'e');
+                                }
+                            }
+                        );
+                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-default-user")@);
+                    },
+                    SubResource::HeadlessService => {
+                        assert_by(
+                            key.name + new_strlit("-nodes")@ != cr_key.name + new_strlit("-client")@,
+                            {
+                                let str1 = key.name + new_strlit("-nodes")@;
+                                let str2 = cr_key.name + new_strlit("-client")@;
+                                reveal_strlit("-client");
+                                reveal_strlit("-nodes");
+                                if str1.len() == str2.len() {
+                                    assert(str1[str1.len() - 1] == 's');
+                                    assert(str2[str1.len() - 1] == 't');
+                                }
+                            }
+                        );
+                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-nodes")@);
+                    },
+                    SubResource::Service => {
+                        assert_by(
+                            cr_key.name + new_strlit("-nodes")@ != key.name + new_strlit("-client")@,
+                            {
+                                let str1 = cr_key.name + new_strlit("-nodes")@;
+                                let str2 = key.name + new_strlit("-client")@;
+                                reveal_strlit("-client");
+                                reveal_strlit("-nodes");
+                                if str1.len() == str2.len() {
+                                    assert(str1[str1.len() - 1] == 's');
+                                    assert(str2[str1.len() - 1] == 't');
+                                }
+                            }
+                        );
+                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-client")@);
+                    },
+                    SubResource::RoleBinding | SubResource::ServiceAccount | SubResource::StatefulSet => {
+                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
+                    },
+                    SubResource::Role => {
+                        seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-peer-discovery")@);
+                    },
                 }
-            );
-            // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server-conf")@);
-        },
-        SubResource::PluginsConfigMap => {
-            assert_by(
-                key.name + new_strlit("-plugins-conf")@ != cr_key.name + new_strlit("-server-conf")@,
-                {
-                    let str1 = key.name + new_strlit("-plugins-conf")@;
-                    let str2 = cr_key.name + new_strlit("-server-conf")@;
-                    reveal_strlit("-server-conf");
-                    reveal_strlit("-plugins-conf");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 6] == 's');
-                        assert(str2[str1.len() - 6] == 'r');
-                    }
-                }
-            );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-plugins-conf")@);
-        },
-        SubResource::ErlangCookieSecret => {
-            assert_by(
-                cr_key.name + new_strlit("-default-user")@ != key.name + new_strlit("-erlang-cookie")@,
-                {
-                    let str1 = cr_key.name + new_strlit("-default-user")@;
-                    let str2 = key.name + new_strlit("-erlang-cookie")@;
-                    reveal_strlit("-erlang-cookie");
-                    reveal_strlit("-default-user");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 1] == 'r');
-                        assert(str2[str1.len() - 1] == 'e');
-                    }
-                }
-            );
-            // Then we show that only if cr_key.name equals key.name, can this message be created in this step.
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-erlang-cookie")@);
-        },
-        SubResource::DefaultUserSecret => {
-            assert_by(
-                key.name + new_strlit("-default-user")@ != cr_key.name + new_strlit("-erlang-cookie")@,
-                {
-                    let str1 = key.name + new_strlit("-default-user")@;
-                    let str2 = cr_key.name + new_strlit("-erlang-cookie")@;
-                    reveal_strlit("-erlang-cookie");
-                    reveal_strlit("-default-user");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 1] == 'r');
-                        assert(str2[str1.len() - 1] == 'e');
-                    }
-                }
-            );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-default-user")@);
-        },
-        SubResource::HeadlessService => {
-            assert_by(
-                key.name + new_strlit("-nodes")@ != cr_key.name + new_strlit("-client")@,
-                {
-                    let str1 = key.name + new_strlit("-nodes")@;
-                    let str2 = cr_key.name + new_strlit("-client")@;
-                    reveal_strlit("-client");
-                    reveal_strlit("-nodes");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 1] == 's');
-                        assert(str2[str1.len() - 1] == 't');
-                    }
-                }
-            );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-nodes")@);
-        },
-        SubResource::Service => {
-            assert_by(
-                cr_key.name + new_strlit("-nodes")@ != key.name + new_strlit("-client")@,
-                {
-                    let str1 = cr_key.name + new_strlit("-nodes")@;
-                    let str2 = key.name + new_strlit("-client")@;
-                    reveal_strlit("-client");
-                    reveal_strlit("-nodes");
-                    if str1.len() == str2.len() {
-                        assert(str1[str1.len() - 1] == 's');
-                        assert(str2[str1.len() - 1] == 't');
-                    }
-                }
-            );
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-client")@);
-        },
-        SubResource::RoleBinding | SubResource::ServiceAccount | SubResource::StatefulSet => {
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-server")@);
-        },
-        SubResource::Role => {
-            seq_lib::seq_equal_preserved_by_add(key.name, cr_key.name, new_strlit("-peer-discovery")@);
-        },
+            }
+        )
     }
 }
 
