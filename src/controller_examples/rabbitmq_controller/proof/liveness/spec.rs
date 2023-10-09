@@ -57,7 +57,9 @@ pub open spec fn invariants_since_phase_n(n: nat, rabbitmq: RabbitmqClusterView)
     }
 }
 
-pub open spec fn spec_before_phase_n(n: nat, rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
+pub open spec fn spec_before_phase_n(n: nat, rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> 
+    decreases n,
+{
     if n == 1 {
         invariants(rabbitmq).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
     } else if n == 2 {
@@ -82,7 +84,6 @@ pub open spec fn spec_before_phase_n(n: nat, rabbitmq: RabbitmqClusterView) -> T
         .and(invariants_since_phase_ii(rabbitmq))
         .and(invariants_since_phase_iii(rabbitmq))
         .and(invariants_since_phase_iv(rabbitmq))
-        .and(invariants_since_phase_v(rabbitmq))
     } else if n == 6 {
         invariants(rabbitmq)
         .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
@@ -91,7 +92,6 @@ pub open spec fn spec_before_phase_n(n: nat, rabbitmq: RabbitmqClusterView) -> T
         .and(invariants_since_phase_iii(rabbitmq))
         .and(invariants_since_phase_iv(rabbitmq))
         .and(invariants_since_phase_v(rabbitmq))
-        .and(invariants_since_phase_vi(rabbitmq))
     } else if n == 7 {
         invariants(rabbitmq)
         .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
@@ -116,90 +116,67 @@ pub open spec fn spec_before_phase_n(n: nat, rabbitmq: RabbitmqClusterView) -> T
     }
 }
 
-pub proof fn spec_of_all_phases_are_stable(rabbitmq: RabbitmqClusterView)
-    ensures
-        forall |i: nat|  1 <= i <= 8 ==> valid(stable(#[trigger] spec_before_phase_n(i, rabbitmq))),
-{
-    invariants_is_stable(rabbitmq);
-    always_p_is_stable(lift_state(RMQCluster::desired_state_is(rabbitmq)));
-    invariants_since_phase_i_is_stable(rabbitmq);
-    invariants_since_phase_ii_is_stable(rabbitmq);
-    invariants_since_phase_iii_is_stable(rabbitmq);
-    invariants_since_phase_iv_is_stable(rabbitmq);
-    invariants_since_phase_v_is_stable(rabbitmq);
-    invariants_since_phase_vi_is_stable(rabbitmq);
-    invariants_since_phase_vii_is_stable(rabbitmq);
-    stable_and_n!(
-        invariants(rabbitmq), always(lift_state(RMQCluster::desired_state_is(rabbitmq))),
-        invariants_since_phase_i(rabbitmq), invariants_since_phase_ii(rabbitmq), invariants_since_phase_iii(rabbitmq),
-        invariants_since_phase_iv(rabbitmq), invariants_since_phase_v(rabbitmq), invariants_since_phase_vi(rabbitmq),
-        invariants_since_phase_vii(rabbitmq)
-    );
-}
-
-pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(rabbitmq: RabbitmqClusterView)
+pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(i: nat, rabbitmq: RabbitmqClusterView)
     requires
         rabbitmq.well_formed(),
+        1 <= i <= 7,
     ensures
-        forall |i: nat|  1 <= i <= 6 ==> #[trigger] spec_before_phase_n(i, rabbitmq).entails(true_pred().leads_to(invariants_since_phase_n(i, rabbitmq))),
+        spec_before_phase_n(i, rabbitmq).entails(true_pred().leads_to(invariants_since_phase_n(i, rabbitmq))),
 {
-    assert forall |i: nat|  1 <= i <= 6 implies #[trigger] spec_before_phase_n(i, rabbitmq).entails(true_pred().leads_to(invariants_since_phase_n(i, rabbitmq))) by {
-        let spec = spec_before_phase_n(i, rabbitmq);
-        if i == 1 {
-            RMQCluster::lemma_true_leads_to_crash_always_disabled(spec);
-            RMQCluster::lemma_true_leads_to_busy_always_disabled(spec);
-            RMQCluster::lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, rabbitmq);
+    let spec = spec_before_phase_n(i, rabbitmq);
+    if i == 1 {
+        RMQCluster::lemma_true_leads_to_crash_always_disabled(spec);
+        RMQCluster::lemma_true_leads_to_busy_always_disabled(spec);
+        RMQCluster::lemma_true_leads_to_always_the_object_in_schedule_has_spec_and_uid_as(spec, rabbitmq);
+        leads_to_always_combine_n!(
+            spec,
+            true_pred(),
+            lift_state(RMQCluster::crash_disabled()),
+            lift_state(RMQCluster::busy_disabled()),
+            lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq))
+        );
+    } else {
+        terminate::reconcile_eventually_terminates(spec, rabbitmq);
+        if i == 2 {
+            RMQCluster::lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, rabbitmq);
+        } else if i == 3 {
+            helper_invariants::lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step_forall(spec, rabbitmq);
+            helper_invariants::lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr_forall(spec, rabbitmq);
+            let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq));
+            let a_to_p_2 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq));
             leads_to_always_combine_n!(
-                spec,
-                true_pred(),
-                lift_state(RMQCluster::crash_disabled()),
-                lift_state(RMQCluster::busy_disabled()),
-                lift_state(RMQCluster::the_object_in_schedule_has_spec_and_uid_as(rabbitmq))
+                spec, true_pred(), tla_forall(a_to_p_1), tla_forall(a_to_p_2)
             );
-        } else {
-            terminate::reconcile_eventually_terminates(spec, rabbitmq);
-            if i == 2 {
-                RMQCluster::lemma_true_leads_to_always_the_object_in_reconcile_has_spec_and_uid_as(spec, rabbitmq);
-            } else if i == 3 {
-                helper_invariants::lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step_forall(spec, rabbitmq);
-                helper_invariants::lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr_forall(spec, rabbitmq);
-                let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq));
-                let a_to_p_2 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq));
-                leads_to_always_combine_n!(
-                    spec, true_pred(), tla_forall(a_to_p_1), tla_forall(a_to_p_2)
-                );
-            } else if i == 4 {
-                helper_invariants::lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr_forall(spec, rabbitmq);
-            } else if i == 5 {
-                helper_invariants::lemma_eventually_always_no_delete_resource_request_msg_in_flight_forall(spec, rabbitmq);
-            } else if i == 6 {
-                helper_invariants::lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step_forall(spec, rabbitmq);
-                helper_invariants::lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(spec, rabbitmq);
-                let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq));
-                leads_to_always_combine_n!(
-                    spec, true_pred(),
-                    tla_forall(a_to_p_1), lift_state(helper_invariants::object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq))
-                );
-            }
+        } else if i == 4 {
+            helper_invariants::lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr_forall(spec, rabbitmq);
+        } else if i == 5 {
+            helper_invariants::lemma_eventually_always_no_delete_resource_request_msg_in_flight_forall(spec, rabbitmq);
+        } else if i == 6 {
+            helper_invariants::lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step_forall(spec, rabbitmq);
+            helper_invariants::lemma_eventually_always_object_in_response_at_after_create_resource_step_is_same_as_etcd_forall(spec, rabbitmq);
+            helper_invariants::lemma_eventually_always_object_in_response_at_after_update_resource_step_is_same_as_etcd_forall(spec, rabbitmq);
+            let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq));
+            leads_to_always_combine_n!(
+                spec, true_pred(),
+                tla_forall(a_to_p_1), lift_state(helper_invariants::object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq)), lift_state(helper_invariants::object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq))
+            );
+        } else if i == 7 {
+            helper_invariants::lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(spec, rabbitmq);
+            helper_invariants::lemma_eventually_always_object_in_etcd_satisfies_unchangeable_forall(spec, rabbitmq);
+            let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq));
+            leads_to_always_combine_n!(
+                spec, true_pred(),
+                lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)), tla_forall(a_to_p_1)
+            );
         }
     }
-    // assert_by(
-    //     invariants(rabbitmq).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
-    //     .entails(
-    //         true_pred().leads_to(always(current_state_matches(rabbitmq)))
-    //     ),
-    //     {
-    //         let spec = invariants(rabbitmq).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))));
-    //         unpack_conditions_from_spec(spec, invariants_since_phase_I(rabbitmq), true_pred(), always(current_state_matches(rabbitmq)));
-    //         temp_pred_equality(true_pred().and(invariants_since_phase_I(rabbitmq)), invariants_since_phase_I(rabbitmq));
-    //         leads_to_trans_temp(spec, true_pred(), invariants_since_phase_I(rabbitmq), always(current_state_matches(rabbitmq)));
-    //     }
-    // );
 }
 
 pub proof fn assumption_and_invariants_of_all_phases_is_stable(rabbitmq: RabbitmqClusterView)
     ensures
         valid(stable(assumption_and_invariants_of_all_phases(rabbitmq))),
+        valid(stable(invariants(rabbitmq))),
+        forall |i: nat|  1 <= i <= 8 ==> valid(stable(#[trigger] spec_before_phase_n(i, rabbitmq))),
 {
     invariants_is_stable(rabbitmq);
     always_p_is_stable(lift_state(RMQCluster::desired_state_is(rabbitmq)));
@@ -325,7 +302,8 @@ pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClus
         lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())),
         lift_state(RMQCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())),
         lift_state(RMQCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())),
-        tla_forall(a_to_p_4)
+        tla_forall(a_to_p_4),
+        tla_forall(a_to_p_5)
     );
 }
 
@@ -415,6 +393,7 @@ pub proof fn invariants_since_phase_v_is_stable(rabbitmq: RabbitmqClusterView)
 pub open spec fn invariants_since_phase_vi(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq))))
     .and(always(lift_state(helper_invariants::object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq))))
+    .and(always(lift_state(helper_invariants::object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq))))
 }
 
 pub proof fn invariants_since_phase_vi_is_stable(rabbitmq: RabbitmqClusterView)
@@ -422,7 +401,11 @@ pub proof fn invariants_since_phase_vi_is_stable(rabbitmq: RabbitmqClusterView)
         valid(stable(invariants_since_phase_vi(rabbitmq))),
 {
     let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq));
-    stable_and_always_n!(tla_forall(a_to_p_1), lift_state(helper_invariants::object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq)));
+    stable_and_always_n!(
+        tla_forall(a_to_p_1),
+        lift_state(helper_invariants::object_in_response_at_after_create_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq)),
+        lift_state(helper_invariants::object_in_response_at_after_update_resource_step_is_same_as_etcd(SubResource::ServerConfigMap, rabbitmq))
+    );
 }
 
 pub open spec fn invariants_since_phase_vii(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
@@ -438,7 +421,7 @@ pub proof fn invariants_since_phase_vii_is_stable(rabbitmq: RabbitmqClusterView)
     stable_and_always_n!(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)), tla_forall(a_to_p));
 }
 
-proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
+pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
     requires
         rabbitmq.well_formed(),
     ensures

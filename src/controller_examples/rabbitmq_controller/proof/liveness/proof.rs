@@ -28,6 +28,61 @@ use vstd::{prelude::*, string::*};
 
 verus! {
 
+// We prove init /\ []next /\ []wf |= []RMQCluster::desired_state_is(rabbitmq) ~> []current_state_matches(rabbitmq) holds for each rabbitmq.
+proof fn liveness_proof_forall_rabbitmq()
+    ensures
+        forall |rabbitmq: RabbitmqClusterView| rabbitmq.well_formed() ==> #[trigger] cluster_spec().entails(liveness(rabbitmq)),
+{
+    assert forall |rabbitmq: RabbitmqClusterView| rabbitmq.well_formed()
+    implies #[trigger] cluster_spec().entails(liveness(rabbitmq)) by {
+        liveness_proof(rabbitmq);
+    };
+}
+
+proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
+    requires
+        rabbitmq.well_formed(),
+    ensures
+        cluster_spec().entails(liveness(rabbitmq)),
+{
+    assumption_and_invariants_of_all_phases_is_stable(rabbitmq);
+    lemma_true_leads_to_always_current_state_matches(rabbitmq);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(7, rabbitmq);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(6, rabbitmq);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(5, rabbitmq);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(4, rabbitmq);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(3, rabbitmq);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(2, rabbitmq);
+    spec_before_phase_n_entails_true_leads_to_current_state_matches(1, rabbitmq);
+
+    let assumption = always(lift_state(RMQCluster::desired_state_is(rabbitmq)));
+    unpack_conditions_from_spec(invariants(rabbitmq), assumption, true_pred(), always(lift_state(current_state_matches(rabbitmq))));
+    temp_pred_equality(true_pred().and(assumption), assumption);
+
+    entails_trans(
+        cluster_spec().and(derived_invariants_since_beginning(rabbitmq)), invariants(rabbitmq),
+        always(lift_state(RMQCluster::desired_state_is(rabbitmq))).leads_to(always(lift_state(current_state_matches(rabbitmq))))
+    );
+    sm_spec_entails_all_invariants(rabbitmq);
+    simplify_predicate(cluster_spec(), derived_invariants_since_beginning(rabbitmq));
+}
+
+proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat, rabbitmq: RabbitmqClusterView)
+    requires
+        rabbitmq.well_formed(),
+        1 <= i <= 7,
+        valid(stable(spec_before_phase_n(i, rabbitmq))),
+        spec_before_phase_n(i + 1, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq)))))
+    ensures
+        spec_before_phase_n(i, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))),
+{
+    temp_pred_equality(spec_before_phase_n(i + 1, rabbitmq), spec_before_phase_n(i, rabbitmq).and(invariants_since_phase_n(i, rabbitmq)));
+    spec_of_previous_phases_entails_eventually_new_invariants(i, rabbitmq);
+    unpack_conditions_from_spec(spec_before_phase_n(i, rabbitmq), invariants_since_phase_n(i, rabbitmq), true_pred(), always(lift_state(current_state_matches(rabbitmq))));
+    temp_pred_equality(true_pred().and(invariants_since_phase_n(i, rabbitmq)), invariants_since_phase_n(i, rabbitmq));
+    leads_to_trans_temp(spec_before_phase_n(i, rabbitmq), true_pred(), invariants_since_phase_n(i, rabbitmq), always(lift_state(current_state_matches(rabbitmq))));
+}
+
 proof fn lemma_true_leads_to_always_current_state_matches(rabbitmq: RabbitmqClusterView)
     requires
         rabbitmq.well_formed(),
