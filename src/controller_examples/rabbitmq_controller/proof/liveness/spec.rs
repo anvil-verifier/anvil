@@ -62,7 +62,7 @@ pub open spec fn spec_before_phase_n(n: nat, rabbitmq: RabbitmqClusterView) -> T
 {
     if n == 1 {
         invariants(rabbitmq).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
-    } else if n <= 8 {
+    } else if 2 <= n <= 8 {
         spec_before_phase_n((n-1) as nat, rabbitmq).and(invariants_since_phase_n((n-1) as nat, rabbitmq))
     } else {
         true_pred()
