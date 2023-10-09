@@ -2687,18 +2687,16 @@ macro_rules! leads_to_always_combine_n_with_equality_internal {
 
 pub use leads_to_always_combine_n_with_equality;
 pub use leads_to_always_combine_n_with_equality_internal;
-use vstd::relations::total_ordering;
+use crate::vstd_ext::map_lib::lemma_values_finite;
 
-#[verifier(external_body)]
-pub proof fn leads_to_tla_forall_always<T, A>(spec: TempPred<T>, p: TempPred<T>, a_to_p: FnSpec(A)->TempPred<T>, a_to_always: FnSpec(A)->TempPred<T>, domain: Set<A>)
+pub proof fn leads_to_always_tla_forall<T, A>(spec: TempPred<T>, p: TempPred<T>, a_to_p: FnSpec(A)->TempPred<T>, domain: Set<A>)
     requires
-        forall |a: A| #![trigger a_to_always(a)] valid(a_to_always(a).equals((|a: A| always(a_to_p(a)))(a))),
         forall |a: A| spec.entails(p.leads_to(always(#[trigger] a_to_p(a)))),
         domain.finite(),
         domain.len() > 0,
         forall |a: A| #[trigger] domain.contains(a),
     ensures
-        spec.entails(p.leads_to(tla_forall(a_to_always))),
+        spec.entails(p.leads_to(always(tla_forall(a_to_p)))),
 {
     assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(always(tla_forall(a_to_p))).satisfied_by(ex) by {
         assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(always(tla_forall(a_to_p))).satisfied_by(ex.suffix(i)) by {
@@ -2713,18 +2711,27 @@ pub proof fn leads_to_tla_forall_always<T, A>(spec: TempPred<T>, p: TempPred<T>,
                 let wit = eventually_choose_witness::<T>(ex.suffix(i), always(a_to_p(a)));
                 wit
             });
-            let r = |a1: A, a2: A| a_to_witness[a1] <= a_to_witness[a2];
-            assume(total_ordering(r));
-            let max_a = domain.find_unique_maximal(r);
-            domain.find_unique_maximal_ensures(r);
-            domain.lemma_maximal_equivalent_greatest(r, max_a);
-            let max_witness = a_to_witness[max_a];
+            assert(a_to_witness.dom() =~= domain);
+            assert(a_to_witness.dom() == domain);
+            assert(a_to_witness.dom().finite());
+            assert(a_to_witness.dom().len() > 0);
+            let r = |a1: nat, a2: nat| a1 <= a2;
+            let values = a_to_witness.values();
+            lemma_values_finite(a_to_witness);
+            assert_by(
+                values.len() > 0, {
+                let x = a_to_witness.dom().choose();
+                assert(values.contains(a_to_witness[x]));
+            });
+            let max_witness = values.find_unique_maximal(r);
+            values.find_unique_maximal_ensures(r);
+            values.lemma_maximal_equivalent_greatest(r, max_witness);
 
             assert forall |a: A| always(#[trigger] a_to_p(a)).satisfied_by(ex.suffix(i).suffix(max_witness)) by {
                 assert(domain.contains(a));
-                assert(vstd::relations::is_greatest(r, max_a, domain));
-                assert(r(a, max_a));
+                assert(vstd::relations::is_greatest(r, max_witness, values));
                 let witness = a_to_witness[a];
+                assert(r(witness, max_witness));
                 assert(max_witness >= witness);
                 always_propagate_forwards::<T>(ex.suffix(i).suffix(witness), a_to_p(a), (max_witness - witness) as nat);
                 execution_equality::<T>(ex.suffix(i).suffix(max_witness), ex.suffix(i).suffix(witness).suffix((max_witness - witness) as nat));
@@ -2732,7 +2739,6 @@ pub proof fn leads_to_tla_forall_always<T, A>(spec: TempPred<T>, p: TempPred<T>,
             eventually_proved_by_witness(ex.suffix(i), always(tla_forall(a_to_p)), max_witness);
         };
     };
-    tla_forall_always_equality_variant::<T, A>(a_to_always, a_to_p);
 }
 
 /// Combine the conclusions of two leads_to if the conclusions are stable.

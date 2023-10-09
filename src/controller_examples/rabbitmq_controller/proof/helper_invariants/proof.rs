@@ -408,7 +408,7 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
         always_tla_forall_apply(spec, |res: SubResource|lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(res, rabbitmq)), sub_resource);
         lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(spec, sub_resource, rabbitmq);
     }
-    leads_to_tla_forall_always(spec, true_pred(), |sub_resource: SubResource| lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)));
+    leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(every_resource_update_request_implies_at_after_update_resource_step(sub_resource, rabbitmq)));
 }
 
 pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_after_update_resource_step(
@@ -536,7 +536,7 @@ pub proof fn lemma_eventually_always_object_in_every_resource_update_request_onl
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq))))) by {
         lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(spec, sub_resource, rabbitmq);
     }
-    leads_to_tla_forall_always(spec, true_pred(), |sub_resource: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq)));
+    leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(sub_resource, rabbitmq)));
 }
 
 pub proof fn lemma_eventually_always_object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(
@@ -626,7 +626,7 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
     assert forall |sub_resource: SubResource| spec.entails(true_pred().leads_to(always(lift_state(#[trigger] every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq))))) by {
         lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step(spec, sub_resource, rabbitmq);
     }
-    leads_to_tla_forall_always(spec, true_pred(), |sub_resource: SubResource| lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)));
+    leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)));
 }
 
 pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_after_create_resource_step(
@@ -1042,7 +1042,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
         always_tla_forall_apply(spec, |res: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(res, rabbitmq)), sub_resource);
         lemma_eventually_always_no_delete_resource_request_msg_in_flight(spec, sub_resource, rabbitmq);
     }
-    leads_to_tla_forall_always(spec, true_pred(), |sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)));
+    leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)));
 }
 
 /// This lemma demonstrates how to use kubernetes_cluster::proof::kubernetes_api_liveness::lemma_true_leads_to_always_every_in_flight_req_msg_satisfies
@@ -1140,7 +1140,7 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
         always_tla_forall_apply(spec, |res: SubResource|lift_state(object_in_every_resource_update_request_only_has_owner_references_pointing_to_current_cr(res, rabbitmq)), sub_resource);
         lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(spec, sub_resource, rabbitmq);
     }
-    leads_to_tla_forall_always(spec, true_pred(), |sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)));
+    leads_to_always_tla_forall_subresource(spec, true_pred(), |sub_resource: SubResource| lift_state(resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)));
 }
 
 pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_pointing_to_current_cr(
@@ -1181,18 +1181,17 @@ pub proof fn lemma_eventually_always_resource_object_only_has_owner_reference_po
     );
 }
 
-pub proof fn leads_to_tla_forall_always(spec: TempPred<RMQCluster>, p: TempPred<RMQCluster>, a_to_p: FnSpec(SubResource)->TempPred<RMQCluster>)
+pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<RMQCluster>, p: TempPred<RMQCluster>, a_to_p: FnSpec(SubResource)->TempPred<RMQCluster>)
     requires
         forall |a: SubResource| spec.entails(p.leads_to(always(#[trigger] a_to_p(a)))),
     ensures
         spec.entails(p.leads_to(always(tla_forall(a_to_p)))),
 {
-    leads_to_always_combine_n!(
-        spec, p,
-        a_to_p(SubResource::HeadlessService), a_to_p(SubResource::Service), a_to_p(SubResource::ErlangCookieSecret),
-        a_to_p(SubResource::DefaultUserSecret), a_to_p(SubResource::PluginsConfigMap), a_to_p(SubResource::ServerConfigMap),
-        a_to_p(SubResource::ServiceAccount), a_to_p(SubResource::Role), a_to_p(SubResource::RoleBinding),
-        a_to_p(SubResource::StatefulSet)
+    leads_to_always_tla_forall(
+        spec, p, a_to_p,
+        set![SubResource::HeadlessService, SubResource::Service, SubResource::ErlangCookieSecret, SubResource::DefaultUserSecret,
+        SubResource::PluginsConfigMap, SubResource::ServerConfigMap, SubResource::ServiceAccount, SubResource::Role,
+        SubResource::RoleBinding, SubResource::StatefulSet]
     );
 }
 
