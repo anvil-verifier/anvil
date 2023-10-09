@@ -47,6 +47,7 @@ proof fn liveness_proof(rabbitmq: RabbitmqClusterView)
 {
     assumption_and_invariants_of_all_phases_is_stable(rabbitmq);
     lemma_true_leads_to_always_current_state_matches(rabbitmq);
+    reveal_with_fuel(spec_before_phase_n, 8);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(7, rabbitmq);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(6, rabbitmq);
     spec_before_phase_n_entails_true_leads_to_current_state_matches(5, rabbitmq);
@@ -76,6 +77,7 @@ proof fn spec_before_phase_n_entails_true_leads_to_current_state_matches(i: nat,
     ensures
         spec_before_phase_n(i, rabbitmq).entails(true_pred().leads_to(always(lift_state(current_state_matches(rabbitmq))))),
 {
+    reveal_with_fuel(spec_before_phase_n, 8);
     temp_pred_equality(spec_before_phase_n(i + 1, rabbitmq), spec_before_phase_n(i, rabbitmq).and(invariants_since_phase_n(i, rabbitmq)));
     spec_of_previous_phases_entails_eventually_new_invariants(i, rabbitmq);
     unpack_conditions_from_spec(spec_before_phase_n(i, rabbitmq), invariants_since_phase_n(i, rabbitmq), true_pred(), always(lift_state(current_state_matches(rabbitmq))));
@@ -101,19 +103,17 @@ proof fn lemma_true_leads_to_always_current_state_matches(rabbitmq: RabbitmqClus
         lemma_resource_object_is_stable(spec, sub_resource, rabbitmq, true_pred());
     }
     lemma_true_leads_to_always_stateful_set_matches(rabbitmq);
-    leads_to_always_combine_n_with_equality!(
-        spec, true_pred(), lift_state(current_state_matches(rabbitmq)),
-        lift_state(sub_resource_state_matches(SubResource::HeadlessService, rabbitmq)),
-        lift_state(sub_resource_state_matches(SubResource::Service, rabbitmq)),
-        lift_state(sub_resource_state_matches(SubResource::ErlangCookieSecret, rabbitmq)),
-        lift_state(sub_resource_state_matches(SubResource::DefaultUserSecret, rabbitmq)),
-        lift_state(sub_resource_state_matches(SubResource::PluginsConfigMap, rabbitmq)),
-        lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)),
-        lift_state(sub_resource_state_matches(SubResource::ServiceAccount, rabbitmq)),
-        lift_state(sub_resource_state_matches(SubResource::Role, rabbitmq)),
-        lift_state(sub_resource_state_matches(SubResource::RoleBinding, rabbitmq)),
-        lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))
-    );
+    let a_to_p = |res: SubResource| lift_state(sub_resource_state_matches(res, rabbitmq));
+    helper_invariants::leads_to_always_tla_forall_subresource(spec, true_pred(), a_to_p);
+    assert forall |ex| #[trigger] tla_forall(a_to_p).satisfied_by(ex) implies lift_state(current_state_matches(rabbitmq)).satisfied_by(ex) by {
+        let s = ex.head();
+        assert forall |res: SubResource| #[trigger] resource_state_matches(res, rabbitmq, s.resources()) by {
+            tla_forall_apply(a_to_p, res);
+            assert(a_to_p(res).satisfied_by(ex));
+            assert(sub_resource_state_matches(res, rabbitmq)(s));
+        }
+    }
+    temp_pred_equality(tla_forall(|res: SubResource| lift_state(sub_resource_state_matches(res, rabbitmq))), lift_state(current_state_matches(rabbitmq)));
 }
 
 proof fn lemma_true_leads_to_always_stateful_set_matches(rabbitmq: RabbitmqClusterView)

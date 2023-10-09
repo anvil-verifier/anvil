@@ -2721,6 +2721,8 @@ pub proof fn leads_to_always_tla_forall<T, A>(spec: TempPred<T>, p: TempPred<T>,
             assert_by(
                 values.len() > 0, {
                 let x = a_to_witness.dom().choose();
+                assert(a_to_witness.contains_key(x));
+                assert(a_to_witness.contains_value(a_to_witness[x]));
                 assert(values.contains(a_to_witness[x]));
             });
             let max_witness = values.find_unique_maximal(r);

@@ -62,55 +62,8 @@ pub open spec fn spec_before_phase_n(n: nat, rabbitmq: RabbitmqClusterView) -> T
 {
     if n == 1 {
         invariants(rabbitmq).and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
-    } else if n == 2 {
-        invariants(rabbitmq)
-        .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
-        .and(invariants_since_phase_i(rabbitmq))
-    } else if n == 3 {
-        invariants(rabbitmq)
-        .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
-        .and(invariants_since_phase_i(rabbitmq))
-        .and(invariants_since_phase_ii(rabbitmq))
-    } else if n == 4 {
-        invariants(rabbitmq)
-        .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
-        .and(invariants_since_phase_i(rabbitmq))
-        .and(invariants_since_phase_ii(rabbitmq))
-        .and(invariants_since_phase_iii(rabbitmq))
-    } else if n == 5 {
-        invariants(rabbitmq)
-        .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
-        .and(invariants_since_phase_i(rabbitmq))
-        .and(invariants_since_phase_ii(rabbitmq))
-        .and(invariants_since_phase_iii(rabbitmq))
-        .and(invariants_since_phase_iv(rabbitmq))
-    } else if n == 6 {
-        invariants(rabbitmq)
-        .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
-        .and(invariants_since_phase_i(rabbitmq))
-        .and(invariants_since_phase_ii(rabbitmq))
-        .and(invariants_since_phase_iii(rabbitmq))
-        .and(invariants_since_phase_iv(rabbitmq))
-        .and(invariants_since_phase_v(rabbitmq))
-    } else if n == 7 {
-        invariants(rabbitmq)
-        .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
-        .and(invariants_since_phase_i(rabbitmq))
-        .and(invariants_since_phase_ii(rabbitmq))
-        .and(invariants_since_phase_iii(rabbitmq))
-        .and(invariants_since_phase_iv(rabbitmq))
-        .and(invariants_since_phase_v(rabbitmq))
-        .and(invariants_since_phase_vi(rabbitmq))
-    } else if n == 8 {
-        invariants(rabbitmq)
-        .and(always(lift_state(RMQCluster::desired_state_is(rabbitmq))))
-        .and(invariants_since_phase_i(rabbitmq))
-        .and(invariants_since_phase_ii(rabbitmq))
-        .and(invariants_since_phase_iii(rabbitmq))
-        .and(invariants_since_phase_iv(rabbitmq))
-        .and(invariants_since_phase_v(rabbitmq))
-        .and(invariants_since_phase_vi(rabbitmq))
-        .and(invariants_since_phase_vii(rabbitmq))
+    } else if n <= 8 {
+        spec_before_phase_n((n-1) as nat, rabbitmq).and(invariants_since_phase_n((n-1) as nat, rabbitmq))
     } else {
         true_pred()
     }
@@ -124,6 +77,7 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(i: nat, r
         spec_before_phase_n(i, rabbitmq).entails(true_pred().leads_to(invariants_since_phase_n(i, rabbitmq))),
 {
     let spec = spec_before_phase_n(i, rabbitmq);
+    reveal_with_fuel(spec_before_phase_n, 8);
     if i == 1 {
         RMQCluster::lemma_true_leads_to_crash_always_disabled(spec);
         RMQCluster::lemma_true_leads_to_busy_always_disabled(spec);
