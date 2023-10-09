@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::temporal_logic::defs::*;
+use crate::vstd_ext::map_lib::lemma_values_finite;
 use vstd::function::*;
 use vstd::prelude::*;
 
@@ -2687,7 +2688,6 @@ macro_rules! leads_to_always_combine_n_with_equality_internal {
 
 pub use leads_to_always_combine_n_with_equality;
 pub use leads_to_always_combine_n_with_equality_internal;
-use crate::vstd_ext::map_lib::lemma_values_finite;
 
 pub proof fn leads_to_always_tla_forall<T, A>(spec: TempPred<T>, p: TempPred<T>, a_to_p: FnSpec(A)->TempPred<T>, domain: Set<A>)
     requires
