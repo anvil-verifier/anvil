@@ -376,6 +376,7 @@ pub proof fn invariants_since_phase_vii_is_stable(rabbitmq: RabbitmqClusterView)
     stable_and_always_n!(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)), tla_forall(a_to_p));
 }
 
+#[verifier(spinoff_prover)]
 pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
     requires
         rabbitmq.well_formed(),
