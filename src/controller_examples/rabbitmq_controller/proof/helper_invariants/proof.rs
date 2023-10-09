@@ -536,6 +536,19 @@ pub proof fn lemma_eventually_always_every_resource_update_request_implies_at_af
                 let step = choose |step| RMQCluster::next_step(s, s_prime, step);
                 if !s.in_flight().contains(msg) {
                     lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
+                    let resp = step.get_ControllerStep_0().0.get_Some_0();
+                    assert(RMQCluster::is_ok_get_response_msg()(resp));
+                    assert(s.in_flight().contains(resp));
+                    assert(resp.content.get_get_response().res.get_Ok_0().metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version);
+                    if s.resources().contains_key(resource_key) && resp.content.get_get_response().res.get_Ok_0().metadata.resource_version == s.resources()[resource_key].metadata.resource_version {
+                        assert(resp.content.get_get_response().res.get_Ok_0() == s.resources()[resource_key]);
+                        assert(s_prime.resources()[resource_key] == s.resources()[resource_key]);
+                    }
+                    if sub_resource == SubResource::StatefulSet {
+                        let cm_key = get_request(SubResource::ServerConfigMap, rabbitmq).key;
+                        assert(s.resources()[cm_key] == s_prime.resources()[cm_key]);
+                        assert(s.ongoing_reconciles()[key].local_state.latest_config_map_rv_opt == s_prime.ongoing_reconciles()[key].local_state.latest_config_map_rv_opt)
+                    }
                 } else {
                     assert(requirements(msg, s));
                     assert(s.ongoing_reconciles()[key] == s_prime.ongoing_reconciles()[key]);
@@ -953,11 +966,13 @@ proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_eq
         resource_create_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         ==> step.is_ControllerStep() && step.get_ControllerStep_0().1.get_Some_0() == rabbitmq.object_ref()
             && at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
-            && at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime),
+            && at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, sub_resource))(s_prime)
+            && RMQCluster::pending_k8s_api_req_msg_is(s_prime, rabbitmq.object_ref(), msg),
         resource_update_request_msg(get_request(sub_resource, rabbitmq).key)(msg)
         ==> step.is_ControllerStep() && step.get_ControllerStep_0().1.get_Some_0() == rabbitmq.object_ref()
             && at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s)
-            && at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime),
+            && at_rabbitmq_step(rabbitmq.object_ref(), RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, sub_resource))(s_prime)
+            && RMQCluster::pending_k8s_api_req_msg_is(s_prime, rabbitmq.object_ref(), msg),
 {
     // Since we know that this step creates a create server config map message, it is easy to see that it's a controller action.
     // This action creates a config map, and there are two kinds of config maps, we have to show that only server config map
@@ -980,7 +995,7 @@ proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_eq
             assert(local_step_prime.get_AfterKRequestStep_0() == ActionKind::Update);
         }
         assert_by(
-            cr_key == rabbitmq.object_ref() && local_step.get_AfterKRequestStep_1() == sub_resource,
+            cr_key == rabbitmq.object_ref() && local_step.get_AfterKRequestStep_1() == sub_resource && RMQCluster::pending_k8s_api_req_msg_is(s_prime, cr_key, msg),
             {
                 // It's easy for the verifier to know that cr_key has the same kind and namespace as key.
                 match sub_resource {

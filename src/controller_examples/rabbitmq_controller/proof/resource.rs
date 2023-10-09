@@ -34,21 +34,6 @@ pub open spec fn get_request(sub_resource: SubResource, rabbitmq: RabbitmqCluste
     }
 }
 
-pub open spec fn get_key(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> ObjectRef {
-    match sub_resource {
-        SubResource::HeadlessService => make_headless_service_key(rabbitmq),
-        SubResource::Service => make_main_service_key(rabbitmq),
-        SubResource::ErlangCookieSecret => make_erlang_secret_key(rabbitmq),
-        SubResource::DefaultUserSecret => make_default_user_secret_key(rabbitmq),
-        SubResource::PluginsConfigMap => make_plugins_config_map_key(rabbitmq),
-        SubResource::ServerConfigMap => make_server_config_map_key(rabbitmq),
-        SubResource::ServiceAccount => make_service_account_key(rabbitmq),
-        SubResource::Role => make_role_key(rabbitmq),
-        SubResource::RoleBinding => make_role_binding_key(rabbitmq),
-        SubResource::StatefulSet => make_stateful_set_key(rabbitmq),
-    }
-}
-
 pub open spec fn make(sub_resource: SubResource, rabbitmq: RabbitmqClusterView, state: RabbitmqReconcileState) -> Result<DynamicObjectView, ()> {
     match sub_resource {
         SubResource::HeadlessService => HeadlessServiceBuilder::make(rabbitmq, state),
