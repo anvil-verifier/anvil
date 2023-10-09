@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::temporal_logic::defs::*;
-use crate::vstd_ext::map_lib::lemma_values_finite;
+use crate::vstd_ext::map_lib::*;
 use vstd::function::*;
 use vstd::prelude::*;
 
