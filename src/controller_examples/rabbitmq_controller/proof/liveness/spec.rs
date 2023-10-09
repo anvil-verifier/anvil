@@ -383,6 +383,8 @@ pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         cluster_spec().entails(derived_invariants_since_beginning(rabbitmq)),
 {
     let spec = cluster_spec();
+    assert(spec.entails(lift_state(RMQCluster::init())));
+    assert(spec.entails(always(lift_action(RMQCluster::next()))));
     RMQCluster::lemma_always_every_in_flight_msg_has_unique_id(spec);
     RMQCluster::lemma_always_every_in_flight_req_is_unique(spec);
     RMQCluster::lemma_always_every_in_flight_or_pending_req_msg_has_unique_id(spec);
@@ -419,11 +421,7 @@ pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
 
     let a_to_p_4 = |res: SubResource| lift_state(helper_invariants::response_at_after_get_resource_step_is_resource_get_response(res, rabbitmq));
     assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_4(sub_resource))) by {
-        if sub_resource != SubResource::DefaultUserSecret {
-            helper_invariants::lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec, sub_resource, rabbitmq);
-        } else {
-            helper_invariants::lemma_always_response_at_after_get_resource_step_is_resource_get_response_for_default_user_secret(spec, rabbitmq);
-        }
+        helper_invariants::lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec, sub_resource, rabbitmq);
     }
     spec_entails_always_tla_forall(spec, a_to_p_4);
 

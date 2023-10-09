@@ -238,8 +238,24 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
     assert forall |s: RMQCluster, s_prime: RMQCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
         if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Create, SubResource::ServerConfigMap))(s_prime) {
-            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some());
-            assert(resource_create_request_msg(resource_key)(pending_req));
+            let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+            match step {
+                Step::ControllerStep(input) => {
+                    let cr_key = input.1.get_Some_0();
+                    if cr_key == key {
+                        assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some());
+                        assert(resource_create_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
+                    } else {
+                        assert(s_prime.ongoing_reconciles()[key] == s.ongoing_reconciles()[key]);
+                    }
+                },
+                Step::RestartController() => {
+                    assert(false);
+                },
+                _ => {
+                    assert(s_prime.ongoing_reconciles()[key] == s.ongoing_reconciles()[key]);
+                }
+            }
             assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_create_response_msg(resource_key, s_prime)(msg) by {
                 assert(msg.src.is_KubernetesAPI());
                 assert(msg.content.is_create_response());
@@ -348,8 +364,24 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
     assert forall |s: RMQCluster, s_prime: RMQCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let pending_req = s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0();
         if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Update, SubResource::ServerConfigMap))(s_prime) {
-            assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some());
-            assert(resource_update_request_msg(resource_key)(pending_req));
+            let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+            match step {
+                Step::ControllerStep(input) => {
+                    let cr_key = input.1.get_Some_0();
+                    if cr_key == key {
+                        assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some());
+                        assert(resource_update_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
+                    } else {
+                        assert(s_prime.ongoing_reconciles()[key] == s.ongoing_reconciles()[key]);
+                    }
+                },
+                Step::RestartController() => {
+                    assert(false);
+                },
+                _ => {
+                    assert(s_prime.ongoing_reconciles()[key] == s.ongoing_reconciles()[key]);
+                }
+            }
             assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_update_response_msg(resource_key, s_prime)(msg) by {
                 assert(msg.src.is_KubernetesAPI());
                 assert(msg.content.is_update_response());
@@ -378,12 +410,12 @@ pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_re
     requires
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
-        sub_resource != SubResource::DefaultUserSecret,
     ensures
         spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)))),
 {
     let inv = response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq);
     let key = rabbitmq.object_ref();
+    let resource_key = get_request(sub_resource, rabbitmq).key;
     let next = |s, s_prime| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
@@ -397,33 +429,28 @@ pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_re
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         later(lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)))
     );
-    init_invariant(spec, RMQCluster::init(), next, inv);
-}
-
-pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_response_for_default_user_secret(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView
-)
-    requires
-        spec.entails(lift_state(RMQCluster::init())),
-        spec.entails(always(lift_action(RMQCluster::next()))),
-    ensures
-        spec.entails(always(lift_state(response_at_after_get_resource_step_is_resource_get_response(SubResource::DefaultUserSecret, rabbitmq)))),
-{
-    let inv = response_at_after_get_resource_step_is_resource_get_response(SubResource::DefaultUserSecret, rabbitmq);
-    let key = rabbitmq.object_ref();
-    let next = |s, s_prime| {
-        &&& RMQCluster::next()(s, s_prime)
-        &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
-        &&& RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)(s_prime)
-    };
-    RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
-    RMQCluster::lemma_always_key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(spec, key);
-    always_to_always_later(spec, lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)));
-    combine_spec_entails_always_n!(
-        spec, lift_action(next), lift_action(RMQCluster::next()),
-        lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
-        later(lift_state(RMQCluster::key_of_object_in_matched_ok_get_resp_message_is_same_as_key_of_pending_req(key)))
-    );
+    assert forall |s: RMQCluster, s_prime: RMQCluster| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
+        if at_rabbitmq_step(key, RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource))(s_prime) {
+            let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+            match step {
+                Step::ControllerStep(input) => {
+                    let cr_key = input.1.get_Some_0();
+                    if cr_key == key {
+                        assert(s_prime.ongoing_reconciles()[key].pending_req_msg.is_Some());
+                        assert(resource_get_request_msg(resource_key)(s_prime.ongoing_reconciles()[key].pending_req_msg.get_Some_0()));
+                    } else {
+                        assert(s_prime.ongoing_reconciles()[key] == s.ongoing_reconciles()[key]);
+                    }
+                },
+                Step::RestartController() => {
+                    assert(false);
+                },
+                _ => {
+                    assert(s_prime.ongoing_reconciles()[key] == s.ongoing_reconciles()[key]);
+                }
+            }
+        }
+    } 
     init_invariant(spec, RMQCluster::init(), next, inv);
 }
 
@@ -1154,6 +1181,7 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight_fo
 ///     as long as it is in flight.
 ///   + Call lemma_X. If a correct "requirements" are provided, we can easily prove the equivalence of every_in_flight_req_msg_satisfies(requirements)
 ///     and the original statepred.
+#[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
@@ -1187,10 +1215,35 @@ pub proof fn lemma_eventually_always_no_delete_resource_request_msg_in_flight(
     assert forall |s: RMQCluster, s_prime: RMQCluster| #[trigger] stronger_next(s, s_prime) implies RMQCluster::every_new_req_msg_if_in_flight_then_satisfies(requirements)(s, s_prime) by {
         assert forall |msg: RMQMessage| (!s.in_flight().contains(msg) || requirements(msg, s)) && #[trigger] s_prime.in_flight().contains(msg)
         implies requirements(msg, s_prime) by {
-            if s.resources().contains_key(resource_key) {
-                let owner_refs = s.resources()[resource_key].metadata.owner_references;
-                assert(owner_refs == Some(seq![rabbitmq.controller_owner_ref()]));
-                assert(owner_reference_to_object_reference(owner_refs.get_Some_0()[0], key.namespace) == key);
+            if s.in_flight().contains(msg) {
+                assert(requirements(msg, s));
+                assert(requirements(msg, s_prime));
+            } else {
+                let step = choose |step| RMQCluster::next_step(s, s_prime, step);
+                match step {
+                    Step::BuiltinControllersStep(_) => {
+                        if s.resources().contains_key(resource_key) {
+                            let owner_refs = s.resources()[resource_key].metadata.owner_references;
+                            assert(owner_refs == Some(seq![rabbitmq.controller_owner_ref()]));
+                            assert(owner_reference_to_object_reference(owner_refs.get_Some_0()[0], key.namespace) == key);
+                        }
+                    },
+                    Step::ControllerStep(input) => {
+                        let cr_key = input.1.get_Some_0();
+                        if s_prime.ongoing_reconciles()[cr_key].pending_req_msg.is_Some() {
+                            assert(msg == s_prime.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0());
+                            assert(!s_prime.ongoing_reconciles()[cr_key].pending_req_msg.get_Some_0().content.is_delete_request());
+                        }
+                    },
+                    Step::ClientStep() => {
+                        if msg.content.is_delete_request() {
+                            assert(msg.content.get_delete_request().key.kind != resource_key.kind);
+                        }
+                    },
+                    _ => {
+                        assert(requirements(msg, s_prime));
+                    }
+                }
             }
         }
     }
