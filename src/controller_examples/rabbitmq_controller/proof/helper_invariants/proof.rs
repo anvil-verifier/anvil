@@ -1004,7 +1004,7 @@ proof fn lemma_always_resource_object_create_or_update_request_msg_has_one_contr
 ///
 /// Tips: Talking about both s and s_prime give more information to those using this lemma and also makes the verification faster.
 #[verifier(spinoff_prover)]
-proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(
+pub proof fn lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(
     sub_resource: SubResource, rabbitmq: RabbitmqClusterView, s: RMQCluster, s_prime: RMQCluster, msg: RMQMessage, step: RMQStep
 )
     requires

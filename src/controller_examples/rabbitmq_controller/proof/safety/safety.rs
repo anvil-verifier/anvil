@@ -424,13 +424,13 @@ proof fn lemma_always_replicas_of_stateful_set_create_or_update_request_msg_sati
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s_prime)
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& RMQCluster::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(rabbitmq)(s)
-        &&& object_in_every_create_or_update_request_msg_only_has_valid_owner_references()(s)
+        &&& object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references()(s)
     };
     RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     always_to_always_later(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     RMQCluster::lemma_always_transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(spec, rabbitmq);
-    lemma_always_object_in_every_create_or_update_request_msg_only_has_valid_owner_references(spec);
+    lemma_always_object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references(spec);
     combine_spec_entails_always_n!(
         spec, lift_action(next),
         lift_action(RMQCluster::next()),
@@ -438,7 +438,7 @@ proof fn lemma_always_replicas_of_stateful_set_create_or_update_request_msg_sati
         later(lift_state(RMQCluster::each_object_in_etcd_is_well_formed())),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(rabbitmq)),
-        lift_state(object_in_every_create_or_update_request_msg_only_has_valid_owner_references())
+        lift_state(object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references())
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) implies (sts_create_request_msg(rabbitmq.object_ref())(msg)
@@ -464,7 +464,7 @@ proof fn replicas_of_stateful_set_create_request_msg_satisfies_order_induction(
         RMQCluster::each_object_in_etcd_is_well_formed()(s_prime),
         RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
         RMQCluster::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(rabbitmq)(s),
-        object_in_every_create_or_update_request_msg_only_has_valid_owner_references()(s),
+        object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references()(s),
         replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)(s),
         s_prime.in_flight().contains(msg),
         sts_create_request_msg(rabbitmq.object_ref())(msg),
@@ -529,7 +529,7 @@ proof fn replicas_of_stateful_set_update_request_msg_satisfies_order_induction(
         RMQCluster::each_object_in_etcd_is_well_formed()(s_prime),
         RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s),
         RMQCluster::transition_rule_applies_to_etcd_and_scheduled_and_triggering_cr(rabbitmq)(s),
-        object_in_every_create_or_update_request_msg_only_has_valid_owner_references()(s),
+        object_in_every_resource_create_or_update_request_msg_only_has_valid_owner_references()(s),
         replicas_of_stateful_set_create_or_update_request_msg_satisfies_order(rabbitmq)(s),
         s_prime.in_flight().contains(msg),
         sts_update_request_msg(rabbitmq.object_ref())(msg),
