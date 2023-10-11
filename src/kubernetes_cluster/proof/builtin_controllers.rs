@@ -46,7 +46,7 @@ pub open spec fn every_create_msg_sets_owner_references_as(
             && msg.dst.is_KubernetesAPI()
             && msg.content.is_create_request()
             && msg.content.get_create_request().namespace == key.namespace
-            && msg.content.get_create_request().obj.metadata.name.get_Some_0() == key.name
+            && msg.content.get_create_request().obj.metadata.name == Some(key.name)
             && msg.content.get_create_request().obj.kind == key.kind
             ==> requirements(msg.content.get_create_request().obj.metadata.owner_references)
     }

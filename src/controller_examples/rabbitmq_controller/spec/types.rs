@@ -143,6 +143,7 @@ impl ResourceView for RabbitmqClusterView {
         &&& self.spec.replicas >= old_obj.spec.replicas
         &&& self.spec.persistence.storage == old_obj.spec.persistence.storage
         &&& self.spec.persistence.storage_class_name == old_obj.spec.persistence.storage_class_name
+        &&& self.spec.pod_management_policy == old_obj.spec.pod_management_policy
     }
 
 }

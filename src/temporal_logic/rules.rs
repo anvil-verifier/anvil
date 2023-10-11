@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
 use crate::temporal_logic::defs::*;
+use crate::vstd_ext::map_lib::*;
 use vstd::function::*;
 use vstd::prelude::*;
 
@@ -784,6 +785,16 @@ pub proof fn tla_forall_apply<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, a: A)
     }
 }
 
+pub proof fn always_tla_forall_apply<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPred<T>, a: A)
+    requires
+        spec.entails(always(tla_forall(a_to_p))),
+    ensures
+        spec.entails(always(a_to_p(a))),
+{
+    implies_preserved_by_always_temp(tla_forall(a_to_p), a_to_p(a));
+    entails_trans(spec, always(tla_forall(a_to_p)), always(a_to_p(a)));
+}
+
 pub proof fn tla_forall_or_equality<T, A>(a_to_p: FnSpec(A) -> TempPred<T>, q: TempPred<T>)
     ensures
         tla_forall(|a: A| a_to_p(a).or(q)) == tla_forall(a_to_p).or(q),
@@ -880,6 +891,17 @@ pub proof fn tla_forall_always_implies_equality2<T, A>(p: TempPred<T>, a_to_q: F
 {
     tla_forall_always_equality_variant::<T, A>(|a: A| always(p.implies(a_to_q(a))), |a: A| p.implies(a_to_q(a)));
     tla_forall_implies_equality2::<T, A>(p, a_to_q);
+}
+
+pub proof fn spec_entails_always_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A)->TempPred<T>)
+    requires
+        forall |a: A| spec.entails(always(#[trigger] a_to_p(a))),
+    ensures
+        spec.entails(always(tla_forall(a_to_p))),
+{
+    let a_to_always = |a: A| always(a_to_p(a));
+    spec_entails_tla_forall(spec, a_to_always);
+    tla_forall_always_equality_variant::<T, A>(a_to_always, a_to_p);
 }
 
 pub proof fn spec_entails_tla_forall<T, A>(spec: TempPred<T>, a_to_p: FnSpec(A) -> TempPred<T>)
@@ -2666,6 +2688,72 @@ macro_rules! leads_to_always_combine_n_with_equality_internal {
 
 pub use leads_to_always_combine_n_with_equality;
 pub use leads_to_always_combine_n_with_equality_internal;
+
+/// Leads to []tla_forall(a_to_p) if forall a, it leads []a_to_p(a).
+/// pre:
+///     forall |a: A|, spec |= p ~> []a_to_p(a)
+///     forall |a: A|, a \in domain
+///     domain.is_finite() && domain.len() > 0
+/// post:
+///     spec |= []tla_forall(a_to_p)
+/// The domain set assist in showing type A contains finite elements.
+/// 
+/// This lemma is actually similar to leads_to_always_combine_n when the n predicates are all a_to_p(a) for some a.
+/// This is because tla_forall(a_to_p) == a_to_p(a1).and(a_to_p(a2))....and(a_to_p(an)), We only consider the case when
+/// type A is finite here.
+pub proof fn leads_to_always_tla_forall<T, A>(spec: TempPred<T>, p: TempPred<T>, a_to_p: FnSpec(A)->TempPred<T>, domain: Set<A>)
+    requires
+        forall |a: A| spec.entails(p.leads_to(always(#[trigger] a_to_p(a)))),
+        domain.finite(),
+        domain.len() > 0,
+        forall |a: A| #[trigger] domain.contains(a),
+    ensures
+        spec.entails(p.leads_to(always(tla_forall(a_to_p)))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(always(tla_forall(a_to_p))).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i)) implies eventually(always(tla_forall(a_to_p))).satisfied_by(ex.suffix(i)) by {
+            assert forall |a: A| p.leads_to(always(#[trigger] a_to_p(a))).satisfied_by(ex) by {
+                implies_apply::<T>(ex, spec, p.leads_to(always(a_to_p(a))));
+            }
+            assert forall |a: A| eventually(always(#[trigger] a_to_p(a))).satisfied_by(ex.suffix(i)) by {
+                implies_apply::<T>(ex.suffix(i), p, eventually(always(a_to_p(a))));
+            }
+
+            let a_to_witness = Map::new(|a: A| domain.contains(a), |a: A| {
+                let wit = eventually_choose_witness::<T>(ex.suffix(i), always(a_to_p(a)));
+                wit
+            });
+            assert(a_to_witness.dom() =~= domain);
+            assert(a_to_witness.dom() == domain);
+            assert(a_to_witness.dom().finite());
+            assert(a_to_witness.dom().len() > 0);
+            let r = |a1: nat, a2: nat| a1 <= a2;
+            let values = a_to_witness.values();
+            lemma_values_finite(a_to_witness);
+            assert_by(
+                values.len() > 0, {
+                let x = a_to_witness.dom().choose();
+                assert(a_to_witness.contains_key(x));
+                assert(a_to_witness.contains_value(a_to_witness[x]));
+                assert(values.contains(a_to_witness[x]));
+            });
+            let max_witness = values.find_unique_maximal(r);
+            values.find_unique_maximal_ensures(r);
+            values.lemma_maximal_equivalent_greatest(r, max_witness);
+
+            assert forall |a: A| always(#[trigger] a_to_p(a)).satisfied_by(ex.suffix(i).suffix(max_witness)) by {
+                assert(domain.contains(a));
+                assert(vstd::relations::is_greatest(r, max_witness, values));
+                let witness = a_to_witness[a];
+                assert(r(witness, max_witness));
+                assert(max_witness >= witness);
+                always_propagate_forwards::<T>(ex.suffix(i).suffix(witness), a_to_p(a), (max_witness - witness) as nat);
+                execution_equality::<T>(ex.suffix(i).suffix(max_witness), ex.suffix(i).suffix(witness).suffix((max_witness - witness) as nat));
+            }
+            eventually_proved_by_witness(ex.suffix(i), always(tla_forall(a_to_p)), max_witness);
+        };
+    };
+}
 
 /// Combine the conclusions of two leads_to if the conclusions are stable.
 /// pre:

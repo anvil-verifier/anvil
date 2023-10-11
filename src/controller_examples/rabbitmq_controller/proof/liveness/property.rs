@@ -23,7 +23,7 @@ use vstd::prelude::*;
 
 verus! {
 
-spec fn liveness(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster>
+pub open spec fn liveness(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster>
     recommends
         rabbitmq.well_formed(),
 {

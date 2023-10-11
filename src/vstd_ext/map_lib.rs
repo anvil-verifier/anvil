@@ -1,7 +1,7 @@
 // Copyright 2022 VMware, Inc.
 // SPDX-License-Identifier: MIT
 #![allow(unused_imports)]
-use vstd::{map_lib::*, prelude::*, seq_lib::*};
+use vstd::{map_lib::*, prelude::*, seq_lib::*, set_lib::*, set::*};
 
 verus! {
 
@@ -24,5 +24,38 @@ pub proof fn union_prefer_right_self_changes_nothing<K, V>()
         forall |map: Map<K, V>|
             map.union_prefer_right(map) =~= map,
 {}
+
+// TODO: We will use the Verus native lemma_values_finite once we update to the most recent Verus.
+pub proof fn lemma_values_finite<K, V>(m: Map<K, V>)
+    requires m.dom().finite(),
+    ensures m.values().finite(),
+    decreases m.len(),
+{
+    if m.len() > 0 {
+        let k = m.dom().choose();
+        let v = m[k];
+        let m1 = m.remove(k);
+        assert(m.contains_key(k));
+        assert(m.contains_value(v));
+        assert_sets_equal!(m.values() == m1.values().insert(v), v0 => {
+            if m.values().contains(v0) {
+                assert(m1.values().insert(v).contains(v0));
+            }
+            if m1.values().insert(v).contains(v0) {
+                if v0 == v {
+                    assert(m.contains_value(v));
+                    assert(m.values().contains(v0));
+                } else {
+                    assert(m.values().contains(v0));
+                }
+            }
+        });
+        assert(m1.len() < m.len());
+        lemma_values_finite(m1);
+        axiom_set_insert_finite(m1.values(), v);
+    } else {
+        assert(m.values() =~= Set::<V>::empty());
+    }
+}
 
 }

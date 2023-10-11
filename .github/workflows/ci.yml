@@ -36,7 +36,7 @@ jobs:
       - name: Build fluent controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh fluent_controller.rs --rlimit 30 --time
       - name: Build rabbitmq controller
-        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh rabbitmq_controller.rs --rlimit 30 --time
+        run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh rabbitmq_controller.rs --rlimit 50 --time
       - name: Build simple controller
         run: VERUS_DIR="$(dirname "${PWD}")/verus" ./build.sh simple_controller.rs --rlimit 30 --time
       - name: Build zookeeper controller
