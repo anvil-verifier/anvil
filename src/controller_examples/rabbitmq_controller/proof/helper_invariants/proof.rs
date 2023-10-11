@@ -255,7 +255,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_create_resource
                         _ => {
                             assert(s_prime.ongoing_reconciles()[key] == s.ongoing_reconciles()[key]);
                         }
-                    } 
+                    }
                 }
             );
             assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_create_response_msg(resource_key, s_prime)(msg) by {
@@ -391,7 +391,7 @@ pub proof fn lemma_eventually_always_object_in_response_at_after_update_resource
                     }
                 }
             );
-            
+
             assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && Message::resp_msg_matches_req_msg(msg, pending_req) implies resource_update_response_msg(resource_key, s_prime)(msg) by {
                 assert(msg.src.is_KubernetesAPI());
                 assert(msg.content.is_update_response());
@@ -461,7 +461,7 @@ pub proof fn lemma_always_response_at_after_get_resource_step_is_resource_get_re
                 }
             }
         }
-    } 
+    }
     init_invariant(spec, RMQCluster::init(), next, inv);
 }
 
@@ -805,7 +805,6 @@ pub proof fn lemma_eventually_always_every_resource_create_request_implies_at_af
 }
 
 #[verifier(spinoff_prover)]
-#[verifier(external_body)]
 pub proof fn lemma_always_no_update_status_request_msg_in_flight_of(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
@@ -816,47 +815,61 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of(
     ensures
         spec.entails(always(lift_state(no_update_status_request_msg_in_flight_of(sub_resource, rabbitmq)))),
 {
+    RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     let inv = no_update_status_request_msg_in_flight_of(sub_resource, rabbitmq);
+    let stronger_next = |s: RMQCluster, s_prime: RMQCluster| {
+        &&& RMQCluster::next()(s, s_prime)
+        &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
+    };
+    combine_spec_entails_always_n!(
+        spec, lift_action(stronger_next),
+        lift_action(RMQCluster::next()),
+        lift_state(RMQCluster::each_object_in_etcd_is_well_formed())
+    );
+
     let resource_key = get_request(sub_resource, rabbitmq).key;
-    assert forall |s, s_prime: RMQCluster| inv(s) && #[trigger] RMQCluster::next()(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.content.is_update_status_request()
-        implies msg.content.get_update_status_request().key() != resource_key by {
-            if s.in_flight().contains(msg) {
-                assert(msg.content.get_update_status_request().key() != resource_key);
-            } else {
-                let step = choose |step: RMQStep| RMQCluster::next_step(s, s_prime, step);
-                match step {
-                    Step::ControllerStep(_) => {
-                        assert(!msg.content.is_update_status_request());
-                        assert(false);
-                    },
-                    Step::KubernetesAPIStep(_) => {
-                        assert(!msg.content.is_APIRequest());
-                        assert(!msg.content.is_update_status_request());
-                        assert(false);
-                    },
-                    Step::ClientStep() => {
-                        assert(!msg.content.is_update_status_request());
-                        assert(false);
-                    },
-                    Step::BuiltinControllersStep(_) => {
-                        assert(!msg.content.is_update_status_request());
-                        assert(false);
-                    },
-                    Step::FailTransientlyStep(_) => {
-                        assert(!msg.content.is_APIRequest());
-                        assert(!msg.content.is_update_status_request());
-                        assert(false);
-                    },
-                    _ => {
-                        assert(!s_prime.in_flight().contains(msg));
-                        assert(false);
+    assert forall |s, s_prime: RMQCluster| inv(s) && #[trigger] stronger_next(s, s_prime) implies inv(s_prime) by {
+        if sub_resource != SubResource::StatefulSet {
+            assert forall |msg: RMQMessage| #[trigger] s_prime.in_flight().contains(msg) && msg.content.is_update_status_request()
+            implies msg.content.get_update_status_request().key() != resource_key by {
+                if s.in_flight().contains(msg) {
+                    assert(msg.content.get_update_status_request().key() != resource_key);
+                } else {
+                    let step = choose |step: RMQStep| RMQCluster::next_step(s, s_prime, step);
+                    match step {
+                        Step::ControllerStep(_) => {
+                            assert(!msg.content.is_update_status_request());
+                            assert(false);
+                        },
+                        Step::KubernetesAPIStep(_) => {
+                            assert(!msg.content.is_APIRequest());
+                            assert(!msg.content.is_update_status_request());
+                            assert(false);
+                        },
+                        Step::ClientStep() => {
+                            assert(!msg.content.is_update_status_request());
+                            assert(false);
+                        },
+                        Step::BuiltinControllersStep(_) => {
+                            assert(msg.content.get_update_status_request().key().kind == Kind::StatefulSetKind
+                                || msg.content.get_update_status_request().key().kind == Kind::DaemonSetKind);
+                            assert(msg.content.get_update_status_request().key() != resource_key);
+                        },
+                        Step::FailTransientlyStep(_) => {
+                            assert(!msg.content.is_APIRequest());
+                            assert(!msg.content.is_update_status_request());
+                            assert(false);
+                        },
+                        _ => {
+                            assert(!s_prime.in_flight().contains(msg));
+                            assert(false);
+                        }
                     }
                 }
             }
         }
     }
-    init_invariant(spec, RMQCluster::init(), RMQCluster::next(), inv);
+    init_invariant(spec, RMQCluster::init(), stronger_next, inv);
 }
 
 spec fn make_owner_references_with_name_and_uid(name: StringView, uid: Uid) -> OwnerReferenceView {

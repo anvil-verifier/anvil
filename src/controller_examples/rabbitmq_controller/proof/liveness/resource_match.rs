@@ -42,6 +42,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
 )
     requires
         rabbitmq.well_formed(),
+        sub_resource != SubResource::StatefulSet,
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
@@ -295,6 +296,7 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
 )
     requires
         rabbitmq.well_formed(),
+        sub_resource != SubResource::StatefulSet,
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
@@ -750,6 +752,7 @@ proof fn lemma_from_key_exists_to_receives_ok_resp_at_after_get_resource_step(
 )
     requires
         rabbitmq.well_formed(),
+        sub_resource != SubResource::StatefulSet,
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
@@ -828,6 +831,7 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
 )
     requires
         rabbitmq.well_formed(),
+        sub_resource != SubResource::StatefulSet,
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
@@ -923,6 +927,8 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage
 )
     requires
+        rabbitmq.well_formed(),
+        sub_resource != SubResource::StatefulSet,
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
@@ -939,7 +945,6 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)))),
-        rabbitmq.well_formed(),
     ensures
         spec.entails(
             lift_state(resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(sub_resource, rabbitmq, resp_msg))
@@ -996,6 +1001,7 @@ pub proof fn lemma_resource_object_is_stable(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView, p: TempPred<RMQCluster>
 )
     requires
+        sub_resource != SubResource::StatefulSet,
         spec.entails(p.leads_to(lift_state(sub_resource_state_matches(sub_resource, rabbitmq)))),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)))),
@@ -1003,7 +1009,6 @@ pub proof fn lemma_resource_object_is_stable(
         spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))),
-        sub_resource != SubResource::StatefulSet,
     ensures
         spec.entails(p.leads_to(always(lift_state(sub_resource_state_matches(sub_resource, rabbitmq))))),
 {
@@ -1040,50 +1045,6 @@ pub proof fn lemma_resource_object_is_stable(
             SubResource::RoleBinding => RoleBindingView::marshal_preserves_integrity(),
             _ => {}
         }
-    }
-
-    leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));
-}
-
-pub proof fn lemma_stateful_set_is_stable(
-    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, p: TempPred<RMQCluster>
-)
-    requires
-        spec.entails(p.leads_to(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)))),
-        spec.entails(always(lift_action(RMQCluster::next()))),
-        spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(SubResource::StatefulSet, rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::StatefulSet, rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))),
-        spec.entails(always(lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)))),
-    ensures
-        spec.entails(p.leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))),
-{
-    let post = sub_resource_state_matches(SubResource::StatefulSet, rabbitmq);
-    let resource_key = get_request(SubResource::StatefulSet, rabbitmq).key;
-    let stronger_next = |s, s_prime: RMQCluster| {
-        &&& RMQCluster::next()(s, s_prime)
-        &&& helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, rabbitmq)(s)
-        &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)(s)
-        &&& helper_invariants::no_update_status_request_msg_in_flight_of(SubResource::StatefulSet, rabbitmq)(s)
-        &&& helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::StatefulSet, rabbitmq)(s)
-        &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)(s)
-        &&& helper_invariants::cm_rv_stays_unchanged(rabbitmq)(s, s_prime)
-    };
-    combine_spec_entails_always_n!(
-        spec, lift_action(stronger_next),
-        lift_action(RMQCluster::next()),
-        lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, rabbitmq)),
-        lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)),
-        lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(SubResource::StatefulSet, rabbitmq)),
-        lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::StatefulSet, rabbitmq)),
-        lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)),
-        lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq))
-    );
-
-    assert forall |s, s_prime: RMQCluster| post(s) && #[trigger] stronger_next(s, s_prime) implies post(s_prime) by {
-        StatefulSetView::marshal_preserves_integrity();
     }
 
     leads_to_stable_temp(spec, lift_action(stronger_next), p, lift_state(post));
