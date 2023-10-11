@@ -104,14 +104,6 @@ proof fn lemma_true_leads_to_always_current_state_matches(rabbitmq: RabbitmqClus
         ),
 {
     let spec = assumption_and_invariants_of_all_phases(rabbitmq);
-    // lemma_true_leads_to_state_matches_for_all_resources(rabbitmq);
-    // assert forall |sub_resource: SubResource| sub_resource != SubResource::StatefulSet implies spec.entails(
-    //     true_pred().leads_to(always(lift_state(#[trigger] sub_resource_state_matches(sub_resource, rabbitmq))))
-    // ) by {
-    //     always_tla_forall_apply_for_sub_resource(spec, sub_resource, rabbitmq);
-    //     lemma_resource_object_is_stable(spec, sub_resource, rabbitmq, true_pred());
-    // }
-    // lemma_true_leads_to_always_stateful_set_matches(rabbitmq);
     lemma_true_leads_to_always_state_matches_for_all_resources(rabbitmq);
     let a_to_p = |res: SubResource| lift_state(sub_resource_state_matches(res, rabbitmq));
     helper_invariants::leads_to_always_tla_forall_subresource(spec, true_pred(), a_to_p);
