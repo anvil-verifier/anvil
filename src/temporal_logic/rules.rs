@@ -2689,6 +2689,18 @@ macro_rules! leads_to_always_combine_n_with_equality_internal {
 pub use leads_to_always_combine_n_with_equality;
 pub use leads_to_always_combine_n_with_equality_internal;
 
+/// Leads to []tla_forall(a_to_p) if forall a, it leads []a_to_p(a).
+/// pre:
+///     forall |a: A|, spec |= p ~> []a_to_p(a)
+///     forall |a: A|, a \in domain
+///     domain.is_finite() && domain.len() > 0
+/// post:
+///     spec |= []tla_forall(a_to_p)
+/// The domain set assist in showing type A contains finite elements.
+/// 
+/// This lemma is actually similar to leads_to_always_combine_n when the n predicates are all a_to_p(a) for some a.
+/// This is because tla_forall(a_to_p) == a_to_p(a1).and(a_to_p(a2))....and(a_to_p(an)), We only consider the case when
+/// type A is finite here.
 pub proof fn leads_to_always_tla_forall<T, A>(spec: TempPred<T>, p: TempPred<T>, a_to_p: FnSpec(A)->TempPred<T>, domain: Set<A>)
     requires
         forall |a: A| spec.entails(p.leads_to(always(#[trigger] a_to_p(a)))),

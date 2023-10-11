@@ -25,6 +25,7 @@ pub proof fn union_prefer_right_self_changes_nothing<K, V>()
             map.union_prefer_right(map) =~= map,
 {}
 
+// TODO: We will use the Verus native lemma_values_finite once we update to the most recent Verus.
 pub proof fn lemma_values_finite<K, V>(m: Map<K, V>)
     requires m.dom().finite(),
     ensures m.values().finite(),
