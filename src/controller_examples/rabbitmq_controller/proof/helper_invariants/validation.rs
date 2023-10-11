@@ -28,7 +28,7 @@ use vstd::{multiset::*, prelude::*, string::*};
 
 verus! {
 
-pub open spec fn stateful_set_satisfies_unchangeable(obj: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
+pub open spec fn certain_fields_of_stateful_set_stay_unchanged(obj: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
     let made_spec = make_stateful_set(rabbitmq, new_strlit("")@).spec.get_Some_0();
     let sts = StatefulSetView::unmarshal(obj).get_Ok_0();
 
@@ -46,7 +46,7 @@ pub open spec fn stateful_set_in_etcd_satisfies_unchangeable(rabbitmq: RabbitmqC
     |s: RMQCluster| {
         s.resources().contains_key(key)
         && s.resources().contains_key(sts_key)
-        ==> stateful_set_satisfies_unchangeable(s.resources()[sts_key], RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0())
+        ==> certain_fields_of_stateful_set_stay_unchanged(s.resources()[sts_key], RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0())
     }
 }
 
@@ -101,15 +101,15 @@ pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: Temp
                     assert(RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()
                         .transition_validation(RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0()));
                 }
-                assert(stateful_set_satisfies_unchangeable(s_prime.resources()[sts_key], RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
+                assert(certain_fields_of_stateful_set_stay_unchanged(s_prime.resources()[sts_key], RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
             } else if s.resources().contains_key(sts_key) && s.resources()[sts_key] != s_prime.resources()[sts_key] {
                 assert(StatefulSetView::unmarshal(s_prime.resources()[key]).get_Ok_0()
                     .transition_validation(StatefulSetView::unmarshal(s.resources()[key]).get_Ok_0()));
                 assert(s_prime.resources()[sts_key].metadata.owner_references == s.resources()[sts_key].metadata.owner_references);
-                assert(stateful_set_satisfies_unchangeable(s_prime.resources()[sts_key], RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
+                assert(certain_fields_of_stateful_set_stay_unchanged(s_prime.resources()[sts_key], RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
             } else {
                 assert(stateful_set_in_create_request_msg_satisfies_unchangeable(rabbitmq)(s));
-                assert(stateful_set_satisfies_unchangeable(s_prime.resources()[sts_key], RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
+                assert(certain_fields_of_stateful_set_stay_unchanged(s_prime.resources()[sts_key], RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
             }
         }
     }
@@ -255,7 +255,7 @@ pub open spec fn stateful_set_in_create_request_msg_satisfies_unchangeable(rabbi
             #[trigger] s.in_flight().contains(msg)
             && s.resources().contains_key(key)
             && resource_create_request_msg(sts_key)(msg)
-            ==> stateful_set_satisfies_unchangeable(msg.content.get_create_request().obj, RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0())
+            ==> certain_fields_of_stateful_set_stay_unchanged(msg.content.get_create_request().obj, RabbitmqClusterView::unmarshal(s.resources()[key]).get_Ok_0())
     }
 }
 
@@ -295,7 +295,7 @@ proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(
         let key = rabbitmq.object_ref();
         let sts_key = make_stateful_set_key(rabbitmq);
         assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && s_prime.resources().contains_key(key) && resource_create_request_msg(sts_key)(msg)
-        implies stateful_set_satisfies_unchangeable(msg.content.get_create_request().obj, RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()) by {
+        implies certain_fields_of_stateful_set_stay_unchanged(msg.content.get_create_request().obj, RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()) by {
             let step = choose |step| RMQCluster::next_step(s, s_prime, step);
             match step {
                 Step::KubernetesAPIStep(input) => {
@@ -311,7 +311,7 @@ proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(
                         assert(owner_refs.is_Some() && owner_refs.get_Some_0().len() == 1);
                         assert(owner_refs.get_Some_0()[0].uid != s.kubernetes_api_state.uid_counter);
                         assert(owner_refs.get_Some_0()[0] != RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0().controller_owner_ref());
-                        assert(stateful_set_satisfies_unchangeable(msg.content.get_create_request().obj, RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
+                        assert(certain_fields_of_stateful_set_stay_unchanged(msg.content.get_create_request().obj, RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
                     }
                 },
                 Step::ControllerStep(input) => {
@@ -322,15 +322,15 @@ proof fn lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(
                         let triggering_cr = s.ongoing_reconciles()[key].triggering_cr;
                         let etcd_cr = RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0();
                         assert(msg.content.get_create_request().obj.metadata.owner_references_only_contains(triggering_cr.controller_owner_ref()));
-                        assert(stateful_set_satisfies_unchangeable(msg.content.get_create_request().obj, triggering_cr));
+                        assert(certain_fields_of_stateful_set_stay_unchanged(msg.content.get_create_request().obj, triggering_cr));
                         if triggering_cr.metadata.uid.is_None() || triggering_cr.metadata.uid.get_Some_0() != etcd_cr.metadata.uid.get_Some_0() {
                             assert(!msg.content.get_create_request().obj.metadata.owner_references_only_contains(etcd_cr.controller_owner_ref()));
                         } else {
                             assert(etcd_cr.transition_validation(triggering_cr));
                         }
-                        assert(stateful_set_satisfies_unchangeable(msg.content.get_create_request().obj, RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
+                        assert(certain_fields_of_stateful_set_stay_unchanged(msg.content.get_create_request().obj, RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
                     }
-                    assert(stateful_set_satisfies_unchangeable(msg.content.get_create_request().obj, RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
+                    assert(certain_fields_of_stateful_set_stay_unchanged(msg.content.get_create_request().obj, RabbitmqClusterView::unmarshal(s_prime.resources()[key]).get_Ok_0()));
                 },
                 Step::BuiltinControllersStep(_) => {
                     assert(s.in_flight().contains(msg));
