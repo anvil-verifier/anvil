@@ -603,7 +603,7 @@ pub proof fn lemma_stateful_set_is_stable(
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(always(lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)))),
-        spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(SubResource::StatefulSet, rabbitmq)))),
+        // spec.entails(always(lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(SubResource::StatefulSet, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::StatefulSet, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))),
         spec.entails(always(lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)))),
@@ -616,7 +616,7 @@ pub proof fn lemma_stateful_set_is_stable(
         &&& RMQCluster::next()(s, s_prime)
         &&& helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, rabbitmq)(s)
         &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)(s)
-        &&& helper_invariants::no_update_status_request_msg_in_flight_of(SubResource::StatefulSet, rabbitmq)(s)
+        // &&& helper_invariants::no_update_status_request_msg_in_flight_of(SubResource::StatefulSet, rabbitmq)(s)
         &&& helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::StatefulSet, rabbitmq)(s)
         &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)(s)
         &&& helper_invariants::cm_rv_stays_unchanged(rabbitmq)(s, s_prime)
@@ -626,7 +626,7 @@ pub proof fn lemma_stateful_set_is_stable(
         lift_action(RMQCluster::next()),
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::StatefulSet, rabbitmq)),
         lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::StatefulSet, rabbitmq)),
-        lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(SubResource::StatefulSet, rabbitmq)),
+        // lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(SubResource::StatefulSet, rabbitmq)),
         lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::StatefulSet, rabbitmq)),
         lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)),
         lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq))
