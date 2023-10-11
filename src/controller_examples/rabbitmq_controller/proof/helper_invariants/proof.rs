@@ -76,12 +76,6 @@ pub proof fn lemma_always_the_object_in_reconcile_satisfies_state_validation(spe
     init_invariant(spec, RMQCluster::init(), stronger_next, inv);
 }
 
-#[verifier(external_body)]
-pub proof fn lemma_eventually_always_object_in_etcd_satisfies_unchangeable_forall(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
-    ensures
-        spec.entails(true_pred().leads_to(always(tla_forall(|sub_resource: SubResource| lift_state(object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))))),
-{}
-
 pub proof fn lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         rabbitmq.well_formed(),

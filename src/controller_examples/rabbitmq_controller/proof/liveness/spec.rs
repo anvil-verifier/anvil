@@ -116,12 +116,6 @@ pub proof fn spec_of_previous_phases_entails_eventually_new_invariants(i: nat, r
             );
         } else if i == 7 {
             helper_invariants::lemma_eventually_always_cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated_forall(spec, rabbitmq);
-            helper_invariants::lemma_eventually_always_object_in_etcd_satisfies_unchangeable_forall(spec, rabbitmq);
-            let a_to_p_1 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq));
-            leads_to_always_combine_n!(
-                spec, true_pred(),
-                lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)), tla_forall(a_to_p_1)
-            );
         }
     }
 }
@@ -227,6 +221,8 @@ pub open spec fn derived_invariants_since_beginning(rabbitmq: RabbitmqClusterVie
     .and(always(lift_state(RMQCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref()))))
     .and(always(tla_forall(|res: SubResource| lift_state(helper_invariants::response_at_after_get_resource_step_is_resource_get_response(res, rabbitmq)))))
     .and(always(tla_forall(|res: SubResource| lift_state(RMQCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, rabbitmq).key)))))
+    .and(always(lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq))))
+    .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))))
 }
 
 pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClusterView)
@@ -238,6 +234,7 @@ pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClus
     let a_to_p_3 = |res: SubResource| lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(res, rabbitmq));
     let a_to_p_4 = |res: SubResource| lift_state(helper_invariants::response_at_after_get_resource_step_is_resource_get_response(res, rabbitmq));
     let a_to_p_5 = |res: SubResource| lift_state(RMQCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(get_request(res, rabbitmq).key));
+    let a_to_p_6 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq));
     stable_and_always_n!(
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
         lift_state(RMQCluster::every_in_flight_req_is_unique()),
@@ -258,7 +255,9 @@ pub proof fn derived_invariants_since_beginning_is_stable(rabbitmq: RabbitmqClus
         lift_state(RMQCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())),
         lift_state(RMQCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())),
         tla_forall(a_to_p_4),
-        tla_forall(a_to_p_5)
+        tla_forall(a_to_p_5),
+        lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)),
+        tla_forall(a_to_p_6)
     );
 }
 
@@ -365,15 +364,13 @@ pub proof fn invariants_since_phase_vi_is_stable(rabbitmq: RabbitmqClusterView)
 
 pub open spec fn invariants_since_phase_vii(rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> {
     always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))
-    .and(always(tla_forall(|sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))))
 }
 
 pub proof fn invariants_since_phase_vii_is_stable(rabbitmq: RabbitmqClusterView)
     ensures
         valid(stable(invariants_since_phase_vii(rabbitmq))),
 {
-    let a_to_p = |sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq));
-    stable_and_always_n!(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)), tla_forall(a_to_p));
+    always_p_is_stable(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)));
 }
 
 #[verifier(spinoff_prover)]
@@ -434,6 +431,14 @@ pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
     }
     spec_entails_always_tla_forall(spec, a_to_p_5);
 
+    helper_invariants::lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec, rabbitmq);
+
+    let a_to_p_6 = |sub_resource: SubResource| lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq));
+    assert forall |sub_resource: SubResource| spec.entails(always(#[trigger] a_to_p_6(sub_resource))) by {
+        helper_invariants::lemma_always_object_in_etcd_satisfies_unchangeable(spec, sub_resource, rabbitmq);
+    }
+    spec_entails_always_tla_forall(spec, a_to_p_6);
+
     entails_always_and_n!(
         spec,
         lift_state(RMQCluster::every_in_flight_msg_has_unique_id()),
@@ -455,7 +460,9 @@ pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         lift_state(RMQCluster::key_of_object_in_matched_ok_create_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())),
         lift_state(RMQCluster::key_of_object_in_matched_ok_update_resp_message_is_same_as_key_of_pending_req(rabbitmq.object_ref())),
         tla_forall(a_to_p_4),
-        tla_forall(a_to_p_5)
+        tla_forall(a_to_p_5),
+        lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)),
+        tla_forall(a_to_p_6)
     );
 }
 

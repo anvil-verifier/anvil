@@ -50,7 +50,7 @@ pub open spec fn stateful_set_in_etcd_satisfies_unchangeable(rabbitmq: RabbitmqC
     }
 }
 
-proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         rabbitmq.well_formed(),
         spec.entails(lift_state(RMQCluster::init())),
@@ -67,21 +67,21 @@ proof fn lemma_always_stateful_set_in_etcd_satisfies_unchangeable(spec: TempPred
         &&& every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sts_res, rabbitmq)(s)
         &&& stateful_set_in_create_request_msg_satisfies_unchangeable(rabbitmq)(s)
         &&& stateful_set_update_request_msg_does_not_change_owner_reference(rabbitmq)(s)
-        &&& object_in_stateful_set_update_request_has_smaller_rv_than_etcd(rabbitmq)(s)
+        &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, rabbitmq)(s)
     };
     RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     always_to_always_later(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
     lemma_always_every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(spec, sts_res, rabbitmq);
     lemma_always_stateful_set_in_create_request_msg_satisfies_unchangeable(spec, rabbitmq);
     lemma_always_stateful_set_update_request_msg_does_not_change_owner_reference(spec, rabbitmq);
-    lemma_always_object_in_stateful_set_update_request_has_smaller_rv_than_etcd(spec, rabbitmq);
+    lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(spec, sts_res, rabbitmq);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(RMQCluster::next()), lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         later(lift_state(RMQCluster::each_object_in_etcd_is_well_formed())),
         lift_state(every_owner_ref_of_every_object_in_etcd_has_different_uid_from_uid_counter(sts_res, rabbitmq)),
         lift_state(stateful_set_in_create_request_msg_satisfies_unchangeable(rabbitmq)),
         lift_state(stateful_set_update_request_msg_does_not_change_owner_reference(rabbitmq)),
-        lift_state(object_in_stateful_set_update_request_has_smaller_rv_than_etcd(rabbitmq))
+        lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, rabbitmq))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
         let key = rabbitmq.object_ref();
@@ -147,14 +147,14 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
         &&& response_at_after_get_resource_step_is_resource_get_response(SubResource::StatefulSet, rabbitmq)(s)
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& RMQCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(sts_key)(s)
-        &&& object_in_stateful_set_update_request_has_smaller_rv_than_etcd(rabbitmq)(s)
+        &&& object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, rabbitmq)(s)
     };
     RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
     lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec, SubResource::StatefulSet, rabbitmq);
     always_to_always_later(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     RMQCluster::lemma_always_object_in_ok_get_resp_is_same_as_etcd_with_same_rv(spec, sts_key);
-    lemma_always_object_in_stateful_set_update_request_has_smaller_rv_than_etcd(spec, rabbitmq);
+    lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(spec, SubResource::StatefulSet, rabbitmq);
     combine_spec_entails_always_n!(
         spec, lift_action(next), lift_action(RMQCluster::next()),
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
@@ -162,10 +162,10 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
         lift_state(response_at_after_get_resource_step_is_resource_get_response(SubResource::StatefulSet, rabbitmq)),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::object_in_ok_get_resp_is_same_as_etcd_with_same_rv(sts_key)),
-        lift_state(object_in_stateful_set_update_request_has_smaller_rv_than_etcd(rabbitmq))
+        lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(SubResource::StatefulSet, rabbitmq))
     );
     assert forall |s, s_prime| inv(s) && #[trigger] next(s, s_prime) implies inv(s_prime) by {
-        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && resource_update_request_msg(sts_key)(msg) 
+        assert forall |msg| #[trigger] s_prime.in_flight().contains(msg) && resource_update_request_msg(sts_key)(msg)
         && s_prime.resources().contains_key(sts_key)
         && s_prime.resources()[sts_key].metadata.resource_version == msg.content.get_update_request().obj.metadata.resource_version
         implies s_prime.resources()[sts_key].metadata.owner_references == msg.content.get_update_request().obj.metadata.owner_references by {
@@ -184,39 +184,43 @@ pub proof fn lemma_always_stateful_set_update_request_msg_does_not_change_owner_
     init_invariant(spec, RMQCluster::init(), next, inv);
 }
 
-pub open spec fn object_in_stateful_set_update_request_has_smaller_rv_than_etcd(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+pub open spec fn object_in_resource_update_request_msg_has_smaller_rv_than_etcd(
+    sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        let sts_key = StatefulSetBuilder::get_request(rabbitmq).key;
-        let etcd_rv = s.resources()[sts_key].metadata.resource_version.get_Some_0();
+        let resource_key = get_request(sub_resource, rabbitmq).key;
+        let etcd_rv = s.resources()[resource_key].metadata.resource_version.get_Some_0();
         forall |msg: RMQMessage|
             #[trigger] s.in_flight().contains(msg)
-            && resource_update_request_msg(sts_key)(msg)
+            && resource_update_request_msg(resource_key)(msg)
             ==> msg.content.get_update_request().obj.metadata.resource_version.is_Some()
                 && msg.content.get_update_request().obj.metadata.resource_version.get_Some_0() < s.kubernetes_api_state.resource_version_counter
     }
 }
 
-pub proof fn lemma_always_object_in_stateful_set_update_request_has_smaller_rv_than_etcd(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_always_object_in_resource_update_request_msg_has_smaller_rv_than_etcd(
+    spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+)
     requires
         rabbitmq.well_formed(),
         spec.entails(lift_state(RMQCluster::init())),
         spec.entails(always(lift_action(RMQCluster::next()))),
     ensures
-        spec.entails(always(lift_state(object_in_stateful_set_update_request_has_smaller_rv_than_etcd(rabbitmq)))),
+        spec.entails(always(lift_state(object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, rabbitmq)))),
 {
     let key = rabbitmq.object_ref();
-    let sts_key = StatefulSetBuilder::get_request(rabbitmq).key;
-    let inv = object_in_stateful_set_update_request_has_smaller_rv_than_etcd(rabbitmq);
+    let sts_key = get_request(sub_resource, rabbitmq).key;
+    let inv = object_in_resource_update_request_msg_has_smaller_rv_than_etcd(sub_resource, rabbitmq);
     let next = |s, s_prime| {
         &&& RMQCluster::next()(s, s_prime)
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
         &&& RMQCluster::each_object_in_etcd_is_well_formed()(s_prime)
-        &&& response_at_after_get_resource_step_is_resource_get_response(SubResource::StatefulSet, rabbitmq)(s)
+        &&& response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)(s)
         &&& RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()(s)
         &&& RMQCluster::object_in_ok_get_response_has_smaller_rv_than_etcd()(s)
     };
     RMQCluster::lemma_always_each_object_in_etcd_is_well_formed(spec);
-    lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec, SubResource::StatefulSet, rabbitmq);
+    lemma_always_response_at_after_get_resource_step_is_resource_get_response(spec, sub_resource, rabbitmq);
     always_to_always_later(spec, lift_state(RMQCluster::each_object_in_etcd_is_well_formed()));
     RMQCluster::lemma_always_each_object_in_reconcile_has_consistent_key_and_valid_metadata(spec);
     RMQCluster::lemma_always_object_in_ok_get_response_has_smaller_rv_than_etcd(spec);
@@ -224,7 +228,7 @@ pub proof fn lemma_always_object_in_stateful_set_update_request_has_smaller_rv_t
         spec, lift_action(next), lift_action(RMQCluster::next()),
         lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
         later(lift_state(RMQCluster::each_object_in_etcd_is_well_formed())),
-        lift_state(response_at_after_get_resource_step_is_resource_get_response(SubResource::StatefulSet, rabbitmq)),
+        lift_state(response_at_after_get_resource_step_is_resource_get_response(sub_resource, rabbitmq)),
         lift_state(RMQCluster::each_object_in_reconcile_has_consistent_key_and_valid_metadata()),
         lift_state(RMQCluster::object_in_ok_get_response_has_smaller_rv_than_etcd())
     );
@@ -236,7 +240,7 @@ pub proof fn lemma_always_object_in_stateful_set_update_request_has_smaller_rv_t
             if s.in_flight().contains(msg) {
                 assert(s.kubernetes_api_state.resource_version_counter <= s_prime.kubernetes_api_state.resource_version_counter);
             } else if resource_update_request_msg(sts_key)(msg) {
-                lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(SubResource::StatefulSet, rabbitmq, s, s_prime, msg, step);
+                lemma_resource_create_or_update_request_msg_implies_key_in_reconcile_equals(sub_resource, rabbitmq, s, s_prime, msg, step);
             }
         }
     }

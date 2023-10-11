@@ -62,6 +62,8 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::every_resource_create_request_implies_at_after_create_resource_step(SubResource::ServerConfigMap, rabbitmq)))),
+        spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)))),
     ensures
         spec.entails(
             lift_state(pending_req_in_flight_at_after_get_resource_step(sub_resource, rabbitmq))
@@ -310,6 +312,8 @@ proof fn lemma_from_after_get_resource_step_and_key_exists_to_resource_matches(
         spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
+        spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)))),
     ensures
         spec.entails(
             lift_state(|s: RMQCluster| {
@@ -837,6 +841,9 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         spec.entails(always(lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))),
+        spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)))),
     ensures
         spec.entails(
             lift_state(req_msg_is_the_in_flight_pending_req_at_after_update_resource_step(sub_resource, rabbitmq, req_msg))
@@ -861,6 +868,9 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         &&& helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)(s)
         &&& helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)(s)
         &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)(s)
+        &&& RMQCluster::desired_state_is(rabbitmq)(s)
+        &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
+        &&& helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)(s)
     };
     combine_spec_entails_always_n!(
         spec, lift_action(stronger_next),
@@ -875,7 +885,10 @@ proof fn lemma_resource_state_matches_at_after_update_resource_step(
         lift_state(helper_invariants::no_update_status_request_msg_in_flight_of(sub_resource, rabbitmq)),
         lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(sub_resource, rabbitmq)),
         lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)),
-        lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq))
+        lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)),
+        lift_state(RMQCluster::desired_state_is(rabbitmq)),
+        lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
+        lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq))
     );
 
     let post = |s: RMQCluster| {
@@ -924,6 +937,8 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         spec.entails(always(lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)))),
+        spec.entails(always(lift_state(RMQCluster::desired_state_is(rabbitmq)))),
+        spec.entails(always(lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)))),
         rabbitmq.well_formed(),
     ensures
         spec.entails(
@@ -948,6 +963,8 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         &&& helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)(s)
         &&& helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)(s)
         &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)(s)
+        &&& RMQCluster::desired_state_is(rabbitmq)(s)
+        &&& helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)(s)
     };
 
     combine_spec_entails_always_n!(
@@ -964,7 +981,9 @@ proof fn lemma_from_after_get_resource_step_to_after_update_resource_step(
         lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(sub_resource, rabbitmq)),
         lift_state(helper_invariants::cm_rv_is_the_same_as_etcd_server_cm_if_cm_updated(rabbitmq)),
         lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(sub_resource, rabbitmq)),
-        lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq))
+        lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(sub_resource, rabbitmq)),
+        lift_state(RMQCluster::desired_state_is(rabbitmq)),
+        lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq))
     );
 
     RMQCluster::lemma_pre_leads_to_post_by_controller(
