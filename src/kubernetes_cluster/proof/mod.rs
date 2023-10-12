@@ -10,5 +10,6 @@ pub mod controller_runtime_safety;
 pub mod kubernetes_api_liveness;
 pub mod kubernetes_api_safety;
 pub mod message;
+pub mod stateful_set_controller;
 pub mod validation_rule;
 pub mod wf1_assistant;

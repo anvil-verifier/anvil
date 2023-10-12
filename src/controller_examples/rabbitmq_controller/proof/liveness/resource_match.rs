@@ -94,7 +94,7 @@ pub proof fn lemma_from_after_get_resource_step_to_resource_matches(
     }
 }
 
-proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(
+pub proof fn lemma_from_after_get_resource_step_and_key_not_exists_to_resource_matches(
     spec: TempPred<RMQCluster>, sub_resource: SubResource, next_resource: SubResource, rabbitmq: RabbitmqClusterView
 )
     requires
