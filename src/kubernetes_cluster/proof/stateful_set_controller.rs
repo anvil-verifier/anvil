@@ -142,7 +142,7 @@ pub proof fn lemma_true_leads_to_always_stateful_set_not_exist_or_updated_or_no_
         spec.entails(tla_forall(|i| Self::builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::every_in_flight_create_req_msg_for_this_sts_matches(key, cm_key, make_fn)))),
         spec.entails(always(lift_state(Self::every_in_flight_update_req_msg_for_this_sts_matches(key, cm_key, make_fn)))),
-        spec.entails(always(lift_state(Self::etcd_object_is_well_formed(key)))),
+        spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_action(Self::obj_rv_stays_unchanged(cm_key)))),
     ensures
         spec.entails(true_pred().leads_to(always(lift_state(Self::stateful_set_not_exist_or_updated_or_no_more_status_from_bc(key, cm_key, make_fn))))),
@@ -154,7 +154,7 @@ pub proof fn lemma_true_leads_to_always_stateful_set_not_exist_or_updated_or_no_
         &&& Self::next()(s, s_prime)
         &&& Self::every_in_flight_create_req_msg_for_this_sts_matches(key, cm_key, make_fn)(s)
         &&& Self::every_in_flight_update_req_msg_for_this_sts_matches(key, cm_key, make_fn)(s)
-        &&& Self::etcd_object_is_well_formed(key)(s)
+        &&& Self::each_object_in_etcd_is_well_formed()(s)
         &&& Self::obj_rv_stays_unchanged(cm_key)(s, s_prime)
     };
     combine_spec_entails_always_n!(
@@ -162,7 +162,7 @@ pub proof fn lemma_true_leads_to_always_stateful_set_not_exist_or_updated_or_no_
         lift_action(Self::next()),
         lift_state(Self::every_in_flight_create_req_msg_for_this_sts_matches(key, cm_key, make_fn)),
         lift_state(Self::every_in_flight_update_req_msg_for_this_sts_matches(key, cm_key, make_fn)),
-        lift_state(Self::etcd_object_is_well_formed(key)),
+        lift_state(Self::each_object_in_etcd_is_well_formed()),
         lift_action(Self::obj_rv_stays_unchanged(cm_key))
     );
 
@@ -224,7 +224,7 @@ proof fn lemma_true_leads_to_stateful_set_not_exist_or_updated_or_no_more_pendin
         spec.entails(tla_forall(|i| Self::builtin_controllers_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::every_in_flight_create_req_msg_for_this_sts_matches(key, cm_key, make_fn)))),
         spec.entails(always(lift_state(Self::every_in_flight_update_req_msg_for_this_sts_matches(key, cm_key, make_fn)))),
-        spec.entails(always(lift_state(Self::etcd_object_is_well_formed(key)))),
+        spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_action(Self::obj_rv_stays_unchanged(cm_key)))),
     ensures
         spec.entails(true_pred().leads_to(lift_state(Self::stateful_set_not_exist_or_updated_or_no_more_status_from_bc(key, cm_key, make_fn)))),
@@ -282,7 +282,7 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_stateful_set_not_exis
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::every_in_flight_create_req_msg_for_this_sts_matches(key, cm_key, make_fn)))),
         spec.entails(always(lift_state(Self::every_in_flight_update_req_msg_for_this_sts_matches(key, cm_key, make_fn)))),
-        spec.entails(always(lift_state(Self::etcd_object_is_well_formed(key)))),
+        spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_action(Self::obj_rv_stays_unchanged(cm_key)))),
     ensures
         spec.entails(
@@ -392,7 +392,7 @@ proof fn stateful_set_not_exist_or_updated_or_pending_update_status_requests_num
         spec.entails(tla_forall(|i| Self::kubernetes_api_next().weak_fairness(i))),
         spec.entails(always(lift_state(Self::every_in_flight_create_req_msg_for_this_sts_matches(key, cm_key, make_fn)))),
         spec.entails(always(lift_state(Self::every_in_flight_update_req_msg_for_this_sts_matches(key, cm_key, make_fn)))),
-        spec.entails(always(lift_state(Self::etcd_object_is_well_formed(key)))),
+        spec.entails(always(lift_state(Self::each_object_in_etcd_is_well_formed()))),
         spec.entails(always(lift_action(Self::obj_rv_stays_unchanged(cm_key)))),
     ensures
         spec.entails(
@@ -452,7 +452,7 @@ proof fn stateful_set_not_exist_or_updated_or_pending_update_status_requests_num
         &&& Self::next()(s, s_prime)
         &&& Self::every_in_flight_create_req_msg_for_this_sts_matches(key, cm_key, make_fn)(s)
         &&& Self::every_in_flight_update_req_msg_for_this_sts_matches(key, cm_key, make_fn)(s)
-        &&& Self::etcd_object_is_well_formed(key)(s)
+        &&& Self::each_object_in_etcd_is_well_formed()(s)
         &&& Self::obj_rv_stays_unchanged(cm_key)(s, s_prime)
     };
     combine_spec_entails_always_n!(
@@ -460,7 +460,7 @@ proof fn stateful_set_not_exist_or_updated_or_pending_update_status_requests_num
         lift_action(Self::next()),
         lift_state(Self::every_in_flight_create_req_msg_for_this_sts_matches(key, cm_key, make_fn)),
         lift_state(Self::every_in_flight_update_req_msg_for_this_sts_matches(key, cm_key, make_fn)),
-        lift_state(Self::etcd_object_is_well_formed(key)),
+        lift_state(Self::each_object_in_etcd_is_well_formed()),
         lift_action(Self::obj_rv_stays_unchanged(cm_key))
     );
 
