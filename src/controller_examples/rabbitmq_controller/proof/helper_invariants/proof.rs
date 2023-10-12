@@ -837,7 +837,30 @@ pub proof fn lemma_always_no_update_status_request_msg_in_flight_of(
                 } else {
                     let step = choose |step: RMQStep| RMQCluster::next_step(s, s_prime, step);
                     match step {
-                        Step::ControllerStep(_) => {
+                        Step::ControllerStep(input) => {
+                            if input.1.is_Some() {
+                                let cr_key = input.1.get_Some_0();
+                                if s.ongoing_reconciles().contains_key(cr_key) {
+                                    match s.ongoing_reconciles()[cr_key].local_state.reconcile_step {
+                                        RabbitmqReconcileStep::Init => {},
+                                        RabbitmqReconcileStep::AfterKRequestStep(_, resource) => {
+                                            match resource {
+                                                SubResource::HeadlessService => {},
+                                                SubResource::Service => {},
+                                                SubResource::ErlangCookieSecret => {},
+                                                SubResource::DefaultUserSecret => {},
+                                                SubResource::PluginsConfigMap => {},
+                                                SubResource::ServerConfigMap => {},
+                                                SubResource::ServiceAccount => {},
+                                                SubResource::Role => {},
+                                                SubResource::RoleBinding => {},
+                                                SubResource::StatefulSet => {},
+                                            }
+                                        },
+                                        _ => {}
+                                    }
+                                } else {}
+                            } else {}
                             assert(!msg.content.is_update_status_request());
                             assert(false);
                         },
