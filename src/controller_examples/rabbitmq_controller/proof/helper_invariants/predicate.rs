@@ -256,16 +256,25 @@ pub open spec fn no_delete_resource_request_msg_in_flight(sub_resource: SubResou
     }
 }
 
-pub open spec fn no_update_status_request_msg_in_flight_of(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+pub open spec fn no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
         sub_resource != SubResource::StatefulSet
         ==> {
-            forall |msg: RMQMessage| //#![trigger s.in_flight().contains(msg), msg.content.is_update_status_request()]
+            forall |msg: RMQMessage|
                 #[trigger] s.in_flight().contains(msg)
-                // && msg.dst.is_KubernetesAPI()
                 && msg.content.is_update_status_request()
                 ==> msg.content.get_update_status_request().key() != get_request(sub_resource, rabbitmq).key
         }
+    }
+}
+
+pub open spec fn no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        forall |msg: RMQMessage|
+            #[trigger] s.in_flight().contains(msg)
+            && !msg.src.is_BuiltinController()
+            && msg.content.is_update_status_request()
+            ==> msg.content.get_update_status_request().key() != get_request(SubResource::StatefulSet, rabbitmq).key
     }
 }
 
