@@ -57,7 +57,7 @@ pub open spec fn invariants_since_phase_n(n: nat, rabbitmq: RabbitmqClusterView)
     }
 }
 
-pub open spec fn spec_before_phase_n(n: nat, rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster> 
+pub open spec fn spec_before_phase_n(n: nat, rabbitmq: RabbitmqClusterView) -> TempPred<RMQCluster>
     decreases n,
 {
     if n == 1 {
@@ -381,7 +381,7 @@ pub proof fn sm_spec_entails_all_invariants(rabbitmq: RabbitmqClusterView)
         cluster_spec().entails(derived_invariants_since_beginning(rabbitmq)),
 {
     let spec = cluster_spec();
-    // Adding two assertions to make the verification faster because all the lemmas blow require the two preconditions.
+    // Adding two assertions to make the verification faster because all the lemmas below require the two preconditions.
     // And then the verifier doesn't have to infer it every time applying those lemmas.
     assert(spec.entails(lift_state(RMQCluster::init())));
     assert(spec.entails(always(lift_action(RMQCluster::next()))));
