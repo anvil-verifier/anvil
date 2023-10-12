@@ -83,6 +83,31 @@ pub open spec fn no_status_update_req_msg_from_bc_for_this_object(key: ObjectRef
     }
 }
 
+pub open spec fn stateful_set_not_exist_or_updated_or_no_more_status_from_bc(
+    key: ObjectRef, cm_key: ObjectRef, make_fn: FnSpec(rv: StringView) -> StatefulSetView
+) -> StatePred<Self> {
+    |s: Self| {
+        ||| !s.resources().contains_key(key)
+        ||| {
+            let obj = s.resources()[key];
+            let rv = int_to_string_view(s.resources()[cm_key].metadata.resource_version.get_Some_0());
+            let made_sts = make_fn(rv);
+            &&& s.resources().contains_key(key)
+            &&& StatefulSetView::unmarshal(obj).is_Ok()
+            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.is_Some()
+            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().replicas == made_sts.spec.get_Some_0().replicas
+            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().template == made_sts.spec.get_Some_0().template
+            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().persistent_volume_claim_retention_policy == made_sts.spec.get_Some_0().persistent_volume_claim_retention_policy
+            &&& obj.metadata.labels == made_sts.metadata.labels
+            &&& obj.metadata.annotations == made_sts.metadata.annotations
+        }
+        ||| {
+            &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
+            &&& s.stable_resources().contains(key)
+        }
+    }
+}
+
 /// This lemma shows that for a given object (identified by the key) if
 /// (1) all the create request for this object will create an object that satisfies the make_fn
 /// (2) all the update request for this object will update this object to satisfy the make_fn,
@@ -120,51 +145,11 @@ pub proof fn lemma_true_leads_to_always_stateful_set_not_exist_or_updated_or_no_
         spec.entails(always(lift_state(Self::etcd_object_is_well_formed(key)))),
         spec.entails(always(lift_action(Self::obj_rv_stays_unchanged(cm_key)))),
     ensures
-        spec.entails(true_pred().leads_to(always(lift_state(
-            |s: Self| {
-                ||| !s.resources().contains_key(key)
-                ||| {
-                    let obj = s.resources()[key];
-                    let rv = int_to_string_view(s.resources()[cm_key].metadata.resource_version.get_Some_0());
-                    let made_sts = make_fn(rv);
-                    &&& s.resources().contains_key(key)
-                    &&& StatefulSetView::unmarshal(obj).is_Ok()
-                    &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.is_Some()
-                    &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().replicas == made_sts.spec.get_Some_0().replicas
-                    &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().template == made_sts.spec.get_Some_0().template
-                    &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().persistent_volume_claim_retention_policy == made_sts.spec.get_Some_0().persistent_volume_claim_retention_policy
-                    &&& obj.metadata.labels == made_sts.metadata.labels
-                    &&& obj.metadata.annotations == made_sts.metadata.annotations
-                }
-                ||| {
-                    &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
-                    &&& s.stable_resources().contains(key)
-                }
-            }
-        )))),
+        spec.entails(true_pred().leads_to(always(lift_state(Self::stateful_set_not_exist_or_updated_or_no_more_status_from_bc(key, cm_key, make_fn))))),
 {
     Self::lemma_true_leads_to_stateful_set_not_exist_or_updated_or_no_more_pending_req(spec, key, cm_key, make_fn);
 
-    let post = |s: Self| {
-        ||| !s.resources().contains_key(key)
-        ||| {
-            let obj = s.resources()[key];
-            let rv = int_to_string_view(s.resources()[cm_key].metadata.resource_version.get_Some_0());
-            let made_sts = make_fn(rv);
-            &&& s.resources().contains_key(key)
-            &&& StatefulSetView::unmarshal(obj).is_Ok()
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.is_Some()
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().replicas == made_sts.spec.get_Some_0().replicas
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().template == made_sts.spec.get_Some_0().template
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().persistent_volume_claim_retention_policy == made_sts.spec.get_Some_0().persistent_volume_claim_retention_policy
-            &&& obj.metadata.labels == made_sts.metadata.labels
-            &&& obj.metadata.annotations == made_sts.metadata.annotations
-        }
-        ||| {
-            &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
-            &&& s.stable_resources().contains(key)
-        }
-    };
+    let post = Self::stateful_set_not_exist_or_updated_or_no_more_status_from_bc(key, cm_key, make_fn);
     let stronger_next = |s, s_prime: Self| {
         &&& Self::next()(s, s_prime)
         &&& Self::every_in_flight_create_req_msg_for_this_sts_matches(key, cm_key, make_fn)(s)
@@ -242,51 +227,11 @@ proof fn lemma_true_leads_to_stateful_set_not_exist_or_updated_or_no_more_pendin
         spec.entails(always(lift_state(Self::etcd_object_is_well_formed(key)))),
         spec.entails(always(lift_action(Self::obj_rv_stays_unchanged(cm_key)))),
     ensures
-        spec.entails(true_pred().leads_to(lift_state(
-            |s: Self| {
-                ||| !s.resources().contains_key(key)
-                ||| {
-                    let obj = s.resources()[key];
-                    let rv = int_to_string_view(s.resources()[cm_key].metadata.resource_version.get_Some_0());
-                    let made_sts = make_fn(rv);
-                    &&& s.resources().contains_key(key)
-                    &&& StatefulSetView::unmarshal(obj).is_Ok()
-                    &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.is_Some()
-                    &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().replicas == made_sts.spec.get_Some_0().replicas
-                    &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().template == made_sts.spec.get_Some_0().template
-                    &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().persistent_volume_claim_retention_policy == made_sts.spec.get_Some_0().persistent_volume_claim_retention_policy
-                    &&& obj.metadata.labels == made_sts.metadata.labels
-                    &&& obj.metadata.annotations == made_sts.metadata.annotations
-                }
-                ||| {
-                    &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
-                    &&& s.stable_resources().contains(key)
-                }
-            }
-        ))),
+        spec.entails(true_pred().leads_to(lift_state(Self::stateful_set_not_exist_or_updated_or_no_more_status_from_bc(key, cm_key, make_fn)))),
 {
     let key_exists = |s: Self| s.resources().contains_key(key);
     let key_not_exists = |s: Self| !s.resources().contains_key(key);
-    let post = |s: Self| {
-        ||| !s.resources().contains_key(key)
-        ||| {
-            let obj = s.resources()[key];
-            let rv = int_to_string_view(s.resources()[cm_key].metadata.resource_version.get_Some_0());
-            let made_sts = make_fn(rv);
-            &&& s.resources().contains_key(key)
-            &&& StatefulSetView::unmarshal(obj).is_Ok()
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.is_Some()
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().replicas == made_sts.spec.get_Some_0().replicas
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().template == made_sts.spec.get_Some_0().template
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().persistent_volume_claim_retention_policy == made_sts.spec.get_Some_0().persistent_volume_claim_retention_policy
-            &&& obj.metadata.labels == made_sts.metadata.labels
-            &&& obj.metadata.annotations == made_sts.metadata.annotations
-        }
-        ||| {
-            &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
-            &&& s.stable_resources().contains(key)
-        }
-    };
+    let post = Self::stateful_set_not_exist_or_updated_or_no_more_status_from_bc(key, cm_key, make_fn);
     assert_by(spec.entails(lift_state(key_exists).leads_to(lift_state(post))), {
         let key_not_exists_or_stable = |s: Self| {
             ||| !s.resources().contains_key(key)
@@ -344,28 +289,7 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_stateful_set_not_exis
             lift_state(|s: Self| {
                 &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == msg_num
                 &&& s.stable_resources().contains(key)
-            }).leads_to(lift_state(
-                |s: Self| {
-                    ||| !s.resources().contains_key(key)
-                    ||| {
-                        let obj = s.resources()[key];
-                        let rv = int_to_string_view(s.resources()[cm_key].metadata.resource_version.get_Some_0());
-                        let made_sts = make_fn(rv);
-                        &&& s.resources().contains_key(key)
-                        &&& StatefulSetView::unmarshal(obj).is_Ok()
-                        &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.is_Some()
-                        &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().replicas == made_sts.spec.get_Some_0().replicas
-                        &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().template == made_sts.spec.get_Some_0().template
-                        &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().persistent_volume_claim_retention_policy == made_sts.spec.get_Some_0().persistent_volume_claim_retention_policy
-                        &&& obj.metadata.labels == made_sts.metadata.labels
-                        &&& obj.metadata.annotations == made_sts.metadata.annotations
-                    }
-                    ||| {
-                        &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
-                        &&& s.stable_resources().contains(key)
-                    }
-                }
-            ))
+            }).leads_to(lift_state(Self::stateful_set_not_exist_or_updated_or_no_more_status_from_bc(key, cm_key, make_fn)))
         ),
     decreases msg_num
 {
@@ -373,26 +297,7 @@ proof fn lemma_pending_update_status_req_num_is_n_leads_to_stateful_set_not_exis
         &&& s.in_flight().filter(update_status_msg_from_bc_for(key)).len() == msg_num
         &&& s.stable_resources().contains(key)
     };
-    let post = |s: Self| {
-        ||| !s.resources().contains_key(key)
-        ||| {
-            let obj = s.resources()[key];
-            let rv = int_to_string_view(s.resources()[cm_key].metadata.resource_version.get_Some_0());
-            let made_sts = make_fn(rv);
-            &&& s.resources().contains_key(key)
-            &&& StatefulSetView::unmarshal(obj).is_Ok()
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.is_Some()
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().replicas == made_sts.spec.get_Some_0().replicas
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().template == made_sts.spec.get_Some_0().template
-            &&& StatefulSetView::unmarshal(obj).get_Ok_0().spec.get_Some_0().persistent_volume_claim_retention_policy == made_sts.spec.get_Some_0().persistent_volume_claim_retention_policy
-            &&& obj.metadata.labels == made_sts.metadata.labels
-            &&& obj.metadata.annotations == made_sts.metadata.annotations
-        }
-        ||| {
-            &&& Self::no_status_update_req_msg_from_bc_for_this_object(key)(s)
-            &&& s.stable_resources().contains(key)
-        }
-    };
+    let post = Self::stateful_set_not_exist_or_updated_or_no_more_status_from_bc(key, cm_key, make_fn);
     if msg_num == 0 {
         assert_by(valid(lift_state(pre).implies(lift_state(post))), {
             assert forall |s: Self| #[trigger] pre(s) implies post(s) by {
