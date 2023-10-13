@@ -20,18 +20,18 @@ verus! {
 pub struct AdminServerServiceBuilder {}
 
 impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for AdminServerServiceBuilder {
-    open spec fn get_request(rabbitmq: ZookeeperClusterView) -> GetRequest {
-        GetRequest { key: make_admin_server_service_key(rabbitmq) }
+    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest {
+        GetRequest { key: make_admin_server_service_key(zk) }
     }
 
-    open spec fn make(rabbitmq: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> {
-        Ok(make_admin_server_service(rabbitmq).marshal())
+    open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> {
+        Ok(make_admin_server_service(zk).marshal())
     }
 
-    open spec fn update(rabbitmq: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
+    open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let service = ServiceView::unmarshal(obj);
         if service.is_Ok() && service.get_Ok_0().spec.is_Some() {
-            Ok(update_admin_server_service(rabbitmq, service.get_Ok_0()).marshal())
+            Ok(update_admin_server_service(zk, service.get_Ok_0()).marshal())
         } else {
             Err(())
         }
@@ -46,10 +46,10 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for AdminSer
         }
     }
 
-    open spec fn resource_state_matches(rabbitmq: ZookeeperClusterView, resources: StoredState) -> bool {
-        let key = make_admin_server_service_key(rabbitmq);
+    open spec fn resource_state_matches(zk: ZookeeperClusterView, resources: StoredState) -> bool {
+        let key = make_admin_server_service_key(zk);
         let obj = resources[key];
-        let made_spec = make_admin_server_service(rabbitmq).spec.get_Some_0();
+        let made_spec = make_admin_server_service(zk).spec.get_Some_0();
         let spec = ServiceView::unmarshal(obj).get_Ok_0().spec.get_Some_0();
         &&& resources.contains_key(key)
         &&& ServiceView::unmarshal(obj).is_Ok()
@@ -58,11 +58,11 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for AdminSer
             cluster_ip: made_spec.cluster_ip,
             ..spec
         }
-        &&& obj.metadata.labels == make_admin_server_service(rabbitmq).metadata.labels
-        &&& obj.metadata.annotations == make_admin_server_service(rabbitmq).metadata.annotations
+        &&& obj.metadata.labels == make_admin_server_service(zk).metadata.labels
+        &&& obj.metadata.annotations == make_admin_server_service(zk).metadata.annotations
     }
 
-    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: ZookeeperClusterView) -> bool {
+    open spec fn unchangeable(object: DynamicObjectView, zk: ZookeeperClusterView) -> bool {
         true
     }
 }

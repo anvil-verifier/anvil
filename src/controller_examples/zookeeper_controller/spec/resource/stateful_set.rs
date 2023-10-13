@@ -20,24 +20,24 @@ verus! {
 pub struct StatefulSetBuilder {}
 
 impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for StatefulSetBuilder {
-    open spec fn get_request(rabbitmq: ZookeeperClusterView) -> GetRequest {
-        GetRequest { key: make_stateful_set_key(rabbitmq) }
+    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest {
+        GetRequest { key: make_stateful_set_key(zk) }
     }
 
-    open spec fn make(rabbitmq: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> {
+    open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> {
         if state.latest_config_map_rv_opt.is_Some() {
-            Ok(make_stateful_set(rabbitmq, state.latest_config_map_rv_opt.get_Some_0()).marshal())
+            Ok(make_stateful_set(zk, state.latest_config_map_rv_opt.get_Some_0()).marshal())
         } else {
             Err(())
         }
     }
 
-    open spec fn update(rabbitmq: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
+    open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let sts = StatefulSetView::unmarshal(obj);
         let found_sts = sts.get_Ok_0();
-        if sts.is_Ok() && found_sts.metadata.owner_references_only_contains(rabbitmq.controller_owner_ref())
+        if sts.is_Ok() && found_sts.metadata.owner_references_only_contains(zk.controller_owner_ref())
         && state.latest_config_map_rv_opt.is_Some() && found_sts.spec.is_Some() {
-            Ok(update_stateful_set(rabbitmq, found_sts, state.latest_config_map_rv_opt.get_Some_0()).marshal())
+            Ok(update_stateful_set(zk, found_sts, state.latest_config_map_rv_opt.get_Some_0()).marshal())
         } else {
             Err(())
         }
@@ -52,12 +52,12 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Stateful
         }
     }
 
-    open spec fn resource_state_matches(rabbitmq: ZookeeperClusterView, resources: StoredState) -> bool {
-        let key = make_stateful_set_key(rabbitmq);
+    open spec fn resource_state_matches(zk: ZookeeperClusterView, resources: StoredState) -> bool {
+        let key = make_stateful_set_key(zk);
         let obj = resources[key];
-        let cm_key = ServerConfigMapBuilder::get_request(rabbitmq).key;
+        let cm_key = ServerConfigMapBuilder::get_request(zk).key;
         let cm_obj = resources[cm_key];
-        let made_sts = make_stateful_set(rabbitmq, int_to_string_view(cm_obj.metadata.resource_version.get_Some_0()));
+        let made_sts = make_stateful_set(zk, int_to_string_view(cm_obj.metadata.resource_version.get_Some_0()));
         &&& resources.contains_key(key)
         &&& resources.contains_key(cm_key)
         &&& cm_obj.metadata.resource_version.is_Some()
@@ -67,7 +67,7 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for Stateful
         &&& obj.metadata.annotations == made_sts.metadata.annotations
     }
 
-    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: ZookeeperClusterView) -> bool {
+    open spec fn unchangeable(object: DynamicObjectView, zk: ZookeeperClusterView) -> bool {
         true
     }
 }

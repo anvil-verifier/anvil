@@ -18,11 +18,63 @@ use vstd::string::*;
 
 verus! {
 
+pub struct StatefulSetBuilder {}
+
+impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, spec_resource::StatefulSetBuilder> for StatefulSetBuilder {
+    open spec fn requirements(zk: ZookeeperClusterView) -> bool {
+        zk.well_formed()
+    }
+
+    fn get_request(zk: &ZookeeperCluster) -> KubeGetRequest {
+        KubeGetRequest {
+            api_resource: StatefulSet::api_resource(),
+            name: make_stateful_set_name(zk),
+            namespace: zk.namespace().unwrap(),
+        }
+    }
+
+    fn make(zk: &ZookeeperCluster, state: &ZookeeperReconcileState) -> Result<DynamicObject, ()> {
+        if state.latest_config_map_rv_opt.is_some() {
+            Ok(make_stateful_set(zk, state.latest_config_map_rv_opt.as_ref().unwrap()).marshal())
+        } else {
+            Err(())
+        }
+    }
+
+    fn update(zk: &ZookeeperCluster, state: &ZookeeperReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
+        // We check the owner reference of the found stateful set here to ensure that it is not created from
+        // previously existing (and now deleted) cr. Otherwise, if the replicas of the current cr is smaller
+        // than the previous one, scaling down, which should be prohibited, will happen.
+        // If the found stateful set doesn't contain the controller owner reference of the current cr, we will
+        // just let the reconciler enter the error state and wait for the garbage collector to delete it. So
+        // after that, when a new round of reconcile starts, there is no stateful set in etcd, the reconciler
+        // will go to create a new one.
+        let sts = StatefulSet::unmarshal(obj);
+        if sts.is_ok() {
+            let found_sts = sts.unwrap();
+            if found_sts.metadata().owner_references_only_contains(zk.controller_owner_ref())
+            && state.latest_config_map_rv_opt.is_some() && found_sts.spec().is_some() {
+                return Ok(update_stateful_set(zk, found_sts, state.latest_config_map_rv_opt.as_ref().unwrap()).marshal());
+            }
+        }
+        return Err(());
+    }
+
+    fn state_after_create_or_update(obj: DynamicObject, state: ZookeeperReconcileState) -> (res: Result<ZookeeperReconcileState, ()>) {
+        let sts = StatefulSet::unmarshal(obj);
+        if sts.is_ok() {
+            Ok(state)
+        } else {
+            Err(())
+        }
+    }
+}
+
 pub fn make_stateful_set_name(zk: &ZookeeperCluster) -> (name: String)
     requires
         zk@.well_formed(),
     ensures
-        name@ == zk_spec::make_stateful_set_name(zk@.metadata.name.get_Some_0()),
+        name@ == spec_resource::make_stateful_set_name(zk@.metadata.name.get_Some_0()),
 {
     zk.metadata().name().unwrap()
 }
@@ -32,7 +84,7 @@ pub fn update_stateful_set(zk: &ZookeeperCluster, found_stateful_set: &StatefulS
         zk@.well_formed(),
         found_stateful_set@.spec.is_Some(),
     ensures
-        stateful_set@ == zk_spec::update_stateful_set(zk@, found_stateful_set@, rv@),
+        stateful_set@ == spec_resource::update_stateful_set(zk@, found_stateful_set@, rv@),
 {
     let mut stateful_set = found_stateful_set.clone();
     let made_stateful_set = make_stateful_set(zk, rv);
@@ -60,7 +112,7 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
     requires
         zk@.well_formed(),
     ensures
-        stateful_set@ == zk_spec::make_stateful_set(zk@, rv@),
+        stateful_set@ == spec_resource::make_stateful_set(zk@, rv@),
 {
     let mut stateful_set = StatefulSet::default();
     stateful_set.set_metadata({
@@ -125,7 +177,7 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
                             proof {
                                 assert_seqs_equal!(
                                     access_modes@.map_values(|mode: String| mode@),
-                                    zk_spec::make_stateful_set(zk@, rv@)
+                                    spec_resource::make_stateful_set(zk@, rv@)
                                         .spec.get_Some_0().volume_claim_templates.get_Some_0()[0]
                                         .spec.get_Some_0().access_modes.get_Some_0()
                                 );
@@ -149,7 +201,7 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
                 proof {
                     assert_seqs_equal!(
                         volume_claim_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
-                        zk_spec::make_stateful_set(zk@, rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+                        spec_resource::make_stateful_set(zk@, rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
                     );
                 }
                 volume_claim_templates
@@ -158,7 +210,7 @@ pub fn make_stateful_set(zk: &ZookeeperCluster, rv: &String) -> (stateful_set: S
                 proof {
                     assert_seqs_equal!(
                         empty_templates@.map_values(|pvc: PersistentVolumeClaim| pvc@),
-                        zk_spec::make_stateful_set(zk@, rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
+                        spec_resource::make_stateful_set(zk@, rv@).spec.get_Some_0().volume_claim_templates.get_Some_0()
                     );
                 }
                 empty_templates
@@ -173,7 +225,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
     requires
         zk@.well_formed(),
     ensures
-        pod_spec@ == zk_spec::make_zk_pod_spec(zk@),
+        pod_spec@ == spec_resource::make_zk_pod_spec(zk@),
 {
     let mut pod_spec = PodSpec::default();
 
@@ -206,7 +258,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                             proof {
                                 assert_seqs_equal!(
                                     command@.map_values(|s: String| s@),
-                                    zk_spec::make_zk_pod_spec(zk@).containers[0].lifecycle.get_Some_0().pre_stop.get_Some_0().exec_.get_Some_0().command.get_Some_0()
+                                    spec_resource::make_zk_pod_spec(zk@).containers[0].lifecycle.get_Some_0().pre_stop.get_Some_0().exec_.get_Some_0().command.get_Some_0()
                                 );
                             }
 
@@ -238,7 +290,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                 proof {
                     assert_seqs_equal!(
                         volume_mounts@.map_values(|volume_mount: VolumeMount| volume_mount@),
-                        zk_spec::make_zk_pod_spec(zk@).containers[0].volume_mounts.get_Some_0()
+                        spec_resource::make_zk_pod_spec(zk@).containers[0].volume_mounts.get_Some_0()
                     );
                 }
 
@@ -255,7 +307,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                 proof {
                     assert_seqs_equal!(
                         ports@.map_values(|port: ContainerPort| port@),
-                        zk_spec::make_zk_pod_spec(zk@).containers[0].ports.get_Some_0()
+                        spec_resource::make_zk_pod_spec(zk@).containers[0].ports.get_Some_0()
                     );
                 }
 
@@ -272,7 +324,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                         proof {
                             assert_seqs_equal!(
                                 command@.map_values(|s: String| s@),
-                                zk_spec::make_zk_pod_spec(zk@).containers[0].readiness_probe.get_Some_0().exec_.get_Some_0().command.get_Some_0()
+                                spec_resource::make_zk_pod_spec(zk@).containers[0].readiness_probe.get_Some_0().exec_.get_Some_0().command.get_Some_0()
                             );
                         }
 
@@ -298,7 +350,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
                         proof {
                             assert_seqs_equal!(
                                 command@.map_values(|s: String| s@),
-                                zk_spec::make_zk_pod_spec(zk@).containers[0].liveness_probe.get_Some_0().exec_.get_Some_0().command.get_Some_0()
+                                spec_resource::make_zk_pod_spec(zk@).containers[0].liveness_probe.get_Some_0().exec_.get_Some_0().command.get_Some_0()
                             );
                         }
 
@@ -319,7 +371,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
         proof {
             assert_seqs_equal!(
                 containers@.map_values(|container: Container| container@),
-                zk_spec::make_zk_pod_spec(zk@).containers
+                spec_resource::make_zk_pod_spec(zk@).containers
             );
         }
 
@@ -349,7 +401,7 @@ pub fn make_zk_pod_spec(zk: &ZookeeperCluster) -> (pod_spec: PodSpec)
         proof {
             assert_seqs_equal!(
                 volumes@.map_values(|vol: Volume| vol@),
-                zk_spec::make_zk_pod_spec(zk@).volumes.get_Some_0()
+                spec_resource::make_zk_pod_spec(zk@).volumes.get_Some_0()
             );
         }
 

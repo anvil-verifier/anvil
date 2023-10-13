@@ -20,18 +20,18 @@ verus! {
 pub struct ConfigMapBuilder {}
 
 impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ConfigMapBuilder {
-    open spec fn get_request(rabbitmq: ZookeeperClusterView) -> GetRequest {
-        GetRequest { key: make_config_map_key(rabbitmq) }
+    open spec fn get_request(zk: ZookeeperClusterView) -> GetRequest {
+        GetRequest { key: make_config_map_key(zk) }
     }
 
-    open spec fn make(rabbitmq: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> {
-        Ok(make_config_map(rabbitmq).marshal())
+    open spec fn make(zk: ZookeeperClusterView, state: ZookeeperReconcileState) -> Result<DynamicObjectView, ()> {
+        Ok(make_config_map(zk).marshal())
     }
 
-    open spec fn update(rabbitmq: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
+    open spec fn update(zk: ZookeeperClusterView, state: ZookeeperReconcileState, obj: DynamicObjectView) -> Result<DynamicObjectView, ()> {
         let cm = ConfigMapView::unmarshal(obj);
         if cm.is_ok() {
-            Ok(update_config_map(rabbitmq, cm.get_Ok_0()).marshal())
+            Ok(update_config_map(zk, cm.get_Ok_0()).marshal())
         } else {
             Err(())
         }
@@ -49,18 +49,18 @@ impl ResourceBuilder<ZookeeperClusterView, ZookeeperReconcileState> for ConfigMa
         }
     }
 
-    open spec fn resource_state_matches(rabbitmq: ZookeeperClusterView, resources: StoredState) -> bool {
-        let key = make_config_map_key(rabbitmq);
+    open spec fn resource_state_matches(zk: ZookeeperClusterView, resources: StoredState) -> bool {
+        let key = make_config_map_key(zk);
         let obj = resources[key];
         &&& resources.contains_key(key)
         &&& ConfigMapView::unmarshal(obj).is_Ok()
-        &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == make_config_map(rabbitmq).data
-        &&& obj.spec == ConfigMapView::marshal_spec((make_config_map(rabbitmq).data, ()))
-        &&& obj.metadata.labels == make_config_map(rabbitmq).metadata.labels
-        &&& obj.metadata.annotations == make_config_map(rabbitmq).metadata.annotations
+        &&& ConfigMapView::unmarshal(obj).get_Ok_0().data == make_config_map(zk).data
+        &&& obj.spec == ConfigMapView::marshal_spec((make_config_map(zk).data, ()))
+        &&& obj.metadata.labels == make_config_map(zk).metadata.labels
+        &&& obj.metadata.annotations == make_config_map(zk).metadata.annotations
     }
 
-    open spec fn unchangeable(object: DynamicObjectView, rabbitmq: ZookeeperClusterView) -> bool {
+    open spec fn unchangeable(object: DynamicObjectView, zk: ZookeeperClusterView) -> bool {
         true
     }
 }

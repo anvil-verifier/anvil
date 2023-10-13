@@ -18,11 +18,53 @@ use vstd::string::*;
 
 verus! {
 
+pub struct HeadlessServiceBuilder {}
+
+impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, spec_resource::HeadlessServiceBuilder> for HeadlessServiceBuilder {
+    open spec fn requirements(zk: ZookeeperClusterView) -> bool {
+        &&& zk.metadata.name.is_Some()
+        &&& zk.metadata.namespace.is_Some()
+    }
+
+    fn get_request(zk: &ZookeeperCluster) -> KubeGetRequest {
+        KubeGetRequest {
+            api_resource: Service::api_resource(),
+            name: make_headless_service_name(zk),
+            namespace: zk.namespace().unwrap(),
+        }
+    }
+
+    fn make(zk: &ZookeeperCluster, state: &ZookeeperReconcileState) -> Result<DynamicObject, ()> {
+        Ok(make_headless_service(zk).marshal())
+    }
+
+    fn update(zk: &ZookeeperCluster, state: &ZookeeperReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
+        let service = Service::unmarshal(obj);
+        if service.is_ok() {
+            let found_service = service.unwrap();
+            if found_service.spec().is_some() {
+                Ok(update_headless_service(zk, found_service).marshal()) 
+            }
+        } else {
+            Err(())
+        }
+    }
+
+    fn state_after_create_or_update(obj: DynamicObject, state: ZookeeperReconcileState) -> (res: Result<ZookeeperReconcileState, ()>) {
+        let service = Service::unmarshal(obj);
+        if service.is_ok() {
+            Ok(state)
+        } else {
+            Err(())
+        }
+    }
+}
+
 pub fn make_headless_service_name(zk: &ZookeeperCluster) -> (name: String)
     requires
         zk@.well_formed(),
     ensures
-        name@ == zk_spec::make_headless_service_name(zk@.metadata.name.get_Some_0()),
+        name@ == spec_resource::make_headless_service_name(zk@.metadata.name.get_Some_0()),
 {
     zk.metadata().name().unwrap().concat(new_strlit("-headless"))
 }
@@ -32,7 +74,7 @@ pub fn update_headless_service(zk: &ZookeeperCluster, found_headless_service: &S
         zk@.well_formed(),
         found_headless_service@.spec.is_Some(),
     ensures
-        headless_service@ == zk_spec::update_headless_service(zk@, found_headless_service@),
+        headless_service@ == spec_resource::update_headless_service(zk@, found_headless_service@),
 {
     let mut headless_service = found_headless_service.clone();
     let made_headless_service = make_headless_service(zk);
@@ -58,7 +100,7 @@ pub fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     requires
         zk@.well_formed(),
     ensures
-        service@ == zk_spec::make_headless_service(zk@),
+        service@ == spec_resource::make_headless_service(zk@),
 {
     let mut ports = Vec::new();
 
@@ -71,7 +113,7 @@ pub fn make_headless_service(zk: &ZookeeperCluster) -> (service: Service)
     proof {
         assert_seqs_equal!(
             ports@.map_values(|port: ServicePort| port@),
-            zk_spec::make_headless_service(zk@).spec.get_Some_0().ports.get_Some_0()
+            spec_resource::make_headless_service(zk@).spec.get_Some_0().ports.get_Some_0()
         );
     }
 

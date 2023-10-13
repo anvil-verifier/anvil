@@ -18,11 +18,52 @@ use vstd::string::*;
 
 verus! {
 
+pub struct ConfigMapBuilder {}
+
+impl ResourceBuilder<ZookeeperCluster, ZookeeperReconcileState, spec_resource::ConfigMapBuilder> for ConfigMapBuilder {
+    open spec fn requirements(zk: ZookeeperClusterView) -> bool {
+        zk.well_formed()
+    }
+
+    fn get_request(zk: &ZookeeperCluster) -> KubeGetRequest {
+        KubeGetRequest {
+            api_resource: ConfigMap::api_resource(),
+            name: make_config_map_name(zk),
+            namespace: zk.namespace().unwrap(),
+        }
+    }
+
+    fn make(zk: &ZookeeperCluster, state: &ZookeeperReconcileState) -> Result<DynamicObject, ()> {
+        Ok(make_config_map(zk).marshal())
+    }
+
+    fn update(zk: &ZookeeperCluster, state: &ZookeeperReconcileState, obj: DynamicObject) -> Result<DynamicObject, ()> {
+        let cm = ConfigMap::unmarshal(obj);
+        if cm.is_ok() {
+            Ok(update_config_map(zk, cm.unwrap()).marshal())
+        } else {
+            Err(())
+        }
+    }
+
+    fn state_after_create_or_update(obj: DynamicObject, state: ZookeeperReconcileState) -> (res: Result<ZookeeperReconcileState, ()>) {
+        let cm = ConfigMap::unmarshal(obj);
+        if cm.is_ok() && cm.as_ref().unwrap().metadata().resource_version().is_some() {
+            Ok(ZookeeperReconcileState {
+                latest_config_map_rv_opt: Some(cm.unwrap().metadata().resource_version().unwrap()),
+                ..state
+            })
+        } else {
+            Err(())
+        }
+    }
+}
+
 pub fn make_config_map_name(zk: &ZookeeperCluster) -> (name: String)
     requires
         zk@.well_formed(),
     ensures
-        name@ == zk_spec::make_config_map_name(zk@.metadata.name.get_Some_0()),
+        name@ == spec_resource::make_config_map_name(zk@.metadata.name.get_Some_0()),
 {
     zk.metadata().name().unwrap().concat(new_strlit("-configmap"))
 }
@@ -31,7 +72,7 @@ pub fn update_config_map(zk: &ZookeeperCluster, found_config_map: &ConfigMap) ->
     requires
         zk@.well_formed(),
     ensures
-        config_map@ == zk_spec::update_config_map(zk@, found_config_map@),
+        config_map@ == spec_resource::update_config_map(zk@, found_config_map@),
 {
     let mut config_map = found_config_map.clone();
     let made_config_map = make_config_map(zk);
@@ -52,7 +93,7 @@ pub fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
     requires
         zk@.well_formed(),
     ensures
-        config_map@ == zk_spec::make_config_map(zk@),
+        config_map@ == spec_resource::make_config_map(zk@),
 {
     let mut config_map = ConfigMap::default();
 
@@ -78,7 +119,7 @@ pub fn make_config_map(zk: &ZookeeperCluster) -> (config_map: ConfigMap)
 
 pub fn make_zk_config(zk: &ZookeeperCluster) -> (s: String)
     ensures
-        s@ == zk_spec::make_zk_config(zk@),
+        s@ == spec_resource::make_zk_config(zk@),
 {
     new_strlit(
         "4lw.commands.whitelist=cons, envi, conf, crst, srvr, stat, mntr, ruok\n\
@@ -111,7 +152,7 @@ pub fn make_zk_config(zk: &ZookeeperCluster) -> (s: String)
 
 pub fn make_log4j_config() -> (s: String)
     ensures
-        s@ == zk_spec::make_log4j_config(),
+        s@ == spec_resource::make_log4j_config(),
 {
     new_strlit(
         "zookeeper.root.logger=CONSOLE\n\
@@ -126,7 +167,7 @@ pub fn make_log4j_config() -> (s: String)
 
 pub fn make_log4j_quiet_config() -> (s: String)
     ensures
-        s@ == zk_spec::make_log4j_quiet_config(),
+        s@ == spec_resource::make_log4j_quiet_config(),
 {
     new_strlit(
         "log4j.rootLogger=ERROR, CONSOLE\n\
@@ -141,14 +182,14 @@ pub fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
     requires
         zk@.well_formed(),
     ensures
-        s@ == zk_spec::make_env_config(zk@),
+        s@ == spec_resource::make_env_config(zk@),
 {
     let name = zk.metadata().name().unwrap();
     let namespace = zk.metadata().namespace().unwrap();
     let client_port = i32_to_string(zk.spec().ports().client());
     let quorum_port = i32_to_string(zk.spec().ports().quorum());
     let leader_election_port = i32_to_string(zk.spec().ports().leader_election());
-    let admin_server_port = i32_to_string(zk.spec().ports().admin_server());
+    let admin_port = i32_to_string(zk.spec().ports().admin_server());
 
     new_strlit(
         "#!/usr/bin/env bash\n\n\
@@ -159,7 +200,7 @@ pub fn make_env_config(zk: &ZookeeperCluster) -> (s: String)
         CLIENT_HOST=")).concat(name.as_str()).concat(new_strlit("-client\n\
         CLIENT_PORT=")).concat(client_port.as_str()).concat(new_strlit("\n\
         ADMIN_SERVER_HOST=")).concat(name.as_str()).concat(new_strlit("-admin-server\n\
-        ADMIN_SERVER_PORT=")).concat(admin_server_port.as_str()).concat(new_strlit("\n\
+        ADMIN_SERVER_PORT=")).concat(admin_port.as_str()).concat(new_strlit("\n\
         CLUSTER_NAME=")).concat(name.as_str()).concat(new_strlit("\n"))
 }
 
