@@ -2273,6 +2273,31 @@ pub proof fn eventually_weaken_auto<T>(spec: TempPred<T>)
     };
 }
 
+pub proof fn leads_to_always_enhance<T>(spec: TempPred<T>, inv: TempPred<T>, p: TempPred<T>, q1: TempPred<T>, q2: TempPred<T>)
+    requires
+        spec.entails(always(inv)),
+        spec.entails(p.leads_to(always(q1))),
+        q1.and(inv).entails(q2),
+    ensures
+        spec.entails(p.leads_to(always(q2))),
+{
+    assert forall |ex| #[trigger] spec.satisfied_by(ex) implies p.leads_to(always(q2)).satisfied_by(ex) by {
+        assert forall |i| #[trigger] p.satisfied_by(ex.suffix(i))
+        implies eventually(always(q2)).satisfied_by(ex.suffix(i)) by {
+            implies_apply(ex, spec, always(inv));
+            implies_apply(ex, spec, p.leads_to(always(q1)));
+            leads_to_unfold(ex, p, always(q1));
+            implies_apply(ex.suffix(i), p, eventually(always(q1)));
+            let witness = eventually_choose_witness(ex.suffix(i), always(q1));
+            assert forall |j| #[trigger] q2.satisfied_by(ex.suffix(i).suffix(witness).suffix(j)) by {
+                execution_equality(ex.suffix(i).suffix(witness).suffix(j), ex.suffix(i + witness + j));
+                implies_apply(ex.suffix(i).suffix(witness).suffix(j), q1.and(inv), q2);
+            }
+            eventually_proved_by_witness(ex.suffix(i), always(q2), witness);
+        }
+    }
+}
+
 /// Get eventually from leads_to.
 /// pre:
 ///     spec |= p
@@ -2697,7 +2722,7 @@ pub use leads_to_always_combine_n_with_equality_internal;
 /// post:
 ///     spec |= []tla_forall(a_to_p)
 /// The domain set assist in showing type A contains finite elements.
-/// 
+///
 /// This lemma is actually similar to leads_to_always_combine_n when the n predicates are all a_to_p(a) for some a.
 /// This is because tla_forall(a_to_p) == a_to_p(a1).and(a_to_p(a2))....and(a_to_p(an)), We only consider the case when
 /// type A is finite here.

@@ -14,7 +14,7 @@ use crate::kubernetes_cluster::spec::{
 };
 use crate::rabbitmq_controller::{
     common::*,
-    proof::{predicate::*, resource::*},
+    proof::{liveness::resource_match::sub_resource_state_matches, predicate::*, resource::*},
     spec::{reconciler::*, types::*},
 };
 use crate::reconciler::spec::reconciler::*;
@@ -256,13 +256,26 @@ pub open spec fn no_delete_resource_request_msg_in_flight(sub_resource: SubResou
     }
 }
 
-pub open spec fn no_update_status_request_msg_in_flight_of(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+pub open spec fn no_update_status_request_msg_in_flight_of_except_stateful_set(sub_resource: SubResource, rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
     |s: RMQCluster| {
-        forall |msg: RMQMessage| //#![trigger s.in_flight().contains(msg), msg.content.is_update_status_request()]
+        sub_resource != SubResource::StatefulSet
+        ==> {
+            forall |msg: RMQMessage|
+                #[trigger] s.in_flight().contains(msg)
+                && msg.content.is_update_status_request()
+                ==> msg.content.get_update_status_request().key() != get_request(sub_resource, rabbitmq).key
+        }
+    }
+}
+
+pub open spec fn no_update_status_request_msg_not_from_bc_in_flight_of_stateful_set(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        forall |msg: RMQMessage|
             #[trigger] s.in_flight().contains(msg)
-            // && msg.dst.is_KubernetesAPI()
+            && msg.dst.is_KubernetesAPI()
+            && !msg.src.is_BuiltinController()
             && msg.content.is_update_status_request()
-            ==> msg.content.get_update_status_request().key() != get_request(sub_resource, rabbitmq).key
+            ==> msg.content.get_update_status_request().key() != get_request(SubResource::StatefulSet, rabbitmq).key
     }
 }
 
@@ -303,6 +316,22 @@ pub open spec fn cm_rv_stays_unchanged(rabbitmq: RabbitmqClusterView) -> ActionP
         &&& s_prime.resources().contains_key(cm_key)
         &&& s.resources()[cm_key].metadata.resource_version.is_Some()
         &&& s.resources()[cm_key].metadata.resource_version == s_prime.resources()[cm_key].metadata.resource_version
+    }
+}
+
+pub open spec fn stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq: RabbitmqClusterView) -> StatePred<RMQCluster> {
+    |s: RMQCluster| {
+        let sts_key = get_request(SubResource::StatefulSet, rabbitmq).key;
+        ||| !s.resources().contains_key(sts_key)
+        ||| sub_resource_state_matches(SubResource::StatefulSet, rabbitmq)(s)
+        ||| {
+            &&& forall |msg: RMQMessage|
+                #[trigger] s.in_flight().contains(msg)
+                && msg.dst.is_KubernetesAPI()
+                && msg.content.is_update_status_request()
+                ==> msg.content.get_update_status_request().key() != get_request(SubResource::StatefulSet, rabbitmq).key
+            &&& s.stable_resources().contains(sts_key)
+        }
     }
 }
 

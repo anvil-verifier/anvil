@@ -379,21 +379,17 @@ pub open spec fn next_step(s: Self, s_prime: Self, step: Step<MsgType<E>>) -> bo
 
 /// `next` chooses:
 /// * which host to take the next action (`Step`)
-/// * whether to deliver a message and which message to deliver (`Option<MsgType<E>>` in `Step`)
+/// * what input to feed to the chosen action
 pub open spec fn next() -> ActionPred<Self> {
     |s: Self, s_prime: Self| exists |step: Step<MsgType<E>>| Self::next_step(s, s_prime, step)
 }
 
-/// We install the reconciler to the Kubernetes cluster state machine spec
-/// TODO: develop a struct for the compound state machine and make reconciler its member
-/// so that we don't have to pass reconciler to init and next in the proof.
 pub open spec fn sm_spec() -> TempPred<Self> {
-    lift_state(Self::init()).and(Self::sm_partial_spec())
+    lift_state(Self::init()).and(always(lift_action(Self::next()))).and(Self::sm_wf_spec())
 }
 
-pub open spec fn sm_partial_spec() -> TempPred<Self> {
-    always(lift_action(Self::next()))
-    .and(tla_forall(|input| Self::kubernetes_api_next().weak_fairness(input)))
+pub open spec fn sm_wf_spec() -> TempPred<Self> {
+    tla_forall(|input| Self::kubernetes_api_next().weak_fairness(input))
     .and(tla_forall(|input| Self::builtin_controllers_next().weak_fairness(input)))
     .and(tla_forall(|input| Self::controller_next().weak_fairness(input)))
     .and(tla_forall(|input| Self::external_api_next().weak_fairness(input)))

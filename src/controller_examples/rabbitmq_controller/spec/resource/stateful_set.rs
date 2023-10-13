@@ -71,10 +71,8 @@ impl ResourceBuilder<RabbitmqClusterView, RabbitmqReconcileState> for StatefulSe
     }
 
     open spec fn unchangeable(object: DynamicObjectView, rabbitmq: RabbitmqClusterView) -> bool {
-        let sts = StatefulSetView::unmarshal(object).get_Ok_0();
-        let made_spec = make_stateful_set(rabbitmq, new_strlit("")@).spec.get_Some_0();
         &&& StatefulSetView::unmarshal(object).is_Ok()
-        &&& sts.spec.is_Some()
+        &&& StatefulSetView::unmarshal(object).get_Ok_0().spec.is_Some()
     }
 }
 
