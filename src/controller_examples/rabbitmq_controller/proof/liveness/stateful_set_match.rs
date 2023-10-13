@@ -146,16 +146,14 @@ proof fn lemma_from_after_get_stateful_set_step_and_key_exists_to_stateful_set_m
             lemma_from_key_exists_to_receives_ok_resp_at_after_get_stateful_set_step(spec, rabbitmq, req_msg);
         }
         leads_to_exists_intro(spec, pre1, post1);
-        assert_by(tla_exists(pre1) == stateful_set_not_matches,
-            {
-                assert forall |ex| #[trigger] stateful_set_not_matches.satisfied_by(ex)
-                implies tla_exists(pre1).satisfied_by(ex) by {
-                    let req_msg = ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
-                    assert(pre1(req_msg).satisfied_by(ex));
-                }
-                temp_pred_equality(tla_exists(pre1), stateful_set_not_matches);
+        assert_by(tla_exists(pre1) == stateful_set_not_matches, {
+            assert forall |ex| #[trigger] stateful_set_not_matches.satisfied_by(ex)
+            implies tla_exists(pre1).satisfied_by(ex) by {
+                let req_msg = ex.head().ongoing_reconciles()[rabbitmq.object_ref()].pending_req_msg.get_Some_0();
+                assert(pre1(req_msg).satisfied_by(ex));
             }
-        );
+            temp_pred_equality(tla_exists(pre1), stateful_set_not_matches);
+        });
 
         let pre2 = |resp_msg| lift_state(|s: RMQCluster| {
             &&& resp_msg_is_the_in_flight_ok_resp_at_after_get_resource_step(SubResource::StatefulSet, rabbitmq, resp_msg)(s)
@@ -304,6 +302,7 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
     spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView, resp_msg: RMQMessage
 )
     requires
+        rabbitmq.well_formed(),
         spec.entails(always(lift_action(RMQCluster::next()))),
         spec.entails(tla_forall(|i| RMQCluster::controller_next().weak_fairness(i))),
         spec.entails(always(lift_state(RMQCluster::crash_disabled()))),
@@ -321,7 +320,6 @@ proof fn lemma_from_after_get_stateful_set_step_to_after_update_stateful_set_ste
         spec.entails(always(lift_state(helper_invariants::object_in_etcd_satisfies_unchangeable(SubResource::StatefulSet, rabbitmq)))),
         spec.entails(always(lift_state(helper_invariants::stateful_set_in_etcd_satisfies_unchangeable(rabbitmq)))),
         spec.entails(always(lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)))),
-        rabbitmq.well_formed(),
     ensures
         spec.entails(
             lift_state(|s: RMQCluster| {
