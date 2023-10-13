@@ -230,38 +230,33 @@ proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(rabbitmq: Rab
             true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))
         ),
 {
-    let spec = assumption_and_invariants_of_all_phases(rabbitmq)
-        .and(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))))
-        .and(always(lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq))))
-        .and(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq))));
-
-    // Here we first prove spec |= []helper_invariants::cm_rv_stays_unchanged(rabbitmq) using invariant_n
-    // This requires us to first prove spec |= true ~> []sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq), which is from the precondition
-    // always_tla_forall_apply_for_sub_resource(spec, SubResource::ServerConfigMap, rabbitmq);
-    // let spec_action = |s: RMQCluster, s_prime: RMQCluster| {
-    //     &&& RMQCluster::next()(s, s_prime)
-    //     &&& RMQCluster::each_object_in_etcd_is_well_formed()(s)
-    //     &&& helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::ServerConfigMap, rabbitmq)(s)
-    //     &&& helper_invariants::no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)(s)
-    //     &&& helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)(s)
-    //     &&& sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)(s)
-    //     &&& helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)(s)
-    //     &&& helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq)(s)
-    // };
-    // invariant_n!(
-    //     spec, lift_action(spec_action), lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)),
-    //     lift_action(RMQCluster::next()),
-    //     lift_state(RMQCluster::each_object_in_etcd_is_well_formed()),
-    //     lift_state(helper_invariants::every_resource_update_request_implies_at_after_update_resource_step(SubResource::ServerConfigMap, rabbitmq)),
-    //     lift_state(helper_invariants::no_update_status_request_msg_in_flight_of_except_stateful_set(SubResource::ServerConfigMap, rabbitmq)),
-    //     lift_state(helper_invariants::no_delete_resource_request_msg_in_flight(SubResource::ServerConfigMap, rabbitmq)),
-    //     lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)),
-    //     lift_state(helper_invariants::resource_object_has_no_finalizers_or_timestamp_and_only_has_controller_owner_ref(SubResource::ServerConfigMap, rabbitmq)),
-    //     lift_state(helper_invariants::resource_object_only_has_owner_reference_pointing_to_current_cr(SubResource::ServerConfigMap, rabbitmq))
-    // );
-
-    // Now we will use the invariant helper_invariants::cm_rv_stays_unchanged(rabbitmq) to call prove stateful set eventually always matches
+    let spec1 = assumption_and_invariants_of_all_phases(rabbitmq);
+    let spec2 = spec1.and(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))));
+    always_tla_forall_apply_for_sub_resource(spec2, SubResource::ServerConfigMap, rabbitmq);
+    always_tla_forall_apply_for_sub_resource(spec2, SubResource::StatefulSet, rabbitmq);
+    helper_invariants::lemma_always_cm_rv_stays_unchanged(spec2, rabbitmq);
+    simplify_predicate(spec2, always(lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq))));
+    // Later we will use the invariant helper_invariants::cm_rv_stays_unchanged(rabbitmq) to call
+    // lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_more_status_update
+    let spec = spec2.and(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq))));
+    always_tla_forall_apply_for_sub_resource(spec, SubResource::ServerConfigMap, rabbitmq);
     always_tla_forall_apply_for_sub_resource(spec, SubResource::StatefulSet, rabbitmq);
+
+    assert_by(valid(stable(spec1)), {
+        assumption_and_invariants_of_all_phases_is_stable(rabbitmq);
+    });
+
+    assert_by(valid(stable(spec2)), {
+        always_p_is_stable(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)));
+        always_p_is_stable(lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq)));
+        stable_and_n!(spec1, always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))), always(lift_action(helper_invariants::cm_rv_stays_unchanged(rabbitmq))));
+    });
+
+    assert_by(valid(stable(spec)), {
+        always_p_is_stable(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq)));
+        stable_and_n!(spec2, always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq))));
+    });
+
     assert_by(spec.entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))), {
         // We first prove true ~> pending_req_in_flight_at_after_get_resource_step(SubResource::StatefulSet, rabbitmq)
         terminate::reconcile_eventually_terminates(spec, rabbitmq);
@@ -302,11 +297,18 @@ proof fn lemma_true_leads_to_always_state_matches_for_stateful_set(rabbitmq: Rab
         lemma_stateful_set_is_stable(spec, rabbitmq, true_pred());
     });
 
-    // Now we unpack the conditions to get the final proof goal
-    assumption_and_invariants_of_all_phases_is_stable(rabbitmq);
-    unpack_conditions_from_spec(assumption_and_invariants_of_all_phases(rabbitmq), always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))), true_pred(), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))));
-    temp_pred_equality(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))), true_pred().and(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)))));
-    leads_to_trans_temp(assumption_and_invariants_of_all_phases(rabbitmq), true_pred(), always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))
+    assert_by(spec2.entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))), {
+        unpack_conditions_from_spec(spec2, always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq))), true_pred(), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))));
+        temp_pred_equality(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq))), true_pred().and(always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq)))));
+        helper_invariants::lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_more_status_update(spec2, rabbitmq);
+        leads_to_trans_temp(spec2, true_pred(), always(lift_state(helper_invariants::stateful_set_not_exists_or_matches_or_no_more_status_update(rabbitmq))), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))));
+    });
+
+    assert_by(spec1.entails(true_pred().leads_to(always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))))), {
+        unpack_conditions_from_spec(spec1, always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))), true_pred(), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))));
+        temp_pred_equality(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))), true_pred().and(always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq)))));
+        leads_to_trans_temp(spec1, true_pred(), always(lift_state(sub_resource_state_matches(SubResource::ServerConfigMap, rabbitmq))), always(lift_state(sub_resource_state_matches(SubResource::StatefulSet, rabbitmq))));
+    });
 }
 
 proof fn lemma_from_reconcile_idle_to_scheduled(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)

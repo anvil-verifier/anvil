@@ -1487,7 +1487,7 @@ pub proof fn leads_to_always_tla_forall_subresource(spec: TempPred<RMQCluster>, 
 
 #[verifier(spinoff_prover)]
 pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_more_status_update(
-    spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView
+    spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView
 )
     requires
         rabbitmq.well_formed(),
@@ -1622,7 +1622,7 @@ pub proof fn lemma_eventually_always_stateful_set_not_exists_or_matches_or_no_mo
 }
 
 #[verifier(spinoff_prover)]
-pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<RMQCluster>, sub_resource: SubResource, rabbitmq: RabbitmqClusterView)
+pub proof fn lemma_always_cm_rv_stays_unchanged(spec: TempPred<RMQCluster>, rabbitmq: RabbitmqClusterView)
     requires
         rabbitmq.well_formed(),
         spec.entails(always(lift_action(RMQCluster::next()))),
