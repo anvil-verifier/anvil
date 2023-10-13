@@ -7,10 +7,13 @@ use crate::kubernetes_api_objects::{
     owner_reference::*, persistent_volume_claim::*, pod::*, pod_template_spec::*, prelude::*,
     resource::*, resource_requirements::*, volume::*,
 };
-use crate::reconciler::exec::{io::*, reconciler::*};
+use crate::zookeeper_controller::spec::resource as spec_resource;
+use crate::zookeeper_controller::spec::types as zk;
+use crate::reconciler::exec::{io::*, reconciler::*, resource_builder::*};
+use crate::reconciler::spec::resource_builder::ResourceBuilder as SpecResourceBuilder;
 use crate::vstd_ext::{string_map::*, string_view::*, to_view::*};
 use crate::zookeeper_controller::common::*;
-use crate::zookeeper_controller::exec::{types::*, zookeeper_api::*};
+use crate::zookeeper_controller::exec::{resource::*, types::*, zookeeper_api::*};
 use crate::zookeeper_controller::spec::reconciler as zk_spec;
 use vstd::prelude::*;
 use vstd::seq_lib::*;
@@ -18,26 +21,6 @@ use vstd::string::*;
 use vstd::view::*;
 
 verus! {
-
-/// ZookeeperReconcileState describes the local state with which the reconcile functions makes decisions.
-pub struct ZookeeperReconcileState {
-    // reconcile_step, like a program counter, is used to track the progress of reconcile_core
-    // since reconcile_core is frequently "trapped" into the controller_runtime spec.
-    pub reconcile_step: ZookeeperReconcileStep,
-    pub latest_config_map_rv_opt: Option<String>,
-}
-
-impl ZookeeperReconcileState {
-    pub open spec fn to_view(&self) -> zk_spec::ZookeeperReconcileState {
-        zk_spec::ZookeeperReconcileState {
-            reconcile_step: self.reconcile_step,
-            latest_config_map_rv_opt: match &self.latest_config_map_rv_opt {
-                Some(s) => Some(s@),
-                None => None,
-            },
-        }
-    }
-}
 
 pub struct ZookeeperReconciler {}
 
@@ -108,16 +91,21 @@ pub fn reconcile_core(
     let step = state.reconcile_step;
     match step {
         ZookeeperReconcileStep::Init => {
-            let req_o = KubeAPIRequest::GetRequest(KubeGetRequest {
-                api_resource: Service::api_resource(),
-                name: make_headless_service_name(zk),
-                namespace: zk.metadata().namespace().unwrap(),
-            });
+            let req_o = KubeAPIRequest::GetRequest(HeadlessServiceBuilder::get_request(zk));
             let state_prime = ZookeeperReconcileState {
-                reconcile_step: ZookeeperReconcileStep::AfterGetHeadlessService,
+                reconcile_step: RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, SubResource::HeadlessService),
                 ..state
             };
             return (state_prime, Some(Request::KRequest(req_o)));
+        },
+        RabbitmqReconcileStep::AfterKRequestStep(_, resource) => {
+            match resource {
+                SubResource::HeadlessService => reconcile_helper::<spec_resource::HeadlessServiceBuilder, HeadlessServiceBuilder>(zk, resp_o, state),
+                SubResource::ClientService => reconcile_helper::<spec_resource::ClientServiceBuilder, ClientServiceBuilder>(zk, resp_o, state),
+                SubResource::AdminServerService => reconcile_helper::<spec_resource::AdminServerServiceBuilder, AdminServerServiceBuilder>(zk, resp_o, state),
+                SubResource::ConfigMap => reconcile_helper::<spec_resource::ConfigMapBuilder, ConfigMapBuilder>(zk, resp_o, state),
+                SubResource::StatefulSet => reconcile_helper::<spec_resource::StatefulSetBuilder, StatefulSetBuilder>(zk, resp_o, state),
+            }
         },
         ZookeeperReconcileStep::AfterGetHeadlessService => {
             if resp_o.is_some() && resp_o.as_ref().unwrap().is_k_response()
@@ -841,6 +829,32 @@ fn update_zk_status(zk: &ZookeeperCluster, ready_replicas: i32) -> (updated_zk: 
         status
     });
     updated_zk
+}
+
+fn next_resource_get_step_and_request(zk: &RabbitmqCluster, sub_resource: SubResource) -> (res: (RabbitmqReconcileStep, Option<KubeGetRequest>))
+    requires
+        zk@.metadata.name.is_Some(),
+        zk@.metadata.namespace.is_Some(),
+    ensures
+        res.1.is_Some() == zk_spec::next_resource_get_step_and_request(zk@, sub_resource).1.is_Some(),
+        res.1.is_Some() ==> res.1.get_Some_0().to_view() == zk_spec::next_resource_get_step_and_request(zk@, sub_resource).1.get_Some_0(),
+        res.0 == zk_spec::next_resource_get_step_and_request(zk@, sub_resource).0,
+{
+    match sub_resource {
+        SubResource::HeadlessService => (after_get_k_request_step(SubResource::ClientService), Some(ClientServiceBuilder::get_request(zk))),
+        SubResource::ClientService => (after_get_k_request_step(SubResource::AdminServerService), Some(AdminServerServiceBuilder::get_request(zk))),
+        SubResource::AdminServerService => (after_get_k_request_step(SubResource::ConfigMap), Some(ConfigMapBuilder::get_request(zk))),
+        SubResource::ConfigMap => (RabbitmqReconcileStep::AfterGetStatefulSet, Some(StatefulSetBuilder::get_request(zk))),
+        (SubResource::AfterUpdateStatus, None),
+        _ => (RabbitmqReconcileStep::Done, None),
+    }
+}
+
+fn after_get_k_request_step(sub_resource: SubResource) -> (step: RabbitmqReconcileStep)
+    ensures
+        step == zk_spec::after_get_k_request_step(sub_resource),
+{
+    RabbitmqReconcileStep::AfterKRequestStep(ActionKind::Get, sub_resource)
 }
 
 }

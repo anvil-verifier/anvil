@@ -8,18 +8,19 @@ verus! {
 #[is_variant]
 pub enum ZookeeperReconcileStep {
     Init,
-    AfterGetHeadlessService,
-    AfterCreateHeadlessService,
-    AfterUpdateHeadlessService,
-    AfterGetClientService,
-    AfterCreateClientService,
-    AfterUpdateClientService,
-    AfterGetAdminServerService,
-    AfterCreateAdminServerService,
-    AfterUpdateAdminServerService,
-    AfterGetConfigMap,
-    AfterCreateConfigMap,
-    AfterUpdateConfigMap,
+    AfterKRequestStep(ActionKind, SubResource),
+    // AfterGetHeadlessService,
+    // AfterCreateHeadlessService,
+    // AfterUpdateHeadlessService,
+    // AfterGetClientService,
+    // AfterCreateClientService,
+    // AfterUpdateClientService,
+    // AfterGetAdminServerService,
+    // AfterCreateAdminServerService,
+    // AfterUpdateAdminServerService,
+    // AfterGetConfigMap,
+    // AfterCreateConfigMap,
+    // AfterUpdateConfigMap,
     AfterGetStatefulSet,
     AfterExistsZKNode,
     AfterCreateZKParentNode,
@@ -31,6 +32,34 @@ pub enum ZookeeperReconcileStep {
     AfterUpdateStatus,
     Done,
     Error,
+}
+
+impl std::marker::Copy for ZookeeperReconcileStep {}
+
+impl std::clone::Clone for ZookeeperReconcileStep {
+
+    #[verifier(external_body)]
+    fn clone(&self) -> (result: Self)
+        ensures result == self
+    {
+        *self
+    }
+}
+
+#[is_variant]
+pub enum ActionKind {
+    Get,
+    Update,
+    Create,
+}
+
+#[is_variant]
+pub enum SubResource {
+    HeadlessService,
+    ClientService,
+    AdminServerService,
+    ConfigMap,
+    StatefulSet,
 }
 
 #[is_variant]
@@ -61,6 +90,30 @@ impl std::fmt::Debug for ZKAPIError {
             ZKAPIError::ZKNodeCreateFailed => write!(f, "ZKNodeCreateFailed"),
             ZKAPIError::ZKNodeSetDataFailed => write!(f, "ZKNodeSetDataFailed"),
         }
+    }
+}
+
+impl std::marker::Copy for SubResource {}
+
+impl std::clone::Clone for SubResource {
+
+    #[verifier(external_body)]
+    fn clone(&self) -> (result: Self)
+        ensures result == self
+    {
+        *self
+    }
+}
+
+impl std::marker::Copy for ActionKind {}
+
+impl std::clone::Clone for ActionKind {
+
+    #[verifier(external_body)]
+    fn clone(&self) -> (result: Self)
+        ensures result == self
+    {
+        *self
     }
 }
 
